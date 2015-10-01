@@ -1402,6 +1402,6 @@ multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
     try {
         return sptr(new multi_usrp_impl(dev_addr));
     } catch (...) {
-        return sptr(new multi_crimson_impl(dev_addr));
+        return sptr(new multi_crimson(dev_addr));
     }
 }

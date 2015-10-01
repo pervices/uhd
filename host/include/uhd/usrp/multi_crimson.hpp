@@ -61,115 +61,136 @@ namespace uhd{ namespace usrp{
  *  where each dboard represents 1 RF chain.
  */
 
-class multi_crimson_impl : public multi_usrp{
+class multi_crimson : public multi_usrp{
 public:
-    multi_crimson_impl(const device_addr_t &addr);
+    typedef boost::shared_ptr<multi_crimson> sptr;
+
+    multi_crimson(const device_addr_t &addr);
+    ~multi_crimson(void);
     device::sptr get_device(void);
-    dict<std::string, std::string> get_usrp_rx_info(size_t chan);
-    dict<std::string, std::string> get_usrp_tx_info(size_t chan);
+    dict<std::string, std::string> get_usrp_rx_info(size_t chan = 0);
+    dict<std::string, std::string> get_usrp_tx_info(size_t chan = 0);
 
     /*******************************************************************
      * Mboard methods
      ******************************************************************/
-    void set_master_clock_rate(double rate, size_t mboard);
-    double get_master_clock_rate(size_t mboard);
+    void set_master_clock_rate(double rate, size_t mboard = 0);
+    double get_master_clock_rate(size_t mboard = 0);
     std::string get_pp_string(void);
-    std::string get_mboard_name(size_t mboard);
+    std::string get_mboard_name(size_t mboard = 0);
     time_spec_t get_time_now(size_t mboard = 0);
     time_spec_t get_time_last_pps(size_t mboard = 0);
-    void set_time_now(const time_spec_t &time_spec, size_t mboard);
-    void set_time_next_pps(const time_spec_t &time_spec, size_t mboard);
+    void set_time_now(const time_spec_t &time_spec, size_t mboard = 0);
+    void set_time_next_pps(const time_spec_t &time_spec, size_t mboard = 0);
     void set_time_unknown_pps(const time_spec_t &time_spec);
     bool get_time_synchronized(void);
-    void set_command_time(const time_spec_t &time_spec, size_t mboard);
-    void clear_command_time(size_t mboard);
-    void issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan);
-    void set_clock_config(const clock_config_t &clock_config, size_t mboard);
-    void set_time_source(const std::string &source, const size_t mboard);
-    std::string get_time_source(const size_t mboard);
-    std::vector<std::string> get_time_sources(const size_t mboard);
-    void set_clock_source(const std::string &source, const size_t mboard);
-    std::string get_clock_source(const size_t mboard);
-    std::vector<std::string> get_clock_sources(const size_t mboard);
-    void set_clock_source_out(const bool enb, const size_t mboard);
-    void set_time_source_out(const bool enb, const size_t mboard);
+    void set_command_time(const time_spec_t &time_spec, size_t mboard = 0);
+    void clear_command_time(size_t mboard = 0);
+    void issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan = 0);
+    void set_clock_config(const clock_config_t &clock_config, size_t mboard = 0);
+    void set_time_source(const std::string &source, const size_t mboard = 0);
+    std::string get_time_source(const size_t mboard = 0);
+    std::vector<std::string> get_time_sources(const size_t mboard = 0);
+    void set_clock_source(const std::string &source, const size_t mboard = 0);
+    std::string get_clock_source(const size_t mboard = 0);
+    std::vector<std::string> get_clock_sources(const size_t mboard = 0);
+    void set_clock_source_out(const bool enb, const size_t mboard = 0);
+    void set_time_source_out(const bool enb, const size_t mboard = 0);
     size_t get_num_mboards(void);
-    sensor_value_t get_mboard_sensor(const std::string &name, size_t mboard);
-    std::vector<std::string> get_mboard_sensor_names(size_t mboard);
-    void set_user_register(const boost::uint8_t addr, const boost::uint32_t data, size_t mboard);
+    sensor_value_t get_mboard_sensor(const std::string &name, size_t mboard = 0);
+    std::vector<std::string> get_mboard_sensor_names(size_t mboard = 0);
+    void set_user_register(const boost::uint8_t addr, const boost::uint32_t data, size_t mboard = 0);
 
     /*******************************************************************
      * RX methods
      ******************************************************************/
     rx_streamer::sptr get_rx_stream(const stream_args_t &args) ;
-    void set_rx_subdev_spec(const subdev_spec_t &spec, size_t mboard);
-    subdev_spec_t get_rx_subdev_spec(size_t mboard);
+    void set_rx_subdev_spec(const subdev_spec_t &spec, size_t mboard = 0);
+    subdev_spec_t get_rx_subdev_spec(size_t mboard = 0);
     size_t get_rx_num_channels(void);
-    std::string get_rx_subdev_name(size_t chan);
-    void set_rx_rate(double rate, size_t chan);
-    double get_rx_rate(size_t chan);
-    meta_range_t get_rx_rates(size_t chan);
-    tune_result_t set_rx_freq(const tune_request_t &tune_request, size_t chan);
-    double get_rx_freq(size_t chan);
-    freq_range_t get_rx_freq_range(size_t chan);
-    freq_range_t get_fe_rx_freq_range(size_t chan);
-    void set_rx_gain(double gain, const std::string &name, size_t chan);
-    double get_rx_gain(const std::string &name, size_t chan);
-    gain_range_t get_rx_gain_range(const std::string &name, size_t chan);
-    std::vector<std::string> get_rx_gain_names(size_t chan);
-    void set_rx_antenna(const std::string &ant, size_t chan);
-    std::string get_rx_antenna(size_t chan);
-    std::vector<std::string> get_rx_antennas(size_t chan);
-    void set_rx_bandwidth(double bandwidth, size_t chan);
-    double get_rx_bandwidth(size_t chan);
-    meta_range_t get_rx_bandwidth_range(size_t chan);
-    dboard_iface::sptr get_rx_dboard_iface(size_t chan);
-    sensor_value_t get_rx_sensor(const std::string &name, size_t chan);
-    std::vector<std::string> get_rx_sensor_names(size_t chan);
-    void set_rx_dc_offset(const bool enb, size_t chan);
-    void set_rx_dc_offset(const std::complex<double> &offset, size_t chan);
-    void set_rx_iq_balance(const std::complex<double> &offset, size_t chan);
+    std::string get_rx_subdev_name(size_t chan = 0);
+    void set_rx_rate(double rate, size_t chan = 0);
+    double get_rx_rate(size_t chan = 0);
+    meta_range_t get_rx_rates(size_t chan = 0);
+    tune_result_t set_rx_freq(const tune_request_t &tune_request, size_t chan = 0);
+    double get_rx_freq(size_t chan = 0);
+    freq_range_t get_rx_freq_range(size_t chan = 0);
+    freq_range_t get_fe_rx_freq_range(size_t chan = 0);
+    void set_rx_gain(double gain, const std::string &name, size_t chan = 0);
+    void set_rx_gain(double gain, size_t chan = 0){
+        return this->set_rx_gain(gain, "", chan);
+    }
+    double get_rx_gain(const std::string &name, size_t chan = 0);
+    double get_rx_gain(size_t chan = 0){
+        return this->get_rx_gain("", chan);
+    }
+    gain_range_t get_rx_gain_range(const std::string &name, size_t chan = 0);
+    gain_range_t get_rx_gain_range(size_t chan = 0){
+        return this->get_rx_gain_range("", chan);
+    }
+    std::vector<std::string> get_rx_gain_names(size_t chan = 0);
+    void set_rx_antenna(const std::string &ant, size_t chan = 0);
+    std::string get_rx_antenna(size_t chan = 0);
+    std::vector<std::string> get_rx_antennas(size_t chan = 0);
+    void set_rx_bandwidth(double bandwidth, size_t chan = 0);
+    double get_rx_bandwidth(size_t chan = 0);
+    meta_range_t get_rx_bandwidth_range(size_t chan = 0);
+    dboard_iface::sptr get_rx_dboard_iface(size_t chan = 0);
+    sensor_value_t get_rx_sensor(const std::string &name, size_t chan = 0);
+    std::vector<std::string> get_rx_sensor_names(size_t chan = 0);
+    void set_rx_dc_offset(const bool enb, size_t chan = 0);
+    void set_rx_dc_offset(const std::complex<double> &offset, size_t chan = 0);
+    void set_rx_iq_balance(const std::complex<double> &offset, size_t chan = 0);
 
     /*******************************************************************
      * TX methods
      ******************************************************************/
     tx_streamer::sptr get_tx_stream(const stream_args_t &args) ;
-    void set_tx_subdev_spec(const subdev_spec_t &spec, size_t mboard);
-    subdev_spec_t get_tx_subdev_spec(size_t mboard);
+    void set_tx_subdev_spec(const subdev_spec_t &spec, size_t mboard = 0);
+    subdev_spec_t get_tx_subdev_spec(size_t mboard = 0);
     size_t get_tx_num_channels(void);
-    std::string get_tx_subdev_name(size_t chan);
-    void set_tx_rate(double rate, size_t chan);
-    double get_tx_rate(size_t chan);
-    meta_range_t get_tx_rates(size_t chan);
-    tune_result_t set_tx_freq(const tune_request_t &tune_request, size_t chan);
-    double get_tx_freq(size_t chan);
-    freq_range_t get_tx_freq_range(size_t chan);
-    freq_range_t get_fe_tx_freq_range(size_t chan);
-    void set_tx_gain(double gain, const std::string &name, size_t chan);
-    double get_tx_gain(const std::string &name, size_t chan);
-    gain_range_t get_tx_gain_range(const std::string &name, size_t chan);
-    std::vector<std::string> get_tx_gain_names(size_t chan);
-    void set_tx_antenna(const std::string &ant, size_t chan);
-    std::string get_tx_antenna(size_t chan);
-    std::vector<std::string> get_tx_antennas(size_t chan);
-    void set_tx_bandwidth(double bandwidth, size_t chan);
-    double get_tx_bandwidth(size_t chan);
-    meta_range_t get_tx_bandwidth_range(size_t chan);
-    dboard_iface::sptr get_tx_dboard_iface(size_t chan);
-    sensor_value_t get_tx_sensor(const std::string &name, size_t chan);
-    std::vector<std::string> get_tx_sensor_names(size_t chan);
-    void set_tx_dc_offset(const std::complex<double> &offset, size_t chan);
-    void set_tx_iq_balance(const std::complex<double> &offset, size_t chan);
+    std::string get_tx_subdev_name(size_t chan = 0);
+    void set_tx_rate(double rate, size_t chan = 0);
+    double get_tx_rate(size_t chan = 0);
+    meta_range_t get_tx_rates(size_t chan = 0);
+    tune_result_t set_tx_freq(const tune_request_t &tune_request, size_t chan = 0);
+    double get_tx_freq(size_t chan = 0);
+    freq_range_t get_tx_freq_range(size_t chan = 0);
+    freq_range_t get_fe_tx_freq_range(size_t chan = 0);
+    void set_tx_gain(double gain, const std::string &name, size_t chan = 0);
+    void set_tx_gain(double gain, size_t chan = 0){
+        return this->set_tx_gain(gain, "", chan);
+    }
+    double get_tx_gain(const std::string &name, size_t chan = 0);
+    double get_tx_gain(size_t chan = 0){
+        return this->get_tx_gain("", chan);
+    }
+    gain_range_t get_tx_gain_range(const std::string &name, size_t chan = 0);
+    gain_range_t get_tx_gain_range(size_t chan = 0){
+        return this->get_tx_gain_range("", chan);
+    }
+    std::vector<std::string> get_tx_gain_names(size_t chan = 0);
+    void set_tx_antenna(const std::string &ant, size_t chan = 0);
+    std::string get_tx_antenna(size_t chan = 0);
+    std::vector<std::string> get_tx_antennas(size_t chan = 0);
+    void set_tx_bandwidth(double bandwidth, size_t chan = 0);
+    double get_tx_bandwidth(size_t chan = 0);
+    meta_range_t get_tx_bandwidth_range(size_t chan = 0);
+    dboard_iface::sptr get_tx_dboard_iface(size_t chan = 0);
+    sensor_value_t get_tx_sensor(const std::string &name, size_t chan = 0);
+    std::vector<std::string> get_tx_sensor_names(size_t chan = 0);
+    void set_tx_dc_offset(const std::complex<double> &offset, size_t chan = 0);
+    void set_tx_iq_balance(const std::complex<double> &offset, size_t chan = 0);
 
     /*******************************************************************
      * GPIO methods
      ******************************************************************/
     // not supported on Crimson
-    std::vector<std::string> get_gpio_banks(const size_t mboard);
+    std::vector<std::string> get_gpio_banks(const size_t mboard = 0);
     // not supported on Crimson
-    void set_gpio_attr(const std::string &bank, const std::string &attr, const boost::uint32_t value, const boost::uint32_t mask, const size_t mboard);
+    void set_gpio_attr(const std::string &bank, const std::string &attr, const boost::uint32_t value, const boost::uint32_t mask = 0xffffffff, const size_t mboard = 0);
     // no supported on Crimson
-    boost::uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard);
+    boost::uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0);
 
     /*******************************************************************
      * Crimson methods
