@@ -33,9 +33,8 @@
 #include <complex>
 #include <string>
 #include <vector>
-//#include "crimson/crimson_fw_common.hpp"
-#include "crimson/crimson_impl.hpp"
 #include <uhd/stream.hpp>
+#include <uhd/usrp/multi_usrp.hpp>
 
 namespace uhd{ namespace usrp{
 

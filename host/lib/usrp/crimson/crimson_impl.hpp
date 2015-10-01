@@ -38,6 +38,7 @@
 #include <uhd/stream.hpp>
 #include <uhd/types/metadata.hpp>
 #include <uhd/types/ranges.hpp>
+#include <uhd/usrp/multi_crimson.hpp>
 #include "crimson_fw_common.h"
 #include "crimson_iface.hpp"
 

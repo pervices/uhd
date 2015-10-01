@@ -17,6 +17,7 @@
 
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
+#include <uhd/usrp/multi_crimson.hpp>
 #include <uhd/utils/msg.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
@@ -31,7 +32,10 @@
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <cmath>
-#include "multi_crimson.hpp"
+
+#define CRIMSON_MASTER_CLOCK_RATE	322265625
+#define CRIMSON_RX_CHANNELS 4
+#define CRIMSON_TX_CHANNELS 4
 
 using namespace uhd;
 using namespace uhd::usrp;
