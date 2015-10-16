@@ -407,6 +407,12 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
     TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "sw_version", "fpga/about/sw_ver", std::string, string);
+    TREE_CREATE_RW(mb_path / "blink", "fpga/board/led", int, int);
+    TREE_CREATE_RW(mb_path / "temp", "fpga/board/temp", std::string, string);
+
+    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", int, int);
+    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
+    TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);

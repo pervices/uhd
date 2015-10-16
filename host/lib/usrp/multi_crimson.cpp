@@ -31,6 +31,8 @@
 #include <boost/thread.hpp>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
+#include <boost/tokenizer.hpp>
+#include <iostream>
 #include <cmath>
 
 #define CRIMSON_MASTER_CLOCK_RATE	322265625
@@ -188,6 +190,60 @@ std::string multi_crimson::get_mboard_name(size_t mboard){
     return _tree->access<std::string>(mb_root(0) / "name").get();
 }
 
+// Get Digital Board FPGA Temperature
+uint32_t multi_crimson::get_mboard_fpga_temp() {
+    uint32_t ret = 0;
+    std::string FPGA_TEMP_TOKEN = "FPGA:";
+
+    // Initiate dual cycle update
+    _tree->access<std::string>(mb_root(0) / "temp").set("0");
+    std::string temp_str = _tree->access<std::string>(mb_root(0) / "temp").get();
+
+    // initialize tokenizer
+    typedef boost::tokenizer< boost::char_separator<char> > tokenizer;
+    boost::char_separator<char> sep(" ");
+    tokenizer tokens(temp_str, sep);
+
+    for (tokenizer::iterator iter = tokens.begin(); iter != tokens.end(); ++iter) {
+	std::string token = *iter;
+	if (token == FPGA_TEMP_TOKEN) {
+	    ++iter;
+	    token = *iter;
+	    sscanf(token.c_str(), "%i", &ret);
+	    break;
+	}
+    }
+
+    return ret;
+}
+
+// Get Digital Board MCU Temperature
+uint32_t multi_crimson::get_mboard_mcu_temp() {
+    uint32_t ret = 0;
+    std::string MCU_TEMP_TOKEN = "MCU:";
+
+    // Initiate dual cycle update
+    _tree->access<std::string>(mb_root(0) / "temp").set("0");
+    std::string temp_str = _tree->access<std::string>(mb_root(0) / "temp").get();
+
+    // initialize tokenizer
+    typedef boost::tokenizer< boost::char_separator<char> > tokenizer;
+    boost::char_separator<char> sep(" ");
+    tokenizer tokens(temp_str, sep);
+
+    for (tokenizer::iterator iter = tokens.begin(); iter != tokens.end(); ++iter) {
+	std::string token = *iter;
+	if (token == MCU_TEMP_TOKEN) {
+	    ++iter;
+	    token = *iter;
+	    sscanf(token.c_str(), "%i", &ret);
+	    break;
+	}
+    }
+
+    return ret;
+}
+
 // Get the current time on Crimson
 time_spec_t multi_crimson::get_time_now(size_t mboard){
     return _tree->access<time_spec_t>(mb_root(0) / "time/now").get();
@@ -212,8 +268,35 @@ void multi_crimson::set_time_next_pps(const time_spec_t &time_spec, size_t mboar
 
 void multi_crimson::set_time_unknown_pps(const time_spec_t &time_spec){
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    _tree->access<int>(mb_root(0) / "blink").set(5);
+    sleep(1);
+    _tree->access<std::string>(mb_root(0) / "temp").set("0");
+    sleep(1);
+    std::cout << "FPGA TEMPERATURE: " << _tree->access<std::string>(mb_root(0) / "temp").get() << std::endl;
+    sleep(1);
 }
+
+void multi_crimson::set_gps_time(const time_spec_t &time_spec) {
+    _tree->access<int>(mb_root(0) / "gps_sync_time").set(0);
+}
+
+time_spec_t multi_crimson::get_gps_time(const time_spec_t &time_spec) {
+    // TODO: To be implemented
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    _tree->access<int>(mb_root(0) / "gps_time").set(0);
+    _tree->access<int>(mb_root(0) / "gps_frac_time").set(0);
+    sleep(1);
+    
+    time_t gps_time = (time_t) _tree->access<int>(mb_root(0) / "gps_time").get();
+    double gps_frac_time = (double) _tree->access<int>(mb_root(0) / "gps_frac_time").get();
+
+    std::cout << "FPGA GPS TIME: "	<< gps_time	 << std::endl;
+    std::cout << "FPGA GPS FRAC TIME: " << gps_frac_time << std::endl;
+
+    return time_spec_t(gps_time, gps_frac_time);
+}
+
 
 bool multi_crimson::get_time_synchronized(void){
     // Not implemented
