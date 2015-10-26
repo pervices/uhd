@@ -234,7 +234,6 @@ public:
 				//each element in the buffer is 2 samples worth
 				time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
 				_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
-				_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15,0);
 			}
 
 			//Flow control init
@@ -249,7 +248,7 @@ public:
 
 				//If greater then max pl copy over what you can, leave the rest
 				if (remaining_bytes >=CRIMSON_MAX_MTU){
-						if (!(time_spec_t::get_system_time() < _timer_tofreerun))
+						if (_en_fc == true)
 						while ( time_spec_t::get_system_time() < _last_time[i]) {
 							update_samplerate();
 							time_spec_t systime = time_spec_t::get_system_time();
@@ -269,7 +268,7 @@ public:
 
 				}else{
 
-					if (!(time_spec_t::get_system_time() < _timer_tofreerun))
+					if (_en_fc == true)
 						while ( time_spec_t::get_system_time() < _last_time[i]) {
 							update_samplerate();
 							time_spec_t systime = time_spec_t::get_system_time();
@@ -300,7 +299,10 @@ public:
 	bool recv_async_msg( async_metadata_t &async_metadata, double timeout = 0.1) {
 		return false;
 	}
+	void disable_fc(){
+		_en_fc = false;
 
+	}
 private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm) {
@@ -344,6 +346,7 @@ private:
 			_buffer_count[1] = 0;
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
+			_en_fc=true;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
@@ -390,10 +393,6 @@ private:
 			txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
 			//unlock
 			txstream->_flowcontrol_mutex.unlock();
-
-
-			//sleep for the designated update period
-			boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 		}
 
 
@@ -451,6 +450,7 @@ private:
 	boost::mutex* _udp_mutex_add;
 	std::vector<int>* _async_comm;
 	double _fifo_level_perc;
+	bool _en_fc;
 
 	//debug
 
