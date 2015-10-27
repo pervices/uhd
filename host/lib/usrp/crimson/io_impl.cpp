@@ -392,7 +392,7 @@ private:
 			txstream->_buffer_count[0]++;
 
 			//If under run, tell user
-			if (txstream->_fifo_lvl[0] < 1)
+			if (txstream->_fifo_lvl[0] >=0 && txstream->_fifo_lvl[0] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
 			//unlock
 			txstream->_flowcontrol_mutex.unlock();
