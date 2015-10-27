@@ -90,7 +90,10 @@ public:
 
 			// read in vita_pck*4 bytes to temp buffer
 			nbytes = _udp_stream[i] -> stream_in(vita_buf, vita_pck * 4, timeout);
-			if (nbytes == 0) return 0;
+			if (nbytes == 0) {
+				metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
+				return 0;
+			}
 
 			// copy non-vita packets to buffs[0]
 			memcpy(buffs[i], vita_buf + vita_hdr , nsamps_per_buff * 4);
