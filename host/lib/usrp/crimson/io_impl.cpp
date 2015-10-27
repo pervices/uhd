@@ -411,9 +411,9 @@ private:
 				if(_flowcontrol_mutex.try_lock()){
 
 					// calculate the error - aim for 50%
-					_fifo_lvl[i] = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[i]) / (CRIMSON_BUFF_SIZE);
+					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[i]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
-					_samp_rate[i]=_samp_rate[i]+(_fifo_lvl[i]*_samp_rate[i])/10000000;
+					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/10000000;
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
