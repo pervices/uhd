@@ -390,9 +390,12 @@ private:
 
 			//If under run, tell user
 			if (txstream->_fifo_lvl[0] < 1)
-			txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
+				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
 			//unlock
 			txstream->_flowcontrol_mutex.unlock();
+
+			//Sleep for desired time
+			boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 		}
 
 
