@@ -349,7 +349,7 @@ private:
 			_buffer_count[1] = 0;
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
-			_en_fc=true;
+			_en_fc=false;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
