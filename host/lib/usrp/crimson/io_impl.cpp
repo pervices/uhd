@@ -476,9 +476,9 @@ bool crimson_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
 	if (!_async_comm.empty()){
-		async_metadata.event_code = (async_metadata_t::event_code_t)_async_comm.front();
+	//	async_metadata.event_code = (async_metadata_t::event_code_t)_async_comm.front();
 		_async_comm.erase(_async_comm.begin());
-		return true;
+	//	return true;
 	}
     return false;
 }
