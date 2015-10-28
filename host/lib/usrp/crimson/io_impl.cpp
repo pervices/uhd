@@ -237,7 +237,7 @@ public:
 				//each element in the buffer is 2 samples worth
 				time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
 				_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
-				_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
+				//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 			}
 
 			//Flow control init
@@ -247,7 +247,7 @@ public:
 			memset((void*)vita_buf, 0, vita_pck*4);
 			memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
 
-			if (time_spec_t::get_system_time() > _timer_tofreerun) _en_fc = true;
+			//if (time_spec_t::get_system_time() > _timer_tofreerun) _en_fc = true;
 			//Check if it is time to send data, if so, copy the data over and continue
 			size_t remaining_bytes = (nsamps_per_buff*4);
 			while (remaining_bytes >0){
@@ -355,7 +355,7 @@ private:
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
 			_async_mutex = async_mutex;
-			_en_fc=false;
+			_en_fc=true;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
