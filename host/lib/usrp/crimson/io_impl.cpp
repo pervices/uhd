@@ -189,12 +189,12 @@ private:
 
 class crimson_tx_streamer : public uhd::tx_streamer {
 public:
-	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels, boost::mutex* udp_mutex_add, std::vector<int>* async_comm) {
-		init_tx_streamer(addr, tree, channels, udp_mutex_add, async_comm);
+	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex) {
+		init_tx_streamer(addr, tree, channels, udp_mutex_add, async_comm, async_mutex);
 	}
 
-	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, boost::mutex* udp_mutex_add, std::vector<int>* async_comm) {
-		init_tx_streamer(addr, tree, std::vector<size_t>(1, 0), udp_mutex_add, async_comm);
+	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex) {
+		init_tx_streamer(addr, tree, std::vector<size_t>(1, 0), udp_mutex_add, async_comm, async_mutex);
 	}
 
 	~crimson_tx_streamer() {
@@ -313,7 +313,7 @@ public:
 	}
 private:
 	// init function, common to both constructors
-	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm) {
+	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -354,6 +354,7 @@ private:
 			_buffer_count[1] = 0;
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
+			_async_mutex = async_mutex;
 			_en_fc=false;
 
 			// initialize sample rate
@@ -395,11 +396,12 @@ private:
 			}
 			//increment buffer count to say we have data
 			txstream->_buffer_count[0]++;
-
+			txstream->_async_mutex->lock();
 			//If under run, tell user
 			if (txstream->_fifo_lvl[0] >=0 && txstream->_fifo_lvl[0] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
 			//unlock
+			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
 
 			//Sleep for desired time
@@ -459,6 +461,7 @@ private:
 	uint32_t _buffer_count[2];
 	bool _flow_running;
 	boost::mutex* _udp_mutex_add;
+	boost::mutex* _async_mutex;
 	std::vector<int>* _async_comm;
 	double _fifo_level_perc;
 	bool _en_fc;
@@ -475,11 +478,14 @@ private:
 bool crimson_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
+
+	_async_mutex.lock();
 	if (!_async_comm.empty()){
 	//	async_metadata.event_code = (async_metadata_t::event_code_t)_async_comm.front();
 		_async_comm.erase(_async_comm.begin());
 	//	return true;
 	}
+	_async_mutex.unlock();
     return false;
 }
 
@@ -536,5 +542,5 @@ tx_streamer::sptr crimson_impl::get_tx_stream(const uhd::stream_args_t &args){
 	UHD_MSG(status) << base_message.str();
 
 	// TODO firmware support for other otw_format, cpu_format
-	return tx_streamer::sptr(new crimson_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm));
+	return tx_streamer::sptr(new crimson_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex));
 }

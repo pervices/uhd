@@ -130,6 +130,7 @@ private:
     uhd::wb_iface::sptr _iface;
 
     boost::mutex _udp_mutex;
+    boost::mutex _async_mutex;
     std::vector<int> _async_comm;
 };
 
