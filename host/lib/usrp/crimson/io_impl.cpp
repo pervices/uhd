@@ -241,7 +241,7 @@ public:
 
 			//Flow control init
 			//check if flow control is running, if not run it
-			//if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
+			if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
 
 			memset((void*)vita_buf, 0, vita_pck*4);
 			memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
@@ -251,7 +251,7 @@ public:
 
 				//If greater then max pl copy over what you can, leave the rest
 				if (remaining_bytes >=CRIMSON_MAX_MTU){
-						/*if (_en_fc == true)
+						if (_en_fc == true)
 						while ( time_spec_t::get_system_time() < _last_time[i]) {
 							update_samplerate();
 							time_spec_t systime = time_spec_t::get_system_time();
@@ -260,18 +260,18 @@ public:
 							if (systime_real < last_time_real){
 								boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
 							}
-						}*/
+						}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
 
 						//update last_time with when it was supposed to have been sent:
-						//time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
-						//_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+						_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 
 				}else{
 
-				/*	if (_en_fc == true)
+					if (_en_fc == true)
 						while ( time_spec_t::get_system_time() < _last_time[i]) {
 							update_samplerate();
 							time_spec_t systime = time_spec_t::get_system_time();
@@ -280,13 +280,13 @@ public:
 							if (systime_real < last_time_real){
 								boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
 							}
-						}*/
+						}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
 
 						//update last_time with when it was supposed to have been sent:
-					//	time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
-					//	_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
+						_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						//Send data (byte operation)
 
 				}
