@@ -241,7 +241,7 @@ public:
 
 			//Flow control init
 			//check if flow control is running, if not run it
-			if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
+			//if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
 
 			memset((void*)vita_buf, 0, vita_pck*4);
 			memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
@@ -349,7 +349,7 @@ private:
 			_buffer_count[1] = 0;
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
-			_en_fc=false;
+			_en_fc=true;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
