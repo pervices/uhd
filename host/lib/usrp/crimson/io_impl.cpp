@@ -247,7 +247,7 @@ public:
 			memset((void*)vita_buf, 0, vita_pck*4);
 			memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
 
-			if (time_spec_t::get_system_time() > _timer_tofreerun)_en_fc = true;
+			if (time_spec_t::get_system_time() > _timer_tofreerun) {_en_fc = true; _last_time[i] = time_spec_t::get_system_time();}
 			//Check if it is time to send data, if so, copy the data over and continue
 			size_t remaining_bytes = (nsamps_per_buff*4);
 			while (remaining_bytes >0){
