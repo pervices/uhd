@@ -355,7 +355,7 @@ private:
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
 			_async_mutex = async_mutex;
-			_en_fc=false;
+			_en_fc=true;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
@@ -424,7 +424,7 @@ private:
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = _samp_rate[i]/1000000;
+					double max_corr =CRIMSON_BUFF_SIZE;// _samp_rate[i]/1000000;
 					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
 					if(_samp_rate[i] > (_samp_rate_usr[i] + max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] + max_corr;
