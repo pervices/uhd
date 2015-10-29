@@ -420,12 +420,12 @@ private:
 					// calculate the error - aim for 50%
 					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[i]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
-					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/10000000;
+					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/5000000;
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = _samp_rate_usr[i]/1000000;
-					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
+					double max_corr = CRIMSON_BUFF_SIZE;//_samp_rate_usr[i]/1000000;
+					//if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
 					if(_samp_rate[i] > (_samp_rate_usr[i] + max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] + max_corr;
 					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
