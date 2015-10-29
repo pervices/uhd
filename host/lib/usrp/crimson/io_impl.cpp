@@ -257,12 +257,12 @@ public:
 						if (_en_fc == true)
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
 								update_samplerate();
-								time_spec_t systime = time_spec_t::get_system_time();
-								double systime_real = systime.get_real_secs();
-								double last_time_real = _last_time[i].get_real_secs();
-								if (systime_real < last_time_real){
-									boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-								}
+							//	time_spec_t systime = time_spec_t::get_system_time();
+								//double systime_real = systime.get_real_secs();
+								//double last_time_real = _last_time[i].get_real_secs();
+								//if (systime_real < last_time_real){
+								//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+							//	}
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
@@ -277,13 +277,13 @@ public:
 
 					if (_en_fc == true)
 						while ( time_spec_t::get_system_time() < _last_time[i]) {
-							update_samplerate();
-							time_spec_t systime = time_spec_t::get_system_time();
-							double systime_real = systime.get_real_secs();
-							double last_time_real = _last_time[i].get_real_secs();
-							if (systime_real < last_time_real){
-								boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-							}
+							//update_samplerate();
+							//time_spec_t systime = time_spec_t::get_system_time();
+							//double systime_real = systime.get_real_secs();
+							//double last_time_real = _last_time[i].get_real_secs();
+							//if (systime_real < last_time_real){
+							//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+							//}
 						}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
@@ -431,6 +431,17 @@ private:
 					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
 					}
+
+					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
+						time_spec_t lvl_adjust = time_spec_t(0,
+								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2) / (double)_samp_rate[i]);
+						_last_time[i] = _last_time[i] + lvl_adjust;
+					}else{
+						time_spec_t lvl_adjust = time_spec_t(0,
+								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*2) / (double)_samp_rate[i]);
+						_last_time[i] = _last_time[i] - lvl_adjust;
+					}
+
 
 					//Buffer is now handled
 					_buffer_count[i+1] = _buffer_count[0];
