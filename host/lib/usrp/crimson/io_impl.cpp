@@ -424,7 +424,7 @@ private:
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr =CRIMSON_BUFF_SIZE;// _samp_rate[i]/1000000;
+					double max_corr = _samp_rate_usr[i]/1000000;
 					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
 					if(_samp_rate[i] > (_samp_rate_usr[i] + max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] + max_corr;
