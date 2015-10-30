@@ -412,10 +412,10 @@ private:
 
 	}
 	void update_samplerate(){
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			if(_buffer_count[0]!=_buffer_count[1]){
+		if(_buffer_count[0]!=_buffer_count[1]){
+			if(_flowcontrol_mutex.try_lock()){
+				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
-				if(_flowcontrol_mutex.try_lock()){
 
 					// calculate the error - aim for 50%
 					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[i]) / (CRIMSON_BUFF_SIZE);
@@ -431,7 +431,8 @@ private:
 					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
 					}
-
+					if(i==0)
+					std::cout << "FIFO LEVEL : "<<_fifo_lvl[i]<<"  Half : "<<(CRIMSON_BUFF_SIZE*_fifo_level_perc/100)<<std::endl;
 					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
 								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2) / (double)_samp_rate[i]);
@@ -443,10 +444,10 @@ private:
 					}
 
 
-					//Buffer is now handled
-					_buffer_count[i+1] = _buffer_count[0];
-					_flowcontrol_mutex.unlock();
 				}
+				//Buffer is now handled
+				_buffer_count[1] = _buffer_count[0];
+				_flowcontrol_mutex.unlock();
 			}
 		}
 
