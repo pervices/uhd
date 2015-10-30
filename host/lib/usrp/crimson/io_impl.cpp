@@ -251,22 +251,17 @@ public:
 			//Check if it is time to send data, if so, copy the data over and continue
 			size_t remaining_bytes = (nsamps_per_buff*4);
 			while (remaining_bytes >0){
-				std::cout << "time_spec_t::get_system_time().get_frac_secs()  : "<< time_spec_t::get_system_time().get_frac_secs() <<
-						"   _last_time[i].get_frac_secs() : "<< _last_time[i].get_frac_secs()<<std::endl;
-				std::cout << "time_spec_t::get_system_time().get_full_secs()  : "<< time_spec_t::get_system_time().get_full_secs() <<
-						"   _last_time[i].get_full_secs() : "<< _last_time[i].get_full_secs()<<std::endl;
-
 				//If greater then max pl copy over what you can, leave the rest
 				if (remaining_bytes >=CRIMSON_MAX_MTU){
 						if (_en_fc == true)
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
 								update_samplerate();
-							//	time_spec_t systime = time_spec_t::get_system_time();
-								//double systime_real = systime.get_real_secs();
-								//double last_time_real = _last_time[i].get_real_secs();
-								//if (systime_real < last_time_real){
-								//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-							//	}
+								time_spec_t systime = time_spec_t::get_system_time();
+								double systime_real = systime.get_real_secs();
+								double last_time_real = _last_time[i].get_real_secs();
+								if (systime_real < last_time_real){
+									boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+								}
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
@@ -281,13 +276,13 @@ public:
 
 					if (_en_fc == true)
 						while ( time_spec_t::get_system_time() < _last_time[i]) {
-							//update_samplerate();
-							//time_spec_t systime = time_spec_t::get_system_time();
-							//double systime_real = systime.get_real_secs();
-							//double last_time_real = _last_time[i].get_real_secs();
-							//if (systime_real < last_time_real){
-							//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-							//}
+							update_samplerate();
+							time_spec_t systime = time_spec_t::get_system_time();
+							double systime_real = systime.get_real_secs();
+							double last_time_real = _last_time[i].get_real_secs();
+							if (systime_real < last_time_real){
+								boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+							}
 						}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
@@ -416,9 +411,8 @@ private:
 
 	}
 	void update_samplerate(){
-		std::cout<<"Entering update routine    Update happened:  "<< _buffer_count[0]<<"   "<<_buffer_count[1]<<std::endl;
 		int timeout = 0;
-		while((_buffer_count[0]!=_buffer_count[1]) || (timeout<10)){
+		while((_buffer_count[0]!=_buffer_count[1]) || (timeout<3)){
 			if(_flowcontrol_mutex.try_lock()){
 				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
@@ -438,14 +432,13 @@ private:
 						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
 					}
 					if(i==0)
-					std::cout << "FIFO LEVEL : "<<_fifo_lvl[i]<<"  Half : "<<(CRIMSON_BUFF_SIZE*_fifo_level_perc/100)<<std::endl;
 					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
-								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2) / (double)_samp_rate[i]);
+								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*1.5) / (double)_samp_rate[i]);
 						_last_time[i] = _last_time[i] + lvl_adjust;
 					}else{
 						time_spec_t lvl_adjust = time_spec_t(0,
-								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*2) / (double)_samp_rate[i]);
+								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*1.5) / (double)_samp_rate[i]);
 						_last_time[i] = _last_time[i] - lvl_adjust;
 					}
 
@@ -456,7 +449,6 @@ private:
 				_flowcontrol_mutex.unlock();
 			} else timeout+=1;
 		}
-		if (timeout == 10) std::cout<<"Update timeout"<<std::endl;
 
 	}
 	// helper function to swap bytes, within 32-bits
