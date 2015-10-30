@@ -414,7 +414,8 @@ private:
 
 	}
 	void update_samplerate(){
-		if(_buffer_count[0]!=_buffer_count[1]){
+		int timeout = 0;
+		while((_buffer_count[0]!=_buffer_count[1]) || (timeout<10)){
 			if(_flowcontrol_mutex.try_lock()){
 				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
@@ -450,8 +451,9 @@ private:
 				//Buffer is now handled
 				_buffer_count[1] = _buffer_count[0];
 				_flowcontrol_mutex.unlock();
-			}
+			} else timeout+=1;
 		}
+		if (timeout == 10) std::cout<<"Update timeout"<<std::endl;
 
 	}
 	// helper function to swap bytes, within 32-bits
