@@ -236,7 +236,7 @@ public:
 				//we do this by setting setting the "last time " data was sent to be half a buffers worth in the past
 				//each element in the buffer is 2 samples worth
 				time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
-				_last_time[i] = time_spec_t::get_system_time();//-past_halfbuffer;
+				_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
 				//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 			}
 
@@ -361,7 +361,7 @@ private:
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
-			_fifo_level_perc = 50;
+			_fifo_level_perc = 92;
 
 		}
 	}
