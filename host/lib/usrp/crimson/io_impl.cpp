@@ -256,12 +256,12 @@ public:
 						if (_en_fc == true)
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
 								update_samplerate();
-								time_spec_t systime = time_spec_t::get_system_time();
-								double systime_real = systime.get_real_secs();
-								double last_time_real = _last_time[i].get_real_secs();
-								if (systime_real < last_time_real){
-									boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-								}
+								//time_spec_t systime = time_spec_t::get_system_time();
+								//double systime_real = systime.get_real_secs();
+								//double last_time_real = _last_time[i].get_real_secs();
+								//if (systime_real < last_time_real){
+								//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+								//}
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
@@ -277,12 +277,12 @@ public:
 					if (_en_fc == true)
 						while ( time_spec_t::get_system_time() < _last_time[i]) {
 							update_samplerate();
-							time_spec_t systime = time_spec_t::get_system_time();
-							double systime_real = systime.get_real_secs();
-							double last_time_real = _last_time[i].get_real_secs();
-							if (systime_real < last_time_real){
-								boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-							}
+						//	time_spec_t systime = time_spec_t::get_system_time();
+						//	double systime_real = systime.get_real_secs();
+						//	double last_time_real = _last_time[i].get_real_secs();
+						//	if (systime_real < last_time_real){
+						//		boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+							//}
 						}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
@@ -412,7 +412,7 @@ private:
 	}
 	void update_samplerate(){
 		int timeout = 0;
-		while((_buffer_count[0]!=_buffer_count[1]) || (timeout<3)){
+		if(_buffer_count[0]!=_buffer_count[1]){
 			if(_flowcontrol_mutex.try_lock()){
 				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
@@ -446,7 +446,7 @@ private:
 				//Buffer is now handled
 				_buffer_count[1] = _buffer_count[0];
 				_flowcontrol_mutex.unlock();
-			} else timeout+=1;
+			}
 		}
 
 	}
