@@ -431,16 +431,15 @@ private:
 					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
 					}
-					if(i==0)
-					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
-						time_spec_t lvl_adjust = time_spec_t(0,
-								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*1.5) / (double)_samp_rate[i]);
-						_last_time[i] = _last_time[i] + lvl_adjust;
-					}else{
-						time_spec_t lvl_adjust = time_spec_t(0,
-								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*1.5) / (double)_samp_rate[i]);
-						_last_time[i] = _last_time[i] - lvl_adjust;
-					}
+					//if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
+					//	time_spec_t lvl_adjust = time_spec_t(0,
+					//			((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*1.5) / (double)_samp_rate[i]);
+					//	_last_time[i] = _last_time[i] + lvl_adjust;
+					//}else{
+					//	time_spec_t lvl_adjust = time_spec_t(0,
+					//			(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*1.5) / (double)_samp_rate[i]);
+					//	_last_time[i] = _last_time[i] - lvl_adjust;
+					//}
 
 
 				}
