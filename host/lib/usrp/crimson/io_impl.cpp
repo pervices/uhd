@@ -431,13 +431,15 @@ private:
 						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
 					}
 
+					//Adjust last time to try and correct to 50%
+					//The adjust is 1/20th as that is the update period
 					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
-								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*1.5) / (double)_samp_rate[i]);
+								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[i]);
 						_last_time[i] = _last_time[i] + lvl_adjust;
 					}else{
 						time_spec_t lvl_adjust = time_spec_t(0,
-								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*1.5) / (double)_samp_rate[i]);
+								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*2/20) / (double)_samp_rate[i]);
 						_last_time[i] = _last_time[i] - lvl_adjust;
 					}
 
