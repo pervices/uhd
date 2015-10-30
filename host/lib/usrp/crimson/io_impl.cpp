@@ -251,8 +251,10 @@ public:
 			//Check if it is time to send data, if so, copy the data over and continue
 			size_t remaining_bytes = (nsamps_per_buff*4);
 			while (remaining_bytes >0){
-				std::cout << "time_spec_t::get_system_time()  : "<< time_spec_t::get_system_time().get_frac_secs() <<
-						"   _last_time[i] : "<< _last_time[i].get_frac_secs()<<std::endl;
+				std::cout << "time_spec_t::get_system_time().get_frac_secs()  : "<< time_spec_t::get_system_time().get_frac_secs() <<
+						"   _last_time[i].get_frac_secs() : "<< _last_time[i].get_frac_secs()<<std::endl;
+				std::cout << "time_spec_t::get_system_time().get_full_secs()  : "<< time_spec_t::get_system_time().get_full_secs() <<
+						"   _last_time[i].get_full_secs() : "<< _last_time[i].get_full_secs()<<std::endl;
 
 				//If greater then max pl copy over what you can, leave the rest
 				if (remaining_bytes >=CRIMSON_MAX_MTU){
