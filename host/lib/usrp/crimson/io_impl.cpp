@@ -251,6 +251,8 @@ public:
 			//Check if it is time to send data, if so, copy the data over and continue
 			size_t remaining_bytes = (nsamps_per_buff*4);
 			while (remaining_bytes >0){
+				std::cout << "time_spec_t::get_system_time()  : "<< time_spec_t::get_system_time().get_frac_secs() <<
+						"   _last_time[i] : "<< _last_time[i].get_frac_secs()<<std::endl;
 
 				//If greater then max pl copy over what you can, leave the rest
 				if (remaining_bytes >=CRIMSON_MAX_MTU){
@@ -420,7 +422,7 @@ private:
 					// calculate the error - aim for 50%
 					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[i]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
-					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/5000000;
+					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/10000000;
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
