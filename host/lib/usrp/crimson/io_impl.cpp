@@ -291,7 +291,6 @@ public:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						else _last_time[i] = time_spec_t::get_system_time();
-						//Send data (byte operation)
 
 				}
 				remaining_bytes = (nsamps_per_buff*4) - ret;
@@ -412,8 +411,8 @@ private:
 	}
 	void update_samplerate(){
 		int timeout = 0;
-		if(_buffer_count[0]!=_buffer_count[1]){
-			if(_flowcontrol_mutex.try_lock()){
+		if(_flowcontrol_mutex.try_lock()){
+			if(_buffer_count[0]!=_buffer_count[1]){
 				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
 
@@ -431,6 +430,13 @@ private:
 					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
 					}
+
+
+					std::cout << "_fifo_lvl[i]  : "<<_fifo_lvl[i] <<std::endl;
+					std::cout << "_last_time[i].get_full_secs() :  : "<< _last_time[i].get_full_secs() <<
+							"   _last_time[i].get_frac_secs() : "<< _last_time[i].get_frac_secs()<<std::endl;
+
+
 					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
 								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*1.5) / (double)_samp_rate[i]);
@@ -445,8 +451,8 @@ private:
 				}
 				//Buffer is now handled
 				_buffer_count[1] = _buffer_count[0];
-				_flowcontrol_mutex.unlock();
 			}
+			_flowcontrol_mutex.unlock();
 		}
 
 	}
