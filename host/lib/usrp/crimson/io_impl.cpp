@@ -414,6 +414,7 @@ private:
 
 	}
 	void update_samplerate(){
+		std::cout<<"Entering update routine    Update happened:  "<< _buffer_count[0]<<"   "<<_buffer_count[1]<<std::endl;
 		int timeout = 0;
 		while((_buffer_count[0]!=_buffer_count[1]) || (timeout<10)){
 			if(_flowcontrol_mutex.try_lock()){
