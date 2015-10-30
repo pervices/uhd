@@ -431,12 +431,6 @@ private:
 						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
 					}
 
-
-					std::cout << "_fifo_lvl[i]  : "<<_fifo_lvl[i] <<std::endl;
-					std::cout << "_last_time[i].get_full_secs() :  : "<< _last_time[i].get_full_secs() <<
-							"   _last_time[i].get_frac_secs() : "<< _last_time[i].get_frac_secs()<<std::endl;
-
-
 					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
 								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*1.5) / (double)_samp_rate[i]);
