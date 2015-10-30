@@ -353,7 +353,7 @@ private:
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
 			_async_mutex = async_mutex;
-			_en_fc=false;
+			_en_fc=true;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
@@ -361,7 +361,7 @@ private:
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
-			_fifo_level_perc = 92;
+			_fifo_level_perc = 10;
 
 		}
 	}
