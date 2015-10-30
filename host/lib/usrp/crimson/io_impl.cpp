@@ -269,7 +269,7 @@ public:
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
-						if (_en_fc == true)_last_time[i] = _last_time[i];//wait;//time_spec_t::get_system_time();
+						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						else _last_time[i] = time_spec_t::get_system_time();
 
 				}else{
@@ -289,7 +289,7 @@ public:
 
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
-						if (_en_fc == true)_last_time[i] = _last_time[i];//wait;//time_spec_t::get_system_time();
+						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						else _last_time[i] = time_spec_t::get_system_time();
 
 				}
@@ -353,7 +353,7 @@ private:
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
 			_async_mutex = async_mutex;
-			_en_fc=true;
+			_en_fc=false;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
