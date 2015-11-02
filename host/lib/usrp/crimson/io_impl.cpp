@@ -252,6 +252,8 @@ public:
 			size_t remaining_bytes = (nsamps_per_buff*4);
 			while (remaining_bytes >0){
 				//If greater then max pl copy over what you can, leave the rest
+				std::cout<<"_last_time[i].get_full_secs(): "<<_last_time[i].get_full_secs()<<"  _last_time[i].get_frac_secs(): "<< _last_time[i].get_frac_secs()
+						<<std::endl<<"get_system_time().get_full_secs(): "<<time_spec_t::get_system_time().get_full_secs()<<"  get_system_time().get_frac__secs(): "<< time_spec_t::get_system_time().get_frac_secs()<<std::endl;
 				if (remaining_bytes >=CRIMSON_MAX_MTU){
 						if (_en_fc == true)
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
