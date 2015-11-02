@@ -361,7 +361,7 @@ private:
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
-			_fifo_level_perc = 50;
+			_fifo_level_perc = 4;
 
 		}
 	}
