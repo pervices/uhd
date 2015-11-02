@@ -373,6 +373,8 @@ private:
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
 		txstream->_flow_running = true;
 
+		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
+
 		while(true){
 
 			//Sleep for desired time
