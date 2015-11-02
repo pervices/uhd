@@ -374,6 +374,10 @@ private:
 		txstream->_flow_running = true;
 
 		while(true){
+
+			//Sleep for desired time
+			boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
+
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
 			txstream->_flow_iface -> poke_str("Read fifo");
@@ -401,9 +405,6 @@ private:
 			//unlock
 			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
-
-			//Sleep for desired time
-			boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 		}
 
 
@@ -423,8 +424,8 @@ private:
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = CRIMSON_BUFF_SIZE;//_samp_rate_usr[i]/1000000;
-					//if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
+					double max_corr = _samp_rate_usr[i]/1000000;
+					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
 					if(_samp_rate[i] > (_samp_rate_usr[i] + max_corr)){
 						_samp_rate[i] = _samp_rate_usr[i] + max_corr;
 					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
