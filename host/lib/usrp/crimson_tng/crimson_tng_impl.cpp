@@ -38,7 +38,7 @@
 #include <string>
 #include <vector>
 #include <uhd/types/ranges.hpp>
-#include "crimson_impl.hpp"
+#include "crimson_tng_impl.hpp"
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -70,7 +70,7 @@ void csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 }
 
 // base wrapper that calls the simple UDP interface to get messages to and from Crimson
-std::string crimson_impl::get_string(std::string req) {
+std::string crimson_tng_impl::get_string(std::string req) {
 	boost::mutex::scoped_lock lock(udp_mutex);
 
 	// format the string and poke (write)
@@ -78,10 +78,10 @@ std::string crimson_impl::get_string(std::string req) {
 
 	// peek (read) back the data
 	std::string ret = _iface -> peek_str();
-	if (ret == "TIMEOUT") 	throw uhd::runtime_error("crimson_impl::get_string - UDP resp. timed out: " + req);
+	if (ret == "TIMEOUT") 	throw uhd::runtime_error("crimson_tng_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
-void crimson_impl::set_string(const std::string pre, std::string data) {
+void crimson_tng_impl::set_string(const std::string pre, std::string data) {
 	boost::mutex::scoped_lock lock(udp_mutex);
 
 	// format the string and poke (write)
@@ -90,116 +90,116 @@ void crimson_impl::set_string(const std::string pre, std::string data) {
 	// peek (read) anyways for error check, since Crimson will reply back
 	std::string ret = _iface -> peek_str();
 	if (ret == "TIMEOUT" || ret == "ERROR")
-		throw uhd::runtime_error("crimson_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
+		throw uhd::runtime_error("crimson_tng_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
 	else
 		return;
 }
 
 // wrapper for type <double> through the ASCII Crimson interface
-double crimson_impl::get_double(std::string req) {
+double crimson_tng_impl::get_double(std::string req) {
 	try { return boost::lexical_cast<double>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void crimson_impl::set_double(const std::string pre, double data){
+void crimson_tng_impl::set_double(const std::string pre, double data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <bool> through the ASCII Crimson interface
-bool crimson_impl::get_bool(std::string req) {
+bool crimson_tng_impl::get_bool(std::string req) {
 	try { return boost::lexical_cast<bool>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void crimson_impl::set_bool(const std::string pre, bool data){
+void crimson_tng_impl::set_bool(const std::string pre, bool data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <int> through the ASCII Crimson interface
-int crimson_impl::get_int(std::string req) {
+int crimson_tng_impl::get_int(std::string req) {
 	try { return boost::lexical_cast<int>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void crimson_impl::set_int(const std::string pre, int data){
+void crimson_tng_impl::set_int(const std::string pre, int data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-mboard_eeprom_t crimson_impl::get_mboard_eeprom(std::string req) {
+mboard_eeprom_t crimson_tng_impl::get_mboard_eeprom(std::string req) {
 	mboard_eeprom_t temp;
 	temp["name"]     = get_string("fpga/about/name");
 	temp["vendor"]   = "Per Vices";
 	temp["serial"]   = get_string("fpga/about/serial");
 	return temp;
 }
-void crimson_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
+void crimson_tng_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
 	// no eeprom settings on Crimson
 	return;
 }
 
 // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
-dboard_eeprom_t crimson_impl::get_dboard_eeprom(std::string req) {
+dboard_eeprom_t crimson_tng_impl::get_dboard_eeprom(std::string req) {
 	dboard_eeprom_t temp;
 	//temp.id       = dboard_id_t( boost::lexical_cast<boost::uint16_t>(get_string("product,get,serial")) );
 	temp.serial   = "";//get_string("product,get,serial");
 	//temp.revision = get_string("product,get,hw_version");
 	return temp;
 }
-void crimson_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
+void crimson_tng_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
 	// no eeprom settings on Crimson
 	return;
 }
 
 // wrapper for type <sensor_value_t> through the ASCII Crimson interface
-sensor_value_t crimson_impl::get_sensor_value(std::string req) {
+sensor_value_t crimson_tng_impl::get_sensor_value(std::string req) {
 	// no sensors on Crimson
 	return sensor_value_t("NA", "0", "NA");
 }
-void crimson_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
+void crimson_tng_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
 	// no sensors on Crimson
 	return;
 }
 
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
-meta_range_t crimson_impl::get_meta_range(std::string req) {
+meta_range_t crimson_tng_impl::get_meta_range(std::string req) {
 	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
 	meta_range_t temp;
 	return temp;
 }
-void crimson_impl::set_meta_range(const std::string pre, meta_range_t data) {
+void crimson_tng_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
 	return;
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
-std::complex<double>  crimson_impl::get_complex_double(std::string req) {
+std::complex<double>  crimson_tng_impl::get_complex_double(std::string req) {
 	std::complex<double> temp;
 	return temp;
 }
-void crimson_impl::set_complex_double(const std::string pre, std::complex<double> data) {
+void crimson_tng_impl::set_complex_double(const std::string pre, std::complex<double> data) {
 	return;
 }
 
 // wrapper for type <stream_cmd_t> through the ASCII Crimson interface
-stream_cmd_t crimson_impl::get_stream_cmd(std::string req) {
+stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
 	stream_cmd_t::stream_mode_t mode = stream_cmd_t::STREAM_MODE_START_CONTINUOUS;
 	stream_cmd_t temp = stream_cmd_t(mode);
 	return temp;
 }
-void crimson_impl::set_stream_cmd(const std::string pre, stream_cmd_t data) {
+void crimson_tng_impl::set_stream_cmd(const std::string pre, stream_cmd_t data) {
 	return;
 }
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
-time_spec_t crimson_impl::get_time_spec(std::string req) {
+time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
 	double fracpart, intpart;
 	fracpart = modf(get_double(req), &intpart);
 	time_spec_t temp = time_spec_t((time_t)intpart, fracpart);
 	return temp;
 }
-void crimson_impl::set_time_spec(const std::string pre, time_spec_t data) {
+void crimson_tng_impl::set_time_spec(const std::string pre, time_spec_t data) {
 	set_double(pre, (double)data.get_full_secs() + data.get_frac_secs());
 	return;
 }
@@ -208,12 +208,12 @@ void crimson_impl::set_time_spec(const std::string pre, time_spec_t data) {
  * Discovery over the udp transport
  **********************************************************************/
 // This find function will be called if a hint is passed onto the find function
-static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
+static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
 {
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CRIMSON_FW_COMMS_UDP_PORT));
+        hint["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
@@ -222,7 +222,7 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
     device_addrs_t addrs;
     while (true)
     {
-        char buff[CRIMSON_FW_COMMS_MTU] = {};
+        char buff[CRIMSON_TNG_FW_COMMS_MTU] = {};
         const size_t nbytes = comm->recv(asio::buffer(buff), 0.050);
         if (nbytes == 0) break;
 
@@ -233,7 +233,7 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
 	if (tokens[1].c_str()[0] == CMD_ERROR) break;
 
         device_addr_t new_addr;
-        new_addr["type"]    = "crimson";
+        new_addr["type"]    = "crimson_tng";
         new_addr["addr"]    = comm->get_recv_addr();
 	new_addr["name"]    = "";
         new_addr["serial"]  = tokens[2];
@@ -252,7 +252,7 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
 }
 
 // This is the core find function that will be called when uhd:device find() is called because this is registered
-static device_addrs_t crimson_find(const device_addr_t &hint_)
+static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
 {
     //handle the multi-device discovery
     device_addrs_t hints = separate_device_addr(hint_);
@@ -262,7 +262,7 @@ static device_addrs_t crimson_find(const device_addr_t &hint_)
         std::string error_msg;
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
-            device_addrs_t found_devices_i = crimson_find(hint_i);
+            device_addrs_t found_devices_i = crimson_tng_find(hint_i);
             if (found_devices_i.size() != 1) error_msg += str(boost::format(
                 "Could not resolve device hint \"%s\" to a single device."
             ) % hint_i.to_string());
@@ -279,7 +279,7 @@ static device_addrs_t crimson_find(const device_addr_t &hint_)
     hints.resize(1); //in case it was empty
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
-    if (hint.has_key("type") and hint["type"] != "crimson") return addrs;
+    if (hint.has_key("type") and hint["type"] != "crimson_tng") return addrs;
 
 
     //use the address given
@@ -288,19 +288,19 @@ static device_addrs_t crimson_find(const device_addr_t &hint_)
         device_addrs_t reply_addrs;
         try
         {
-            reply_addrs = crimson_find_with_addr(hint);
+            reply_addrs = crimson_tng_find_with_addr(hint);
         }
         catch(const std::exception &ex)
         {
-            UHD_MSG(error) << "CRIMSON Network discovery error " << ex.what() << std::endl;
+            UHD_MSG(error) << "CRIMSON_TNG Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_MSG(error) << "CRIMSON Network discovery unknown error " << std::endl;
+            UHD_MSG(error) << "CRIMSON_TNG Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
-            device_addrs_t new_addrs = crimson_find_with_addr(reply_addr);
+            device_addrs_t new_addrs = crimson_tng_find_with_addr(reply_addr);
             addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
         }
         return addrs;
@@ -319,7 +319,7 @@ static device_addrs_t crimson_find(const device_addr_t &hint_)
             new_hint["addr"] = if_addrs.bcast;
 
             //call discover with the new hint and append results
-            device_addrs_t new_addrs = crimson_find(new_hint);
+            device_addrs_t new_addrs = crimson_tng_find(new_hint);
             addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
         }
     }
@@ -331,17 +331,17 @@ static device_addrs_t crimson_find(const device_addr_t &hint_)
  * Make
  **********************************************************************/
 // Returns a pointer to the Crimson device, casted to the UHD base class
-static device::sptr crimson_make(const device_addr_t &device_addr)
+static device::sptr crimson_tng_make(const device_addr_t &device_addr)
 {
-    return device::sptr(new crimson_impl(device_addr));
+    return device::sptr(new crimson_tng_impl(device_addr));
 }
 
 // This is the core function that registers itself with uhd::device base class. The base device class
 // will have a reference to all the registered devices and upon device find/make it will loop through
 // all the registered devices' find and make functions.
-UHD_STATIC_BLOCK(register_crimson_device)
+UHD_STATIC_BLOCK(register_crimson_tng_device)
 {
-    device::register_device(&crimson_find, &crimson_make, device::CRIMSON);
+    device::register_device(&crimson_tng_find, &crimson_tng_make, device::CRIMSON_TNG);
 }
 
 /***********************************************************************
@@ -351,29 +351,29 @@ UHD_STATIC_BLOCK(register_crimson_device)
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.subscribe(boost::bind(&crimson_impl::set_ ## HANDLER, this, (PROP), _1))	\
-		.publish  (boost::bind(&crimson_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.subscribe(boost::bind(&crimson_tng_impl::set_ ## HANDLER, this, (PROP), _1))	\
+		.publish  (boost::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.publish  (boost::bind(&crimson_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.publish  (boost::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
-crimson_impl::crimson_impl(const device_addr_t &dev_addr)
+crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 {
     UHD_MSG(status) << "Opening a Crimson device..." << std::endl;
-    _type = device::CRIMSON;
+    _type = device::CRIMSON_TNG;
     _addr = dev_addr;
 
     // Makes the UDP comm connection
-    _iface = crimson_iface::make( udp_simple::make_connected(
-    			dev_addr["addr"], BOOST_STRINGIZE(CRIMSON_FW_COMMS_UDP_PORT)) );
+    _iface = crimson_tng_iface::make( udp_simple::make_connected(
+    			dev_addr["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT)) );
 
     // TODO make transports for each RX/TX chain
     // TODO check if locked already
@@ -444,7 +444,7 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_MASTER_CLOCK_RATE);
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_CLOCK_RATE);
 
     TREE_CREATE_ST(time_path / "cmd", time_spec_t, time_spec_t(0.0));
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
@@ -456,7 +456,7 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "value",          "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
-    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CRIMSON_EXT_CLK_RATE);
+    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CRIMSON_TNG_EXT_CLK_RATE);
     TREE_CREATE_ST(mb_path / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(mb_path / "time_source"  / "output", bool, true);
 
@@ -508,15 +508,15 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 	TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
-	TREE_CREATE_ST(rx_fe_path / "gains" / "ADRF" / "range", meta_range_t,
-		meta_range_t(CRIMSON_RF_RX_GAIN_RANGE_START, CRIMSON_RF_RX_GAIN_RANGE_STOP, CRIMSON_RF_RX_GAIN_RANGE_STEP));
-	TREE_CREATE_ST(tx_fe_path / "gains" / "RFSA" / "range",	meta_range_t,
-		meta_range_t(CRIMSON_RF_TX_GAIN_RANGE_START, CRIMSON_RF_TX_GAIN_RANGE_STOP, CRIMSON_RF_TX_GAIN_RANGE_STEP));
+	TREE_CREATE_ST(rx_fe_path / "gains" / "LMH+PE" / "range", meta_range_t,
+		meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
+	TREE_CREATE_ST(tx_fe_path / "gains" / "PE" / "range",	meta_range_t,
+		meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
 	TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-		meta_range_t(CRIMSON_FREQ_RANGE_START, CRIMSON_FREQ_RANGE_STOP, CRIMSON_FREQ_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 	TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-		meta_range_t(CRIMSON_FREQ_RANGE_START, CRIMSON_FREQ_RANGE_STOP, CRIMSON_FREQ_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 
 	TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 	TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -533,18 +533,19 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
 	TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-		meta_range_t(CRIMSON_FREQ_RANGE_START, CRIMSON_FREQ_RANGE_STOP, CRIMSON_FREQ_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 	TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-		meta_range_t(CRIMSON_FREQ_RANGE_START, CRIMSON_FREQ_RANGE_STOP, CRIMSON_FREQ_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 	TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-		meta_range_t(CRIMSON_RF_RX_GAIN_RANGE_START, CRIMSON_RF_RX_GAIN_RANGE_STOP, CRIMSON_RF_RX_GAIN_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
 	TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-		meta_range_t(CRIMSON_RF_TX_GAIN_RANGE_START, CRIMSON_RF_TX_GAIN_RANGE_STOP, CRIMSON_RF_TX_GAIN_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
-	TREE_CREATE_RW(rx_fe_path / "freq" / "value", "rx_"+lc_num+"/rf/freq/val", double, double);
-	TREE_CREATE_RW(rx_fe_path / "gain" / "value", "rx_"+lc_num+"/rf/gain/val", double, double);
-	TREE_CREATE_RW(tx_fe_path / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
-	TREE_CREATE_RW(tx_fe_path / "gain" / "value", "tx_"+lc_num+"/rf/gain/val", double, double);
+	TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
+	TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
+	TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
+	TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
+	TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
 
    // RF band
 	TREE_CREATE_RW(rx_fe_path / "freq" / "band", "rx_"+lc_num+"/rf/freq/band", int, int);
@@ -557,17 +558,17 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
 
 	// DSPs
 	TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-		meta_range_t(CRIMSON_RATE_RANGE_START, CRIMSON_RATE_RANGE_STOP, CRIMSON_RATE_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 	TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-		meta_range_t(CRIMSON_DSP_FREQ_RANGE_START, CRIMSON_DSP_FREQ_RANGE_STOP, CRIMSON_DSP_FREQ_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 	TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-		meta_range_t(CRIMSON_RATE_RANGE_START, CRIMSON_RATE_RANGE_STOP, CRIMSON_RATE_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 	TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-		meta_range_t(CRIMSON_RATE_RANGE_START, CRIMSON_RATE_RANGE_STOP, CRIMSON_RATE_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 	TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-		meta_range_t(CRIMSON_DSP_FREQ_RANGE_START, CRIMSON_DSP_FREQ_RANGE_STOP, CRIMSON_DSP_FREQ_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 	TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-		meta_range_t(CRIMSON_RATE_RANGE_START, CRIMSON_RATE_RANGE_STOP, CRIMSON_RATE_RANGE_STEP));
+		meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 
 	TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate",    double, double);
 	TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
@@ -594,7 +595,7 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
     }
 }
 
-crimson_impl::~crimson_impl(void)
+crimson_tng_impl::~crimson_tng_impl(void)
 {
     // TODO send commands to mute all radio chains, mute everything
     // unlock the Crimson device to this process

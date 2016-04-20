@@ -32,6 +32,8 @@ UHD_INSTALL(FILES
 
     ### interfaces ###
     multi_usrp.hpp
+    #multi_crimson.hpp
+    #multi_crimson_tng.hpp
 
     DESTINATION ${INCLUDE_DIR}/uhd/usrp
     COMPONENT headers
