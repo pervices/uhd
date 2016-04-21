@@ -47,7 +47,7 @@ using namespace uhd::usrp;
  **********************************************************************/
 // TODO Need to check if: the sample rate, channels enabled, and bytes per I/Q sample,
 // will overflow, or under flow the data stream
-bool _check_link_rate(const stream_args_t &args) {
+bool _check_tng_link_rate(const stream_args_t &args) {
 	// insert logic to calculate bytes_per_sample
 
 	// insert logic to compare link_max_rate > 0 && sample_rate * bytes_per_sample
@@ -355,7 +355,7 @@ void multi_crimson_tng::set_user_register(const boost::uint8_t addr, const boost
  * RX methods
  ******************************************************************/
 rx_streamer::sptr multi_crimson_tng::get_rx_stream(const stream_args_t &args) {
-    _check_link_rate(args);
+    _check_tng_link_rate(args);
     return this->get_device()->get_rx_stream(args);
 }
 
@@ -575,7 +575,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 		gain_token = 126 - gain_token;	// invert gain scale
 
 		// adjust attenuator to maintain 0.25dB resolution
-		if (gain_token % 2) {		// odd (0.25 or 0.75)
+		if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
 			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(1);
 			gain_token++;
 		} else {
@@ -666,7 +666,7 @@ void multi_crimson_tng::set_rx_iq_balance(const std::complex<double> &offset, si
  * TX methods
  ******************************************************************/
 tx_streamer::sptr multi_crimson_tng::get_tx_stream(const stream_args_t &args) {
-    _check_link_rate(args);
+    _check_tng_link_rate(args);
     return this->get_device()->get_tx_stream(args);
 }
 
