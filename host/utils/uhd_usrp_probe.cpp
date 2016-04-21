@@ -217,7 +217,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     try {
         dev = device::make(vm["args"].as<std::string>(), device::USRP);
     } catch (...) {
-        dev = device::make(vm["args"].as<std::string>(), device::CRIMSON);
+    	try {
+    		dev = device::make(vm["args"].as<std::string>(), device::CRIMSON);
+    	} catch (...) {
+    		dev = device::make(vm["args"].as<std::string>(), device::CRIMSON_TNG);
+    	}
     }
 
     property_tree::sptr tree = dev->get_tree();
