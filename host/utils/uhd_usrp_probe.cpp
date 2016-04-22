@@ -218,9 +218,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         dev = device::make(vm["args"].as<std::string>(), device::USRP);
     } catch (...) {
     	try {
-    		dev = device::make(vm["args"].as<std::string>(), device::CRIMSON);
-    	} catch (...) {
     		dev = device::make(vm["args"].as<std::string>(), device::CRIMSON_TNG);
+    	} catch (...) {
+    		dev = device::make(vm["args"].as<std::string>(), device::CRIMSON);
     	}
     }
 
