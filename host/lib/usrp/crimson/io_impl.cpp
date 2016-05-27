@@ -231,6 +231,7 @@ public:
 				_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
 				//Set the user set sample rate to refer to later
 				_samp_rate_usr[i] = _samp_rate[i];
+				UHD_MSG(status) << "RAM: Channel: " << i << "\n";
 
 				//Adjust sample rate to fill up buffer in first half second
 				//we do this by setting setting the "last time " data was sent to be half a buffers worth in the past
