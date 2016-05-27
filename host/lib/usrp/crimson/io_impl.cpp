@@ -132,7 +132,7 @@ public:
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 	}
-
+//	std::vector<size_t> _channels;
 private:
 	// init function, common to both constructors
 	void init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
@@ -311,6 +311,7 @@ public:
 		_en_fc = false;
 
 	}
+	std::vector<size_t> _channels;
 private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
@@ -400,12 +401,14 @@ private:
 				ss >> txstream->_fifo_lvl[j];
 				ss.ignore();
 			}
+
 			//increment buffer count to say we have data
-			txstream->_buffer_count[0]++;
+			txstream->_buffer_count[txstream->_channels[0]]++;
 			txstream->_async_mutex->lock();
 			//If under run, tell user
-			if (txstream->_fifo_lvl[0] >=0 && txstream->_fifo_lvl[0] <15 )
+			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
+
 			//unlock
 			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
@@ -414,6 +417,7 @@ private:
 
 
 	}
+
 	void update_samplerate(){
 		int timeout = 0;
 		if(_flowcontrol_mutex.try_lock()){
@@ -466,7 +470,7 @@ private:
 	}
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
-	std::vector<size_t> _channels;
+//	std::vector<size_t> _channels;
 	std::vector<double> _samp_rate;
 	std::vector<double> _samp_rate_usr;
 	std::vector<time_spec_t> _last_time;
