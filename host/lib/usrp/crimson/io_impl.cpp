@@ -402,14 +402,14 @@ private:
 				ss.ignore();
 			}
 
-			UHD_MSG(status) << "RAM: " << txstream->_channels[0] << "\n";
+			UHD_MSG(status) << "RAM: CHANNEL[0]: " << txstream->_channels[0] << "\n";
 			//increment buffer count to say we have data
 			txstream->_buffer_count[txstream->_channels[0]]++;
 			txstream->_async_mutex->lock();
 			//If under run, tell user
 			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
-UHD_MSG(status) << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
+UHD_MSG(status) << "RAM: FIFO LEVEL[0]: "txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
 			//unlock
 			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
