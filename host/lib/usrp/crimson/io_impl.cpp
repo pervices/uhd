@@ -409,13 +409,13 @@ UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << st
 			//If under run, tell user
 			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
-UHD_MSG(status) << "RAM: FIFO LEVEL[" << txstream->_channels[0] << "]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
-UHD_MSG(status) << "RAM: ASYNC_COMM.size(): " << txstream->_async_comm->size() << std::endl;
-std::vector<int> lcl_async_comm = *txstream->_async_comm;
-for (int z = 0; z < lcl_async_comm.size(); z++) {
-
-	UHD_MSG(status) << "RAM: _async_comm[" << z << "]: " << lcl_async_comm[z] << "\n";
-}
+//UHD_MSG(status) << "RAM: FIFO LEVEL[" << txstream->_channels[0] << "]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
+//UHD_MSG(status) << "RAM: ASYNC_COMM.size(): " << txstream->_async_comm->size() << std::endl;
+//std::vector<int> lcl_async_comm = *txstream->_async_comm;
+//for (int z = 0; z < lcl_async_comm.size(); z++) {
+//
+//	UHD_MSG(status) << "RAM: _async_comm[" << z << "]: " << lcl_async_comm[z] << "\n";
+//}
 
 			//unlock
 			txstream->_async_mutex->unlock();
