@@ -404,12 +404,18 @@ UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << st
 
 			UHD_MSG(status) << "RAM: CHANNEL[0]: " << txstream->_channels[0] << "\n";
 			//increment buffer count to say we have data
-			txstream->_buffer_count[0]++;
+			txstream->_buffer_count[0]++;	// For coordinating sample rate updates
 			txstream->_async_mutex->lock();
 			//If under run, tell user
 			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
 UHD_MSG(status) << "RAM: FIFO LEVEL[" << txstream->_channels[0] << "]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
+UHD_MSG(status) << "RAM: ASYNC_COMM.size(): " << txstream->_async_comm->size() << std::endl;
+std::vector<int> lcl_async_comm = *txstream->_async_comm;
+for (int z = 0; z < lcl_async_comm.size(); z++) {
+
+	UHD_MSG(status) << "RAM: _async_comm[" << z << "]: " << lcl_async_comm[z] << "\n";
+}
 
 			//unlock
 			txstream->_async_mutex->unlock();
@@ -428,7 +434,7 @@ UHD_MSG(status) << "RAM: FIFO LEVEL[" << txstream->_channels[0] << "]: " << txst
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
 
 					// calculate the error - aim for 50%
-					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[i]) / (CRIMSON_BUFF_SIZE);
+					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[i]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
 					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/10000000;
 
@@ -444,13 +450,13 @@ UHD_MSG(status) << "RAM: FIFO LEVEL[" << txstream->_channels[0] << "]: " << txst
 
 					//Adjust last time to try and correct to 50%
 					//The adjust is 1/20th as that is the update period
-					if (_fifo_lvl[i] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
+					if (_fifo_lvl[_channels[i]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
-								((_fifo_lvl[i]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[i]);
+								((_fifo_lvl[_channels[i]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[i]);
 						_last_time[i] = _last_time[i] + lvl_adjust;
 					}else{
 						time_spec_t lvl_adjust = time_spec_t(0,
-								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[i])*2/20) / (double)_samp_rate[i]);
+								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[_channels[i]])*2/20) / (double)_samp_rate[i]);
 						_last_time[i] = _last_time[i] - lvl_adjust;
 					}
 
