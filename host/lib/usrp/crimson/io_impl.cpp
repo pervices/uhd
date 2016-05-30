@@ -404,16 +404,13 @@ UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << st
 
 			UHD_MSG(status) << "RAM: CHANNEL[0]: " << txstream->_channels[0] << "\n";
 			//increment buffer count to say we have data
-			txstream->_buffer_count[txstream->_channels[0]]++;
+			txstream->_buffer_count[0]++;
 			txstream->_async_mutex->lock();
 			//If under run, tell user
 			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
-//UHD_MSG(status) << "RAM: FIFO LEVEL[0]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
-			UHD_MSG(status) << "RAM: FIFO LEVEL[0]: " << txstream->_fifo_lvl[0] << "\n";
-			UHD_MSG(status) << "RAM: FIFO LEVEL[1]: " << txstream->_fifo_lvl[1] << "\n";
-			UHD_MSG(status) << "RAM: FIFO LEVEL[2]: " << txstream->_fifo_lvl[2] << "\n";
-			UHD_MSG(status) << "RAM: FIFO LEVEL[3]: " << txstream->_fifo_lvl[3] << "\n";
+UHD_MSG(status) << "RAM: FIFO LEVEL[" << txstream->_channels[0] << "]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
+
 			//unlock
 			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
