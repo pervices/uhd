@@ -402,7 +402,7 @@ UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << st
 				ss.ignore();
 			}
 
-			UHD_MSG(status) << "RAM: CHANNEL[0]: " << txstream->_channels[0] << "\n";
+			//UHD_MSG(status) << "RAM: CHANNEL[0]: " << txstream->_channels[0] << "\n";
 			//increment buffer count to say we have data
 			txstream->_buffer_count[0]++;	// For coordinating sample rate updates
 			txstream->_async_mutex->lock();
