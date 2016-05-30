@@ -267,7 +267,7 @@ public:
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
-UHD_MSG(status) << "RAM: _udp_stream.size(): " << _udp_stream.size() << std::endl;
+//UHD_MSG(status) << "RAM: _udp_stream.size(): " << _udp_stream.size() << std::endl;
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
