@@ -223,8 +223,7 @@ public:
 		// send to each connected stream data in buffs[i]
 		for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 			size_t ret =0;
-			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+
 			// update sample rate if we don't know the sample rate
 			if (_samp_rate[i] == 0) {
 				//Get sample rate
