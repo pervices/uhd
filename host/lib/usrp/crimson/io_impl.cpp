@@ -223,16 +223,13 @@ public:
 		// send to each connected stream data in buffs[i]
 		for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 			size_t ret =0;
-
+			_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
 			// update sample rate if we don't know the sample rate
-			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			double temp_samp_rate = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-			if (_samp_rate[i] != temp_samp_rate) {
+			if (_samp_rate[i] == 0) {
 				//Get sample rate
-//				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-//				double temp_samp_rate = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+				_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
 				//Set the user set sample rate to refer to later
-				_samp_rate[i] = temp_samp_rate;
 				_samp_rate_usr[i] = _samp_rate[i];
 				UHD_MSG(status) << "RAM: Sample_Rate_User: " << _samp_rate_usr[i] << "\n";
 
