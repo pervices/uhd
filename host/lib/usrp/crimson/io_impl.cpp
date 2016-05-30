@@ -235,7 +235,7 @@ public:
 				UHD_MSG(status) << "RAM: Channels.size(): " << _channels.size() << "\n";
 
 				//Adjust sample rate to fill up buffer in first half second
-				//we do this by setting setting the "last time " data was sent to be half a buffers worth in the past
+				//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 				//each element in the buffer is 2 samples worth
 				time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
 				_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
@@ -267,7 +267,7 @@ public:
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
-
+UHD_MSG(status) << "RAM: _udp_stream.size(): " << _udp_stream.size() << std::endl;
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -346,7 +346,7 @@ private:
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
-
+UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << std::endl;
 			//Launch thread for flow control
 
 			//Set up initial flow control variables
@@ -409,7 +409,11 @@ private:
 			//If under run, tell user
 			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
-UHD_MSG(status) << "RAM: FIFO LEVEL[0]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
+//UHD_MSG(status) << "RAM: FIFO LEVEL[0]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
+			UHD_MSG(status) << "RAM: FIFO LEVEL[0]: " << txstream->_fifo_lvl[0] << "\n";
+			UHD_MSG(status) << "RAM: FIFO LEVEL[1]: " << txstream->_fifo_lvl[1] << "\n";
+			UHD_MSG(status) << "RAM: FIFO LEVEL[2]: " << txstream->_fifo_lvl[2] << "\n";
+			UHD_MSG(status) << "RAM: FIFO LEVEL[3]: " << txstream->_fifo_lvl[3] << "\n";
 			//unlock
 			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
