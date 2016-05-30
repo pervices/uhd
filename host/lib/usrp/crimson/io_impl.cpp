@@ -225,14 +225,16 @@ public:
 			size_t ret =0;
 
 			// update sample rate if we don't know the sample rate
-			if (_samp_rate[i] == 0) {
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			double temp_samp_rate = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+			if (_samp_rate[i] != temp_samp_rate) {
 				//Get sample rate
-				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-				_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+//				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+//				double temp_samp_rate = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
 				//Set the user set sample rate to refer to later
+				_samp_rate[i] = temp_samp_rate;
 				_samp_rate_usr[i] = _samp_rate[i];
-				UHD_MSG(status) << "RAM: Channel: " << i << ch << "\n";
-				UHD_MSG(status) << "RAM: Channels.size(): " << _channels.size() << "\n";
+				UHD_MSG(status) << "RAM: Sample_Rate_User: " << _samp_rate_usr[i] << "\n";
 
 				//Adjust sample rate to fill up buffer in first half second
 				//we do this by setting the "last time " data was sent to be half a buffers worth in the past
@@ -267,7 +269,7 @@ public:
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
-//UHD_MSG(status) << "RAM: _udp_stream.size(): " << _udp_stream.size() << std::endl;
+
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -346,7 +348,7 @@ private:
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
-UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << std::endl;
+
 			//Launch thread for flow control
 
 			//Set up initial flow control variables
@@ -409,13 +411,6 @@ UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << st
 			//If under run, tell user
 			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
 				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
-//UHD_MSG(status) << "RAM: FIFO LEVEL[" << txstream->_channels[0] << "]: " << txstream->_fifo_lvl[txstream->_channels[0]] << "\n";
-//UHD_MSG(status) << "RAM: ASYNC_COMM.size(): " << txstream->_async_comm->size() << std::endl;
-//std::vector<int> lcl_async_comm = *txstream->_async_comm;
-//for (int z = 0; z < lcl_async_comm.size(); z++) {
-//
-//	UHD_MSG(status) << "RAM: _async_comm[" << z << "]: " << lcl_async_comm[z] << "\n";
-//}
 
 			//unlock
 			txstream->_async_mutex->unlock();
@@ -426,6 +421,7 @@ UHD_MSG(status) << "RAM: IP ADDR:UDP_PORT> " << ip_addr << ":" << udp_port << st
 
 	}
 
+	// Actual Flow Control Controller
 	void update_samplerate(){
 		int timeout = 0;
 		if(_flowcontrol_mutex.try_lock()){
