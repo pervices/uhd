@@ -210,6 +210,11 @@ public:
 		return _pay_len/4;
 	}
 
+//	void set_sample_rate(int channel, double new_samp_rate) {
+//		_samp_rate[channel] = new_samp_rate;
+//		_samp_rate_usr[channel] = _samp_rate[channel];
+//	}
+
 	size_t send(
         	const buffs_type &buffs,
         	const size_t nsamps_per_buff,
@@ -383,7 +388,12 @@ private:
 		while(true){
 
 			//Sleep for desired time
-			boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
+			boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
+			for (int c = 0; c < txstream->_channels.size(); c++) {
+				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
+				txstream->_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+				txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+			}
 
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
