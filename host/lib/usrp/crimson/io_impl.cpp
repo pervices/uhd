@@ -414,16 +414,17 @@ private:
 			//increment buffer count to say we have data
 			txstream->_buffer_count[0]++;	// For coordinating sample rate updates
 			txstream->_async_mutex->lock();
+
 			//If under run, tell user
-			if (txstream->_fifo_lvl[txstream->_channels[0]] >=0 && txstream->_fifo_lvl[txstream->_channels[0]] <15 )
-				txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
+			for (int ch = 0; ch < txstream->_channels.size(); ch++) {
+				if (txstream->_fifo_lvl[txstream->_channels[ch]] >=0 && txstream->_fifo_lvl[txstream->_channels[ch]] <15 )
+					txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
+			}
 
 			//unlock
 			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
 		}
-
-
 
 	}
 
@@ -461,7 +462,6 @@ private:
 								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[_channels[i]])*2/20) / (double)_samp_rate[i]);
 						_last_time[i] = _last_time[i] - lvl_adjust;
 					}
-
 
 				}
 				//Buffer is now handled
