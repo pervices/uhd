@@ -227,8 +227,11 @@ public:
 			// update sample rate if we don't know the sample rate
 			if (_samp_rate[i] == 0) {
 				//Get sample rate
+				time_spec_t retrieval_duration = time_spec_t::get_system_time();
 				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 				_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+				retrieval_duration = time_spec_t::get_system_time() - retrieval_duration;
+				UHD_MSG(status) << "RAM: Time to Read Rate from Crimson: " << retrieval_duration.get_real_secs() << ":" << retrieval_duration.get_frac_secs() << "\n";
 				//Set the user set sample rate to refer to later
 				_samp_rate_usr[i] = _samp_rate[i];
 				UHD_MSG(status) << "RAM: Sample_Rate_User: " << _samp_rate_usr[i] << "\n";
@@ -401,7 +404,6 @@ private:
 				ss.ignore();
 			}
 
-			//UHD_MSG(status) << "RAM: CHANNEL[0]: " << txstream->_channels[0] << "\n";
 			//increment buffer count to say we have data
 			txstream->_buffer_count[0]++;	// For coordinating sample rate updates
 			txstream->_async_mutex->lock();
