@@ -232,14 +232,11 @@ public:
 			// update sample rate if we don't know the sample rate
 			if (_samp_rate[i] == 0) {
 				//Get sample rate
-				time_spec_t retrieval_duration = time_spec_t::get_system_time();
 				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 				_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-				retrieval_duration = time_spec_t::get_system_time() - retrieval_duration;
-				UHD_MSG(status) << "RAM: Time to Read Rate from Crimson: " << retrieval_duration.get_real_secs() << ":" << retrieval_duration.get_frac_secs() << "\n";
+
 				//Set the user set sample rate to refer to later
 				_samp_rate_usr[i] = _samp_rate[i];
-				UHD_MSG(status) << "RAM: Sample_Rate_User: " << _samp_rate_usr[i] << "\n";
 
 				//Adjust sample rate to fill up buffer in first half second
 				//we do this by setting the "last time " data was sent to be half a buffers worth in the past
@@ -318,7 +315,7 @@ public:
 		_en_fc = false;
 
 	}
-	std::vector<size_t> _channels;
+
 private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
@@ -483,7 +480,7 @@ private:
 	}
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
-//	std::vector<size_t> _channels;
+	std::vector<size_t> _channels;
 	std::vector<double> _samp_rate;
 	std::vector<double> _samp_rate_usr;
 	std::vector<time_spec_t> _last_time;
