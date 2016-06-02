@@ -306,6 +306,7 @@ UHD_MSG(status) << "RAM: ELSE: SEND " << "\n";
 			samp_sent += ret;
 
 		}
+UHD_MSG(status) << "RAM: SEND COMPLETE" << "\n";
 		return (samp_sent / 4);// -  vita_hdr - vita_tlr;	// vita is disabled
 	}
 
