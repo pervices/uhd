@@ -272,7 +272,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
-UHD_MSG(status) << "Ram: Updated Sample Rate for " << _channels[i] << ": " << _samp_rate[i] << "\n";
+
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -293,7 +293,7 @@ UHD_MSG(status) << "Ram: Updated Sample Rate for " << _channels[i] << ": " << _s
 						}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
-UHD_MSG(status) << "Ram: Updated Sample Rate for " << _channels[i] << ": " << _samp_rate[i] << "\n";
+
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
@@ -442,7 +442,7 @@ private:
 					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[i]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
 					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/10000000;
-
+UHD_MSG(status) << "RAM: F_UPDATE[" << i << "]: " << f_update << "\n";
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
 					double max_corr = _samp_rate_usr[i]/1000000;
