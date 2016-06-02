@@ -238,7 +238,6 @@ public:
 				//Set the user set sample rate to refer to later
 				_samp_rate_usr[i] = _samp_rate[i];
 UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
-UHD_MSG(status) << "RAM: BUFF.SIZE(): " << buffs.size() << "\n";
 
 				//Adjust sample rate to fill up buffer in first half second
 				//we do this by setting the "last time " data was sent to be half a buffers worth in the past
@@ -273,7 +272,7 @@ UHD_MSG(status) << "RAM: BUFF.SIZE(): " << buffs.size() << "\n";
 							}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
-UHD_MSG(status) << "RAM: IF: SEND" << "\n";
+UHD_MSG(status) << "Ram: Updated Sample Rate for " << _channels[i] << ": " << _samp_rate[i] << "\n";
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -294,7 +293,7 @@ UHD_MSG(status) << "RAM: IF: SEND" << "\n";
 						}
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
-UHD_MSG(status) << "RAM: ELSE: SEND " << "\n";
+UHD_MSG(status) << "Ram: Updated Sample Rate for " << _channels[i] << ": " << _samp_rate[i] << "\n";
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
@@ -306,7 +305,7 @@ UHD_MSG(status) << "RAM: ELSE: SEND " << "\n";
 			samp_sent += ret;
 
 		}
-UHD_MSG(status) << "RAM: SEND COMPLETE" << "\n";
+
 		return (samp_sent / 4);// -  vita_hdr - vita_tlr;	// vita is disabled
 	}
 
