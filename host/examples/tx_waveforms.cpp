@@ -217,14 +217,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         for (size_t n = 0; n < buff.size(); n++){
             buff[n] = wave_table(index += step);
         }
-
+UHD_MSG(status) << "RAM: Calling Send..." << "\n";
         //send the entire contents of the buffer
         tx_stream->send(buffs, buff.size(), md);
 
         md.start_of_burst = false;
         md.has_time_spec = false;
     }
-
+UHD_MSG(status) << "RAM: Calling EOB Send..." << "\n";
     //send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send("", 0, md);

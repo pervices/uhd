@@ -224,7 +224,7 @@ public:
 		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
 		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
-
+UHD_MSG(status) << "RAM: SEND Starting..." << "\n";
 		// send to each connected stream data in buffs[i]
 		for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 			size_t ret =0;
@@ -305,7 +305,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 			samp_sent += ret;
 
 		}
-
+UHD_MSG(status) << "RAM: Exiting Send..." << "\n";
 		return (samp_sent / 4);// -  vita_hdr - vita_tlr;	// vita is disabled
 	}
 
