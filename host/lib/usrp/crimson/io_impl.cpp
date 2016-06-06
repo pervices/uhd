@@ -221,10 +221,11 @@ public:
         	const tx_metadata_t &metadata,
         	const double timeout = 0.1)
 	{
+UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
 		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
-UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
+
 		// send to each connected stream data in buffs[i]
 		for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 			size_t ret =0;
@@ -259,7 +260,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 			size_t remaining_bytes = (nsamps_per_buff*4);
 			while (remaining_bytes >0){
 				//If greater then max pl copy over what you can, leave the rest
-				if (remaining_bytes >=CRIMSON_MAX_MTU){
+				if (remaining_bytes >= CRIMSON_MAX_MTU){
 						if (_en_fc == true)
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
 								update_samplerate();
@@ -301,6 +302,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 
 				}
 				remaining_bytes = (nsamps_per_buff*4) - ret;
+				remaining_bytes = 0;
 			}
 			samp_sent += ret;
 
