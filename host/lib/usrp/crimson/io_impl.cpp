@@ -355,6 +355,12 @@ private:
 
 			//Launch thread for flow control
 
+//			//Launch threads for channels streaming
+//			for (int c = 0; c < _channels.size(); c++) {
+//				_channel_streams[c] = new boost::thread();
+//				_channel_streams[c]->start_thread();
+//			}
+
 			//Set up initial flow control variables
 			_flow_running=false;
 			_buffer_count[0] = 0;
@@ -442,7 +448,7 @@ private:
 					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[i]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
 					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/10000000;
-UHD_MSG(status) << "RAM: F_UPDATE[" << i << "]: " << f_update << "\n";
+//UHD_MSG(status) << "RAM: F_UPDATE[" << i << "]: " << f_update << "\n";
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
 					double max_corr = _samp_rate_usr[i]/1000000;
@@ -483,6 +489,7 @@ UHD_MSG(status) << "RAM: F_UPDATE[" << i << "]: " << f_update << "\n";
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
+	std::vector<boost::thread*> _channel_streams;
 	std::vector<double> _samp_rate;
 	std::vector<double> _samp_rate_usr;
 	std::vector<time_spec_t> _last_time;
