@@ -55,7 +55,7 @@ extern "C" {
 #define CRIMSON_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 #define CRIMSON_DEFAULT_NETMASK_ETH1_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
-#define CRIMSON_MTU_SIZE     8800   // 1500 MTU - 20 IPV4 header - 8 UDP header
+#define CRIMSON_MTU_SIZE     1472   // 1500 MTU - 20 IPV4 header - 8 UDP header
 
 #define CRIMSON_RX_CHANNELS 4
 #define CRIMSON_TX_CHANNELS 4
