@@ -282,7 +282,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 							}
 							//Send data (byte operation)
 							ret[i] += _udp_stream[i] -> stream_out((void*)vita_buf + ret[i], CRIMSON_MAX_MTU);
-UHD_MSG(status) << "RAM: RET[" << i << "]: " << ret[i] << ", VITA+RET: " << (void*)vita_buf +ret[i] << "\n";
+UHD_MSG(status) << "RAM: LARGE: RET[" << i << "]: " << ret[i] << ", VITA+RET: " << (void*)vita_buf +ret[i] << "\n";
 							//update last_time with when it was supposed to have been sent:
 							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -305,7 +305,7 @@ UHD_MSG(status) << "RAM: RET[" << i << "]: " << ret[i] << ", VITA+RET: " << (voi
 
 						//Send data (byte operation)
 						ret[i] += _udp_stream[i] -> stream_out((void*)vita_buf + ret[i], remaining_bytes[i]);
-UHD_MSG(status) << "RAM: RET[" << i << "]: " << ret[i] << ", VITA+RET: " << (void*)vita_buf +ret[i] << "\n";
+UHD_MSG(status) << "RAM: FIT: RET[" << i << "]: " << ret[i] << ", VITA+RET: " << (void*)vita_buf +ret[i] << "\n";
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
