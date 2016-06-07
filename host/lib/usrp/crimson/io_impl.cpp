@@ -317,8 +317,8 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 //				}
 			}
 		}
-UHD_MSG(status) << "RAM: Exiting Send: SS/4: " << (samp_sent/4) << "\n";
-		return (samp_sent / 4);// -  vita_hdr - vita_tlr;	// vita is disabled
+UHD_MSG(status) << "RAM: Exiting Send: SS/4: " << (samp_sent/4) / _channels.size() << "\n";
+		return (samp_sent / 4) / _channels.size();// -  vita_hdr - vita_tlr;	// vita is disabled
 	}
 
 	// async messages are currently disabled
