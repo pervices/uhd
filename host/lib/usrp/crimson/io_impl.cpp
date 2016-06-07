@@ -225,87 +225,97 @@ UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
 		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
+		size_t remaining_bytes[_channels.size()];
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			remaining_bytes[i] =  (nsamps_per_buff * 4);
+		}
 
-		// send to each connected stream data in buffs[i]
-		for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
-			size_t ret =0;
+		while ((samp_sent / 4) != (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
+			// send to each connected stream data in buffs[i]
+			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
+				// Skip Channel is Nothing left to send
+				if (remaining_bytes[i] == 0) continue;
 
-			// update sample rate if we don't know the sample rate
-			if (_samp_rate[i] == 0) {
-				//Get sample rate
-				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-				_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+				size_t ret = 0;
 
-				//Set the user set sample rate to refer to later
-				_samp_rate_usr[i] = _samp_rate[i];
+				// update sample rate if we don't know the sample rate
+				if (_samp_rate[i] == 0) {
+					//Get sample rate
+					std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+					_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+
+					//Set the user set sample rate to refer to later
+					_samp_rate_usr[i] = _samp_rate[i];
 UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 
-				//Adjust sample rate to fill up buffer in first half second
-				//we do this by setting the "last time " data was sent to be half a buffers worth in the past
-				//each element in the buffer is 2 samples worth
-				time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
-				_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
-				//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
-			}
+					//Adjust sample rate to fill up buffer in first half second
+					//we do this by setting the "last time " data was sent to be half a buffers worth in the past
+					//each element in the buffer is 2 samples worth
+					time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+					_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
+					//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
+				}
 
-			//Flow control init
-			//check if flow control is running, if not run it
-			if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
+				//Flow control init
+				//check if flow control is running, if not run it
+				if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
 
-			memset((void*)vita_buf, 0, vita_pck*4);
-			memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
+				memset((void*)vita_buf, 0, vita_pck*4);
+				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
 
-			//if (time_spec_t::get_system_time() > _timer_tofreerun) _en_fc = true;
-			//Check if it is time to send data, if so, copy the data over and continue
-			size_t remaining_bytes = (nsamps_per_buff*4);
-			while (remaining_bytes >0){
-				//If greater then max pl copy over what you can, leave the rest
-				if (remaining_bytes >= CRIMSON_MAX_MTU){
-						if (_en_fc == true)
+				//if (time_spec_t::get_system_time() > _timer_tofreerun) _en_fc = true;
+				//Check if it is time to send data, if so, copy the data over and continue
+
+//				while (remaining_bytes >0) {
+					//If greater then max pl copy over what you can, leave the rest
+					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
+							if (_en_fc == true) {
+								while ( time_spec_t::get_system_time() < _last_time[i]) {
+									update_samplerate();
+									//time_spec_t systime = time_spec_t::get_system_time();
+									//double systime_real = systime.get_real_secs();
+									//double last_time_real = _last_time[i].get_real_secs();
+									//if (systime_real < last_time_real){
+									//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+									//}
+								}
+							}
+							//Send data (byte operation)
+							ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
+
+							//update last_time with when it was supposed to have been sent:
+							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+
+							if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+							else _last_time[i] = time_spec_t::get_system_time();
+
+					} else {
+
+						if (_en_fc == true) {
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
 								update_samplerate();
-								//time_spec_t systime = time_spec_t::get_system_time();
-								//double systime_real = systime.get_real_secs();
-								//double last_time_real = _last_time[i].get_real_secs();
-								//if (systime_real < last_time_real){
-								//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
+							//	time_spec_t systime = time_spec_t::get_system_time();
+							//	double systime_real = systime.get_real_secs();
+							//	double last_time_real = _last_time[i].get_real_secs();
+							//	if (systime_real < last_time_real){
+							//		boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
 								//}
 							}
-						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
-
-						//update last_time with when it was supposed to have been sent:
-						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
-
-						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-						else _last_time[i] = time_spec_t::get_system_time();
-
-				}else{
-
-					if (_en_fc == true)
-						while ( time_spec_t::get_system_time() < _last_time[i]) {
-							update_samplerate();
-						//	time_spec_t systime = time_spec_t::get_system_time();
-						//	double systime_real = systime.get_real_secs();
-						//	double last_time_real = _last_time[i].get_real_secs();
-						//	if (systime_real < last_time_real){
-						//		boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-							//}
 						}
+
 						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
+						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes[i]);
 
 						//update last_time with when it was supposed to have been sent:
-						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
+						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						else _last_time[i] = time_spec_t::get_system_time();
 
-				}
-				remaining_bytes = (nsamps_per_buff*4) - ret;
-				remaining_bytes = 0;
+					}
+					remaining_bytes[i] = (nsamps_per_buff*4) - ret;
+					samp_sent += ret;
+//				}
 			}
-			samp_sent += ret;
-
 		}
 UHD_MSG(status) << "RAM: Exiting Send: SS/4: " << (samp_sent/4) << "\n";
 		return (samp_sent / 4);// -  vita_hdr - vita_tlr;	// vita is disabled
