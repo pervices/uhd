@@ -270,7 +270,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 					//If greater then max pl copy over what you can, leave the rest
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
 							if (_en_fc == true) {
-								while ( time_spec_t::get_system_time() < _last_time[i]) {
+								if ( time_spec_t::get_system_time() < _last_time[i]) {
 									update_samplerate();
 									//time_spec_t systime = time_spec_t::get_system_time();
 									//double systime_real = systime.get_real_secs();
@@ -279,6 +279,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 									//	boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
 									//}
 								}
+								if ( time_spec_t::get_system_time() < _last_time[i]) continue;
 							}
 							//Send data (byte operation)
 							ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
@@ -292,7 +293,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 					} else {
 
 						if (_en_fc == true) {
-							while ( time_spec_t::get_system_time() < _last_time[i]) {
+							if ( time_spec_t::get_system_time() < _last_time[i]) {
 								update_samplerate();
 							//	time_spec_t systime = time_spec_t::get_system_time();
 							//	double systime_real = systime.get_real_secs();
@@ -301,6 +302,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 							//		boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
 								//}
 							}
+							if ( time_spec_t::get_system_time() < _last_time[i]) continue;
 						}
 
 						//Send data (byte operation)
