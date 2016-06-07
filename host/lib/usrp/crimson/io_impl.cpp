@@ -231,13 +231,14 @@ UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
 			ret[i] = 0;
 		}
-
+UHD_MSG(status) << "RAM: Outside While Loop" << "\n";
 		while ((samp_sent / 4) != (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
+UHD_MSG(status) << "RAM: WHILE SAMP_SENT/4: " << (samp_sent/4) << "\n";
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 				// Skip Channel is Nothing left to send
 				if (remaining_bytes[i] == 0) continue;
-
+UHD_MSG(status) << "RAM: Inside For Loop" << "\n";
 				// update sample rate if we don't know the sample rate
 				if (_samp_rate[i] == 0) {
 					//Get sample rate
