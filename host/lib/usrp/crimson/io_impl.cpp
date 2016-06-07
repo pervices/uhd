@@ -226,10 +226,8 @@ UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
 		size_t remaining_bytes[_channels.size()];
-		size_t ret[_channels.size()];
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
-			ret[i] = 0;
 		}
 UHD_MSG(status) << "RAM: Outside While Loop" << "\n";
 		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
@@ -241,6 +239,7 @@ UHD_MSG(status) << "RAM: WHILE NSPB: " << nsamps_per_buff << "\n";
 UHD_MSG(status) << "RAM: Remaining Bytes[" << i << "]: " << remaining_bytes[i] << "\n";
 				if (remaining_bytes[i] == 0) continue;
 UHD_MSG(status) << "RAM: Inside For Loop" << "\n";
+				size_t ret = 0;
 				// update sample rate if we don't know the sample rate
 				if (_samp_rate[i] == 0) {
 					//Get sample rate
@@ -284,8 +283,8 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 								}
 							}
 							//Send data (byte operation)
-							ret[i] += _udp_stream[i] -> stream_out((void*)vita_buf + ret[i], CRIMSON_MAX_MTU);
-UHD_MSG(status) << "RAM: LARGE: RET[" << i << "]: " << ret[i] << ", VITA+RET: " << (void*)vita_buf +ret[i] << "\n";
+							ret += _udp_stream[i] -> stream_out((void*)vita_buf + ((nsamps_per_buff*4) - remaining_bytes[i]), CRIMSON_MAX_MTU);
+UHD_MSG(status) << "RAM: LARGE: RET[" << i << "]: " << ret << ", VITA+RET: " << (void*)vita_buf +ret << "\n";
 							//update last_time with when it was supposed to have been sent:
 							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -307,16 +306,16 @@ UHD_MSG(status) << "RAM: LARGE: RET[" << i << "]: " << ret[i] << ", VITA+RET: " 
 						}
 
 						//Send data (byte operation)
-						ret[i] += _udp_stream[i] -> stream_out((void*)vita_buf + ret[i], remaining_bytes[i]);
-UHD_MSG(status) << "RAM: FIT: RET[" << i << "]: " << ret[i] << ", VITA+RET: " << (void*)vita_buf +ret[i] << "\n";
+						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes[i]);
+UHD_MSG(status) << "RAM: FIT: RET[" << i << "]: " << ret << ", VITA+RET: " << (void*)vita_buf +ret << "\n";
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						else _last_time[i] = time_spec_t::get_system_time();
 
 					}
-					remaining_bytes[i] = (nsamps_per_buff*4) - ret[i];
-					samp_sent += ret[i];
+					remaining_bytes[i] = (nsamps_per_buff*4) - ret;
+					samp_sent += ret;
 //				}
 			}
 		}
