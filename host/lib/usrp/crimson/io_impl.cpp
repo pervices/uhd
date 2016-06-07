@@ -226,8 +226,10 @@ UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
 		size_t remaining_bytes[_channels.size()];
+		size_t ret[_channels.size()];
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
+			ret[i] = 0;
 		}
 
 		while ((samp_sent / 4) != (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
@@ -235,8 +237,6 @@ UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 				// Skip Channel is Nothing left to send
 				if (remaining_bytes[i] == 0) continue;
-
-				size_t ret = 0;
 
 				// update sample rate if we don't know the sample rate
 				if (_samp_rate[i] == 0) {
@@ -281,7 +281,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 								}
 							}
 							//Send data (byte operation)
-							ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
+							ret[i] += _udp_stream[i] -> stream_out((void*)vita_buf + ret[i], CRIMSON_MAX_MTU);
 
 							//update last_time with when it was supposed to have been sent:
 							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
@@ -304,7 +304,7 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 						}
 
 						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes[i]);
+						ret[i] += _udp_stream[i] -> stream_out((void*)vita_buf + ret[i], remaining_bytes[i]);
 
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
@@ -312,8 +312,8 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 						else _last_time[i] = time_spec_t::get_system_time();
 
 					}
-					remaining_bytes[i] = (nsamps_per_buff*4) - ret;
-					samp_sent += ret;
+					remaining_bytes[i] = (nsamps_per_buff*4) - ret[i];
+					samp_sent += ret[i];
 //				}
 			}
 		}
