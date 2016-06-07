@@ -221,7 +221,6 @@ public:
         	const tx_metadata_t &metadata,
         	const double timeout = 0.1)
 	{
-UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
 		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
@@ -229,16 +228,12 @@ UHD_MSG(status) << "RAM: SEND Starting: NSPB: " << nsamps_per_buff << "\n";
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
 		}
-UHD_MSG(status) << "RAM: Outside While Loop" << "\n";
+
 		while ((samp_sent / 4) != (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
-UHD_MSG(status) << "RAM: WHILE SAMP_SENT/4: " << (samp_sent/4) << "\n";
-UHD_MSG(status) << "RAM: WHILE NSPB: " << nsamps_per_buff << "\n";
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 				// Skip Channel is Nothing left to send
-UHD_MSG(status) << "RAM: Remaining Bytes[" << i << "]: " << remaining_bytes[i] << "\n";
 				if (remaining_bytes[i] == 0) continue;
-UHD_MSG(status) << "RAM: Inside For Loop" << "\n";
 				size_t ret = 0;
 				// update sample rate if we don't know the sample rate
 				if (_samp_rate[i] == 0) {
@@ -248,7 +243,6 @@ UHD_MSG(status) << "RAM: Inside For Loop" << "\n";
 
 					//Set the user set sample rate to refer to later
 					_samp_rate_usr[i] = _samp_rate[i];
-UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 
 					//Adjust sample rate to fill up buffer in first half second
 					//we do this by setting the "last time " data was sent to be half a buffers worth in the past
@@ -269,6 +263,8 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 				//Check if it is time to send data, if so, copy the data over and continue
 
 //				while (remaining_bytes >0) {
+					size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);
+UHD_MSG(status) << "RAM: SAMPLE_POINTER: " << samp_ptr_offset << "\n";
 					//If greater then max pl copy over what you can, leave the rest
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
 							if (_en_fc == true) {
@@ -283,8 +279,8 @@ UHD_MSG(status) << "RAM: CHAN#: " << _channels.size() << ch << "\n";
 								}
 							}
 							//Send data (byte operation)
-							ret += _udp_stream[i] -> stream_out((void*)vita_buf + ((nsamps_per_buff*4) - remaining_bytes[i]), CRIMSON_MAX_MTU);
-UHD_MSG(status) << "RAM: LARGE: RET[" << i << "]: " << ret << ", VITA+RET: " << (void*)vita_buf + ((nsamps_per_buff*4) - remaining_bytes[i]) << "\n";
+							ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, CRIMSON_MAX_MTU);
+UHD_MSG(status) << "RAM: LARGE: VITA+SPO: " << (void*)vita_buf + samp_ptr_offset << "\n";
 							//update last_time with when it was supposed to have been sent:
 							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -306,8 +302,8 @@ UHD_MSG(status) << "RAM: LARGE: RET[" << i << "]: " << ret << ", VITA+RET: " << 
 						}
 
 						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ((nsamps_per_buff*4) - remaining_bytes[i]), remaining_bytes[i]);
-UHD_MSG(status) << "RAM: FIT: RET[" << i << "]: " << ret << ", VITA+RET: " << (void*)vita_buf + ((nsamps_per_buff*4) - remaining_bytes[i]) << "\n";
+						ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, remaining_bytes[i]);
+UHD_MSG(status) << "RAM: SMALL: VITA+SPO: " << (void*)vita_buf + samp_ptr_offset << "\n";
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
@@ -316,8 +312,7 @@ UHD_MSG(status) << "RAM: FIT: RET[" << i << "]: " << ret << ", VITA+RET: " << (v
 					}
 					remaining_bytes[i] -= ret;
 					samp_sent += ret;
-UHD_MSG(status) << "RAM: FOR LOOP END: Remaining Bytes: " << remaining_bytes[i] << "\n";
-UHD_MSG(status) << "RAM: FOR LOOP END: Samp Sent: " << samp_sent << "\n";
+UHD_MSG(status) << "RAM: Remaining Bytes: " << remaining_bytes[i] << "\n";
 //				}
 			}
 		}
