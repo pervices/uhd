@@ -314,7 +314,7 @@ UHD_MSG(status) << "RAM: FIT: RET[" << i << "]: " << ret << ", VITA+RET: " << (v
 						else _last_time[i] = time_spec_t::get_system_time();
 
 					}
-					remaining_bytes[i] = (nsamps_per_buff*4) - ret;
+					remaining_bytes[i] -= ret;
 					samp_sent += ret;
 //				}
 			}
