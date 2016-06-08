@@ -406,8 +406,8 @@ private:
 			boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
 			for (int c = 0; c < txstream->_channels.size(); c++) {
 				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
-				txstream->_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-				txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+				txstream->_samp_rate_usr[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+				//txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
 			}
 
 			//get data under mutex lock
