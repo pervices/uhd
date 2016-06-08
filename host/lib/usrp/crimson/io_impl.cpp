@@ -229,7 +229,7 @@ public:
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
 		}
 
-		while ((samp_sent / 4) != (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
+		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 				// Skip Channel is Nothing left to send
@@ -264,7 +264,7 @@ public:
 
 //				while (remaining_bytes >0) {
 					size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);
-UHD_MSG(status) << "RAM: SAMPLE_POINTER: " << samp_ptr_offset << "\n";
+
 					//If greater then max pl copy over what you can, leave the rest
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
 							if (_en_fc == true) {
@@ -280,7 +280,7 @@ UHD_MSG(status) << "RAM: SAMPLE_POINTER: " << samp_ptr_offset << "\n";
 							}
 							//Send data (byte operation)
 							ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, CRIMSON_MAX_MTU);
-UHD_MSG(status) << "RAM: LARGE: VITA+SPO: " << (void*)vita_buf + samp_ptr_offset << "\n";
+
 							//update last_time with when it was supposed to have been sent:
 							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
@@ -303,7 +303,7 @@ UHD_MSG(status) << "RAM: LARGE: VITA+SPO: " << (void*)vita_buf + samp_ptr_offset
 
 						//Send data (byte operation)
 						ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, remaining_bytes[i]);
-UHD_MSG(status) << "RAM: SMALL: VITA+SPO: " << (void*)vita_buf + samp_ptr_offset << "\n";
+
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
 						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
@@ -312,11 +312,10 @@ UHD_MSG(status) << "RAM: SMALL: VITA+SPO: " << (void*)vita_buf + samp_ptr_offset
 					}
 					remaining_bytes[i] -= ret;
 					samp_sent += ret;
-UHD_MSG(status) << "RAM: Remaining Bytes: " << remaining_bytes[i] << "\n";
 //				}
 			}
 		}
-UHD_MSG(status) << "RAM: Exiting Send: SS/4: " << (samp_sent/4) / _channels.size() << "\n";
+
 		return (samp_sent / 4) / _channels.size();// -  vita_hdr - vita_tlr;	// vita is disabled
 	}
 
