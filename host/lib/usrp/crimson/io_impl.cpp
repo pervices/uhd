@@ -269,7 +269,7 @@ public:
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
 							if (_en_fc == true) {
 								while ( time_spec_t::get_system_time() < _last_time[i]) {
-									update_samplerate();
+									update_samplerate(i);
 									//time_spec_t systime = time_spec_t::get_system_time();
 									//double systime_real = systime.get_real_secs();
 									//double last_time_real = _last_time[i].get_real_secs();
@@ -291,7 +291,7 @@ public:
 
 						if (_en_fc == true) {
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
-								update_samplerate();
+								update_samplerate(i);
 							//	time_spec_t systime = time_spec_t::get_system_time();
 							//	double systime_real = systime.get_real_secs();
 							//	double last_time_real = _last_time[i].get_real_secs();
@@ -373,8 +373,14 @@ private:
 
 			//Set up initial flow control variables
 			_flow_running=false;
-			_buffer_count[0] = 0;
-			_buffer_count[1] = 0;
+
+			for (int i = 0; i < _channels.size(); i++) {
+				std::vector<uint32_t> *counter = new std::vector<uint32_t>();
+				counter->push_back(0);
+				counter->push_back(0);
+				_buffer_count.push_back(*counter);
+			}
+
 			_udp_mutex_add = udp_mutex_add;
 			_async_comm = async_comm;
 			_async_mutex = async_mutex;
@@ -433,7 +439,9 @@ private:
 			}
 
 			//increment buffer count to say we have data
-			txstream->_buffer_count[0]++;	// For coordinating sample rate updates
+			for (int j = 0; j < txstream->_channels.size(); j++) {
+				txstream->_buffer_count[j][0]++;	// For coordinating sample rate updates
+			}
 			txstream->_async_mutex->lock();
 
 			//If under run, tell user
@@ -450,43 +458,45 @@ private:
 	}
 
 	// Actual Flow Control Controller
-	void update_samplerate(){
+	void update_samplerate(size_t channel){
 		int timeout = 0;
 		if(_flowcontrol_mutex.try_lock()){
-			if(_buffer_count[0]!=_buffer_count[1]){
-				for (unsigned int i = 0; i < _channels.size(); i++) {
+			if(_buffer_count[channel][0]!=_buffer_count[channel][1]){
+//				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
 
 					// calculate the error - aim for 50%
-					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[i]]) / (CRIMSON_BUFF_SIZE);
+					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
-					_samp_rate[i]=_samp_rate[i]+(f_update*_samp_rate[i])/10000000;
+					_samp_rate[channel]=_samp_rate[channel]+(f_update*_samp_rate[channel])/10000000;
 //UHD_MSG(status) << "RAM: F_UPDATE[" << i << "]: " << f_update << "\n";
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = _samp_rate_usr[i]/1000000;
+					double max_corr = _samp_rate_usr[channel]/1000000;
 					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
-					if(_samp_rate[i] > (_samp_rate_usr[i] + max_corr)){
-						_samp_rate[i] = _samp_rate_usr[i] + max_corr;
-					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
-						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
+					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
+						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
+UHD_MSG(status) << "RAM: MAX CORRECTION HIT: " << max_corr <<"\n";
+					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
+						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
+UHD_MSG(status) << "RAM: MIN CORRECTION HIT: " << max_corr <<"\n";
 					}
 
 					//Adjust last time to try and correct to 50%
 					//The adjust is 1/20th as that is the update period
-					if (_fifo_lvl[_channels[i]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
+					if (_fifo_lvl[_channels[channel]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
-								((_fifo_lvl[_channels[i]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[i]);
-						_last_time[i] = _last_time[i] + lvl_adjust;
+								((_fifo_lvl[_channels[channel]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[channel]);
+						_last_time[channel] = _last_time[channel] + lvl_adjust;
 					}else{
 						time_spec_t lvl_adjust = time_spec_t(0,
-								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[_channels[i]])*2/20) / (double)_samp_rate[i]);
-						_last_time[i] = _last_time[i] - lvl_adjust;
+								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
+						_last_time[channel] = _last_time[channel] - lvl_adjust;
 					}
 
-				}
+//				}
 				//Buffer is now handled
-				_buffer_count[1] = _buffer_count[0];
+				_buffer_count[channel][1] = _buffer_count[channel][0];
 			}
 			_flowcontrol_mutex.unlock();
 		}
@@ -511,7 +521,7 @@ private:
 	uhd::wb_iface::sptr _flow_iface;
 	boost::mutex _flowcontrol_mutex;
 	double _fifo_lvl[4];
-	uint32_t _buffer_count[2];
+	std::vector< std::vector<uint32_t> > _buffer_count;
 	bool _flow_running;
 	boost::mutex* _udp_mutex_add;
 	boost::mutex* _async_mutex;
