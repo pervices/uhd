@@ -394,6 +394,22 @@ private:
 			_last_time.push_back(time_spec_t(0.0));
 			_fifo_level_perc = 50;
 
+if (test1 == 0) {
+	test1++;
+	UHD_MSG(status) << "RAM: STATIC CHECK TEST1: " << test1 << "\n";
+} else if (test2 == 0) {
+	test2++;
+	UHD_MSG(status) << "RAM: STATIC CHECK TEST2: " << test2 << "\n";
+} else if (test3 == 0) {
+	test3++;
+	UHD_MSG(status) << "RAM: STATIC CHECK TEST3: " << test3 << "\n";
+} else if (test4 == 0) {
+	test4++;
+	UHD_MSG(status) << "RAM: STATIC CHECK TEST4: " << test4 << "\n";
+} else {
+	UHD_MSG(status) << "RAM: ALL NOT ZERO?\n";
+}
+
 		}
 	}
 
@@ -528,11 +544,19 @@ private:
 	std::vector<int>* _async_comm;
 	double _fifo_level_perc;
 	bool _en_fc;
-
+static uint32_t test1;
+static uint32_t test2;
+static uint32_t test3;
+static uint32_t test4;
 	//debug
 
 	time_spec_t _timer_tofreerun;
 };
+uint32_t crimson_tx_streamer::test1 = 0;
+uint32_t crimson_tx_streamer::test2 = 0;
+uint32_t crimson_tx_streamer::test3 = 0;
+uint32_t crimson_tx_streamer::test4 = 0;
+
 
 /***********************************************************************
  * Async Data
