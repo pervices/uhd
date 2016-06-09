@@ -254,7 +254,10 @@ public:
 
 				//Flow control init
 				//check if flow control is running, if not run it
-				if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
+				if (!_flow_running)	{
+					_flow_running = true;
+					boost::thread flowcontrolThread(init_flowcontrol,this);
+				}
 
 				memset((void*)vita_buf, 0, vita_pck*4);
 				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
@@ -267,7 +270,7 @@ public:
 
 					//If greater then max pl copy over what you can, leave the rest
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
-							if (_en_fc == true) {
+							if (_en_fc) {
 								while ( time_spec_t::get_system_time() < _last_time[i]) {
 									update_samplerate(i);
 									//time_spec_t systime = time_spec_t::get_system_time();
@@ -284,12 +287,12 @@ public:
 							//update last_time with when it was supposed to have been sent:
 							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
-							if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+							if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 							else _last_time[i] = time_spec_t::get_system_time();
 
 					} else {
 
-						if (_en_fc == true) {
+						if (_en_fc) {
 							while ( time_spec_t::get_system_time() < _last_time[i]) {
 								update_samplerate(i);
 							//	time_spec_t systime = time_spec_t::get_system_time();
@@ -306,7 +309,7 @@ public:
 
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
-						if (_en_fc == true)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+						if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						else _last_time[i] = time_spec_t::get_system_time();
 
 					}
@@ -372,7 +375,7 @@ private:
 //			}
 
 			//Set up initial flow control variables
-			_flow_running=false;
+//			_flow_running=false;
 
 			for (int i = 0; i < _channels.size(); i++) {
 				std::vector<uint32_t> *counter = new std::vector<uint32_t>();
@@ -394,22 +397,6 @@ private:
 			_last_time.push_back(time_spec_t(0.0));
 			_fifo_level_perc = 50;
 
-if (test1 == 0) {
-	test1++;
-	UHD_MSG(status) << "RAM: STATIC CHECK TEST1: " << test1 << "\n";
-} else if (test2 == 0) {
-	test2++;
-	UHD_MSG(status) << "RAM: STATIC CHECK TEST2: " << test2 << "\n";
-} else if (test3 == 0) {
-	test3++;
-	UHD_MSG(status) << "RAM: STATIC CHECK TEST3: " << test3 << "\n";
-} else if (test4 == 0) {
-	test4++;
-	UHD_MSG(status) << "RAM: STATIC CHECK TEST4: " << test4 << "\n";
-} else {
-	UHD_MSG(status) << "RAM: ALL NOT ZERO?\n";
-}
-
 		}
 	}
 
@@ -418,7 +405,7 @@ if (test1 == 0) {
 
 		//Get flow control updates x times a second
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
-		txstream->_flow_running = true;
+//		txstream->_flow_running = true;
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 
@@ -536,27 +523,20 @@ if (test1 == 0) {
 	size_t _pay_len;
 	uhd::wb_iface::sptr _flow_iface;
 	boost::mutex _flowcontrol_mutex;
-	double _fifo_lvl[4];
+	static double _fifo_lvl[4];
 	std::vector< std::vector<uint32_t> > _buffer_count;
-	bool _flow_running;
+	static bool _flow_running;
 	boost::mutex* _udp_mutex_add;
 	boost::mutex* _async_mutex;
 	std::vector<int>* _async_comm;
 	double _fifo_level_perc;
 	bool _en_fc;
-static uint32_t test1;
-static uint32_t test2;
-static uint32_t test3;
-static uint32_t test4;
-	//debug
 
+	//debug
 	time_spec_t _timer_tofreerun;
 };
-uint32_t crimson_tx_streamer::test1 = 0;
-uint32_t crimson_tx_streamer::test2 = 0;
-uint32_t crimson_tx_streamer::test3 = 0;
-uint32_t crimson_tx_streamer::test4 = 0;
-
+double crimson_tx_streamer::_fifo_lvl[] = {0,0,0,0};
+bool crimson_tx_streamer::_flow_running = false;
 
 /***********************************************************************
  * Async Data
