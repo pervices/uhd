@@ -472,7 +472,7 @@ private:
 //UHD_MSG(status) << "RAM: F_UPDATE[" << i << "]: " << f_update << "\n";
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = (_samp_rate_usr[channel]/1000000) * 2 ;
+					double max_corr = (_samp_rate_usr[channel]/1000000) * 20 ;
 					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
 					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
 						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
