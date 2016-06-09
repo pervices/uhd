@@ -254,10 +254,7 @@ public:
 
 				//Flow control init
 				//check if flow control is running, if not run it
-				if (!_flow_running)	{
-					_flow_running = true;
-					boost::thread flowcontrolThread(init_flowcontrol,this);
-				}
+				if (!_flow_running)	boost::thread flowcontrolThread(init_flowcontrol,this);
 
 				memset((void*)vita_buf, 0, vita_pck*4);
 				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
@@ -375,7 +372,7 @@ private:
 //			}
 
 			//Set up initial flow control variables
-//			_flow_running=false;
+			_flow_running=false;
 
 			for (int i = 0; i < _channels.size(); i++) {
 				std::vector<uint32_t> *counter = new std::vector<uint32_t>();
@@ -405,7 +402,7 @@ private:
 
 		//Get flow control updates x times a second
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
-//		txstream->_flow_running = true;
+		txstream->_flow_running = true;
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 
@@ -523,9 +520,9 @@ private:
 	size_t _pay_len;
 	uhd::wb_iface::sptr _flow_iface;
 	boost::mutex _flowcontrol_mutex;
-	static double _fifo_lvl[4];
+	double _fifo_lvl[4];
 	std::vector< std::vector<uint32_t> > _buffer_count;
-	static bool _flow_running;
+	bool _flow_running;
 	boost::mutex* _udp_mutex_add;
 	boost::mutex* _async_mutex;
 	std::vector<int>* _async_comm;
@@ -535,8 +532,6 @@ private:
 	//debug
 	time_spec_t _timer_tofreerun;
 };
-double crimson_tx_streamer::_fifo_lvl[] = {0,0,0,0};
-bool crimson_tx_streamer::_flow_running = false;
 
 /***********************************************************************
  * Async Data
