@@ -412,13 +412,11 @@ private:
 			//Sleep for desired time
 			boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
 
+			// Get Sample Rate Information
+			double new_samp_rate[txstream->_channels.size()];
 			for (int c = 0; c < txstream->_channels.size(); c++) {
 				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
-				double new_samp_rate = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-				if (new_samp_rate != txstream->_samp_rate_usr[c]) {
-					txstream->_samp_rate[c] = new_samp_rate;
-					txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
-				}
+				new_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
 			}
 
 			//get data under mutex lock
@@ -433,6 +431,14 @@ private:
 
 			//Prevent multiple access
 			txstream->_flowcontrol_mutex.lock();
+
+			// Update Sample Rates
+			for (int c = 0; c < txstream->_channels.size(); c++) {
+				if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
+					txstream->_samp_rate[c] = new_samp_rate[c];
+					txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+				}
+			}
 
 			// read in each fifo level, ignore() will skip the commas
 			std::stringstream ss(buff_read);
