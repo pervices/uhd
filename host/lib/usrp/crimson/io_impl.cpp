@@ -411,9 +411,6 @@ private:
 			//Sleep for desired time
 			boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
 
-			//get data under mutex lock
-			txstream->_udp_mutex_add->lock();
-
 			for (int c = 0; c < txstream->_channels.size(); c++) {
 				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
 				double new_samp_rate = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
@@ -423,6 +420,8 @@ private:
 				}
 			}
 
+			//get data under mutex lock
+			txstream->_udp_mutex_add->lock();
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
 
