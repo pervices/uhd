@@ -229,9 +229,17 @@ public:
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
 		}
 
+		// Timeout
+		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
+
 		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
+
+				// Exit if Timeout lapsed
+				if (time_spec_t::get_system_time() > timeout_lapsed)
+					return (samp_sent / 4) / _channels.size();
+
 				// Skip Channel is Nothing left to send
 				if (remaining_bytes[i] == 0) continue;
 				size_t ret = 0;
