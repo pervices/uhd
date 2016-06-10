@@ -472,15 +472,15 @@ private:
 					//apply correction
 					_samp_rate[channel]=_samp_rate[channel]+(f_update*_samp_rate[channel])/10000000;
 
-					//Limit the correction
-					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = _samp_rate_usr[channel] * (_max_clock_ppm_error/1000000);
-					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
-					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
-						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
-					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
-						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
-					}
+//					//Limit the correction
+//					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
+//					double max_corr = _samp_rate_usr[channel] * (_max_clock_ppm_error/1000000);
+//					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
+//					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
+//						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
+//					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
+//						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
+//					}
 
 					//Adjust last time to try and correct to 50%
 					//The adjust is 1/20th as that is the update period
