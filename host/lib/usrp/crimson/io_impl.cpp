@@ -268,13 +268,13 @@ public:
 					//If greater then max pl copy over what you can, leave the rest
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
 							if (_en_fc) {
-								update_samplerate(i);
 								while ( time_spec_t::get_system_time() < _last_time[i]) {
+									update_samplerate(i);
 									//time_spec_t systime = time_spec_t::get_system_time();
 									//double systime_real = systime.get_real_secs();
 									//double last_time_real = _last_time[i].get_real_secs();
 									//if (systime_real < last_time_real){
-									boost::this_thread::sleep(boost::posix_time::microseconds(1));
+									//boost::this_thread::sleep(boost::posix_time::microseconds(1));
 									//}
 								}
 							}
@@ -290,14 +290,14 @@ public:
 					} else {
 
 						if (_en_fc) {
-							update_samplerate(i);
-							while ( time_spec_t::get_system_time() < _last_time[i]) {
 
+							while ( time_spec_t::get_system_time() < _last_time[i]) {
+								update_samplerate(i);
 							//	time_spec_t systime = time_spec_t::get_system_time();
 							//	double systime_real = systime.get_real_secs();
 							//	double last_time_real = _last_time[i].get_real_secs();
 							//	if (systime_real < last_time_real){vita_buf
-									boost::this_thread::sleep(boost::posix_time::microseconds(1));
+							//		boost::this_thread::sleep(boost::posix_time::microseconds(1));
 								//}
 							}
 						}
