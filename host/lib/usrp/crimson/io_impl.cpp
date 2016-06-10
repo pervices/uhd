@@ -393,7 +393,7 @@ private:
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
 			_fifo_level_perc = 50;
-
+			_max_clock_ppm_error = 100;
 		}
 	}
 
@@ -472,18 +472,18 @@ private:
 					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
 					_samp_rate[channel]=_samp_rate[channel]+(f_update*_samp_rate[channel])/10000000;
-//UHD_MSG(status) << "RAM: F_UPDATE[" << i << "]: " << f_update << "\n";
+
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-//					double max_corr = (_samp_rate_usr[channel]/1000000) * 20 ;
-//					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
-//					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
-//						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
-//UHD_MSG(status) << "RAM: MAX CORRECTION HIT[" << channel << "]: " << max_corr <<"\n";
-//					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
-//						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
-//UHD_MSG(status) << "RAM: MIN CORRECTION HIT[" << channel << "]: " << max_corr <<"\n";
-//					}
+					double max_corr = _samp_rate_usr[channel] * (_max_clock_ppm_error/1000000);
+					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
+					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
+						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
+UHD_MSG(status) << "RAM: MAX CORRECTION HIT[" << channel << "]: " << max_corr <<"\n";
+					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
+						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
+UHD_MSG(status) << "RAM: MIN CORRECTION HIT[" << channel << "]: " << max_corr <<"\n";
+					}
 
 					//Adjust last time to try and correct to 50%
 					//The adjust is 1/20th as that is the update period
@@ -530,6 +530,7 @@ private:
 	boost::mutex* _async_mutex;
 	std::vector<int>* _async_comm;
 	double _fifo_level_perc;
+	double _max_clock_ppm_error;
 	bool _en_fc;
 
 	//debug
