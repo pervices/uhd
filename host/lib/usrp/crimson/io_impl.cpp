@@ -478,10 +478,8 @@ private:
 					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
 					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
 						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
-UHD_MSG(status) << "RAM: MAX CORRECTION HIT[" << channel << "]: " << max_corr <<"\n";
 					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
 						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
-UHD_MSG(status) << "RAM: MIN CORRECTION HIT[" << channel << "]: " << max_corr <<"\n";
 					}
 
 					//Adjust last time to try and correct to 50%
