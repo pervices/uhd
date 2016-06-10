@@ -221,8 +221,8 @@ public:
         	const tx_metadata_t &metadata,
         	const double timeout = 0.1)
 	{
-//		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
-//		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
+		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
+		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
 		size_t remaining_bytes[_channels.size()];
 		for (unsigned int i = 0; i < _channels.size(); i++) {
@@ -256,8 +256,8 @@ public:
 				//check if flow control is running, if not run it
 				if (!_flow_running)	boost::thread flowcontrolThread(init_flowcontrol,this);
 
-//				memset((void*)vita_buf, 0, vita_pck*4);
-//				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
+				memset((void*)vita_buf, 0, vita_pck*4);
+				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
 
 				//if (time_spec_t::get_system_time() > _timer_tofreerun) _en_fc = true;
 				//Check if it is time to send data, if so, copy the data over and continue
@@ -279,7 +279,7 @@ public:
 								}
 							}
 							//Send data (byte operation)
-							ret += _udp_stream[i] -> stream_out((void*)buffs[i] + samp_ptr_offset, CRIMSON_MAX_MTU);
+							ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, CRIMSON_MAX_MTU);
 
 							//update last_time with when it was supposed to have been sent:
 							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
@@ -302,7 +302,7 @@ public:
 						}
 
 						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)buffs[i] + samp_ptr_offset, remaining_bytes[i]);
+						ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, remaining_bytes[i]);
 
 						//update last_time with when it was supposed to have been sent:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
