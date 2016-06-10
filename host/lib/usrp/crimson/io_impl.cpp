@@ -236,10 +236,6 @@ public:
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 
-				// Exit if Timeout lapsed
-				if (time_spec_t::get_system_time() > timeout_lapsed)
-					return (samp_sent / 4) / _channels.size();
-
 				// Skip Channel is Nothing left to send
 				if (remaining_bytes[i] == 0) continue;
 				size_t ret = 0;
@@ -323,6 +319,10 @@ public:
 					samp_sent += ret;
 //				}
 			}
+
+			// Exit if Timeout has lapsed
+			if (time_spec_t::get_system_time() > timeout_lapsed)
+				return (samp_sent / 4) / _channels.size();
 		}
 
 		return (samp_sent / 4) / _channels.size();// -  vita_hdr - vita_tlr;	// vita is disabled
