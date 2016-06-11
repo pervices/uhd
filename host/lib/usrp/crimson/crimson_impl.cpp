@@ -71,7 +71,7 @@ void csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 
 // base wrapper that calls the simple UDP interface to get messages to and from Crimson
 std::string crimson_impl::get_string(std::string req) {
-	this->udp_mutex.lock();
+	this->_udp_mutex.lock();
 
 	// format the string and poke (write)
     	_iface -> poke_str("get," + req);
@@ -80,18 +80,18 @@ std::string crimson_impl::get_string(std::string req) {
 	std::string ret = _iface -> peek_str();
 
 
-	this->udp_mutex.unlock();
+	this->_udp_mutex.unlock();
 	if (ret == "TIMEOUT") 	throw uhd::runtime_error("crimson_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
 void crimson_impl::set_string(const std::string pre, std::string data) {
-	this->udp_mutex.lock();
+	this->_udp_mutex.lock();
 	// format the string and poke (write)
 	_iface -> poke_str("set," + pre + "," + data);
 
 	// peek (read) anyways for error check, since Crimson will reply back
 	std::string ret = _iface -> peek_str();
-	this->udp_mutex.unlock();
+	this->_udp_mutex.unlock();
 	if (ret == "TIMEOUT" || ret == "ERROR")
 		throw uhd::runtime_error("crimson_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
 	else

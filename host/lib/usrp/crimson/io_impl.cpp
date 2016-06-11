@@ -35,6 +35,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <vector>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -89,7 +90,10 @@ public:
 
 			// read in vita_pck*4 bytes to temp buffer
 			nbytes = _udp_stream[i] -> stream_in(vita_buf, vita_pck * 4, timeout);
-			if (nbytes == 0) return 0;
+			if (nbytes == 0) {
+				metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
+				return 0;
+			}
 
 			// copy non-vita packets to buffs[0]
 			memcpy(buffs[i], vita_buf + vita_hdr , nsamps_per_buff * 4);
@@ -128,7 +132,7 @@ public:
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 	}
-
+//	std::vector<size_t> _channels;
 private:
 	// init function, common to both constructors
 	void init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
@@ -185,12 +189,12 @@ private:
 
 class crimson_tx_streamer : public uhd::tx_streamer {
 public:
-	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels, boost::mutex* udp_mutex_add) {
-		init_tx_streamer(addr, tree, channels, udp_mutex_add);
+	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex) {
+		init_tx_streamer(addr, tree, channels, udp_mutex_add, async_comm, async_mutex);
 	}
 
-	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, boost::mutex* udp_mutex_add) {
-		init_tx_streamer(addr, tree, std::vector<size_t>(1, 0), udp_mutex_add);
+	crimson_tx_streamer(device_addr_t addr, property_tree::sptr tree, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex) {
+		init_tx_streamer(addr, tree, std::vector<size_t>(1, 0), udp_mutex_add, async_comm, async_mutex);
 	}
 
 	~crimson_tx_streamer() {
@@ -206,6 +210,11 @@ public:
 		return _pay_len/4;
 	}
 
+//	void set_sample_rate(int channel, double new_samp_rate) {
+//		_samp_rate[channel] = new_samp_rate;
+//		_samp_rate_usr[channel] = _samp_rate[channel];
+//	}
+
 	size_t send(
         	const buffs_type &buffs,
         	const size_t nsamps_per_buff,
@@ -215,90 +224,121 @@ public:
 		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
 		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
-
-		// send to each connected stream data in buffs[i]
-		for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
-			size_t ret =0;
-
-			// update sample rate if we don't know the sample rate
-			if (_samp_rate[i] == 0) {
-				//Get sample rate
-				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-				_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-				//Set the user set sample rate to refer to later
-				_samp_rate_usr[i] = _samp_rate[i];
-
-				//Adjust sample rate to fill up buffer in first half second
-				//we do this by setting setting the "last time " data was sent to be half a buffers worth in the past
-				//each element in the buffer is 2 samples worth
-				time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
-				_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
-			}
-
-			//Flow control init
-			//check if flow control is running, if not run it
-			if (_flow_running == false)	boost::thread flowcontrolThread(init_flowcontrol,this);
-
-			memset((void*)vita_buf, 0, vita_pck*4);
-			memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
-			//Check if it is time to send data, if so, copy the data over and continue
-			size_t remaining_bytes = (nsamps_per_buff*4);
-			while (remaining_bytes >0){
-
-				//If greater then max pl copy over what you can, leave the rest
-				if (remaining_bytes >=CRIMSON_MAX_MTU){
-						while ( time_spec_t::get_system_time() < _last_time[i]) {
-							update_samplerate();
-							time_spec_t systime = time_spec_t::get_system_time();
-							double systime_real = systime.get_real_secs();
-							double last_time_real = _last_time[i].get_real_secs();
-							if (systime_real < last_time_real){
-								boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-							}
-						}
-						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, CRIMSON_MAX_MTU);
-
-						//update last_time with when it was supposed to have been sent:
-						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
-
-						_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-
-				}else{
-						while ( time_spec_t::get_system_time() < _last_time[i]) {
-							update_samplerate();
-							time_spec_t systime = time_spec_t::get_system_time();
-							double systime_real = systime.get_real_secs();
-							double last_time_real = _last_time[i].get_real_secs();
-							if (systime_real < last_time_real){
-								boost::this_thread::sleep(boost::posix_time::milliseconds((last_time_real-systime_real)*999));
-							}
-						}
-						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + ret, remaining_bytes);
-
-						//update last_time with when it was supposed to have been sent:
-						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes/4) / (double)_samp_rate[i]);
-						_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-						//Send data (byte operation)
-
-				}
-				remaining_bytes = (nsamps_per_buff*4) - ret;
-			}
-			samp_sent += ret;
-
+		size_t remaining_bytes[_channels.size()];
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			remaining_bytes[i] =  (nsamps_per_buff * 4);
 		}
-		return (samp_sent / 4);// -  vita_hdr - vita_tlr;	// vita is disabled
+
+		// Timeout
+		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
+
+		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
+			// send to each connected stream data in buffs[i]
+			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
+
+				// Skip Channel is Nothing left to send
+				if (remaining_bytes[i] == 0) continue;
+				size_t ret = 0;
+				// update sample rate if we don't know the sample rate
+				if (_samp_rate[i] == 0) {
+					//Get sample rate
+					std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+					_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+
+					//Set the user set sample rate to refer to later
+					_samp_rate_usr[i] = _samp_rate[i];
+
+					//Adjust sample rate to fill up buffer in first half second
+					//we do this by setting the "last time " data was sent to be half a buffers worth in the past
+					//each element in the buffer is 2 samples worth
+					time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+					_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
+					//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
+				}
+
+				//Flow control init
+				//check if flow control is running, if not run it
+				if (!_flow_running)	boost::thread flowcontrolThread(init_flowcontrol,this);
+
+				memset((void*)vita_buf, 0, vita_pck*4);
+				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
+
+				//if (time_spec_t::get_system_time() > _timer_tofreerun) _en_fc = true;
+				//Check if it is time to send data, if so, copy the data over and continue
+
+//				while (remaining_bytes >0) {
+					size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);
+
+					//If greater then max pl copy over what you can, leave the rest
+					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
+							if (_en_fc) {
+								while ( time_spec_t::get_system_time() < _last_time[i]) {
+									update_samplerate(i);
+									//time_spec_t systime = time_spec_t::get_system_time();
+									//double systime_real = systime.get_real_secs();
+									//double last_time_real = _last_time[i].get_real_secs();
+									//if (systime_real < last_time_real){
+									//boost::this_thread::sleep(boost::posix_time::microseconds(1));
+									//}
+								}
+							}
+							//Send data (byte operation)
+							ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, CRIMSON_MAX_MTU);
+
+							//update last_time with when it was supposed to have been sent:
+							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+
+							if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+							else _last_time[i] = time_spec_t::get_system_time();
+
+					} else {
+						if (_en_fc) {
+
+							while ( time_spec_t::get_system_time() < _last_time[i]) {
+								update_samplerate(i);
+							//	time_spec_t systime = time_spec_t::get_system_time();
+							//	double systime_real = systime.get_real_secs();
+							//	double last_time_real = _last_time[i].get_real_secs();
+							//	if (systime_real < last_time_real){vita_buf
+							//		boost::this_thread::sleep(boost::posix_time::microseconds(1));
+								//}
+							}
+						}
+
+						//Send data (byte operation)
+						ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, remaining_bytes[i]);
+
+						//update last_time with when it was supposed to have been sent:
+						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
+						if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+						else _last_time[i] = time_spec_t::get_system_time();
+
+					}
+					remaining_bytes[i] -= ret;
+					samp_sent += ret;
+//				}
+			}
+
+			// Exit if Timeout has lapsed
+			if (time_spec_t::get_system_time() > timeout_lapsed)
+				return (samp_sent / 4) / _channels.size();
+		}
+
+		return (samp_sent / 4) / _channels.size();// -  vita_hdr - vita_tlr;	// vita is disabled
 	}
 
 	// async messages are currently disabled
 	bool recv_async_msg( async_metadata_t &async_metadata, double timeout = 0.1) {
 		return false;
 	}
+	void disable_fc(){
+		_en_fc = false;
+
+	}
 
 private:
 	// init function, common to both constructors
-	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add) {
+	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -333,11 +373,26 @@ private:
 
 			//Launch thread for flow control
 
+//			//Launch threads for channels streaming
+//			for (int c = 0; c < _channels.size(); c++) {
+//				_channel_streams[c] = new boost::thread();
+//				_channel_streams[c]->start_thread();
+//			}
+
 			//Set up initial flow control variables
 			_flow_running=false;
-			_buffer_count[0] = 0;
-			_buffer_count[1] = 0;
+
+			for (int i = 0; i < _channels.size(); i++) {
+				std::vector<uint32_t> *counter = new std::vector<uint32_t>();
+				counter->push_back(0);
+				counter->push_back(0);
+				_buffer_count.push_back(*counter);
+			}
+
 			_udp_mutex_add = udp_mutex_add;
+			_async_comm = async_comm;
+			_async_mutex = async_mutex;
+			_en_fc=true;
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
@@ -345,8 +400,8 @@ private:
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
-			_fifo_level_perc = 50;
-
+			_fifo_level_perc = 80;
+			_max_clock_ppm_error = 100;
 		}
 	}
 
@@ -357,11 +412,25 @@ private:
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
 		txstream->_flow_running = true;
 
+		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
+
 		while(true){
+
+			//Sleep for desired time
+			boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
+
+			// Get Sample Rate Information
+			double new_samp_rate[txstream->_channels.size()];
+			for (int c = 0; c < txstream->_channels.size(); c++) {
+				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
+				new_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+			}
+
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
+
 			txstream->_udp_mutex_add->unlock();
 
 			// remove the "flow," at the beginning of the string
@@ -370,52 +439,80 @@ private:
 			//Prevent multiple access
 			txstream->_flowcontrol_mutex.lock();
 
+			// Update Sample Rates
+			for (int c = 0; c < txstream->_channels.size(); c++) {
+				if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
+					txstream->_samp_rate[c] = new_samp_rate[c];
+					txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+				}
+			}
+
 			// read in each fifo level, ignore() will skip the commas
 			std::stringstream ss(buff_read);
 			for (int j = 0; j < 4; j++) {
 				ss >> txstream->_fifo_lvl[j];
 				ss.ignore();
 			}
+
 			//increment buffer count to say we have data
-			txstream->_buffer_count[0]++;
+			for (int j = 0; j < txstream->_channels.size(); j++) {
+				txstream->_buffer_count[j][0]++;	// For coordinating sample rate updates
+			}
+			txstream->_async_mutex->lock();
+
+			//If under run, tell user
+			for (int ch = 0; ch < txstream->_channels.size(); ch++) {
+				if (txstream->_fifo_lvl[txstream->_channels[ch]] >=0 && txstream->_fifo_lvl[txstream->_channels[ch]] <15 )
+					txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
+			}
 
 			//unlock
+			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
-
-
-			//sleep for the designated update period
-			boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 		}
 
-
-
 	}
-	void update_samplerate(){
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			if(_buffer_count[0]!=_buffer_count[1]){
+
+	// Actual Flow Control Controller
+	void update_samplerate(size_t channel){
+		int timeout = 0;
+		if(_flowcontrol_mutex.try_lock()){
+			if(_buffer_count[channel][0]!=_buffer_count[channel][1]){
+//				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
-				if(_flowcontrol_mutex.try_lock()){
 
 					// calculate the error - aim for 50%
-					_fifo_lvl[i] = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[i]) / (CRIMSON_BUFF_SIZE);
+					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
-					_samp_rate[i]=_samp_rate[i]+(_fifo_lvl[i]*_samp_rate[i])/10000000;
+					_samp_rate[channel]=_samp_rate[channel]+(f_update*_samp_rate[channel])/10000000;
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = _samp_rate[i]/1000000;
+					double max_corr = _samp_rate_usr[channel] * (_max_clock_ppm_error/1000000);
 					if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
-					if(_samp_rate[i] > (_samp_rate_usr[i] + max_corr)){
-						_samp_rate[i] = _samp_rate_usr[i] + max_corr;
-					}else if(_samp_rate[i] < (_samp_rate_usr[i] - max_corr)){
-						_samp_rate[i] = _samp_rate_usr[i] - max_corr;
+					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
+						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
+					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
+						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
 					}
 
-					//Buffer is now handled
-					_buffer_count[i+1] = _buffer_count[0];
-					_flowcontrol_mutex.unlock();
-				}
+					//Adjust last time to try and correct to 50%
+					//The adjust is 1/20th as that is the update period
+					if (_fifo_lvl[_channels[channel]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
+						time_spec_t lvl_adjust = time_spec_t(0,
+								((_fifo_lvl[_channels[channel]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[channel]);
+						_last_time[channel] = _last_time[channel] + lvl_adjust;
+					}else{
+						time_spec_t lvl_adjust = time_spec_t(0,
+								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
+						_last_time[channel] = _last_time[channel] - lvl_adjust;
+					}
+
+//				}
+				//Buffer is now handled
+				_buffer_count[channel][1] = _buffer_count[channel][0];
 			}
+			_flowcontrol_mutex.unlock();
 		}
 
 	}
@@ -429,6 +526,7 @@ private:
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
+	std::vector<boost::thread*> _channel_streams;
 	std::vector<double> _samp_rate;
 	std::vector<double> _samp_rate_usr;
 	std::vector<time_spec_t> _last_time;
@@ -437,10 +535,17 @@ private:
 	uhd::wb_iface::sptr _flow_iface;
 	boost::mutex _flowcontrol_mutex;
 	double _fifo_lvl[4];
-	uint32_t _buffer_count[2];
+	std::vector< std::vector<uint32_t> > _buffer_count;
 	bool _flow_running;
 	boost::mutex* _udp_mutex_add;
+	boost::mutex* _async_mutex;
+	std::vector<int>* _async_comm;
 	double _fifo_level_perc;
+	double _max_clock_ppm_error;
+	bool _en_fc;
+
+	//debug
+	time_spec_t _timer_tofreerun;
 };
 
 /***********************************************************************
@@ -450,6 +555,14 @@ private:
 bool crimson_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
+
+	_async_mutex.lock();
+	if (!_async_comm.empty()){
+	//	async_metadata.event_code = (async_metadata_t::event_code_t)_async_comm.front();
+		_async_comm.erase(_async_comm.begin());
+	//	return true;
+	}
+	_async_mutex.unlock();
     return false;
 }
 
@@ -506,5 +619,5 @@ tx_streamer::sptr crimson_impl::get_tx_stream(const uhd::stream_args_t &args){
 	UHD_MSG(status) << base_message.str();
 
 	// TODO firmware support for other otw_format, cpu_format
-	return tx_streamer::sptr(new crimson_tx_streamer(this->_addr, this->_tree, args.channels, &this->udp_mutex));
+	return tx_streamer::sptr(new crimson_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex));
 }
