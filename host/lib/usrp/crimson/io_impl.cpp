@@ -354,6 +354,19 @@ private:
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 
+		//Set up initial flow control variables
+		_flow_running=false;
+
+		//Set up mutex variables
+		_udp_mutex_add = udp_mutex_add;
+		_async_comm = async_comm;
+		_async_mutex = async_mutex;
+		_en_fc=true;
+
+		//Set up constants
+		_fifo_level_perc = 80;
+		_max_clock_ppm_error = 100;
+
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			std::string ch       = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			std::string udp_port = tree->access<std::string>(prop_path / "Channel_"+ch / "port").get();
@@ -379,20 +392,10 @@ private:
 //				_channel_streams[c]->start_thread();
 //			}
 
-			//Set up initial flow control variables
-			_flow_running=false;
-
-			for (int i = 0; i < _channels.size(); i++) {
-				std::vector<uint32_t> *counter = new std::vector<uint32_t>();
-				counter->push_back(0);
-				counter->push_back(0);
-				_buffer_count.push_back(*counter);
-			}
-
-			_udp_mutex_add = udp_mutex_add;
-			_async_comm = async_comm;
-			_async_mutex = async_mutex;
-			_en_fc=true;
+			std::vector<uint32_t> *counter = new std::vector<uint32_t>();
+			counter->push_back(0);
+			counter->push_back(0);
+			_buffer_count.push_back(*counter);
 
 			// initialize sample rate
 			_samp_rate.push_back(0);
@@ -400,8 +403,7 @@ private:
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
-			_fifo_level_perc = 80;
-			_max_clock_ppm_error = 100;
+
 		}
 	}
 
