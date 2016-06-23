@@ -198,6 +198,7 @@ public:
 	}
 
 	~crimson_tx_streamer() {
+		delete _flowcontrol_thread;
 	}
 
 	// number of channels for streamer
@@ -251,14 +252,10 @@ public:
 					//Adjust sample rate to fill up buffer in first half second
 					//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 					//each element in the buffer is 2 samples worth
-					time_spec_t past_halfbuffer = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
-					_last_time[i] = time_spec_t::get_system_time()-past_halfbuffer;
+					time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+					_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
 					//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 				}
-
-				//Flow control init
-				//check if flow control is running, if not run it
-				if (!_flow_running)	boost::thread flowcontrolThread(init_flowcontrol,this);
 
 				memset((void*)vita_buf, 0, vita_pck*4);
 				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
@@ -271,25 +268,25 @@ public:
 
 					//If greater then max pl copy over what you can, leave the rest
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
-							if (_en_fc) {
-								while ( time_spec_t::get_system_time() < _last_time[i]) {
-									update_samplerate(i);
-									//time_spec_t systime = time_spec_t::get_system_time();
-									//double systime_real = systime.get_real_secs();
-									//double last_time_real = _last_time[i].get_real_secs();
-									//if (systime_real < last_time_real){
-									//boost::this_thread::sleep(boost::posix_time::microseconds(1));
-									//}
-								}
+						if (_en_fc) {
+							while ( time_spec_t::get_system_time() < _last_time[i]) {
+								update_samplerate(i);
+								//time_spec_t systime = time_spec_t::get_system_time();
+								//double systime_real = systime.get_real_secs();
+								//double last_time_real = _last_time[i].get_real_secs();
+								//if (systime_real < last_time_real){
+								boost::this_thread::sleep(boost::posix_time::microseconds(1));
+								//}
 							}
-							//Send data (byte operation)
-							ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, CRIMSON_MAX_MTU);
+						}
+						//Send data (byte operation)
+						ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, CRIMSON_MAX_MTU);
 
-							//update last_time with when it was supposed to have been sent:
-							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+						//update last_time with when it was supposed to have been sent:
+						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
-							if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-							else _last_time[i] = time_spec_t::get_system_time();
+						if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+						else _last_time[i] = time_spec_t::get_system_time();
 
 					} else {
 						if (_en_fc) {
@@ -300,7 +297,7 @@ public:
 							//	double systime_real = systime.get_real_secs();
 							//	double last_time_real = _last_time[i].get_real_secs();
 							//	if (systime_real < last_time_real){vita_buf
-							//		boost::this_thread::sleep(boost::posix_time::microseconds(1));
+							//  boost::this_thread::sleep(boost::posix_time::microseconds(1));
 								//}
 							}
 						}
@@ -331,9 +328,24 @@ public:
 	bool recv_async_msg( async_metadata_t &async_metadata, double timeout = 0.1) {
 		return false;
 	}
-	void disable_fc(){
+	void disable_fc() {
 		_en_fc = false;
+		if (_flow_running) {
+			_flowcontrol_thread->interrupt();	// thread exits on interrupt
+			_flowcontrol_thread->join();		// wait for flow control thread to exit
 
+			// Restore Adjusted Sample Rates to Original Values
+			for (int c = 0; c < _channels.size(); c++) {
+				_samp_rate[c] = _samp_rate_usr[c];
+			}
+		}
+	}
+	void enable_fc() {
+		_en_fc = true;
+		if (!_flow_running) {
+			_flow_running = false;
+			_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
+		}
 	}
 
 private:
@@ -355,13 +367,14 @@ private:
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 
 		//Set up initial flow control variables
-		_flow_running=false;
+		_flow_running=true;
+		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
+		_en_fc=true;
 
 		//Set up mutex variables
 		_udp_mutex_add = udp_mutex_add;
 		_async_comm = async_comm;
 		_async_mutex = async_mutex;
-		_en_fc=true;
 
 		//Set up constants
 		_fifo_level_perc = 80;
@@ -384,14 +397,6 @@ private:
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
-			//Launch thread for flow control
-
-//			//Launch threads for channels streaming
-//			for (int c = 0; c < _channels.size(); c++) {
-//				_channel_streams[c] = new boost::thread();
-//				_channel_streams[c]->start_thread();
-//			}
-
 			std::vector<uint32_t> *counter = new std::vector<uint32_t>();
 			counter->push_back(0);
 			counter->push_back(0);
@@ -413,19 +418,34 @@ private:
 		//Get flow control updates x times a second
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
 		txstream->_flow_running = true;
+		uint8_t samp_rate_update_ctr = 4;
 
 		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 
 		while(true){
 
 			//Sleep for desired time
-			boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
+			// Catch Interrupts to Exit here
+			try {
+				boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
+			} catch (boost::thread_interrupted&) {
+				return;
+			}
 
-			// Get Sample Rate Information
+			// Get Sample Rate Information if update ctr threshold reached
 			double new_samp_rate[txstream->_channels.size()];
-			for (int c = 0; c < txstream->_channels.size(); c++) {
-				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
-				new_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+
+			if (samp_rate_update_ctr < 4) {		// Sample Rate will get updated every fifth loop
+				samp_rate_update_ctr++;
+			} else {
+				for (int c = 0; c < txstream->_channels.size(); c++) {
+					std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
+uhd::time_spec_t start = uhd::time_spec_t::get_system_time();
+					new_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+uhd::time_spec_t duration = uhd::time_spec_t::get_system_time() - start;
+UHD_MSG(status) << "RAM: SAMPLE_RATE CHECK TIME: " << duration.get_real_secs() << "\n";
+				}
+				samp_rate_update_ctr = 0;
 			}
 
 			//get data under mutex lock
@@ -442,10 +462,12 @@ private:
 			txstream->_flowcontrol_mutex.lock();
 
 			// Update Sample Rates
-			for (int c = 0; c < txstream->_channels.size(); c++) {
-				if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
-					txstream->_samp_rate[c] = new_samp_rate[c];
-					txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+			if (samp_rate_update_ctr == 0) {
+				for (int c = 0; c < txstream->_channels.size(); c++) {
+					if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
+						txstream->_samp_rate[c] = new_samp_rate[c];
+						txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+					}
 				}
 			}
 
@@ -476,7 +498,7 @@ private:
 	}
 
 	// Actual Flow Control Controller
-	void update_samplerate(size_t channel){
+	void update_samplerate(size_t channel) {
 		int timeout = 0;
 		if(_flowcontrol_mutex.try_lock()){
 			if(_buffer_count[channel][0]!=_buffer_count[channel][1]){
@@ -528,7 +550,7 @@ private:
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
-	std::vector<boost::thread*> _channel_streams;
+	boost::thread *_flowcontrol_thread;
 	std::vector<double> _samp_rate;
 	std::vector<double> _samp_rate_usr;
 	std::vector<time_spec_t> _last_time;
