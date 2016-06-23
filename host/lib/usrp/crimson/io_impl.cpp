@@ -419,8 +419,14 @@ private:
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
+		double new_samp_rate[txstream->_channels.size()];
 UHD_MSG(status) << "RAM: Crimson FlowControl Thread Starting...\n";
+try {
 		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
+} catch (boost::thread_interrupted&) {
+	UHD_MSG(status) << "RAM: OUTSIDE LOOP Crimson FlowControl Thread Exiting...\n";
+	return;
+}
 
 		while(true){
 
@@ -434,7 +440,6 @@ UHD_MSG(status) << "RAM: Crimson FlowControl Thread Exiting...\n";
 			}
 
 			// Get Sample Rate Information if update ctr threshold reached
-			double new_samp_rate[txstream->_channels.size()];
 
 			if (samp_rate_update_ctr < 4) {		// Sample Rate will get updated every fifth loop
 				samp_rate_update_ctr++;
