@@ -419,7 +419,7 @@ private:
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
-
+UHD_MSG(status) << "RAM: Crimson FlowControl Thread Starting...\n";
 		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 
 		while(true){
@@ -429,6 +429,7 @@ private:
 			try {
 				boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
 			} catch (boost::thread_interrupted&) {
+UHD_MSG(status) << "RAM: Crimson FlowControl Thread Exiting...\n";
 				return;
 			}
 
