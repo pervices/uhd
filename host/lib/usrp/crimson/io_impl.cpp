@@ -198,6 +198,7 @@ public:
 	}
 
 	~crimson_tx_streamer() {
+		disable_fc();	// Wait for thread to finish
 		delete _flowcontrol_thread;
 	}
 
@@ -275,7 +276,7 @@ public:
 								//double systime_real = systime.get_real_secs();
 								//double last_time_real = _last_time[i].get_real_secs();
 								//if (systime_real < last_time_real){
-								boost::this_thread::sleep(boost::posix_time::microseconds(1));
+								//boost::this_thread::sleep(boost::posix_time::microseconds(1));
 								//}
 							}
 						}
@@ -343,7 +344,7 @@ public:
 	void enable_fc() {
 		_en_fc = true;
 		if (!_flow_running) {
-			_flow_running = false;
+			_flow_running = true;
 			_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 		}
 	}
@@ -368,8 +369,8 @@ private:
 
 		//Set up initial flow control variables
 		_flow_running=true;
-		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 		_en_fc=true;
+		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 
 		//Set up mutex variables
 		_udp_mutex_add = udp_mutex_add;
@@ -428,7 +429,7 @@ try {
 	return;
 }
 
-		while(true){
+		while(true) {
 
 			//Sleep for desired time
 			// Catch Interrupts to Exit here
