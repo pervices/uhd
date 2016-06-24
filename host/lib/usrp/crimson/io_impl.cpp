@@ -421,36 +421,36 @@ private:
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
 		double new_samp_rate[txstream->_channels.size()];
-UHD_MSG(status) << "RAM: Crimson FlowControl Thread Starting...\n";
-try {
-		boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
-} catch (boost::thread_interrupted&) {
-	UHD_MSG(status) << "RAM: OUTSIDE LOOP Crimson FlowControl Thread Exiting...\n";
-	return;
-}
+
+		try {
+				boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
+		} catch (boost::thread_interrupted&) {
+			return;
+		}
 
 		while(true) {
 
 			//Sleep for desired time
 			// Catch Interrupts to Exit here
 			try {
-				boost::this_thread::sleep(boost::posix_time::milliseconds(wait-(txstream->_channels.size()*2)));
+				if (samp_rate_update_ctr < 4) {
+					boost::this_thread::sleep( boost::posix_time::milliseconds(wait) );
+				} else {	// Reduce wait by the approx time (~2ms) it takes for sample rate updates
+					boost::this_thread::sleep( boost::posix_time::milliseconds(wait - (txstream->_channels.size()*2)) );
+				}
 			} catch (boost::thread_interrupted&) {
-UHD_MSG(status) << "RAM: Crimson FlowControl Thread Exiting...\n";
 				return;
 			}
 
-			// Get Sample Rate Information if update ctr threshold reached
+			// Get Sample Rate Information if update counter threshold has been reached
 
 			if (samp_rate_update_ctr < 4) {		// Sample Rate will get updated every fifth loop
 				samp_rate_update_ctr++;
 			} else {
 				for (int c = 0; c < txstream->_channels.size(); c++) {
 					std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
-uhd::time_spec_t start = uhd::time_spec_t::get_system_time();
+					// Access time found to be between 1.3ms to 2.2ms
 					new_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-uhd::time_spec_t duration = uhd::time_spec_t::get_system_time() - start;
-UHD_MSG(status) << "RAM: SAMPLE_RATE CHECK TIME: " << duration.get_real_secs() << "\n";
 				}
 				samp_rate_update_ctr = 0;
 			}
