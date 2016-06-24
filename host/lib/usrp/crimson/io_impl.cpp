@@ -253,7 +253,7 @@ public:
 					//Adjust sample rate to fill up buffer in first half second
 					//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 					//each element in the buffer is 2 samples worth
-					time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+					time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
 					_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
 					//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 				}
@@ -373,7 +373,6 @@ private:
 		_async_mutex = async_mutex;
 
 		//Set up constants
-		_fifo_level_perc = 80;
 		_max_clock_ppm_error = 100;
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
@@ -404,6 +403,9 @@ private:
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
+
+			// initialise FIFO Steady State Targets
+			_fifo_level_perc.push_back(80);
 
 		}
 
@@ -472,6 +474,10 @@ private:
 			if (samp_rate_update_ctr == 0) {
 				for (int c = 0; c < txstream->_channels.size(); c++) {
 					if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
+						if (new_samp_rate[c] < CRIMSON_SS_FIFOLVL_THRESHOLD)
+							txstream->_fifo_level_perc[c] = 50;
+						else
+							txstream->_fifo_level_perc[c] = 80;
 						txstream->_samp_rate[c] = new_samp_rate[c];
 						txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
 					}
@@ -513,7 +519,7 @@ private:
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
 
 					// calculate the error - aim for 50%
-					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
+					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
 					_samp_rate[channel]=_samp_rate[channel]+(f_update*_samp_rate[channel])/10000000;
 
@@ -529,13 +535,13 @@ private:
 
 					//Adjust last time to try and correct to 50%
 					//The adjust is 1/20th as that is the update period
-					if (_fifo_lvl[_channels[channel]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
+					if (_fifo_lvl[_channels[channel]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
-								((_fifo_lvl[_channels[channel]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[channel]);
+								((_fifo_lvl[_channels[channel]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100))*2/20) / (double)_samp_rate[channel]);
 						_last_time[channel] = _last_time[channel] + lvl_adjust;
 					}else{
 						time_spec_t lvl_adjust = time_spec_t(0,
-								(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
+								(((CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
 						_last_time[channel] = _last_time[channel] - lvl_adjust;
 					}
 
@@ -571,7 +577,7 @@ private:
 	boost::mutex* _udp_mutex_add;
 	boost::mutex* _async_mutex;
 	std::vector<int>* _async_comm;
-	double _fifo_level_perc;
+	std::vector<double> _fifo_level_perc;
 	double _max_clock_ppm_error;
 	bool _en_fc;
 
