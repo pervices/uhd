@@ -367,11 +367,6 @@ private:
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 
-		//Set up initial flow control variables
-		_flow_running=true;
-		_en_fc=true;
-		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
-
 		//Set up mutex variables
 		_udp_mutex_add = udp_mutex_add;
 		_async_comm = async_comm;
@@ -411,6 +406,11 @@ private:
 			_last_time.push_back(time_spec_t(0.0));
 
 		}
+
+		//Set up initial flow control variables
+		_flow_running=true;
+		_en_fc=true;
+		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 	}
 
 	 // Flow Control (should be called once on seperate thread)
