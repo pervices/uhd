@@ -250,6 +250,12 @@ public:
 					//Set the user set sample rate to refer to later
 					_samp_rate_usr[i] = _samp_rate[i];
 
+					// Set FIFO level steady state target accordingly
+					if (_samp_rate[i] < CRIMSON_SS_FIFOLVL_THRESHOLD)
+						_fifo_level_perc[i] = 50;
+					else
+						_fifo_level_perc[i] = 80;
+
 					//Adjust sample rate to fill up buffer in first half second
 					//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 					//each element in the buffer is 2 samples worth
@@ -518,10 +524,10 @@ private:
 //				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
 
-					// calculate the error - aim for 50%
+					// calculate the error - aim for steady state fifo level percentage
 					double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
 					//apply correction
-					_samp_rate[channel]=_samp_rate[channel]+(f_update*_samp_rate[channel])/10000000;
+					_samp_rate[channel]=_samp_rate[channel]+(2*f_update*_samp_rate[channel])/10000000;
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
