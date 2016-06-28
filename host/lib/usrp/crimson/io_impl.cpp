@@ -242,27 +242,7 @@ public:
 				if (remaining_bytes[i] == 0) continue;
 				size_t ret = 0;
 				// update sample rate if we don't know the sample rate
-				if (_samp_rate[i] == 0) {
-					//Get sample rate
-					std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-					_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-
-					//Set the user set sample rate to refer to later
-					_samp_rate_usr[i] = _samp_rate[i];
-
-					// Set FIFO level steady state target accordingly
-					if (_samp_rate[i] < CRIMSON_SS_FIFOLVL_THRESHOLD)
-						_fifo_level_perc[i] = 50;
-					else
-						_fifo_level_perc[i] = 80;
-
-					//Adjust sample rate to fill up buffer in first half second
-					//we do this by setting the "last time " data was sent to be half a buffers worth in the past
-					//each element in the buffer is 2 samples worth
-					time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
-					_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
-					//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
-				}
+				setup_steadystate(i);
 
 				memset((void*)vita_buf, 0, vita_pck*4);
 				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
@@ -412,6 +392,7 @@ private:
 
 			// initialise FIFO Steady State Targets
 			_fifo_level_perc.push_back(80);
+			_underflow_flag.push_back(false);
 
 		}
 
@@ -504,9 +485,12 @@ private:
 			txstream->_async_mutex->lock();
 
 			//If under run, tell user
-			for (int ch = 0; ch < txstream->_channels.size(); ch++) {
-				if (txstream->_fifo_lvl[txstream->_channels[ch]] >=0 && txstream->_fifo_lvl[txstream->_channels[ch]] <15 )
-					txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
+			for (int ch = 0; ch < txstream->_channels.size(); ch++) {	// Alert send when FIFO level is < 2%
+				if (txstream->_fifo_lvl[txstream->_channels[ch]] >=0 && txstream->_fifo_lvl[txstream->_channels[ch]] < 656 )
+					if (txstream->_fifo_lvl[txstream->_channels[ch]] < 15) {
+						txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
+					}
+					txstream->_underflow_flag[ch] = true;
 			}
 
 			//unlock
@@ -521,6 +505,7 @@ private:
 		int timeout = 0;
 		if(_flowcontrol_mutex.try_lock()){
 			if(_buffer_count[channel][0]!=_buffer_count[channel][1]){
+				setup_steadystate(channel);	// Handles Underflows
 //				for (unsigned int i = 0; i < _channels.size(); i++) {
 				//If mutex is locked, let the streamer loop around and try again if we are still waiting
 
@@ -559,6 +544,32 @@ private:
 		}
 
 	}
+
+	void setup_steadystate(size_t i) {	// i is the channel assignment
+		if (_samp_rate[i] == 0 || _underflow_flag[i]) {	// Handle UnderFlow if it occurs
+			_underflow_flag[i] = false;
+			//Get sample rate
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+
+			//Set the user set sample rate to refer to later
+			_samp_rate_usr[i] = _samp_rate[i];
+
+			// Set FIFO level steady state target accordingly
+			if (_samp_rate[i] < CRIMSON_SS_FIFOLVL_THRESHOLD)
+				_fifo_level_perc[i] = 50;
+			else
+				_fifo_level_perc[i] = 80;
+
+			//Adjust sample rate to fill up buffer in first half second
+			//we do this by setting the "last time " data was sent to be half a buffers worth in the past
+			//each element in the buffer is 2 samples worth
+			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+			_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
+			//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
+		}
+	}
+
 	// helper function to swap bytes, within 32-bits
 	void _32_align(uint32_t* data) {
 		*data = (*data & 0x000000ff) << 24 |
@@ -572,6 +583,7 @@ private:
 	boost::thread *_flowcontrol_thread;
 	std::vector<double> _samp_rate;
 	std::vector<double> _samp_rate_usr;
+	std::vector<bool> _underflow_flag;
 	std::vector<time_spec_t> _last_time;
 	property_tree::sptr _tree;
 	size_t _pay_len;
