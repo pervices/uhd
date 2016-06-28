@@ -564,7 +564,7 @@ private:
 			//Adjust sample rate to fill up buffer in first half second
 			//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 			//each element in the buffer is 2 samples worth
-			time_spec_t past_buffer_ss = time_spec_t(0, ((_underflow_flag[i] ? (_fifo_level_perc[i] / 4) : _fifo_level_perc[i])/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+			time_spec_t past_buffer_ss = time_spec_t(0, ((_underflow_flag[i] ? (_fifo_level_perc[i] / 2) : _fifo_level_perc[i])/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
 			_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
 			//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 
