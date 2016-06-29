@@ -559,7 +559,7 @@ private:
 	}
 
 	void setup_steadystate(size_t i) {	// i is the channel assignment
-		if (_samp_rate[i] == 0 || _underflow_flag[i]) {	// Handle UnderFlow if it occurs
+		if (_samp_rate[i] == 0) {	// Handle UnderFlow if it occurs
 			//Get sample rate
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
@@ -572,11 +572,13 @@ private:
 				_fifo_level_perc[i] = 50;
 			else
 				_fifo_level_perc[i] = 80;
+		}
 
+		if (_samp_rate[i] == 0 || _underflow_flag[i]) {
 			//Adjust sample rate to fill up buffer in first half second
 			//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 			//each element in the buffer is 2 samples worth
-			time_spec_t past_buffer_ss = time_spec_t(0, ((_underflow_flag[i] ? (_fifo_level_perc[i] / 2) : _fifo_level_perc[i])/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
 			_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
 			//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 
