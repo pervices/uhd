@@ -393,6 +393,7 @@ private:
 			// initialise FIFO Steady State Targets
 			_fifo_level_perc.push_back(80);
 			_underflow_flag.push_back(false);
+			_overflow_flag.push_back(false);
 
 		}
 
@@ -492,6 +493,9 @@ private:
 					}
 					txstream->_underflow_flag[ch] = true;
 				}
+				else if (txstream->_fifo_lvl[txstream->_channels[ch]] > 29490) {	// Alert send when FIFO level > 90% (~29490)
+					txstream->_overflow_flag[ch] = true;
+				}
 			}
 
 			//unlock
@@ -530,11 +534,19 @@ private:
 					if (_fifo_lvl[_channels[channel]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
 								((_fifo_lvl[_channels[channel]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100))*2/20) / (double)_samp_rate[channel]);
-						_last_time[channel] = _last_time[channel] + lvl_adjust;
+						_last_time[channel] += lvl_adjust;
 					}else{
 						time_spec_t lvl_adjust = time_spec_t(0,
 								(((CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
-						_last_time[channel] = _last_time[channel] - lvl_adjust;
+						_last_time[channel] -= lvl_adjust;
+					}
+
+					// Handle OverFlow Alerts
+					if (_overflow_flag[channel]) {
+						time_spec_t delay_buffer_ss = time_spec_t(0, ((_fifo_level_perc[channel] / 2)/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[channel]);
+						_last_time[channel] += delay_buffer_ss;
+
+						_overflow_flag[channel] = false;
 					}
 
 //				}
@@ -586,6 +598,7 @@ private:
 	std::vector<double> _samp_rate;
 	std::vector<double> _samp_rate_usr;
 	std::vector<bool> _underflow_flag;
+	std::vector<bool> _overflow_flag;
 	std::vector<time_spec_t> _last_time;
 	property_tree::sptr _tree;
 	size_t _pay_len;
