@@ -257,7 +257,7 @@ public:
 					//If greater then max pl copy over what you can, leave the rest
 					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
 						if (_en_fc) {
-							while ( time_spec_t::get_system_time() < _last_time[i]) {
+							while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
 								update_samplerate(i);
 								//time_spec_t systime = time_spec_t::get_system_time();
 								//double systime_real = systime.get_real_secs();
@@ -279,7 +279,7 @@ public:
 					} else {
 						if (_en_fc) {
 
-							while ( time_spec_t::get_system_time() < _last_time[i]) {
+							while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
 								update_samplerate(i);
 							//	time_spec_t systime = time_spec_t::get_system_time();
 							//	double systime_real = systime.get_real_secs();
@@ -397,7 +397,7 @@ private:
 
 			// initialise FIFO Steady State Targets
 			_fifo_level_perc.push_back(80);
-			_underflow_flag.push_back(false);
+			_underflow_flag.push_back(true);
 			_overflow_flag.push_back(false);
 
 		}
