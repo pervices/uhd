@@ -198,6 +198,7 @@ public:
 	}
 
 	~crimson_tx_streamer() {
+		num_instances--;
 		disable_fc();	// Wait for thread to finish
 		delete _flowcontrol_thread;
 	}
@@ -296,6 +297,10 @@ public:
 						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
 						if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 						else _last_time[i] = time_spec_t::get_system_time();
+
+						if (num_instances > 1) {
+							boost::this_thread::sleep(boost::posix_time::microseconds(1));
+						}
 
 					}
 					remaining_bytes[i] -= ret;
@@ -401,6 +406,7 @@ private:
 		_flow_running=true;
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
+		num_instances++;
 	}
 
 	 // Flow Control (should be called once on seperate thread)
@@ -615,10 +621,12 @@ private:
 	std::vector<double> _fifo_level_perc;
 	double _max_clock_ppm_error;
 	bool _en_fc;
+	static size_t num_instances;
 
 	//debug
 	time_spec_t _timer_tofreerun;
 };
+size_t crimson_tx_streamer::num_instances = 0;
 
 /***********************************************************************
  * Async Data
