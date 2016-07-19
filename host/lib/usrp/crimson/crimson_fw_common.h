@@ -73,7 +73,7 @@ extern "C" {
 #define CRIMSON_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
-#define CRIMSON_BUFF_SIZE	32766
+#define CRIMSON_BUFF_SIZE	65532
 
 // Crimson RF Settings
 #define CRIMSON_RF_TX_GAIN_RANGE_START	0.0

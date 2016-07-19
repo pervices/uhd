@@ -494,14 +494,14 @@ private:
 			txstream->_async_mutex->lock();
 
 			//If under run, tell user
-			for (int ch = 0; ch < txstream->_channels.size(); ch++) {	// Alert send when FIFO level is < 20% (~6550)
-				if (txstream->_fifo_lvl[txstream->_channels[ch]] >=0 && txstream->_fifo_lvl[txstream->_channels[ch]] < 6550 ) {
+			for (int ch = 0; ch < txstream->_channels.size(); ch++) {	// Alert send when FIFO level is < 20% (~13106)
+				if (txstream->_fifo_lvl[txstream->_channels[ch]] >=0 && txstream->_fifo_lvl[txstream->_channels[ch]] < 13106 ) {
 					if (txstream->_fifo_lvl[txstream->_channels[ch]] < 15) {
 						txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
 					}
 					txstream->_underflow_flag[ch] = true;
 				}
-				else if (txstream->_fifo_lvl[txstream->_channels[ch]] > 29490) {	// Alert send when FIFO level > 90% (~29490)
+				else if (txstream->_fifo_lvl[txstream->_channels[ch]] > 58979) {	// Alert send when FIFO level > 90% (~58979)
 					txstream->_overflow_flag[ch] = true;
 				}
 			}
