@@ -448,16 +448,16 @@ tune_result_t multi_crimson_impl::set_rx_freq(const tune_request_t &tune_request
     } else {
         _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").set(*freq);
 
-	// read back the frequency and adjust for the errors with DSP NCO if possible
+        // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double set_dsp_nco = cur_dsp_nco - (*freq - cur_lo_freq);
 
-	if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
-	if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
+        if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
+        if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
         _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
 
-	result.actual_rf_freq = cur_lo_freq - set_dsp_nco;
+        result.actual_rf_freq = cur_lo_freq - set_dsp_nco;
     }
 
     // account back for the offset
@@ -724,14 +724,14 @@ tune_result_t multi_crimson_impl::set_tx_freq(const tune_request_t &tune_request
     } else {
         _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").set(*freq);
 
-	// read back the frequency and adjust for the errors with DSP NCO if possible
+        // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
         int set_dsp_nco = *freq - cur_lo_freq;
 
         if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
         if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
-        	_tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
 
         result.actual_rf_freq = cur_lo_freq + set_dsp_nco + cur_dac_nco;
     }
