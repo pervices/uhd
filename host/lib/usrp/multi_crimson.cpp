@@ -723,7 +723,7 @@ tune_result_t multi_crimson::set_tx_freq(const tune_request_t &tune_request, siz
     // use the DSP NCO with base band
     if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 0) {
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-        int set_dsp_nco = *freq;
+        double set_dsp_nco = *freq;
         _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
 
         result.actual_rf_freq = set_dsp_nco + cur_dac_nco;
