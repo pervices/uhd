@@ -743,7 +743,7 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
     // switch bands if less/greater than 100 MHz
     if (*freq > 100000000.0) _tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").set(1);
     else                     _tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").set(0);
-    _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "val").set(0);	// Set state tree to min gain
+    _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(0);	// Set state tree to min gain
 
     // offset it by 85 MHz if sampling rate is low.
     double cur_tx_rate = get_tx_rate(chan);
