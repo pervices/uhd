@@ -214,13 +214,7 @@ void multi_crimson_tng::set_time_next_pps(const time_spec_t &time_spec, size_t m
 
 void multi_crimson_tng::set_time_unknown_pps(const time_spec_t &time_spec){
     // Not implemented
-    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
-    _tree->access<int>(mb_root(0) / "blink").set(5);
-    sleep(1);
-    _tree->access<std::string>(mb_root(0) / "temp").set("0");
-    sleep(1);
-    std::cout << "FPGA TEMPERATURE: " << _tree->access<std::string>(mb_root(0) / "temp").get() << std::endl;
-    sleep(1);
+    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
 }
 
 bool multi_crimson_tng::get_time_synchronized(void){
@@ -241,27 +235,27 @@ void multi_crimson_tng::clear_command_time(size_t mboard){
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
     // set register to start the stream
-    if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
-        //_tree->access<std::string>(tx_link_root(chan) / "enable").set("1");
-        //_tree->access<std::string>(rx_link_root(chan) / "enable").set("1");
-
-    // set register to stop the stream
-    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
-        //_tree->access<std::string>(tx_link_root(chan) / "enable").set("0");
-        //_tree->access<std::string>(rx_link_root(chan) / "enable").set("0");
-
-    //} else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
-	// set register to wait for a stream cmd after num_samps
-	// not supported in Crimson
-
-    //} else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE) {
-	// set register to not wait for a stream cmd after num_samps
-	// not supported in Crimson
-
-    } else {
-        //_tree->access<std::string>(tx_link_root(chan) / "enable").set("0");
-        //_tree->access<std::string>(rx_link_root(chan) / "enable").set("0");
-    }
+//    if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
+//        _tree->access<std::string>(tx_link_root(chan) / "stream").set("1");
+//        _tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
+//
+//    // set register to stop the stream
+//    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+//        _tree->access<std::string>(tx_link_root(chan) / "stream").set("0");
+//        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+//
+//    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
+//	// set register to wait for a stream cmd after num_samps
+//	// not supported in Crimson
+//
+//    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE) {
+//	// set register to not wait for a stream cmd after num_samps
+//	// not supported in Crimson
+//
+//    } else {
+//        _tree->access<std::string>(tx_link_root(chan) / "stream").set("0");
+//        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+//    }
     return;
 }
 
@@ -384,7 +378,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
     _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
     double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
-
+/*
     // re-tune the frequency
     double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
     double cur_lo_freq = 0;
@@ -393,7 +387,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
     }
     tune_request_t tune_request(cur_lo_freq - cur_dsp_nco);
     set_rx_freq(tune_request, chan);
-
+*/
     boost::format base_message (
             "RX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
@@ -464,7 +458,7 @@ tune_result_t multi_crimson_tng::set_rx_freq(const tune_request_t &tune_request,
     } else {
         _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").set(*freq);
 
-	// read back the frequency and adjust for the errors with DSP NCO if possible
+        // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double set_dsp_nco = cur_dsp_nco - (*freq - cur_lo_freq);
@@ -698,6 +692,7 @@ void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
     double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 
     // re-tune the frequency
+/*
     double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
     double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
     double cur_lo_freq = 0;
@@ -706,7 +701,7 @@ void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
     }
     tune_request_t tune_request(cur_lo_freq + cur_dac_nco + cur_dsp_nco);
     set_tx_freq(tune_request, chan);
-
+*/
     boost::format base_message (
             "TX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
@@ -777,7 +772,7 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
     } else {
         _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").set(*freq);
 
-	// read back the frequency and adjust for the errors with DSP NCO if possible
+        // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
         double set_dsp_nco = *freq - cur_lo_freq;

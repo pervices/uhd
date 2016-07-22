@@ -40,6 +40,7 @@ extern "C" {
 #define CRIMSON_TNG_FW_COMMS_MTU (1 << 13) //8k
 
 #define CRIMSON_TNG_FW_COMMS_UDP_PORT 	 42799
+#define CRIMSON_FLOW_CNTRL_UDP_PORT 	 42808
 
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_0         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff}
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_1         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33}
@@ -65,7 +66,14 @@ extern "C" {
 #define CRIMSON_TNG_FW_COMMS_FLAGS_PEEK32     (1 << 3)
 
 // Crimson MTU Size
-#define CRIMSON_TNG_MAX_MTU		8800
+#define CRIMSON_TNG_MAX_MTU		6400
+
+// Crimson Flowcontrol Update Per Second
+#define CRIMSON_TNG_UPDATE_PER_SEC	150
+#define CRIMSON_TNG_SS_FIFOLVL_THRESHOLD 107421875
+
+// Crimson Buffer Size
+#define CRIMSON_TNG_BUFF_SIZE	65532
 
 // Crimson RF Settings
 #define CRIMSON_TNG_RF_TX_GAIN_RANGE_START	0.0
