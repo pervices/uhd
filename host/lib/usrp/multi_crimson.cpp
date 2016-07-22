@@ -66,6 +66,10 @@ multi_crimson::multi_crimson(const device_addr_t &addr) {
     _tree = _dev  -> get_tree();
 }
 
+multi_crimson::~multi_crimson(void) {
+	// do nothing
+}
+
 device::sptr multi_crimson::get_device(void){
     return _dev;
 }
