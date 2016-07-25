@@ -551,7 +551,7 @@ private:
 
 					// Handle OverFlow Alerts
 					if (_overflow_flag[channel]) {
-						time_spec_t delay_buffer_ss = time_spec_t(0, ((_fifo_level_perc[channel] / 2)/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[channel]);
+						time_spec_t delay_buffer_ss = time_spec_t(0, ((_fifo_level_perc[channel] / 2)/100*(double)(CRIMSON_BUFF_SIZE)) / (double)_samp_rate[channel]);
 						_last_time[channel] += delay_buffer_ss;
 
 						_overflow_flag[channel] = false;
@@ -585,8 +585,8 @@ private:
 		if (_samp_rate[i] == 0 || _underflow_flag[i]) {
 			//Adjust sample rate to fill up buffer in first half second
 			//we do this by setting the "last time " data was sent to be half a buffers worth in the past
-			//each element in the buffer is 2 samples worth
-			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_BUFF_SIZE*2)) / (double)_samp_rate[i]);
+			//each element in the buffer is 1 samples worth
+			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_BUFF_SIZE)) / (double)_samp_rate[i]);
 			_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
 			//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 
