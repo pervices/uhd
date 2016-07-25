@@ -495,8 +495,8 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(tx_path / chan / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
 	// Channel Stream Status
-	TREE_CREATE_RW(rx_path / chan / "stream", "rx_"+lc_num+"/stream", std::string, string);
-	TREE_CREATE_RW(tx_path / chan / "stream", "tx_"+lc_num+"/stream", std::string, string);
+	TREE_CREATE_RW(rx_link_path / "stream", "rx_"+lc_num+"/stream", std::string, string);
+	TREE_CREATE_RW(tx_link_path / "stream", "tx_"+lc_num+"/stream", std::string, string);
 
 	// Codecs, phony properties for Crimson
 	TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
