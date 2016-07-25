@@ -64,7 +64,7 @@ bool _check_tng_link_rate(const stream_args_t &args) {
  **********************************************************************/
 multi_crimson_tng::multi_crimson_tng(const device_addr_t &addr) {
     // this make will invoke the correct inherited crimson device class
-    _dev  = device::make(addr, device::CRIMSON);
+    _dev  = device::make(addr, device::CRIMSON_TNG);
     _tree = _dev  -> get_tree();
 }
 

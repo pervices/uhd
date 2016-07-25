@@ -371,7 +371,7 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 {
-    UHD_MSG(status) << "Opening a Crimson device..." << std::endl;
+    UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
     _addr = dev_addr;
 
