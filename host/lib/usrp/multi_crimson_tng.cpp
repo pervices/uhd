@@ -424,7 +424,7 @@ tune_result_t multi_crimson_tng::set_rx_freq(const tune_request_t &tune_request,
     // switch bands if less/greater than 100 MHz
     if (*freq > 100000000.0) _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(1);
     else                     _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(0);
-    _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "val").set(127);	// set state tree to maximum attenuation
+    _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);	// set state tree to maximum attenuation
 
     // offset it by 15 MHz if sampling rate is low.
     double cur_rx_rate = get_rx_rate(chan);
