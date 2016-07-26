@@ -219,7 +219,7 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
         hint["addr"], BOOST_STRINGIZE(CRIMSON_FW_COMMS_UDP_PORT));
 
     //send request for echo
-    comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
+    comm->send(asio::buffer("1,get,fpga/link/net/hostname", sizeof("1,get,fpga/link/net/hostname")));
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
@@ -229,17 +229,17 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
         const size_t nbytes = comm->recv(asio::buffer(buff), 0.050);
         if (nbytes == 0) break;
 
-	// parse the return buffer and store it in a vector
-	std::vector<std::string> tokens;
-	csv_parse(tokens, buff, ',');
-	if (tokens.size() < 3) break;
-	if (tokens[1].c_str()[0] == CMD_ERROR) break;
+        // parse the return buffer and store it in a vector
+        std::vector<std::string> tokens;
+        csv_parse(tokens, buff, ',');
+        if (tokens.size() < 3) break;
+        if (tokens[1].c_str()[0] == CMD_ERROR) break;
 
         device_addr_t new_addr;
-        new_addr["type"]    = "crimson";
+        new_addr["type"]    = tokens[2];
         new_addr["addr"]    = comm->get_recv_addr();
-	new_addr["name"]    = "";
-        new_addr["serial"]  = tokens[2];
+        new_addr["name"]    = "";
+        new_addr["serial"]  = "001"; //tokens[2];
 
         //filter the discovered device below by matching optional keys
         if (
