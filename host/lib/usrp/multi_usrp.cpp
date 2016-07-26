@@ -1404,10 +1404,8 @@ multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
         return sptr(new multi_usrp_impl(dev_addr));
     } catch (...) {
     	try {
-    		UHD_MSG(status) << "USRP Device NOT Found: Trying CRIMSON TNG Device...\n";
     		return sptr(new multi_crimson_tng(dev_addr));
     	} catch (...) {
-    		UHD_MSG(status) << "CRIMSON TNG Device NOT Found: Trying CRIMSON CLASSIC Device...\n";
     		return sptr(new multi_crimson(dev_addr));
     	}
     }
