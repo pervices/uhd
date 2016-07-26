@@ -219,7 +219,7 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
         hint["addr"], BOOST_STRINGIZE(CRIMSON_FW_COMMS_UDP_PORT));
 
     //send request for echo
-    comm->send(asio::buffer("1,get,fpga/link/net/hostname", sizeof("1,get,fpga/link/net/hostname")));
+    comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
@@ -234,6 +234,7 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
         csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
+        if (tokens[2] != "crimson") break;
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
@@ -243,8 +244,8 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
 
         //filter the discovered device below by matching optional keys
         if (
-            (not hint.has_key("name")    or hint["name"]    == new_addr["name"]) and
-            (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"]) and
+            (not hint.has_key("name")    or hint["name"]    == new_addr["name"])    and
+            (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
             addrs.push_back(new_addr);
