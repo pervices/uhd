@@ -54,6 +54,15 @@ public:
 	}
 
 	~crimson_rx_streamer() {
+		const fs_path mb_path   = "/mboards/0";
+		const fs_path link_path = mb_path / "rx_link";
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			// power off the channel
+			_tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("0");
+			_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("0");
+			usleep(4000);
+		}
 	}
 
 	// number of channels for streamer
@@ -100,7 +109,19 @@ public:
 		}
 
 		// process vita timestamps based on the last stream input's time stamp
-		uint64_t time_ticks = ((uint64_t)vita_buf[2]) | ((uint64_t)vita_buf[3] << 32);
+		uint32_t vb2 = (uint32_t)vita_buf[2];
+		uint32_t vb3 = (uint32_t)vita_buf[3];
+		vb2 = ((vb2 &  0x000000ff) << 24)
+			| ((vb2 &  0x0000ff00) << 8 )
+			| ((vb2 &  0x00ff0000) >> 8 )
+			| ((vb2 &  0xff000000) >> 24);
+
+		vb3 = ((vb3 &  0x000000ff) << 24)
+			| ((vb3 &  0x0000ff00) << 8 )
+			| ((vb3 &  0x00ff0000) >> 8 )
+			| ((vb3 &  0xff000000) >> 24);
+
+		uint64_t time_ticks = ((uint64_t)vb2 << 32) | ((uint64_t)vb3);
 
 		// determine the beginning of time
 		if (_start_ticks == 0) {
@@ -202,6 +223,16 @@ public:
 		num_instances--;
 		disable_fc();	// Wait for thread to finish
 		delete _flowcontrol_thread;
+
+		const fs_path mb_path   = "/mboards/0";
+		const fs_path prop_path = mb_path / "tx_link";
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			// power off the channel
+			_tree->access<std::string>(prop_path / "Channel_"+ch / "stream").set("0");
+			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
+			usleep(4000);
+		}
 	}
 
 	// number of channels for streamer

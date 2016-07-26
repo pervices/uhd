@@ -512,7 +512,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
 	TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
 
-	// Duaghter Boards' Frontend Settings
+	// Daughter Boards' Frontend Settings
 	TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 	TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
