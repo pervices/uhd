@@ -234,12 +234,10 @@ void multi_crimson::clear_command_time(size_t mboard){
 void multi_crimson::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
     // set register to start the stream
     if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
-        _tree->access<std::string>(tx_link_root(chan) / "stream").set("1");
         _tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
 
     // set register to stop the stream
     } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
-        _tree->access<std::string>(tx_link_root(chan) / "stream").set("0");
         _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
 
     } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
@@ -251,7 +249,6 @@ void multi_crimson::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan
 	// not supported in Crimson
 
     } else {
-        _tree->access<std::string>(tx_link_root(chan) / "stream").set("0");
         _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
     }
     return;
