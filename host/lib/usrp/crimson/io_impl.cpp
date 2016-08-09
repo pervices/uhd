@@ -84,7 +84,7 @@ public:
 		// read from each connected stream and dump it into the buffs[i]
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 
-			// clear temp buffer and output buffer
+			// clear temp buffer and otuput buffer
 			memset(vita_buf, 0, vita_pck * 4);
 			memset(buffs[i], 0, nsamps_per_buff * 4);
 
@@ -100,7 +100,7 @@ public:
 		}
 
 		// process vita timestamps based on the last stream input's time stamp
-		uint64_t time_ticks = ((uint64_t)vita_buf[2]) | ((uint64_t)vita_buf[3] << 32);
+		uint64_t time_ticks = ((uint64_t)vita_buf[2] << 32) | ((uint64_t)vita_buf[3]);
 
 		// determine the beginning of time
 		if (_start_ticks == 0) {
