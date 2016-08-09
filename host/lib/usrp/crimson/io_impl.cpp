@@ -160,8 +160,8 @@ private:
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
-			tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "stream").set("1");
-			usleep(500000);
+			tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("0");
+			usleep(600000);
 
 			// vita enable
 			tree->access<std::string>(link_path / "Channel_"+ch / "vita_en").set("1");
@@ -375,9 +375,8 @@ private:
 			_pay_len = tree->access<int>(mb_path / "link" / iface / "pay_len").get();
 
 			// power on the channel
-			tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "stream").set("1");
 			tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("1");
-			usleep(500000);
+			usleep(600000);
 
 			// vita disable
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("0");
