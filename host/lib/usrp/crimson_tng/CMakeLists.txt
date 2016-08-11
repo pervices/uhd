@@ -22,12 +22,12 @@
 ########################################################################
 # Conditionally configure the CRIMSON support
 ########################################################################
-LIBUHD_REGISTER_COMPONENT("CRIMSON" ENABLE_CRIMSON ON "ENABLE_LIBUHD" OFF)
+LIBUHD_REGISTER_COMPONENT("CRIMSON_TNG" ENABLE_CRIMSON_TNG ON "ENABLE_LIBUHD" OFF)
 
-IF(ENABLE_CRIMSON)
+IF(ENABLE_CRIMSON_TNG)
     LIBUHD_APPEND_SOURCES(
         ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io_tng_impl.cpp
     )
-ENDIF(ENABLE_CRIMSON)
+ENDIF(ENABLE_CRIMSON_TNG)

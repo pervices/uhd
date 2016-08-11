@@ -48,7 +48,7 @@ namespace asio = boost::asio;
 // This is a lock to prevent multiple threads from requesting commands from
 // the device at the same time. This is important in GNURadio, as they spawn
 // a new thread per block. If not protected, UDP commands would time out.
-boost::mutex udp_mutex;
+//boost::mutex udp_mutex;
 
 /***********************************************************************
  * Helper Functions
@@ -71,24 +71,27 @@ void csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 
 // base wrapper that calls the simple UDP interface to get messages to and from Crimson
 std::string crimson_impl::get_string(std::string req) {
-	boost::mutex::scoped_lock lock(udp_mutex);
+	this->_udp_mutex.lock();
 
 	// format the string and poke (write)
     	_iface -> poke_str("get," + req);
 
 	// peek (read) back the data
 	std::string ret = _iface -> peek_str();
+
+
+	this->_udp_mutex.unlock();
 	if (ret == "TIMEOUT") 	throw uhd::runtime_error("crimson_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
 void crimson_impl::set_string(const std::string pre, std::string data) {
-	boost::mutex::scoped_lock lock(udp_mutex);
-
+	this->_udp_mutex.lock();
 	// format the string and poke (write)
 	_iface -> poke_str("set," + pre + "," + data);
 
 	// peek (read) anyways for error check, since Crimson will reply back
 	std::string ret = _iface -> peek_str();
+	this->_udp_mutex.unlock();
 	if (ret == "TIMEOUT" || ret == "ERROR")
 		throw uhd::runtime_error("crimson_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
 	else
@@ -216,7 +219,7 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
         hint["addr"], BOOST_STRINGIZE(CRIMSON_FW_COMMS_UDP_PORT));
 
     //send request for echo
-    comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
+    comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
@@ -226,22 +229,23 @@ static device_addrs_t crimson_find_with_addr(const device_addr_t &hint)
         const size_t nbytes = comm->recv(asio::buffer(buff), 0.050);
         if (nbytes == 0) break;
 
-	// parse the return buffer and store it in a vector
-	std::vector<std::string> tokens;
-	csv_parse(tokens, buff, ',');
-	if (tokens.size() < 3) break;
-	if (tokens[1].c_str()[0] == CMD_ERROR) break;
+        // parse the return buffer and store it in a vector
+        std::vector<std::string> tokens;
+        csv_parse(tokens, buff, ',');
+        if (tokens.size() < 3) break;
+        if (tokens[1].c_str()[0] == CMD_ERROR) break;
+        if (tokens[2] != "crimson") break;
 
         device_addr_t new_addr;
-        new_addr["type"]    = "crimson";
+        new_addr["type"]    = tokens[2];
         new_addr["addr"]    = comm->get_recv_addr();
-	new_addr["name"]    = "";
-        new_addr["serial"]  = tokens[2];
+        new_addr["name"]    = "";
+        new_addr["serial"]  = "001"; //tokens[2];
 
         //filter the discovered device below by matching optional keys
         if (
-            (not hint.has_key("name")    or hint["name"]    == new_addr["name"]) and
-            (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"]) and
+            (not hint.has_key("name")    or hint["name"]    == new_addr["name"])    and
+            (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
             addrs.push_back(new_addr);
@@ -407,12 +411,6 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
     TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "sw_version", "fpga/about/sw_ver", std::string, string);
-    TREE_CREATE_RW(mb_path / "blink", "fpga/board/led", int, int);
-    TREE_CREATE_RW(mb_path / "temp", "fpga/board/temp", std::string, string);
-
-    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", int, int);
-    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
-    TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
@@ -497,6 +495,9 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(rx_path / chan / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
 	TREE_CREATE_RW(tx_path / chan / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
+	// Channel Stream Status
+	TREE_CREATE_RW(rx_link_path / "stream", "rx_"+lc_num+"/stream", std::string, string);
+
 	// Codecs, phony properties for Crimson
 	TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
 	TREE_CREATE_ST(rx_codec_path / "name", std::string, "RX Codec");
@@ -504,7 +505,7 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
 	TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
 
-	// Duaghter Boards' Frontend Settings
+	// Daughter Boards' Frontend Settings
 	TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 	TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
@@ -578,9 +579,9 @@ crimson_impl::crimson_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 	TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
-	TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", int, int);
-	TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", int, int);
-	TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", int, int);
+	TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
+	TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
+	TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
 	// Link settings
 	TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);

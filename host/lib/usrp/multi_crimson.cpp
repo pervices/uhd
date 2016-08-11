@@ -31,8 +31,6 @@
 #include <boost/thread.hpp>
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
-#include <boost/tokenizer.hpp>
-#include <iostream>
 #include <cmath>
 
 #define CRIMSON_MASTER_CLOCK_RATE	322265625
@@ -69,7 +67,7 @@ multi_crimson::multi_crimson(const device_addr_t &addr) {
 }
 
 multi_crimson::~multi_crimson(void) {
-    // do nothing
+	// do nothing
 }
 
 device::sptr multi_crimson::get_device(void){
@@ -190,60 +188,6 @@ std::string multi_crimson::get_mboard_name(size_t mboard){
     return _tree->access<std::string>(mb_root(0) / "name").get();
 }
 
-//// Get Digital Board FPGA Temperature
-//uint32_t multi_crimson::get_mboard_fpga_temp() {
-//    uint32_t ret = 0;
-//    std::string FPGA_TEMP_TOKEN = "FPGA:";
-//
-//    // Initiate dual cycle update
-//    _tree->access<std::string>(mb_root(0) / "temp").set("0");
-//    std::string temp_str = _tree->access<std::string>(mb_root(0) / "temp").get();
-//
-//    // initialize tokenizer
-//    typedef boost::tokenizer< boost::char_separator<char> > tokenizer;
-//    boost::char_separator<char> sep(" ");
-//    tokenizer tokens(temp_str, sep);
-//
-//    for (tokenizer::iterator iter = tokens.begin(); iter != tokens.end(); ++iter) {
-//	std::string token = *iter;
-//	if (token == FPGA_TEMP_TOKEN) {
-//	    ++iter;
-//	    token = *iter;
-//	    sscanf(token.c_str(), "%i", &ret);
-//	    break;
-//	}
-//    }
-//
-//    return ret;
-//}
-
-//// Get Digital Board MCU Temperature
-//uint32_t multi_crimson::get_mboard_mcu_temp() {
-//    uint32_t ret = 0;
-//    std::string MCU_TEMP_TOKEN = "MCU:";
-//
-//    // Initiate dual cycle update
-//    _tree->access<std::string>(mb_root(0) / "temp").set("0");
-//    std::string temp_str = _tree->access<std::string>(mb_root(0) / "temp").get();
-//
-//    // initialize tokenizer
-//    typedef boost::tokenizer< boost::char_separator<char> > tokenizer;
-//    boost::char_separator<char> sep(" ");
-//    tokenizer tokens(temp_str, sep);
-//
-//    for (tokenizer::iterator iter = tokens.begin(); iter != tokens.end(); ++iter) {
-//	std::string token = *iter;
-//	if (token == MCU_TEMP_TOKEN) {
-//	    ++iter;
-//	    token = *iter;
-//	    sscanf(token.c_str(), "%i", &ret);
-//	    break;
-//	}
-//    }
-//
-//    return ret;
-//}
-
 // Get the current time on Crimson
 time_spec_t multi_crimson::get_time_now(size_t mboard){
     return _tree->access<time_spec_t>(mb_root(0) / "time/now").get();
@@ -268,35 +212,8 @@ void multi_crimson::set_time_next_pps(const time_spec_t &time_spec, size_t mboar
 
 void multi_crimson::set_time_unknown_pps(const time_spec_t &time_spec){
     // Not implemented
-    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
-    _tree->access<int>(mb_root(0) / "blink").set(5);
-    sleep(1);
-    _tree->access<std::string>(mb_root(0) / "temp").set("0");
-    sleep(1);
-    std::cout << "FPGA TEMPERATURE: " << _tree->access<std::string>(mb_root(0) / "temp").get() << std::endl;
-    sleep(1);
+    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
 }
-
-//void multi_crimson::set_gps_time(const time_spec_t &time_spec) {
-//    _tree->access<int>(mb_root(0) / "gps_sync_time").set(0);
-//}
-//
-//time_spec_t multi_crimson::get_gps_time(const time_spec_t &time_spec) {
-//    // TODO: To be implemented
-//    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
-//    _tree->access<int>(mb_root(0) / "gps_time").set(0);
-//    _tree->access<int>(mb_root(0) / "gps_frac_time").set(0);
-//    sleep(1);
-//
-//    time_t gps_time = (time_t) _tree->access<int>(mb_root(0) / "gps_time").get();
-//    double gps_frac_time = (double) _tree->access<int>(mb_root(0) / "gps_frac_time").get();
-//
-//    std::cout << "FPGA GPS TIME: "	<< gps_time	 << std::endl;
-//    std::cout << "FPGA GPS FRAC TIME: " << gps_frac_time << std::endl;
-//
-//    return time_spec_t(gps_time, gps_frac_time);
-//}
-
 
 bool multi_crimson::get_time_synchronized(void){
     // Not implemented
@@ -317,25 +234,22 @@ void multi_crimson::clear_command_time(size_t mboard){
 void multi_crimson::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
     // set register to start the stream
     if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
-        //_tree->access<std::string>(tx_link_root(chan) / "enable").set("1");
-        //_tree->access<std::string>(rx_link_root(chan) / "enable").set("1");
+        _tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
 
     // set register to stop the stream
     } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
-        //_tree->access<std::string>(tx_link_root(chan) / "enable").set("0");
-        //_tree->access<std::string>(rx_link_root(chan) / "enable").set("0");
+        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
 
-    //} else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
+    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
 	// set register to wait for a stream cmd after num_samps
 	// not supported in Crimson
 
-    //} else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE) {
+    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE) {
 	// set register to not wait for a stream cmd after num_samps
 	// not supported in Crimson
 
     } else {
-        //_tree->access<std::string>(tx_link_root(chan) / "enable").set("0");
-        //_tree->access<std::string>(rx_link_root(chan) / "enable").set("0");
+        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
     }
     return;
 }
@@ -460,15 +374,16 @@ void multi_crimson::set_rx_rate(double rate, size_t chan){
 
     double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
 
-    // re-tune the frequency
-    int cur_dsp_nco = _tree->access<int>(rx_dsp_root(chan) / "nco").get();
+    // re-tune the frequency ??/?????
+    /*
+    double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
     double cur_lo_freq = 0;
     if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
         cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
     }
     tune_request_t tune_request(cur_lo_freq - cur_dsp_nco);
     set_rx_freq(tune_request, chan);
-
+*/
     boost::format base_message (
             "RX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
@@ -511,9 +426,9 @@ tune_result_t multi_crimson::set_rx_freq(const tune_request_t &tune_request, siz
     if (*freq > 15000000.0 && !(cur_rx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9)) ) {
        *freq -= 15000000.0;
        offset = true;
-       _tree->access<int>(rx_dsp_root(chan) / "nco").set(-15000000);
+       _tree->access<double>(rx_dsp_root(chan) / "nco").set(-15000000);
     } else {
-       _tree->access<int>(rx_dsp_root(chan) / "nco").set(0);
+       _tree->access<double>(rx_dsp_root(chan) / "nco").set(0);
     }
 
     // check the tuning ranges first, and clip if necessary
@@ -528,26 +443,26 @@ tune_result_t multi_crimson::set_rx_freq(const tune_request_t &tune_request, siz
 
     // use the DSP NCO with base band
     if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 0) {
-        int cur_dsp_nco = _tree->access<int>(rx_dsp_root(chan) / "nco").get();
-	int set_dsp_nco = cur_dsp_nco - *freq;
-        _tree->access<int>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
+        double set_dsp_nco = cur_dsp_nco - *freq;
+        _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
 
-	result.actual_rf_freq = -set_dsp_nco;
+        result.actual_rf_freq = -set_dsp_nco;
 
     // use the LO with high band
     } else {
         _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").set(*freq);
 
-	// read back the frequency and adjust for the errors with DSP NCO if possible
+        // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
-        int cur_dsp_nco = _tree->access<int>(rx_dsp_root(chan) / "nco").get();
-	int set_dsp_nco = cur_dsp_nco - (*freq - cur_lo_freq);
+        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
+        double set_dsp_nco = cur_dsp_nco - (*freq - cur_lo_freq);
 
-	if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
-	if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
-        _tree->access<int>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
+        if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
+        _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
 
-	result.actual_rf_freq = cur_lo_freq - set_dsp_nco;
+        result.actual_rf_freq = cur_lo_freq - set_dsp_nco;
     }
 
     // account back for the offset
@@ -608,7 +523,7 @@ tune_result_t multi_crimson::set_rx_freq(const tune_request_t &tune_request, siz
 
 // get the RX frequency on specified channel
 double multi_crimson::get_rx_freq(size_t chan){
-    int cur_dsp_nco = _tree->access<int>(rx_dsp_root(chan) / "nco").get();
+    double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
     double cur_lo_freq = 0;
     if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
         cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
@@ -735,15 +650,16 @@ void multi_crimson::set_tx_rate(double rate, size_t chan){
     double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 
     // re-tune the frequency
-    int cur_dac_nco = _tree->access<int>(tx_rf_fe_root(chan) / "nco").get();
-    int cur_dsp_nco = _tree->access<int>(tx_dsp_root(chan) / "nco").get();
+    /*
+    double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+    double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
     double cur_lo_freq = 0;
     if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
     	cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
     }
     tune_request_t tune_request(cur_lo_freq + cur_dac_nco + cur_dsp_nco);
     set_tx_freq(tune_request, chan);
-
+*/
     boost::format base_message (
             "TX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
@@ -786,9 +702,9 @@ tune_result_t multi_crimson::set_tx_freq(const tune_request_t &tune_request, siz
     if (*freq > 85000000.0 && !(cur_tx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9))) {
        *freq -= 85000000.0;
        offset = true;
-       _tree->access<int>(tx_rf_fe_root(chan) / "nco").set(85000000);
+       _tree->access<double>(tx_rf_fe_root(chan) / "nco").set(85000000);
     } else {
-       _tree->access<int>(tx_rf_fe_root(chan) / "nco").set(0);
+       _tree->access<double>(tx_rf_fe_root(chan) / "nco").set(0);
     }
 
     // check the tuning ranges first, and clip if necessary
@@ -803,26 +719,26 @@ tune_result_t multi_crimson::set_tx_freq(const tune_request_t &tune_request, siz
 
     // use the DSP NCO with base band
     if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 0) {
-        int cur_dac_nco = _tree->access<int>(tx_rf_fe_root(chan) / "nco").get();
-	int set_dsp_nco = *freq;
-        _tree->access<int>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+        double set_dsp_nco = *freq;
+        _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
 
-	result.actual_rf_freq = set_dsp_nco + cur_dac_nco;
+        result.actual_rf_freq = set_dsp_nco + cur_dac_nco;
 
     // use the LO with high band
     } else {
         _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").set(*freq);
 
-	// read back the frequency and adjust for the errors with DSP NCO if possible
+        // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
-        int cur_dac_nco = _tree->access<int>(tx_rf_fe_root(chan) / "nco").get();
-	int set_dsp_nco = *freq - cur_lo_freq;
+        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+        int set_dsp_nco = *freq - cur_lo_freq;
 
-	if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
-	if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
-        _tree->access<int>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
+        if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
+        _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
 
-	result.actual_rf_freq = cur_lo_freq + set_dsp_nco + cur_dac_nco;
+        result.actual_rf_freq = cur_lo_freq + set_dsp_nco + cur_dac_nco;
     }
 
     // account back for the offset
@@ -883,8 +799,8 @@ tune_result_t multi_crimson::set_tx_freq(const tune_request_t &tune_request, siz
 
 // get the TX frequency on specified channel
 double multi_crimson::get_tx_freq(size_t chan){
-    int cur_dac_nco = _tree->access<int>(tx_rf_fe_root(chan) / "nco").get();
-    int cur_dsp_nco = _tree->access<int>(tx_dsp_root(chan) / "nco").get();
+    double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+    double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
     double cur_lo_freq = 0;
     if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
     	cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();

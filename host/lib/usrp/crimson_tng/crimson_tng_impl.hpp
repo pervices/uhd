@@ -41,6 +41,7 @@
 #include <uhd/usrp/multi_crimson_tng.hpp>
 #include "crimson_tng_fw_common.h"
 #include "crimson_tng_iface.hpp"
+#include <vector>
 
 static const double CRIMSON_TNG_DEFAULT_TICK_RATE          = 200e6;        //Hz
 static const double CRIMSON_TNG_BUS_CLOCK_RATE             = 166.666667e6; //Hz
@@ -128,6 +129,10 @@ private:
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
     uhd::wb_iface::sptr _iface;
+
+    boost::mutex _udp_mutex;
+    boost::mutex _async_mutex;
+    std::vector<int> _async_comm;
 };
 
 #endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */

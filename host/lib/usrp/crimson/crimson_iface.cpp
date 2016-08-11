@@ -73,6 +73,7 @@ std::string crimson_iface::peek_str(void) {
     std::vector<std::string> tokens;
     uint8_t tries = 0;
     uint8_t num_tries = 5;
+    bool flow_cntrl = false;
 
     do {
         // clears the buffer and receives the message
@@ -80,24 +81,38 @@ std::string crimson_iface::peek_str(void) {
         const size_t nbytes = _ctrl_transport -> recv(boost::asio::buffer(_buff), 6.250);
         if (nbytes == 0) return "TIMEOUT";
 
+
         // parses it through tokens: seq, status, [data]
         this -> parse(tokens, _buff, ',');
 
-	// if parameter was not initialized
-	if (tokens.size() < 3) return "0";
+		// if parameter was not initialized
+		if (tokens.size() < 3) return "0";
+
+
+		// if flow control
+		if (tokens[0] == "flow") flow_cntrl = true;
 
         // If the message has an error, return ERROR
-        if(tokens[1].c_str()[0] == CMD_ERROR) return "ERROR";
+        if((flow_cntrl==false)&&(tokens[1].c_str()[0] == CMD_ERROR)) return "ERROR";
+
 
         // if seq is incorrect, return an error
         sscanf(tokens[0].c_str(), "%"SCNd32, &iseq);
-    } while(iseq != seq - 1 && tries++ < num_tries);
+
+
+    } while(iseq != seq - 1 && tries++ < num_tries && !flow_cntrl);
 
     // exits with an error if can't find a matching sequence
     if (tries == num_tries) return "INVLD_SEQ";
 
     // Return the message, tokens[1] is the sequence number
-    return tokens[2];
+    if (flow_cntrl) 	{
+		//std::cout <<"Read Buffer: "<< _buff<< std::endl;
+
+
+    	return _buff;
+    }
+    else		return tokens[2];
 }
 
 /***********************************************************************
