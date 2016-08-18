@@ -867,7 +867,6 @@ void multi_crimson_tng::set_tx_gain(double gain, const std::string &name, size_t
 	else if (gain < MIN_GAIN) gain = MIN_GAIN;
 
 	gain = round(gain / 0.25);
-	gain = 127 - gain;
 
     _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
 }
