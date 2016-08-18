@@ -255,8 +255,6 @@ public:
         	const tx_metadata_t &metadata,
         	const double timeout = 0.1)
 	{
-		const size_t vita_pck = nsamps_per_buff;// + vita_hdr + vita_tlr;	// vita is disabled
-		uint32_t vita_buf[vita_pck];						// buffer to read in data plus room for VITA
 		size_t samp_sent =0;
 		size_t remaining_bytes[_channels.size()];
 		for (unsigned int i = 0; i < _channels.size(); i++) {
@@ -276,67 +274,47 @@ public:
 				// update sample rate if we don't know the sample rate
 				setup_steadystate(i);
 
-				memset((void*)vita_buf, 0, vita_pck*4);
-				memcpy((void*)vita_buf, buffs[i], nsamps_per_buff*4);
+				size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);
 
-				//if (time_spec_t::get_system_time() > _timer_tofreerun) _en_fc = true;
-				//Check if it is time to send data, if so, copy the data over and continue
-
-//				while (remaining_bytes >0) {
-					size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);
-
-					//If greater then max pl copy over what you can, leave the rest
-					if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
-						if (_en_fc) {
-							while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
-								update_samplerate(i);
-								//time_spec_t systime = time_spec_t::get_system_time();
-								//double systime_real = systime.get_real_secs();
-								//double last_time_real = _last_time[i].get_real_secs();
-								//if (systime_real < last_time_real){
-								//boost::this_thread::sleep(boost::posix_time::microseconds(1));
-								//}
-							}
+				//If greater then max pl copy over what you can, leave the rest
+				if (remaining_bytes[i] >= CRIMSON_MAX_MTU){
+					if (_en_fc) {
+						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
+							update_samplerate(i);
 						}
-						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, CRIMSON_MAX_MTU);
-
-						//update last_time with when it was supposed to have been sent:
-						time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
-
-						if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-						else _last_time[i] = time_spec_t::get_system_time();
-
-					} else {
-						if (_en_fc) {
-
-							while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
-								update_samplerate(i);
-							//	time_spec_t systime = time_spec_t::get_system_time();
-							//	double systime_real = systime.get_real_secs();
-							//	double last_time_real = _last_time[i].get_real_secs();
-							//	if (systime_real < last_time_real){vita_buf
-							//  boost::this_thread::sleep(boost::posix_time::microseconds(1));
-								//}
-							}
-						}
-
-						//Send data (byte operation)
-						ret += _udp_stream[i] -> stream_out((void*)vita_buf + samp_ptr_offset, remaining_bytes[i]);
-
-						//update last_time with when it was supposed to have been sent:
-						time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
-						if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-						else _last_time[i] = time_spec_t::get_system_time();
-
-						if (num_instances > 1) {
-							boost::this_thread::sleep(boost::posix_time::microseconds(1));
-						}
-
 					}
-					remaining_bytes[i] -= ret;
-					samp_sent += ret;
-//				}
+					//Send data (byte operation)
+					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_MAX_MTU);
+
+					//update last_time with when it was supposed to have been sent:
+					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+
+					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+					else _last_time[i] = time_spec_t::get_system_time();
+
+				} else {
+					if (_en_fc) {
+
+						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
+							update_samplerate(i);
+						}
+					}
+
+					//Send data (byte operation)
+					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, remaining_bytes[i]);
+
+					//update last_time with when it was supposed to have been sent:
+					time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
+					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+					else _last_time[i] = time_spec_t::get_system_time();
+
+					if (num_instances > 1) {
+						boost::this_thread::sleep(boost::posix_time::microseconds(1));
+					}
+
+				}
+				remaining_bytes[i] -= ret;
+				samp_sent += ret;
 			}
 
 			// Exit if Timeout has lapsed
