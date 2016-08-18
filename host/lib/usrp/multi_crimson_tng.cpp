@@ -552,10 +552,9 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 
 	if (gain_token < 127) {	// attenuation only
 		_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127 - gain_token);
-		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(126);		// set minimum gain
+		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(0);		// set minimum gain
 	} else {
 		gain_token = gain_token - 127;	// isolate gain part
-		gain_token = 126 - gain_token;	// invert gain scale
 
 		// adjust attenuator to maintain 0.25dB resolution
 		if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
