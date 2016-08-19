@@ -543,28 +543,48 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 	if 		(gain > MAX_GAIN) 	gain = MAX_GAIN;
 	else if (gain < MIN_GAIN) 	gain = MIN_GAIN;
 
-	// Convert Gain float to value MCU understands
-	double gain_token = round(gain / 0.25); // Max 253
 
-	// 0   -> 126	attenuation only
-	// 127			0dB
-	// 128 -> 253	gain with some attenuation to maintain 0.25dB resolution
 
-	if (gain_token < 127) {	// attenuation only
-		_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127 - gain_token);
-		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(0);		// set minimum gain
-	} else {
-		gain_token = gain_token - 127;	// isolate gain part
+	if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 0) {	// Check Channel's Band
+		MAX_GAIN = 31.5;	// Max Low Band Gain
 
-		// adjust attenuator to maintain 0.25dB resolution
-		if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
-			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(1);
-			gain_token++;
-		} else {
-			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(0);
-		}
+		// Sanitize Gain value received for low band
+		if (gain > MAX_GAIN) gain = MAX_GAIN;
 
+		// Convert Gain float to value MCU understands
+		double gain_token = round(gain / 0.5);	// Max 63
+		gain_token = gain_token * 2;			// Max 126
+
+		// Ensure RX Attenuator is in Max Attenuation
+		_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);
+
+		// Set Low Band RX Gain
 		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+
+	} else {
+		// Convert Gain float to value MCU understands
+		double gain_token = round(gain / 0.25); // Max 253
+
+		// 0   -> 126	attenuation only
+		// 127			0dB
+		// 128 -> 253	gain with some attenuation to maintain 0.25dB resolution
+
+		if (gain_token < 127) {	// attenuation only
+			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127 - gain_token);
+			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(0);		// set minimum gain
+		} else {
+			gain_token = gain_token - 127;	// isolate gain part
+
+			// adjust attenuator to maintain 0.25dB resolution
+			if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
+				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(1);
+				gain_token++;
+			} else {
+				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(0);
+			}
+
+			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+		}
 	}
 }
 
