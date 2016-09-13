@@ -59,7 +59,6 @@ public:
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			// power off the channel
-			_tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("0");
 			_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("0");
 			usleep(4000);
 		}
@@ -181,7 +180,6 @@ private:
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
-			tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("0");
 			usleep(500000);
 
 			// vita enable
