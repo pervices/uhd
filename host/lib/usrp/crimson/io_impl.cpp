@@ -111,15 +111,15 @@ public:
 		// process vita timestamps based on the last stream input's time stamp
 		uint32_t vb2 = (uint32_t)vita_buf[2];
 		uint32_t vb3 = (uint32_t)vita_buf[3];
-		vb2 = ((vb2 &  0x000000ff) << 24)
-			| ((vb2 &  0x0000ff00) << 8 )
-			| ((vb2 &  0x00ff0000) >> 8 )
-			| ((vb2 &  0xff000000) >> 24);
-
-		vb3 = ((vb3 &  0x000000ff) << 24)
-			| ((vb3 &  0x0000ff00) << 8 )
-			| ((vb3 &  0x00ff0000) >> 8 )
-			| ((vb3 &  0xff000000) >> 24);
+//		vb2 = ((vb2 &  0x000000ff) << 24)
+//			| ((vb2 &  0x0000ff00) << 8 )
+//			| ((vb2 &  0x00ff0000) >> 8 )
+//			| ((vb2 &  0xff000000) >> 24);
+//
+//		vb3 = ((vb3 &  0x000000ff) << 24)
+//			| ((vb3 &  0x0000ff00) << 8 )
+//			| ((vb3 &  0x00ff0000) >> 8 )
+//			| ((vb3 &  0xff000000) >> 24);
 
 		uint64_t time_ticks = ((uint64_t)vb2 << 32) | ((uint64_t)vb3);
 
@@ -181,7 +181,7 @@ private:
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
-			tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("0");
+			tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("1");
 			usleep(600000);
 
 			// vita enable
@@ -287,9 +287,8 @@ public:
 					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_MAX_MTU);
 
 					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 
-					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+					if (_en_fc)_last_time[i] = _last_time[i]+time_spec_t(0, (double)(CRIMSON_MAX_MTU / 4.0) / (double)_samp_rate[i]);
 					else _last_time[i] = time_spec_t::get_system_time();
 
 				} else {
@@ -304,8 +303,7 @@ public:
 					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, remaining_bytes[i]);
 
 					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
-					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+					if (_en_fc)_last_time[i] = _last_time[i]+time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
 					else _last_time[i] = time_spec_t::get_system_time();
 
 					if (num_instances > 1) {
@@ -412,9 +410,9 @@ private:
 		}
 
 		//Set up initial flow control variables
-		_flow_running=true;
-		_en_fc=true;
-		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
+		_flow_running=false;
+		_en_fc=false;
+		//_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 		num_instances++;
 	}
 
