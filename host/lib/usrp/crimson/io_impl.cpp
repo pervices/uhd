@@ -122,7 +122,7 @@ public:
 
 		// save the time to metadata
 		time_ticks = time_ticks - _start_ticks;
-        metadata.time_spec = time_spec_t::from_ticks(time_ticks, _rate);
+		metadata.time_spec = time_spec_t::from_ticks(time_ticks, _rate);
 
 		// process vita sequencing
 		uint32_t header = vita_buf[0];
@@ -145,7 +145,7 @@ public:
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 	}
-//	std::vector<size_t> _channels;
+
 private:
 	// init function, common to both constructors
 	void init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
@@ -250,6 +250,11 @@ public:
 
 		// Timeout
 		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
+		size_t ret = 0;
+		size_t next_pkt_size = CRIMSON_MAX_MTU;
+		bool do_multi_instance_sleep = false;
+		size_t samp_ptr_offset = 0;
+
 
 		while (samp_sent < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
@@ -257,17 +262,18 @@ public:
 
 				// Skip Channel if Nothing left to send
 				if (remaining_bytes[i] == 0) continue;
-				size_t ret = 0;
-				size_t next_pkt_size = CRIMSON_MAX_MTU;
-				size_t samp_ptr_offset = nbytes_per_buff - remaining_bytes[i];
-				bool do_multi_instance_sleep = false;
+				ret = 0;
+				next_pkt_size = CRIMSON_MAX_MTU;
+				samp_ptr_offset = nbytes_per_buff - remaining_bytes[i];
+				do_multi_instance_sleep = false;
 
 				// update sample rate if we don't know the sample rate
 				setup_steadystate(i);
 
 				if (_en_fc) {
-					while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
+					if ( _overflow_flag[i] || (time_spec_t::get_system_time() < _last_time[i]) ) {
 						update_samplerate(i);
+						if (time_spec_t::get_system_time() < _last_time[i])	continue;	// if time still remaining
 					}
 				}
 
@@ -313,7 +319,7 @@ public:
 
 			// Restore Adjusted Sample Rates to Original Values
 			for (int c = 0; c < _channels.size(); c++) {
-				_samp_rate[c] = _samp_rate_usr[c];
+				_samp_rate[c] = _samp_rate_usr;
 			}
 		}
 	}
@@ -355,6 +361,9 @@ private:
 		//Set up constants
 		_max_clock_ppm_error = 100;
 
+		// Sample rate for the Instance (What User Has Set)
+		_samp_rate_usr = 0;
+
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			std::string ch       = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			std::string udp_port = tree->access<std::string>(prop_path / "Channel_"+ch / "port").get();
@@ -372,22 +381,20 @@ private:
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
-			// initialize sample rate
+			// initialize controlled sample rate
 			_samp_rate.push_back(0);
-			_samp_rate_usr.push_back(0);
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
 
 			// initialise FIFO Steady State Targets
 			_buffer_alert.push_back(false);
-			_fifo_level_perc.push_back(80);
-			_underflow_flag.push_back(true);
+			_underflow_flag.push_back(true);	// This is set the steady state
 			_overflow_flag.push_back(false);
-
 		}
 
 		//Set up initial flow control variables
+		_fifo_level_perc = 80;
 		_flow_running=true;
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
@@ -401,7 +408,7 @@ private:
 		uint32_t wait = 1000/CRIMSON_UPDATE_PER_SEC;
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
-		double new_samp_rate[txstream->_channels.size()];
+		double new_samp_rate;
 
 		try {
 				boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
@@ -417,7 +424,7 @@ private:
 				if (samp_rate_update_ctr < 4) {
 					boost::this_thread::sleep( boost::posix_time::milliseconds(wait) );
 				} else {	// Reduce wait by the approx time (~2ms) it takes for sample rate updates
-					boost::this_thread::sleep( boost::posix_time::milliseconds(wait - (txstream->_channels.size()*2)) );
+					boost::this_thread::sleep( boost::posix_time::milliseconds(wait - 2) );
 				}
 			} catch (boost::thread_interrupted&) {
 				return;
@@ -428,11 +435,10 @@ private:
 			if (samp_rate_update_ctr < 4) {		// Sample Rate will get updated every fifth loop
 				samp_rate_update_ctr++;
 			} else {
-				for (int c = 0; c < txstream->_channels.size(); c++) {
-					std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[c] + 65));
-					// Access time found to be between 1.3ms to 2.2ms
-					new_samp_rate[c] = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
-				}
+				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[0] + 65));
+				// Access time found to be between 1.3ms to 2.2ms
+				new_samp_rate = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+
 				samp_rate_update_ctr = 0;
 			}
 
@@ -451,14 +457,14 @@ private:
 
 			// Update Sample Rates
 			if (samp_rate_update_ctr == 0) {
-				for (int c = 0; c < txstream->_channels.size(); c++) {
-					if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
-						if (new_samp_rate[c] < CRIMSON_SS_FIFOLVL_THRESHOLD)
-							txstream->_fifo_level_perc[c] = 50;
-						else
-							txstream->_fifo_level_perc[c] = 80;
-						txstream->_samp_rate[c] = new_samp_rate[c];
-						txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+				if (new_samp_rate != txstream->_samp_rate_usr) {
+					if (new_samp_rate < CRIMSON_SS_FIFOLVL_THRESHOLD)
+						txstream->_fifo_level_perc = 50;
+					else
+						txstream->_fifo_level_perc = 80;
+					txstream->_samp_rate_usr = new_samp_rate;
+					for (int c = 0; c < txstream->_channels.size(); c++) {
+						txstream->_samp_rate[c] = txstream->_samp_rate_usr;
 					}
 				}
 			}
@@ -476,15 +482,11 @@ private:
 			}
 			txstream->_async_mutex->lock();
 
-			//If under run, tell user
-			for (int ch = 0; ch < txstream->_channels.size(); ch++) {	// Alert send when FIFO level is < 20% (~13106)
-				if (txstream->_fifo_lvl[txstream->_channels[ch]] >=0 && txstream->_fifo_lvl[txstream->_channels[ch]] < 13106 ) {
-					if (txstream->_fifo_lvl[txstream->_channels[ch]] < 15) {
-						txstream->_async_comm->push_back(async_metadata_t::EVENT_CODE_UNDERFLOW);
-					}
+			//If under run, alert controller
+			for (int ch = 0; ch < txstream->_channels.size(); ch++) {				// Alert send when FIFO level is < 20% (~13106)
+				if ( txstream->_fifo_lvl[txstream->_channels[ch]] < 13106 ) {
 					txstream->_underflow_flag[ch] = true;
-				}
-				else if (txstream->_fifo_lvl[txstream->_channels[ch]] > 58979) {	// Alert send when FIFO level > 90% (~58979)
+				} else if (txstream->_fifo_lvl[txstream->_channels[ch]] > 58979) {	// Alert send when FIFO level > 90% (~58979)
 					txstream->_overflow_flag[ch] = true;
 				}
 			}
@@ -493,7 +495,6 @@ private:
 			txstream->_async_mutex->unlock();
 			txstream->_flowcontrol_mutex.unlock();
 		}
-
 	}
 
 	// Actual Flow Control Controller
@@ -501,39 +502,36 @@ private:
 		int timeout = 0;
 		if(_flowcontrol_mutex.try_lock()) {
 			if(_buffer_alert[channel]) {
-				setup_steadystate(channel);	// Handles Underflows
-				//If mutex is locked, let the streamer loop around and try again if we are still waiting
-
 				// calculate the error - aim for steady state fifo level percentage
-				double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
+				double f_update = ((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_BUFF_SIZE);
 				//apply correction
 				_samp_rate[channel]=_samp_rate[channel]+(2*f_update*_samp_rate[channel])/10000000;
 
 				//Limit the correction
 				//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-				double max_corr = _samp_rate_usr[channel] * (_max_clock_ppm_error/1000000);
-				if (max_corr> CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
-				if (_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)) {
-					_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
-				} else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)) {
-					_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
+				double max_corr = _samp_rate_usr * (_max_clock_ppm_error/1000000);
+				if (max_corr > CRIMSON_BUFF_SIZE) max_corr=CRIMSON_BUFF_SIZE;
+				if (_samp_rate[channel] > (_samp_rate_usr + max_corr)) {
+					_samp_rate[channel] = _samp_rate_usr + max_corr;
+				} else if(_samp_rate[channel] < (_samp_rate_usr - max_corr)) {
+					_samp_rate[channel] = _samp_rate_usr - max_corr;
 				}
 
 				//Adjust last time to try and correct to 50%
 				//The adjust is 1/20th as that is the update period
-				if (_fifo_lvl[_channels[channel]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)){
+				if (_fifo_lvl[_channels[channel]] > (CRIMSON_BUFF_SIZE*_fifo_level_perc/100)){
 					time_spec_t lvl_adjust = time_spec_t(0,
-							((_fifo_lvl[_channels[channel]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100))*2/20) / (double)_samp_rate[channel]);
+							((_fifo_lvl[_channels[channel]]-(CRIMSON_BUFF_SIZE*_fifo_level_perc/100))*2/20) / (double)_samp_rate[channel]);
 					_last_time[channel] += lvl_adjust;
 				}else{
 					time_spec_t lvl_adjust = time_spec_t(0,
-							(((CRIMSON_BUFF_SIZE*_fifo_level_perc[channel]/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
+							(((CRIMSON_BUFF_SIZE*_fifo_level_perc/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
 					_last_time[channel] -= lvl_adjust;
 				}
 
 				// Handle OverFlow Alerts
 				if (_overflow_flag[channel]) {
-					time_spec_t delay_buffer_ss = time_spec_t(0, ((_fifo_level_perc[channel] / 2)/100*(double)(CRIMSON_BUFF_SIZE)) / (double)_samp_rate[channel]);
+					time_spec_t delay_buffer_ss = time_spec_t(0, ((_fifo_level_perc / 2)/100*(double)(CRIMSON_BUFF_SIZE)) / (double)_samp_rate[channel]);
 					_last_time[channel] += delay_buffer_ss;
 
 					_overflow_flag[channel] = false;
@@ -547,26 +545,28 @@ private:
 	}
 
 	void setup_steadystate(size_t i) {	// i is the channel assignment
-		if (_samp_rate[i] == 0) {	// Handle UnderFlow if it occurs
+		if (_samp_rate[i] == 0) {
 			//Get sample rate
-			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+			if (_samp_rate_usr == 0) {
+				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+				_samp_rate_usr = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+			}
 
 			//Set the user set sample rate to refer to later
-			_samp_rate_usr[i] = _samp_rate[i];
+			_samp_rate[i] = _samp_rate_usr;
 
 			// Set FIFO level steady state target accordingly
 			if (_samp_rate[i] < CRIMSON_SS_FIFOLVL_THRESHOLD)
-				_fifo_level_perc[i] = 50;
+				_fifo_level_perc = 50;
 			else
-				_fifo_level_perc[i] = 80;
+				_fifo_level_perc = 80;
 		}
 
-		if (_underflow_flag[i]) {
+		if (_underflow_flag[i]) {	// Handle UnderFlow if it occurs
 			//Adjust sample rate to fill up buffer in first half second
 			//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 			//each element in the buffer is 1 samples worth
-			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_BUFF_SIZE)) / (double)_samp_rate[i]);
+			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc/100*(double)(CRIMSON_BUFF_SIZE)) / (double)_samp_rate[i]);
 			_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
 
 			_underflow_flag[i] = !_en_fc;
@@ -585,7 +585,7 @@ private:
 	std::vector<size_t> _channels;
 	boost::thread *_flowcontrol_thread;
 	std::vector<double> _samp_rate;
-	std::vector<double> _samp_rate_usr;
+	double				_samp_rate_usr;
 	std::vector<bool> _underflow_flag;
 	std::vector<bool> _overflow_flag;
 	std::vector<bool> _buffer_alert;
@@ -599,7 +599,7 @@ private:
 	boost::mutex* _udp_mutex_add;
 	boost::mutex* _async_mutex;
 	std::vector<int>* _async_comm;
-	std::vector<double> _fifo_level_perc;
+	double _fifo_level_perc;
 	double _max_clock_ppm_error;
 	bool _en_fc;
 	static size_t num_instances;
@@ -616,14 +616,6 @@ size_t crimson_tx_streamer::num_instances = 0;
 bool crimson_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
-
-	_async_mutex.lock();
-	if (!_async_comm.empty()){
-	//	async_metadata.event_code = (async_metadata_t::event_code_t)_async_comm.front();
-		_async_comm.erase(_async_comm.begin());
-	//	return true;
-	}
-	_async_mutex.unlock();
     return false;
 }
 
