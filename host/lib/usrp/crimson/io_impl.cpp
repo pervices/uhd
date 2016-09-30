@@ -144,6 +144,22 @@ public:
 	}
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
+		const fs_path mb_path   = "/mboards/0";
+		const fs_path link_path = mb_path / "rx_link";
+
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			// send off the stream command
+			if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
+				_tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("1");
+			} else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+				_tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("0");
+			} else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
+				// unimplemented
+			} else {
+				// unimplemented
+			}
+		}
 	}
 
 private:
