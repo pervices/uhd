@@ -281,9 +281,7 @@ public:
 				ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, next_pkt_size);
 
 				//update last_time with when it was supposed to have been sent:
-				time_spec_t wait = time_spec_t(0, (double)(next_pkt_size / 4.0) / (double)_samp_rate[i]);
-
-				if (_en_fc) _last_time[i] = _last_time[i]+wait;
+				if (_en_fc) _last_time[i] = _last_time[i]+time_spec_t(0, (double)(next_pkt_size / 4.0) / (double)_samp_rate[i]);
 				else _last_time[i] = time_spec_t::get_system_time();
 
 				// Sleep after channel's Final packet if multiple instance are active
