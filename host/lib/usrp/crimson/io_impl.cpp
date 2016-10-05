@@ -93,6 +93,8 @@ public:
 		}
 
 		// process vita timestamps based on the last stream input's time stamp
+		_32_align(&vita_buf[2]);
+		_32_align(&vita_buf[3]);
 		uint64_t time_ticks = ((uint64_t)vita_buf[2] << 32) | ((uint64_t)vita_buf[3]);
 
 		// vita counter increments according to sample rate (all channels have to be same sample rate)
