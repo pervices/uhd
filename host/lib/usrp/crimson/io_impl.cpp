@@ -266,11 +266,7 @@ public:
 
 		// Timeout
 		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
-		size_t ret = 0;
-		size_t next_pkt_size = CRIMSON_MAX_MTU;
 		bool do_multi_instance_sleep = false;
-		size_t samp_ptr_offset = 0;
-
 
 		while (samp_sent < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
@@ -278,9 +274,9 @@ public:
 
 				// Skip Channel if Nothing left to send
 				if (remaining_bytes[i] == 0) continue;
-				ret = 0;
-				next_pkt_size = CRIMSON_MAX_MTU;
-				samp_ptr_offset = nbytes_per_buff - remaining_bytes[i];
+				size_t ret = 0;
+				size_t next_pkt_size = CRIMSON_MAX_MTU;
+				size_t samp_ptr_offset = nbytes_per_buff - remaining_bytes[i];
 				do_multi_instance_sleep = false;
 
 				// update sample rate if we don't know the sample rate
@@ -306,13 +302,13 @@ public:
 				if (_en_fc) _last_time[i] = _last_time[i]+time_spec_t(0, (double)(next_pkt_size / 4.0) / (double)_samp_rate[i]);
 				else _last_time[i] = time_spec_t::get_system_time();
 
-				// Sleep after channel's Final packet if multiple instance are active
-				if (do_multi_instance_sleep) {
-					boost::this_thread::sleep(boost::posix_time::microseconds(1));
-				}
-
 				remaining_bytes[i] -= ret;
 				samp_sent += (ret >> 2);	// divide by 4
+			}
+
+			// Sleep after channel's Final packet if multiple instance are active
+			if (do_multi_instance_sleep) {
+				boost::this_thread::sleep(boost::posix_time::microseconds(1));
 			}
 
 			// Exit if Timeout has lapsed
@@ -426,6 +422,25 @@ private:
 		uint8_t samp_rate_update_ctr = 4;
 		double new_samp_rate;
 
+		{	// Immediately request for of Sample Rate
+			std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[0] + 65));
+			// Access time found to be between 1.3ms to 2.2ms
+			new_samp_rate = txstream->_tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+
+			txstream->_flowcontrol_mutex.lock();
+
+			if (new_samp_rate < CRIMSON_SS_FIFOLVL_THRESHOLD)
+				txstream->_fifo_level_perc = 50;
+			else
+				txstream->_fifo_level_perc = 80;
+			txstream->_samp_rate_usr = new_samp_rate;
+			for (int c = 0; c < txstream->_channels.size(); c++) {
+				txstream->_samp_rate[c] = txstream->_samp_rate_usr;
+			}
+
+			txstream->_flowcontrol_mutex.unlock();
+		}
+
 		try {
 				boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
 		} catch (boost::thread_interrupted&) {
@@ -437,7 +452,7 @@ private:
 			//Sleep for desired time
 			// Catch Interrupts to Exit here
 			try {
-				if (samp_rate_update_ctr < 4) {
+				if (samp_rate_update_ctr < CRIMSON_SAMP_RATE_REFRESH_CTR_MAX) {
 					boost::this_thread::sleep( boost::posix_time::milliseconds(wait) );
 				} else {	// Reduce wait by the approx time (~2ms) it takes for sample rate updates
 					boost::this_thread::sleep( boost::posix_time::milliseconds(wait - 2) );
@@ -448,7 +463,7 @@ private:
 
 			// Get Sample Rate Information if update counter threshold has been reached
 
-			if (samp_rate_update_ctr < 4) {		// Sample Rate will get updated every fifth loop
+			if (samp_rate_update_ctr < CRIMSON_SAMP_RATE_REFRESH_CTR_MAX) {		// Sample Rate will get updated every fifth loop
 				samp_rate_update_ctr++;
 			} else {
 				std::string ch = boost::lexical_cast<std::string>((char)(txstream->_channels[0] + 65));
@@ -500,9 +515,9 @@ private:
 
 			//If under run, alert controller
 			for (int ch = 0; ch < txstream->_channels.size(); ch++) {				// Alert send when FIFO level is < 20% (~13106)
-				if ( txstream->_fifo_lvl[txstream->_channels[ch]] < 13106 ) {
+				if ( txstream->_fifo_lvl[txstream->_channels[ch]] < CRIMSON_UNDERFLOW_LIMIT ) {
 					txstream->_underflow_flag[ch] = true;
-				} else if (txstream->_fifo_lvl[txstream->_channels[ch]] > 58979) {	// Alert send when FIFO level > 90% (~58979)
+				} else if (txstream->_fifo_lvl[txstream->_channels[ch]] > CRIMSON_OVERFLOW_LIMIT ) {	// Alert send when FIFO level > 90% (~58979)
 					txstream->_overflow_flag[ch] = true;
 				}
 			}
