@@ -78,7 +78,7 @@ device::sptr multi_crimson_tng::get_device(void){
 
 // ID = unique ID set for the device
 // NAME = Name of the board (digital board will be crimson)
-// SERIAL = manufactuer serial no.
+// SERIAL = manufacturer serial no.
 // FW VERSION = verilog version, if NA, will be same as SW version
 // HW VERSION = PCB version
 // SW VERSION = software version
@@ -375,16 +375,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
     _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
     double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
-/*
-    // re-tune the frequency
-    double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
-    double cur_lo_freq = 0;
-    if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-        cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
-    }
-    tune_request_t tune_request(cur_lo_freq - cur_dsp_nco);
-    set_rx_freq(tune_request, chan);
-*/
+
     boost::format base_message (
             "RX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
@@ -552,29 +543,48 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 	if 		(gain > MAX_GAIN) 	gain = MAX_GAIN;
 	else if (gain < MIN_GAIN) 	gain = MIN_GAIN;
 
-	// Convert Gain float to value MCU understands
-	double gain_token = round(gain / 0.25); // Max 253
 
-	// 0   -> 126	attenuation only
-	// 127			0dB
-	// 128 -> 253	gain with some attenuation to maintain 0.25dB resolution
 
-	if (gain_token < 127) {	// attenuation only
-		_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127 - gain_token);
-		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(126);		// set minimum gain
-	} else {
-		gain_token = gain_token - 127;	// isolate gain part
-		gain_token = 126 - gain_token;	// invert gain scale
+	if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 0) {	// Check Channel's Band
+		MAX_GAIN = 31.5;	// Max Low Band Gain
 
-		// adjust attenuator to maintain 0.25dB resolution
-		if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
-			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(1);
-			gain_token++;
-		} else {
-			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(0);
-		}
+		// Sanitize Gain value received for low band
+		if (gain > MAX_GAIN) gain = MAX_GAIN;
 
+		// Convert Gain float to value MCU understands
+		double gain_token = round(gain / 0.5);	// Max 63
+		gain_token = gain_token * 2;			// Max 126
+
+		// Ensure RX Attenuator is in Max Attenuation
+		_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);
+
+		// Set Low Band RX Gain
 		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+
+	} else {
+		// Convert Gain float to value MCU understands
+		double gain_token = round(gain / 0.25); // Max 253
+
+		// 0   -> 126	attenuation only
+		// 127			0dB
+		// 128 -> 253	gain with some attenuation to maintain 0.25dB resolution
+
+		if (gain_token < 127) {	// attenuation only
+			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127 - gain_token);
+			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(0);		// set minimum gain
+		} else {
+			gain_token = gain_token - 127;	// isolate gain part
+
+			// adjust attenuator to maintain 0.25dB resolution
+			if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
+				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(1);
+				gain_token++;
+			} else {
+				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(0);
+			}
+
+			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+		}
 	}
 }
 
@@ -688,17 +698,6 @@ void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
 
     double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 
-    // re-tune the frequency
-/*
-    double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-    double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
-    double cur_lo_freq = 0;
-    if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-    	cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
-    }
-    tune_request_t tune_request(cur_lo_freq + cur_dac_nco + cur_dsp_nco);
-    set_tx_freq(tune_request, chan);
-*/
     boost::format base_message (
             "TX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
@@ -867,7 +866,6 @@ void multi_crimson_tng::set_tx_gain(double gain, const std::string &name, size_t
 	else if (gain < MIN_GAIN) gain = MIN_GAIN;
 
 	gain = round(gain / 0.25);
-	gain = 127 - gain;
 
     _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
 }

@@ -76,7 +76,7 @@ device::sptr multi_crimson::get_device(void){
 
 // ID = unique ID set for the device
 // NAME = Name of the board (digital board will be crimson)
-// SERIAL = manufactuer serial no.
+// SERIAL = manufacturer serial no.
 // FW VERSION = verilog version, if NA, will be same as SW version
 // HW VERSION = PCB version
 // SW VERSION = software version
@@ -374,16 +374,6 @@ void multi_crimson::set_rx_rate(double rate, size_t chan){
 
     double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
 
-    // re-tune the frequency ??/?????
-    /*
-    double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
-    double cur_lo_freq = 0;
-    if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-        cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
-    }
-    tune_request_t tune_request(cur_lo_freq - cur_dsp_nco);
-    set_rx_freq(tune_request, chan);
-*/
     boost::format base_message (
             "RX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
@@ -649,17 +639,6 @@ void multi_crimson::set_tx_rate(double rate, size_t chan){
 
     double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 
-    // re-tune the frequency
-    /*
-    double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-    double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
-    double cur_lo_freq = 0;
-    if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-    	cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
-    }
-    tune_request_t tune_request(cur_lo_freq + cur_dac_nco + cur_dsp_nco);
-    set_tx_freq(tune_request, chan);
-*/
     boost::format base_message (
             "TX Sample Rate Request:\n"
     	    "  Requested sample rate: %f MSps\n"
