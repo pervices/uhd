@@ -403,7 +403,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options").set(clock_source_options);
 
-    TREE_CREATE_ST("/name", std::string, "Crimson Device");
+    TREE_CREATE_ST("/name", std::string, "Crimson_TNG Device");
 
     TREE_CREATE_ST(mb_path / "vendor", std::string, "Per Vices");
     TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
