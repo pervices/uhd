@@ -412,7 +412,8 @@ tune_result_t multi_crimson_tng::set_rx_freq(const tune_request_t &tune_request,
     // switch bands if less/greater than 100 MHz
     if (*freq > 100000000.0) _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(1);
     else                     _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(0);
-    _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);	// set state tree to maximum attenuation
+    // @CF: kb #3548 SW: UHD Gain afer Freq Change
+    //_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);	// set state tree to maximum attenuation
 
     // offset it by 15 MHz if sampling rate is low.
     double cur_rx_rate = get_rx_rate(chan);
@@ -734,7 +735,8 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
     // switch bands if less/greater than 100 MHz
     if (*freq > 100000000.0) _tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").set(1);
     else                     _tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").set(0);
-    _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(0);	// Set state tree to min gain
+    // @CF: kb #3548 SW: UHD Gain afer Freq Change
+    //_tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(0);	// Set state tree to min gain
 
     // offset it by 85 MHz if sampling rate is low.
     double cur_tx_rate = get_tx_rate(chan);
