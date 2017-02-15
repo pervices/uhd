@@ -80,9 +80,9 @@ extern "C" {
 #define CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP	31.75
 #define CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP	0.25
 
-// Ranges from, 0dB to 95dB
+// Ranges from, 0dB to 83.25dB
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_START	0.0
-#define CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP	71.5
+#define CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP	83.25
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP	0.25
 
 // Crimson Rate Settings

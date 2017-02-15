@@ -547,8 +547,6 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
 	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
-	UHD_MSG(status) << "set_rx_gain(" << gain << ")" << std::endl;
-
 	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
 		// Low-Band
 
@@ -568,7 +566,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 		// PMA is off (+0dB)
 		lna_val = 0;
 		// BFP is off (+0dB)
-		// PE437 fully attenuates BFP
+		// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
 		atten_val = 31.75;
 		// LMH is adjusted from 0dB to 31.5dB
 		gain_val = low_band_gain;
@@ -577,12 +575,12 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 		// High-Band
 
 		if ( false ) {
-		} else if ( 0 <= gain && gain <= 31.5 ) {
+		} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
 			// PMA is off (+0dB)
 			lna_val = 0;
 			// BFP is on (+20dB)
-			// PE437 fully attenuates BFP (-20dB)
-			atten_val = 20.0;
+			// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+			atten_val = 31.75;
 			// LMH is adjusted from 0dB to 31.5dB
 			gain_val = gain;
 		} else if ( 31.5 <= gain && gain <= 51.5 ) {
@@ -593,29 +591,19 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			atten_val = 51.5 - gain;
 			// LMH is maxed (+31.5dB)
 			gain_val = 31.5;
-		} else if ( 51.5 <= gain && gain <= 71.5 ) {
+		} else if ( 51.5 <= gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
 			// PMA is on (+20dB)
 			lna_val = 20;
 			// BFP is on (+20dB)
 			// PE437 is adjusted from -20 dB to 0dB
-			atten_val = 71.5 - gain;
+			atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
 			// LMH is maxed (+31.5dB)
 			gain_val = 31.5;
 		}
 	}
 
-	UHD_MSG(status) << "setting lna to " << lna_val << std::endl;
-
 	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( 0 == lna_val ? 0 : 1 );
-
-	UHD_MSG(status) << "setting atten to " << atten_val << std::endl;
-
-	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
 	_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-
-	UHD_MSG(status) << "setting gain to " << gain_val << std::endl;
-
-	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
 	_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 2 );
 }
 
@@ -624,27 +612,15 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 
 	double r;
 
-    // XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
     double lna_val = 0 == _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? 0 : 20;
-	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
     double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 2;
-    // XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
-	UHD_MSG(status) << "get_rx_gain()" << std::endl;
-
 	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
-
 		r = gain_val;
-
 	} else {
-
-		// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
-		r = 20 /* BFP gain */ - atten_val + lna_val + gain_val;
-
+		r = 31.75 - atten_val + lna_val + gain_val; // maximum is 83.25
 	}
-
-	UHD_MSG(status) << "get_rx_gain() = " << r << std::endl;
 
     return r;
 }
