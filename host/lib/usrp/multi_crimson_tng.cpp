@@ -35,6 +35,8 @@
 #include <iostream>
 #include <cmath>
 
+#include "crimson_tng/crimson_tng_fw_common.h"
+
 #define CRIMSON_MASTER_CLOCK_RATE	322265625
 #define CRIMSON_RX_CHANNELS 4
 #define CRIMSON_TX_CHANNELS 4
@@ -536,69 +538,101 @@ freq_range_t multi_crimson_tng::get_fe_rx_freq_range(size_t chan){
 }
 
 // set RX frontend gain on specified channel, name specifies which IC to configure the gain for
-void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t chan){
-	double MIN_GAIN = 0;
-	double MAX_GAIN = 63.25;
+void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
-	// Sanitize Gain value received
-	if 		(gain > MAX_GAIN) 	gain = MAX_GAIN;
-	else if (gain < MIN_GAIN) 	gain = MIN_GAIN;
+	double atten_val;
+	double gain_val;
+	double lna_val;
 
+	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
+	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
+	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+		// Low-Band
 
-	if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 0) {	// Check Channel's Band
-		MAX_GAIN = 31.5;	// Max Low Band Gain
+		double low_band_gain = gain > 31.5 ? 31.5 : gain;
 
-		// Sanitize Gain value received for low band
-		if (gain > MAX_GAIN) gain = MAX_GAIN;
+		if ( low_band_gain != gain ) {
+            boost::format rf_lo_message(
+                "  The RF Low Band does not support the requested gain:\n"
+                "    Requested RF Low Band gain: %f dB\n"
+                "    Actual RF Low Band gain: %f dB\n"
+            );
+            rf_lo_message % gain % low_band_gain;
+            std::string results_string = rf_lo_message.str();
+        	UHD_MSG(status) << results_string;
+		}
 
-		// Convert Gain float to value MCU understands
-		double gain_token = round(gain / 0.5);	// Max 63
-		gain_token = gain_token * 2;			// Max 126
-
-		// Ensure RX Attenuator is in Max Attenuation
-		_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);
-
-		// Set Low Band RX Gain
-		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+		// PMA is off (+0dB)
+		lna_val = 0;
+		// BFP is off (+0dB)
+		// PE437 fully attenuates BFP
+		atten_val = 31.75;
+		// LMH is adjusted from 0dB to 31.5dB
+		gain_val = low_band_gain;
 
 	} else {
-		// Convert Gain float to value MCU understands
-		double gain_token = round(gain / 0.25); // Max 253
+		// High-Band
 
-		// 0   -> 126	attenuation only
-		// 127			0dB
-		// 128 -> 253	gain with some attenuation to maintain 0.25dB resolution
-
-		if (gain_token < 127) {	// attenuation only
-			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127 - gain_token);
-			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(0);		// set minimum gain
-		} else {
-			gain_token = gain_token - 127;	// isolate gain part
-
-			// adjust attenuator to maintain 0.25dB resolution
-			if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
-				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(1);
-				gain_token++;
-			} else {
-				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(0);
-			}
-
-			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+		if ( false ) {
+		} else if ( 0 <= gain && gain <= 31.5 ) {
+			// PMA is off (+0dB)
+			lna_val = 0;
+			// BFP is on (+20dB)
+			// PE437 fully attenuates BFP (-20dB)
+			atten_val = 20;
+			// LMH is adjusted from 0dB to 31.5dB
+			gain_val = gain;
+		} else if ( 31.5 <= gain && gain <= 51.5 ) {
+			// PMA is off (+0dB)
+			lna_val = 0;
+			// BFP is on (+20dB)
+			// PE437 is adjusted from -20 dB to 0dB
+			atten_val = gain - 20;
+			// LMH is maxed (+31.5dB)
+			gain_val = 31.5;
+		} else if ( 51.5 <= gain && gain <= 71.5 ) {
+			// PMA is on (+20dB)
+			lna_val = 20;
+			// BFP is on (+20dB)
+			// PE437 is adjusted from -20 dB to 0dB
+			atten_val = gain - 51.5;
+			// LMH is maxed (+31.5dB)
+			gain_val = 31.5;
 		}
 	}
+
+	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( 0 == lna_val ? 0 : 1 );
+	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
+	_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
+	_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 2 );
 }
 
 // get RX frontend gain on specified channel
 double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 
-    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get();
-    double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get();
+	double r;
 
-    gain_val  = 126 - gain_val;		// invert gain  scale
-    atten_val = 127 - atten_val;	// invert atten scale
+    // XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
+    double lna_val = 0 == _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? 0 : 20;
+	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
+    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 2;
+    // XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
+    double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
-    return gain_val + atten_val;
+	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+
+		r = gain_val;
+
+	} else {
+
+		// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
+		r = 20 /* BFP gain */ - atten_val + lna_val + gain_val;
+
+	}
+
+    return r;
 }
 
 // get RX frontend gain range on specified channel
