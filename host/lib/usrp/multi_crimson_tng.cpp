@@ -544,7 +544,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 	double gain_val;
 	double lna_val;
 
-	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
+	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
 	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
 	UHD_MSG(status) << "set_rx_gain(" << gain << ")" << std::endl;
