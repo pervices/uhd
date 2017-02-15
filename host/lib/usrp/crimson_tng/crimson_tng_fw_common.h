@@ -82,7 +82,7 @@ extern "C" {
 
 // Ranges from, 0dB to 95dB
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_START	0.0
-#define CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP	63.25
+#define CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP	71.5
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP	0.25
 
 // Crimson Rate Settings
@@ -101,7 +101,7 @@ extern "C" {
 #define CRIMSON_TNG_DSP_FREQ_RANGE_STEP	1.0
 
 // Crimson Clk Settings
-#define CRIMSON_TNG_MASTER_CLOCK_RATE	322265625
+#define CRIMSON_TNG_MASTER_CLOCK_RATE	322265625   // XXX: @CF: is this accurate?
 #define CRIMSON_TNG_EXT_CLK_RATE		10000000	// only 10 MHz input sources allowed
 
 // Crimson VITA settings
