@@ -590,7 +590,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			lna_val = 0;
 			// BFP is on (+20dB)
 			// PE437 is adjusted from -20 dB to 0dB
-			atten_val = gain - 20;
+			atten_val = 51.5 - gain;
 			// LMH is maxed (+31.5dB)
 			gain_val = 31.5;
 		} else if ( 51.5 <= gain && gain <= 71.5 ) {
@@ -598,7 +598,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			lna_val = 20;
 			// BFP is on (+20dB)
 			// PE437 is adjusted from -20 dB to 0dB
-			atten_val = gain - 51.5;
+			atten_val = 71.5 - gain;
 			// LMH is maxed (+31.5dB)
 			gain_val = 31.5;
 		}
