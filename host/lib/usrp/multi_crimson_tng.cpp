@@ -547,6 +547,8 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
+	UHD_MSG(status) << "set_rx_gain(" << gain << ")" << std::endl;
+
 	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
 		// Low-Band
 
@@ -580,7 +582,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			lna_val = 0;
 			// BFP is on (+20dB)
 			// PE437 fully attenuates BFP (-20dB)
-			atten_val = 20;
+			atten_val = 20.0;
 			// LMH is adjusted from 0dB to 31.5dB
 			gain_val = gain;
 		} else if ( 31.5 <= gain && gain <= 51.5 ) {
@@ -602,9 +604,17 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 		}
 	}
 
+	UHD_MSG(status) << "setting lna to " << lna_val << std::endl;
+
 	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( 0 == lna_val ? 0 : 1 );
+
+	UHD_MSG(status) << "setting atten to " << atten_val << std::endl;
+
 	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
 	_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+
+	UHD_MSG(status) << "setting gain to " << gain_val << std::endl;
+
 	// XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
 	_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 2 );
 }
@@ -621,6 +631,8 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
     // XXX: we should really have the conversion from dB to register setting done on the server side, and just communicate in dB
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
+	UHD_MSG(status) << "get_rx_gain()" << std::endl;
+
 	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
 
 		r = gain_val;
@@ -631,6 +643,8 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 		r = 20 /* BFP gain */ - atten_val + lna_val + gain_val;
 
 	}
+
+	UHD_MSG(status) << "get_rx_gain() = " << r << std::endl;
 
     return r;
 }
