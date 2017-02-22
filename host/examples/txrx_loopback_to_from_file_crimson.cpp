@@ -1,3 +1,9 @@
+#include <map>
+#include <string>
+
+static std::map<const std::string,int> to = { { "A", 0 }, { "B", 1 }, { "C", 2 }, { "D", 3 } };
+static std::map<int,const std::string> fro = { { 0, "A" }, { 1, "B" }, { 2, "C" }, { 3, "D" } };
+
 //
 // Copyright 2010-2012,2014 Ettus Research LLC
 //
@@ -26,10 +32,13 @@
 #include "boost/algorithm/string.hpp"
 #include "boost/lexical_cast.hpp"
 
+#include <uhd/exception.hpp>
+
 using namespace std;
 
-#define DATA_STREAM_LIMIT_BYTES   ((unsigned)(1 << 25))
-#define DATA_STREAM_LIMIT_SAMPLES (DATA_STREAM_LIMIT_BYTES / 4)
+//
+// <SNIP src="http://archive.oreilly.com/network/2003/05/06/examples/calculatorexample.html">
+//
 
 #include "boost/spirit.hpp"
 #include "boost/spirit/home/classic/phoenix/binders.hpp"
@@ -42,10 +51,6 @@ using namespace std;
 #include <map>
 #include <ostream>
 #include <string>
-
-//
-// <SNIP src="http://archive.oreilly.com/network/2003/05/06/examples/calculatorexample.html">
-//
 
 // Semantic actions can be functors. The operator() function is called
 // with two iterators that specify the range of input that matches the production.
@@ -254,21 +259,25 @@ private:
 // </SNIP>
 //
 
+/***********************************************************************
+ * StreamData Class for buffering data for several channels at once
+ **********************************************************************/
+
 class StreamData {
 
 public:
 
 	static const char preferred_delimiter = '\t';
 
-	unsigned n_channels;
-	unsigned n_samples;
+	size_t n_channels;
+	size_t n_samples;
 	std::vector<std::string> channels;
 	std::map<std::string, double> rx_center_freq;
 	std::map<std::string, double> tx_center_freq;
 	std::map<std::string, double> rx_sample_rate;
 	std::map<std::string, double> tx_sample_rate;
 
-	std::map<std::string, std::map<int, std::complex<short>>> samples;
+	std::map<const std::string, std::map<int, std::complex<short>>> samples;
 
 	StreamData()
 	: n_channels( 0 ), n_samples( 0 )
@@ -307,25 +316,25 @@ public:
 				break;
 
 			case 1:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					r.rx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
 				}
 				break;
 
 			case 2:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					r.tx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
 				}
 				break;
 
 			case 3:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					r.rx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
 				}
 				break;
 
 			case 4:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					r.tx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
 				}
 				break;
@@ -336,7 +345,7 @@ public:
 
 				r.n_samples = sampleno;
 
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 
 					if ( split[ i ].empty() ) {
 						// when reading from a file, it is possible that some of the data series are not the same length as others
@@ -383,7 +392,7 @@ public:
 
 			switch( lineno ) {
 			case 0:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					fs << r.channels[ i ];
 					if ( i < r.n_channels - 1 ) {
 						fs << preferred_delimiter;
@@ -393,7 +402,7 @@ public:
 				break;
 
 			case 1:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					fs << r.rx_center_freq[ r.channels[ i ] ];
 					if ( i < r.n_channels - 1 ) {
 						fs << preferred_delimiter;
@@ -403,7 +412,7 @@ public:
 				break;
 
 			case 2:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					fs << r.tx_center_freq[ r.channels[ i ] ];
 					if ( i < r.n_channels - 1 ) {
 						fs << preferred_delimiter;
@@ -413,7 +422,7 @@ public:
 				break;
 
 			case 3:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					fs << r.rx_sample_rate[ r.channels[ i ] ];
 					if ( i < r.n_channels - 1 ) {
 						fs << preferred_delimiter;
@@ -423,7 +432,7 @@ public:
 				break;
 
 			case 4:
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 					fs << r.tx_sample_rate[ r.channels[ i ] ];
 					if ( i < r.n_channels - 1 ) {
 						fs << preferred_delimiter;
@@ -434,7 +443,7 @@ public:
 
 			default:
 
-				for( int i = 0; i < r.n_channels; i++ ) {
+				for( unsigned i = 0; i < r.n_channels; i++ ) {
 
 					if ( sampleno < r.samples[ r.channels[ i ] ].size() ) {
 						if ( 0 == (lineno - 5) % 2 ) {
@@ -456,6 +465,32 @@ public:
 		}
 
 		fs.close();
+	}
+
+	void fillBuffers( std::vector<size_t> channel_nums, std::vector< std::vector< std::complex< short > > > &v, std::vector<size_t> &idx ) {
+
+		if ( v.size() != idx.size() ) {
+			throw uhd::runtime_error( "buffer vector and index vector are not equal sizes" );
+		}
+
+		for( unsigned i = 0; i < v.size(); i++ ) {
+			const std::string &s = ((std::map<int,const std::string>)fro)[ channel_nums[ i ] ];
+			if ( samples.end() == samples.find( s ) ) {
+				continue;
+			}
+
+			std::map<int, std::complex<short>> m = samples[ s ];
+
+			for( unsigned j = 0; j < v[ i ].size(); j++, idx[ i ] += 1, idx[ i ] %= m.size() ) {
+				v[ i ].push_back( m[ idx[ i ] ] );
+			}
+		}
+	}
+
+	void sizeBuffers( std::vector< std::vector< std::complex< short > > > &v ) {
+		for( unsigned i = 0; i < v.size(); i++ ) {
+			v[ i ].resize( n_samples );
+		}
 	}
 };
 
@@ -490,22 +525,28 @@ void sig_int_handler(int){stop_signal_called = true;}
  * A function to be used as a boost::thread_group thread for transmitting
  **********************************************************************/
 void transmit_worker(
-    std::vector<std::complex<float> > buff,
-    uhd::tx_streamer::sptr tx_streamer,
 	StreamData &sd,
-    uhd::tx_metadata_t metadata
+    uhd::tx_streamer::sptr tx_streamer,
+    uhd::tx_metadata_t metadata,
+    std::vector<size_t> tx_channel_nums
 ){
-    std::vector<std::complex<float> *> buffs( sd.n_channels , &buff.front() );
+	if ( sd.n_channels != tx_channel_nums.size() ) {\
+		throw new uhd::runtime_error( "number of channels not consistent" );
+	}
+
+	std::vector<size_t> indeces( tx_channel_nums.size() );
+
+	std::vector< std::vector< std::complex< short > > > buffs( tx_channel_nums.size() );
+
+	sd.sizeBuffers( buffs );
 
     //send data until the signal handler gets called
     while(not stop_signal_called){
-        //fill the buffer with the waveform
-        for (size_t n = 0; n < buff.size(); n++){
-            buff[n] = wave_table(index += step);
-        }
+
+        sd.fillBuffers( tx_channel_nums, buffs, indeces );
 
         //send the entire contents of the buffer
-        tx_streamer->send(buffs, buff.size(), metadata);
+        tx_streamer->send(buffs, sd.n_samples, metadata);
 
         metadata.start_of_burst = false;
         metadata.has_time_spec = false;
@@ -517,82 +558,67 @@ void transmit_worker(
 }
 
 
-/***********************************************************************
- * recv_to_file function
- **********************************************************************/
-template<typename samp_type> void recv_to_file(
+void recv_to_stream_data(
     uhd::usrp::multi_usrp::sptr usrp,
-    const std::string &cpu_format,
-    const std::string &wire_format,
-    const std::string &file,
-    size_t samps_per_buff,
-    int num_requested_samples,
-    float settling_time,
+    float settling_time_s,
+    float maximum_rxtime_s,
+    size_t maximum_rxsamples,
+    StreamData &sd,
     std::vector<size_t> rx_channel_nums
 ){
-    int num_total_samps = 0;
     //create a receive streamer
-    uhd::stream_args_t stream_args(cpu_format,wire_format);
+    uhd::stream_args_t stream_args( "sc16", "sc16" );
     stream_args.channels = rx_channel_nums;
-    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
+    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream( stream_args );
+
+    std::string chan_with_highest_sample_rate = "";
+    double highest_sample_rate = -1;
+    for( const auto &kv: sd.rx_sample_rate ) {
+        if ( kv.second > highest_sample_rate ) {
+            chan_with_highest_sample_rate = kv.first;
+            highest_sample_rate = kv.second;
+        }
+    }
+
+    sd.n_samples = std::min( (size_t)( maximum_rxtime_s * highest_sample_rate ), (size_t)maximum_rxsamples );
 
     uhd::rx_metadata_t md;
-    std::vector<samp_type> buff(samps_per_buff);
-    std::ofstream outfile(file.c_str(), std::ofstream::binary);
-    bool overflow_message = true;
-    float timeout = settling_time + 0.1; //expected settling time + padding for first recv
+
+    std::vector< std::vector< std::complex<short> > > buff( rx_channel_nums.size() );
+    sd.sizeBuffers( buff );
+
+    //bool overflow_message = true;
+    float timeout = settling_time_s + 0.1; //expected settling time + padding for first recv
 
     //setup streaming
-    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
-        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
-    );
-    stream_cmd.num_samps = num_requested_samples;
+    uhd::stream_cmd_t stream_cmd( uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE );
+    stream_cmd.num_samps = sd.n_samples;
     stream_cmd.stream_now = false;
-    stream_cmd.time_spec = uhd::time_spec_t(settling_time);
-    rx_stream->issue_stream_cmd(stream_cmd);
+    stream_cmd.time_spec = uhd::time_spec_t( settling_time_s );
+    rx_stream->issue_stream_cmd( stream_cmd );
 
-    while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)){
-        size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, timeout);
+    while(not stop_signal_called){
+
+        rx_stream->recv(&buff.front(), buff.size(), md, timeout );
         timeout = 0.1; //small timeout for subsequent recv
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
             break;
         }
-        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
-            if (overflow_message){
-                overflow_message = false;
-                std::cerr << boost::format(
-                    "Got an overflow indication. Please consider the following:\n"
-                    "  Your write medium must sustain a rate of %fMB/s.\n"
-                    "  Dropped samples will not be written to the file.\n"
-                    "  Please modify this example for your purposes.\n"
-                    "  This message will not appear again.\n"
-                ) % (usrp->get_rx_rate()*sizeof(samp_type)/1e6);
-            }
-            continue;
-        }
-        if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
+        if ( md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE ){
             throw std::runtime_error(str(boost::format(
                 "Receiver error %s"
             ) % md.strerror()));
         }
 
-        num_total_samps += num_rx_samps;
-
-        outfile.write((const char*)&buff.front(), num_rx_samps*sizeof(samp_type));
+        for( unsigned i = 0; i < rx_channel_nums.size(); i++ ) {
+            if ( buff[ i ].size() >= sd.n_samples ) {
+                std::cout << boost::format("Channel %s buffer filled to capacity") % ( fro[ rx_channel_nums[ i ] ] ) << std::endl;
+                break;
+            }
+        }
     }
-
-    outfile.close();
-}
-
-static void channel_names_to_numbers( std::vector<size_t> &numbers, std::vector<std::string> &names ) {
-	for( auto &v: names ) {
-		size_t ch = v.at( 0 );
-		ch -= 'A';
-		numbers.push_back( ch );
-	}
 }
 
 /***********************************************************************
@@ -603,14 +629,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //transmit variables to be set by po
     std::string tx_args, wave_type, tx_ant, tx_subdev, ref, otw, tx_channels;
-    double tx_rate, tx_freq, tx_gain, wave_freq, tx_bw;
-    float ampl;
+    double tx_rate, tx_freq;
 
     //receive variables to be set by po
     std::string rx_args, input_fn, output_fn, type, rx_ant, rx_subdev, rx_channels;
-    size_t total_num_samps, spb;
-    double rx_rate, rx_freq, rx_gain, rx_bw;
+    double rx_rate, rx_freq;
     float settling;
+    float rxtime;
+    size_t rxsamp;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -621,11 +647,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("input", po::value<std::string>(&input_fn)->default_value("input.csv"), "name of the input file")
 		("output", po::value<std::string>(&output_fn)->default_value("output.csv"), "name of the output file")
         ("settling", po::value<float>(&settling)->default_value(1), "settling time (seconds) before receiving")
-        ("rxtime", po::value<float>(&settling)->default_value(1), "maximum receive time (seconds)")
+        ("rxtime", po::value<float>(&rxtime)->default_value(1), "maximum receive time (seconds)")
+        ("rxsamp", po::value<size_t>(&rxsamp)->default_value((1 << 25)/4), "maximum number of received samples")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
+
+    if ( rxtime < 0 ) {
+        std::cerr << boost::format("rxtime %f invalid") % rxtime << std::endl;
+        return ~0;
+    }
 
     //print the help message
     if (vm.count("help")){
@@ -634,11 +666,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     StreamData input_stream_data;
-    input_fn = vm[ "input" ].as<std::string>();
+    StreamData output_stream_data;
 
+    input_fn = vm[ "input" ].as<std::string>();
     StreamData::fromFile( input_stream_data, input_fn );
 
-    /*
+    output_stream_data.n_channels = input_stream_data.n_channels;
+    output_stream_data.channels = input_stream_data.channels;
+
     //create a usrp device
     std::cout << std::endl;
     std::cout << boost::format("Creating the transmit crimson device with: %s...") % tx_args << std::endl;
@@ -646,36 +681,30 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << std::endl;
     std::cout << boost::format("Creating the receive usrp device with: %s...") % rx_args << std::endl;
     uhd::usrp::multi_usrp::sptr rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
-    */
 
     //detect which channels to use
-    std::vector<std::string> tx_channel_strings = input_stream_data.channels;
     std::vector<size_t> tx_channel_nums;
-    channel_names_to_numbers( tx_channel_nums, tx_channel_strings );
+    for( std::string &n: input_stream_data.channels ) {
+        tx_channel_nums.push_back( to[ n ] );
+    }
 
-    std::vector<std::string> rx_channel_strings = tx_channel_strings;
+    // XXX: @CF: this will not always be the case. In the CSV file,
+    // if rx is not in use when the corresponding tx is in use (and vice versa),
+    // I suggest we encode it as a negative centre frequency
     std::vector<size_t> rx_channel_nums = tx_channel_nums;
-
-    /*
-    //Lock mboard clocks
-    tx_usrp->set_clock_source(ref);
-    rx_usrp->set_clock_source(ref);
-
-    //always select the subdevice first, the channel mapping affects the other settings
-    if (vm.count("tx-subdev")) tx_usrp->set_tx_subdev_spec(tx_subdev);
-    if (vm.count("rx-subdev")) rx_usrp->set_rx_subdev_spec(rx_subdev);
 
     std::cout << boost::format("Using Device: %s") % tx_usrp->get_pp_string() << std::endl;
     std::cout << boost::format("Using Device: %s") % rx_usrp->get_pp_string() << std::endl;
-    */
 
     //set the transmit sample rate
     for( const auto& kv: input_stream_data.tx_sample_rate ) {
 		std::string chan = kv.first;
 		tx_rate = kv.second;
 		std::cout << boost::format("Setting TX Rate for Channel %s: %f Msps...") % chan % (tx_rate/1e6) << std::endl;
-	    //tx_usrp->set_tx_rate(tx_rate);
-	    //std::cout << boost::format("Actual TX Rate: %f Msps...") % (tx_usrp->get_tx_rate()/1e6) << std::endl << std::endl;
+	    tx_usrp->set_tx_rate(tx_rate);
+
+	    output_stream_data.tx_sample_rate[ chan ] = tx_usrp->get_tx_rate();
+	    std::cout << boost::format("Actual TX Rate: %f Msps...") % ( output_stream_data.tx_sample_rate[ chan ] / 1e6 ) << std::endl;
     }
 
     //set the receive sample rate
@@ -683,19 +712,24 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 		std::string chan = kv.first;
 		rx_rate = kv.second;
 		std::cout << boost::format("Setting RX Rate for Channel %s: %f Msps...") % chan % (rx_rate/1e6) << std::endl;
-	    //rx_usrp->set_rx_rate(rx_rate);
-	    //std::cout << boost::format("Actual RX Rate: %f Msps...") % (rx_usrp->get_rx_rate()/1e6) << std::endl << std::endl;
+	    rx_usrp->set_rx_rate(rx_rate);
+
+	    output_stream_data.rx_sample_rate[ chan ] = tx_usrp->get_rx_rate();
+	    std::cout << boost::format("Actual RX Rate: %f Msps...") % ( output_stream_data.rx_sample_rate[ chan ] / 1e6 ) << std::endl;
     }
 
     for( const auto& kv: input_stream_data.tx_center_freq ) {
 
         //set the transmit center frequency
-		std::string chan = kv.first;
+		const std::string& chan = kv.first;
 		tx_freq = kv.second;
     	std::cout << boost::format("Setting TX Freq for Channel %s: %f MHz...") % chan % (tx_freq/1e6) << std::endl;
-        //uhd::tune_request_t tx_tune_request(tx_freq);
-        //tx_usrp->set_tx_freq(tx_tune_request, tx_channel_nums[ch]);
-        //std::cout << boost::format("Actual TX Freq: %f MHz...") % (tx_usrp->get_tx_freq(tx_channel_nums[ch])/1e6) << std::endl << std::endl;
+        uhd::tune_request_t tx_tune_request(tx_freq);
+        int chani = to[ chan ];
+        tx_usrp->set_tx_freq( tx_tune_request, chani );
+
+        output_stream_data.tx_center_freq[ chan ] = tx_usrp->get_tx_freq();
+        std::cout << boost::format("Actual TX Freq: %f MHz...") % ( output_stream_data.tx_center_freq[ chan ] / 1e6 ) << std::endl;
 
     	//set the rf gain
         //std::cout << boost::format("Setting TX Gain: %f dB...") % tx_gain << std::endl;
@@ -710,9 +744,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 		std::string chan = kv.first;
 		rx_freq = kv.second;
     	std::cout << boost::format("Setting RX Freq for Channel %s: %f MHz...") % chan % (rx_freq/1e6) << std::endl;
-        //uhd::tune_request_t rx_tune_request(rx_freq);
-        //rx_usrp->set_rx_freq(rx_tune_request, rx_channel_nums[ch]);
-        //std::cout << boost::format("Actual RX Freq: %f MHz...") % (rx_usrp->get_rx_freq(rx_channel_nums[ch])/1e6) << std::endl << std::endl;
+        uhd::tune_request_t rx_tune_request(rx_freq);
+        int chani = to[ chan ];
+        rx_usrp->set_rx_freq(rx_tune_request, chani );
+
+        output_stream_data.rx_center_freq[ chan ] = rx_usrp->get_rx_freq();
+        std::cout << boost::format("Actual RX Freq: %f MHz...") % ( output_stream_data.rx_center_freq[ chan ] / 1e6 ) << std::endl << std::endl;
 
     	//set the rf gain
         //std::cout << boost::format("Setting RX Gain: %f dB...") % rx_gain << std::endl;
@@ -724,12 +761,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
     uhd::stream_args_t stream_args( "sc16", "sc16" );
     stream_args.channels = tx_channel_nums;
-    uhd::tx_streamer::sptr tx_stream;
-    //uhd::tx_streamer::sptr tx_stream = tx_usrp->get_tx_stream( stream_args );
-
-    //allocate a buffer which we re-use for each channel
-    //if (spb == 0) spb = tx_stream->get_max_num_samps()*10;
-    std::vector<std::complex<float> > buff(spb);
+    uhd::tx_streamer::sptr tx_stream = tx_usrp->get_tx_stream( stream_args );
 
     //setup the metadata flags
     uhd::tx_metadata_t md;
@@ -738,71 +770,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     md.has_time_spec  = true;
     md.time_spec = uhd::time_spec_t(0.1); //give us 0.1 seconds to fill the tx buffers
 
-    //Check Ref and LO Lock detect
-    /*
-    std::vector<std::string> tx_sensor_names, rx_sensor_names;
-    tx_sensor_names = tx_usrp->get_tx_sensor_names(0);
-    if (std::find(tx_sensor_names.begin(), tx_sensor_names.end(), "lo_locked") != tx_sensor_names.end()) {
-        uhd::sensor_value_t lo_locked = tx_usrp->get_tx_sensor("lo_locked",0);
-        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(lo_locked.to_bool());
-    }
-    rx_sensor_names = rx_usrp->get_rx_sensor_names(0);
-    if (std::find(rx_sensor_names.begin(), rx_sensor_names.end(), "lo_locked") != rx_sensor_names.end()) {
-        uhd::sensor_value_t lo_locked = rx_usrp->get_rx_sensor("lo_locked",0);
-        std::cout << boost::format("Checking RX: %s ...") % lo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(lo_locked.to_bool());
-    }
-
-    tx_sensor_names = tx_usrp->get_mboard_sensor_names(0);
-    if ((ref == "mimo") and (std::find(tx_sensor_names.begin(), tx_sensor_names.end(), "mimo_locked") != tx_sensor_names.end())) {
-        uhd::sensor_value_t mimo_locked = tx_usrp->get_mboard_sensor("mimo_locked",0);
-        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(mimo_locked.to_bool());
-    }
-    if ((ref == "external") and (std::find(tx_sensor_names.begin(), tx_sensor_names.end(), "ref_locked") != tx_sensor_names.end())) {
-        uhd::sensor_value_t ref_locked = tx_usrp->get_mboard_sensor("ref_locked",0);
-        std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(ref_locked.to_bool());
-    }
-
-    rx_sensor_names = rx_usrp->get_mboard_sensor_names(0);
-    if ((ref == "mimo") and (std::find(rx_sensor_names.begin(), rx_sensor_names.end(), "mimo_locked") != rx_sensor_names.end())) {
-        uhd::sensor_value_t mimo_locked = rx_usrp->get_mboard_sensor("mimo_locked",0);
-        std::cout << boost::format("Checking RX: %s ...") % mimo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(mimo_locked.to_bool());
-    }
-    if ((ref == "external") and (std::find(rx_sensor_names.begin(), rx_sensor_names.end(), "ref_locked") != rx_sensor_names.end())) {
-        uhd::sensor_value_t ref_locked = rx_usrp->get_mboard_sensor("ref_locked",0);
-        std::cout << boost::format("Checking RX: %s ...") % ref_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(ref_locked.to_bool());
-    }
-    */
-
-    if (total_num_samps == 0){
-        std::signal(SIGINT, &sig_int_handler);
-        std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
-    }
-
     //reset usrp time to prepare for transmit/receive
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-    //tx_usrp->set_time_now(uhd::time_spec_t(0.0));
+    tx_usrp->set_time_now(uhd::time_spec_t(0.0));
 
     //start transmit worker thread
     boost::thread_group transmit_thread;
-    transmit_thread.create_thread( boost::bind( &transmit_worker, input_stream_data, tx_stream, md ) );
+    transmit_thread.create_thread( boost::bind( &transmit_worker, input_stream_data, tx_stream, md, tx_channel_nums ) );
 
     //recv to file
-    /*
-    if (type == "double") recv_to_file<std::complex<double> >(rx_usrp, "fc64", otw, input_fn, spb, total_num_samps, settling, rx_channel_nums);
-    else if (type == "float") recv_to_file<std::complex<float> >(rx_usrp, "fc32", otw, input_fn, spb, total_num_samps, settling, rx_channel_nums);
-    else if (type == "short") recv_to_file<std::complex<short> >(rx_usrp, "sc16", otw, input_fn, spb, total_num_samps, settling, rx_channel_nums);
-    else {
-        //clean up transmit worker
-        stop_signal_called = true;
-        transmit_thread.join_all();
-        throw std::runtime_error("Unknown type " + type);
-    }
+    recv_to_stream_data( rx_usrp, settling, rxtime, rxsamp, output_stream_data, rx_channel_nums );
 
     //clean up transmit worker
     stop_signal_called = true;
@@ -810,8 +787,5 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
-    return EXIT_SUCCESS;
-
-*/
     return EXIT_SUCCESS;
 }
