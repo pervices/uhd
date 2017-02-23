@@ -277,7 +277,7 @@ public:
 	std::map<std::string, double> rx_sample_rate;
 	std::map<std::string, double> tx_sample_rate;
 
-	std::map<const std::string, std::map<int, std::complex<short>>> samples;
+	std::map<const std::string, std::map<size_t, std::complex<short>>> samples;
 
 	StreamData()
 	: n_channels( 0 ), n_samples( 0 )
@@ -481,8 +481,8 @@ public:
 
 			const std::string &s = ((std::map<int,const std::string>)fro)[ channel_nums[ i ] ];
 
-			std::map<int, std::complex<short>> m = samples[ s ];
-			std::vector<std::complex<short>> vv = v[ i ];
+			std::map<size_t, std::complex<short>> &m = samples[ s ];
+			std::vector<std::complex<short>> &vv = v[ i ];
 
 			for( unsigned j = 0; j < v[ i ].size(); j++, idx[ i ] += 1, idx[ i ] %= m.size() ) {
 				vv[ j ] =  m[ idx[ i ] ];
@@ -549,7 +549,7 @@ void transmit_worker(
         sd.fillBuffers( tx_channel_nums, buffs, indeces );
 
         //send the entire contents of the buffer
-        size_t sent_bytes = tx_streamer->send(buffs, sd.n_samples, metadata);
+        tx_streamer->send(buffs, sd.n_samples, metadata);
 
         metadata.start_of_burst = false;
         metadata.has_time_spec = false;
@@ -645,6 +645,16 @@ void recv_to_stream_data(
 
         num_total_samps += num_rx_samps;
 
+    }
+
+
+    for( size_t i = 0; i < buffs.size(); i++ ) {
+    	std::vector< std::complex<short> > &v = buffs[ i ];
+    	const std::string chan = fro[ rx_channel_nums[ i ] ];
+    	std::map< size_t, std::complex<short> > &m = sd.samples[ chan ];
+    	for( size_t j = 0; j < v.size(); j++ ) {
+    		m[ j ] = v[ j ];
+    	}
     }
 }
 
