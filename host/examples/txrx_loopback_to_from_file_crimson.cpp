@@ -1,5 +1,9 @@
 #include <map>
 #include <string>
+#include <complex>
+
+// 32 [ MB ] / 4 [ B / Sample ] = 8 [ M Sample ]
+#define DEFAULT_SAMPLE_LIMIT ( 1 * 1024 * 1024 / sizeof( std::complex< short > ) )
 
 static std::map<const std::string,int> to = { { "A", 0 }, { "B", 1 }, { "C", 2 }, { "D", 3 } };
 static std::map<int,const std::string> fro = { { 0, "A" }, { 1, "B" }, { 2, "C" }, { 3, "D" } };
@@ -291,7 +295,6 @@ private:
  * ...
  *
  **********************************************************************/
-
 class StreamData {
 
 public:
@@ -407,10 +410,12 @@ public:
 		}
 	}
 
-	static void toFile( StreamData &r, std::string fn ) {
+	static void toFile( StreamData &r, std::string &fn ) {
 
 		int lineno;
-		unsigned sampleno;
+		int sampleno;
+
+		std::cout << "Writing " << r.n_samples * r.n_channels  << " samples from " << r.n_channels << " channels to " << fn << std::endl;
 
 		std::ofstream fs( fn );
 
@@ -419,7 +424,7 @@ public:
 			sampleno = lineno - 5;
 			sampleno /= 2;
 
-			if ( sampleno > r.n_samples ) {
+			if ( sampleno > (int)r.n_samples ) {
 				break;
 			}
 
@@ -475,10 +480,25 @@ public:
 				break;
 
 			default:
+//
+//				if ( 0 == sampleno % 100 ) {
+//					if ( 0 != sampleno ) {
+//						std::cout << '\r';
+//						for( int i = 0; i < 80; i++ ) {
+//							//std::cout << '\b';
+//							std::cout << ' ';
+//						}
+//						std::cout << '\r';
+//						std::cout << std::flush;
+//					}
+//
+//					std::cout << "Writing sample " << sampleno << " / " << r.n_samples << "( " << (int)( 100.0 * (float)sampleno / (float)r.n_samples) << "% )";
+//					std::cout << std::flush;
+//				}
 
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
 
-					if ( sampleno < r.samples[ r.channels[ i ] ].size() ) {
+					if ( sampleno < (int) r.samples[ r.channels[ i ] ].size() ) {
 						if ( 0 == (lineno - 5) % 2 ) {
 							fs << r.samples[ r.channels[ i ] ][ sampleno ].real();
 						} else {
@@ -498,6 +518,8 @@ public:
 		}
 
 		fs.close();
+
+		std::cout << std::endl;
 	}
 
 	void fillBuffers( std::vector<size_t> channel_nums, std::vector< std::vector< std::complex< short > > > &v, std::vector<size_t> &idx ) {
@@ -562,7 +584,7 @@ void transmit_worker(
     uhd::tx_metadata_t metadata,
     std::vector<size_t> tx_channel_nums
 ){
-	if ( sd.n_channels != tx_channel_nums.size() ) {\
+	if ( sd.n_channels != tx_channel_nums.size() ) {
 		throw new uhd::runtime_error( "number of channels not consistent" );
 	}
 
@@ -572,17 +594,24 @@ void transmit_worker(
 
 	sd.sizeBuffers( buffs );
 
+    std::vector< std::complex< short > * > buff_ptrs;
+    for( unsigned i = 0; i < buffs.size(); i++ ) {
+    	buff_ptrs.push_back( (std::complex<short int> * const &) & buffs[ i ].front() );
+    }
+
     //send data until the signal handler gets called
     while(not stop_signal_called){
 
         sd.fillBuffers( tx_channel_nums, buffs, indeces );
 
         //send the entire contents of the buffer
-        tx_streamer->send(buffs, sd.n_samples, metadata);
+        tx_streamer->send( buff_ptrs, sd.n_samples, metadata );
 
         metadata.start_of_burst = false;
         metadata.has_time_spec = false;
     }
+
+    std::cout << "sending EOB" << std::endl;
 
     //send a mini EOB packet
     metadata.end_of_burst = true;
@@ -601,7 +630,6 @@ void recv_to_stream_data(
 	const std::string cpu_format = "sc16";
 	const std::string wire_format = "sc16";
 
-    int num_total_samps = 0;
     //create a receive streamer
     uhd::stream_args_t stream_args(cpu_format,wire_format);
     stream_args.channels = rx_channel_nums;
@@ -618,7 +646,8 @@ void recv_to_stream_data(
 
     sd.n_samples = std::min( (size_t)( maximum_rxtime_s * highest_sample_rate ), (size_t)maximum_rxsamples );
 
-    int num_requested_samples = sd.n_samples;
+    int num_requested_samples = sd.n_samples * sd.n_channels;
+    int num_total_samps = 0;
 
     std::vector< std::vector< std::complex< short > > > buffs(
 		rx_channel_nums.size(), std::vector< std::complex< short > >( sd.n_samples )
@@ -638,31 +667,25 @@ void recv_to_stream_data(
         uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
     );
     stream_cmd.num_samps = num_requested_samples;
-    //stream_cmd.stream_now = false;
-    stream_cmd.stream_now = true;
+    stream_cmd.stream_now = false;
     stream_cmd.time_spec = uhd::time_spec_t(settling_time);
     rx_stream->issue_stream_cmd(stream_cmd);
 
     uhd::rx_metadata_t md;
 
-    while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)){
+    while(not stop_signal_called and (num_total_samps < num_requested_samples or num_requested_samples == 0)){
         size_t num_rx_samps = rx_stream->recv( buff_ptrs, buffs.size(), md, timeout);
         timeout = 0.1; //small timeout for subsequent recv
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
+            stop_signal_called = true;
             break;
         }
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
             if (overflow_message){
                 overflow_message = false;
-                std::cerr << boost::format(
-                    "Got an overflow indication. Please consider the following:\n"
-                    "  Your write medium must sustain a rate of %fMB/s.\n"
-                    "  Dropped samples will not be written to the file.\n"
-                    "  Please modify this example for your purposes.\n"
-                    "  This message will not appear again.\n"
-                ) % (usrp->get_rx_rate()*sizeof( std::complex<short> )/1e6);
+                std::cerr << boost::format("Got an overflow indication") << std::endl;
             }
             continue;
         }
@@ -674,16 +697,57 @@ void recv_to_stream_data(
 
         num_total_samps += num_rx_samps;
 
+        // Typically one sample comes in per-channel when sampling several at once.
+        // That's a fairly fool-proof strategy to serialization / deserialization.
+        size_t inc_amount = num_rx_samps / buff_ptrs.size();
+        for( unsigned i = 0; i < buff_ptrs.size(); i++ ) {
+        	buff_ptrs[ i ] += inc_amount;
+        }
+
+//		if ( 0 == num_total_samps % 100 ) {
+//			if ( 0 != num_total_samps ) {
+//				std::cout << '\r';
+//				for( int i = 0; i < 80; i++ ) {
+//					//std::cout << '\b';
+//					std::cout << ' ';
+//				}
+//				std::cout << '\r';
+//				std::cout << std::flush;
+//			}
+//
+//			std::cout << "Received " << num_total_samps << " / " << num_requested_samples << " samples ( " << (int)( 100.0 * (float)num_total_samps / (float)num_requested_samples) << "% )";
+//			std::cout << std::flush;
+//		}
     }
 
 
     for( size_t i = 0; i < buffs.size(); i++ ) {
+
     	std::vector< std::complex<short> > &v = buffs[ i ];
     	const std::string chan = fro[ rx_channel_nums[ i ] ];
     	std::map< size_t, std::complex<short> > &m = sd.samples[ chan ];
+
     	for( size_t j = 0; j < v.size(); j++ ) {
+
+//			if ( 0 == j % 100 ) {
+//				if ( 0 != j ) {
+//					std::cout << '\r';
+//					for( int i = 0; i < 80; i++ ) {
+//						//std::cout << '\b';
+//						std::cout << ' ';
+//					}
+//					std::cout << '\r';
+//					std::cout << std::flush;
+//				}
+//
+//				std::cout << "Mapping channel " << chan << " sample " << j << " / " << sd.n_samples << " ( " << (int)( 100.0 * (float)j / (float)sd.n_samples) << "% )";
+//				std::cout << std::flush;
+//			}
+
     		m[ j ] = v[ j ];
     	}
+
+    	std::cout << std::endl;
     }
 }
 
@@ -714,7 +778,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 		("output", po::value<std::string>(&output_fn)->default_value("output.csv"), "name of the output file")
         ("settling", po::value<float>(&settling)->default_value(1), "settling time (seconds) before receiving")
         ("rxtime", po::value<float>(&rxtime)->default_value(1), "maximum receive time (seconds)")
-        ("rxsamp", po::value<size_t>(&rxsamp)->default_value((1 << 25)/4), "maximum number of received samples")
+        ("rxsamp", po::value<size_t>(&rxsamp)->default_value( DEFAULT_SAMPLE_LIMIT ), "maximum number of received samples")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -753,9 +817,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         tx_channel_nums.push_back( to[ n ] );
     }
 
-    // XXX: @CF: this will not always be the case. In the CSV file,
-    // if rx is not in use when the corresponding tx is in use (and vice versa),
-    // I suggest we encode it as a negative centre frequency
     std::vector<size_t> rx_channel_nums;
     for( std::string &n: input_stream_data.channels ) {
         rx_channel_nums.push_back( to[ n ] );
@@ -780,15 +841,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 		std::string chan = kv.first;
 		rx_rate = kv.second;
 		std::cout << boost::format("Setting RX Rate for Channel %s: %f Msps...") % chan % (rx_rate/1e6) << std::endl;
-	    rx_usrp->set_rx_rate(rx_rate);
+        int chani = to[ chan ];
+	    rx_usrp->set_rx_rate(rx_rate, chani);
 
-	    output_stream_data.rx_sample_rate[ chan ] = tx_usrp->get_rx_rate();
+	    output_stream_data.rx_sample_rate[ chan ] = tx_usrp->get_rx_rate( chani );
 	    std::cout << boost::format("Actual RX Rate: %f Msps...") % ( output_stream_data.rx_sample_rate[ chan ] / 1e6 ) << std::endl;
     }
 
+    //set the transmit center frequency
     for( const auto& kv: input_stream_data.tx_center_freq ) {
 
-        //set the transmit center frequency
 		const std::string& chan = kv.first;
 		tx_freq = kv.second;
     	std::cout << boost::format("Setting TX Freq for Channel %s: %f MHz...") % chan % (tx_freq/1e6) << std::endl;
@@ -796,7 +858,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         int chani = to[ chan ];
         tx_usrp->set_tx_freq( tx_tune_request, chani );
 
-        output_stream_data.tx_center_freq[ chan ] = tx_usrp->get_tx_freq();
+        output_stream_data.tx_center_freq[ chan ] = tx_usrp->get_tx_freq( chani );
         std::cout << boost::format("Actual TX Freq: %f MHz...") % ( output_stream_data.tx_center_freq[ chan ] / 1e6 ) << std::endl;
 
     	//set the rf gain
@@ -806,9 +868,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
 
+    //set the receive center frequency
     for( const auto& kv: input_stream_data.rx_center_freq ) {
 
-        //set the transmit center frequency
 		std::string chan = kv.first;
 		rx_freq = kv.second;
     	std::cout << boost::format("Setting RX Freq for Channel %s: %f MHz...") % chan % (rx_freq/1e6) << std::endl;
@@ -816,7 +878,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         int chani = to[ chan ];
         rx_usrp->set_rx_freq(rx_tune_request, chani );
 
-        output_stream_data.rx_center_freq[ chan ] = rx_usrp->get_rx_freq();
+        output_stream_data.rx_center_freq[ chan ] = rx_usrp->get_rx_freq( chani );
         std::cout << boost::format("Actual RX Freq: %f MHz...") % ( output_stream_data.rx_center_freq[ chan ] / 1e6 ) << std::endl << std::endl;
 
     	//set the rf gain
@@ -826,7 +888,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //create a transmit streamer
-    //linearly map channels (index0 = channel0, index1 = channel1, ...)
     uhd::stream_args_t stream_args( "sc16", "sc16" );
     stream_args.channels = tx_channel_nums;
     uhd::tx_streamer::sptr tx_stream = tx_usrp->get_tx_stream( stream_args );
@@ -851,6 +912,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //clean up transmit worker
     stop_signal_called = true;
+
     transmit_thread.join_all();
 
     StreamData::toFile( output_stream_data, output_fn );
