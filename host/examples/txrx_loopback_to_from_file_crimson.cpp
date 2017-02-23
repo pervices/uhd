@@ -372,6 +372,10 @@ public:
 		}
 
 		fs.close();
+
+		if ( 0 == r.n_channels ) {
+			throw uhd::runtime_error( "input file does not exist, or contains invalid data" );
+		}
 	}
 
 	static void toFile( StreamData &r, std::string fn ) {
@@ -474,15 +478,14 @@ public:
 		}
 
 		for( unsigned i = 0; i < v.size(); i++ ) {
+
 			const std::string &s = ((std::map<int,const std::string>)fro)[ channel_nums[ i ] ];
-			if ( samples.end() == samples.find( s ) ) {
-				continue;
-			}
 
 			std::map<int, std::complex<short>> m = samples[ s ];
+			std::vector<std::complex<short>> vv = v[ i ];
 
 			for( unsigned j = 0; j < v[ i ].size(); j++, idx[ i ] += 1, idx[ i ] %= m.size() ) {
-				v[ i ].push_back( m[ idx[ i ] ] );
+				vv[ j ] =  m[ idx[ i ] ];
 			}
 		}
 	}
@@ -546,7 +549,7 @@ void transmit_worker(
         sd.fillBuffers( tx_channel_nums, buffs, indeces );
 
         //send the entire contents of the buffer
-        tx_streamer->send(buffs, sd.n_samples, metadata);
+        size_t sent_bytes = tx_streamer->send(buffs, sd.n_samples, metadata);
 
         metadata.start_of_burst = false;
         metadata.has_time_spec = false;
@@ -560,16 +563,20 @@ void transmit_worker(
 
 void recv_to_stream_data(
     uhd::usrp::multi_usrp::sptr usrp,
-    float settling_time_s,
+    float settling_time,
     float maximum_rxtime_s,
     size_t maximum_rxsamples,
     StreamData &sd,
     std::vector<size_t> rx_channel_nums
 ){
+	const std::string cpu_format = "sc16";
+	const std::string wire_format = "sc16";
+
+    int num_total_samps = 0;
     //create a receive streamer
-    uhd::stream_args_t stream_args( "sc16", "sc16" );
+    uhd::stream_args_t stream_args(cpu_format,wire_format);
     stream_args.channels = rx_channel_nums;
-    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream( stream_args );
+    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     std::string chan_with_highest_sample_rate = "";
     double highest_sample_rate = -1;
@@ -582,42 +589,62 @@ void recv_to_stream_data(
 
     sd.n_samples = std::min( (size_t)( maximum_rxtime_s * highest_sample_rate ), (size_t)maximum_rxsamples );
 
-    uhd::rx_metadata_t md;
+    int num_requested_samples = sd.n_samples;
 
-    std::vector< std::vector< std::complex<short> > > buff( rx_channel_nums.size() );
-    sd.sizeBuffers( buff );
+    std::vector< std::vector< std::complex< short > > > buffs(
+		rx_channel_nums.size(), std::vector< std::complex< short > >( sd.n_samples )
+    );
 
-    //bool overflow_message = true;
-    float timeout = settling_time_s + 0.1; //expected settling time + padding for first recv
+    std::vector< std::complex< short > * > buff_ptrs;
+    for( size_t i = 0; i < buffs.size(); i++ ) {
+    	buff_ptrs.push_back( (std::complex< short > * const) & buffs[ i ].front() );
+    }
+
+    bool overflow_message = true;
+    float timeout = settling_time + 0.1; //expected settling time + padding for first recv
 
     //setup streaming
-    uhd::stream_cmd_t stream_cmd( uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE );
-    stream_cmd.num_samps = sd.n_samples;
-    stream_cmd.stream_now = false;
-    stream_cmd.time_spec = uhd::time_spec_t( settling_time_s );
-    rx_stream->issue_stream_cmd( stream_cmd );
+    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
+        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
+    );
+    stream_cmd.num_samps = num_requested_samples;
+    //stream_cmd.stream_now = false;
+    stream_cmd.stream_now = true;
+    stream_cmd.time_spec = uhd::time_spec_t(settling_time);
+    rx_stream->issue_stream_cmd(stream_cmd);
 
-    while(not stop_signal_called){
+    uhd::rx_metadata_t md;
 
-        rx_stream->recv(&buff.front(), buff.size(), md, timeout );
+    while(not stop_signal_called and (num_requested_samples != num_total_samps or num_requested_samples == 0)){
+        size_t num_rx_samps = rx_stream->recv( buff_ptrs, buffs.size(), md, timeout);
         timeout = 0.1; //small timeout for subsequent recv
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
             break;
         }
-        if ( md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE ){
+        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
+            if (overflow_message){
+                overflow_message = false;
+                std::cerr << boost::format(
+                    "Got an overflow indication. Please consider the following:\n"
+                    "  Your write medium must sustain a rate of %fMB/s.\n"
+                    "  Dropped samples will not be written to the file.\n"
+                    "  Please modify this example for your purposes.\n"
+                    "  This message will not appear again.\n"
+                ) % (usrp->get_rx_rate()*sizeof( std::complex<short> )/1e6);
+            }
+            continue;
+        }
+        if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
             throw std::runtime_error(str(boost::format(
                 "Receiver error %s"
             ) % md.strerror()));
         }
 
-        for( unsigned i = 0; i < rx_channel_nums.size(); i++ ) {
-            if ( buff[ i ].size() >= sd.n_samples ) {
-                std::cout << boost::format("Channel %s buffer filled to capacity") % ( fro[ rx_channel_nums[ i ] ] ) << std::endl;
-                break;
-            }
-        }
+        num_total_samps += num_rx_samps;
+
     }
 }
 
@@ -675,10 +702,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     output_stream_data.channels = input_stream_data.channels;
 
     //create a usrp device
-    std::cout << std::endl;
     std::cout << boost::format("Creating the transmit crimson device with: %s...") % tx_args << std::endl;
     uhd::usrp::multi_usrp::sptr tx_usrp = uhd::usrp::multi_usrp::make(tx_args);
-    std::cout << std::endl;
+
     std::cout << boost::format("Creating the receive usrp device with: %s...") % rx_args << std::endl;
     uhd::usrp::multi_usrp::sptr rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
 
@@ -691,7 +717,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     // XXX: @CF: this will not always be the case. In the CSV file,
     // if rx is not in use when the corresponding tx is in use (and vice versa),
     // I suggest we encode it as a negative centre frequency
-    std::vector<size_t> rx_channel_nums = tx_channel_nums;
+    std::vector<size_t> rx_channel_nums;
+    for( std::string &n: input_stream_data.channels ) {
+        rx_channel_nums.push_back( to[ n ] );
+    }
 
     std::cout << boost::format("Using Device: %s") % tx_usrp->get_pp_string() << std::endl;
     std::cout << boost::format("Using Device: %s") % rx_usrp->get_pp_string() << std::endl;
@@ -784,6 +813,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //clean up transmit worker
     stop_signal_called = true;
     transmit_thread.join_all();
+
+    StreamData::toFile( output_stream_data, output_fn );
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
