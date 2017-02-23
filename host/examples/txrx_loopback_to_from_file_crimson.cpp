@@ -260,7 +260,36 @@ private:
 //
 
 /***********************************************************************
- * StreamData Class for buffering data for several channels at once
+ * StreamData Class for buffering data for several channels at once from file
+ *
+ * Input / Output CSV format is as follows
+ *
+ ***********************************************************************
+ * Line 1: Channels
+ * Line 2: TX Center Frequencies
+ * Line 3: RX Center Frequencies
+ * Line 4: TX Sample Rates
+ * Line 5: RX Sample Rates
+ * Line 6+2*N: I-samples (signed 16-bit integers)
+ * Line 7+2*N: Q-samples (signed 16-bit integers)
+ *
+ * Set all TX ( RX ) sample rates the same to avoid bottlenecks.
+ * Output CSV contains the _actual_ frequencies / sample rates the
+ * SDR is capable of.
+ ***********************************************************************
+ * E.g.
+ *
+ * A,B,D
+ * 915e6,2.45e9,5.8e9
+ * 915e6,2.45e9,5.8e9
+ * 200e6/30,200e6/30,200e6/30
+ * 200e6/30,200e6/30,200e6/30
+ * 32767,32767,32767
+ * 0,0,0
+ * 32728,32767,32767
+ * 1617,27,36
+ * ...
+ *
  **********************************************************************/
 
 class StreamData {
