@@ -34,6 +34,7 @@ SET(example_sources
     tx_samples_from_file.cpp
     tx_timed_samples.cpp
     tx_waveforms.cpp
+    tx_from_file_crimson.cpp
     txrx_loopback_to_file.cpp
     txrx_loopback_to_from_file_crimson.cpp
     latency_test.cpp
