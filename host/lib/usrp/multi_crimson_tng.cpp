@@ -604,7 +604,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 
 	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( 0 == lna_val ? 0 : 1 );
 	_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-	_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 2 );
+	_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
 }
 
 // get RX frontend gain on specified channel
@@ -613,7 +613,7 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 	double r;
 
     double lna_val = 0 == _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? 0 : 20;
-    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 2;
+    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
 	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
