@@ -151,6 +151,10 @@ public:
 	}
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
+		multi_crimson_tng m( _addr );
+		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			m.issue_stream_cmd( stream_cmd, _channels[ i ] );
+		}
 	}
 //	std::vector<size_t> _channels;
 private:
@@ -161,6 +165,7 @@ private:
 		_channels = channels;
 		_prev_frame = 0;
 		_start_ticks = 0;
+		_addr = addr;
 
 		// get the property root path
 		const fs_path mb_path   = "/mboards/0";
@@ -205,6 +210,7 @@ private:
 	size_t _pay_len;
 	double _rate;
 	uint64_t _start_ticks;
+	device_addr_t _addr;
 };
 
 class crimson_tng_tx_streamer : public uhd::tx_streamer {
