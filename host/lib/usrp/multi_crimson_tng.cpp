@@ -238,6 +238,7 @@ void multi_crimson_tng::clear_command_time(size_t mboard){
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
     // set register to start the stream
     if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
+    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
         _tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
 
     // set register to stop the stream
