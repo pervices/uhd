@@ -662,12 +662,14 @@ void recv_to_stream_data(
     float timeout = settling_time + 0.1; //expected settling time + padding for first recv
 
     //setup streaming
-    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
-        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
-    );
+// XXX: @CF: currently we only support STREAM_MODE_START_CONTINUOUS
+//    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
+//        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+//        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
+//    );
+    uhd::stream_cmd_t stream_cmd( uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS );
     stream_cmd.num_samps = num_requested_samples;
-    stream_cmd.stream_now = false;
+    stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t(settling_time);
     rx_stream->issue_stream_cmd(stream_cmd);
 
@@ -679,8 +681,9 @@ void recv_to_stream_data(
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
-            stop_signal_called = true;
-            break;
+            //stop_signal_called = true;
+            //break;
+            continue;
         }
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
             if (overflow_message){
