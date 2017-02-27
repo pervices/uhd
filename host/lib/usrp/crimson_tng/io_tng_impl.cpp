@@ -152,7 +152,9 @@ public:
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 		multi_crimson_tng m( _addr );
-		m.issue_stream_cmd( stream_cmd );
+		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			m.issue_stream_cmd( stream_cmd, _channels[ i ] );
+		}
 	}
 //	std::vector<size_t> _channels;
 private:
