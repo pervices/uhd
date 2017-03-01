@@ -423,9 +423,17 @@ tune_result_t multi_crimson_tng::set_rx_freq(const tune_request_t &tune_request,
     if (*freq > 15000000.0 && !(cur_rx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9)) ) {
        *freq -= 15000000.0;
        offset = true;
-       _tree->access<double>(rx_dsp_root(chan) / "nco").set(-15000000);
+       if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+    	  _tree->access<double>(rx_dsp_root(chan) / "nco").set(-15000000);
+       } else {
+       	  _tree->access<double>( cm_root() / "trx/nco_adj").set(-15000000);
+       }
     } else {
-       _tree->access<double>(rx_dsp_root(chan) / "nco").set(0);
+	   if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+		  _tree->access<double>(rx_dsp_root(chan) / "nco").set(0);
+	   } else {
+		  _tree->access<double>( cm_root() / "trx/nco_adj").set(0);
+	   }
     }
 
     // check the tuning ranges first, and clip if necessary
@@ -442,13 +450,23 @@ tune_result_t multi_crimson_tng::set_rx_freq(const tune_request_t &tune_request,
     if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 0) {
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double set_dsp_nco = cur_dsp_nco - *freq;
-        _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
+
+        if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+          _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        } else {
+       	  _tree->access<double>( cm_root() / "trx/nco_adj").set(set_dsp_nco);
+        }
+
 
         result.actual_rf_freq = -set_dsp_nco;
 
     // use the LO with high band
     } else {
-        _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").set(*freq);
+        if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+          _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").set(*freq);
+        } else {
+       	  _tree->access<double>( cm_root() / "trx/freq/val").set(*freq);
+        }
 
         // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
@@ -457,7 +475,12 @@ tune_result_t multi_crimson_tng::set_rx_freq(const tune_request_t &tune_request,
 
         if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
         if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
-        _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
+
+        if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+          _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        } else {
+       	  _tree->access<double>( cm_root() / "trx/nco_adj").set(set_dsp_nco);
+        }
 
         result.actual_rf_freq = cur_lo_freq - set_dsp_nco;
     }
@@ -604,8 +627,14 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 	}
 
 	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( 0 == lna_val ? 0 : 1 );
-	_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-	_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+
+    if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+		_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+		_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+    } else {
+		_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
+		_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+    }
 }
 
 // get RX frontend gain on specified channel
@@ -768,9 +797,17 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
     if (*freq > 85000000.0 && !(cur_tx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9))) {
        *freq -= 85000000.0;
        offset = true;
-       _tree->access<double>(tx_rf_fe_root(chan) / "nco").set(85000000);
+       if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+       	_tree->access<double>(tx_dsp_root(chan) / "nco").set(85000000);
+       } else {
+       	_tree->access<double>( cm_root() / "trx/nco_adj").set(85000000);
+       }
     } else {
-       _tree->access<double>(tx_rf_fe_root(chan) / "nco").set(0);
+        if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+        	_tree->access<double>(tx_dsp_root(chan) / "nco").set(0);
+        } else {
+        	_tree->access<double>( cm_root() / "trx/nco_adj").set(0);
+        }
     }
 
     // check the tuning ranges first, and clip if necessary
@@ -787,13 +824,22 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
     if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 0) {
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
         double set_dsp_nco = *freq;
-        _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+        	_tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        } else {
+        	_tree->access<double>( cm_root() / "trx/nco_adj").set(set_dsp_nco);
+        }
 
         result.actual_rf_freq = set_dsp_nco + cur_dac_nco;
 
     // use the LO with high band
     } else {
-        _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").set(*freq);
+
+        if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+        	_tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").set(*freq);
+        } else {
+        	_tree->access<double>( cm_root() / "trx/freq/val").set(*freq);
+        }
 
         // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
@@ -802,7 +848,12 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
 
         if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
         if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
-        _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+
+        if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+        	_tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+        } else {
+        	_tree->access<double>( cm_root() / "trx/nco_adj").set(set_dsp_nco);
+        }
 
         result.actual_rf_freq = cur_lo_freq + set_dsp_nco + cur_dac_nco;
     }
@@ -894,7 +945,11 @@ void multi_crimson_tng::set_tx_gain(double gain, const std::string &name, size_t
 
 	gain = round(gain / 0.25);
 
-    _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+    if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+    	_tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+    } else {
+    	_tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+    }
 }
 
 // get TX frontend gain on specified channel
@@ -1044,6 +1099,10 @@ fs_path multi_crimson_tng::tx_link_root(const size_t chan) {
     if (chan > CRIMSON_TX_CHANNELS) 	channel = 0;
     else				channel = chan;
     return mb_root(0) / "tx_link" / chan_to_string(channel);
+}
+
+fs_path multi_crimson_tng::cm_root() {
+    return mb_root(0) / "cm";
 }
 
 // Channel string handling

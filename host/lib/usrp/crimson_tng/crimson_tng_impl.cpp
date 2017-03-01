@@ -485,6 +485,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	const fs_path tx_dsp_path   = mb_path / "tx_dsps" / chan;
 	const fs_path rx_link_path  = mb_path / "rx_link" / chan;
 	const fs_path tx_link_path  = mb_path / "tx_link" / chan;
+	const fs_path cm_path  = mb_path / "cm";
 
         static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
         _tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
@@ -603,6 +604,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
 	TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
 	TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
+
+	// Common Mode
+	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
+	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
+	TREE_CREATE_RW(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
+	TREE_CREATE_RW(cm_path / "rx/gain/val", "cm/rx/gain/val", double, double);
+	TREE_CREATE_RW(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
+	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
+	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
     }
 }
 
