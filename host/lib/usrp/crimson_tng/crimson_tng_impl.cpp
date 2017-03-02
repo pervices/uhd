@@ -486,13 +486,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		const fs_path rx_link_path  = mb_path / "rx_link" / chan;
 		const fs_path tx_link_path  = mb_path / "tx_link" / chan;
 
-			static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
-			_tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
-			_tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
+		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
+		_tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
+		_tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
 
-			static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
-			_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
-			_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
+		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
+		_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
+		_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
 
 		// Actual frequency values
 		TREE_CREATE_RW(rx_path / chan / "freq" / "value", "rx_"+lc_num+"/rf/freq/val", double, double);
@@ -555,7 +555,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
 
-	   // RF band
+		// RF band
 		TREE_CREATE_RW(rx_fe_path / "freq" / "band", "rx_"+lc_num+"/rf/freq/band", int, int);
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/freq/band", int, int);
 
