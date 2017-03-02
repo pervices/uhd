@@ -668,9 +668,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Creating the transmit crimson device with: %s...") % tx_args << std::endl;
     uhd::usrp::multi_usrp::sptr tx_usrp = uhd::usrp::multi_usrp::make(tx_args);
 
-    std::cout << boost::format("Creating the receive usrp device with: %s...") % rx_args << std::endl;
-    uhd::usrp::multi_usrp::sptr rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
-
     //detect which channels to use
     std::vector<size_t> tx_channel_nums;
     for( std::string &n: input_stream_data.channels ) {
@@ -683,7 +680,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::cout << boost::format("Using Device: %s") % tx_usrp->get_pp_string() << std::endl;
-    std::cout << boost::format("Using Device: %s") % rx_usrp->get_pp_string() << std::endl;
 
     //set the transmit sample rate
     for( const auto& kv: input_stream_data.tx_sample_rate ) {
