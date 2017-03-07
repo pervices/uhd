@@ -393,7 +393,7 @@ private:
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 
 		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
-			tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( channels_to_mask( _channels ) );
+			tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( channels_to_mask( _channels ) );
 		}
 
 		//Set up mutex variables
