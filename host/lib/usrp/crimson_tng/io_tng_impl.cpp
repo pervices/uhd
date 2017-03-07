@@ -43,6 +43,18 @@ using namespace uhd::transport;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
+static int channels_to_mask( std::vector<size_t> channels ) {
+	unsigned mask = 0;
+
+	for( int x: channels ) {
+		if ( 0 <= x && x <= 8 * sizeof(mask) - 1 ) {
+			mask |= 1 << x;
+		}
+	}
+
+	return mask;
+}
+
 class crimson_tng_rx_streamer : public uhd::rx_streamer {
 public:
 	crimson_tng_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
@@ -56,6 +68,9 @@ public:
 	~crimson_tng_rx_streamer() {
 		const fs_path mb_path   = "/mboards/0";
 		const fs_path link_path = mb_path / "rx_link";
+
+		_tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( 0 );
+
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			// power off the channel
@@ -174,6 +189,10 @@ private:
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 
+		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
+			tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( channels_to_mask( _channels ) );
+		}
+
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			// get the channel parameters
 			std::string ch       = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
@@ -230,6 +249,9 @@ public:
 
 		const fs_path mb_path   = "/mboards/0";
 		const fs_path prop_path = mb_path / "tx_link";
+
+		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
+
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			// power off the channel
@@ -369,6 +391,10 @@ private:
 
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
+
+		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
+			tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( channels_to_mask( _channels ) );
+		}
 
 		//Set up mutex variables
 		_udp_mutex_add = udp_mutex_add;
