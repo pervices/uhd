@@ -1,15 +1,15 @@
-#ifndef INCLUDED_UHD_UTILS_PID_HPP
-#define INCLUDED_UHD_UTILS_PID_HPP
+#ifndef INCLUDED_UHD_UTILS_PIDC_HPP
+#define INCLUDED_UHD_UTILS_PIDC_HPP
 
 #include "uhd/types/time_spec.hpp"
 
 namespace uhd {
 
-	class pid {
+	class pidc {
 
 	public:
 
-		pid( double sp, double Kp = 0.0, double Ki = 0.0, double Kd  = 0.0 )
+		pidc( double sp = 0.0, double Kp = 0.0, double Ki = 0.0, double Kd = 0.0 )
 		:
 			Kp( Kp ),
 			Ki( Ki ),
@@ -18,11 +18,11 @@ namespace uhd {
 			i( 0.0 ),
 			// initialize the control variable to be equal to the set point, so error is initially zero
 			cv( sp ),
-			last_time( uhd::time_spec_t::get_system_time() )
+			last_time( uhd::time_spec_t::get_system_time().get_real_secs() )
 		{
-			const std::string s = { "Kp", "Ki", "Kd" };
+			const std::string s[] = { "Kp", "Ki", "Kd" };
 			const double K[] = { Kp, Ki, Kd };
-			for( int i = 0; i < sizeof( K ) / sizeof( K[ 0 ] ); i++ ) {
+			for( unsigned i = 0; i < sizeof( K ) / sizeof( K[ 0 ] ); i++ ) {
 				if ( K[ i ] < 0 ) {
 					throw value_error( "PID K-values are, by definition, non-negative" );
 				}
@@ -35,7 +35,7 @@ namespace uhd {
 			// Possibly better to not use the velocity algorithm form to avoid several opportunities for numerical instability
 
 			double then = this->last_time;
-			double now = uhd::time_spec_t::get_system_time();
+			double now = uhd::time_spec_t::get_system_time().get_real_secs();
 
 			double dt = now - then;
 			double e_1 = this->e;
@@ -71,4 +71,4 @@ namespace uhd {
 
 } // namespace uhd
 
-#endif /* INCLUDED_UHD_UTILS_ALGORITHM_HPP */
+#endif /* INCLUDED_UHD_UTILS_PIDC_HPP */
