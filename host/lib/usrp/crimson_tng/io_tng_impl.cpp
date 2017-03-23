@@ -18,6 +18,7 @@
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
 #include <uhd/utils/log.hpp>
+#include <uhd/utils/pidc.hpp>
 #include <uhd/utils/msg.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/exception.hpp>
@@ -32,6 +33,7 @@
 #include <boost/asio.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/endian/buffers.hpp>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -40,6 +42,8 @@
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
+
+using namespace boost::endian;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
@@ -387,6 +391,7 @@ private:
 
 		// get the property root path
 		const fs_path mb_path   = "/mboards/0";
+		const fs_path time_path = mb_path / "time";
 		const fs_path prop_path = mb_path / "tx_link";
 
 		// if no channels specified, default to channel 1 (0)
@@ -403,6 +408,8 @@ private:
 
 		//Set up constants
 		_max_clock_ppm_error = 100;
+
+		bool have_time_diff_iface = false;
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 
@@ -434,6 +441,15 @@ private:
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
+			if ( ! have_time_diff_iface ) {
+
+				// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
+				std::string time_diff_port = "" + tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
+				_time_diff_iface = uhd::transport::udp_simple::make_connected( ip_addr, time_diff_port );
+
+				have_time_diff_iface = true;
+			}
+
 			std::vector<uint32_t> *counter = new std::vector<uint32_t>();
 			counter->push_back(0);
 			counter->push_back(0);
@@ -453,6 +469,12 @@ private:
 
 		}
 
+		//Initialize "Time Diff" mechanism before starting flow control thread
+		time_spec_t ts = time_spec_t::get_system_time();
+		_start_time = ts.get_real_secs();
+		tree->access<time_spec_t>( time_path / "now" ).set( ts );
+		_time_diff_pidc = uhd::pidc( 0.0, 0.45454545454545453, 15.495867768595039, 0.000962000962000962 );
+
 		//Set up initial flow control variables
 		_flow_running=true;
 		_en_fc=true;
@@ -460,7 +482,42 @@ private:
 		num_instances++;
 	}
 
-	 // Flow Control (should be called once on seperate thread)
+	// SoB: Time Diff (Time Diff mechanism is used to get a really close estimate of Crimson's absolute time)
+	static constexpr double tick_period_ns = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE * 1e9;
+	static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
+		return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
+	}
+	static inline int64_t nsecs_to_ticks( int64_t tv_nsec ) {
+		return (int64_t)( (double) tv_nsec / tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
+	}
+
+	#pragma pack(push,1)
+	struct time_diff_packet {
+		uint64_t header; // 1 for time diff
+		int64_t tv_sec;
+		int64_t tv_tick;
+	};
+	#pragma pack(pop)
+
+	static void make_time_diff_packet( time_diff_packet & pkt, double ts ) {
+		make_time_diff_packet( pkt, time_spec_t( ts ) );
+	}
+	static void make_time_diff_packet( time_diff_packet & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
+		pkt.header = 1;
+		pkt.tv_sec = ts.get_full_secs();
+		pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
+
+		native_to_big_inplace( pkt.header );
+		native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+		native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+	}
+
+	static void send_time_diff_packet( time_diff_packet & pkt, udp_simple::sptr & dst ) {
+		boost::asio::const_buffer cb( (void *) &pkt, sizeof( pkt ) );
+		dst->send( cb );
+	}
+
+	// Flow Control (should be called once on seperate thread)
 	static void init_flowcontrol(crimson_tng_tx_streamer* txstream) {
 
 		//Get flow control updates x times a second
@@ -468,6 +525,10 @@ private:
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
 		double new_samp_rate[txstream->_channels.size()];
+
+		// SoB Time Diff
+		time_diff_packet time_diff_packet;
+		double sob_sync_time;
 
 		try {
 				boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
@@ -504,6 +565,14 @@ private:
 
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
+
+			if ( txstream->_sob_pending ) {
+				// SoB Time Diff: send sync packet (must be done before reading flow iface)
+				sob_sync_time = time_spec_t::get_system_time().get_real_secs();
+				make_time_diff_packet( time_diff_packet, sob_sync_time );
+				send_time_diff_packet( time_diff_packet, txstream->_time_diff_iface );
+			}
+
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
 
@@ -515,16 +584,19 @@ private:
 			//Prevent multiple access
 			txstream->_flowcontrol_mutex.lock();
 
-			// Update Sample Rates
-			if (samp_rate_update_ctr == 0) {
-				for (int c = 0; c < txstream->_channels.size(); c++) {
-					if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
-						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
-							txstream->_fifo_level_perc[c] = 50;
-						else
-							txstream->_fifo_level_perc[c] = 80;
-						txstream->_samp_rate[c] = new_samp_rate[c];
-						txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+			if ( ! txstream->_sob_pending ) {
+
+				// Update Sample Rates (used during steady-state operation)
+				if (samp_rate_update_ctr == 0) {
+					for (int c = 0; c < txstream->_channels.size(); c++) {
+						if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
+							if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+								txstream->_fifo_level_perc[c] = 50;
+							else
+								txstream->_fifo_level_perc[c] = 80;
+							txstream->_samp_rate[c] = new_samp_rate[c];
+							txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+						}
 					}
 				}
 			}
@@ -534,6 +606,40 @@ private:
 			for (int j = 0; j < 4; j++) {
 				ss >> txstream->_fifo_lvl[j];
 				ss.ignore();
+			}
+
+			if ( txstream->_sob_pending ) {
+
+				// Update Sample Rates (used while preparing for SoB)
+
+				int64_t tv_sec;
+				int64_t tv_tick;
+				ss >> std::hex >> tv_sec;
+				ss.ignore();
+				ss >> std::hex >> tv_tick;
+				txstream->_time_diff =
+					txstream->_time_diff_pidc.updateControlVariable(
+						txstream->_time_diff,
+						(double)tv_sec + (double)ticks_to_nsecs( tv_tick )
+					);
+				txstream->_host_to_crimson_tick_period_ratio = (sob_sync_time - txstream->_start_time) / (sob_sync_time - txstream->_start_time + txstream->_time_diff);
+				txstream->_host_tick_period = txstream->_crimson_tick_period / txstream->_host_to_crimson_tick_period_ratio;
+
+
+				if ( samp_rate_update_ctr == 0 ) {
+					for ( int c = 0; c < txstream->_channels.size(); c++ ) {
+						if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
+							if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD) {
+								txstream->_fifo_level_perc[c] = 50;
+							} else {
+								txstream->_fifo_level_perc[c] = 80;
+							}
+							txstream->_samp_rate[c] = new_samp_rate[c];
+							txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
+						}
+					}
+				}
+
 			}
 
 			//increment buffer count to say we have data
@@ -673,6 +779,15 @@ private:
 	double _max_clock_ppm_error;
 	bool _en_fc;
 	static size_t num_instances;
+
+	bool _sob_pending;
+	uhd::pidc _time_diff_pidc;
+	udp_simple::sptr _time_diff_iface;
+	double _start_time;
+	double _time_diff;
+	const double _crimson_tick_period = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE;
+	double _host_tick_period;
+	double _host_to_crimson_tick_period_ratio;
 
 	//debug
 	time_spec_t _timer_tofreerun;
