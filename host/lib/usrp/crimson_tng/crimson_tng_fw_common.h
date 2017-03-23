@@ -101,7 +101,7 @@ extern "C" {
 #define CRIMSON_TNG_DSP_FREQ_RANGE_STEP	1.0
 
 // Crimson Clk Settings
-#define CRIMSON_TNG_MASTER_CLOCK_RATE	322265625   // XXX: @CF: is this accurate?
+#define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
 #define CRIMSON_TNG_EXT_CLK_RATE		10000000	// only 10 MHz input sources allowed
 
 // Crimson VITA settings
