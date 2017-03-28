@@ -137,7 +137,7 @@ private:
     boost::mutex _async_mutex;
     std::vector<int> _async_comm;
 
-    double _time_diff; // measured in seconds
+    double _time_diff = 0; // measured in seconds
 };
 
 #endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
