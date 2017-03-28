@@ -317,7 +317,7 @@ public:
 					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_TNG_MAX_MTU);
 
 					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_crimson_samp_rate[i]);
 
 					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 					else _last_time[i] = time_spec_t::get_system_time();
@@ -333,7 +333,7 @@ public:
 					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, remaining_bytes[i]);
 
 					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
+					time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_crimson_samp_rate[i]);
 					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 					else _last_time[i] = time_spec_t::get_system_time();
 
@@ -366,7 +366,7 @@ public:
 
 			// Restore Adjusted Sample Rates to Original Values
 			for (int c = 0; c < _channels.size(); c++) {
-				_samp_rate[c] = _samp_rate_usr[c];
+				_crimson_samp_rate[c] = _host_samp_rate[c];
 			}
 		}
 	}
@@ -456,8 +456,8 @@ private:
 			_buffer_count.push_back(*counter);
 
 			// initialize sample rate
-			_samp_rate.push_back(0);
-			_samp_rate_usr.push_back(0);
+			_crimson_samp_rate.push_back(0);
+			_host_samp_rate.push_back(0);
 
 			// initialize the _last_time
 			_last_time.push_back(time_spec_t(0.0));
@@ -472,6 +472,8 @@ private:
 		//Initialize "Time Diff" mechanism before starting flow control thread
 		time_spec_t ts = time_spec_t::get_system_time();
 		_start_time = ts.get_real_secs();
+		// XXX: @CF: replace with multi_crimson::set_time_now( ts )
+		// The problem is that this class does not hold a multi_crimson instance
 		tree->access<time_spec_t>( time_path / "now" ).set( ts );
 		_time_diff_pidc = uhd::pidc( 0.0, 0.45454545454545453, 15.495867768595039, 0.000962000962000962 );
 
@@ -482,7 +484,7 @@ private:
 		num_instances++;
 	}
 
-	// SoB: Time Diff (Time Diff mechanism is used to get a really close estimate of Crimson's absolute time)
+	// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
 	static constexpr double tick_period_ns = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE * 1e9;
 	static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 		return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
@@ -584,19 +586,16 @@ private:
 			//Prevent multiple access
 			txstream->_flowcontrol_mutex.lock();
 
-			if ( ! txstream->_sob_pending ) {
-
-				// Update Sample Rates (used during steady-state operation)
-				if (samp_rate_update_ctr == 0) {
-					for (int c = 0; c < txstream->_channels.size(); c++) {
-						if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
-							if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
-								txstream->_fifo_level_perc[c] = 50;
-							else
-								txstream->_fifo_level_perc[c] = 80;
-							txstream->_samp_rate[c] = new_samp_rate[c];
-							txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
-						}
+			// Update Sample Rates
+			if (samp_rate_update_ctr == 0) {
+				for (int c = 0; c < txstream->_channels.size(); c++) {
+					if (new_samp_rate[c] != txstream->_host_samp_rate[c]) {
+						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+							txstream->_fifo_level_perc[c] = 50;
+						else
+							txstream->_fifo_level_perc[c] = 80;
+						txstream->_crimson_samp_rate[c] = new_samp_rate[c];
+						txstream->_host_samp_rate[c] = txstream->_crimson_samp_rate[c];
 					}
 				}
 			}
@@ -610,8 +609,6 @@ private:
 
 			if ( txstream->_sob_pending ) {
 
-				// Update Sample Rates (used while preparing for SoB)
-
 				int64_t tv_sec;
 				int64_t tv_tick;
 				ss >> std::hex >> tv_sec;
@@ -622,24 +619,16 @@ private:
 						txstream->_time_diff,
 						(double)tv_sec + (double)ticks_to_nsecs( tv_tick )
 					);
-				txstream->_host_to_crimson_tick_period_ratio = (sob_sync_time - txstream->_start_time) / (sob_sync_time - txstream->_start_time + txstream->_time_diff);
-				txstream->_host_tick_period = txstream->_crimson_tick_period / txstream->_host_to_crimson_tick_period_ratio;
 
+				txstream->_host_to_crimson_tick_period_ratio =
+					( sob_sync_time - txstream->_start_time + txstream->_time_diff ) /
+					( sob_sync_time - txstream->_start_time );
 
-				if ( samp_rate_update_ctr == 0 ) {
-					for ( int c = 0; c < txstream->_channels.size(); c++ ) {
-						if (new_samp_rate[c] != txstream->_samp_rate_usr[c]) {
-							if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD) {
-								txstream->_fifo_level_perc[c] = 50;
-							} else {
-								txstream->_fifo_level_perc[c] = 80;
-							}
-							txstream->_samp_rate[c] = new_samp_rate[c];
-							txstream->_samp_rate_usr[c] = txstream->_samp_rate[c];
-						}
-					}
-				}
+				double correction_factor = 1.0 / txstream->_host_to_crimson_tick_period_ratio;
 
+				txstream->_host_tick_period =
+					txstream->_crimson_tick_period *
+					txstream->_host_to_crimson_tick_period_ratio;
 			}
 
 			//increment buffer count to say we have data
@@ -680,33 +669,33 @@ private:
 					// calculate the error - aim for steady state fifo level percentage
 					double f_update = ((CRIMSON_TNG_BUFF_SIZE*_fifo_level_perc[channel]/100)- _fifo_lvl[_channels[channel]]) / (CRIMSON_TNG_BUFF_SIZE);
 					//apply correction
-					_samp_rate[channel]=_samp_rate[channel]+(2*f_update*_samp_rate[channel])/10000000;
+					_crimson_samp_rate[channel]=_crimson_samp_rate[channel]+(2*f_update*_crimson_samp_rate[channel])/10000000;
 
 					//Limit the correction
 					//Maximum correction is a half buffer per second (a buffer element is 2 samples).
-					double max_corr = _samp_rate_usr[channel] * (_max_clock_ppm_error/1000000);
+					double max_corr = _host_samp_rate[channel] * (_max_clock_ppm_error/1000000);
 					if (max_corr> CRIMSON_TNG_BUFF_SIZE) max_corr=CRIMSON_TNG_BUFF_SIZE;
-					if(_samp_rate[channel] > (_samp_rate_usr[channel] + max_corr)){
-						_samp_rate[channel] = _samp_rate_usr[channel] + max_corr;
-					}else if(_samp_rate[channel] < (_samp_rate_usr[channel] - max_corr)){
-						_samp_rate[channel] = _samp_rate_usr[channel] - max_corr;
+					if(_crimson_samp_rate[channel] > (_host_samp_rate[channel] + max_corr)){
+						_crimson_samp_rate[channel] = _host_samp_rate[channel] + max_corr;
+					}else if(_crimson_samp_rate[channel] < (_host_samp_rate[channel] - max_corr)){
+						_crimson_samp_rate[channel] = _host_samp_rate[channel] - max_corr;
 					}
 
 					//Adjust last time to try and correct to 50%
 					//The adjust is 1/20th as that is the update period
 					if (_fifo_lvl[_channels[channel]] > (CRIMSON_TNG_BUFF_SIZE*_fifo_level_perc[channel]/100)){
 						time_spec_t lvl_adjust = time_spec_t(0,
-								((_fifo_lvl[_channels[channel]]-(CRIMSON_TNG_BUFF_SIZE*_fifo_level_perc[channel]/100))*2/20) / (double)_samp_rate[channel]);
+								((_fifo_lvl[_channels[channel]]-(CRIMSON_TNG_BUFF_SIZE*_fifo_level_perc[channel]/100))*2/20) / (double)_crimson_samp_rate[channel]);
 						_last_time[channel] += lvl_adjust;
 					}else{
 						time_spec_t lvl_adjust = time_spec_t(0,
-								(((CRIMSON_TNG_BUFF_SIZE*_fifo_level_perc[channel]/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_samp_rate[channel]);
+								(((CRIMSON_TNG_BUFF_SIZE*_fifo_level_perc[channel]/100)-_fifo_lvl[_channels[channel]])*2/20) / (double)_crimson_samp_rate[channel]);
 						_last_time[channel] -= lvl_adjust;
 					}
 
 					// Handle OverFlow Alerts
 					if (_overflow_flag[channel]) {
-						time_spec_t delay_buffer_ss = time_spec_t(0, ((_fifo_level_perc[channel] / 2)/100*(double)(CRIMSON_TNG_BUFF_SIZE)) / (double)_samp_rate[channel]);
+						time_spec_t delay_buffer_ss = time_spec_t(0, ((_fifo_level_perc[channel] / 2)/100*(double)(CRIMSON_TNG_BUFF_SIZE)) / (double)_crimson_samp_rate[channel]);
 						_last_time[channel] += delay_buffer_ss;
 
 						_overflow_flag[channel] = false;
@@ -722,26 +711,26 @@ private:
 	}
 
 	void setup_steadystate(size_t i) {	// i is the channel assignment
-		if (_samp_rate[i] == 0) {	// Handle UnderFlow if it occurs
+		if (_crimson_samp_rate[i] == 0) {	// Handle UnderFlow if it occurs
 			//Get sample rate
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+			_crimson_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
 
 			//Set the user set sample rate to refer to later
-			_samp_rate_usr[i] = _samp_rate[i];
+			_host_samp_rate[i] = _crimson_samp_rate[i];
 
 			// Set FIFO level steady state target accordingly
-			if (_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+			if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
 				_fifo_level_perc[i] = 50;
 			else
 				_fifo_level_perc[i] = 80;
 		}
 
-		if (_samp_rate[i] == 0 || _underflow_flag[i]) {
+		if (_crimson_samp_rate[i] == 0 || _underflow_flag[i]) {
 			//Adjust sample rate to fill up buffer in first half second
 			//we do this by setting the "last time " data was sent to be half a buffers worth in the past
 			//each element in the buffer is 1 samples worth
-			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_TNG_BUFF_SIZE)) / (double)_samp_rate[i]);
+			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_TNG_BUFF_SIZE)) / (double)_crimson_samp_rate[i]);
 			_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
 			//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
 
@@ -760,8 +749,8 @@ private:
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
 	boost::thread *_flowcontrol_thread;
-	std::vector<double> _samp_rate;
-	std::vector<double> _samp_rate_usr;
+	std::vector<double> _crimson_samp_rate;
+	std::vector<double> _host_samp_rate;
 	std::vector<bool> _underflow_flag;
 	std::vector<bool> _overflow_flag;
 	std::vector<time_spec_t> _last_time;
