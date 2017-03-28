@@ -196,7 +196,7 @@ std::string multi_crimson_tng::get_mboard_name(size_t mboard){
 // Get the current time on Crimson
 time_spec_t multi_crimson_tng::get_time_now(size_t mboard){
 	crimson_tng_impl::sptr dev = boost::static_pointer_cast<crimson_tng_impl>( this->_dev );
-	return time_spec_t::get_system_time().get_real_secs() + dev->get_time_diff();
+	return time_spec_t( time_spec_t::get_system_time().get_real_secs() + dev->get_time_diff() );
 }
 
 // Get the time of the last PPS (pulse per second)
