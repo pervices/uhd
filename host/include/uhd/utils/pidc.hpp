@@ -29,6 +29,8 @@ namespace uhd {
 			}
 		}
 
+		virtual ~pidc() {}
+
 		double updateControlVariable( const double sp, const double pv ) {
 			// XXX: @CF: Use "velocity algorithm" form?
 			// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation
