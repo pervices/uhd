@@ -3,51 +3,58 @@
 
 #include <queue>
 
+#include <uhd/utils/cma.hpp>
+
 namespace uhd {
 
 	// Simple, Moving Average
 	// See https://en.wikipedia.org/wiki/Moving_average#Simple_moving_average
 
-	class sma {
+	class sma : public uhd::cma {
 
 	public:
 
 		sma( size_t N = 16 )
 		:
-			N( N ),
-			sma( 0 )
+			uhd::cma(),
+			N( N )
 		{
 		}
 
 		virtual ~sma() {}
 
-		// NOT thread-safe (subclass, add mutex, and override for thread-safety)
-		virtual double update_sma( double x ) {
-
-			if ( X.empty() ) {
-				// fill the buffer with the first sample
-				// return first sample
-
-				std::vector<double> tmp( N );
-				std::fill( tmp.begin(), tmp.end(), x );
-
-				X = std::queue( tmp );
-
-				return x;
-			}
+		virtual double update( double x ) {
 
 			X.push( x );
-			sma += ( X.front()  - X.back() ) / N;
+
+			if ( X.size() < N ) {
+
+				// if number of samples is smaller than window size
+				// perform a cumulative average
+
+				return uhd::cma::update( x );
+
+			}
+
+			// perform the simple moving average
+
+			avg += ( X.front()  - X.back() ) / N;
+
 			X.pop();
 
-			return sma;
+			return avg;
+		}
+
+		void set_window_size( double N ) {
+			this->N = N;
 		}
 
 	protected:
 
-		const size_t N;
+		// would make this const, but some of our code calls an init() function inside of a constructor,
+		// and for the queue, copy-constructors (or move ctors??) are deleted.
+		size_t N;
 		std::queue<double> X;
-		double sma;
 	};
 
 } // namespace uhd

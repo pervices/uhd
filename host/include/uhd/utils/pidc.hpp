@@ -9,11 +9,17 @@ namespace uhd {
 
 	public:
 
-		pidc( double sp = 0.0, double Kp = 0.0, double Ki = 0.0, double Kd = 0.0 )
+		pidc()
+		:
+			pidc( 0.0, 0.0, 0.0, 0.0 )
+		{
+		}
+
+		pidc( double sp, double Kp, double Ki, double Kd )
 		:
 			Kp( Kp ),
 			Ki( Ki ),
-			Kd( Ki ),
+			Kd( Kd ),
 			e( 0.0 ),
 			i( 0.0 ),
 			// initialize the control variable to be equal to the set point, so error is initially zero
@@ -31,34 +37,42 @@ namespace uhd {
 
 		virtual ~pidc() {}
 
-		double updateControlVariable( const double sp, const double pv ) {
+		double update_control_variable( const double sp, const double pv ) {
 			// XXX: @CF: Use "velocity algorithm" form?
 			// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation
 			// Possibly better to not use the velocity algorithm form to avoid several opportunities for numerical instability
 
-			double then = this->last_time;
+			double then = last_time;
 			double now = uhd::time_spec_t::get_system_time().get_real_secs();
 
 			double dt = now - then;
-			double e_1 = this->e;
-			this->e = sp - pv;
+			double e_1 = e;
+			e = sp - pv;
 
 			// proportional
-			double P = this->Kp * this->e;
+			double P = Kp * e;
 
 			// integral
-			this->i += this->e * dt;
-			double I = this->Ki * this->i;
+			i += e * dt;
+			double I = Ki * i;
 
 			// derivative
 			// the only possible numerical instability in this format is division by dt
-			double D = this->Kd * (this->e - e_1) / dt;
+			double D = Kd * (e - e_1) / dt;
 
 			// ouput
-			this->cv = P + I + D;
-			this->last_time = now;
+			cv = P + I + D;
+			last_time = now;
 
-			return this->cv;
+			return cv;
+		}
+
+		double get_last_time() {
+			return last_time;
+		}
+
+		double get_control_variable() {
+			return cv;
 		}
 
 	protected:

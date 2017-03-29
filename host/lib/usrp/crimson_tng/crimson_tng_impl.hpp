@@ -83,7 +83,10 @@ public:
     uhd::device_addr_t _addr;
 
     inline double get_time_diff() { return _time_diff; }
-    void set_time_diff( double time_diff ) { _time_diff = time_diff; }
+    inline void set_time_diff( double time_diff ) { _time_diff = time_diff; }
+
+    inline void set_multi( uhd::usrp::multi_crimson_tng *multi ) { _multi = multi; }
+    inline uhd::usrp::multi_crimson_tng * get_multi() { return _multi; }
 
 private:
     // helper functions to wrap send and recv as get and set
@@ -138,6 +141,7 @@ private:
     std::vector<int> _async_comm;
 
     double _time_diff = 0; // measured in seconds
+    uhd::usrp::multi_crimson_tng * _multi = NULL;
 };
 
 #endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
