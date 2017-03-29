@@ -37,6 +37,9 @@ using namespace std;
 static std::map<const std::string,int> to = { { "A", 0 }, { "B", 1 }, { "C", 2 }, { "D", 3 } };
 static std::map<int,const std::string> fro = { { 0, "A" }, { 1, "B" }, { 2, "C" }, { 3, "D" } };
 
+/*
+// XXX: @CF: kb #3773
+
 //
 // <SNIP src="http://archive.oreilly.com/network/2003/05/06/examples/calculatorexample.html">
 //
@@ -260,6 +263,8 @@ private:
 // </SNIP>
 //
 
+*/
+
 /***********************************************************************
  * StreamData Class for buffering data for several channels at once from file
  *
@@ -325,9 +330,12 @@ public:
 
 		std::ifstream fs( fn );
 
+		/*
+		 // XXX: @CF: kb #3773
 		symtab_t variables;
 		calculator calc( variables );
 		variables["pi"] = 3.141592653589792;
+		*/
 
 		for( lineno = 0; ; lineno++ ) {
 			std::getline( (std::istream&) fs, line );
@@ -346,25 +354,33 @@ public:
 
 			case 1:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.rx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.rx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.rx_center_freq[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
 			case 2:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.tx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.tx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.tx_center_freq[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
 			case 3:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.rx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.rx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.rx_sample_rate[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
 			case 4:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.tx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.tx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.tx_sample_rate[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
