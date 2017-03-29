@@ -25,7 +25,7 @@ namespace uhd {
 
 		virtual ~diff() {}
 
-		virtual double update_diff( double x, double y ) {
+		virtual double update( double x, double y ) {
 
 			double diff;
 
@@ -34,8 +34,11 @@ namespace uhd {
 				y0 = y;
 				// initial value in differentiation is 'padding'
 				diff = 0;
+				empty = false;
 			} else {
 				diff = ( y - y0 ) / ( x - x0 );
+				x0 = x;
+				y0 = y;
 			}
 
 			return diff;

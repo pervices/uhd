@@ -15,10 +15,15 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <inttypes.h>
+#include <cstdio>
+
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
+#include <uhd/utils/diff.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/pidc.hpp>
+#include <uhd/utils/pidc_tl.hpp>
+#include <uhd/utils/sma.hpp>
 #include <uhd/utils/msg.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/exception.hpp>
@@ -39,11 +44,15 @@
 #include <sstream>
 #include <vector>
 
+#ifndef DEBUG_START_OF_BURST
+#define DEBUG_START_OF_BURST 1
+#endif
+
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
 
-using namespace boost::endian;
+namespace bo = boost::endian;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
@@ -238,6 +247,9 @@ private:
 
 class crimson_tng_tx_streamer : public uhd::tx_streamer {
 public:
+
+	typedef boost::shared_ptr<crimson_tng_tx_streamer> sptr;
+
 	crimson_tng_tx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex) {
 		init_tx_streamer(addr, tree, channels, udp_mutex_add, async_comm, async_mutex);
 	}
@@ -378,6 +390,10 @@ public:
 		}
 	}
 
+	void set_device( crimson_tng_impl *dev ) {
+		_crimson_tng_impl = dev;
+	}
+
 private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
@@ -444,7 +460,8 @@ private:
 			if ( ! have_time_diff_iface ) {
 
 				// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
-				std::string time_diff_port = "" + tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
+				int sfpa_port = tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
+				std::string time_diff_port = std::to_string( sfpa_port );
 				_time_diff_iface = uhd::transport::udp_simple::make_connected( ip_addr, time_diff_port );
 
 				have_time_diff_iface = true;
@@ -471,11 +488,27 @@ private:
 
 		//Initialize "Time Diff" mechanism before starting flow control thread
 		time_spec_t ts = time_spec_t::get_system_time();
-		_start_time = ts.get_real_secs();
-		// XXX: @CF: replace with multi_crimson::set_time_now( ts )
+		_streamer_start_time = ts.get_real_secs();
+		_sob_time = _streamer_start_time;
 		// The problem is that this class does not hold a multi_crimson instance
 		tree->access<time_spec_t>( time_path / "now" ).set( ts );
-		_time_diff_pidc = uhd::pidc( 0.0, 0.45454545454545453, 15.495867768595039, 0.000962000962000962 );
+
+		// Tyreus-Luyben tuned PID controller
+		_time_diff_pidc = uhd::pidc_tl(
+			0.0, // desired set point is 0.0s error
+			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
+			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+		);
+		_time_diff_derivor = uhd::diff();
+		// averaging window for SMA (we may not even need to window in time if we use a different statistical filter)
+		double window_s = 66.6;
+		// Note: in experiments,
+		_time_diff_avg.set_window_size( (size_t)( window_s * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+#ifdef DEBUG_START_OF_BURST
+		_clock_drift_print_counter = 0;
+		_sob_time += 60 * 60 * 24; // SoB is 24 hours from now
+#endif
 
 		//Set up initial flow control variables
 		_flow_running=true;
@@ -501,20 +534,20 @@ private:
 	};
 	#pragma pack(pop)
 
-	static void make_time_diff_packet( time_diff_packet & pkt, double ts ) {
+	static inline void make_time_diff_packet( time_diff_packet & pkt, double ts ) {
 		make_time_diff_packet( pkt, time_spec_t( ts ) );
 	}
-	static void make_time_diff_packet( time_diff_packet & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
+	static inline void make_time_diff_packet( time_diff_packet & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
 		pkt.header = 1;
 		pkt.tv_sec = ts.get_full_secs();
 		pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
 
-		native_to_big_inplace( pkt.header );
-		native_to_big_inplace( (uint64_t &) pkt.tv_sec );
-		native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+		bo::native_to_big_inplace( pkt.header );
+		bo::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+		bo::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 	}
 
-	static void send_time_diff_packet( time_diff_packet & pkt, udp_simple::sptr & dst ) {
+	static inline void send_time_diff_packet( time_diff_packet & pkt, udp_simple::sptr & dst ) {
 		boost::asio::const_buffer cb( (void *) &pkt, sizeof( pkt ) );
 		dst->send( cb );
 	}
@@ -530,7 +563,7 @@ private:
 
 		// SoB Time Diff
 		time_diff_packet time_diff_packet;
-		double sob_sync_time;
+		double sync_time;
 
 		try {
 				boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
@@ -539,6 +572,9 @@ private:
 		}
 
 		while(true) {
+
+			double time_now = txstream->_crimson_tng_impl->get_multi()->get_time_now().get_real_secs();
+			txstream->_sob_pending = time_now < txstream->_sob_time;
 
 			//Sleep for desired time
 			// Catch Interrupts to Exit here
@@ -570,8 +606,9 @@ private:
 
 			if ( txstream->_sob_pending ) {
 				// SoB Time Diff: send sync packet (must be done before reading flow iface)
-				sob_sync_time = time_spec_t::get_system_time().get_real_secs();
-				make_time_diff_packet( time_diff_packet, sob_sync_time );
+				sync_time = time_spec_t::get_system_time().get_real_secs();
+				sync_time += txstream->_time_diff_pidc.get_control_variable();
+				make_time_diff_packet( time_diff_packet, sync_time );
 				send_time_diff_packet( time_diff_packet, txstream->_time_diff_iface );
 			}
 
@@ -611,24 +648,46 @@ private:
 
 				int64_t tv_sec;
 				int64_t tv_tick;
-				ss >> std::hex >> tv_sec;
+				uint64_t tmp;
+				ss >> std::hex >> tmp;
+				tv_sec = (int64_t) tmp;
 				ss.ignore();
-				ss >> std::hex >> tv_tick;
-				txstream->_time_diff =
-					txstream->_time_diff_pidc.updateControlVariable(
-						txstream->_time_diff,
-						(double)tv_sec + (double)ticks_to_nsecs( tv_tick )
-					);
+				ss >> std::hex >> tmp;
+				tv_tick = (int64_t) tmp;
 
-				txstream->_host_to_crimson_tick_period_ratio =
-					( sob_sync_time - txstream->_start_time + txstream->_time_diff ) /
-					( sob_sync_time - txstream->_start_time );
+				const double sp = 0.0;
+				double pv = (double)tv_sec + (double)ticks_to_nsecs( tv_tick ) / 1e9;
 
-				double correction_factor = 1.0 / txstream->_host_to_crimson_tick_period_ratio;
+				double cv = txstream->_time_diff_pidc.update_control_variable( sp, pv );
+				double x = txstream->_time_diff_pidc.get_last_time();
 
-				txstream->_host_tick_period =
-					txstream->_crimson_tick_period *
-					txstream->_host_to_crimson_tick_period_ratio;
+				double time_diff = txstream->_time_diff_avg.update( cv );
+
+				// For SoB, record the time diff in Crimson
+				txstream->_crimson_tng_impl->set_time_diff( time_diff );
+
+				double clock_drift = txstream->_time_diff_derivor.update( x, time_diff );
+
+#if DEBUG_START_OF_BURST
+				UHD_MSG(status)
+					<< "t: " << std::fixed << std::setprecision(6) << x << ", "
+					<< "cv: " << std::fixed << std::setprecision( 20 ) << cv << ", "
+					<< "pv: " << std::fixed << std::setprecision( 20 ) << pv << ", "
+					<< "clock drift: " << std::scientific << clock_drift << std::endl;
+
+				txstream->_clock_drift_print_counter++;
+#endif
+
+				if ( x - txstream->_streamer_start_time >= crimson_tng_tx_streamer::PID_SETTLING_TIME ) {
+
+					// For SoB, do a fine tuning pass of the sample rates, so that the rate the host
+					// sees is in line with the rate that is actually happening on Crimson
+
+					for ( size_t c = 0; c < txstream->_channels.size(); c++ ) {
+						txstream->_host_samp_rate[c] = txstream->_crimson_samp_rate[c] * ( 1 + txstream->_time_diff_avg.get_average() );
+					}
+				}
+
 			}
 
 			//increment buffer count to say we have data
@@ -769,14 +828,50 @@ private:
 	bool _en_fc;
 	static size_t num_instances;
 
+	double _streamer_start_time;
+	/// Indicates that a SoB (Start of Burst) will be happening at some point in the future
 	bool _sob_pending;
-	uhd::pidc _time_diff_pidc;
+	double _sob_time;
+	// TODO: add field for specific SoB time. N.B: Must be specified in terms of Crimson's clock
+	/// UDP endpoint that receives our Time Diff packets
 	udp_simple::sptr _time_diff_iface;
-	double _start_time;
-	double _time_diff;
+	/** PID controller that rejects differences between Crimson's clock and the host's clock.
+	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
+	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
+	 *  -> The Control Variable of the controller (the output) is the required compensation for the host
+	 *     such that the error is forced to zero.
+	 *     => Crimson Time Now := Host Time Now + CV
+	 *     => The CV contains several components:
+	 *        1) A DC component that represents the (on-average) constant processing time
+	 *           (i.e. the time to send / receive flow data over the network, convert strings,
+	 *           do math, make system calls). The DC component is very large in comparison to the clock drift.
+	 *        2) A significant amount of noise, which is the sum of the variances of network latency and
+	 *           processing time (there may be other sources of noise). Even the noise is an order of
+	 *           magnitude (or more) greater than the actual clock drift.
+	 *        3) A slowly varying AC component that represents the actual clock drift. The actual clock
+	 *           drift is dwarfed by both the noise and the DC component.
+	 */
+	uhd::pidc _time_diff_pidc;
+	static constexpr double PID_SETTLING_TIME = 6;
+	static constexpr size_t TIME_DIFF_DECIM_RATE = 20;
+	/** Derivative object used to
+	 *  a) filter-out the DC component from the CV,
+	 *  b) determine rate of change of the host clock w.r.t. Crimson's clock.
+	 */
+	size_t _time_diff_decim_ctr;
+	uhd::diff _time_diff_derivor;
+	/// Statistical Filter used to approximate the clock drift
+	uhd::sma _time_diff_avg;
+#ifdef DEBUG_START_OF_BURST
+	size_t _clock_drift_print_counter;
+#endif
+	/// Crimson's (nominal) tick period
 	const double _crimson_tick_period = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE;
+	/** Host's view of Crimson's tick period
+	 *    Host Tick Period == ( 1 + Clock Drift ) * Crimson Tick Period
+	 */
 	double _host_tick_period;
-	double _host_to_crimson_tick_period_ratio;
+	crimson_tng_impl *_crimson_tng_impl;
 
 	//debug
 	time_spec_t _timer_tofreerun;
@@ -854,5 +949,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 	UHD_MSG(status) << base_message.str();
 
 	// TODO firmware support for other otw_format, cpu_format
-	return tx_streamer::sptr(new crimson_tng_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex));
+	crimson_tng_tx_streamer::sptr r( new crimson_tng_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex) );
+	r->set_device( this );
+	return r;
 }
