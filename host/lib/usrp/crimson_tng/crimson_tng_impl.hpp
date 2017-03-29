@@ -82,6 +82,9 @@ public:
 
     uhd::device_addr_t _addr;
 
+    inline double get_time_diff() { return _time_diff; }
+    void set_time_diff( double time_diff ) { _time_diff = time_diff; }
+
 private:
     // helper functions to wrap send and recv as get and set
     std::string get_string(std::string req);
@@ -133,6 +136,8 @@ private:
     boost::mutex _udp_mutex;
     boost::mutex _async_mutex;
     std::vector<int> _async_comm;
+
+    double _time_diff = 0; // measured in seconds
 };
 
 #endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
