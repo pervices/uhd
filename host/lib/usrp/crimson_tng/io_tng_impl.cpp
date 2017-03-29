@@ -379,11 +379,24 @@ private:
 		_max_clock_ppm_error = 100;
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
+
+			std::string sfp;
+			switch( _channels[ i ] ) {
+			case 0:
+			case 2:
+				sfp = "sfpa";
+				break;
+			case 1:
+			case 3:
+				sfp = "sfpb";
+				break;
+			}
+
 			std::string ch       = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			std::string udp_port = tree->access<std::string>(prop_path / "Channel_"+ch / "port").get();
 			std::string iface    = tree->access<std::string>(prop_path / "Channel_"+ch / "iface").get();
-			std::string ip_addr  = tree->access<std::string>( mb_path / "link" / iface / "ip_addr").get();
-			_pay_len = tree->access<int>(mb_path / "link" / iface / "pay_len").get();
+			std::string ip_addr  = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
+			_pay_len = tree->access<int>(mb_path / "link" / sfp / "pay_len").get();
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("1");
