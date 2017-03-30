@@ -573,8 +573,12 @@ private:
 
 		while(true) {
 
-			double time_now = txstream->_crimson_tng_impl->get_multi()->get_time_now().get_real_secs();
-			txstream->_sob_pending = time_now < txstream->_sob_time;
+#ifdef DEBUG_START_OF_BURST
+			txstream->_sob_pending = true;
+#else
+			double crimson_time_now = txstream->_crimson_tng_impl->get_multi()->get_time_now().get_real_secs();
+			txstream->_sob_pending = crimson_time_now < txstream->_sob_time;
+#endif
 
 			//Sleep for desired time
 			// Catch Interrupts to Exit here
