@@ -936,9 +936,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     md.has_time_spec  = true;
     md.time_spec = uhd::time_spec_t(0.1); //give us 0.1 seconds to fill the tx buffers
 
+	/*
+    XXX: @CF: Setting device timestamp to an arbitrary value (such as zero) can negatively
+    	 affect Crimson TNG time synchronization. The user is strongly discouraged from doing so.
+    */
     //reset usrp time to prepare for transmit/receive
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-    tx_usrp->set_time_now(uhd::time_spec_t(0.0));
+	// std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+	// tx_usrp->set_time_now(uhd::time_spec_t(0.0));
 
     //start transmit worker thread
     boost::thread_group transmit_thread;
