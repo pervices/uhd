@@ -144,8 +144,8 @@ namespace vrt{
         sob(false), eob(false),
         has_sid(false), sid(0),
         has_cid(false), cid(0),
-        has_tsi(false), tsi(0),
-        has_tsf(false), tsf(0),
+        has_tsi(false), tsi(0), tsi_type(TSI_TYPE_NONE),
+        has_tsf(false), tsf(0), tsf_type(TSF_TYPE_SAMP),
         has_tlr(false), tlr(0)
     {}
 
