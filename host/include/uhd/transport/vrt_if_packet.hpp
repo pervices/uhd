@@ -57,6 +57,24 @@ namespace vrt{
             PACKET_TYPE_CONTEXT   = 0x2, //extension context: has_sid = true
         } packet_type;
 
+        //tsi type
+        enum tsi_type_t
+        {
+            TSI_TYPE_NONE    = 0x0,
+			TSI_TYPE_UTC     = 0x1,
+			TSI_TYPE_GPS     = 0x2,
+			TSI_TYPE_OTHER   = 0x3,
+        } tsi_type;
+
+        //tsf type
+        enum tsf_type_t
+        {
+            TSF_TYPE_NONE    = 0x0,
+			TSF_TYPE_SAMP    = 0x1,
+			TSF_TYPE_PICO    = 0x2,
+			TSF_TYPE_FREE    = 0x3,
+        } tsf_type;
+
         //size fields
         size_t num_payload_words32; //required in pack, derived in unpack
         size_t num_payload_bytes;   //required in pack, derived in unpack

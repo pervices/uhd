@@ -15,23 +15,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <cstdio>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <vector>
 
-#include "crimson_tng_impl.hpp"
-#include "crimson_tng_fw_common.h"
-#include <uhd/utils/diff.hpp>
-#include <uhd/utils/log.hpp>
-#include <uhd/utils/pidc_tl.hpp>
-#include <uhd/utils/sma.hpp>
-#include <uhd/utils/msg.hpp>
-#include <uhd/utils/tasks.hpp>
-#include <uhd/exception.hpp>
-#include <uhd/utils/byteswap.hpp>
-#include <uhd/utils/thread_priority.hpp>
-#include <uhd/transport/bounded_buffer.hpp>
-#include <uhd/transport/udp_stream.hpp>
-#include <uhd/types/wb_iface.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
@@ -39,10 +29,22 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/endian/buffers.hpp>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <vector>
+
+#include <uhd/exception.hpp>
+#include <uhd/utils/byteswap.hpp>
+#include <uhd/utils/diff.hpp>
+#include <uhd/utils/log.hpp>
+#include <uhd/utils/msg.hpp>
+#include <uhd/utils/pidc_tl.hpp>
+#include <uhd/utils/sma.hpp>
+#include <uhd/utils/tasks.hpp>
+#include <uhd/utils/thread_priority.hpp>
+#include <uhd/transport/bounded_buffer.hpp>
+#include <uhd/transport/udp_stream.hpp>
+#include <uhd/types/wb_iface.hpp>
+
+#include "crimson_tng_impl.hpp"
+#include "crimson_tng_fw_common.h"
 
 #ifndef DEBUG_START_OF_BURST
 //#define DEBUG_START_OF_BURST 1
@@ -51,6 +53,7 @@
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
+using namespace uhd::transport::vrt;
 
 namespace bo = boost::endian;
 namespace asio = boost::asio;
@@ -286,6 +289,62 @@ public:
 		return _pay_len/4;
 	}
 
+	void compose_if_packet_info( const tx_metadata_t &metadata, if_packet_info_t &ifo ) {
+
+		//translate the metadata to vrt if packet info
+		ifo.link_type = vrt::if_packet_info_t::LINK_TYPE_NONE;
+		ifo.packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
+		ifo.has_sid = false; // currently unused
+		ifo.has_cid = false; // currently unused
+		ifo.has_tlr = false; // currently unused
+		ifo.has_tsi = metadata.has_time_spec;
+		ifo.has_tsf = metadata.has_time_spec;
+
+		if ( ifo.has_tsi ) {
+
+			switch( ifo.tsi_type ) {
+
+			case vrt::if_packet_info_t::TSI_TYPE_NONE:
+				ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
+				/* no break */
+
+			default:
+				// currently we do not care about the tsi_type
+				ifo.tsi = metadata.time_spec.get_full_secs();
+				break;
+			}
+		}
+		if ( ifo.has_tsf ) {
+
+			switch( ifo.tsf_type ) {
+
+			case vrt::if_packet_info_t::TSF_TYPE_NONE:
+				// if unspecified, we default to SAMP as to not break compatibility with Ettus' UHD
+				ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_SAMP;
+				/* no break */
+
+			case vrt::if_packet_info_t::TSF_TYPE_SAMP:
+				ifo.tsf	 = metadata.time_spec.to_ticks( tick_period_ns );
+				break;
+
+			case vrt::if_packet_info_t::TSF_TYPE_PICO:
+				ifo.tsf = (uint64_t) metadata.time_spec.get_frac_secs() / 1e12;
+				break;
+
+			case vrt::if_packet_info_t::TSF_TYPE_FREE:
+				// unimplemented
+				ifo.has_tsf = false;
+				break;
+			}
+		}
+
+		// XXX: these flags denote the first and last packets in burst sample data
+		// NOT indication that timed, multi-channel burst will start
+		ifo.sob = metadata.start_of_burst;
+		ifo.eob	= metadata.end_of_burst;
+
+	}
+
 //	void set_sample_rate(int channel, double new_samp_rate) {
 //		_samp_rate[channel] = new_samp_rate;
 //		_samp_rate_usr[channel] = _samp_rate[channel];
@@ -297,14 +356,31 @@ public:
         	const tx_metadata_t &metadata,
         	const double timeout = 0.1)
 	{
+
 		size_t samp_sent =0;
 		size_t remaining_bytes[_channels.size()];
+		vrt::if_packet_info_t if_packet_info;
+
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
 		}
 
 		// Timeout
 		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
+
+		compose_if_packet_info( metadata, if_packet_info );
+
+		if (
+			true
+			&& if_packet_info.has_tsi
+			&& if_packet_info.has_tsf
+			&& vrt::if_packet_info_t::TSF_TYPE_PICO == if_packet_info.tsf_type
+		) {
+			// A timed, multi-channel burst will start
+			_sob_time =
+				(double) metadata.time_spec.get_full_secs()
+				+ metadata.time_spec.get_frac_secs() / 1e12;
+		}
 
 		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
@@ -553,6 +629,7 @@ private:
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
 		double new_samp_rate[txstream->_channels.size()];
+		bool sob_pending;
 
 		// SoB Time Diff
 		time_diff_packet time_diff_packet;
@@ -603,13 +680,13 @@ private:
 			txstream->_udp_mutex_add->lock();
 
 #ifdef DEBUG_START_OF_BURST
-			txstream->_sob_pending = true;
+			sob_pending = true;
 #else
 			double crimson_time_now = txstream->_crimson_tng_impl->get_multi()->get_time_now().get_real_secs();
-			txstream->_sob_pending = crimson_time_now < txstream->_sob_time;
+			sob_pending = crimson_time_now < txstream->_sob_time;
 #endif
 
-			if ( txstream->_sob_pending ) {
+			if ( sob_pending ) {
 				// SoB Time Diff: send sync packet (must be done before reading flow iface)
 
 				sync_time = time_spec_t::get_system_time().get_real_secs();
@@ -652,7 +729,7 @@ private:
 				ss.ignore();
 			}
 
-			if ( txstream->_sob_pending ) {
+			if ( sob_pending ) {
 
 				// SoB Time Diff Processing: read flow iface & process results to improve timing
 
