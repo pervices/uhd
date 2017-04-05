@@ -58,6 +58,7 @@ using namespace uhd::transport::vrt;
 namespace bo = boost::endian;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
+namespace trans = uhd::transport;
 
 static int channels_to_mask( std::vector<size_t> channels ) {
 	unsigned mask = 0;
@@ -339,10 +340,17 @@ public:
 		}
 
 		// XXX: these flags denote the first and last packets in burst sample data
-		// NOT indication that timed, multi-channel burst will start
+		// NOT indication that timed, (possibly) multi-channel burst will start
 		ifo.sob = metadata.start_of_burst;
 		ifo.eob	= metadata.end_of_burst;
 
+	}
+
+	inline bool is_start_of_burst( vrt::if_packet_info_t & if_packet_info ) {
+		return true
+		&& if_packet_info.has_tsi
+		&& if_packet_info.has_tsf
+		&& vrt::if_packet_info_t::TSF_TYPE_PICO == if_packet_info.tsf_type;
 	}
 
 //	void set_sample_rate(int channel, double new_samp_rate) {
@@ -371,13 +379,7 @@ public:
 
 		compose_if_packet_info( metadata, if_packet_info );
 
-		if (
-			true
-			&& if_packet_info.has_tsi
-			&& if_packet_info.has_tsf
-			&& vrt::if_packet_info_t::TSF_TYPE_PICO == if_packet_info.tsf_type
-		) {
-			// A timed, multi-channel burst will start
+		if ( is_start_of_burst( if_packet_info ) ) {
 			_sob_time =
 				(double) metadata.time_spec.get_full_secs()
 				+ metadata.time_spec.get_frac_secs() / 1e12;
