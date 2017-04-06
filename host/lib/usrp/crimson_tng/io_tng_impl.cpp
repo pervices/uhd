@@ -303,42 +303,11 @@ public:
 		ifo.has_tsi = metadata.has_time_spec;
 		ifo.has_tsf = metadata.has_time_spec;
 
-		if ( ifo.has_tsi ) {
-
-			switch( ifo.tsi_type ) {
-
-			case vrt::if_packet_info_t::TSI_TYPE_NONE:
-				ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
-				/* no break */
-
-			default:
-				// currently we do not care about the tsi_type
-				ifo.tsi = metadata.time_spec.get_full_secs();
-				break;
-			}
-		}
-		if ( ifo.has_tsf ) {
-
-			switch( ifo.tsf_type ) {
-
-			case vrt::if_packet_info_t::TSF_TYPE_NONE:
-				// if unspecified, we default to SAMP as to not break compatibility with Ettus' UHD
-				ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_SAMP;
-				/* no break */
-
-			case vrt::if_packet_info_t::TSF_TYPE_SAMP:
-				ifo.tsf	 = metadata.time_spec.to_ticks( tick_period_ns );
-				break;
-
-			case vrt::if_packet_info_t::TSF_TYPE_PICO:
-				ifo.tsf = (uint64_t) metadata.time_spec.get_frac_secs() / 1e12;
-				break;
-
-			case vrt::if_packet_info_t::TSF_TYPE_FREE:
-				// unimplemented
-				ifo.has_tsf = false;
-				break;
-			}
+		if ( metadata.has_time_spec ) {
+			ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
+			ifo.tsi = (uint32_t)metadata.time_spec.get_full_secs();
+			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
+			ifo.tsf = (uint64_t) (metadata.time_spec.get_frac_secs() / 1e12);
 		}
 
 		// XXX: these flags denote the first and last packets in burst sample data
@@ -536,7 +505,7 @@ private:
 			// vita disable
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("0");
 
-			_tmp_buf[ i ] = new uint8_t[ CRIMSON_TNG_MAX_MTU ];
+			_tmp_buf.push_back( new uint8_t[ CRIMSON_TNG_MAX_MTU ] );
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
