@@ -132,7 +132,9 @@ BOOST_AUTO_TEST_CASE(test_with_time){
     if_packet_info.has_sid = false;
     if_packet_info.has_cid = false;
     if_packet_info.has_tsi = true;
+    if_packet_info.tsi_type = vrt::if_packet_info_t::tsi_type_t::TSI_TYPE_OTHER;
     if_packet_info.has_tsf = true;
+    if_packet_info.tsf_type = vrt::if_packet_info_t::tsf_type_t::TSF_TYPE_SAMP;
     if_packet_info.has_tlr = false;
     if_packet_info.tsi = std::rand();
     if_packet_info.tsf = std::rand();
@@ -146,7 +148,9 @@ BOOST_AUTO_TEST_CASE(test_with_all){
     if_packet_info.has_sid = true;
     if_packet_info.has_cid = cid_enb;
     if_packet_info.has_tsi = true;
+    if_packet_info.tsi_type = vrt::if_packet_info_t::tsi_type_t::TSI_TYPE_GPS;
     if_packet_info.has_tsf = true;
+    if_packet_info.tsf_type = vrt::if_packet_info_t::tsf_type_t::TSF_TYPE_FREE;
     if_packet_info.has_tlr = false;
     if_packet_info.sid = std::rand();
     if_packet_info.cid = std::rand();
@@ -164,6 +168,7 @@ BOOST_AUTO_TEST_CASE(test_with_vrlp){
     if_packet_info.has_cid = false;
     if_packet_info.has_tsi = false;
     if_packet_info.has_tsf = true;
+    if_packet_info.tsf_type = vrt::if_packet_info_t::tsf_type_t::TSF_TYPE_FREE;
     if_packet_info.has_tlr = true;
     if_packet_info.tsi = std::rand();
     if_packet_info.tsf = std::rand();
@@ -179,6 +184,7 @@ BOOST_AUTO_TEST_CASE(test_with_chdr){
     if_packet_info.has_cid = false;
     if_packet_info.has_tsi = false;
     if_packet_info.has_tsf = true;
+    if_packet_info.tsf_type = vrt::if_packet_info_t::tsf_type_t::TSF_TYPE_SAMP;
     if_packet_info.has_tlr = false; //tlr not suported in CHDR
     if_packet_info.tsi = std::rand();
     if_packet_info.tsf = std::rand();
@@ -189,16 +195,16 @@ BOOST_AUTO_TEST_CASE(test_with_chdr){
 BOOST_AUTO_TEST_CASE(test_with_tsi_other_tsf_pico){
     vrt::if_packet_info_t if_packet_info;
     if_packet_info.link_type = vrt::if_packet_info_t::LINK_TYPE_NONE;
-    if_packet_info.packet_count = 0;
+    if_packet_info.packet_count = 0xa;
     if_packet_info.has_sid = false;
     if_packet_info.has_cid = false;
     if_packet_info.has_tsi = true;
     if_packet_info.tsi_type = vrt::if_packet_info_t::tsi_type_t::TSI_TYPE_OTHER;
     if_packet_info.has_tsf = true;
     if_packet_info.tsf_type = vrt::if_packet_info_t::tsf_type_t::TSF_TYPE_PICO;
-    if_packet_info.has_tlr = false; //tlr not suported in CHDR
+    if_packet_info.has_tlr = false;
     if_packet_info.tsi = std::rand();
     if_packet_info.tsf = std::rand();
-    if_packet_info.num_payload_words32 = 0;
+    if_packet_info.num_payload_words32 = 0x0110;
     pack_and_unpack(if_packet_info);
 }
