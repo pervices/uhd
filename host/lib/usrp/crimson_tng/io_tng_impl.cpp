@@ -41,6 +41,7 @@
 #include <uhd/utils/thread_priority.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <uhd/transport/udp_stream.hpp>
+#include <uhd/transport/udp_zero_copy.hpp>
 #include <uhd/types/wb_iface.hpp>
 
 #include "crimson_tng_impl.hpp"
@@ -273,6 +274,7 @@ public:
 		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
+			delete[] _tmp_buf[ i ];
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			// power off the channel
 			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
@@ -399,7 +401,7 @@ public:
 				setup_steadystate( i );
 
 				size_t samp_ptr_offset = nsamps_per_buff * 4 - remaining_bytes[ i ];
-				size_t data_len = std::min( (size_t) CRIMSON_TNG_MAX_MTU, remaining_bytes[ i ] );
+				size_t data_len = std::min( (size_t) CRIMSON_TNG_MAX_MTU - vrt::max_if_hdr_words32 * sizeof(uint32_t), remaining_bytes[ i ] );
 
 				if ( _en_fc ) {
 					while ( ( time_spec_t::get_system_time() < _last_time[i] ) || _overflow_flag[i] ) {
@@ -410,9 +412,11 @@ public:
 				if_packet_info.num_payload_words32 = data_len / 4;
 				if_packet_info.num_payload_bytes = data_len;
 
-				// XXX: need zero-copy buffer!!!!
+				vrt::if_hdr_pack_be( (boost::uint32_t *)_tmp_buf[ i ], if_packet_info );
+				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
+				std::memcpy( _tmp_buf[ i ] + header_len_bytes, buffs[i] + samp_ptr_offset, data_len );
 
-				ret += _udp_stream[i] -> stream_out( buffs[i] + samp_ptr_offset, data_len );
+				ret += _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
 
 				//update last_time with when it was supposed to have been sent:
 				time_spec_t wait = time_spec_t( 0, ( (double)data_len / 4.0 ) / (double)_crimson_samp_rate[ i ] );
@@ -471,6 +475,7 @@ public:
 private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
+
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -527,6 +532,8 @@ private:
 
 			// vita disable
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("0");
+
+			_tmp_buf[ i ] = new uint8_t[ CRIMSON_TNG_MAX_MTU ];
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
@@ -926,6 +933,7 @@ private:
 	}
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
+	std::vector<uint8_t *> _tmp_buf;
 	std::vector<size_t> _channels;
 	boost::thread *_flowcontrol_thread;
 	std::vector<double> _crimson_samp_rate;
