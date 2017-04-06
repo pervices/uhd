@@ -354,9 +354,7 @@ public:
 		compose_if_packet_info( metadata, if_packet_info );
 
 		if ( is_start_of_burst( if_packet_info ) ) {
-			_sob_time =
-				(double) metadata.time_spec.get_full_secs()
-				+ metadata.time_spec.get_frac_secs() / 1e12;
+			_sob_time = metadata.time_spec.get_real_secs();
 		}
 
 		while ( samp_sent / 4 < nsamps_per_buff * _channels.size() ) {			// All Samples for all channels must be sent
@@ -373,7 +371,7 @@ public:
 				setup_steadystate( i );
 
 				size_t samp_ptr_offset = nsamps_per_buff * 4 - remaining_bytes[ i ];
-				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] );
+				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 
 				if ( _en_fc ) {
 					while ( ( time_spec_t::get_system_time() < _last_time[i] ) || _overflow_flag[i] ) {
@@ -384,7 +382,37 @@ public:
 				if_packet_info.num_payload_words32 = data_len / 4;
 				if_packet_info.num_payload_bytes = data_len;
 
-				vrt::if_hdr_pack_be( (boost::uint32_t *)_tmp_buf[ i ], if_packet_info );
+				_tmp_buf[ i ][ 0 ] = 0;
+
+				if_packet_info.num_header_words32 = 1;
+				_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
+				if ( metadata.has_time_spec ) {
+
+					uint64_t ps = metadata.time_spec.get_frac_secs() * 1e12;
+
+					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
+					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
+
+					_tmp_buf[ i ][ 1 ] = metadata.time_spec.get_full_secs();
+					_tmp_buf[ i ][ 2 ] = (uint32_t)( ps >> 32 );
+					_tmp_buf[ i ][ 3 ] = (uint32_t)( ps >> 0  );
+
+					if_packet_info.num_header_words32 += 3;
+				}
+
+				_tmp_buf[ i ][ 0 ] |= (uint16_t) ( if_packet_info.num_payload_words32 + if_packet_info.num_header_words32 );
+
+				uint32_t hdr_dbg[] = {
+					((uint32_t *) _tmp_buf[ i ])[ 0 ],
+					((uint32_t *) _tmp_buf[ i ])[ 1 ],
+					((uint32_t *) _tmp_buf[ i ])[ 2 ],
+					((uint32_t *) _tmp_buf[ i ])[ 3 ],
+				};
+
+				for( int k = 0; k < if_packet_info.num_header_words32; k++ ) {
+					boost::endian::big_to_native_inplace( _tmp_buf[ i ][ k ] );
+				}
+
 				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
 				std::memcpy( _tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
 
@@ -505,7 +533,7 @@ private:
 			// vita disable
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("0");
 
-			_tmp_buf.push_back( new uint8_t[ CRIMSON_TNG_MAX_MTU ] );
+			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU ] );
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
@@ -905,7 +933,7 @@ private:
 	}
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
-	std::vector<uint8_t *> _tmp_buf;
+	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
 	boost::thread *_flowcontrol_thread;
 	std::vector<double> _crimson_samp_rate;
