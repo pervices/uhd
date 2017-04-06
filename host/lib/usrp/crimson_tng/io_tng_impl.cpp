@@ -367,6 +367,9 @@ public:
         	const double timeout = 0.1)
 	{
 
+		static const size_t CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES =
+				CRIMSON_TNG_MAX_MTU - vrt::max_if_hdr_words32 * sizeof(uint32_t);
+
 		size_t samp_sent = 0;
 		size_t bytes_sent = 0;
 		size_t remaining_bytes[_channels.size()];
@@ -401,7 +404,7 @@ public:
 				setup_steadystate( i );
 
 				size_t samp_ptr_offset = nsamps_per_buff * 4 - remaining_bytes[ i ];
-				size_t data_len = std::min( (size_t) CRIMSON_TNG_MAX_MTU - vrt::max_if_hdr_words32 * sizeof(uint32_t), remaining_bytes[ i ] );
+				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] );
 
 				if ( _en_fc ) {
 					while ( ( time_spec_t::get_system_time() < _last_time[i] ) || _overflow_flag[i] ) {
@@ -414,7 +417,7 @@ public:
 
 				vrt::if_hdr_pack_be( (boost::uint32_t *)_tmp_buf[ i ], if_packet_info );
 				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
-				std::memcpy( _tmp_buf[ i ] + header_len_bytes, buffs[i] + samp_ptr_offset, data_len );
+				std::memcpy( _tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
 
 				ret += _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
 
@@ -427,7 +430,7 @@ public:
 					_last_time[i] = time_spec_t::get_system_time();
 				}
 
-				if ( data_len <= CRIMSON_TNG_MAX_MTU && num_instances > 1 ) {
+				if ( data_len <= CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES && num_instances > 1 ) {
 					boost::this_thread::sleep(boost::posix_time::microseconds(1));
 				}
 
