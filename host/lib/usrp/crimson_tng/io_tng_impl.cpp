@@ -402,12 +402,12 @@ public:
 
 				_tmp_buf[ i ][ 0 ] |= (uint16_t) ( if_packet_info.num_payload_words32 + if_packet_info.num_header_words32 );
 
-				uint32_t hdr_dbg[] = {
-					((uint32_t *) _tmp_buf[ i ])[ 0 ],
-					((uint32_t *) _tmp_buf[ i ])[ 1 ],
-					((uint32_t *) _tmp_buf[ i ])[ 2 ],
-					((uint32_t *) _tmp_buf[ i ])[ 3 ],
-				};
+//				uint32_t hdr_dbg[] = {
+//					((uint32_t *) _tmp_buf[ i ])[ 0 ],
+//					((uint32_t *) _tmp_buf[ i ])[ 1 ],
+//					((uint32_t *) _tmp_buf[ i ])[ 2 ],
+//					((uint32_t *) _tmp_buf[ i ])[ 3 ],
+//				};
 
 				for( int k = 0; k < if_packet_info.num_header_words32; k++ ) {
 					boost::endian::big_to_native_inplace( _tmp_buf[ i ][ k ] );
