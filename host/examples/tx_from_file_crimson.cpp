@@ -615,14 +615,9 @@ void transmit_worker(
     //send data until the signal handler gets called
     while(not stop_signal_called){
 
-    	metadata.has_time_spec = true;
-    	metadata.time_spec = uhd::time_spec_t( uhd::time_spec_t::get_system_time().get_real_secs() + 10 );
-
         //send the entire contents of the buffer
         size_t sent_samples = tx_streamer->send( buff_ptrs, sd.n_samples, metadata );
 //        std::cout << "sent " << sent_samples << " samples" << std::endl;
-
-        usleep( 10000000 );
 
         metadata.start_of_burst = false;
         metadata.has_time_spec = false;
