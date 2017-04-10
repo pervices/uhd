@@ -799,21 +799,6 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
 
     // offset it by 85 MHz if sampling rate is low.
     double cur_tx_rate = get_tx_rate(chan);
-//    if (*freq > 85000000.0 && !(cur_tx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9))) {
-//       *freq -= 85000000.0;
-//       offset = true;
-//       if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-//       	_tree->access<double>(tx_dsp_root(chan) / "nco").set(85000000);
-//       } else {
-//       	_tree->access<double>( cm_root() / "trx/nco_adj").set(85000000);
-//       }
-//    } else {
-//        if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-//        	_tree->access<double>(tx_dsp_root(chan) / "nco").set(0);
-//        } else {
-//        	_tree->access<double>( cm_root() / "trx/nco_adj").set(0);
-//        }
-//    }
 
     // check the tuning ranges first, and clip if necessary
     meta_range_t rf_range  = _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get();
