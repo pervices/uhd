@@ -337,7 +337,7 @@ public:
 	{
 
 		static const size_t CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES =
-				CRIMSON_TNG_MAX_MTU - vrt::max_if_hdr_words32 * sizeof(uint32_t);
+				CRIMSON_TNG_MTU_SIZE - vrt::max_if_hdr_words32 * sizeof(uint32_t);
 
 		size_t samp_sent = 0;
 		size_t bytes_sent = 0;
@@ -390,6 +390,8 @@ public:
 
 					uint64_t ps = metadata.time_spec.get_frac_secs() * 1e12;
 
+					_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit
+
 					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
 					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
 
@@ -410,7 +412,7 @@ public:
 //				};
 
 				for( int k = 0; k < if_packet_info.num_header_words32; k++ ) {
-					boost::endian::big_to_native_inplace( _tmp_buf[ i ][ k ] );
+					boost::endian::native_to_big_inplace( _tmp_buf[ i ][ k ] );
 				}
 
 				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
