@@ -782,6 +782,7 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
     tune_request_t req = tune_request;
     tune_result_t result;
     bool offset = false;
+    double offset_hz = 15 * 1e6;
 
     // pointer to the frequency we use
     double* freq;
@@ -798,21 +799,6 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
 
     // offset it by 85 MHz if sampling rate is low.
     double cur_tx_rate = get_tx_rate(chan);
-    if (*freq > 85000000.0 && !(cur_tx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9))) {
-       *freq -= 85000000.0;
-       offset = true;
-       if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-       	_tree->access<double>(tx_dsp_root(chan) / "nco").set(85000000);
-       } else {
-       	_tree->access<double>( cm_root() / "trx/nco_adj").set(85000000);
-       }
-    } else {
-        if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-        	_tree->access<double>(tx_dsp_root(chan) / "nco").set(0);
-        } else {
-        	_tree->access<double>( cm_root() / "trx/nco_adj").set(0);
-        }
-    }
 
     // check the tuning ranges first, and clip if necessary
     meta_range_t rf_range  = _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get();
@@ -839,16 +825,21 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
     // use the LO with high band
     } else {
 
+    	*freq -= offset_hz;
+    	offset = true;
+
         if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
         	_tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").set(*freq);
+        	_tree->access<double>(tx_rf_fe_root(chan) / "nco").set( 0 );
         } else {
         	_tree->access<double>( cm_root() / "trx/freq/val").set(*freq);
+        	_tree->access<double>( cm_root() / "nco" ).set( 0 );
         }
 
         // read back the frequency and adjust for the errors with DSP NCO if possible
         double cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-        double set_dsp_nco = *freq - cur_lo_freq;
+        double set_dsp_nco = *freq - cur_lo_freq + offset_hz;
 
         if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
         if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
@@ -864,7 +855,7 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request,
 
     // account back for the offset
     if (offset)
-       *freq += 85000000.0;
+       *freq += offset_hz;
 
     req.dsp_freq = result.actual_rf_freq;
     result.actual_dsp_freq = req.dsp_freq;   // no DSP freq tuning it possible
