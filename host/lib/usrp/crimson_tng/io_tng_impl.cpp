@@ -532,8 +532,8 @@ private:
 			tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("1");
 			usleep(500000);
 
-			// vita disable
-			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("0");
+			// vita enable (as of kb #3804, always use vita headers for tx)
+			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("1");
 
 			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU ] );
 
