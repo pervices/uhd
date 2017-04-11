@@ -92,7 +92,7 @@ static tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr 
         		target_rf_freq = rf_range.clip( clipped_requested_freq + xx_sign * DSP_NCO_SHIFT_HZ );
         	} else {
         		// in high band, we do not use the DSP to tune with POLICY_AUTO
-        		target_rf_freq = rf_range.clip( clipped_requested_freq );
+        		target_rf_freq = clipped_requested_freq;
         	}
             break;
 
