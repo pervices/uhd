@@ -15,23 +15,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <inttypes.h>
+#include <cinttypes>
 #include <cstdio>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <vector>
 
-#include "crimson_tng_impl.hpp"
-#include "crimson_tng_fw_common.h"
-#include <uhd/utils/diff.hpp>
-#include <uhd/utils/log.hpp>
-#include <uhd/utils/pidc_tl.hpp>
-#include <uhd/utils/sma.hpp>
-#include <uhd/utils/msg.hpp>
-#include <uhd/utils/tasks.hpp>
-#include <uhd/exception.hpp>
-#include <uhd/utils/byteswap.hpp>
-#include <uhd/utils/thread_priority.hpp>
-#include <uhd/transport/bounded_buffer.hpp>
-#include <uhd/transport/udp_stream.hpp>
-#include <uhd/types/wb_iface.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
@@ -39,10 +29,23 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/endian/buffers.hpp>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <vector>
+
+#include <uhd/exception.hpp>
+#include <uhd/utils/byteswap.hpp>
+#include <uhd/utils/diff.hpp>
+#include <uhd/utils/log.hpp>
+#include <uhd/utils/msg.hpp>
+#include <uhd/utils/pidc_tl.hpp>
+#include <uhd/utils/sma.hpp>
+#include <uhd/utils/tasks.hpp>
+#include <uhd/utils/thread_priority.hpp>
+#include <uhd/transport/bounded_buffer.hpp>
+#include <uhd/transport/udp_stream.hpp>
+#include <uhd/transport/udp_zero_copy.hpp>
+#include <uhd/types/wb_iface.hpp>
+
+#include "crimson_tng_impl.hpp"
+#include "crimson_tng_fw_common.h"
 
 #ifndef DEBUG_START_OF_BURST
 //#define DEBUG_START_OF_BURST 1
@@ -51,10 +54,12 @@
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
+using namespace uhd::transport::vrt;
 
 namespace bo = boost::endian;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
+namespace trans = uhd::transport;
 
 static int channels_to_mask( std::vector<size_t> channels ) {
 	unsigned mask = 0;
@@ -269,6 +274,7 @@ public:
 		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
+			delete[] _tmp_buf[ i ];
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			// power off the channel
 			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
@@ -286,6 +292,38 @@ public:
 		return _pay_len/4;
 	}
 
+	void compose_if_packet_info( const tx_metadata_t &metadata, if_packet_info_t &ifo ) {
+
+		//translate the metadata to vrt if packet info
+		ifo.link_type = vrt::if_packet_info_t::LINK_TYPE_NONE;
+		ifo.packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
+		ifo.has_sid = false; // currently unused
+		ifo.has_cid = false; // currently unused
+		ifo.has_tlr = false; // currently unused
+		ifo.has_tsi = metadata.has_time_spec;
+		ifo.has_tsf = metadata.has_time_spec;
+
+		if ( metadata.has_time_spec ) {
+			ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
+			ifo.tsi = (uint32_t)metadata.time_spec.get_full_secs();
+			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
+			ifo.tsf = (uint64_t) (metadata.time_spec.get_frac_secs() / 1e12);
+		}
+
+		// XXX: these flags denote the first and last packets in burst sample data
+		// NOT indication that timed, (possibly) multi-channel burst will start
+		ifo.sob = metadata.start_of_burst;
+		ifo.eob	= metadata.end_of_burst;
+
+	}
+
+	inline bool is_start_of_burst( vrt::if_packet_info_t & if_packet_info ) {
+		return true
+		&& if_packet_info.has_tsi
+		&& if_packet_info.has_tsf
+		&& vrt::if_packet_info_t::TSF_TYPE_PICO == if_packet_info.tsf_type;
+	}
+
 //	void set_sample_rate(int channel, double new_samp_rate) {
 //		_samp_rate[channel] = new_samp_rate;
 //		_samp_rate_usr[channel] = _samp_rate[channel];
@@ -297,8 +335,15 @@ public:
         	const tx_metadata_t &metadata,
         	const double timeout = 0.1)
 	{
-		size_t samp_sent =0;
+
+		static const size_t CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES =
+				CRIMSON_TNG_MTU_SIZE - vrt::max_if_hdr_words32 * sizeof(uint32_t);
+
+		size_t samp_sent = 0;
+		size_t bytes_sent = 0;
 		size_t remaining_bytes[_channels.size()];
+		vrt::if_packet_info_t if_packet_info;
+
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
 		}
@@ -306,64 +351,99 @@ public:
 		// Timeout
 		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
 
-		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
+		compose_if_packet_info( metadata, if_packet_info );
+
+		if ( is_start_of_burst( if_packet_info ) ) {
+			_sob_time = metadata.time_spec.get_real_secs();
+		}
+
+		while ( samp_sent / 4 < nsamps_per_buff * _channels.size() ) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 
 				// Skip Channel is Nothing left to send
-				if (remaining_bytes[i] == 0) continue;
+				if (remaining_bytes[i] == 0) {
+					continue;
+				}
+
 				size_t ret = 0;
 				// update sample rate if we don't know the sample rate
-				setup_steadystate(i);
+				setup_steadystate( i );
 
-				size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);
+				size_t samp_ptr_offset = nsamps_per_buff * 4 - remaining_bytes[ i ];
+				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 
-				//If greater then max pl copy over what you can, leave the rest
-				if (remaining_bytes[i] >= CRIMSON_TNG_MAX_MTU){
-					if (_en_fc) {
-						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
-							update_samplerate(i);
-						}
+				if ( _en_fc ) {
+					while ( ( time_spec_t::get_system_time() < _last_time[i] ) || _overflow_flag[i] ) {
+						update_samplerate( i );
 					}
-					//Send data (byte operation)
-					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_TNG_MAX_MTU);
-
-					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_crimson_samp_rate[i]);
-
-					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-					else _last_time[i] = time_spec_t::get_system_time();
-
-				} else {
-					if (_en_fc) {
-						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
-							update_samplerate(i);
-						}
-					}
-
-					//Send data (byte operation)
-					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, remaining_bytes[i]);
-
-					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_crimson_samp_rate[i]);
-					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-					else _last_time[i] = time_spec_t::get_system_time();
-
-					if (num_instances > 1) {
-						boost::this_thread::sleep(boost::posix_time::microseconds(1));
-					}
-
 				}
+
+				if_packet_info.num_payload_words32 = data_len / 4;
+				if_packet_info.num_payload_bytes = data_len;
+
+				_tmp_buf[ i ][ 0 ] = 0;
+
+				if_packet_info.num_header_words32 = 1;
+				_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
+				if ( metadata.has_time_spec ) {
+
+					uint64_t ps = metadata.time_spec.get_frac_secs() * 1e12;
+
+					_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit
+
+					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
+					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
+
+					_tmp_buf[ i ][ 1 ] = metadata.time_spec.get_full_secs();
+					_tmp_buf[ i ][ 2 ] = (uint32_t)( ps >> 32 );
+					_tmp_buf[ i ][ 3 ] = (uint32_t)( ps >> 0  );
+
+					if_packet_info.num_header_words32 += 3;
+				}
+
+				_tmp_buf[ i ][ 0 ] |= (uint16_t) ( if_packet_info.num_payload_words32 + if_packet_info.num_header_words32 );
+
+//				uint32_t hdr_dbg[] = {
+//					((uint32_t *) _tmp_buf[ i ])[ 0 ],
+//					((uint32_t *) _tmp_buf[ i ])[ 1 ],
+//					((uint32_t *) _tmp_buf[ i ])[ 2 ],
+//					((uint32_t *) _tmp_buf[ i ])[ 3 ],
+//				};
+
+				for( int k = 0; k < if_packet_info.num_header_words32; k++ ) {
+					boost::endian::native_to_big_inplace( _tmp_buf[ i ][ k ] );
+				}
+
+				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
+				std::memcpy( _tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
+
+				ret += _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
+
+				//update last_time with when it was supposed to have been sent:
+				time_spec_t wait = time_spec_t( 0, ( (double)data_len / 4.0 ) / (double)_crimson_samp_rate[ i ] );
+
+				if (_en_fc) {
+					_last_time[i] = _last_time[i] + wait;
+				} else {
+					_last_time[i] = time_spec_t::get_system_time();
+				}
+
+				if ( data_len <= CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES && num_instances > 1 ) {
+					boost::this_thread::sleep(boost::posix_time::microseconds(1));
+				}
+
 				remaining_bytes[i] -= ret;
 				samp_sent += ret;
 			}
 
 			// Exit if Timeout has lapsed
-			if (time_spec_t::get_system_time() > timeout_lapsed)
+			if (time_spec_t::get_system_time() > timeout_lapsed) {
 				return (samp_sent / 4) / _channels.size();
+			}
 		}
 
-		return (samp_sent / 4) / _channels.size();// -  vita_hdr - vita_tlr;	// vita is disabled
+		return samp_sent / 4 / _channels.size();
 	}
 
 	// async messages are currently disabled
@@ -397,6 +477,7 @@ public:
 private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
+
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -453,6 +534,8 @@ private:
 
 			// vita disable
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("0");
+
+			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU ] );
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
@@ -553,6 +636,7 @@ private:
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
 		double new_samp_rate[txstream->_channels.size()];
+		bool sob_pending;
 
 		// SoB Time Diff
 		time_diff_packet time_diff_packet;
@@ -603,13 +687,13 @@ private:
 			txstream->_udp_mutex_add->lock();
 
 #ifdef DEBUG_START_OF_BURST
-			txstream->_sob_pending = true;
+			sob_pending = true;
 #else
 			double crimson_time_now = txstream->_crimson_tng_impl->get_multi()->get_time_now().get_real_secs();
-			txstream->_sob_pending = crimson_time_now < txstream->_sob_time;
+			sob_pending = crimson_time_now < txstream->_sob_time;
 #endif
 
-			if ( txstream->_sob_pending ) {
+			if ( sob_pending ) {
 				// SoB Time Diff: send sync packet (must be done before reading flow iface)
 
 				sync_time = time_spec_t::get_system_time().get_real_secs();
@@ -652,7 +736,7 @@ private:
 				ss.ignore();
 			}
 
-			if ( txstream->_sob_pending ) {
+			if ( sob_pending ) {
 
 				// SoB Time Diff Processing: read flow iface & process results to improve timing
 
@@ -851,6 +935,7 @@ private:
 	}
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
+	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
 	boost::thread *_flowcontrol_thread;
 	std::vector<double> _crimson_samp_rate;

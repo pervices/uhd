@@ -150,7 +150,6 @@ UHD_INLINE void __if_hdr_pack_$(suffix)(
         #if $pred & $tsi_p
             packet_buff[$num_header_words] = $(XE_MACRO)(if_packet_info.tsi);
             #set $num_header_words += 1
-            #set $flags |= (0x3 << 22);
         #end if
         ########## Fractional Time ##########
         #if $pred & $tsf_p
@@ -158,7 +157,6 @@ UHD_INLINE void __if_hdr_pack_$(suffix)(
             #set $num_header_words += 1
             packet_buff[$num_header_words] = $(XE_MACRO)(boost::uint32_t(if_packet_info.tsf >> 0));
             #set $num_header_words += 1
-            #set $flags |= (0x1 << 20);
         #end if
         ########## Burst Flags ##########
         #if $pred & $eob_p
@@ -190,6 +188,8 @@ UHD_INLINE void __if_hdr_pack_$(suffix)(
     //fill in complete header word
     vrt_hdr_word32 = boost::uint32_t(0
         | (if_packet_info.packet_type << 29)
+        | (if_packet_info.tsi_type << 22)
+        | (if_packet_info.tsf_type << 20)
         | vrt_hdr_flags
         | ((if_packet_info.packet_count & 0xf) << 16)
         | (if_packet_info.num_packet_words32 & 0xffff)
@@ -212,6 +212,8 @@ UHD_INLINE void __if_hdr_unpack_$(suffix)(
 
     //extract fields from the header
     if_packet_info.packet_type = if_packet_info_t::packet_type_t(vrt_hdr_word32 >> 29);
+    if_packet_info.tsi_type = if_packet_info_t::tsi_type_t( ( vrt_hdr_word32 >> 22 ) & 0x3 );
+    if_packet_info.tsf_type = if_packet_info_t::tsf_type_t( ( vrt_hdr_word32 >> 20 ) & 0x3 );
     if_packet_info.packet_count = (vrt_hdr_word32 >> 16) & 0xf;
 
     const pred_type pred = pred_unpack_table[pred_table_index(vrt_hdr_word32)];
