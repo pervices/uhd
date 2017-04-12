@@ -329,6 +329,14 @@ public:
 //		_samp_rate_usr[channel] = _samp_rate[channel];
 //	}
 
+	inline time_spec_t get_time_now() {
+		if ( NULL == _crimson_tng_impl || NULL == _crimson_tng_impl->get_multi() ) {
+			return time_spec_t::get_system_time();
+		} else {
+			return time_spec_t( _crimson_tng_impl->get_multi()->get_time_now().get_real_secs() + _crimson_tng_impl->get_time_diff() );
+		}
+	}
+
 	size_t send(
         	const buffs_type &buffs,
         	const size_t nsamps_per_buff,
@@ -352,7 +360,7 @@ public:
 		}
 
 		// Timeout
-		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
+		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout);
 
 		compose_if_packet_info( metadata, if_packet_info );
 
@@ -377,7 +385,7 @@ public:
 				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 
 				if ( _en_fc ) {
-					while ( ( time_spec_t::get_system_time() < _last_time[i] ) || _overflow_flag[i] ) {
+					while ( ( get_time_now() < _last_time[i] ) || _overflow_flag[i] ) {
 						update_samplerate( i );
 					}
 				}
@@ -422,7 +430,7 @@ public:
 				if (_en_fc) {
 					_last_time[i] = _last_time[i] + wait;
 				} else {
-					_last_time[i] = time_spec_t::get_system_time();
+					_last_time[i] = get_time_now();
 				}
 
 				if ( data_len <= CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES && num_instances > 1 ) {
@@ -437,7 +445,7 @@ public:
 			metadata.has_time_spec = false;
 
 			// Exit if Timeout has lapsed
-			if (time_spec_t::get_system_time() > timeout_lapsed) {
+			if (get_time_now() > timeout_lapsed) {
 				return (samp_sent / 4) / _channels.size();
 			}
 		}
