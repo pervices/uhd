@@ -332,7 +332,7 @@ public:
 	size_t send(
         	const buffs_type &buffs,
         	const size_t nsamps_per_buff,
-        	const tx_metadata_t &metadata,
+        	const tx_metadata_t &_metadata,
         	const double timeout = 0.1)
 	{
 
@@ -343,6 +343,9 @@ public:
 		size_t bytes_sent = 0;
 		size_t remaining_bytes[_channels.size()];
 		vrt::if_packet_info_t if_packet_info;
+
+		// need r/w capabilities for 'has_time_spec'
+		tx_metadata_t metadata = _metadata;
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
