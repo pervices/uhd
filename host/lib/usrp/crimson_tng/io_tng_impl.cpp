@@ -337,6 +337,8 @@ public:
 		}
 	}
 
+
+
 	size_t send(
         	const buffs_type &buffs,
         	const size_t nsamps_per_buff,
@@ -359,14 +361,17 @@ public:
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
 		}
 
-		// Timeout
-		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout);
-
 		compose_if_packet_info( metadata, if_packet_info );
-
 		if ( is_start_of_burst( if_packet_info ) ) {
 			_sob_time = metadata.time_spec.get_real_secs();
+			for( unsigned i = 0; i < _channels.size(); i++ ) {
+				// start sending SoB data 1/2 a buffer (in time) before SoB
+				_last_time[ i ] = metadata.time_spec - (double)( CRIMSON_TNG_BUFF_SIZE / 2 ) / _crimson_samp_rate[ i ] ;
+			}
 		}
+
+		// Timeout
+		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout) + ( metadata.has_time_spec ? metadata.time_spec : time_spec_t( 0.0 ) );
 
 		while ( samp_sent / 4 < nsamps_per_buff * _channels.size() ) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
@@ -385,9 +390,21 @@ public:
 				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 
 				if ( _en_fc ) {
-					while ( ( get_time_now() < _last_time[i] ) || _overflow_flag[i] ) {
+					if ( metadata.has_time_spec ) {
+						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
+						if ( dt > 0.001 ) {
+							usleep( (unsigned) ( ( dt - 0.001 ) * 1e6 ) );
+						}
+					}
+#if 0
+					while ( ( get_time_now() < _last_time[i] ) ) {
 						update_samplerate( i );
 					}
+#else
+					do {
+						asm __volatile__ ("");
+					} while( get_time_now() < _last_time[i] );
+#endif
 				}
 
 				if_packet_info.num_payload_words32 = data_len / 4;
@@ -421,6 +438,8 @@ public:
 
 				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
 				std::memcpy( _tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
+
+//				UHD_MSG( status ) << "sending " << if_packet_info.num_payload_words32 << " samples to channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
 
 				ret += _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
 
@@ -777,15 +796,15 @@ private:
 				}
 			}
 
-			// For SoB, record the absolute, instantaneous time difference
-			if ( NULL != txstream->_crimson_tng_impl && txstream->_pid_converged ) {
-				txstream->_crimson_tng_impl->set_time_diff( cv );
-			}
-
 			// The remainder within this block is to estimate clock drift and apply that figure.
 			// DO NOT use filtered_time_diff instead of instantaneous time diff,
 			// it VERY LIKELY WILL have a significant lag!
 			double filtered_time_diff = txstream->_time_diff_filter.update( cv );
+
+			// For SoB, record the absolute, instantaneous time difference
+			if ( NULL != txstream->_crimson_tng_impl && txstream->_pid_converged ) {
+				txstream->_crimson_tng_impl->set_time_diff( filtered_time_diff );
+			}
 
 			// XXX: @CF: possibly store this value in txstream->_crimson_tng_impl ?
 			double clock_drift = txstream->_time_diff_derivor.update( x, filtered_time_diff );
