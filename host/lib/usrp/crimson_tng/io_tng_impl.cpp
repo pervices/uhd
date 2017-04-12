@@ -386,11 +386,11 @@ public:
 
 				if_packet_info.num_header_words32 = 1;
 				_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
+				_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
+
 				if ( metadata.has_time_spec ) {
 
 					uint64_t ps = metadata.time_spec.get_frac_secs() * 1e12;
-
-					_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit
 
 					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
 					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
@@ -436,6 +436,9 @@ public:
 				remaining_bytes[i] -= ret;
 				samp_sent += ret;
 			}
+
+			// this ensures we only send the vita time spec on the first packet of the burst
+			metadata.has_time_spec = false;
 
 			// Exit if Timeout has lapsed
 			if (time_spec_t::get_system_time() > timeout_lapsed) {
