@@ -801,7 +801,8 @@ private:
 			if ( NULL != txstream->_crimson_tng_impl && txstream->_pid_converged ) {
 				txstream->_crimson_tng_impl->set_time_diff( filtered_time_diff );
 			}
-
+//XXX: @CF: kb/3829: do not modify crimson_samp_rate (which already happens in update_sample_rate())
+/*
 			// XXX: @CF: possibly store this value in txstream->_crimson_tng_impl ?
 			double clock_drift = txstream->_time_diff_derivor.update( x, filtered_time_diff );
 
@@ -851,7 +852,7 @@ private:
 			}
 			clock_drift_print_counter++;
 #endif
-
+*/
 			//increment buffer count to say we have data
 			for (int j = 0; j < txstream->_channels.size(); j++) {
 				txstream->_buffer_count[j][0]++;	// For coordinating sample rate updates
