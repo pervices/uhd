@@ -174,36 +174,36 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 
 	// results of tuning RF LO
 	if (res.target_rf_freq != req.target_freq) {
-			boost::format rf_lo_message(
-				"  The RF LO does not support the requested %s frequency:\n"
-				"	Requested RF LO Frequency: %f MHz\n"
-				"	RF LO Result: %f MHz\n");
-			rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
-			results_string += rf_lo_message.str();
+		boost::format rf_lo_message(
+			"  The RF LO does not support the requested %s frequency:\n"
+			"	Requested RF LO Frequency: %f MHz\n"
+			"	RF LO Result: %f MHz\n");
+		rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
+		results_string += rf_lo_message.str();
 	} else {
-			boost::format rf_lo_message(
-				"  The RF LO supports the requested %s frequency:\n"
-				"	Requested RF LO Frequency: %f MHz\n"
-				"	RF LO Result: %f MHz\n");
-			rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
-			results_string += rf_lo_message.str();
+		boost::format rf_lo_message(
+			"  The RF LO supports the requested %s frequency:\n"
+			"	Requested RF LO Frequency: %f MHz\n"
+			"	RF LO Result: %f MHz\n");
+		rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
+		results_string += rf_lo_message.str();
 	}
 
 	// results of tuning DSP
 	if (res.target_dsp_freq != req.dsp_freq) {
-			boost::format dsp_message(
-				"  The DSP does not support the requested %s frequency:\n"
-				"	Requested DSP Frequency: %f MHz\n"
-				"	DSP Result: %f MHz\n");
-			dsp_message % rx_or_tx % (req.dsp_freq / 1e6) % (res.actual_dsp_freq / 1e6);
-			results_string += dsp_message.str();
+		boost::format dsp_message(
+			"  The DSP does not support the requested %s frequency:\n"
+			"	Requested DSP Frequency: %f MHz\n"
+			"	DSP Result: %f MHz\n");
+		dsp_message % rx_or_tx % (req.dsp_freq / 1e6) % (res.actual_dsp_freq / 1e6);
+		results_string += dsp_message.str();
 	} else {
-			boost::format dsp_message(
-				"  The DSP supports the requested %s frequency:\n"
-				"	Requested DSP Frequency: %f MHz\n"
-				"	DSP Result: %f MHz\n");
-			dsp_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_dsp_freq / 1e6);
-			results_string += dsp_message.str();
+		boost::format dsp_message(
+			"  The DSP supports the requested %s frequency:\n"
+			"	Requested DSP Frequency: %f MHz\n"
+			"	DSP Result: %f MHz\n");
+		dsp_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_dsp_freq / 1e6);
+		results_string += dsp_message.str();
 	}
 	UHD_MSG( status ) << results_string;
 }
