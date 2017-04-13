@@ -82,25 +82,25 @@ static tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr 
 		HIGH_BAND,
 	};
 
-    freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
-    freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 
-    double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 
-    int band = is_high_band( dsp_range, clipped_requested_freq ) ? HIGH_BAND : LOW_BAND;
+	int band = is_high_band( dsp_range, clipped_requested_freq ) ? HIGH_BAND : LOW_BAND;
 
-    //------------------------------------------------------------------
-    //-- set the RF frequency depending upon the policy
-    //------------------------------------------------------------------
-    double target_rf_freq = 0.0;
+	//------------------------------------------------------------------
+	//-- set the RF frequency depending upon the policy
+	//------------------------------------------------------------------
+	double target_rf_freq = 0.0;
 
-    // kb #3689, for phase coherency, we must set the DAC NCO to 0
-    rf_fe_subtree->access<double>("nco").set( 0.0 );
+	// kb #3689, for phase coherency, we must set the DAC NCO to 0
+	rf_fe_subtree->access<double>("nco").set( 0.0 );
 
-    rf_fe_subtree->access<int>( "freq/band" ).set( band );
+	rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
-    switch (tune_request.rf_freq_policy){
-        case tune_request_t::POLICY_AUTO:
+	switch (tune_request.rf_freq_policy){
+		case tune_request_t::POLICY_AUTO:
 			switch( band ) {
 			case LOW_BAND:
 				// in low band, we only use the DSP to tune
@@ -113,57 +113,57 @@ static tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr 
 			}
 		break;
 
-        case tune_request_t::POLICY_MANUAL:
-            target_rf_freq = rf_range.clip( tune_request.rf_freq );
-            break;
+		case tune_request_t::POLICY_MANUAL:
+			target_rf_freq = rf_range.clip( tune_request.rf_freq );
+			break;
 
-        case tune_request_t::POLICY_NONE:
-            break; //does not set
-    }
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
 
-    //------------------------------------------------------------------
-    //-- Tune the RF frontend
-    //------------------------------------------------------------------
-    rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
-    const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+	//------------------------------------------------------------------
+	//-- Tune the RF frontend
+	//------------------------------------------------------------------
+	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
+	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
-    //------------------------------------------------------------------
-    //-- Set the DSP frequency depending upon the DSP frequency policy.
-    //------------------------------------------------------------------
-    double target_dsp_freq = 0.0;
-    switch (tune_request.dsp_freq_policy) {
-        case tune_request_t::POLICY_AUTO:
-            target_dsp_freq = actual_rf_freq - clipped_requested_freq;
+	//------------------------------------------------------------------
+	//-- Set the DSP frequency depending upon the DSP frequency policy.
+	//------------------------------------------------------------------
+	double target_dsp_freq = 0.0;
+	switch (tune_request.dsp_freq_policy) {
+		case tune_request_t::POLICY_AUTO:
+			target_dsp_freq = actual_rf_freq - clipped_requested_freq;
 
-            //invert the sign on the dsp freq for transmit (spinning up vs down)
-            target_dsp_freq *= xx_sign;
+			//invert the sign on the dsp freq for transmit (spinning up vs down)
+			target_dsp_freq *= xx_sign;
 
-            break;
+			break;
 
-        case tune_request_t::POLICY_MANUAL:
-            target_dsp_freq = dsp_range.clip(tune_request.dsp_freq);
-            break;
+		case tune_request_t::POLICY_MANUAL:
+			target_dsp_freq = dsp_range.clip(tune_request.dsp_freq);
+			break;
 
-        case tune_request_t::POLICY_NONE:
-            break; //does not set
-    }
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
 
-    //------------------------------------------------------------------
-    //-- Tune the DSP
-    //------------------------------------------------------------------
-    dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
-    const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+	//------------------------------------------------------------------
+	//-- Tune the DSP
+	//------------------------------------------------------------------
+	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
+	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
 
-    //------------------------------------------------------------------
-    //-- Load and return the tune result
-    //------------------------------------------------------------------
-    tune_result_t tune_result;
-    tune_result.clipped_rf_freq = clipped_requested_freq;
-    tune_result.target_rf_freq = target_rf_freq;
-    tune_result.actual_rf_freq = actual_rf_freq;
-    tune_result.target_dsp_freq = target_dsp_freq;
-    tune_result.actual_dsp_freq = actual_dsp_freq;
-    return tune_result;
+	//------------------------------------------------------------------
+	//-- Load and return the tune result
+	//------------------------------------------------------------------
+	tune_result_t tune_result;
+	tune_result.clipped_rf_freq = clipped_requested_freq;
+	tune_result.target_rf_freq = target_rf_freq;
+	tune_result.actual_rf_freq = actual_rf_freq;
+	tune_result.target_dsp_freq = target_dsp_freq;
+	tune_result.actual_dsp_freq = actual_dsp_freq;
+	return tune_result;
 }
 
 //do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
@@ -172,40 +172,40 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 
 	// XXX: @CF: We should really change these messages..
 
-    // results of tuning RF LO
-    if (res.target_rf_freq != req.target_freq) {
-            boost::format rf_lo_message(
-                "  The RF LO does not support the requested %s frequency:\n"
-                "    Requested RF LO Frequency: %f MHz\n"
-                "    RF LO Result: %f MHz\n");
-            rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
-            results_string += rf_lo_message.str();
-    } else {
-            boost::format rf_lo_message(
-                "  The RF LO supports the requested %s frequency:\n"
-                "    Requested RF LO Frequency: %f MHz\n"
-                "    RF LO Result: %f MHz\n");
-            rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
-            results_string += rf_lo_message.str();
-    }
+	// results of tuning RF LO
+	if (res.target_rf_freq != req.target_freq) {
+			boost::format rf_lo_message(
+				"  The RF LO does not support the requested %s frequency:\n"
+				"	Requested RF LO Frequency: %f MHz\n"
+				"	RF LO Result: %f MHz\n");
+			rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
+			results_string += rf_lo_message.str();
+	} else {
+			boost::format rf_lo_message(
+				"  The RF LO supports the requested %s frequency:\n"
+				"	Requested RF LO Frequency: %f MHz\n"
+				"	RF LO Result: %f MHz\n");
+			rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
+			results_string += rf_lo_message.str();
+	}
 
-    // results of tuning DSP
-    if (res.target_dsp_freq != req.dsp_freq) {
-            boost::format dsp_message(
-                "  The DSP does not support the requested %s frequency:\n"
-                "    Requested DSP Frequency: %f MHz\n"
-                "    DSP Result: %f MHz\n");
-            dsp_message % rx_or_tx % (req.dsp_freq / 1e6) % (res.actual_dsp_freq / 1e6);
-            results_string += dsp_message.str();
-    } else {
-            boost::format dsp_message(
-                "  The DSP supports the requested %s frequency:\n"
-                "    Requested DSP Frequency: %f MHz\n"
-                "    DSP Result: %f MHz\n");
-            dsp_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_dsp_freq / 1e6);
-            results_string += dsp_message.str();
-    }
-    UHD_MSG( status ) << results_string;
+	// results of tuning DSP
+	if (res.target_dsp_freq != req.dsp_freq) {
+			boost::format dsp_message(
+				"  The DSP does not support the requested %s frequency:\n"
+				"	Requested DSP Frequency: %f MHz\n"
+				"	DSP Result: %f MHz\n");
+			dsp_message % rx_or_tx % (req.dsp_freq / 1e6) % (res.actual_dsp_freq / 1e6);
+			results_string += dsp_message.str();
+	} else {
+			boost::format dsp_message(
+				"  The DSP supports the requested %s frequency:\n"
+				"	Requested DSP Frequency: %f MHz\n"
+				"	DSP Result: %f MHz\n");
+			dsp_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_dsp_freq / 1e6);
+			results_string += dsp_message.str();
+	}
+	UHD_MSG( status ) << results_string;
 }
 
 /***********************************************************************
