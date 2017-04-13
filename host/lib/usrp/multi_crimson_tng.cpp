@@ -343,8 +343,10 @@ std::string multi_crimson_tng::get_mboard_name(size_t mboard){
 
 // Get the current time on Crimson
 time_spec_t multi_crimson_tng::get_time_now(size_t mboard){
-	crimson_tng_impl::sptr dev = boost::static_pointer_cast<crimson_tng_impl>( this->_dev );
-	return time_spec_t( time_spec_t::get_system_time().get_real_secs() + dev->get_time_diff() );
+	crimson_tng_impl::sptr dev = boost::static_pointer_cast<crimson_tng_impl>( _dev );
+	double diff = NULL == dev.get() ? 0 : dev.get()->get_time_diff();
+	diff = std::abs( diff ) > 1 ? 0 : diff;
+	return time_spec_t( time_spec_t::get_system_time().get_real_secs() - diff );
 }
 
 // Get the time of the last PPS (pulse per second)
