@@ -69,6 +69,7 @@ static bool is_high_band( const meta_range_t &dsp_range, const double freq ) {
 	return freq >= dsp_range.stop();
 }
 
+// no longer used. at one point was used for deciding whether or not to use DSP for frequency shift
 static bool is_low_sample_rate( const double dsp_rate ) {
 	return dsp_rate < ( CRIMSON_MASTER_CLOCK_RATE / 9 );
 }
@@ -76,25 +77,41 @@ static bool is_low_sample_rate( const double dsp_rate ) {
 // See multi_usrp.cpp::tune_xx_subdev_and_dsp()
 static tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 
+	enum {
+		LOW_BAND,
+		HIGH_BAND,
+	};
+
     freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
     freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 
     double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+
+    int band = is_high_band( dsp_range, clipped_requested_freq ) ? HIGH_BAND : LOW_BAND;
 
     //------------------------------------------------------------------
     //-- set the RF frequency depending upon the policy
     //------------------------------------------------------------------
     double target_rf_freq = 0.0;
 
+    // kb #3689, for phase coherency, we must set the DAC NCO to 0
+    rf_fe_subtree->access<double>("nco").set( 0.0 );
+
+    rf_fe_subtree->access<int>( "freq/band" ).set( band );
+
     switch (tune_request.rf_freq_policy){
         case tune_request_t::POLICY_AUTO:
-        	if ( is_low_sample_rate( dsp_subtree->access<double>("rate/value").get() ) ) {
-        		target_rf_freq = rf_range.clip( clipped_requested_freq + xx_sign * DSP_NCO_SHIFT_HZ );
-        	} else {
-        		// in high band, we do not use the DSP to tune with POLICY_AUTO
-        		target_rf_freq = clipped_requested_freq;
-        	}
-            break;
+			switch( band ) {
+			case LOW_BAND:
+				// in low band, we only use the DSP to tune
+				target_rf_freq = 0;
+				break;
+			case HIGH_BAND:
+				// in high band, we use the LO for most of the shift, and use the DSP for the difference
+				target_rf_freq = rf_range.clip( clipped_requested_freq + xx_sign * DSP_NCO_SHIFT_HZ );
+				break;
+			}
+		break;
 
         case tune_request_t::POLICY_MANUAL:
             target_rf_freq = rf_range.clip( tune_request.rf_freq );
