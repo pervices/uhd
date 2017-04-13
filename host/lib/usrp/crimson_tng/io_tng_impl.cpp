@@ -347,7 +347,7 @@ public:
 	{
 
 		static const size_t CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES =
-				CRIMSON_TNG_MTU_SIZE - vrt::max_if_hdr_words32 * sizeof(uint32_t);
+				CRIMSON_TNG_MAX_MTU - vrt::max_if_hdr_words32 * sizeof(uint32_t);
 
 		size_t samp_sent = 0;
 		size_t bytes_sent = 0;
@@ -390,21 +390,16 @@ public:
 				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 
 				if ( _en_fc ) {
+
 					if ( metadata.has_time_spec ) {
 						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
 						if ( dt > 0.001 ) {
 							usleep( (unsigned) ( ( dt - 0.001 ) * 1e6 ) );
 						}
 					}
-#if 0
 					while ( ( get_time_now() < _last_time[i] ) ) {
 						update_samplerate( i );
 					}
-#else
-					do {
-						asm __volatile__ ("");
-					} while( get_time_now() < _last_time[i] );
-#endif
 				}
 
 				if_packet_info.num_payload_words32 = data_len / 4;
@@ -437,14 +432,15 @@ public:
 				}
 
 				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
-				std::memcpy( _tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
+				std::memcpy( (uint8_t *)_tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
 
 //				UHD_MSG( status ) << "sending " << if_packet_info.num_payload_words32 << " samples to channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
 
 				ret += _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
+				//ret -= header_len_bytes;
 
 				//update last_time with when it was supposed to have been sent:
-				time_spec_t wait = time_spec_t( 0, ( (double)data_len / 4.0 ) / (double)_crimson_samp_rate[ i ] );
+				time_spec_t wait = time_spec_t( 0, ( (double)data_len/ 4.0 ) / (double)_crimson_samp_rate[ i ] );
 
 				if (_en_fc) {
 					_last_time[i] = _last_time[i] + wait;
