@@ -591,6 +591,7 @@ void sig_int_handler(int){stop_signal_called = true;}
  **********************************************************************/
 void transmit_worker(
 	StreamData &sd,
+	uhd::usrp::multi_usrp::sptr tx_usrp,
     uhd::tx_streamer::sptr tx_streamer,
     uhd::tx_metadata_t metadata,
     std::vector<size_t> tx_channel_nums
@@ -611,6 +612,13 @@ void transmit_worker(
     }
 
     sd.fillBuffers( tx_channel_nums, buffs, indeces );
+
+	double delay_s = 0.5;
+
+	metadata.has_time_spec = true;
+	metadata.time_spec = uhd::time_spec_t( tx_usrp->get_time_now().get_real_secs() + delay_s );
+
+	std::cout << "Sending " << sd.n_samples << " samples, " << delay_s << " s from now" << std::endl;
 
     //send data until the signal handler gets called
     while(not stop_signal_called){
@@ -716,9 +724,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     	std::string chan = kv.first;
 		int chani = to[ chan ];
 
-        tx_gain = 0;
+        tx_gain = 20.0;
         std::cout << boost::format("Setting TX Gain: %f dB...") % tx_gain << std::endl;
-    	tx_usrp->set_tx_gain( 0, chani );
+    	tx_usrp->set_tx_gain( tx_gain, chani );
     	tx_gain = tx_usrp->get_tx_gain( chani );
     	std::cout << boost::format("Actual TX Gain: %f dB...") % tx_gain << std::endl << std::endl;
     }
@@ -763,7 +771,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //start transmit worker thread
     boost::thread_group transmit_thread;
-    transmit_thread.create_thread( boost::bind( &transmit_worker, input_stream_data, tx_stream, md, tx_channel_nums ) );
+    transmit_thread.create_thread( boost::bind( &transmit_worker, input_stream_data, tx_usrp, tx_stream, md, tx_channel_nums ) );
 
     //clean up transmit worker
     //stop_signal_called = true;
