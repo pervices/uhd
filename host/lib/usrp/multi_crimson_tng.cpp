@@ -95,7 +95,9 @@ static tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr 
 	double target_rf_freq = 0.0;
 
 	// kb #3689, for phase coherency, we must set the DAC NCO to 0
-	rf_fe_subtree->access<double>("nco").set( 0.0 );
+	if ( TX_SIGN == xx_sign ) {
+		rf_fe_subtree->access<double>("nco").set( 0.0 );
+	}
 
 	rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
