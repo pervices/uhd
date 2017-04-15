@@ -413,10 +413,10 @@ tune_result_t multi_crimson::set_rx_freq(const tune_request_t &tune_request, siz
 
     // offset it by 15 MHz if sampling rate is low.
     double cur_rx_rate = get_rx_rate(chan);
-    if (*freq > 25000000.0 && !(cur_rx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9)) ) {
-       *freq -= 25000000.0;
+    if (*freq > 15000000.0 && !(cur_rx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9)) ) {
+       *freq -= 15000000.0;
        offset = true;
-       _tree->access<double>(rx_dsp_root(chan) / "nco").set(-25000000);
+       _tree->access<double>(rx_dsp_root(chan) / "nco").set(-15000000);
     } else {
        _tree->access<double>(rx_dsp_root(chan) / "nco").set(0);
     }
@@ -457,7 +457,7 @@ tune_result_t multi_crimson::set_rx_freq(const tune_request_t &tune_request, siz
 
     // account back for the offset
     if (offset)
-       *freq += 25000000.0;
+       *freq += 15000000.0;
 
     req.dsp_freq = result.actual_rf_freq;
     result.actual_dsp_freq = req.dsp_freq;   // no DSP freq tuning it possible
