@@ -452,8 +452,8 @@ public:
 					boost::this_thread::sleep(boost::posix_time::microseconds(1));
 				}
 
-				remaining_bytes[i] -= ret;
-				samp_sent += ret;
+				remaining_bytes[i] -= data_len;
+				samp_sent += data_len;
 			}
 
 			// this ensures we only send the vita time spec on the first packet of the burst
