@@ -48,7 +48,7 @@ using namespace uhd::usrp;
 static const double TX_SIGN = -1;
 static const double RX_SIGN = 1;
 
-static const double DSP_NCO_SHIFT_HZ = 15e6;
+static const double DSP_NCO_SHIFT_HZ = 25e6;
 
 /***********************************************************************
  * Helper Functions
