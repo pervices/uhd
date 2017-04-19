@@ -598,7 +598,6 @@ private:
 		_sob_time = _streamer_start_time;
 		// The problem is that this class does not hold a multi_crimson instance
 		tree->access<time_spec_t>( time_path / "now" ).set( ts );
-		usleep( 100000 );
 
 		// Tyreus-Luyben tuned PID controller
 		_time_diff_pidc = uhd::pidc_tl(
