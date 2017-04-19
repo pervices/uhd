@@ -394,6 +394,7 @@ public:
 					if ( metadata.has_time_spec ) {
 						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
 						if ( dt > 0.001 ) {
+							//UHD_MSG( status ) << "sleeping " <<  (unsigned) ( ( dt - 0.001 ) * 1e6 ) << " us" << std::endl;
 							usleep( (unsigned) ( ( dt - 0.001 ) * 1e6 ) );
 						}
 					}
@@ -597,6 +598,7 @@ private:
 		_sob_time = _streamer_start_time;
 		// The problem is that this class does not hold a multi_crimson instance
 		tree->access<time_spec_t>( time_path / "now" ).set( ts );
+		usleep( 100000 );
 
 		// Tyreus-Luyben tuned PID controller
 		_time_diff_pidc = uhd::pidc_tl(
@@ -605,8 +607,11 @@ private:
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
 			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
 		);
-		_time_diff_derivor = uhd::diff();
-		_time_diff_filter.set_window_size( (size_t)( CLOCK_DRIFT_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+		// initial values are just to ensure that our PID does not think its converged right away
+		// which could be the case if the initial y value was 0.
+		_pv_derivor = uhd::diff( 0, 100 );
+		_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+		_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
 
 		//Set up initial flow control variables
 		_flow_running=true;
@@ -638,9 +643,6 @@ private:
 	};
 	#pragma pack(pop)
 
-	static inline void make_time_diff_packet( time_diff_packet & pkt, double ts ) {
-		make_time_diff_packet( pkt, time_spec_t( ts ) );
-	}
 	static inline void make_time_diff_packet( time_diff_packet & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
 		pkt.header = 1;
 		pkt.tv_sec = ts.get_full_secs();
@@ -651,9 +653,95 @@ private:
 		bo::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 	}
 
-	static inline void send_time_diff_packet( time_diff_packet & pkt, udp_simple::sptr & dst ) {
-		boost::asio::const_buffer cb( (void *) &pkt, sizeof( pkt ) );
-		dst->send( cb );
+	/// SoB Time Diff: send sync packet (must be done before reading flow iface)
+	void time_diff_send() {
+
+		time_diff_packet pkt;
+
+		// Input to Process (includes feedback from PID Controller)
+		make_time_diff_packet(
+			pkt,
+			time_spec_t(
+				get_time_now().get_real_secs()
+				+ _time_diff_pidc.get_control_variable()
+			)
+		);
+
+		_time_diff_iface->send(
+			boost::asio::const_buffer(
+				(void *) &pkt,
+				sizeof( pkt )
+			)
+		);
+	}
+
+	/// Extract time diff details from flow-control message string
+	static inline double time_diff_extract( std::stringstream &ss ) {
+
+		// note: requires position of stringstream to be at beginning of time diff
+
+		int64_t tv_sec;
+		int64_t tv_tick;
+		uint64_t tmp;
+		ss >> std::hex >> tmp;
+		tv_sec = (int64_t) tmp;
+		ss.ignore();
+		ss >> std::hex >> tmp;
+		tv_tick = (int64_t) tmp;
+
+		// Output from Process (fed back into PID controller)
+		double pv = (double)tv_sec + (double)ticks_to_nsecs( tv_tick ) / 1e9;
+
+		return pv;
+	}
+
+	/// SoB Time Diff: feed the time diff error back into out control system
+	void time_diff_process( double pv ) {
+
+		static const double sp = 0.0;
+
+		//double cv = _cv_filter.update( _time_diff_pidc.update_control_variable( sp, pv ) );
+		double cv = _time_diff_pidc.update_control_variable( sp, pv );
+		double x = _time_diff_pidc.get_last_time();
+
+		double filtered_pv = _dpv_filter.update( std::abs( pv ) );
+
+		if ( ! _pid_converged ) {
+			if ( std::abs( filtered_pv ) < crimson_tng_tx_streamer::PV_MAX_ERROR_FOR_CONVERGENCE * 0.9  ) {
+				_pid_converged = true;
+#ifdef DEBUG_START_OF_BURST
+				UHD_MSG(status)
+					<< "t: " << std::fixed << std::setprecision(6) << x << ", "
+					<< "PID converged after : " << std::scientific << x - _streamer_start_time << " s" << std::endl;
+#endif
+			}
+		} else {
+			if ( std::abs( filtered_pv ) >= crimson_tng_tx_streamer::PV_MAX_ERROR_FOR_CONVERGENCE * 1.10 ) {
+				_pid_converged = false;
+#ifdef DEBUG_START_OF_BURST
+				UHD_MSG(status)
+					<< "t: " << std::fixed << std::setprecision(6) << x << ", "
+					<< "PID diverged after : " << std::scientific << x - _streamer_start_time << " s" << std::endl;
+#endif
+			}
+		}
+
+		// For SoB, record the absolute, instantaneous time difference + compensation
+		if ( NULL != _crimson_tng_impl && _pid_converged ) {
+			_crimson_tng_impl->set_time_diff( cv );
+		}
+
+#if DEBUG_START_OF_BURST
+		if ( 0 == clock_drift_print_counter % CRIMSON_TNG_UPDATE_PER_SEC ) {
+			UHD_MSG(status)
+				<< "t: " << std::fixed << std::setprecision(6) << x << ", "
+				<< "cv: " << std::fixed << std::setprecision( 20 ) << cv << ", "
+				<< "pv: " << std::fixed << std::setprecision( 20 ) << filtered_pv << ", "
+//				<< "dpv: " << std::fixed << std::setprecision( 20 ) << dpv << ", "
+				<< std::endl;
+		}
+		clock_drift_print_counter++;
+#endif
 	}
 
 	// Flow Control (should be called once on seperate thread)
@@ -664,16 +752,6 @@ private:
 		txstream->_flow_running = true;
 		uint8_t samp_rate_update_ctr = 4;
 		double new_samp_rate[txstream->_channels.size()];
-
-		// SoB Time Diff
-		time_diff_packet time_diff_packet;
-		double sync_time;
-#ifdef DEBUG_START_OF_BURST
-		size_t clock_drift_print_counter = 0;
-
-		UHD_MSG(status)
-			<< "Clock Drift using filter window of " << std::scientific << crimson_tng_tx_streamer::CLOCK_DRIFT_FILTER_WINDOW_S  << " s" << std::endl;
-#endif
 
 		try {
 				boost::this_thread::sleep(boost::posix_time::milliseconds(wait));
@@ -711,14 +789,7 @@ private:
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
 
-			// SoB Time Diff: send sync packet (must be done before reading flow iface)
-
-			sync_time = time_spec_t::get_system_time().get_real_secs();
-			sync_time += txstream->_time_diff_pidc.get_control_variable();
-
-			// Input to Process (includes feedback from PID Controller)
-			make_time_diff_packet( time_diff_packet, sync_time );
-			send_time_diff_packet( time_diff_packet, txstream->_time_diff_iface );
+			txstream->time_diff_send();
 
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
@@ -752,107 +823,8 @@ private:
 				ss.ignore();
 			}
 
-			// SoB Time Diff Processing: read flow iface & process results to improve timing
-			// XXX: @CF: SoB stuff should be put into separate crimson_tng_tx_streamer methods
+			txstream->time_diff_process( time_diff_extract( ss ) );
 
-			int64_t tv_sec;
-			int64_t tv_tick;
-			uint64_t tmp;
-			ss >> std::hex >> tmp;
-			tv_sec = (int64_t) tmp;
-			ss.ignore();
-			ss >> std::hex >> tmp;
-			tv_tick = (int64_t) tmp;
-
-			const double sp = 0.0;
-
-			// Output from Process (fed back into PID controller)
-			double pv = (double)tv_sec + (double)ticks_to_nsecs( tv_tick ) / 1e9;
-
-			double cv = txstream->_time_diff_pidc.update_control_variable( sp, pv );
-			double x = txstream->_time_diff_pidc.get_last_time();
-
-			if ( ! txstream->_pid_converged ) {
-				if ( std::abs( pv ) < crimson_tng_tx_streamer::PID_MAX_ERROR_FOR_CONVERGENCE * 0.9  ) {
-					txstream->_pid_converged = true;
-#ifdef DEBUG_START_OF_BURST
-					UHD_MSG(status)
-						<< "t: " << std::fixed << std::setprecision(6) << x << ", "
-						<< "PID converged after : " << std::scientific << x - txstream->_streamer_start_time << " s" << std::endl;
-#endif
-				}
-			} else {
-				if ( std::abs( pv ) >= crimson_tng_tx_streamer::PID_MAX_ERROR_FOR_CONVERGENCE * 1.10 ) {
-					txstream->_pid_converged = false;
-#ifdef DEBUG_START_OF_BURST
-					UHD_MSG(status)
-						<< "t: " << std::fixed << std::setprecision(6) << x << ", "
-						<< "PID diverged after : " << std::scientific << x - txstream->_streamer_start_time << " s" << std::endl;
-#endif
-				}
-			}
-
-			// The remainder within this block is to estimate clock drift and apply that figure.
-			// DO NOT use filtered_time_diff instead of instantaneous time diff,
-			// it VERY LIKELY WILL have a significant lag!
-			double filtered_time_diff = txstream->_time_diff_filter.update( cv );
-
-			// For SoB, record the absolute, instantaneous time difference
-			if ( NULL != txstream->_crimson_tng_impl && txstream->_pid_converged ) {
-				txstream->_crimson_tng_impl->set_time_diff( filtered_time_diff );
-			}
-//XXX: @CF: kb/3829: do not modify crimson_samp_rate (which already happens in update_sample_rate())
-/*
-			// XXX: @CF: possibly store this value in txstream->_crimson_tng_impl ?
-			double clock_drift = txstream->_time_diff_derivor.update( x, filtered_time_diff );
-
-			if ( ! txstream->_clock_drift_converged ) {
-				if ( txstream->_pid_converged && std::abs( clock_drift ) < crimson_tng_tx_streamer::CLOCK_DRIFT_MAX_FOR_ADJUSTMENT * 0.9 ) {
-					txstream->_clock_drift_converged = true;
-#ifdef DEBUG_START_OF_BURST
-					UHD_MSG(status)
-						<< "t: " << std::fixed << std::setprecision(6) << x << ", "
-						<< "Clock Drift converged after : " << std::scientific << x - txstream->_streamer_start_time << " s" << std::endl;
-#endif
-				}
-			} else {
-				if ( std::abs( clock_drift ) >= crimson_tng_tx_streamer::CLOCK_DRIFT_MAX_FOR_ADJUSTMENT * 1.10 ) {
-					txstream->_clock_drift_converged = false;
-#ifdef DEBUG_START_OF_BURST
-					UHD_MSG(status)
-						<< "t: " << std::fixed << std::setprecision(6) << x << ", "
-						<< "Clock Drift diverged after : " << std::scientific << x - txstream->_streamer_start_time << " s" << std::endl;
-#endif
-				}
-			}
-
-			// XXX: @CF: possibly move this logic into update_sample_rate()?
-			if (
-				true
-				&& txstream->_pid_converged
-				&& txstream->_clock_drift_converged
-			) {
-
-				// For SoB, do a fine tuning pass of the sample rates, so that the rate the host
-				// sees is in line with the rate that is actually happening on Crimson, and
-				// the host can "hit the ground running".
-
-				for ( size_t c = 0; c < txstream->_channels.size(); c++ ) {
-					txstream->_host_samp_rate[c] = txstream->_crimson_samp_rate[c] * ( 1 + clock_drift );
-				}
-			}
-
-#if DEBUG_START_OF_BURST
-			if ( 0 == clock_drift_print_counter % CRIMSON_TNG_UPDATE_PER_SEC ) {
-				UHD_MSG(status)
-					<< "t: " << std::fixed << std::setprecision(6) << x << ", "
-					<< "cv: " << std::fixed << std::setprecision( 20 ) << cv << ", "
-					<< "pv: " << std::fixed << std::setprecision( 20 ) << pv << ", "
-					<< "clock drift: " << std::scientific << clock_drift << std::endl;
-			}
-			clock_drift_print_counter++;
-#endif
-*/
 			//increment buffer count to say we have data
 			for (int j = 0; j < txstream->_channels.size(); j++) {
 				txstream->_buffer_count[j][0]++;	// For coordinating sample rate updates
@@ -992,9 +964,14 @@ private:
 	bool _en_fc;
 	static size_t num_instances;
 
+	//debug
+	time_spec_t _timer_tofreerun;
+
+	/**
+	 * Start of Burst (SoB) objects
+	 */
 	double _streamer_start_time;
 	double _sob_time;
-	// TODO: add field for specific SoB time. N.B: Must be specified in terms of Crimson's clock
 	/// UDP endpoint that receives our Time Diff packets
 	udp_simple::sptr _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
@@ -1015,41 +992,24 @@ private:
 	 */
 	uhd::pidc _time_diff_pidc;
 	/**
-	 * For safetely purposes, we can only make adjustments to nominal values
-	 * once the PID controller has converged.
+	 * For safetely purposes, we can only rely on the PID control variable (CV) when the
+	 * state of the PID controller is in convergence.
 	 *
-	 * We define the state of convergence when the process variable (error) drops below this value.
+	 * We define the state of convergence when the short-time average slope of the
+	 * process variable becomes negligibly small.
 	 */
-	static constexpr double PID_MAX_ERROR_FOR_CONVERGENCE = 100e-6;
-	/**
-	 * For safety purposes, only make clock-drift adjustments if the computed drift is
-	 * within a reasonable amount.
-	 *
-	 * http://www.ntp.org/ntpfaq/NTP-s-sw-clocks-quality.htm
-	 *
-	 * "A typical quartz is expected to drift about 1 PPM per *C"
-	 *
-	 * An resonable maximum range in operating temperature of our equipment
-	 * would be between -20 *C and +80 *C (although our official docs are likely
-	 * far more restrictive).
-	 */
+	static constexpr double PV_MAX_ERROR_FOR_CONVERGENCE = 100e-6;
+	static constexpr double CV_FILTER_WINDOW_S = 2;
+	static constexpr double DPV_FILTER_WINDOW_S = 5;
 	bool _pid_converged = false;
-	static constexpr double CLOCK_DRIFT_MAX_FOR_ADJUSTMENT = 100e-6;
-	/** Derivative object used to
-	 *  a) filter-out the DC component from the CV,
-	 *  b) determine rate of change of the host clock w.r.t. Crimson's clock.
-	 */
-	bool _clock_drift_converged = false;
-	uhd::diff _time_diff_derivor;
-	/// Statistical Filter used to approximate the clock drift
-	uhd::sma _time_diff_filter;
-	// we may change the type of filter being used, at some point
-	static constexpr double CLOCK_DRIFT_FILTER_WINDOW_S = 66.6;
+	uhd::diff _pv_derivor;
+	uhd::sma _dpv_filter;
+	uhd::sma _cv_filter;
 	/// Store results of time diff in _crimson_tng_impl object
 	crimson_tng_impl *_crimson_tng_impl = NULL;
-
-	//debug
-	time_spec_t _timer_tofreerun;
+#ifdef DEBUG_START_OF_BURST
+	size_t clock_drift_print_counter = 0;
+#endif
 };
 size_t crimson_tng_tx_streamer::num_instances = 0;
 
