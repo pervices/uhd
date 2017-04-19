@@ -705,6 +705,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::cout << boost::format("Using Device: %s") % tx_usrp->get_pp_string() << std::endl;
 
+    //set the transmit center frequency
+    for( const auto& kv: input_stream_data.tx_center_freq ) {
+
+    	std::string chan = kv.first;
+		int chani = to[ chan ];
+
+		tx_freq = kv.second;
+		std::cout << boost::format("Setting TX Freq for Channel %s: %f MHz...") % chan % (tx_freq/1e6) << std::endl;
+        uhd::tune_request_t tx_tune_request(tx_freq);
+        tx_usrp->set_tx_freq( tx_tune_request, chani );
+
+        tx_freq = tx_usrp->get_tx_freq( chani );
+        std::cout << boost::format("Actual TX Freq: %f MHz...") % ( tx_freq / 1e6 ) << std::endl;
+    }
+
     //set the transmit sample rate
     for( const auto& kv: input_stream_data.tx_sample_rate ) {
 		std::string chan = kv.first;
@@ -729,21 +744,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     	tx_usrp->set_tx_gain( tx_gain, chani );
     	tx_gain = tx_usrp->get_tx_gain( chani );
     	std::cout << boost::format("Actual TX Gain: %f dB...") % tx_gain << std::endl << std::endl;
-    }
-
-    //set the transmit center frequency
-    for( const auto& kv: input_stream_data.tx_center_freq ) {
-
-    	std::string chan = kv.first;
-		int chani = to[ chan ];
-
-		tx_freq = kv.second;
-		std::cout << boost::format("Setting TX Freq for Channel %s: %f MHz...") % chan % (tx_freq/1e6) << std::endl;
-        uhd::tune_request_t tx_tune_request(tx_freq);
-        tx_usrp->set_tx_freq( tx_tune_request, chani );
-
-        tx_freq = tx_usrp->get_tx_freq( chani );
-        std::cout << boost::format("Actual TX Freq: %f MHz...") % ( tx_freq / 1e6 ) << std::endl;
     }
 
     //create a transmit streamer

@@ -17,9 +17,15 @@ namespace uhd {
 
 		diff()
 		:
-			empty( true ),
 			x0( 0 ),
 			y0( 0 )
+		{
+		}
+
+		diff( double x0, double y0 )
+		:
+			x0( x0 ),
+			y0( y0 )
 		{
 		}
 
@@ -29,23 +35,14 @@ namespace uhd {
 
 			double diff;
 
-			if ( empty ) {
-				x0 = x;
-				y0 = y;
-				// initial value in differentiation is 'padding'
-				diff = 0;
-				empty = false;
-			} else {
-				diff = ( y - y0 ) / ( x - x0 );
-				x0 = x;
-				y0 = y;
-			}
+			diff = ( y - y0 ) / ( x - x0 );
+			x0 = x;
+			y0 = y;
 
 			return diff;
 		}
 
 	protected:
-		bool empty;
 		double x0;
 		double y0;
 	};
