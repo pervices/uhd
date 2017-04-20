@@ -637,15 +637,15 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			atten_val = 31.75;
 			// LMH is adjusted from 0dB to 31.5dB
 			gain_val = gain;
-		} else if ( 31.5 <= gain && gain <= 51.5 ) {
+		} else if ( 31.5 <= gain && gain <= 63.25 ) {
 			// PMA is off (+0dB)
 			lna_val = 0;
 			// BFP is on (+20dB)
-			// PE437 is adjusted from -20 dB to 0dB
-			atten_val = 51.5 - gain;
+			// PE437 is adjusted from -31.75 dB to 0dB
+			atten_val = 63.25 - gain;
 			// LMH is maxed (+31.5dB)
 			gain_val = 31.5;
-		} else if ( 51.5 <= gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+		} else if ( 63.25 <= gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
 			// PMA is on (+20dB)
 			lna_val = 20;
 			// BFP is on (+20dB)
