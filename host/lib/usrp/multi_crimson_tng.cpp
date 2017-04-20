@@ -558,6 +558,8 @@ tune_result_t multi_crimson_tng::set_rx_freq( const tune_request_t &tune_request
 
 	tune_result_t result;
 
+	double gain = get_rx_gain( chan );
+
 	result =
 		tune_lo_and_dsp(
 			RX_SIGN,
@@ -567,6 +569,8 @@ tune_result_t multi_crimson_tng::set_rx_freq( const tune_request_t &tune_request
 		);
 
 	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "RX" );
+
+	set_rx_gain( gain, chan );
 
 	return result;
 }
@@ -810,6 +814,8 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t & tune_request
 
 	tune_result_t result;
 
+	double gain = get_tx_gain( chan );
+
 	result =
 		tune_lo_and_dsp(
 			TX_SIGN,
@@ -819,6 +825,8 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t & tune_request
 		);
 
 	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "TX" );
+
+	set_tx_gain( gain, chan );
 
 	return result;
 }
