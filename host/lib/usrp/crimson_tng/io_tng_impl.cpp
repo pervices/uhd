@@ -21,6 +21,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <mutex>
 
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
@@ -264,7 +265,23 @@ public:
 	}
 
 	~crimson_tng_tx_streamer() {
-		num_instances--;
+		// kb #3850: while other instances are active, do not destroy the 0th instance, so that the PID
+		// controller continues to track changes
+		for( bool should_delay = true; should_delay;  ) {
+			num_instances_lock.lock();
+			if ( 0 == _instance_num && num_instances > 1 ) {
+				should_delay = true;
+			} else {
+				num_instances--;
+				should_delay = false;
+			}
+			num_instances_lock.unlock();
+
+			if ( should_delay ) {
+				usleep( (size_t)1e6 );
+			}
+		}
+
 		disable_fc();	// Wait for thread to finish
 		delete _flowcontrol_thread;
 
@@ -616,13 +633,21 @@ private:
 		_flow_running=true;
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
-		num_instances++;
 
-		for( ; ! _pid_converged; ) {
-			UHD_MSG( status ) << "Waiting for clock domains to synchronize.." << std::endl;
-			sleep( 1 );
+		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
+		num_instances_lock.lock();
+
+		_instance_num = instance_counter++;
+		num_instances++;
+		if ( 0 == _instance_num ) {
+			for( ; ! _pid_converged; ) {
+				UHD_MSG( status ) << "Waiting for clock domains to synchronize.." << std::endl;
+				sleep( 1 );
+			}
+			UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
 		}
-		UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
+
+		num_instances_lock.unlock();
 	}
 
 	// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
@@ -788,7 +813,9 @@ private:
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
 
-			txstream->time_diff_send();
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_send();
+			}
 
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
@@ -822,7 +849,9 @@ private:
 				ss.ignore();
 			}
 
-			txstream->time_diff_process( time_diff_extract( ss ) );
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_process( time_diff_extract( ss ) );
+			}
 
 			//increment buffer count to say we have data
 			for (int j = 0; j < txstream->_channels.size(); j++) {
@@ -961,7 +990,11 @@ private:
 	std::vector<double> _fifo_level_perc;
 	double _max_clock_ppm_error;
 	bool _en_fc;
-	static size_t num_instances;
+
+	static std::mutex num_instances_lock; // mutex to prevent race conditions
+	static size_t num_instances; // num_instances will fluctuate, but is non-negative
+	static size_t instance_counter; // instance counter increases monotonically for _instance_num
+	ssize_t _instance_num = -1; // per-instance unique id (w.r.t. libuhd.so copy)
 
 	//debug
 	time_spec_t _timer_tofreerun;
@@ -1010,7 +1043,9 @@ private:
 	size_t clock_drift_print_counter = 0;
 #endif
 };
+std::mutex crimson_tng_tx_streamer::num_instances_lock;
 size_t crimson_tng_tx_streamer::num_instances = 0;
+size_t crimson_tng_tx_streamer::instance_counter = 0;
 
 /***********************************************************************
  * Async Data
