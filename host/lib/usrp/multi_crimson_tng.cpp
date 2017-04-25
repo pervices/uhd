@@ -660,8 +660,8 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 		}
 	}
 
-	// XXX: @CF: NB: lna is actually for lna bypass. If 0, the lna is in use, if 1, then not in use
-	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( 0 == lna_val ? 1 : 0 );
+	int lna_bypass_enable = 0 == lna_val ? 1 : 0;
+	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
 
     if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
 		_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
@@ -677,8 +677,8 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 
 	double r;
 
-	// XXX: @CF: NB: lna is actually for lna bypass. If 0, the lna is in use, if 1, then not in use
-    double lna_val = 0 == _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? 20 : 0;
+	bool lna_bypass_enable = 0 == _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
+    double lna_val = lna_bypass_enable ? 0 : 20;
     double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
