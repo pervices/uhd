@@ -278,7 +278,7 @@ public:
 			num_instances_lock.unlock();
 
 			if ( should_delay ) {
-				usleep( (size_t)1e6 );
+				usleep( (size_t)100e3 );
 			}
 		}
 
@@ -519,10 +519,12 @@ private:
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
 
 		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
+		// to prevent any other constructors from returning before the PID is locked, surround the entire
+		// init_tx_streamer() with mutex protection.
 		num_instances_lock.lock();
+
 		_instance_num = instance_counter++;
 		num_instances++;
-		num_instances_lock.unlock();
 
 		// save the tree
 		_tree = tree;
@@ -649,6 +651,8 @@ private:
 			}
 			UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
 		}
+
+		num_instances_lock.unlock();
 	}
 
 	// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
