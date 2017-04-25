@@ -518,6 +518,12 @@ private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
 
+		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
+		num_instances_lock.lock();
+		_instance_num = instance_counter++;
+		num_instances++;
+		num_instances_lock.unlock();
+
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -580,7 +586,7 @@ private:
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
-			if ( ! have_time_diff_iface ) {
+			if ( 0 == _instance_num && ! have_time_diff_iface ) {
 
 				// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 				int sfpa_port = tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
@@ -609,36 +615,33 @@ private:
 
 		}
 
-		//Initialize "Time Diff" mechanism before starting flow control thread
-		time_spec_t ts = time_spec_t::get_system_time();
-		_streamer_start_time = ts.get_real_secs();
-		_sob_time = _streamer_start_time;
-		// The problem is that this class does not hold a multi_crimson instance
-		tree->access<time_spec_t>( time_path / "now" ).set( ts );
+		if ( 0 == _instance_num ) {
+			//Initialize "Time Diff" mechanism before starting flow control thread
+			time_spec_t ts = time_spec_t::get_system_time();
+			_streamer_start_time = ts.get_real_secs();
+			_sob_time = _streamer_start_time;
+			// The problem is that this class does not hold a multi_crimson instance
+			tree->access<time_spec_t>( time_path / "now" ).set( ts );
 
-		// Tyreus-Luyben tuned PID controller
-		_time_diff_pidc = uhd::pidc_tl(
-			0.0, // desired set point is 0.0s error
-			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
-		);
-		// initial values are just to ensure that our PID does not think its converged right away
-		// which could be the case if the initial y value was 0.
-		_pv_derivor = uhd::diff( 0, 100 );
-		_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
-		_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+			// Tyreus-Luyben tuned PID controller
+			_time_diff_pidc = uhd::pidc_tl(
+				0.0, // desired set point is 0.0s error
+				1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+				// measured P-ultimate is inverse of 1/2 the flow-control sample rate
+				2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+			);
+			// initial values are just to ensure that our PID does not think its converged right away
+			// which could be the case if the initial y value was 0.
+			_pv_derivor = uhd::diff( 0, 100 );
+			_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+			_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+		}
 
 		//Set up initial flow control variables
 		_flow_running=true;
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 
-		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
-		num_instances_lock.lock();
-
-		_instance_num = instance_counter++;
-		num_instances++;
 		if ( 0 == _instance_num ) {
 			for( ; ! _pid_converged; ) {
 				UHD_MSG( status ) << "Waiting for clock domains to synchronize.." << std::endl;
@@ -646,8 +649,6 @@ private:
 			}
 			UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
 		}
-
-		num_instances_lock.unlock();
 	}
 
 	// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
