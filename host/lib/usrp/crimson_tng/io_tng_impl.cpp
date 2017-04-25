@@ -644,7 +644,15 @@ private:
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 
-		for( ; ! _pid_converged; ) {
+		for(
+			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
+			time_now = time_then
+			; ! _pid_converged;
+			time_now = uhd::time_spec_t::get_system_time()
+		) {
+			if ( (time_now - time_then).get_full_secs() > 20 ) {
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+			}
 			usleep( 100000 );
 		}
 
