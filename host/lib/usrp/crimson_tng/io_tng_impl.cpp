@@ -650,9 +650,11 @@ private:
 			; ! _pid_converged;
 			time_now = uhd::time_spec_t::get_system_time()
 		) {
+#ifndef DEBUG_START_OF_BURST
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
 			}
+#endif
 			usleep( 100000 );
 		}
 
