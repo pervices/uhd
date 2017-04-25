@@ -21,6 +21,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <mutex>
 
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
@@ -264,7 +265,23 @@ public:
 	}
 
 	~crimson_tng_tx_streamer() {
-		num_instances--;
+		// kb #3850: while other instances are active, do not destroy the 0th instance, so that the PID
+		// controller continues to track changes
+		for( bool should_delay = true; should_delay;  ) {
+			num_instances_lock.lock();
+			if ( 0 == _instance_num && num_instances > 1 ) {
+				should_delay = true;
+			} else {
+				num_instances--;
+				should_delay = false;
+			}
+			num_instances_lock.unlock();
+
+			if ( should_delay ) {
+				usleep( (size_t)100e3 );
+			}
+		}
+
 		disable_fc();	// Wait for thread to finish
 		delete _flowcontrol_thread;
 
@@ -501,6 +518,14 @@ private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
 
+		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
+		// to prevent any other constructors from returning before the PID is locked, surround the entire
+		// init_tx_streamer() with mutex protection.
+		num_instances_lock.lock();
+
+		_instance_num = instance_counter++;
+		num_instances++;
+
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -563,7 +588,7 @@ private:
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
-			if ( ! have_time_diff_iface ) {
+			if ( 0 == _instance_num && ! have_time_diff_iface ) {
 
 				// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 				int sfpa_port = tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
@@ -592,37 +617,42 @@ private:
 
 		}
 
-		//Initialize "Time Diff" mechanism before starting flow control thread
-		time_spec_t ts = time_spec_t::get_system_time();
-		_streamer_start_time = ts.get_real_secs();
-		_sob_time = _streamer_start_time;
-		// The problem is that this class does not hold a multi_crimson instance
-		tree->access<time_spec_t>( time_path / "now" ).set( ts );
+		if ( 0 == _instance_num ) {
+			//Initialize "Time Diff" mechanism before starting flow control thread
+			time_spec_t ts = time_spec_t::get_system_time();
+			_streamer_start_time = ts.get_real_secs();
+			_sob_time = _streamer_start_time;
+			// The problem is that this class does not hold a multi_crimson instance
+			tree->access<time_spec_t>( time_path / "now" ).set( ts );
 
-		// Tyreus-Luyben tuned PID controller
-		_time_diff_pidc = uhd::pidc_tl(
-			0.0, // desired set point is 0.0s error
-			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
-		);
-		// initial values are just to ensure that our PID does not think its converged right away
-		// which could be the case if the initial y value was 0.
-		_pv_derivor = uhd::diff( 0, 100 );
-		_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
-		_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+			// Tyreus-Luyben tuned PID controller
+			_time_diff_pidc = uhd::pidc_tl(
+				0.0, // desired set point is 0.0s error
+				1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+				// measured P-ultimate is inverse of 1/2 the flow-control sample rate
+				2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+			);
+			// initial values are just to ensure that our PID does not think its converged right away
+			// which could be the case if the initial y value was 0.
+			_pv_derivor = uhd::diff( 0, 100 );
+			_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+			_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+		}
 
 		//Set up initial flow control variables
 		_flow_running=true;
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
-		num_instances++;
 
-		for( ; ! _pid_converged; ) {
-			UHD_MSG( status ) << "Waiting for clock domains to synchronize.." << std::endl;
-			sleep( 1 );
+		if ( 0 == _instance_num ) {
+			for( ; ! _pid_converged; ) {
+				UHD_MSG( status ) << "Waiting for clock domains to synchronize.." << std::endl;
+				sleep( 1 );
+			}
+			UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
 		}
-		UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
+
+		num_instances_lock.unlock();
 	}
 
 	// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
@@ -788,7 +818,9 @@ private:
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
 
-			txstream->time_diff_send();
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_send();
+			}
 
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
@@ -822,7 +854,9 @@ private:
 				ss.ignore();
 			}
 
-			txstream->time_diff_process( time_diff_extract( ss ) );
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_process( time_diff_extract( ss ) );
+			}
 
 			//increment buffer count to say we have data
 			for (int j = 0; j < txstream->_channels.size(); j++) {
@@ -961,7 +995,11 @@ private:
 	std::vector<double> _fifo_level_perc;
 	double _max_clock_ppm_error;
 	bool _en_fc;
-	static size_t num_instances;
+
+	static std::mutex num_instances_lock; // mutex to prevent race conditions
+	static size_t num_instances; // num_instances will fluctuate, but is non-negative
+	static size_t instance_counter; // instance counter increases monotonically for _instance_num
+	ssize_t _instance_num = -1; // per-instance unique id (w.r.t. libuhd.so copy)
 
 	//debug
 	time_spec_t _timer_tofreerun;
@@ -1010,7 +1048,9 @@ private:
 	size_t clock_drift_print_counter = 0;
 #endif
 };
+std::mutex crimson_tng_tx_streamer::num_instances_lock;
 size_t crimson_tng_tx_streamer::num_instances = 0;
+size_t crimson_tng_tx_streamer::instance_counter = 0;
 
 /***********************************************************************
  * Async Data
