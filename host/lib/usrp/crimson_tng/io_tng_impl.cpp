@@ -644,12 +644,8 @@ private:
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
 
-		if ( 0 == _instance_num ) {
-			for( ; ! _pid_converged; ) {
-				UHD_MSG( status ) << "Waiting for clock domains to synchronize.." << std::endl;
-				sleep( 1 );
-			}
-			UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
+		for( ; ! _pid_converged; ) {
+			usleep( 100000 );
 		}
 
 		num_instances_lock.unlock();
@@ -1037,8 +1033,8 @@ private:
 	 */
 	static constexpr double PV_MAX_ERROR_FOR_CONVERGENCE = 100e-6;
 	static constexpr double CV_FILTER_WINDOW_S = 2;
-	static constexpr double DPV_FILTER_WINDOW_S = 5;
-	bool _pid_converged = false;
+	static constexpr double DPV_FILTER_WINDOW_S = 0.25;
+	static bool _pid_converged;
 	uhd::diff _pv_derivor;
 	uhd::sma _dpv_filter;
 	uhd::sma _cv_filter;
@@ -1051,6 +1047,7 @@ private:
 std::mutex crimson_tng_tx_streamer::num_instances_lock;
 size_t crimson_tng_tx_streamer::num_instances = 0;
 size_t crimson_tng_tx_streamer::instance_counter = 0;
+bool crimson_tng_tx_streamer::_pid_converged = false;
 
 /***********************************************************************
  * Async Data
