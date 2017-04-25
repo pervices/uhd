@@ -641,7 +641,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			atten_val = 31.75;
 			// LMH is adjusted from 0dB to 31.5dB
 			gain_val = gain;
-		} else if ( 31.5 <= gain && gain <= 63.25 ) {
+		} else if ( 31.5 < gain && gain <= 63.25 ) {
 			// PMA is off (+0dB)
 			lna_val = 0;
 			// BFP is on (+20dB)
@@ -649,7 +649,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			atten_val = 63.25 - gain;
 			// LMH is maxed (+31.5dB)
 			gain_val = 31.5;
-		} else if ( 63.25 <= gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+		} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
 			// PMA is on (+20dB)
 			lna_val = 20;
 			// BFP is on (+20dB)
@@ -661,7 +661,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 	}
 
 	int lna_bypass_enable = 0 == lna_val ? 1 : 0;
-	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
+	_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
 
     if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
 		_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
@@ -677,7 +677,7 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 
 	double r;
 
-	bool lna_bypass_enable = 0 == _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
+	bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
     double lna_val = lna_bypass_enable ? 0 : 20;
     double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
