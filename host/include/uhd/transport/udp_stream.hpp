@@ -32,10 +32,8 @@ public:
 
     virtual ~udp_stream(void) = 0;
 
-    // kb # 3860: need real MTU as provided by socket, assuming socket is bound to some interface
-    //static const size_t mtu = 1500 - 20 - 8; //default ipv4 mtu - ipv4 header - udp header
     //! The maximum number of bytes per udp packet.
-    virtual const size_t mtu();
+    static const size_t mtu = 1500 - 20 - 8; //default ipv4 mtu - ipv4 header - udp header
 
     /*!
      * Make an RX Stream

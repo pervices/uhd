@@ -17,7 +17,7 @@ namespace uhd {
 
 
 void get_route( const std::string remote_addr, std::string & local_addr );
-void get_iface( const std::string remote_addr, std::string & iface, std::string & local_addr );
+void get_iface( const std::string & remote_addr, std::string & iface, std::string & local_addr );
 size_t get_mtu( const std::string iface, const std::string local_addr );
 
 }

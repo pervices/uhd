@@ -68,7 +68,7 @@ void uhd::get_route( const std::string remote_addr, std::string & local_addr ) {
 	local_addr = strs[ 0 ];
 }
 
-void uhd::get_iface( const std::string remote_addr, std::string & iface, std::string & local_addr ) {
+void uhd::get_iface( const std::string & remote_addr, std::string & iface, std::string & local_addr ) {
 }
 
 size_t uhd::get_mtu( const std::string iface, const std::string local_addr ) {
