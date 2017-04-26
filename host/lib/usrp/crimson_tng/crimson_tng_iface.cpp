@@ -51,7 +51,7 @@ crimson_tng_iface::crimson_tng_iface(udp_simple::sptr ctrl_transport):
     _ctrl_seq_num(0),
     _protocol_compat(0)
 {
-    memset(_buff, '\0', CRIMSON_TNG_MTU_SIZE);
+    memset( _buff, '\0', sizeof( _buff ) );
 }
 
 /***********************************************************************
@@ -77,7 +77,7 @@ std::string crimson_tng_iface::peek_str(void) {
 
     do {
         // clears the buffer and receives the message
-        memset(_buff, 0, CRIMSON_TNG_MTU_SIZE);
+        memset( _buff, 0, sizeof( _buff ) );
         const size_t nbytes = _ctrl_transport -> recv(boost::asio::buffer(_buff), 6.250);
         if (nbytes == 0) return "TIMEOUT";
 

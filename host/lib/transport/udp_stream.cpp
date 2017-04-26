@@ -91,6 +91,10 @@ public:
        close(_sockfd);
     }
 
+    const size_t mtu() {
+    	//_sockfd
+    }
+
     size_t stream_out(const void* buff, size_t size){
     	if (!_isConnected) UHD_MSG(error) << "UDP stream not connected." << std::endl;
 	if (!_isTX) UHD_MSG(error) << "UDP stream cannot stream in because not a TX stream." << std::endl;
