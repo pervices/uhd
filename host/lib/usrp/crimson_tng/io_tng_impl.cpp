@@ -616,8 +616,6 @@ private:
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
-			check_mtu( ip_addr );
-
 			if ( 0 == _instance_num && ! have_time_diff_iface ) {
 
 				// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
