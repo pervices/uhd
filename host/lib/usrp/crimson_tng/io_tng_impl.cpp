@@ -79,10 +79,9 @@ static int channels_to_mask( std::vector<size_t> channels ) {
 static void check_mtu( const std::string & remote_addr ) {
 
 	std::string iface;
-	std::string local_addr;
 
-	get_iface( remote_addr, iface, local_addr );
-	size_t mtu = get_mtu( iface, remote_addr );
+	iputils::get_route( remote_addr, iface );
+	size_t mtu = iputils::get_mtu( iface );
 
 	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
 		throw runtime_error(

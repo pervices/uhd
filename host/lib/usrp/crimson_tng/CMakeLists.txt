@@ -29,6 +29,5 @@ IF(ENABLE_CRIMSON_TNG)
         ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io_tng_impl.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/iputils.cpp
     )
 ENDIF(ENABLE_CRIMSON_TNG)
