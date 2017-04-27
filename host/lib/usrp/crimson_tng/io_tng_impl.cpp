@@ -48,6 +48,8 @@
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
 
+#include "iputils.hpp"
+
 #ifndef DEBUG_START_OF_BURST
 //#define DEBUG_START_OF_BURST 1
 #endif
@@ -72,6 +74,27 @@ static int channels_to_mask( std::vector<size_t> channels ) {
 	}
 
 	return mask;
+}
+
+static void check_mtu( const std::string & remote_addr ) {
+
+	std::string iface;
+
+	iputils::get_route( remote_addr, iface );
+	size_t mtu = iputils::get_mtu( iface );
+
+	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
+		throw runtime_error(
+			(
+				boost::format( "mtu %u on iface %s is below minimum recommended size of %u. Use 'sudo ifconfig %s mtu %u' to correct." )
+					% mtu
+					% iface
+					% CRIMSON_TNG_MIN_MTU
+					% iface
+					% CRIMSON_TNG_MIN_MTU
+			).str()
+		);
+	}
 }
 
 class crimson_tng_rx_streamer : public uhd::rx_streamer {
@@ -194,6 +217,7 @@ public:
 private:
 	// init function, common to both constructors
 	void init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
+
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -220,6 +244,8 @@ private:
 			std::string iface    = tree->access<std::string>(link_path / "Channel_"+ch / "iface").get();
 			_rate = tree->access<double>(mb_path / "rx_dsps" / "Channel_"+ch / "rate" / "value").get();
 			_pay_len = tree->access<int>(mb_path / "link" / iface / "pay_len").get();
+
+			check_mtu( ip_addr );
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
@@ -575,6 +601,8 @@ private:
 			std::string iface    = tree->access<std::string>(prop_path / "Channel_"+ch / "iface").get();
 			std::string ip_addr  = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
 			_pay_len = tree->access<int>(mb_path / "link" / sfp / "pay_len").get();
+
+			check_mtu( ip_addr );
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("1");

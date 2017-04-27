@@ -1,3 +1,6 @@
+// XXX: @CF: This is technically not a unit test because it requires hardware to be present
+// At some point, build this into a functional test suite.
+
 #include <boost/test/unit_test.hpp>
 
 #include <cstdlib>

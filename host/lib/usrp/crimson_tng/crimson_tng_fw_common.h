@@ -55,8 +55,6 @@ extern "C" {
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH1_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
-#define CRIMSON_TNG_MTU_SIZE     1472   // 1500 MTU - 20 IPV4 header - 8 UDP header
-
 #define CRIMSON_TNG_RX_CHANNELS 4
 #define CRIMSON_TNG_TX_CHANNELS 4
 
@@ -65,8 +63,10 @@ extern "C" {
 #define CRIMSON_TNG_FW_COMMS_FLAGS_POKE32     (1 << 2)
 #define CRIMSON_TNG_FW_COMMS_FLAGS_PEEK32     (1 << 3)
 
-// Crimson MTU Size
-#define CRIMSON_TNG_MAX_MTU		6400
+// Crimson min MTU size (empirically set mtu for QoS, udp header is 8 bytes)
+#define CRIMSON_TNG_MIN_MTU		(6400 - 8)
+// Crimson max MTU size (jumbo ethernet frame is 9000 bytes)
+#define CRIMSON_TNG_MAX_MTU		(9000 - 8)
 
 // Crimson Flowcontrol Update Per Second
 #define CRIMSON_TNG_UPDATE_PER_SEC	150
