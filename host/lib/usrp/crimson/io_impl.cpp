@@ -686,14 +686,6 @@ tx_streamer::sptr crimson_impl::get_tx_stream(const uhd::stream_args_t &args){
 			\"sc16\" Q16 I16" << std::endl;
 	}
 
-	// Warning for preference to set the MTU size to 3600 to support Jumbo Frames
-        boost::format base_message (
-            "\nCrimson Warning:\n"
-            "   Please set the MTU size for SFP ports to 4000 \n"
-            "   The device has been optimized for Jumbo Frames\n"
-	    "   to lower overhead.\n");
-	UHD_MSG(status) << base_message.str();
-
 	// TODO firmware support for other otw_format, cpu_format
 	return tx_streamer::sptr(new crimson_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex));
 }
