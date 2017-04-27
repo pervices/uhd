@@ -208,13 +208,56 @@ public:
 	}
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
-		multi_crimson_tng m( _addr );
 		for( unsigned i = 0; i < _channels.size(); i++ ) {
-			m.issue_stream_cmd( stream_cmd, _channels[ i ] );
+			unsigned chan = _channels[ i ];
+		    if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
+		    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+		        _tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
+
+		    // set register to stop the stream
+		    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+		        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+
+		    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
+			// set register to wait for a stream cmd after num_samps
+			// not supported in Crimson
+
+		    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE) {
+			// set register to not wait for a stream cmd after num_samps
+			// not supported in Crimson
+
+		    } else {
+		        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+		    }
 		}
 	}
 //	std::vector<size_t> _channels;
 private:
+
+	fs_path mb_root(const size_t mboard)
+	{
+	    try
+	    {
+	        const std::string name = _tree->list("/mboards").at(mboard);
+	        return "/mboards/" + name;
+	    }
+	    catch(const std::exception &e)
+	    {
+	        throw uhd::index_error(str(boost::format("multi_usrp::mb_root(%u) - %s") % mboard % e.what()));
+	    }
+	}
+
+	std::string chan_to_string(size_t chan) {
+	    return "Channel_" + boost::lexical_cast<std::string>((char)(chan + 65));
+	}
+
+	fs_path rx_link_root(const size_t chan) {
+	    size_t channel;
+	    if (chan > CRIMSON_TNG_RX_CHANNELS) 	channel = 0;
+	    else				channel = chan;
+	    return mb_root(0) / "rx_link" / chan_to_string(channel);
+	}
+
 	// init function, common to both constructors
 	void init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
 
