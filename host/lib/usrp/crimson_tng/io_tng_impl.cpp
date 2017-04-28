@@ -133,10 +133,8 @@ public:
 		return _pay_len/4;
 	}
 
-	void update_fifo_metadata( rx_metadata_t &meta, ssize_t n_samples ) {
-		uint64_t ticks = meta.time_spec.get_tick_count( _rate );
-		ticks -= n_samples;
-		meta.time_spec = time_spec_t::from_ticks( ticks, _rate );
+	void update_fifo_metadata( rx_metadata_t &meta, size_t n_samples ) {
+		meta.time_spec += time_spec_t::from_ticks( n_samples, _rate );
 	}
 
 	size_t recv(
@@ -144,8 +142,7 @@ public:
         	const size_t nsamps_per_buff,
         	rx_metadata_t &metadata,
         	const double timeout = 0.1,
-        	// XXX: Note: we currently ALWAYS return after the first packet
-        	const bool one_packet = false )
+        	const bool one_packet = true )
 	{
 		const size_t vita_hdr = 4;
 		const size_t vita_tlr = 1;
@@ -168,8 +165,8 @@ public:
 
 			metadata = _fifo_metadata;
 
-			ssize_t fifo_samples_received = ( fifo_level - _fifo[ 0 ].size() ) / 4;
-			update_fifo_metadata( _fifo_metadata, -fifo_samples_received );
+			size_t fifo_samples_received = ( fifo_level - _fifo[ 0 ].size() ) / 4;
+			update_fifo_metadata( _fifo_metadata, fifo_samples_received );
 
 			return fifo_samples_received;
 		}
@@ -234,21 +231,23 @@ public:
 		metadata.has_time_spec = true;		// valis for Crimson
 
 		uint32_t vb0 = boost::endian::big_to_native( vita_buf[ 0 ] );
-		size_t vita_payload_len_bytes = ( vb0 & 0xffff ) * 4 - 5;
-		if ( nbytes < vita_payload_len_bytes ) {
+		size_t nbytes_payload = nbytes - (vita_hdr + vita_tlr) * 4;
+		size_t vita_payload_len_bytes = ( ( vb0 & 0xffff ) - (vita_hdr + vita_tlr) ) * 4;
+		if ( nbytes_payload < vita_payload_len_bytes ) {
 
 			// buffer the remainder of the vita payload that was not received
 			// so that the next subsequent call to recv() reads that.
 
 			for ( unsigned i = 0; i < _channels.size(); i++ ) {
-
+				size_t nb;
+				size_t remaining_vita_payload_len_bytes;
 				for(
-					size_t nb = nbytes,
-						remaining_vita_payload_len_bytes = vita_payload_len_bytes - nbytes;
+					nb = nbytes_payload,
+						remaining_vita_payload_len_bytes = vita_payload_len_bytes - nb;
 					remaining_vita_payload_len_bytes > 0;
 					remaining_vita_payload_len_bytes -= nb
 				) {
-					nb = _udp_stream[i] -> stream_in( vita_buf, remaining_vita_payload_len_bytes, timeout );
+					nb = _udp_stream[i] -> stream_in( vita_buf, std::min( sizeof( vita_buf ), remaining_vita_payload_len_bytes ), timeout );
 					if ( nb == 0 ) {
 						metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
 						return 0;
@@ -256,17 +255,17 @@ public:
 					for( unsigned j = 0; j < nb; j++ ) {
 						_fifo[ i ].push( vita_buf[ j ] );
 					}
+				}
 
-					// read the vita trailer (1 32-bit word)
-					nb = _udp_stream[i] -> stream_in( vita_buf, 4, timeout );
-					if ( nb != 4 ) {
-						metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
-						return 0;
-					}
+				// read the vita trailer (1 32-bit word)
+				nb = _udp_stream[i] -> stream_in( vita_buf, vita_tlr * 4, timeout );
+				if ( nb != 4 ) {
+					metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
+					return 0;
 				}
 			}
 
-			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes ) / 4 );
+			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes_payload ) / 4 );
 		}
 
 		return (nbytes / 4) - 5;		// removed the 5 VITA 32-bit words
