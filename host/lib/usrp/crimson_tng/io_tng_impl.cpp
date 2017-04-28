@@ -15,10 +15,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <algorithm>
 #include <cinttypes>
 #include <cstdio>
 #include <iomanip>
 #include <iostream>
+#include <queue>
 #include <sstream>
 #include <vector>
 #include <mutex>
@@ -131,12 +133,19 @@ public:
 		return _pay_len/4;
 	}
 
+	void update_fifo_metadata( rx_metadata_t &meta, ssize_t n_samples ) {
+		uint64_t ticks = meta.time_spec.get_tick_count( _rate );
+		ticks -= n_samples;
+		meta.time_spec = time_spec_t::from_ticks( ticks, _rate );
+	}
+
 	size_t recv(
         	const buffs_type &buffs,
         	const size_t nsamps_per_buff,
         	rx_metadata_t &metadata,
         	const double timeout = 0.1,
-        	const bool one_packet = true )
+        	// XXX: Note: we currently ALWAYS return after the first packet
+        	const bool one_packet = false )
 	{
 		const size_t vita_hdr = 4;
 		const size_t vita_tlr = 1;
@@ -145,6 +154,25 @@ public:
 
 		// temp buffer: vita hdr + data
 		uint32_t vita_buf[vita_pck];
+
+		ssize_t fifo_level = _fifo[ 0 ].size();
+
+		if ( fifo_level > 0 ) {
+
+			for( unsigned i = 0; i < _channels.size(); i++ ) {
+				for( unsigned j = 0; j < nsamps_per_buff * 4 && ! _fifo[ i ].empty(); j++ ) {
+					( (uint8_t *) buffs[ i ] )[ j ] = _fifo[ i ].front();
+					_fifo[ i ].pop();
+				}
+			}
+
+			metadata = _fifo_metadata;
+
+			ssize_t fifo_samples_received = ( fifo_level - _fifo[ 0 ].size() ) / 4;
+			update_fifo_metadata( _fifo_metadata, -fifo_samples_received );
+
+			return fifo_samples_received;
+		}
 
 		// read from each connected stream and dump it into the buffs[i]
 		for (unsigned int i = 0; i < _channels.size(); i++) {
@@ -204,6 +232,43 @@ public:
 		metadata.fragment_offset = 0;		// valid for a one packet
 		metadata.more_fragments = false;	// valid for a one packet
 		metadata.has_time_spec = true;		// valis for Crimson
+
+		uint32_t vb0 = boost::endian::big_to_native( vita_buf[ 0 ] );
+		size_t vita_payload_len_bytes = ( vb0 & 0xffff ) * 4 - 5;
+		if ( nbytes < vita_payload_len_bytes ) {
+
+			// buffer the remainder of the vita payload that was not received
+			// so that the next subsequent call to recv() reads that.
+
+			for ( unsigned i = 0; i < _channels.size(); i++ ) {
+
+				for(
+					size_t nb = nbytes,
+						remaining_vita_payload_len_bytes = vita_payload_len_bytes - nbytes;
+					remaining_vita_payload_len_bytes > 0;
+					remaining_vita_payload_len_bytes -= nb
+				) {
+					nb = _udp_stream[i] -> stream_in( vita_buf, remaining_vita_payload_len_bytes, timeout );
+					if ( nb == 0 ) {
+						metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
+						return 0;
+					}
+					for( unsigned j = 0; j < nb; j++ ) {
+						_fifo[ i ].push( vita_buf[ j ] );
+					}
+
+					// read the vita trailer (1 32-bit word)
+					nb = _udp_stream[i] -> stream_in( vita_buf, 4, timeout );
+					if ( nb != 4 ) {
+						metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
+						return 0;
+					}
+				}
+			}
+
+			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes ) / 4 );
+		}
+
 		return (nbytes / 4) - 5;		// removed the 5 VITA 32-bit words
 	}
 
@@ -231,6 +296,8 @@ private:
 
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
+
+		_fifo = std::vector<std::queue<uint8_t>>( _channels.size() );
 
 		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
 			tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( channels_to_mask( _channels ) );
@@ -269,6 +336,8 @@ private:
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
+	std::vector<std::queue<uint8_t>> _fifo;
+	rx_metadata_t _fifo_metadata;
 	property_tree::sptr _tree;
 	size_t _prev_frame;
 	size_t _pay_len;
