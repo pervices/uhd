@@ -127,7 +127,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a receive streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("sc16"); //complex shorts
+    uhd::stream_args_t stream_args("fc32"); //complex floats
     stream_args.channels = channel_nums;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
@@ -146,13 +146,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_metadata_t md;
 
     //allocate buffers to receive with samples (one buffer per channel)
-    const size_t samps_per_buff = 80; // rx_stream->get_max_num_samps();
-    std::vector<std::vector<std::complex<short> > > buffs(
-        usrp->get_rx_num_channels(), std::vector<std::complex<short> >(samps_per_buff)
+    const size_t samps_per_buff = rx_stream->get_max_num_samps();
+    std::vector<std::vector<std::complex<float> > > buffs(
+        usrp->get_rx_num_channels(), std::vector<std::complex<float> >(samps_per_buff)
     );
 
     //create a vector of pointers to point to each of the channel buffers
-    std::vector<std::complex<short> *> buff_ptrs;
+    std::vector<std::complex<float> *> buff_ptrs;
     for (size_t i = 0; i < buffs.size(); i++) buff_ptrs.push_back(&buffs[i].front());
 
     //the first call to recv() will block this many seconds before receiving
