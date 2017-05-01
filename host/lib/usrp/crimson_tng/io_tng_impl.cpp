@@ -57,7 +57,7 @@
 //#define DEBUG_START_OF_BURST 1
 #endif
 #ifndef DEBUG_RECV
-#define DEBUG_RECV 1
+//#define DEBUG_RECV 1
 #endif
 
 using namespace uhd;
