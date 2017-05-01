@@ -533,7 +533,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 		_chan.push_back( chan );
 	}
 
-	for( size_t chan = 0; chan < _chan.size(); chan++ ) {
+	for( chan = 0; chan < _chan.size(); chan++ ) {
 
 		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
@@ -803,7 +803,7 @@ void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
 		_chan.push_back( chan );
 	}
 
-	for( size_t chan = 0; chan < _chan.size(); chan++ ) {
+	for( chan = 0; chan < _chan.size(); chan++ ) {
 
 		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 
