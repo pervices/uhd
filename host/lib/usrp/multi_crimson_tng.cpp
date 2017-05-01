@@ -526,7 +526,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 	std::vector<size_t> _chan;
 
 	if ( ALL_CHANS == chan ) {
-		for( size_t chan = 0; chan < CRIMSON_TNG_TX_CHANNELS; chan++ ) {
+		for( size_t chan = 0; chan < CRIMSON_TNG_RX_CHANNELS; chan++ ) {
 			_chan.push_back( chan );
 		}
 	} else {
