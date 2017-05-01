@@ -57,7 +57,7 @@
 //#define DEBUG_START_OF_BURST 1
 #endif
 #ifndef DEBUG_RECV
-//#define DEBUG_RECV 1
+#define DEBUG_RECV 1
 #endif
 
 using namespace uhd;
@@ -196,7 +196,7 @@ public:
 
 			update_fifo_metadata( _fifo_metadata, nsamples );
 
-			return nsamples * _channels.size();
+			return nsamples;
 		}
 
 		// read from each connected stream and dump it into the buffs[i]
@@ -307,7 +307,7 @@ public:
 			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes_payload ) / 4 );
 		}
 
-		return nsamples * _channels.size();		// removed the 5 VITA 32-bit words
+		return nsamples;		// removed the 5 VITA 32-bit words
 	}
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
