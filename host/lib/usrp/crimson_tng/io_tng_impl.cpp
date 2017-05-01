@@ -56,6 +56,9 @@
 #ifndef DEBUG_START_OF_BURST
 //#define DEBUG_START_OF_BURST 1
 #endif
+#ifndef DEBUG_RECV
+//#define DEBUG_RECV 1
+#endif
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -137,10 +140,6 @@ public:
 	void update_fifo_metadata( rx_metadata_t &meta, size_t n_samples ) {
 		meta.time_spec += time_spec_t::from_ticks( n_samples, _rate );
 	}
-
-#ifndef DEBUG_RECV
-//#define DEBUG_RECV 1
-#endif
 
 	size_t recv(
         	const buffs_type &buffs,
