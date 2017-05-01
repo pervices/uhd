@@ -114,17 +114,7 @@ public:
 	}
 
 	~crimson_tng_rx_streamer() {
-		const fs_path mb_path   = "/mboards/0";
-		const fs_path link_path = mb_path / "rx_link";
-
-		_tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( 0 );
-
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			// power off the channel
-			_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("0");
-			usleep(4000);
-		}
+		fini_rx_streamer();
 	}
 
 	// number of channels for streamer
@@ -315,6 +305,9 @@ public:
 		for( unsigned i = 0; i < _channels.size(); i++ ) {
 			m.issue_stream_cmd( stream_cmd, _channels[ i ] );
 		}
+		if ( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode ) {
+			fini_rx_streamer();
+		}
 	}
 //	std::vector<size_t> _channels;
 private:
@@ -364,6 +357,21 @@ private:
 		}
 	}
 
+	void fini_rx_streamer() {
+
+		const fs_path mb_path   = "/mboards/0";
+		const fs_path link_path = mb_path / "rx_link";
+
+		_tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( 0 );
+
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			// power off the channel
+			_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("0");
+			usleep(4000);
+		}
+	}
+
 	// helper function to convert 8-bit allignment ==> 32-bit allignment
 	void _32_align(uint32_t* data) {
 		*data = (*data & 0x000000ff) << 24 |
@@ -398,38 +406,7 @@ public:
 	}
 
 	~crimson_tng_tx_streamer() {
-		// kb #3850: while other instances are active, do not destroy the 0th instance, so that the PID
-		// controller continues to track changes
-		for( bool should_delay = true; should_delay;  ) {
-			num_instances_lock.lock();
-			if ( 0 == _instance_num && num_instances > 1 ) {
-				should_delay = true;
-			} else {
-				num_instances--;
-				should_delay = false;
-			}
-			num_instances_lock.unlock();
-
-			if ( should_delay ) {
-				usleep( (size_t)100e3 );
-			}
-		}
-
-		disable_fc();	// Wait for thread to finish
-		delete _flowcontrol_thread;
-
-		const fs_path mb_path   = "/mboards/0";
-		const fs_path prop_path = mb_path / "tx_link";
-
-		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
-
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			delete[] _tmp_buf[ i ];
-			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			// power off the channel
-			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
-			usleep(4000);
-		}
+		fini_tx_streamer();
 	}
 
 	// number of channels for streamer
@@ -506,6 +483,17 @@ public:
 
 		// need r/w capabilities for 'has_time_spec'
 		tx_metadata_t metadata = _metadata;
+
+		if (
+			true
+			&& false == metadata.start_of_burst
+			&& true == metadata.end_of_burst
+			&& 0 == nsamps_per_buff
+		) {
+			// empty end-of-burst packet signals tx_streamer to stop
+			fini_tx_streamer();
+			return 0;
+		}
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
@@ -794,6 +782,44 @@ private:
 		}
 
 		num_instances_lock.unlock();
+	}
+
+	void fini_tx_streamer() {
+
+		// kb #3850: while other instances are active, do not destroy the 0th instance, so that the PID
+		// controller continues to track changes
+		for( bool should_delay = true; should_delay;  ) {
+			num_instances_lock.lock();
+			if ( 0 == _instance_num && num_instances > 1 ) {
+				should_delay = true;
+			} else {
+				num_instances--;
+				should_delay = false;
+			}
+			num_instances_lock.unlock();
+
+			if ( should_delay ) {
+				usleep( (size_t)100e3 );
+			}
+		}
+
+		disable_fc();	// Wait for thread to finish
+		delete _flowcontrol_thread;
+
+		const fs_path mb_path   = "/mboards/0";
+		const fs_path prop_path = mb_path / "tx_link";
+
+		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
+
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			delete[] _tmp_buf[ i ];
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			// power off the channel
+			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
+			usleep(4000);
+		}
+
+		_crimson_tng_impl = NULL;
 	}
 
 	// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
