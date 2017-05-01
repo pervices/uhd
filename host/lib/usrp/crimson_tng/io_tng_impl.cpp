@@ -25,6 +25,7 @@
 #include <vector>
 #include <mutex>
 
+#include <boost/range/numeric.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
@@ -54,6 +55,9 @@
 
 #ifndef DEBUG_START_OF_BURST
 //#define DEBUG_START_OF_BURST 1
+#endif
+#ifndef DEBUG_RECV
+//#define DEBUG_RECV 1
 #endif
 
 using namespace uhd;
@@ -148,27 +152,51 @@ public:
 		const size_t vita_tlr = 1;
 		const size_t vita_pck = nsamps_per_buff + vita_hdr + vita_tlr;
 		size_t nbytes = 0;
+		size_t nsamples = 0;
+
+		double _timeout = timeout;
+
+#ifdef DEBUG_RECV
+		//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
+
+		// XXX: do not timeout when debugging
+		_timeout = 1e6;
+
+		// XXX: use the following infinite loop to start a debugger session and attach to process at a known "entry point"
+		//static bool _true = true;
+		//do {
+		//	std::cout << "";
+		//} while( _true );
+#endif
 
 		// temp buffer: vita hdr + data
 		uint32_t vita_buf[vita_pck];
 
-		ssize_t fifo_level = _fifo[ 0 ].size();
+		std::vector<size_t> fifo_level( _channels.size() );
+		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			fifo_level[ i ] = _fifo[ i ].size();
+		}
 
-		if ( fifo_level > 0 ) {
+		if ( 0 != boost::accumulate( fifo_level, 0 ) ) {
 
 			for( unsigned i = 0; i < _channels.size(); i++ ) {
 				for( unsigned j = 0; j < nsamps_per_buff * 4 && ! _fifo[ i ].empty(); j++ ) {
 					( (uint8_t *) buffs[ i ] )[ j ] = _fifo[ i ].front();
 					_fifo[ i ].pop();
 				}
+				nbytes = fifo_level[ i ] - _fifo[ 0 ].size();
+				nsamples = nbytes / 4;
+
+#ifdef DEBUG_RECV
+				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": POP [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
+#endif
 			}
 
 			metadata = _fifo_metadata;
 
-			size_t fifo_samples_received = ( fifo_level - _fifo[ 0 ].size() ) / 4;
-			update_fifo_metadata( _fifo_metadata, fifo_samples_received );
+			update_fifo_metadata( _fifo_metadata, nsamples );
 
-			return fifo_samples_received;
+			return nsamples;
 		}
 
 		// read from each connected stream and dump it into the buffs[i]
@@ -179,11 +207,16 @@ public:
 			memset(buffs[i], 0, nsamps_per_buff * 4);
 
 			// read in vita_pck*4 bytes to temp buffer
-			nbytes = _udp_stream[i] -> stream_in(vita_buf, vita_pck * 4, timeout);
+			nbytes = _udp_stream[i] -> stream_in(vita_buf, vita_pck * 4, _timeout);
 			if (nbytes == 0) {
 				metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
 				return 0;
 			}
+			nsamples = nbytes / 4 - (vita_hdr + vita_tlr);
+
+#ifdef DEBUG_RECV
+			UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": STREAM [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
+#endif
 
 			// copy non-vita packets to buffs[0]
 			memcpy(buffs[i], vita_buf + vita_hdr , nsamps_per_buff * 4);
@@ -233,6 +266,7 @@ public:
 		uint32_t vb0 = boost::endian::big_to_native( vita_buf[ 0 ] );
 		size_t nbytes_payload = nbytes - (vita_hdr + vita_tlr) * 4;
 		size_t vita_payload_len_bytes = ( ( vb0 & 0xffff ) - (vita_hdr + vita_tlr) ) * 4;
+
 		if ( nbytes_payload < vita_payload_len_bytes ) {
 
 			// buffer the remainder of the vita payload that was not received
@@ -247,28 +281,33 @@ public:
 					remaining_vita_payload_len_bytes > 0;
 					remaining_vita_payload_len_bytes -= nb
 				) {
-					nb = _udp_stream[i] -> stream_in( vita_buf, std::min( sizeof( vita_buf ), remaining_vita_payload_len_bytes ), timeout );
+					nb = _udp_stream[i] -> stream_in( vita_buf, std::min( sizeof( vita_buf ), remaining_vita_payload_len_bytes ), _timeout );
 					if ( nb == 0 ) {
 						metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
 						return 0;
 					}
+
 					for( unsigned j = 0; j < nb; j++ ) {
-						_fifo[ i ].push( vita_buf[ j ] );
+						_fifo[ i ].push( ( (uint8_t *) vita_buf ) [ j ] );
 					}
 				}
 
 				// read the vita trailer (1 32-bit word)
-				nb = _udp_stream[i] -> stream_in( vita_buf, vita_tlr * 4, timeout );
+				nb = _udp_stream[i] -> stream_in( vita_buf, vita_tlr * 4, _timeout );
 				if ( nb != 4 ) {
 					metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
 					return 0;
 				}
+
+#ifdef DEBUG_RECV
+				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": PUSH [ " << (char)( i + 'A' ) << " ]: nbytes: " << vita_payload_len_bytes - nbytes_payload << ", nsamples: " << ( vita_payload_len_bytes - nbytes_payload ) / 4 << std::endl;
+#endif
 			}
 
 			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes_payload ) / 4 );
 		}
 
-		return (nbytes / 4) - 5;		// removed the 5 VITA 32-bit words
+		return nsamples;		// removed the 5 VITA 32-bit words
 	}
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
