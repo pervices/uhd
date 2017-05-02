@@ -20,6 +20,8 @@
 ########################################################################
 include(UHDUnitTest)
 
+SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -g -O0" )
+
 ########################################################################
 # unit test suite
 ########################################################################
@@ -43,6 +45,7 @@ SET(test_sources
     sph_send_test.cpp
     subdev_spec_test.cpp
     time_spec_test.cpp
+    tune_lo_and_dsp_test.cpp
     vrt_test.cpp
 )
 
