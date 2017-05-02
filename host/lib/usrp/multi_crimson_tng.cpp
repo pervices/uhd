@@ -15,6 +15,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <iostream>
+#include <cmath>
+#include <vector>
+
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/usrp/multi_crimson_tng.hpp>
@@ -32,8 +36,6 @@
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
-#include <iostream>
-#include <cmath>
 
 #include "crimson_tng/crimson_tng_fw_common.h"
 #include "crimson_tng/crimson_tng_impl.hpp"
@@ -520,18 +522,32 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
-    _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
-    double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
+	std::vector<size_t> _chan;
 
-    boost::format base_message (
-            "RX Sample Rate Request:\n"
-    	    "  Requested sample rate: %f MSps\n"
-            "  Actual sample rate: %f MSps\n");
-    base_message % (rate/1e6) % (actual_rate/1e6);
-    std::string results_string = base_message.str();
+	if ( ALL_CHANS == chan ) {
+		for( size_t chan = 0; chan < CRIMSON_TNG_RX_CHANNELS; chan++ ) {
+			_chan.push_back( chan );
+		}
+	} else {
+		_chan.push_back( chan );
+	}
 
-    UHD_MSG(status) << results_string;
+	for( chan = 0; chan < _chan.size(); chan++ ) {
+
+		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
+
+		double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
+
+		boost::format base_message (
+				"RX Sample Rate Request:\n"
+				"  Requested sample rate: %f MSps\n"
+				"  Actual sample rate: %f MSps\n");
+		base_message % (rate/1e6) % (actual_rate/1e6);
+		std::string results_string = base_message.str();
+
+		UHD_MSG(status) << results_string;
+	}
 }
 
 // Get the current RX sampling rate on specified channel
@@ -776,18 +792,32 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
-    _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 
-    double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
+	std::vector<size_t> _chan;
 
-    boost::format base_message (
-            "TX Sample Rate Request:\n"
-    	    "  Requested sample rate: %f MSps\n"
-            "  Actual sample rate: %f MSps\n");
-    base_message % (rate/1e6) % (actual_rate/1e6);
-    std::string results_string = base_message.str();
+	if ( ALL_CHANS == chan ) {
+		for( size_t chan = 0; chan < CRIMSON_TNG_TX_CHANNELS; chan++ ) {
+			_chan.push_back( chan );
+		}
+	} else {
+		_chan.push_back( chan );
+	}
 
-    UHD_MSG(status) << results_string;
+	for( chan = 0; chan < _chan.size(); chan++ ) {
+
+		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
+
+		double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
+
+		boost::format base_message (
+				"TX Sample Rate Request:\n"
+				"  Requested sample rate: %f MSps\n"
+				"  Actual sample rate: %f MSps\n");
+		base_message % (rate/1e6) % (actual_rate/1e6);
+		std::string results_string = base_message.str();
+
+		UHD_MSG(status) << results_string;
+	}
 }
 
 // Get the current TX sampling rate on specified channel
