@@ -76,8 +76,10 @@ static bool is_low_sample_rate( const double dsp_rate ) {
 	return dsp_rate < ( CRIMSON_MASTER_CLOCK_RATE / 9 );
 }
 
+tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) __attribute__ ((visibility ("default"))) ;
+
 // See multi_usrp.cpp::tune_xx_subdev_and_dsp()
-static tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 
 	enum {
 		LOW_BAND,
