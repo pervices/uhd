@@ -65,7 +65,7 @@ bool _check_tng_link_rate(const stream_args_t &args) {
 	return true;
 }
 
-static bool is_high_band( const meta_range_t &dsp_range, const double freq ) {
+bool is_high_band( const meta_range_t &dsp_range, const double freq ) {
 	return freq >= dsp_range.stop();
 }
 
@@ -73,8 +73,6 @@ static bool is_high_band( const meta_range_t &dsp_range, const double freq ) {
 static bool is_low_sample_rate( const double dsp_rate ) {
 	return dsp_rate < ( CRIMSON_MASTER_CLOCK_RATE / 9 );
 }
-
-tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) __attribute__ ((visibility ("default"))) ;
 
 // See multi_usrp.cpp::tune_xx_subdev_and_dsp()
 tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
@@ -84,12 +82,20 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 		HIGH_BAND,
 	};
 
+	freq_range_t min_range( 0, 1, 1 );
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t adc_range( dsp_range.start(), 137, 0.0001 );
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 
-	int band = is_high_band( dsp_range, clipped_requested_freq ) ? HIGH_BAND : LOW_BAND;
+	if ( dsp_range.stop() < adc_range.stop() ) {
+		min_range = dsp_range;
+	} else {
+		min_range = adc_range;
+	}
+
+	int band = is_high_band( min_range, clipped_requested_freq ) ? HIGH_BAND : LOW_BAND;
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
