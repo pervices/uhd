@@ -1,8 +1,9 @@
-#ifndef HOST_TESTS_TUNE_LO_AND_DSP_FIXTURE_HPP_
-#define HOST_TESTS_TUNE_LO_AND_DSP_FIXTURE_HPP_
+#ifndef HOST_TESTS_TUNE_LO_AND_DSP_TEST_FIXTURE_HPP_
+#define HOST_TESTS_TUNE_LO_AND_DSP_TEST_FIXTURE_HPP_
 
 #include <map>
 #include <string>
+#include <iostream>
 
 #include <boost/test/unit_test.hpp>
 
@@ -15,15 +16,10 @@
 
 #include "../lib/usrp/crimson_tng/crimson_tng_fw_common.h"
 
-#define TREE_CREATE_ST(PATH, TYPE, VAL) 	{ _tree->create<TYPE>(PATH).set(VAL); TYPE ## _vars[ PATH ] = VAL;  }
-#define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
-	do { \
-		TYPE ## _vars[ PATH ] = TYPE(); \
-		_tree->create<TYPE> (PATH)								\
-    		.set( get_ ## HANDLER (PATH))							\
-		.subscribe(boost::bind(&tune_lo_and_dsp_fixture::set_ ## HANDLER, this, (PATH), _1))	\
-		.publish  (boost::bind(&tune_lo_and_dsp_fixture::get_ ## HANDLER, this, (PATH)    ));	\
-	} while(0)
+#define TREE_CREATE_ST(PATH, TYPE, VAL) \
+	_tree->create<TYPE>(PATH).set(VAL)
+#define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER) \
+	_tree->create<TYPE> (PATH).set( TYPE() )
 
 using namespace std;
 using namespace uhd;
@@ -35,15 +31,13 @@ static const double RX_SIGN = 1;
 // That C++ "feature" breaks all unit tests that require being linked to libuhd :(
 extern tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request );
 
-struct tune_lo_and_dsp_fixture {
+struct tune_lo_and_dsp_test_fixture {
 
 	bool tx;
 	char channel;
 
-	double fc;
+	double f_target;
 	double bw;
-
-	bool _true;
 
 	tune_request_t req;
 	tune_result_t res;
@@ -51,19 +45,14 @@ struct tune_lo_and_dsp_fixture {
 	property_tree::sptr dsp_subtree;
 	property_tree::sptr rf_subtree;
 
-	std::map<string,double> double_vars;
-	std::map<string,int> int_vars;
-	std::map<string,meta_range_t> meta_range_t_vars;
-
-	tune_lo_and_dsp_fixture( char channel, bool tx, double fc, double bw )
+	tune_lo_and_dsp_test_fixture( double f_target, double bw, char channel = 'A', bool tx = true )
 	:
 		tx( tx ),
 		channel( channel ),
-		fc( fc ),
-		bw( bw ),
-		_true( true )
+		f_target( f_target ),
+		bw( bw )
 	{
-		const fs_path tx_fe_path    = "";
+		const fs_path tx_fe_path = "";
 		const fs_path rx_dsp_path = "";
 		const fs_path chan = "";
 
@@ -73,6 +62,7 @@ struct tune_lo_and_dsp_fixture {
 		rf_subtree = property_tree::make();
 
 		property_tree::sptr _tree;
+		std::map<string,string> _vars;
 
 		_tree = rf_subtree;
 		if ( tx ) {
@@ -91,36 +81,12 @@ struct tune_lo_and_dsp_fixture {
 			meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
-		req.target_freq = fc;
+		req.target_freq = f_target;
 		dsp_subtree->access<double>( "/rate/value" ).set( bw );
-	}
-
-	double get_double( const std::string pre ) {
-		if ( double_vars.end() == double_vars.find( pre ) ) {
-			throw uhd::runtime_error( ( boost::format( "no property named %s" ) % pre ).str() );
-		}
-		return double_vars[ pre ];
-	}
-	void set_double( const std::string pre, double data ) {
-		if ( double_vars.end() == double_vars.find( pre ) ) {
-			throw uhd::runtime_error( ( boost::format( "no property named %s" ) % pre ).str() );
-		}
-		double_vars[ pre ] = data;
-	}
-
-	int get_int( const std::string pre ) {
-		if ( int_vars.end() == int_vars.find( pre ) ) {
-			throw uhd::runtime_error( ( boost::format( "no property named %s" ) % pre ).str() );
-		}
-		return int_vars[ pre ];
-	}
-	void set_int( const std::string pre, int data ) {
-		if ( int_vars.end() == int_vars.find( pre ) ) {
-			throw uhd::runtime_error( ( boost::format( "no property named %s" ) % pre ).str() );
-		}
-		int_vars[ pre ] = data;
 	}
 };
 
+extern tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request );
+extern bool is_high_band( const meta_range_t &dsp_range, const double freq );
 
-#endif /* HOST_TESTS_TUNE_LO_AND_DSP_FIXTURE_HPP_ */
+#endif /* HOST_TESTS_TUNE_LO_AND_DSP_TEST_FIXTURE_HPP_ */
