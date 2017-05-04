@@ -267,7 +267,7 @@ TEST_( 30, 90,
 	tune_lo_and_dsp_test_fixture f( fc, bw );
 	common( f );
 
-	check_band( f, 1 );
+	check_band( f, 0 );
 	check_lo( f, 0 M );
 	check_nco( f, -90 M );
 )
