@@ -139,20 +139,13 @@ void check_nco( tune_lo_and_dsp_test_fixture & f, double expected_nco ) {
 	BOOST_CHECK_CLOSE( expected_nco, actual_nco, 10 k );
 }
 
-/*
-[-]--------------------[+]-----------------------+-------------------------+-----------[///////////+////////]---------------+------------[\\\\\\\\\\\+\\\\\\\\\\\\\\>
- |                      |                                                              |                    |                            |                      |    f (MHz)
- 0                      25                                                           87.9                  107.9                        137                    162.5
-DC                 LO fundamental                                                               FM                                   ADC Cutoff            Max Samp Rate
- */
-
 #define TEST_( _b, _f, _x ) \
 	BOOST_AUTO_TEST_CASE( test_ ## _b ## MHz_BW_at_ ## _f ## MHz_Fc ) { \
 		double fc = _f M; \
 		double bw = _b M; \
 		_x \
 	}
-
+/*
 TEST_( 40, 660,
 
 	//  -----------------------------------------
@@ -236,12 +229,12 @@ TEST_( 40, 4015,
 	check_lo( f, 3950 M );
 	check_nco( f, -65 M );
 )
-
+*/
 TEST_( 5, 130,
 
 	//  -----------------------------------------
 	//  |                                       |
-	// 125              130                    135-->
+	// 127.5             130                   132.5-->
 
 	tune_lo_and_dsp_test_fixture f( fc, bw );
 	common( f );
