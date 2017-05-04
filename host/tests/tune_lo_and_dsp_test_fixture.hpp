@@ -45,7 +45,7 @@ struct tune_lo_and_dsp_test_fixture {
 	property_tree::sptr dsp_subtree;
 	property_tree::sptr rf_subtree;
 
-	tune_lo_and_dsp_test_fixture( double f_target, double bw, char channel = 'A', bool tx = true )
+	tune_lo_and_dsp_test_fixture( double f_target, double bw, bool tx = true , char channel = 'A' )
 	:
 		tx( tx ),
 		channel( channel ),
@@ -74,11 +74,28 @@ struct tune_lo_and_dsp_test_fixture {
 		TREE_CREATE_RW(tx_fe_path / chan / "freq" / "value", "rx_"+lc_num+"/rf/freq/val", double, double);
 
 		_tree = dsp_subtree;
-		TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+		switch( channel ) {
+		case 'A':
+		case 'B':
+			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
+				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			break;
+		case 'C':
+		case 'D':
+			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2.0 , CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
+				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP / 2.0, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2.0, CRIMSON_TNG_RATE_RANGE_STEP));
+			break;
+		}
+
 		TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate",    double, double);
-		TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
 		req.target_freq = f_target;
