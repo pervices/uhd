@@ -145,7 +145,7 @@ void check_nco( tune_lo_and_dsp_test_fixture & f, double expected_nco ) {
 		double bw = _b M; \
 		_x \
 	}
-/*
+
 TEST_( 40, 660,
 
 	//  -----------------------------------------
@@ -243,7 +243,7 @@ TEST_( 5, 130,
 	check_lo( f, 0 M );
 	check_nco( f, -130 M );
 )
-*/
+
 TEST_( 20, 130,
 
 	//  -----------------------------------------
