@@ -20,7 +20,8 @@
 ########################################################################
 include(UHDUnitTest)
 
-SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -g -O0" )
+# XXX: @CF: kb 3834: allows you to step through unit tests
+# SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -g -O0" )
 
 ########################################################################
 # unit test suite
