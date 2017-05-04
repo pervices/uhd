@@ -229,7 +229,7 @@ TEST_( 40, 4015,
 	check_lo( f, 3950 M );
 	check_nco( f, -65 M );
 )
-*/
+
 TEST_( 5, 130,
 
 	//  -----------------------------------------
@@ -243,7 +243,7 @@ TEST_( 5, 130,
 	check_lo( f, 0 M );
 	check_nco( f, -130 M );
 )
-
+*/
 TEST_( 20, 130,
 
 	//  -----------------------------------------
@@ -253,7 +253,7 @@ TEST_( 20, 130,
 	tune_lo_and_dsp_test_fixture f( fc, bw );
 	common( f );
 
-	check_band( f, 0 );
+	check_band( f, 1 );
 	check_lo( f, 150 M );
 	check_nco( f, 20 M );
 )
