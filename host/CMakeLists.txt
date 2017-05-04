@@ -115,7 +115,10 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
     ADD_DEFINITIONS(-Wall)
     ADD_DEFINITIONS(-Wextra)
     ADD_DEFINITIONS(-Wsign-compare)
-    ADD_DEFINITIONS(-g -O0)
+
+    # XXX: @CF: kb 3834: uncomment the following to step through unit tests
+    # ADD_DEFINITIONS(-g -O0)
+
     #ADD_DEFINITIONS(-Wconversion)
     #ADD_DEFINITIONS(-pedantic)
     #ADD_DEFINITIONS(-ansi)
