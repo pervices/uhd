@@ -126,6 +126,26 @@ void check_overlap_nyquist( tune_lo_and_dsp_test_fixture & f ) {
 	);
 }
 
+void check_lo_modulus( tune_lo_and_dsp_test_fixture & f ) {
+
+	// XXX: @CF: this should be part of the test fixture
+	const double lo_step = 25e6;
+
+	double lo = f.rf_subtree->access<double>( "/freq/value" ).get();
+
+	double expected_double = 0;
+	double actual_double = fmod( lo, lo_step );
+
+	BOOST_CHECK_MESSAGE(
+		expected_double == actual_double,
+		(
+			boost::format( "LO (%f MHz) is not a multiple of LO step size (%f MHz)" )
+			% ( lo / 1e6 )
+			% ( lo_step / 1e6 )
+		).str()
+	);
+}
+
 void common( tune_lo_and_dsp_test_fixture & f ) {
 	const bool warn = true;
 
@@ -137,6 +157,7 @@ void common( tune_lo_and_dsp_test_fixture & f ) {
 	// mandatory
 	check_overlap( f, 0 );
 	check_overlap_nyquist( f );
+	check_lo_modulus( f );
 
 	// preferred
 	check_overlap( f, 25 M, warn );
@@ -145,7 +166,6 @@ void common( tune_lo_and_dsp_test_fixture & f ) {
 
 	check_lo_below( f, 150 M, warn );
 	check_lo_below( f, 575 M, warn );
-
 }
 
 void check_band( tune_lo_and_dsp_test_fixture & f, int expected_band ) {
@@ -171,6 +191,8 @@ void check_nco( tune_lo_and_dsp_test_fixture & f, double expected_nco ) {
 
 	BOOST_CHECK_CLOSE( expected_nco, actual_nco, 10 k );
 }
+
+// TX tests
 
 #define TEST_( _b, _f, _x ) \
 	BOOST_AUTO_TEST_CASE( test_ ## _b ## MHz_BW_at_ ## _f ## MHz_Fc ) { \
@@ -305,6 +327,25 @@ TEST_( 30, 90,
 	check_nco( f, -90 M );
 )
 
+// this test exposed something wonkey about the nco choice
+TEST_( 1, 300,
+
+	//  -----------------------------------------
+	//  |                                       |
+	// 299.5               300                  300.5-->
+
+	tune_lo_and_dsp_test_fixture f( fc, bw );
+	common( f );
+
+	check_band( f, 1 );
+	check_lo( f, 275 M );
+	check_nco( f, 25 M );
+)
+
+//
+// Channel C tx
+//
+
 TEST_( 30, 85,
 
 	//  -----------------------------------------
@@ -319,6 +360,10 @@ TEST_( 30, 85,
 	check_lo( f, 100 M );
 	check_nco( f, -15 M );
 )
+
+//
+// Rx tests
+//
 
 BOOST_AUTO_TEST_CASE( test_high_band_nco_symmetry ) {
 

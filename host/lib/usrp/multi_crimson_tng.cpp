@@ -74,28 +74,9 @@ static bool is_low_sample_rate( const double dsp_rate ) {
 	return dsp_rate < ( CRIMSON_MASTER_CLOCK_RATE / 9 );
 }
 
-bool does_bw_fit_in_range_with_lo_step( const double bw, const freq_range_t & range, const double step, double & lo_tune_result ) {
-
-	// implicitly, this prefers an LO value that is higher than the minimum
-	// of the range or the maximum of the range. Below the minimum
-	// ( e.g. -ve frequencies) is not acceptible.
-
-	if ( bw < range.stop() - range.start() ) {
-
-		double integer;
-		for( integer = range.start() - fmod( range.start(), step ); integer < range.stop(); integer += step ) {
-			if ( integer < range.start() ) {
-				continue;
-			}
-			break;
-		}
-
-		lo_tune_result = integer;
-
-		return true;
-	}
-
-	return false;
+// return true if b is a (not necessarily strict) subset of a
+bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
+	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
 double choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree ) {
@@ -107,6 +88,15 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 	 * dashed regions.
 	 *
 	 * Our margin around each sensitive area is 1 MHz on either side.
+	 *
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
+	 * Region A
+	 * Region B
+	 * Region F
+	 * Region G
+	 * Region H
 	 *
 	 * Region A is preferred because it exhibits the least attenuation. B is
 	 * preferred over C for that reason (and because it has a more bandwidth
@@ -139,7 +129,9 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 	 * errata. This should be corrected in subsequent hardware revisions of
 	 * Crimson.
 	 *
-	 * In order of increasing bandwidth, our preferences is
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
 	 * Region A
 	 * Region B
 	 * Region C
@@ -157,40 +149,58 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
-	double nco;
+	static const double lo_step = 25e6;
 
-	double bw;
-	double lo_step;
-
-	meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-
-	bw = dsp_subtree->access<double>("/rate/value").get();
-	lo_step = 25e6;
-
-	char channel = ( dsp_range.stop() - dsp_range.start() ) > 81.25e6 ? 'A' : 'C';
-	double lo_tune_result;
-	freq_range_t range;
-
+	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > 81.25e6 ? 'A' : 'C';
+	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
 		? AB_regions
 		: CD_regions
 	;
+	const int K = (int) floor( ( dsp_range.stop() - dsp_range.start() ) / lo_step );
 
-	for( const freq_range_t & _range: regions ) {
-		// always set the range, so the catch-all is used in worst-case
-		range = _range;
-		if ( does_bw_fit_in_range_with_lo_step( bw, _range, lo_step, lo_tune_result ) ) {
-			// choose early if a better fit is found
-			break;
+	for( int k = 0; k <= K; k++ ) {
+		for( double sign: { +1, -1 } ) {
+
+			double candidate_lo = target_freq;
+			if ( sign > 0 ) {
+				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
+				// above the target frequency
+				candidate_lo += lo_step - fmod( target_freq, lo_step );
+			} else {
+				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
+				// above the target frequency
+				candidate_lo -= fmod( target_freq, lo_step );
+			}
+			candidate_lo += k * sign * lo_step;
+
+			const double candidate_nco = target_freq - candidate_lo;
+			const double bb_ft = target_freq - candidate_lo + candidate_nco;
+			const meta_range_t candidate_range( bb_ft - bw / 2, bb_ft + bw / 2 );
+
+			for( const freq_range_t & _range: regions ) {
+				if ( range_contains( _range, candidate_range ) ) {
+					return candidate_nco;
+				}
+			}
 		}
 	}
 
-	nco =
-		( range.stop() - range.start() ) / 2.0 + range.start()
-		- lo_tune_result;
-
-	return nco;
+	// Under normal operating parameters, this should never happen because
+	// the last-choice _range in each of AB_regions and CD_regions is
+	// a catch-all for the entire DSP bandwidth. Hitting this scenario is
+	// equivalent to saying that the LO is incapable of up / down mixing
+	// the RF signal into the baseband domain.
+	throw runtime_error(
+		(
+			boost::format( "No suitable baseband region found: target_freq: %f, bw: %f, dsp_range: %s" )
+			% target_freq
+			% bw
+			% dsp_range.to_pp_string()
+		).str()
+	);
 }
 
 // See multi_usrp.cpp::tune_xx_subdev_and_dsp()
@@ -234,7 +244,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 			case HIGH_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
-				target_rf_freq = rf_range.clip( clipped_requested_freq + dsp_nco_shift );
+				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
 			}
 		break;
