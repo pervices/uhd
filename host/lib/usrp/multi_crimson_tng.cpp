@@ -235,6 +235,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 				break;
 			case HIGH_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
+				UHD_MSG( status ) << __func__ << "(): dsp_nco_shift: " << (boost::format( "%f" ) % dsp_nco_shift ).str() << " for clipped_requested_freq: " << (boost::format( "%f" ) % clipped_requested_freq ).str() << std::endl;
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq + dsp_nco_shift );
 				break;
@@ -252,8 +253,10 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend
 	//------------------------------------------------------------------
+	UHD_MSG( status ) << __func__ << "(): setting freq/value to " << (boost::format( "%f" ) % target_rf_freq ).str() << std::endl;
 	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+	UHD_MSG( status ) << __func__ << "(): actually set freq/value to " << (boost::format( "%f" ) % actual_rf_freq ).str() << std::endl;
 
 	//------------------------------------------------------------------
 	//-- Set the DSP frequency depending upon the DSP frequency policy.
@@ -296,6 +299,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 
 //do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
 static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &res, double freq, std::string rx_or_tx ) {
+/*
 	std::string results_string;
 
 	// XXX: @CF: We should really change these messages..
@@ -334,6 +338,7 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 		results_string += dsp_message.str();
 	}
 	UHD_MSG( status ) << results_string;
+*/
 }
 
 /***********************************************************************
