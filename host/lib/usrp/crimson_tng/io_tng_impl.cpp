@@ -15,13 +15,17 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <algorithm>
 #include <cinttypes>
 #include <cstdio>
 #include <iomanip>
 #include <iostream>
+#include <queue>
 #include <sstream>
 #include <vector>
+#include <mutex>
 
+#include <boost/range/numeric.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
@@ -47,8 +51,13 @@
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
 
+#include "iputils.hpp"
+
 #ifndef DEBUG_START_OF_BURST
 //#define DEBUG_START_OF_BURST 1
+#endif
+#ifndef DEBUG_RECV
+//#define DEBUG_RECV 1
 #endif
 
 using namespace uhd;
@@ -73,6 +82,27 @@ static int channels_to_mask( std::vector<size_t> channels ) {
 	return mask;
 }
 
+static void check_mtu( const std::string & remote_addr ) {
+
+	std::string iface;
+
+	iputils::get_route( remote_addr, iface );
+	size_t mtu = iputils::get_mtu( iface );
+
+	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
+		throw runtime_error(
+			(
+				boost::format( "mtu %u on iface %s is below minimum recommended size of %u. Use 'sudo ifconfig %s mtu %u' to correct." )
+					% mtu
+					% iface
+					% CRIMSON_TNG_MIN_MTU
+					% iface
+					% CRIMSON_TNG_MIN_MTU
+			).str()
+		);
+	}
+}
+
 class crimson_tng_rx_streamer : public uhd::rx_streamer {
 public:
 	crimson_tng_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
@@ -84,17 +114,7 @@ public:
 	}
 
 	~crimson_tng_rx_streamer() {
-		const fs_path mb_path   = "/mboards/0";
-		const fs_path link_path = mb_path / "rx_link";
-
-		_tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( 0 );
-
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			// power off the channel
-			_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("0");
-			usleep(4000);
-		}
+		fini_rx_streamer();
 	}
 
 	// number of channels for streamer
@@ -105,6 +125,10 @@ public:
 	// max samples per buffer per packet for sfpa, (4-bytes: 16 I, 16Q)
 	size_t get_max_num_samps(void) const {
 		return _pay_len/4;
+	}
+
+	void update_fifo_metadata( rx_metadata_t &meta, size_t n_samples ) {
+		meta.time_spec += time_spec_t::from_ticks( n_samples, _rate );
 	}
 
 	size_t recv(
@@ -118,9 +142,52 @@ public:
 		const size_t vita_tlr = 1;
 		const size_t vita_pck = nsamps_per_buff + vita_hdr + vita_tlr;
 		size_t nbytes = 0;
+		size_t nsamples = 0;
+
+		double _timeout = timeout;
+
+#ifdef DEBUG_RECV
+		//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
+
+		// XXX: do not timeout when debugging
+		_timeout = 1e6;
+
+		// XXX: use the following infinite loop to start a debugger session and attach to process at a known "entry point"
+		//static bool _true = true;
+		//do {
+		//	std::cout << "";
+		//} while( _true );
+#endif
 
 		// temp buffer: vita hdr + data
 		uint32_t vita_buf[vita_pck];
+
+		std::vector<size_t> fifo_level( _channels.size() );
+		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			fifo_level[ i ] = _fifo[ i ].size();
+		}
+
+		if ( 0 != boost::accumulate( fifo_level, 0 ) ) {
+
+			for( unsigned i = 0; i < _channels.size(); i++ ) {
+				for( unsigned j = 0; j < nsamps_per_buff * 4 && ! _fifo[ i ].empty(); j++ ) {
+					( (uint8_t *) buffs[ i ] )[ j ] = _fifo[ i ].front();
+					_fifo[ i ].pop();
+				}
+				nbytes = fifo_level[ i ] - _fifo[ 0 ].size();
+				nsamples = nbytes / 4;
+
+#ifdef DEBUG_RECV
+				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": POP [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
+#endif
+			}
+
+			metadata = _fifo_metadata;
+
+			update_fifo_metadata( _fifo_metadata, nsamples );
+
+			return nsamples;
+		}
 
 		// read from each connected stream and dump it into the buffs[i]
 		for (unsigned int i = 0; i < _channels.size(); i++) {
@@ -130,11 +197,16 @@ public:
 			memset(buffs[i], 0, nsamps_per_buff * 4);
 
 			// read in vita_pck*4 bytes to temp buffer
-			nbytes = _udp_stream[i] -> stream_in(vita_buf, vita_pck * 4, timeout);
+			nbytes = _udp_stream[i] -> stream_in(vita_buf, vita_pck * 4, _timeout);
 			if (nbytes == 0) {
 				metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
 				return 0;
 			}
+			nsamples = nbytes / 4 - (vita_hdr + vita_tlr);
+
+#ifdef DEBUG_RECV
+			UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": STREAM [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
+#endif
 
 			// copy non-vita packets to buffs[0]
 			memcpy(buffs[i], vita_buf + vita_hdr , nsamps_per_buff * 4);
@@ -180,7 +252,52 @@ public:
 		metadata.fragment_offset = 0;		// valid for a one packet
 		metadata.more_fragments = false;	// valid for a one packet
 		metadata.has_time_spec = true;		// valis for Crimson
-		return (nbytes / 4) - 5;		// removed the 5 VITA 32-bit words
+
+		uint32_t vb0 = boost::endian::big_to_native( vita_buf[ 0 ] );
+		size_t nbytes_payload = nbytes - (vita_hdr + vita_tlr) * 4;
+		size_t vita_payload_len_bytes = ( ( vb0 & 0xffff ) - (vita_hdr + vita_tlr) ) * 4;
+
+		if ( nbytes_payload < vita_payload_len_bytes ) {
+
+			// buffer the remainder of the vita payload that was not received
+			// so that the next subsequent call to recv() reads that.
+
+			for ( unsigned i = 0; i < _channels.size(); i++ ) {
+				size_t nb;
+				size_t remaining_vita_payload_len_bytes;
+				for(
+					nb = nbytes_payload,
+						remaining_vita_payload_len_bytes = vita_payload_len_bytes - nb;
+					remaining_vita_payload_len_bytes > 0;
+					remaining_vita_payload_len_bytes -= nb
+				) {
+					nb = _udp_stream[i] -> stream_in( vita_buf, std::min( sizeof( vita_buf ), remaining_vita_payload_len_bytes ), _timeout );
+					if ( nb == 0 ) {
+						metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
+						return 0;
+					}
+
+					for( unsigned j = 0; j < nb; j++ ) {
+						_fifo[ i ].push( ( (uint8_t *) vita_buf ) [ j ] );
+					}
+				}
+
+				// read the vita trailer (1 32-bit word)
+				nb = _udp_stream[i] -> stream_in( vita_buf, vita_tlr * 4, _timeout );
+				if ( nb != 4 ) {
+					metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
+					return 0;
+				}
+
+#ifdef DEBUG_RECV
+				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": PUSH [ " << (char)( i + 'A' ) << " ]: nbytes: " << vita_payload_len_bytes - nbytes_payload << ", nsamples: " << ( vita_payload_len_bytes - nbytes_payload ) / 4 << std::endl;
+#endif
+			}
+
+			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes_payload ) / 4 );
+		}
+
+		return nsamples;		// removed the 5 VITA 32-bit words
 	}
 
 	void issue_stream_cmd(const stream_cmd_t &stream_cmd) {
@@ -188,11 +305,15 @@ public:
 		for( unsigned i = 0; i < _channels.size(); i++ ) {
 			m.issue_stream_cmd( stream_cmd, _channels[ i ] );
 		}
+		if ( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode ) {
+			fini_rx_streamer();
+		}
 	}
 //	std::vector<size_t> _channels;
 private:
 	// init function, common to both constructors
 	void init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
+
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -207,6 +328,8 @@ private:
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 
+		_fifo = std::vector<std::queue<uint8_t>>( _channels.size() );
+
 		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
 			tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( channels_to_mask( _channels ) );
 		}
@@ -220,6 +343,8 @@ private:
 			_rate = tree->access<double>(mb_path / "rx_dsps" / "Channel_"+ch / "rate" / "value").get();
 			_pay_len = tree->access<int>(mb_path / "link" / iface / "pay_len").get();
 
+			check_mtu( ip_addr );
+
 			// power on the channel
 			tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
 			usleep(500000);
@@ -229,6 +354,21 @@ private:
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_rx_stream( ip_addr, udp_port));
+		}
+	}
+
+	void fini_rx_streamer() {
+
+		const fs_path mb_path   = "/mboards/0";
+		const fs_path link_path = mb_path / "rx_link";
+
+		_tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( 0 );
+
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			// power off the channel
+			_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("0");
+			usleep(4000);
 		}
 	}
 
@@ -242,6 +382,8 @@ private:
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
+	std::vector<std::queue<uint8_t>> _fifo;
+	rx_metadata_t _fifo_metadata;
 	property_tree::sptr _tree;
 	size_t _prev_frame;
 	size_t _pay_len;
@@ -264,22 +406,7 @@ public:
 	}
 
 	~crimson_tng_tx_streamer() {
-		num_instances--;
-		disable_fc();	// Wait for thread to finish
-		delete _flowcontrol_thread;
-
-		const fs_path mb_path   = "/mboards/0";
-		const fs_path prop_path = mb_path / "tx_link";
-
-		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
-
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			delete[] _tmp_buf[ i ];
-			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			// power off the channel
-			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
-			usleep(4000);
-		}
+		fini_tx_streamer();
 	}
 
 	// number of channels for streamer
@@ -356,6 +483,17 @@ public:
 
 		// need r/w capabilities for 'has_time_spec'
 		tx_metadata_t metadata = _metadata;
+
+		if (
+			true
+			&& false == metadata.start_of_burst
+			&& true == metadata.end_of_burst
+			&& 0 == nsamps_per_buff
+		) {
+			// empty end-of-burst packet signals tx_streamer to stop
+			fini_tx_streamer();
+			return 0;
+		}
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
@@ -501,6 +639,14 @@ private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
 
+		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
+		// to prevent any other constructors from returning before the PID is locked, surround the entire
+		// init_tx_streamer() with mutex protection.
+		num_instances_lock.lock();
+
+		_instance_num = instance_counter++;
+		num_instances++;
+
 		// save the tree
 		_tree = tree;
 		_channels = channels;
@@ -551,6 +697,8 @@ private:
 			std::string ip_addr  = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
 			_pay_len = tree->access<int>(mb_path / "link" / sfp / "pay_len").get();
 
+			check_mtu( ip_addr );
+
 			// power on the channel
 			tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("1");
 			usleep(500000);
@@ -563,7 +711,7 @@ private:
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
-			if ( ! have_time_diff_iface ) {
+			if ( 0 == _instance_num && ! have_time_diff_iface ) {
 
 				// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 				int sfpa_port = tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
@@ -592,37 +740,86 @@ private:
 
 		}
 
-		//Initialize "Time Diff" mechanism before starting flow control thread
-		time_spec_t ts = time_spec_t::get_system_time();
-		_streamer_start_time = ts.get_real_secs();
-		_sob_time = _streamer_start_time;
-		// The problem is that this class does not hold a multi_crimson instance
-		tree->access<time_spec_t>( time_path / "now" ).set( ts );
+		if ( 0 == _instance_num ) {
+			//Initialize "Time Diff" mechanism before starting flow control thread
+			time_spec_t ts = time_spec_t::get_system_time();
+			_streamer_start_time = ts.get_real_secs();
+			_sob_time = _streamer_start_time;
+			// The problem is that this class does not hold a multi_crimson instance
+			tree->access<time_spec_t>( time_path / "now" ).set( ts );
 
-		// Tyreus-Luyben tuned PID controller
-		_time_diff_pidc = uhd::pidc_tl(
-			0.0, // desired set point is 0.0s error
-			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
-		);
-		// initial values are just to ensure that our PID does not think its converged right away
-		// which could be the case if the initial y value was 0.
-		_pv_derivor = uhd::diff( 0, 100 );
-		_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
-		_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+			// Tyreus-Luyben tuned PID controller
+			_time_diff_pidc = uhd::pidc_tl(
+				0.0, // desired set point is 0.0s error
+				1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+				// measured P-ultimate is inverse of 1/2 the flow-control sample rate
+				2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+			);
+			// initial values are just to ensure that our PID does not think its converged right away
+			// which could be the case if the initial y value was 0.
+			_pv_derivor = uhd::diff( 0, 100 );
+			_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+			_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
+		}
 
 		//Set up initial flow control variables
 		_flow_running=true;
 		_en_fc=true;
 		_flowcontrol_thread = new boost::thread(init_flowcontrol, this);
-		num_instances++;
 
-		for( ; ! _pid_converged; ) {
-			UHD_MSG( status ) << "Waiting for clock domains to synchronize.." << std::endl;
-			sleep( 1 );
+		for(
+			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
+			time_now = time_then
+			; ! _pid_converged;
+			time_now = uhd::time_spec_t::get_system_time()
+		) {
+#ifndef DEBUG_START_OF_BURST
+			if ( (time_now - time_then).get_full_secs() > 20 ) {
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+			}
+#endif
+			usleep( 100000 );
 		}
-		UHD_MSG( status ) << "Clock domains have synchronized." << std::endl;
+
+		num_instances_lock.unlock();
+	}
+
+	void fini_tx_streamer() {
+
+		// kb #3850: while other instances are active, do not destroy the 0th instance, so that the PID
+		// controller continues to track changes
+		for( bool should_delay = true; should_delay;  ) {
+			num_instances_lock.lock();
+			if ( 0 == _instance_num && num_instances > 1 ) {
+				should_delay = true;
+			} else {
+				num_instances--;
+				should_delay = false;
+			}
+			num_instances_lock.unlock();
+
+			if ( should_delay ) {
+				usleep( (size_t)100e3 );
+			}
+		}
+
+		disable_fc();	// Wait for thread to finish
+		delete _flowcontrol_thread;
+
+		const fs_path mb_path   = "/mboards/0";
+		const fs_path prop_path = mb_path / "tx_link";
+
+		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
+
+		for (unsigned int i = 0; i < _channels.size(); i++) {
+			delete[] _tmp_buf[ i ];
+			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+			// power off the channel
+			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
+			usleep(4000);
+		}
+
+		_crimson_tng_impl = NULL;
 	}
 
 	// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
@@ -788,7 +985,9 @@ private:
 			//get data under mutex lock
 			txstream->_udp_mutex_add->lock();
 
-			txstream->time_diff_send();
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_send();
+			}
 
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
@@ -822,7 +1021,9 @@ private:
 				ss.ignore();
 			}
 
-			txstream->time_diff_process( time_diff_extract( ss ) );
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_process( time_diff_extract( ss ) );
+			}
 
 			//increment buffer count to say we have data
 			for (int j = 0; j < txstream->_channels.size(); j++) {
@@ -961,7 +1162,11 @@ private:
 	std::vector<double> _fifo_level_perc;
 	double _max_clock_ppm_error;
 	bool _en_fc;
-	static size_t num_instances;
+
+	static std::mutex num_instances_lock; // mutex to prevent race conditions
+	static size_t num_instances; // num_instances will fluctuate, but is non-negative
+	static size_t instance_counter; // instance counter increases monotonically for _instance_num
+	ssize_t _instance_num = -1; // per-instance unique id (w.r.t. libuhd.so copy)
 
 	//debug
 	time_spec_t _timer_tofreerun;
@@ -999,8 +1204,8 @@ private:
 	 */
 	static constexpr double PV_MAX_ERROR_FOR_CONVERGENCE = 100e-6;
 	static constexpr double CV_FILTER_WINDOW_S = 2;
-	static constexpr double DPV_FILTER_WINDOW_S = 5;
-	bool _pid_converged = false;
+	static constexpr double DPV_FILTER_WINDOW_S = 0.25;
+	static bool _pid_converged;
 	uhd::diff _pv_derivor;
 	uhd::sma _dpv_filter;
 	uhd::sma _cv_filter;
@@ -1010,7 +1215,10 @@ private:
 	size_t clock_drift_print_counter = 0;
 #endif
 };
+std::mutex crimson_tng_tx_streamer::num_instances_lock;
 size_t crimson_tng_tx_streamer::num_instances = 0;
+size_t crimson_tng_tx_streamer::instance_counter = 0;
+bool crimson_tng_tx_streamer::_pid_converged = false;
 
 /***********************************************************************
  * Async Data
@@ -1046,14 +1254,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 			\"sc16\" Q16 I16" << std::endl;
 	}
 
-	// Warning for preference to set the MTU size to 3600 to support Jumbo Frames
-        boost::format base_message (
-            "\nCrimson Warning:\n"
-            "   Please set the MTU size for SFP ports to 4000.\n"
-            "   The device has been optimized for Jumbo Frames\n"
-	    "   to lower overhead.\n");
-	UHD_MSG(status) << base_message.str();
-
 	// TODO firmware support for other otw_format, cpu_format
 	return rx_streamer::sptr(new crimson_tng_rx_streamer(this->_addr, this->_tree, args.channels));
 }
@@ -1073,14 +1273,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 		UHD_MSG(error) << "CRIMSON_TNG Stream only supports otw_format of \
 			\"sc16\" Q16 I16" << std::endl;
 	}
-
-	// Warning for preference to set the MTU size to 3600 to support Jumbo Frames
-        boost::format base_message (
-            "\nCrimson Warning:\n"
-            "   Please set the MTU size for SFP ports to 4000 \n"
-            "   The device has been optimized for Jumbo Frames\n"
-	    "   to lower overhead.\n");
-	UHD_MSG(status) << base_message.str();
 
 	// TODO firmware support for other otw_format, cpu_format
 	crimson_tng_tx_streamer::sptr r( new crimson_tng_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex) );

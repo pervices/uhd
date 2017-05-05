@@ -64,7 +64,7 @@ private:
     boost::uint32_t _protocol_compat;
 
     // buffer for in and out
-    char _buff[CRIMSON_TNG_MTU_SIZE];
+    char _buff[ CRIMSON_TNG_MAX_MTU ];
 };
 
 #endif /* INCLUDED_CRIMSON_TNG_IFACE_HPP */

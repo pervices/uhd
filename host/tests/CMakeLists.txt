@@ -37,10 +37,12 @@ SET(test_sources
     fp_compare_delta_test.cpp
     fp_compare_epsilon_test.cpp
     gain_group_test.cpp
+    iputils_test.cpp
     msg_test.cpp
     property_test.cpp
     ranges_test.cpp
     sid_t_test.cpp
+    set_rx_gain_test.cpp
     sma_test.cpp
     sph_recv_test.cpp
     sph_send_test.cpp

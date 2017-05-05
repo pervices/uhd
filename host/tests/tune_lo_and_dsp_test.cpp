@@ -389,7 +389,7 @@ BOOST_AUTO_TEST_CASE( test_high_band_nco_symmetry ) {
 	check_nco( f_rx, wanted_nco );
 }
 
-BOOST_AUTO_TEST_CASE( test_low_band_antisymmetry ) {
+BOOST_AUTO_TEST_CASE( test_low_band_nco_antisymmetry ) {
 
 	bool tx = true;
 

@@ -15,6 +15,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <iostream>
+#include <cmath>
+#include <vector>
+
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/usrp/multi_crimson_tng.hpp>
@@ -32,8 +36,6 @@
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
-#include <iostream>
-#include <cmath>
 
 #include "crimson_tng/crimson_tng_fw_common.h"
 #include "crimson_tng/crimson_tng_impl.hpp"
@@ -243,6 +245,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 				break;
 			case HIGH_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
+				UHD_MSG( status ) << __func__ << "(): dsp_nco_shift: " << (boost::format( "%f" ) % dsp_nco_shift ).str() << " for clipped_requested_freq: " << (boost::format( "%f" ) % clipped_requested_freq ).str() << std::endl;
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
@@ -260,8 +263,10 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend
 	//------------------------------------------------------------------
+	UHD_MSG( status ) << __func__ << "(): setting freq/value to " << (boost::format( "%f" ) % target_rf_freq ).str() << std::endl;
 	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+	UHD_MSG( status ) << __func__ << "(): actually set freq/value to " << (boost::format( "%f" ) % actual_rf_freq ).str() << std::endl;
 
 	//------------------------------------------------------------------
 	//-- Set the DSP frequency depending upon the DSP frequency policy.
@@ -304,6 +309,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 
 //do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
 static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &res, double freq, std::string rx_or_tx ) {
+/*
 	std::string results_string;
 
 	// XXX: @CF: We should really change these messages..
@@ -342,6 +348,7 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 		results_string += dsp_message.str();
 	}
 	UHD_MSG( status ) << results_string;
+*/
 }
 
 /***********************************************************************
@@ -524,27 +531,18 @@ void multi_crimson_tng::clear_command_time(size_t mboard){
 }
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
-    // set register to start the stream
-    if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
+    switch( stream_cmd.stream_mode ) {
+    case stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE:
+    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE:
+    	// currently we do not differentiate between any kind of stream-enable
+    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
+    	break;
+    case stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS:
+    default:
     	_tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
-        _tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
-
-    // set register to stop the stream
-    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
-        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
-
-    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
-	// set register to wait for a stream cmd after num_samps
-	// not supported in Crimson
-
-    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE) {
-	// set register to not wait for a stream cmd after num_samps
-	// not supported in Crimson
-
-    } else {
-        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+    	break;
     }
-    return;
 }
 
 void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, size_t mboard) {
@@ -663,18 +661,32 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
-    _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
-    double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
+	std::vector<size_t> _chan;
 
-    boost::format base_message (
-            "RX Sample Rate Request:\n"
-    	    "  Requested sample rate: %f MSps\n"
-            "  Actual sample rate: %f MSps\n");
-    base_message % (rate/1e6) % (actual_rate/1e6);
-    std::string results_string = base_message.str();
+	if ( ALL_CHANS == chan ) {
+		for( size_t chan = 0; chan < CRIMSON_TNG_RX_CHANNELS; chan++ ) {
+			_chan.push_back( chan );
+		}
+	} else {
+		_chan.push_back( chan );
+	}
 
-    UHD_MSG(status) << results_string;
+	for( chan = 0; chan < _chan.size(); chan++ ) {
+
+		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
+
+		double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
+
+		boost::format base_message (
+				"RX Sample Rate Request:\n"
+				"  Requested sample rate: %f MSps\n"
+				"  Actual sample rate: %f MSps\n");
+		base_message % (rate/1e6) % (actual_rate/1e6);
+		std::string results_string = base_message.str();
+
+		UHD_MSG(status) << results_string;
+	}
 }
 
 // Get the current RX sampling rate on specified channel
@@ -692,6 +704,8 @@ tune_result_t multi_crimson_tng::set_rx_freq( const tune_request_t &tune_request
 
 	tune_result_t result;
 
+	double gain = get_rx_gain( chan );
+
 	result =
 		tune_lo_and_dsp(
 			RX_SIGN,
@@ -701,6 +715,8 @@ tune_result_t multi_crimson_tng::set_rx_freq( const tune_request_t &tune_request
 		);
 
 	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "RX" );
+
+	set_rx_gain( gain, chan );
 
 	return result;
 }
@@ -771,15 +787,15 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 			atten_val = 31.75;
 			// LMH is adjusted from 0dB to 31.5dB
 			gain_val = gain;
-		} else if ( 31.5 <= gain && gain <= 51.5 ) {
+		} else if ( 31.5 < gain && gain <= 63.25 ) {
 			// PMA is off (+0dB)
 			lna_val = 0;
 			// BFP is on (+20dB)
-			// PE437 is adjusted from -20 dB to 0dB
-			atten_val = 51.5 - gain;
+			// PE437 is adjusted from -31.75 dB to 0dB
+			atten_val = 63.25 - gain;
 			// LMH is maxed (+31.5dB)
 			gain_val = 31.5;
-		} else if ( 51.5 <= gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+		} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
 			// PMA is on (+20dB)
 			lna_val = 20;
 			// BFP is on (+20dB)
@@ -790,7 +806,8 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
 		}
 	}
 
-	_tree->access<double>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( 0 == lna_val ? 0 : 1 );
+	int lna_bypass_enable = 0 == lna_val ? 1 : 0;
+	_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
 
     if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
 		_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
@@ -806,7 +823,8 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 
 	double r;
 
-    double lna_val = 0 == _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? 0 : 20;
+	bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
+    double lna_val = lna_bypass_enable ? 0 : 20;
     double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
@@ -913,18 +931,32 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
-    _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 
-    double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
+	std::vector<size_t> _chan;
 
-    boost::format base_message (
-            "TX Sample Rate Request:\n"
-    	    "  Requested sample rate: %f MSps\n"
-            "  Actual sample rate: %f MSps\n");
-    base_message % (rate/1e6) % (actual_rate/1e6);
-    std::string results_string = base_message.str();
+	if ( ALL_CHANS == chan ) {
+		for( size_t chan = 0; chan < CRIMSON_TNG_TX_CHANNELS; chan++ ) {
+			_chan.push_back( chan );
+		}
+	} else {
+		_chan.push_back( chan );
+	}
 
-    UHD_MSG(status) << results_string;
+	for( chan = 0; chan < _chan.size(); chan++ ) {
+
+		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
+
+		double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
+
+		boost::format base_message (
+				"TX Sample Rate Request:\n"
+				"  Requested sample rate: %f MSps\n"
+				"  Actual sample rate: %f MSps\n");
+		base_message % (rate/1e6) % (actual_rate/1e6);
+		std::string results_string = base_message.str();
+
+		UHD_MSG(status) << results_string;
+	}
 }
 
 // Get the current TX sampling rate on specified channel
@@ -942,6 +974,8 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t & tune_request
 
 	tune_result_t result;
 
+	double gain = get_tx_gain( chan );
+
 	result =
 		tune_lo_and_dsp(
 			TX_SIGN,
@@ -951,6 +985,8 @@ tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t & tune_request
 		);
 
 	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "TX" );
+
+	set_tx_gain( gain, chan );
 
 	return result;
 }
