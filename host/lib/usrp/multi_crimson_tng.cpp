@@ -263,10 +263,8 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend
 	//------------------------------------------------------------------
-	UHD_MSG( status ) << __func__ << "(): setting freq/value to " << (boost::format( "%f" ) % target_rf_freq ).str() << std::endl;
 	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
-	UHD_MSG( status ) << __func__ << "(): actually set freq/value to " << (boost::format( "%f" ) % actual_rf_freq ).str() << std::endl;
 
 	//------------------------------------------------------------------
 	//-- Set the DSP frequency depending upon the DSP frequency policy.
