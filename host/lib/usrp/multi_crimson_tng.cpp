@@ -245,7 +245,6 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 				break;
 			case HIGH_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
-				UHD_MSG( status ) << __func__ << "(): dsp_nco_shift: " << (boost::format( "%f" ) % dsp_nco_shift ).str() << " for clipped_requested_freq: " << (boost::format( "%f" ) % clipped_requested_freq ).str() << std::endl;
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
@@ -307,6 +306,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 
 //do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
 static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &res, double freq, std::string rx_or_tx ) {
+/*
 	std::string results_string;
 
 	// XXX: @CF: We should really change these messages..
@@ -345,6 +345,7 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 		results_string += dsp_message.str();
 	}
 	UHD_MSG( status ) << results_string;
+*/
 }
 
 /***********************************************************************
