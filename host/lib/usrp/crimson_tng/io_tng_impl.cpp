@@ -146,6 +146,15 @@ public:
 
 		double _timeout = timeout;
 
+		// kb # 3875: RX halts completely unless the following block is present
+		// Actually, in another life, I believe I read that GNU Radio measures the smallest chunk that each block is capable of sourcing upon init. 
+		// It does this by monotonically decreasing nsamps_per_buff to zero.
+		// It is up to the block to signal a 'retry' to indicate it has reached its lower bound.
+		if ( nsamps_per_buff <= 8 ) {
+			metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+			return 0;
+		}
+
 #ifdef DEBUG_RECV
 		//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
 
@@ -202,14 +211,15 @@ public:
 				metadata.error_code =rx_metadata_t::ERROR_CODE_TIMEOUT;
 				return 0;
 			}
-			nsamples = nbytes / 4 - (vita_hdr + vita_tlr);
+			nbytes -= (vita_hdr + vita_tlr) * sizeof( uint32_t );
+			nsamples = nbytes / sizeof( uint32_t );
 
 #ifdef DEBUG_RECV
 			UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": STREAM [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
 #endif
 
 			// copy non-vita packets to buffs[0]
-			memcpy(buffs[i], vita_buf + vita_hdr , nsamps_per_buff * 4);
+			memcpy(buffs[i], vita_buf + vita_hdr , nbytes );
 		}
 
 		// process vita timestamps based on the last stream input's time stamp
@@ -254,10 +264,9 @@ public:
 		metadata.has_time_spec = true;		// valis for Crimson
 
 		uint32_t vb0 = boost::endian::big_to_native( vita_buf[ 0 ] );
-		size_t nbytes_payload = nbytes - (vita_hdr + vita_tlr) * 4;
 		size_t vita_payload_len_bytes = ( ( vb0 & 0xffff ) - (vita_hdr + vita_tlr) ) * 4;
 
-		if ( nbytes_payload < vita_payload_len_bytes ) {
+		if ( nbytes < vita_payload_len_bytes ) {
 
 			// buffer the remainder of the vita payload that was not received
 			// so that the next subsequent call to recv() reads that.
@@ -266,7 +275,7 @@ public:
 				size_t nb;
 				size_t remaining_vita_payload_len_bytes;
 				for(
-					nb = nbytes_payload,
+					nb = nbytes,
 						remaining_vita_payload_len_bytes = vita_payload_len_bytes - nb;
 					remaining_vita_payload_len_bytes > 0;
 					remaining_vita_payload_len_bytes -= nb
@@ -294,7 +303,7 @@ public:
 #endif
 			}
 
-			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes_payload ) / 4 );
+			update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes ) / 4 );
 		}
 
 		return nsamples;		// removed the 5 VITA 32-bit words
