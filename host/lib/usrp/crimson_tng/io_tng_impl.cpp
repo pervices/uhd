@@ -146,20 +146,11 @@ public:
 
 		double _timeout = timeout;
 
-		// kb # 3875: RX halts completely unless the following block is present
-		// Actually, in another life, I believe I read that GNU Radio measures the smallest chunk that each block is capable of sourcing upon init. 
-		// It does this by monotonically decreasing nsamps_per_buff to zero.
-		// It is up to the block to signal a 'retry' to indicate it has reached its lower bound.
-		if ( nsamps_per_buff <= 8 ) {
-			metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-			return 0;
-		}
-
 #ifdef DEBUG_RECV
 		//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
 
 		// XXX: do not timeout when debugging
-		_timeout = 1e6;
+		//_timeout = 1e6;
 
 		// XXX: use the following infinite loop to start a debugger session and attach to process at a known "entry point"
 		//static bool _true = true;
