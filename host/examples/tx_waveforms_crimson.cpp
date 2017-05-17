@@ -163,7 +163,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //pre-compute the waveform values
-    const wave_table_class wave_table(wave_type, ampl);
+    const wave_table_class_sc16 wave_table(wave_type, ampl);
     const size_t step = boost::math::iround(wave_freq/usrp->get_tx_rate() * wave_table_len);
     size_t index = 0;
 
@@ -175,8 +175,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //allocate a buffer which we re-use for each channel
     if (spb == 0) spb = tx_stream->get_max_num_samps()*10;
-    std::vector<std::complex<float> > buff(spb);
-    std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
+    std::vector<std::complex<int16_t> > buff(spb);
+    std::vector<std::complex<int16_t> *> buffs(channel_nums.size(), &buff.front());
 
     //setup the metadata flags
     uhd::tx_metadata_t md;
@@ -233,3 +233,4 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
 }
+
