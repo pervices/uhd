@@ -20,6 +20,9 @@
 ########################################################################
 include(UHDUnitTest)
 
+# XXX: @CF: kb 3834: allows you to step through unit tests
+# SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -g -O0" )
+
 ########################################################################
 # unit test suite
 ########################################################################
@@ -47,6 +50,10 @@ SET(test_sources
     time_spec_test.cpp
     vrt_test.cpp
 )
+
+# XXX: @CF: kb 3834: add this to the group above after
+# making modifications to host/CMakefiles.txt (i.e. requires -fvisibility=default)
+# tune_lo_and_dsp_test.cpp
 
 #turn each test cpp file into an executable with an int main() function
 ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK -DBOOST_TEST_MAIN)
