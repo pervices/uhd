@@ -659,21 +659,23 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 
-	std::vector<size_t> _chan;
+	std::vector<size_t> _chan(
+		ALL_CHANS == chan
+		? CRIMSON_TNG_RX_CHANNELS
+		: 1
+	);
 
 	if ( ALL_CHANS == chan ) {
-		for( size_t chan = 0; chan < CRIMSON_TNG_RX_CHANNELS; chan++ ) {
-			_chan.push_back( chan );
-		}
+		std::iota( std::begin( _chan ), std::end( _chan ), 0 );
 	} else {
 		_chan.push_back( chan );
 	}
 
-	for( chan = 0; chan < _chan.size(); chan++ ) {
+	for( auto &ch: _chan ) {
 
-		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
+		_tree->access<double>(rx_dsp_root(ch) / "rate" / "value").set(rate);
 
-		double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
+		double actual_rate = _tree->access<double>(rx_dsp_root(ch) / "rate" / "value").get();
 
 		boost::format base_message (
 				"RX Sample Rate Request:\n"
@@ -929,21 +931,23 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
 
-	std::vector<size_t> _chan;
+	std::vector<size_t> _chan(
+		ALL_CHANS == chan
+		? CRIMSON_TNG_TX_CHANNELS
+		: 1
+	);
 
 	if ( ALL_CHANS == chan ) {
-		for( size_t chan = 0; chan < CRIMSON_TNG_TX_CHANNELS; chan++ ) {
-			_chan.push_back( chan );
-		}
+		std::iota( std::begin( _chan ), std::end( _chan ), 0 );
 	} else {
 		_chan.push_back( chan );
 	}
 
-	for( chan = 0; chan < _chan.size(); chan++ ) {
+	for( auto &ch: _chan ) {
 
-		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
+		_tree->access<double>(tx_dsp_root(ch) / "rate" / "value").set(rate);
 
-		double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
+		double actual_rate = _tree->access<double>(tx_dsp_root(ch) / "rate" / "value").get();
 
 		boost::format base_message (
 				"TX Sample Rate Request:\n"
