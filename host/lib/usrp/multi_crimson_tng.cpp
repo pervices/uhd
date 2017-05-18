@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <list>
 #include <numeric>
 #include <vector>
 
@@ -660,10 +661,10 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 
-	std::vector<size_t> _chan(
+	std::list<size_t> _chan(
 		ALL_CHANS == chan
 		? CRIMSON_TNG_RX_CHANNELS
-		: 1
+		: 0
 	);
 
 	if ( ALL_CHANS == chan ) {
@@ -932,10 +933,10 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
 
-	std::vector<size_t> _chan(
+	std::list<size_t> _chan(
 		ALL_CHANS == chan
 		? CRIMSON_TNG_TX_CHANNELS
-		: 1
+		: 0
 	);
 
 	if ( ALL_CHANS == chan ) {
