@@ -211,12 +211,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
+    // kb 3974: there is absolutely no need to call this inside the for loop, as in tx_waveforms.cpp
+    //fill the buffer with the waveform
+    for (size_t n = 0; n < buff.size(); n++){
+        buff[n] = wave_table(index += step);
+    }
+
     //send data until the signal handler gets called
     while(not stop_signal_called){
-        //fill the buffer with the waveform
-        for (size_t n = 0; n < buff.size(); n++){
-            buff[n] = wave_table(index += step);
-        }
 
         //send the entire contents of the buffer
         tx_stream->send(buffs, buff.size(), md);
