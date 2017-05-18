@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <numeric>
 #include <vector>
 
 #include <uhd/property_tree.hpp>
