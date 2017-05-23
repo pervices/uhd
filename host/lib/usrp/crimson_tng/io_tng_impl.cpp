@@ -531,9 +531,15 @@ public:
 
 					if ( metadata.has_time_spec ) {
 						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
-						if ( dt > 0.001 ) {
+						dt -= 0.02; // 20ms margin
+						if ( dt > 0.100 ) {
 							//UHD_MSG( status ) << "sleeping " <<  (unsigned) ( ( dt - 0.001 ) * 1e6 ) << " us" << std::endl;
-							usleep( (unsigned) ( ( dt - 0.001 ) * 1e6 ) );
+							struct timespec req, rem;
+							double whole_secs;
+							modf( dt, &whole_secs);
+							req.tv_sec = (time_t) whole_secs;
+							req.tv_nsec = (long) ( (dt - whole_secs) * 1e9 );
+							nanosleep( &req, &rem );
 						}
 					}
 					while ( ( get_time_now() < _last_time[i] ) ) {
