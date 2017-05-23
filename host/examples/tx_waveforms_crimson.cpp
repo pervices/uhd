@@ -15,6 +15,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <iostream>
+#include <csignal>
+#include <thread>
+
 #include "wavetable.hpp"
 #include <uhd/utils/thread_priority.hpp>
 #include <uhd/utils/safe_main.hpp>
@@ -28,8 +32,6 @@
 #include <boost/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
-#include <iostream>
-#include <csignal>
 
 namespace po = boost::program_options;
 
@@ -38,6 +40,35 @@ namespace po = boost::program_options;
  **********************************************************************/
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
+
+struct thread_ctx {
+	thread_ctx()
+	: should_exit( false ), buff( NULL )
+	{
+	}
+	bool should_exit;
+	const std::vector<std::complex<int16_t>> *buff;
+	uhd::tx_streamer::sptr tx_stream;
+	std::thread th;
+	uhd::tx_metadata_t md;
+};
+
+static void thread_fn( thread_ctx *ctx ) {
+
+	std::vector<std::complex<int16_t> *> buffs( 1, (std::complex<int16_t> *) & ctx->buff->front() );
+
+	while( ! ctx->should_exit ) {
+
+	    ctx->tx_stream->send( buffs, ctx->buff->size(), ctx->md );
+
+	    ctx->md.start_of_burst = false;
+	    ctx->md.has_time_spec = false;
+	}
+
+    //send a mini EOB packet
+	ctx->md.end_of_burst = true;
+	ctx->tx_stream->send("", 0, ctx->md);
+}
 
 /***********************************************************************
  * Main function
@@ -58,7 +89,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
-		("sob", po::value<double>(&sob)->default_value(5), "start of burst in N seconds, 0 to disable")
+		("sob", po::value<double>(&sob)->default_value(0.5), "start of burst in N seconds, 0 to disable")
         ("rate", po::value<double>(&rate)->default_value(10e6), "rate of outgoing samples")
         ("freq", po::value<double>(&freq)->default_value(2.4e9), "RF center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(1500)), "amplitude of the waveform [0 to 32767]")
@@ -152,25 +183,33 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
+    std::vector<thread_ctx> ctx( channel_nums.size() );
     uhd::stream_args_t stream_args("sc16", "sc16");
-    stream_args.channels = channel_nums;
-    uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
+    for( size_t i = 0; i < channel_nums.size(); i++ ) {
+        stream_args.channels = std::vector<size_t>{ channel_nums[ i ] };
+        ctx[ i ].tx_stream = usrp->get_tx_stream(stream_args);
+    }
 
     //allocate a buffer which we re-use for each channel
-    if (spb == 0) spb = tx_stream->get_max_num_samps()*10;
+    if (spb == 0) spb = ctx[ 0 ].tx_stream->get_max_num_samps()*10;
     std::vector<std::complex<int16_t> > buff(spb);
-    std::vector<std::complex<int16_t> *> buffs(channel_nums.size(), &buff.front());
 
-    //setup the metadata flags
-    uhd::tx_metadata_t md;
-    md.start_of_burst = true;
-    md.end_of_burst   = false;
+    uhd::time_spec_t sob_time( usrp->get_time_now().get_real_secs() + sob );
 
-    if ( 0 == sob ) {
-    	md.has_time_spec = false;
-    } else {
-    	md.has_time_spec = true;
-    	md.time_spec = uhd::time_spec_t( usrp->get_time_now().get_real_secs() + sob );
+    for( auto &_ctx: ctx ) {
+    	_ctx.buff = & buff;
+
+        //setup the metadata flags
+        _ctx.md.start_of_burst = true;
+        _ctx.md.end_of_burst   = false;
+
+        if ( 0 == sob ) {
+        	_ctx.md.has_time_spec = false;
+        } else {
+        	_ctx.md.has_time_spec = true;
+        	_ctx.md.time_spec = sob_time;
+        }
+
     }
 
     //std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
@@ -205,19 +244,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         buff[n] = wave_table(index += step);
     }
 
-    //send data until the signal handler gets called
-    while(not stop_signal_called){
-
-        //send the entire contents of the buffer
-        tx_stream->send(buffs, buff.size(), md);
-
-        md.start_of_burst = false;
-        md.has_time_spec = false;
+    for ( size_t i = 0; i < ctx.size(); i++ ) {
+    	ctx[ i ].th = std::thread( thread_fn, & ctx[ i ] );
     }
 
-    //send a mini EOB packet
-    md.end_of_burst = true;
-    tx_stream->send("", 0, md);
+    //send data until the signal handler gets called
+    while(not stop_signal_called){
+    	usleep( 1000000 );
+    }
+
+    for ( auto & _ctx: ctx ) {
+    	_ctx.should_exit = true;
+    	_ctx.th.join();
+    }
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;

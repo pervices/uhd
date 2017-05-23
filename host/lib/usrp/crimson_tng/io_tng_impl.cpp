@@ -529,6 +529,10 @@ public:
 
 				if ( _en_fc ) {
 
+//					if ( _last_time[ i ] > get_time_now() ) {
+//						UHD_MSG( warning ) << "OVERFLOW: Channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
+//					}
+//
 					if ( metadata.has_time_spec ) {
 						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
 						dt -= 0.02; // 20ms margin
@@ -1010,10 +1014,10 @@ private:
 			if (samp_rate_update_ctr == 0) {
 				for (int c = 0; c < txstream->_channels.size(); c++) {
 					if (new_samp_rate[c] != txstream->_host_samp_rate[c]) {
-						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+//						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
 							txstream->_fifo_level_perc[c] = 50;
-						else
-							txstream->_fifo_level_perc[c] = 80;
+//						else
+//							txstream->_fifo_level_perc[c] = 80;
 						txstream->_crimson_samp_rate[c] = new_samp_rate[c];
 						txstream->_host_samp_rate[c] = txstream->_crimson_samp_rate[c];
 					}
@@ -1120,10 +1124,10 @@ private:
 			_host_samp_rate[i] = _crimson_samp_rate[i];
 
 			// Set FIFO level steady state target accordingly
-			if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+//			if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
 				_fifo_level_perc[i] = 50;
-			else
-				_fifo_level_perc[i] = 80;
+//			else
+//				_fifo_level_perc[i] = 80;
 		}
 
 		if (_crimson_samp_rate[i] == 0 || _underflow_flag[i]) {
