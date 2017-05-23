@@ -48,7 +48,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //variables to be set by po
     std::string args, wave_type, ant, subdev, ref, otw, channel_list;
     size_t spb;
-    double rate, freq, gain, wave_freq, bw;
+    double rate, freq, gain, wave_freq;
+    double sob;
     float ampl;
 
     //setup the program options
@@ -57,19 +58,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
+		("sob", po::value<double>(&sob)->default_value(0), "start of burst in N seconds, 0 to disable")
         ("rate", po::value<double>(&rate)->default_value(10e6), "rate of outgoing samples")
         ("freq", po::value<double>(&freq)->default_value(2.4e9), "RF center frequency in Hz")
-        ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
+        ("ampl", po::value<float>(&ampl)->default_value(float(1500)), "amplitude of the waveform [0 to 32767]")
         ("gain", po::value<double>(&gain)->default_value(20), "gain for the RF chain")
-        ("ant", po::value<std::string>(&ant), "daughterboard antenna selection")
-        ("subdev", po::value<std::string>(&subdev), "daughterboard subdevice specification")
-        ("bw", po::value<double>(&bw), "daughterboard IF filter bandwidth in Hz")
         ("wave-type", po::value<std::string>(&wave_type)->default_value("SINE"), "waveform type (CONST, SQUARE, RAMP, SINE)")
         ("wave-freq", po::value<double>(&wave_freq)->default_value( 5e6 ), "waveform frequency in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo)")
-        ("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
         ("channels", po::value<std::string>(&channel_list)->default_value("0,1,2,3"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
-        ("int-n", "tune USRP with integer-N tuning")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -102,9 +99,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //Lock mboard clocks
     usrp->set_clock_source(ref);
 
-    //always select the subdevice first, the channel mapping affects the other settings
-    if (vm.count("subdev")) usrp->set_tx_subdev_spec(subdev);
-
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //set the sample rate
@@ -125,7 +119,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
         uhd::tune_request_t tune_request(freq);
-        if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
         std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
 
@@ -135,16 +128,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             usrp->set_tx_gain(gain, channel_nums[ch]);
             std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
         }
-
-        //set the IF filter bandwidth
-        if (vm.count("bw")){
-            std::cout << boost::format("Setting TX Bandwidth: %f MHz...") % bw << std::endl;
-            usrp->set_tx_bandwidth(bw, channel_nums[ch]);
-            std::cout << boost::format("Actual TX Bandwidth: %f MHz...") % usrp->get_tx_bandwidth(channel_nums[ch]) << std::endl << std::endl;
-        }
-
-        //set the antenna
-        if (vm.count("ant")) usrp->set_tx_antenna(ant, channel_nums[ch]);
     }
 
     boost::this_thread::sleep(boost::posix_time::seconds(1)); //allow for some setup time
@@ -169,7 +152,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("sc16", otw);
+    uhd::stream_args_t stream_args("sc16", "sc16");
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
@@ -182,8 +165,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::tx_metadata_t md;
     md.start_of_burst = true;
     md.end_of_burst   = false;
-    md.has_time_spec  = true;
-    md.time_spec = uhd::time_spec_t::get_system_time() + uhd::time_spec_t( 5, 0 );
+
+    if ( 0 == sob ) {
+    	md.has_time_spec = false;
+    } else {
+    	md.has_time_spec = true;
+    	md.time_spec = uhd::time_spec_t( usrp->get_time_now().get_real_secs() + sob );
+    }
 
     //std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     //usrp->set_time_now(uhd::time_spec_t(0.0));
