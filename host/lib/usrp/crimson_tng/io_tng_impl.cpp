@@ -523,21 +523,33 @@ public:
 				size_t ret = 0;
 				// update sample rate if we don't know the sample rate
 				setup_steadystate( i );
+				update_samplerate( i );
 
 				size_t samp_ptr_offset = nsamps_per_buff * 4 - remaining_bytes[ i ];
 				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 
 				if ( _en_fc ) {
 
+//					if ( _last_time[ i ] > get_time_now() ) {
+//						UHD_MSG( warning ) << "OVERFLOW: Channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
+//					}
+//
 					if ( metadata.has_time_spec ) {
 						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
-						if ( dt > 0.001 ) {
+						dt -= 10e-6;
+						if ( dt > 30e-6 ) {
 							//UHD_MSG( status ) << "sleeping " <<  (unsigned) ( ( dt - 0.001 ) * 1e6 ) << " us" << std::endl;
-							usleep( (unsigned) ( ( dt - 0.001 ) * 1e6 ) );
+							struct timespec req, rem;
+							double whole_secs;
+							modf( dt, &whole_secs);
+							req.tv_sec = (time_t) whole_secs;
+							req.tv_nsec = (long) ( (dt - whole_secs) * 1e9 );
+							nanosleep( &req, &rem );
 						}
 					}
 					while ( ( get_time_now() < _last_time[i] ) ) {
-						update_samplerate( i );
+						// nop
+						__asm__ __volatile__( "" );
 					}
 				}
 
@@ -1004,10 +1016,10 @@ private:
 			if (samp_rate_update_ctr == 0) {
 				for (int c = 0; c < txstream->_channels.size(); c++) {
 					if (new_samp_rate[c] != txstream->_host_samp_rate[c]) {
-						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+//						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
 							txstream->_fifo_level_perc[c] = 50;
-						else
-							txstream->_fifo_level_perc[c] = 80;
+//						else
+//							txstream->_fifo_level_perc[c] = 80;
 						txstream->_crimson_samp_rate[c] = new_samp_rate[c];
 						txstream->_host_samp_rate[c] = txstream->_crimson_samp_rate[c];
 					}
@@ -1114,10 +1126,10 @@ private:
 			_host_samp_rate[i] = _crimson_samp_rate[i];
 
 			// Set FIFO level steady state target accordingly
-			if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+//			if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
 				_fifo_level_perc[i] = 50;
-			else
-				_fifo_level_perc[i] = 80;
+//			else
+//				_fifo_level_perc[i] = 80;
 		}
 
 		if (_crimson_samp_rate[i] == 0 || _underflow_flag[i]) {
