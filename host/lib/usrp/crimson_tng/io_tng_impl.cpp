@@ -523,6 +523,7 @@ public:
 				size_t ret = 0;
 				// update sample rate if we don't know the sample rate
 				setup_steadystate( i );
+				update_samplerate( i );
 
 				size_t samp_ptr_offset = nsamps_per_buff * 4 - remaining_bytes[ i ];
 				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
@@ -535,8 +536,8 @@ public:
 //
 					if ( metadata.has_time_spec ) {
 						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
-						dt -= 0.02; // 20ms margin
-						if ( dt > 0.100 ) {
+						dt -= 10e-6;
+						if ( dt > 30e-6 ) {
 							//UHD_MSG( status ) << "sleeping " <<  (unsigned) ( ( dt - 0.001 ) * 1e6 ) << " us" << std::endl;
 							struct timespec req, rem;
 							double whole_secs;
@@ -547,7 +548,8 @@ public:
 						}
 					}
 					while ( ( get_time_now() < _last_time[i] ) ) {
-						update_samplerate( i );
+						// nop
+						__asm__ __volatile__( "" );
 					}
 				}
 
