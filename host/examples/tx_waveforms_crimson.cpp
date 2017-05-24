@@ -91,6 +91,8 @@ static void thread_fn( thread_ctx *ctx ) {
 
 	// kb 3992: theoretically, system would be less memory-bound if this thread always runs on the same core
 	set_affinity( ctx->stream_args.channels[ 0 ] );
+	// kb 3993: set thread priority to realtime
+	uhd::set_thread_priority_safe();
 
 	std::vector<std::complex<int16_t> *> buffs( 1, (std::complex<int16_t> *) & ctx->buff->front() );
 
@@ -111,7 +113,6 @@ static void thread_fn( thread_ctx *ctx ) {
  * Main function
  **********************************************************************/
 int UHD_SAFE_MAIN(int argc, char *argv[]){
-    uhd::set_thread_priority_safe();
 
     //variables to be set by po
     std::string args, wave_type, ant, subdev, ref, otw, channel_list;
