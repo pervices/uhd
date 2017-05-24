@@ -19,6 +19,11 @@
 #include <csignal>
 #include <thread>
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <pthread.h> // pthread_setaffinity_np
+
 #include "wavetable.hpp"
 #include <uhd/utils/thread_priority.hpp>
 #include <uhd/utils/safe_main.hpp>
@@ -35,6 +40,10 @@
 
 namespace po = boost::program_options;
 
+#ifndef CRIMSON_TNG_TX_CHANNELS
+#define CRIMSON_TNG_TX_CHANNELS 4
+#endif
+
 /***********************************************************************
  * Signal handlers
  **********************************************************************/
@@ -48,12 +57,40 @@ struct thread_ctx {
 	}
 	bool should_exit;
 	const std::vector<std::complex<int16_t>> *buff;
+	uhd::stream_args_t stream_args;
 	uhd::tx_streamer::sptr tx_stream;
 	std::thread th;
 	uhd::tx_metadata_t md;
 };
 
+static void set_affinity( size_t cpu_idx ) {
+	static const size_t cpu_set_size = sizeof( cpu_set_t );
+	const pthread_t this_thread = pthread_self();
+	cpu_set_t cpu_set;
+	int r;
+	std::string error_msg;
+
+	CPU_ZERO( & cpu_set );
+	CPU_SET( cpu_idx, & cpu_set );
+
+	// XXX: non-portable, also could fail if we have < CRIMSON_TNG_TX_CHANNELS logical cores
+	r = pthread_setaffinity_np( this_thread, cpu_set_size, & cpu_set );
+	if ( 0 != r ) {
+		error_msg = (
+			boost::format( "%s( %d ): %s (%d)" )
+			% "pthread_setaffinity_np"
+			% cpu_idx
+			% std::strerror( errno )
+			% errno
+		).str();
+		throw uhd::runtime_error( error_msg );
+	}
+}
+
 static void thread_fn( thread_ctx *ctx ) {
+
+	// kb 3992: theoretically, system would be less memory-bound if this thread always runs on the same core
+	set_affinity( ctx->stream_args.channels[ 0 ] );
 
 	std::vector<std::complex<int16_t> *> buffs( 1, (std::complex<int16_t> *) & ctx->buff->front() );
 
@@ -184,10 +221,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
     std::vector<thread_ctx> ctx( channel_nums.size() );
-    uhd::stream_args_t stream_args("sc16", "sc16");
+    uhd::stream_args_t common_stream_args("sc16", "sc16");
     for( size_t i = 0; i < channel_nums.size(); i++ ) {
-        stream_args.channels = std::vector<size_t>{ channel_nums[ i ] };
-        ctx[ i ].tx_stream = usrp->get_tx_stream(stream_args);
+    	ctx[ i ].stream_args = common_stream_args;
+    	ctx[ i ].stream_args.channels = std::vector<size_t>{ channel_nums[ i ] };
+        ctx[ i ].tx_stream = usrp->get_tx_stream( ctx[ i ].stream_args );
     }
 
     //allocate a buffer which we re-use for each channel
