@@ -1294,6 +1294,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 #include <signal.h>
 
 #include <regex>
+#include <mutex>
 
 static void destroy_other_processes_using_crimson() {
 
@@ -1304,6 +1305,8 @@ static void destroy_other_processes_using_crimson() {
 	uint64_t pidn;
 	std::stringstream ss;
 	int fd;
+	struct stat st;
+	static std::mutex mt;
 
 	dp = opendir( "/tmp" );
 	if ( NULL == dp ) {
@@ -1354,8 +1357,15 @@ static void destroy_other_processes_using_crimson() {
 
 	lock_file_name = ss.str();
 
-	fd = creat( lock_file_name.c_str(), O_RDWR );
-	if ( -1 != fd ) {
+	if ( 0 == stat( lock_file_name.c_str(), &st ) ) {
+		// file already exists (created by another tx streamer instance)
+		return;
+	}
+
+	fd = open( lock_file_name.c_str(), O_RDWR | O_CREAT, 0666 );
+	if ( -1 == fd ) {
+		UHD_MSG( warning ) << "failed to create lockfile " << lock_file_name << ": " << strerror( errno ) << std::endl;
+	} else {
 		close( fd );
 	}
 }
