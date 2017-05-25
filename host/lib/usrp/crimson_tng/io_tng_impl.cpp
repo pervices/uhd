@@ -70,6 +70,9 @@ namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 namespace trans = uhd::transport;
 
+// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+static void destroy_other_processes_using_crimson();
+
 static int channels_to_mask( std::vector<size_t> channels ) {
 	unsigned mask = 0;
 
@@ -638,6 +641,9 @@ public:
 private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
+
+		// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+		destroy_other_processes_using_crimson();
 
 		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
 		// to prevent any other constructors from returning before the PID is locked, surround the entire
@@ -1278,4 +1284,86 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 	crimson_tng_tx_streamer::sptr r( new crimson_tng_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex) );
 	r->set_device( this );
 	return r;
+}
+
+// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <signal.h>
+
+#include <regex>
+
+static void destroy_other_processes_using_crimson() {
+
+	static const std::regex re( "^crimson-([1-9][0-9]*).lock$" );
+	DIR *dp;
+	std::string lock_file_name;
+	std::smatch match;
+	uint64_t pidn;
+	std::stringstream ss;
+	int fd;
+	struct stat st;
+
+	dp = opendir( "/tmp" );
+	if ( NULL == dp ) {
+		throw runtime_error(
+			(
+				boost::format( "opendir: %s (%d)" )
+				% std::strerror( errno )
+				% errno
+			).str()
+		);
+	}
+
+	for( dirent *de = readdir( dp ); NULL != de; de = readdir( dp ) ) {
+
+		if ( DT_REG != de->d_type ) {
+			continue;
+		}
+
+		lock_file_name = std::string( de->d_name );
+
+		if ( ! std::regex_search( lock_file_name, match, re ) ) {
+			continue;
+		}
+
+		ss = std::stringstream( match.str( 1 ) );
+		ss >> pidn;
+
+		if ( getpid() == pid_t( pidn ) ) {
+			// skip this PID, if an existing tx streamer has already been made
+			continue;
+		}
+
+		if ( 0 == kill( pid_t( pidn ), SIGKILL ) ) {
+			UHD_MSG( warning ) << "killed hung process " << pidn << std::endl;
+		}
+
+		lock_file_name = "/tmp/" + lock_file_name;
+		if ( 0 == remove( lock_file_name.c_str() ) ) {
+			UHD_MSG( warning ) << "removed stale lockfile " << lock_file_name << std::endl;
+		} else {
+			UHD_MSG( warning ) << "failed to remove stale lockfile " << lock_file_name << std::endl;
+		}
+	}
+	closedir( dp );
+
+	ss.clear();
+	ss << "/tmp/crimson-" << (uint64_t) getpid() << ".lock";
+
+	lock_file_name = ss.str();
+
+	if ( 0 == stat( lock_file_name.c_str(), &st ) ) {
+		// file already exists (created by another tx streamer instance)
+		return;
+	}
+
+	fd = open( lock_file_name.c_str(), O_RDWR | O_CREAT, 0666 );
+	if ( -1 == fd ) {
+		UHD_MSG( warning ) << "failed to create lockfile " << lock_file_name << ": " << strerror( errno ) << std::endl;
+	} else {
+		close( fd );
+	}
 }
