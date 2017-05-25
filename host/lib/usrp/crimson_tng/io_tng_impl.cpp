@@ -1354,7 +1354,7 @@ static void destroy_other_processes_using_crimson() {
 
 	lock_file_name = ss.str();
 
-	fd = open( lock_file_name.c_str(), O_RDWR | O_CREAT );
+	fd = creat( lock_file_name.c_str(), O_RDWR );
 	if ( -1 == fd ) {
 		UHD_MSG( warning ) << "failed to create lockfile " << lock_file_name << ": " << strerror( errno ) << std::endl;
 	} else {
