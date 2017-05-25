@@ -73,7 +73,12 @@ extern "C" {
 #define CRIMSON_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
-#define CRIMSON_BUFF_SIZE	65532
+#define CRIMSON_BUFF_SIZE       65532
+#define CRIMSON_UNDERFLOW_LIMIT 13106
+#define CRIMSON_OVERFLOW_LIMIT  58979
+
+// Crimson MAX Sample Rate Refresh Counter
+#define CRIMSON_SAMP_RATE_REFRESH_CTR_MAX	4
 
 // Crimson RF Settings
 #define CRIMSON_RF_TX_GAIN_RANGE_START	0.0

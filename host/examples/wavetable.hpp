@@ -64,3 +64,51 @@ private:
     std::vector<std::complex<float> > _wave_table;
 };
 
+class wave_table_class_sc16{
+public:
+    wave_table_class_sc16(const std::string &wave_type, const float ampl):
+        _wave_table(wave_table_len)
+    {
+        //compute real wave table with 1.0 amplitude
+        std::vector<double> real_wave_table(wave_table_len);
+        if (wave_type == "CONST"){
+            for (size_t i = 0; i < wave_table_len; i++)
+                real_wave_table[i] = 1.0;
+        }
+        else if (wave_type == "SQUARE"){
+            for (size_t i = 0; i < wave_table_len; i++)
+                real_wave_table[i] = (i < wave_table_len/2)? 0.0 : 1.0;
+        }
+        else if (wave_type == "RAMP"){
+            for (size_t i = 0; i < wave_table_len; i++)
+                real_wave_table[i] = 2.0*i/(wave_table_len-1) - 1.0;
+        }
+        else if (wave_type == "SINE"){
+            static const double tau = 2*std::acos(-1.0);
+            for (size_t i = 0; i < wave_table_len; i++)
+                real_wave_table[i] = std::sin((tau*i)/wave_table_len);
+        }
+        else throw std::runtime_error("unknown waveform type: " + wave_type);
+
+        //compute i and q pairs with 90% offset and scale to amplitude
+        for (size_t i = 0; i < wave_table_len; i++){
+            const size_t q = (i+(3*wave_table_len)/4)%wave_table_len;
+            float f_i = ampl * real_wave_table[i];
+            f_i = f_i < -32768 ? -32768 : f_i;
+            f_i = f_i > 32767 ? 32767 : f_i;
+            float f_q = ampl * real_wave_table[q];
+            f_q = f_q < -32768 ? -32768 : f_q;
+            f_q = f_q > 32767 ? 32767 : f_q;
+            _wave_table[i] = std::complex<int16_t>( (int16_t)f_i, (int16_t)f_q );
+        }
+    }
+
+    inline std::complex<int16_t> operator()(const size_t index) const{
+        return _wave_table[index % wave_table_len];
+    }
+
+private:
+    std::vector<std::complex<int16_t> > _wave_table;
+};
+
+

@@ -20,6 +20,7 @@
 ########################################################################
 SET(example_sources
     benchmark_rate.cpp
+    nco_check.cpp
     network_relay.cpp
     rx_multi_samples.cpp
     rx_samples_to_file.cpp
@@ -34,7 +35,10 @@ SET(example_sources
     tx_samples_from_file.cpp
     tx_timed_samples.cpp
     tx_waveforms.cpp
+    tx_waveforms_crimson.cpp
+    tx_from_file_crimson.cpp
     txrx_loopback_to_file.cpp
+    txrx_loopback_to_from_file_crimson.cpp
     latency_test.cpp
     fpgpio.cpp
 )

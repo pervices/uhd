@@ -15,6 +15,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <iostream>
+#include <cmath>
+#include <list>
+#include <numeric>
+#include <vector>
+
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/usrp/multi_crimson_tng.hpp>
@@ -32,8 +38,9 @@
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
-#include <iostream>
-#include <cmath>
+
+#include "crimson_tng/crimson_tng_fw_common.h"
+#include "crimson_tng/crimson_tng_impl.hpp"
 
 #define CRIMSON_MASTER_CLOCK_RATE	322265625
 #define CRIMSON_RX_CHANNELS 4
@@ -41,6 +48,11 @@
 
 using namespace uhd;
 using namespace uhd::usrp;
+
+static const double TX_SIGN = -1;
+static const double RX_SIGN = 1;
+
+static const double DSP_NCO_SHIFT_HZ = 25e6;
 
 /***********************************************************************
  * Helper Functions
@@ -57,7 +69,286 @@ bool _check_tng_link_rate(const stream_args_t &args) {
 	return true;
 }
 
+bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
+	return freq + bw / 2.0 >= dsp_range.stop();
+}
 
+// no longer used. at one point was used for deciding whether or not to use DSP for frequency shift
+static bool is_low_sample_rate( const double dsp_rate ) {
+	return dsp_rate < ( CRIMSON_MASTER_CLOCK_RATE / 9 );
+}
+
+// return true if b is a (not necessarily strict) subset of a
+bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
+	return b.start() >= a.start() && b.stop() <= a.stop();
+}
+
+double choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree ) {
+
+	/*
+	 * Scenario 1) Channels A and B
+	 *
+	 * We want a shift such that the full bandwidth fits inside of one of the
+	 * dashed regions.
+	 *
+	 * Our margin around each sensitive area is 1 MHz on either side.
+	 *
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
+	 * Region A
+	 * Region B
+	 * Region F
+	 * Region G
+	 * Region H
+	 *
+	 * Region A is preferred because it exhibits the least attenuation. B is
+	 * preferred over C for that reason (and because it has a more bandwidth
+	 * than C). F is the next largest band and is preferred over E because
+	 * it avoids the LO fundamental, but it contains FM. G is the next-to-last
+	 * preference because it includes the LO and FM but has a very large
+	 * bandwidth. Finally, H is the catch-all. It suffers at high frequencies
+	 * due to the ADC filterbank, but includes the entirety of the spectrum.
+	 *
+	[--]-------------------[+]-----------------------+-------------------------+-----------[///////////+////////]---------------+------------[\\\\\\\\\\\+\\\\\\\\\\\\\\>
+	 | |                    |                                                              |                    |                            |                      |    f (MHz)
+	 0 2                    25                                                           87.9                  107.9                        137                    162.5
+	DC                 LO fundamental                                                               FM                                   ADC Cutoff            Max Samp Rate
+           A (21 MHz)                            B (60.9 MHz)                                                             C (27.1 Mhz)                 D (26.5 MHz)
+                           E = A + B (includes LO)                                                                     F = B + C (includes FM)
+					                                           G = A + B + C
+					                                           H = A + B + C + D
+	 */
+	static const std::vector<freq_range_t> AB_regions {
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 86.9e6 ), // B
+		freq_range_t( 26e6, 136e6 ), // F = B + C
+		freq_range_t( 3e6, 136e6 ), // G = A + B + C
+		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Catch All)
+	};
+	/*
+	 * Scenario 2) Channels C and D
+	 *
+	 * Channels C & D only provide 1/2 the bandwidth of A & B due to silicon
+	 * errata. This should be corrected in subsequent hardware revisions of
+	 * Crimson.
+	 *
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
+	 * Region A
+	 * Region B
+	 * Region C
+	[--]-------------------[+]-----------------------+-------------------------+---->
+	 | |                    |                                                  |    f (MHz)
+	 0 2                    25                                               81.25
+	DC                 LO fundamental                                      Max Samp Rate
+           A (21 MHz)                            B (55.25 MHz)
+                           C = A + B (includes LO)
+	 */
+	static const std::vector<freq_range_t> CD_regions {
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 81.25e6 ), // B
+		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
+	};
+	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
+
+	static const double lo_step = 25e6;
+
+	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > 81.25e6 ? 'A' : 'C';
+	const double bw = dsp_subtree->access<double>("/rate/value").get();
+	const std::vector<freq_range_t> & regions =
+		( 'A' == channel || 'B' == channel )
+		? AB_regions
+		: CD_regions
+	;
+	const int K = (int) floor( ( dsp_range.stop() - dsp_range.start() ) / lo_step );
+
+	for( int k = 0; k <= K; k++ ) {
+		for( double sign: { +1, -1 } ) {
+
+			double candidate_lo = target_freq;
+			if ( sign > 0 ) {
+				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
+				// above the target frequency
+				candidate_lo += lo_step - fmod( target_freq, lo_step );
+			} else {
+				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
+				// above the target frequency
+				candidate_lo -= fmod( target_freq, lo_step );
+			}
+			candidate_lo += k * sign * lo_step;
+
+			const double candidate_nco = target_freq - candidate_lo;
+			const double bb_ft = target_freq - candidate_lo + candidate_nco;
+			const meta_range_t candidate_range( bb_ft - bw / 2, bb_ft + bw / 2 );
+
+			for( const freq_range_t & _range: regions ) {
+				if ( range_contains( _range, candidate_range ) ) {
+					return candidate_nco;
+				}
+			}
+		}
+	}
+
+	// Under normal operating parameters, this should never happen because
+	// the last-choice _range in each of AB_regions and CD_regions is
+	// a catch-all for the entire DSP bandwidth. Hitting this scenario is
+	// equivalent to saying that the LO is incapable of up / down mixing
+	// the RF signal into the baseband domain.
+	throw runtime_error(
+		(
+			boost::format( "No suitable baseband region found: target_freq: %f, bw: %f, dsp_range: %s" )
+			% target_freq
+			% bw
+			% dsp_range.to_pp_string()
+		).str()
+	);
+}
+
+// See multi_usrp.cpp::tune_xx_subdev_and_dsp()
+tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+
+	enum {
+		LOW_BAND,
+		HIGH_BAND,
+	};
+
+	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t adc_range( dsp_range.start(), 137e6, 0.0001 );
+	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
+
+	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
+
+	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
+
+	//------------------------------------------------------------------
+	//-- set the RF frequency depending upon the policy
+	//------------------------------------------------------------------
+	double target_rf_freq = 0.0;
+	double dsp_nco_shift = 0;
+
+	// kb #3689, for phase coherency, we must set the DAC NCO to 0
+	if ( TX_SIGN == xx_sign ) {
+		rf_fe_subtree->access<double>("nco").set( 0.0 );
+	}
+
+	rf_fe_subtree->access<int>( "freq/band" ).set( band );
+
+	switch (tune_request.rf_freq_policy){
+		case tune_request_t::POLICY_AUTO:
+			switch( band ) {
+			case LOW_BAND:
+				// in low band, we only use the DSP to tune
+				target_rf_freq = 0;
+				break;
+			case HIGH_BAND:
+				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
+				// in high band, we use the LO for most of the shift, and use the DSP for the difference
+				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
+				break;
+			}
+		break;
+
+		case tune_request_t::POLICY_MANUAL:
+			target_rf_freq = rf_range.clip( tune_request.rf_freq );
+			break;
+
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
+
+	//------------------------------------------------------------------
+	//-- Tune the RF frontend
+	//------------------------------------------------------------------
+	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
+	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+
+	//------------------------------------------------------------------
+	//-- Set the DSP frequency depending upon the DSP frequency policy.
+	//------------------------------------------------------------------
+	double target_dsp_freq = 0.0;
+	switch (tune_request.dsp_freq_policy) {
+		case tune_request_t::POLICY_AUTO:
+			target_dsp_freq = actual_rf_freq - clipped_requested_freq;
+
+			//invert the sign on the dsp freq for transmit (spinning up vs down)
+			target_dsp_freq *= xx_sign;
+
+			break;
+
+		case tune_request_t::POLICY_MANUAL:
+			target_dsp_freq = dsp_range.clip(tune_request.dsp_freq);
+			break;
+
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
+
+	//------------------------------------------------------------------
+	//-- Tune the DSP
+	//------------------------------------------------------------------
+	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
+	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+
+	//------------------------------------------------------------------
+	//-- Load and return the tune result
+	//------------------------------------------------------------------
+	tune_result_t tune_result;
+	tune_result.clipped_rf_freq = clipped_requested_freq;
+	tune_result.target_rf_freq = target_rf_freq;
+	tune_result.actual_rf_freq = actual_rf_freq;
+	tune_result.target_dsp_freq = target_dsp_freq;
+	tune_result.actual_dsp_freq = actual_dsp_freq;
+	return tune_result;
+}
+
+//do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
+static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &res, double freq, std::string rx_or_tx ) {
+/*
+	std::string results_string;
+
+	// XXX: @CF: We should really change these messages..
+
+	// results of tuning RF LO
+	if (res.target_rf_freq != req.target_freq) {
+		boost::format rf_lo_message(
+			"  The RF LO does not support the requested %s frequency:\n"
+			"	Requested RF LO Frequency: %f MHz\n"
+			"	RF LO Result: %f MHz\n");
+		rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
+		results_string += rf_lo_message.str();
+	} else {
+		boost::format rf_lo_message(
+			"  The RF LO supports the requested %s frequency:\n"
+			"	Requested RF LO Frequency: %f MHz\n"
+			"	RF LO Result: %f MHz\n");
+		rf_lo_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_rf_freq / 1e6);
+		results_string += rf_lo_message.str();
+	}
+
+	// results of tuning DSP
+	if (res.target_dsp_freq != req.dsp_freq) {
+		boost::format dsp_message(
+			"  The DSP does not support the requested %s frequency:\n"
+			"	Requested DSP Frequency: %f MHz\n"
+			"	DSP Result: %f MHz\n");
+		dsp_message % rx_or_tx % (req.dsp_freq / 1e6) % (res.actual_dsp_freq / 1e6);
+		results_string += dsp_message.str();
+	} else {
+		boost::format dsp_message(
+			"  The DSP supports the requested %s frequency:\n"
+			"	Requested DSP Frequency: %f MHz\n"
+			"	DSP Result: %f MHz\n");
+		dsp_message % rx_or_tx % (req.target_freq / 1e6) % (res.actual_dsp_freq / 1e6);
+		results_string += dsp_message.str();
+	}
+	UHD_MSG( status ) << results_string;
+*/
+}
 
 /***********************************************************************
  * Multi Crimson Implementation
@@ -65,6 +356,8 @@ bool _check_tng_link_rate(const stream_args_t &args) {
 multi_crimson_tng::multi_crimson_tng(const device_addr_t &addr) {
     // this make will invoke the correct inherited crimson device class
     _dev  = device::make(addr, device::CRIMSON_TNG);
+    crimson_tng_impl::sptr dev_impl = boost::static_pointer_cast<crimson_tng_impl>( _dev );
+    dev_impl->set_multi( this );
     _tree = _dev  -> get_tree();
 }
 
@@ -192,7 +485,10 @@ std::string multi_crimson_tng::get_mboard_name(size_t mboard){
 
 // Get the current time on Crimson
 time_spec_t multi_crimson_tng::get_time_now(size_t mboard){
-    return _tree->access<time_spec_t>(mb_root(0) / "time/now").get();
+	crimson_tng_impl::sptr dev = boost::static_pointer_cast<crimson_tng_impl>( _dev );
+	double diff = NULL == dev.get() ? 0 : dev.get()->get_time_diff();
+	diff = std::abs( diff ) > 1 ? 0 : diff;
+	return time_spec_t( time_spec_t::get_system_time().get_real_secs() - diff );
 }
 
 // Get the time of the last PPS (pulse per second)
@@ -234,26 +530,18 @@ void multi_crimson_tng::clear_command_time(size_t mboard){
 }
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
-    // set register to start the stream
-    if( stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_START_CONTINUOUS) {
-        _tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
-
-    // set register to stop the stream
-    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
-        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
-
-    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
-	// set register to wait for a stream cmd after num_samps
-	// not supported in Crimson
-
-    } else if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE) {
-	// set register to not wait for a stream cmd after num_samps
-	// not supported in Crimson
-
-    } else {
-        _tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+    switch( stream_cmd.stream_mode ) {
+    case stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE:
+    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE:
+    	// currently we do not differentiate between any kind of stream-enable
+    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
+    	break;
+    case stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS:
+    default:
+    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+    	break;
     }
-    return;
 }
 
 void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, size_t mboard) {
@@ -372,18 +660,34 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
-    _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
-    double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
+	std::list<size_t> _chan(
+		ALL_CHANS == chan
+		? CRIMSON_TNG_RX_CHANNELS
+		: 0
+	);
 
-    boost::format base_message (
-            "RX Sample Rate Request:\n"
-    	    "  Requested sample rate: %f MSps\n"
-            "  Actual sample rate: %f MSps\n");
-    base_message % (rate/1e6) % (actual_rate/1e6);
-    std::string results_string = base_message.str();
+	if ( ALL_CHANS == chan ) {
+		std::iota( std::begin( _chan ), std::end( _chan ), 0 );
+	} else {
+		_chan.push_back( chan );
+	}
 
-    UHD_MSG(status) << results_string;
+	for( auto &ch: _chan ) {
+
+		_tree->access<double>(rx_dsp_root(ch) / "rate" / "value").set(rate);
+
+		double actual_rate = _tree->access<double>(rx_dsp_root(ch) / "rate" / "value").get();
+
+		boost::format base_message (
+				"RX Sample Rate Request:\n"
+				"  Requested sample rate: %f MSps\n"
+				"  Actual sample rate: %f MSps\n");
+		base_message % (rate/1e6) % (actual_rate/1e6);
+		std::string results_string = base_message.str();
+
+		UHD_MSG(status) << results_string;
+	}
 }
 
 // Get the current RX sampling rate on specified channel
@@ -397,121 +701,25 @@ meta_range_t multi_crimson_tng::get_rx_rates(size_t chan){
 }
 
 // set the RX frequency on specified channel
-tune_result_t multi_crimson_tng::set_rx_freq(const tune_request_t &tune_request, size_t chan) {
-    tune_request_t req = tune_request;
-    tune_result_t result;
-    bool offset = false;
+tune_result_t multi_crimson_tng::set_rx_freq( const tune_request_t &tune_request, size_t chan ) {
 
-    // pointer to the frequency we use
-    double* freq;
-    if ( req.rf_freq_policy == tune_request_t::POLICY_MANUAL )
-       freq = &(req.rf_freq);
-    else
-       freq = &(req.target_freq);
+	tune_result_t result;
 
-    // switch bands if less/greater than 100 MHz
-    if (*freq > 100000000.0) _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(1);
-    else                     _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(0);
-    _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);	// set state tree to maximum attenuation
+	double gain = get_rx_gain( chan );
 
-    // offset it by 15 MHz if sampling rate is low.
-    double cur_rx_rate = get_rx_rate(chan);
-    if (*freq > 15000000.0 && !(cur_rx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9)) ) {
-       *freq -= 15000000.0;
-       offset = true;
-       _tree->access<double>(rx_dsp_root(chan) / "nco").set(-15000000);
-    } else {
-       _tree->access<double>(rx_dsp_root(chan) / "nco").set(0);
-    }
+	result =
+		tune_lo_and_dsp(
+			RX_SIGN,
+			_tree->subtree( rx_dsp_root( chan ) ),
+			_tree->subtree( rx_rf_fe_root( chan ) ),
+			tune_request
+		);
 
-    // check the tuning ranges first, and clip if necessary
-    meta_range_t rf_range  = _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "freq" / "range").get();
-    meta_range_t dsp_range = _tree->access<meta_range_t>(rx_dsp_root(chan)   / "freq" / "range").get();
-    if (req.rf_freq < rf_range.start())	req.rf_freq 	= rf_range.start();
-    if (req.rf_freq > rf_range.stop())		req.rf_freq 	= rf_range.stop();
-    if (req.dsp_freq < dsp_range.start())	req.dsp_freq	= dsp_range.start();
-    if (req.dsp_freq > dsp_range.stop())	req.dsp_freq	= dsp_range.stop();
-    if (req.target_freq < rf_range.start())	req.target_freq = rf_range.start();
-    if (req.target_freq > rf_range.stop())	req.target_freq = rf_range.stop();
+	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "RX" );
 
-    // use the DSP NCO with base band
-    if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 0) {
-        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
-        double set_dsp_nco = cur_dsp_nco - *freq;
-        _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
+	set_rx_gain( gain, chan );
 
-        result.actual_rf_freq = -set_dsp_nco;
-
-    // use the LO with high band
-    } else {
-        _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").set(*freq);
-
-        // read back the frequency and adjust for the errors with DSP NCO if possible
-        double cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
-        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
-        double set_dsp_nco = cur_dsp_nco - (*freq - cur_lo_freq);
-
-        if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
-        if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
-        _tree->access<double>(rx_dsp_root(chan) / "nco").set(set_dsp_nco);
-
-        result.actual_rf_freq = cur_lo_freq - set_dsp_nco;
-    }
-
-    // account back for the offset
-    if (offset)
-       *freq += 15000000.0;
-
-    req.dsp_freq = result.actual_rf_freq;
-    result.actual_dsp_freq = req.dsp_freq;   // no DSP freq tuning it possible
-
-    result.target_rf_freq  = result.actual_rf_freq;
-    result.clipped_rf_freq = result.actual_rf_freq;
-    result.target_dsp_freq = result.actual_dsp_freq;
-
-    // print out tuning messages
-    boost::format base_message ("RX Tune Request: %f MHz\n");
-    base_message % (req.target_freq / 1e6);
-    std::string results_string = base_message.str();
-
-    // results of tuning RF LO
-    if (result.target_rf_freq != req.target_freq) {
-            boost::format rf_lo_message(
-                "  The RF LO does not support the requested frequency:\n"
-                "    Requested LO Frequency: %f MHz\n"
-                "    RF LO Result: %f MHz\n");
-            rf_lo_message % (req.target_freq / 1e6) % (result.actual_rf_freq / 1e6);
-            results_string += rf_lo_message.str();
-    } else {
-            boost::format rf_lo_message(
-                "  The RF LO supports the requested frequency:\n"
-                "    Requested LO Frequency: %f MHz\n"
-                "    RF LO Result: %f MHz\n");
-            rf_lo_message % (req.target_freq / 1e6) % (result.actual_rf_freq / 1e6);
-            results_string += rf_lo_message.str();
-    }
-
-    // results of tuning DSP
-    if (result.target_dsp_freq != req.target_freq) {
-            boost::format dsp_lo_message(
-                "  The DSP does not support the requested frequency:\n"
-                "    Requested DSP Frequency: %f MHz\n"
-                "    DSP Result: %f MHz\n");
-            dsp_lo_message % (req.target_freq / 1e6) % (result.actual_dsp_freq / 1e6);
-            results_string += dsp_lo_message.str();
-    } else {
-            boost::format dsp_lo_message(
-                "  The DSP supports the requested frequency:\n"
-                "    Requested DSP Frequency: %f MHz\n"
-                "    DSP Result: %f MHz\n");
-            dsp_lo_message % (req.target_freq / 1e6) % (result.actual_dsp_freq / 1e6);
-            results_string += dsp_lo_message.str();
-    }
-
-    UHD_MSG(status) << results_string;
-
-    // tune_request.args are ignored for Crimson
-    return result;
+	return result;
 }
 
 // get the RX frequency on specified channel
@@ -535,69 +743,99 @@ freq_range_t multi_crimson_tng::get_fe_rx_freq_range(size_t chan){
 }
 
 // set RX frontend gain on specified channel, name specifies which IC to configure the gain for
-void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t chan){
-	double MIN_GAIN = 0;
-	double MAX_GAIN = 63.25;
+void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
-	// Sanitize Gain value received
-	if 		(gain > MAX_GAIN) 	gain = MAX_GAIN;
-	else if (gain < MIN_GAIN) 	gain = MIN_GAIN;
+	double atten_val;
+	double gain_val;
+	double lna_val;
 
+	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
+	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
+	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+		// Low-Band
 
-	if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 0) {	// Check Channel's Band
-		MAX_GAIN = 31.5;	// Max Low Band Gain
+		double low_band_gain = gain > 31.5 ? 31.5 : gain;
 
-		// Sanitize Gain value received for low band
-		if (gain > MAX_GAIN) gain = MAX_GAIN;
+		if ( low_band_gain != gain ) {
+            boost::format rf_lo_message(
+                "  The RF Low Band does not support the requested gain:\n"
+                "    Requested RF Low Band gain: %f dB\n"
+                "    Actual RF Low Band gain: %f dB\n"
+            );
+            rf_lo_message % gain % low_band_gain;
+            std::string results_string = rf_lo_message.str();
+        	UHD_MSG(status) << results_string;
+		}
 
-		// Convert Gain float to value MCU understands
-		double gain_token = round(gain / 0.5);	// Max 63
-		gain_token = gain_token * 2;			// Max 126
-
-		// Ensure RX Attenuator is in Max Attenuation
-		_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127);
-
-		// Set Low Band RX Gain
-		_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+		// PMA is off (+0dB)
+		lna_val = 0;
+		// BFP is off (+0dB)
+		// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
+		atten_val = 31.75;
+		// LMH is adjusted from 0dB to 31.5dB
+		gain_val = low_band_gain;
 
 	} else {
-		// Convert Gain float to value MCU understands
-		double gain_token = round(gain / 0.25); // Max 253
+		// High-Band
 
-		// 0   -> 126	attenuation only
-		// 127			0dB
-		// 128 -> 253	gain with some attenuation to maintain 0.25dB resolution
-
-		if (gain_token < 127) {	// attenuation only
-			_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(127 - gain_token);
-			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(0);		// set minimum gain
-		} else {
-			gain_token = gain_token - 127;	// isolate gain part
-
-			// adjust attenuator to maintain 0.25dB resolution
-			if (fmod(gain_token, 2) == 1) {		// odd (0.25 or 0.75)
-				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(1);
-				gain_token++;
-			} else {
-				_tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").set(0);
-			}
-
-			_tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").set(gain_token);
+		if ( false ) {
+		} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
+			// PMA is off (+0dB)
+			lna_val = 0;
+			// BFP is on (+20dB)
+			// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+			atten_val = 31.75;
+			// LMH is adjusted from 0dB to 31.5dB
+			gain_val = gain;
+		} else if ( 31.5 < gain && gain <= 63.25 ) {
+			// PMA is off (+0dB)
+			lna_val = 0;
+			// BFP is on (+20dB)
+			// PE437 is adjusted from -31.75 dB to 0dB
+			atten_val = 63.25 - gain;
+			// LMH is maxed (+31.5dB)
+			gain_val = 31.5;
+		} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+			// PMA is on (+20dB)
+			lna_val = 20;
+			// BFP is on (+20dB)
+			// PE437 is adjusted from -20 dB to 0dB
+			atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
+			// LMH is maxed (+31.5dB)
+			gain_val = 31.5;
 		}
 	}
+
+	int lna_bypass_enable = 0 == lna_val ? 1 : 0;
+	_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
+
+    if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+		_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+		_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+    } else {
+		_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
+		_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+    }
 }
 
 // get RX frontend gain on specified channel
 double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 
-    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get();
-    double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get();
+	double r;
 
-    gain_val  = 126 - gain_val;		// invert gain  scale
-    atten_val = 127 - atten_val;	// invert atten scale
+	bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
+    double lna_val = lna_bypass_enable ? 0 : 20;
+    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
+    double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
-    return gain_val + atten_val;
+	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+		r = gain_val;
+	} else {
+		r = 31.75 - atten_val + lna_val + gain_val; // maximum is 83.25
+	}
+
+    return r;
 }
 
 // get RX frontend gain range on specified channel
@@ -694,18 +932,34 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
-    _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 
-    double actual_rate = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
+	std::list<size_t> _chan(
+		ALL_CHANS == chan
+		? CRIMSON_TNG_TX_CHANNELS
+		: 0
+	);
 
-    boost::format base_message (
-            "TX Sample Rate Request:\n"
-    	    "  Requested sample rate: %f MSps\n"
-            "  Actual sample rate: %f MSps\n");
-    base_message % (rate/1e6) % (actual_rate/1e6);
-    std::string results_string = base_message.str();
+	if ( ALL_CHANS == chan ) {
+		std::iota( std::begin( _chan ), std::end( _chan ), 0 );
+	} else {
+		_chan.push_back( chan );
+	}
 
-    UHD_MSG(status) << results_string;
+	for( auto &ch: _chan ) {
+
+		_tree->access<double>(tx_dsp_root(ch) / "rate" / "value").set(rate);
+
+		double actual_rate = _tree->access<double>(tx_dsp_root(ch) / "rate" / "value").get();
+
+		boost::format base_message (
+				"TX Sample Rate Request:\n"
+				"  Requested sample rate: %f MSps\n"
+				"  Actual sample rate: %f MSps\n");
+		base_message % (rate/1e6) % (actual_rate/1e6);
+		std::string results_string = base_message.str();
+
+		UHD_MSG(status) << results_string;
+	}
 }
 
 // Get the current TX sampling rate on specified channel
@@ -719,121 +973,25 @@ meta_range_t multi_crimson_tng::get_tx_rates(size_t chan){
 }
 
 // set the TX frequency on specified channel
-tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t &tune_request, size_t chan){
-    tune_request_t req = tune_request;
-    tune_result_t result;
-    bool offset = false;
+tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t & tune_request, size_t chan) {
 
-    // pointer to the frequency we use
-    double* freq;
-    if ( req.rf_freq_policy == tune_request_t::POLICY_MANUAL )
-       freq = &(req.rf_freq);
-    else
-       freq = &(req.target_freq);
+	tune_result_t result;
 
-    // switch bands if less/greater than 100 MHz
-    if (*freq > 100000000.0) _tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").set(1);
-    else                     _tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").set(0);
-    _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(0);	// Set state tree to min gain
+	double gain = get_tx_gain( chan );
 
-    // offset it by 85 MHz if sampling rate is low.
-    double cur_tx_rate = get_tx_rate(chan);
-    if (*freq > 85000000.0 && !(cur_tx_rate > (CRIMSON_MASTER_CLOCK_RATE / 9))) {
-       *freq -= 85000000.0;
-       offset = true;
-       _tree->access<double>(tx_rf_fe_root(chan) / "nco").set(85000000);
-    } else {
-       _tree->access<double>(tx_rf_fe_root(chan) / "nco").set(0);
-    }
+	result =
+		tune_lo_and_dsp(
+			TX_SIGN,
+			_tree->subtree( tx_dsp_root( chan ) ),
+			_tree->subtree( tx_rf_fe_root( chan ) ),
+			tune_request
+		);
 
-    // check the tuning ranges first, and clip if necessary
-    meta_range_t rf_range  = _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get();
-    meta_range_t dsp_range = _tree->access<meta_range_t>(tx_dsp_root(chan)   / "freq" / "range").get();
-    if (req.rf_freq < rf_range.start())	req.rf_freq 	= rf_range.start();
-    if (req.rf_freq > rf_range.stop())		req.rf_freq 	= rf_range.stop();
-    if (req.dsp_freq < dsp_range.start())	req.dsp_freq	= dsp_range.start();
-    if (req.dsp_freq > dsp_range.stop())	req.dsp_freq	= dsp_range.stop();
-    if (req.target_freq < rf_range.start())	req.target_freq = rf_range.start();
-    if (req.target_freq > rf_range.stop())	req.target_freq = rf_range.stop();
+	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "TX" );
 
-    // use the DSP NCO with base band
-    if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 0) {
-        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-        double set_dsp_nco = *freq;
-        _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
+	set_tx_gain( gain, chan );
 
-        result.actual_rf_freq = set_dsp_nco + cur_dac_nco;
-
-    // use the LO with high band
-    } else {
-        _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").set(*freq);
-
-        // read back the frequency and adjust for the errors with DSP NCO if possible
-        double cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
-        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-        double set_dsp_nco = *freq - cur_lo_freq;
-
-        if (set_dsp_nco >  161000000) set_dsp_nco = 161000000;
-        if (set_dsp_nco < -161000000) set_dsp_nco = -161000000;
-        _tree->access<double>(tx_dsp_root(chan) / "nco").set(set_dsp_nco);
-
-        result.actual_rf_freq = cur_lo_freq + set_dsp_nco + cur_dac_nco;
-    }
-
-    // account back for the offset
-    if (offset)
-       *freq += 85000000.0;
-
-    req.dsp_freq = result.actual_rf_freq;
-    result.actual_dsp_freq = req.dsp_freq;   // no DSP freq tuning it possible
-
-    result.target_rf_freq  = result.actual_rf_freq;
-    result.clipped_rf_freq = result.actual_rf_freq;
-    result.target_dsp_freq = result.actual_dsp_freq;
-
-    // print out tuning messages
-    boost::format base_message ("TX Tune Request: %f MHz\n");
-    base_message % (req.target_freq / 1e6);
-    std::string results_string = base_message.str();
-
-    // results of tuning RF LO
-    if (result.target_rf_freq != req.target_freq) {
-            boost::format rf_lo_message(
-                "  The RF LO does not support the requested frequency:\n"
-                "    Requested LO Frequency: %f MHz\n"
-                "    RF LO Result: %f MHz\n");
-            rf_lo_message % (req.target_freq / 1e6) % (result.actual_rf_freq / 1e6);
-            results_string += rf_lo_message.str();
-    } else {
-            boost::format rf_lo_message(
-                "  The RF LO supports the requested frequency:\n"
-                "    Requested LO Frequency: %f MHz\n"
-                "    RF LO Result: %f MHz\n");
-            rf_lo_message % (req.target_freq / 1e6) % (result.actual_rf_freq / 1e6);
-            results_string += rf_lo_message.str();
-    }
-
-    // results of tuning DSP
-    if (result.target_dsp_freq != req.target_freq) {
-            boost::format dsp_lo_message(
-                "  The DSP does not support the requested frequency:\n"
-                "    Requested DSP Frequency: %f MHz\n"
-                "    DSP Result: %f MHz\n");
-            dsp_lo_message % (req.target_freq / 1e6) % (result.actual_dsp_freq / 1e6);
-            results_string += dsp_lo_message.str();
-    } else {
-            boost::format dsp_lo_message(
-                "  The DSP supports the requested frequency:\n"
-                "    Requested DSP Frequency: %f MHz\n"
-                "    DSP Result: %f MHz\n");
-            dsp_lo_message % (req.target_freq / 1e6) % (result.actual_dsp_freq / 1e6);
-            results_string += dsp_lo_message.str();
-    }
-
-    UHD_MSG(status) << results_string;
-
-    // tune_request.args are ignored for Crimson
-    return result;
+	return result;
 }
 
 // get the TX frequency on specified channel
@@ -867,7 +1025,11 @@ void multi_crimson_tng::set_tx_gain(double gain, const std::string &name, size_t
 
 	gain = round(gain / 0.25);
 
-    _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+    if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+    	_tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+    } else {
+    	_tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+    }
 }
 
 // get TX frontend gain on specified channel
@@ -1017,6 +1179,10 @@ fs_path multi_crimson_tng::tx_link_root(const size_t chan) {
     if (chan > CRIMSON_TX_CHANNELS) 	channel = 0;
     else				channel = chan;
     return mb_root(0) / "tx_link" / chan_to_string(channel);
+}
+
+fs_path multi_crimson_tng::cm_root() {
+    return mb_root(0) / "cm";
 }
 
 // Channel string handling

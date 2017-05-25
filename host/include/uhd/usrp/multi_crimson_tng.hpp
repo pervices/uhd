@@ -219,6 +219,7 @@ private:
     fs_path tx_rf_fe_root(const size_t chan);
     fs_path tx_dsp_root(const size_t chan);
     fs_path tx_link_root(const size_t chan);
+    fs_path cm_root();
 };
 
 }}
