@@ -1294,7 +1294,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 #include <signal.h>
 
 #include <regex>
-#include <mutex>
 
 static void destroy_other_processes_using_crimson() {
 
@@ -1306,7 +1305,6 @@ static void destroy_other_processes_using_crimson() {
 	std::stringstream ss;
 	int fd;
 	struct stat st;
-	static std::mutex mt;
 
 	dp = opendir( "/tmp" );
 	if ( NULL == dp ) {
