@@ -45,6 +45,8 @@ using namespace uhd::usrp;
 using namespace uhd::transport;
 namespace asio = boost::asio;
 
+static void destroy_other_processes_using_crimson();
+
 // This is a lock to prevent multiple threads from requesting commands from
 // the device at the same time. This is important in GNURadio, as they spawn
 // a new thread per block. If not protected, UDP commands would time out.
@@ -639,10 +641,82 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
 	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
 	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
+
+
+	// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+	destroy_other_processes_using_crimson();
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
     // TODO send commands to mute all radio chains, mute everything
     // unlock the Crimson device to this process
+}
+
+// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <signal.h>
+
+#include <regex>
+
+static void destroy_other_processes_using_crimson() {
+
+	static const std::regex re( "^crimson-([1-9][0-9]*).lock$" );
+	DIR *dp;
+	std::string lock_file_name;
+	std::smatch match;
+	uint64_t pidn;
+	std::stringstream ss;
+	int fd;
+
+	dp = opendir( "/tmp" );
+	if ( NULL == dp ) {
+		throw runtime_error(
+			(
+				boost::format( "opendir: %s (%d)" )
+				% std::strerror( errno )
+				% errno
+			).str()
+		);
+	}
+
+	for( dirent *de = readdir( dp ); NULL != de; de = readdir( dp ) ) {
+		if ( DT_REG != de->d_type ) {
+			continue;
+		}
+		lock_file_name = std::string( de->d_name );
+		if ( ! std::regex_search( lock_file_name, match, re ) ) {
+			continue;
+		}
+
+		ss = std::stringstream( match.str( 1 ) );
+		ss >> pidn;
+
+		if ( 0 == kill( pid_t( pidn ), SIGKILL ) ) {
+			UHD_MSG( warning ) << "killed hung process " << pidn << std::endl;
+		}
+
+		lock_file_name = "/tmp/" + lock_file_name;
+		if ( 0 == remove( lock_file_name.c_str() ) ) {
+			UHD_MSG( warning ) << "removed stale lockfile " << lock_file_name << std::endl;
+		} else {
+			UHD_MSG( warning ) << "failed to remove stale lockfile " << lock_file_name << std::endl;
+		}
+	}
+	closedir( dp );
+
+	ss.clear();
+	ss << "/tmp/crimson-" << (uint64_t) getpid() << ".lock";
+
+	lock_file_name = ss.str();
+
+	fd = open( lock_file_name.c_str(), O_RDWR | O_CREAT );
+	if ( -1 == fd ) {
+		UHD_MSG( warning ) << "failed to create lockfile " << lock_file_name << ": " << strerror( errno ) << std::endl;
+	} else {
+		close( fd );
+	}
 }
