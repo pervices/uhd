@@ -574,7 +574,7 @@ public:
 
 				size_t samp_ptr_offset = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
 
-				if_packet_info.num_header_words32 = metadata.has_time_spec ? 1 : 4;
+				if_packet_info.num_header_words32 = metadata.has_time_spec ? 4 : 1;
 
 				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 
@@ -607,7 +607,7 @@ public:
 				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
 				std::memcpy( (uint8_t *)_tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
 
-				//UHD_MSG( status ) << "sending " << if_packet_info.num_payload_words32 << " samples to channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
+//				UHD_MSG( status ) << "sending " << if_packet_info.num_payload_words32 << " samples to channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
 
 				size_t ret = _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
 

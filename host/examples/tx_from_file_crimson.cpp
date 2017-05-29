@@ -607,7 +607,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx-args", po::value<std::string>(&tx_args)->default_value(""), "uhd transmit device address args")
         ("input", po::value<std::string>(&input_fn)->default_value("input.csv"), "name of the input file")
 		("loop", po::value<bool>(&loop)->default_value( false ), "retransmit the signal in a loop")
-		("sob", po::value<double>(&sob)->default_value( 2 ), "delay transmission for sob seconds")
+		("sob", po::value<double>(&sob)->default_value( 3 ), "delay transmission for sob seconds")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -703,33 +703,37 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //setup the metadata flags
     uhd::tx_metadata_t md;
-    md.start_of_burst = true;
-    md.end_of_burst   = false;
-    if ( sob > 0 ) {
-		md.has_time_spec = true;
-
-		uhd::time_spec_t now = tx_usrp->get_time_now();
-		uhd::time_spec_t then = now + sob;
-
-		std::cout << "Now: " << std::setprecision(10) << now.get_real_secs() << std::endl;
-		std::cout << "SoB: " << std::setprecision(10) << then.get_real_secs() << std::endl;
-
-		md.time_spec = then;
-    } else {
-    	sob = 0;
-    	md.has_time_spec = false;
-    }
-
-    std::cout << "Sending " << input_stream_data.n_samples << " samples, " << sob << " s from now" << std::endl;
 
     //send data until the signal handler gets called
     for( ;; ) {
 
+        md.start_of_burst = true;
+        md.end_of_burst   = false;
+        if ( sob > 0 ) {
+    		md.has_time_spec = true;
+
+    		uhd::time_spec_t now = tx_usrp->get_time_now();
+    		uhd::time_spec_t then = now + sob;
+
+    		std::cout << "Now: " << std::setprecision(10) << now.get_real_secs() << std::endl;
+    		std::cout << "SoB: " << std::setprecision(10) << then.get_real_secs() << std::endl;
+
+    		md.time_spec = then;
+        } else {
+        	sob = 0;
+        	md.has_time_spec = false;
+        }
+
+        std::cout << "Sending " << input_stream_data.n_samples << " samples, " << sob << " s from now" << std::endl;
+
         //send the entire contents of the buffer
         tx_stream->send( buff_ptrs, input_stream_data.n_samples, md );
 
-        md.start_of_burst = false;
-        md.has_time_spec = false;
+//        if ( 0 == sob ) {
+//            std::cout << "Sending " << input_stream_data.n_samples << " samples, " << sob << " s from now" << std::endl;
+//			md.start_of_burst = false;
+//			md.has_time_spec = false;
+//        }
 
         if ( ! loop ) {
         	break;

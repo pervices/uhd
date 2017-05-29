@@ -64,9 +64,9 @@ extern "C" {
 #define CRIMSON_TNG_FW_COMMS_FLAGS_PEEK32     (1 << 3)
 
 // Crimson min MTU size (empirically set mtu for QoS, udp header is 8 bytes)
-#define CRIMSON_TNG_MIN_MTU		(6400 - 8)
+#define CRIMSON_TNG_MIN_MTU		(6400 - 96)
 // Crimson max MTU size (jumbo ethernet frame is 9000 bytes)
-#define CRIMSON_TNG_MAX_MTU		(9000 - 8)
+#define CRIMSON_TNG_MAX_MTU		(9000 - 96)
 
 // Crimson Flowcontrol Update Per Second
 #define CRIMSON_TNG_UPDATE_PER_SEC	150
