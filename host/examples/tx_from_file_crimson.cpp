@@ -388,7 +388,7 @@ public:
 				sampleno = lineno - 5;
 				sampleno /= 2;
 
-				r.n_samples = sampleno;
+				r.n_samples = sampleno + 1;
 
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
 
@@ -607,7 +607,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx-args", po::value<std::string>(&tx_args)->default_value(""), "uhd transmit device address args")
         ("input", po::value<std::string>(&input_fn)->default_value("input.csv"), "name of the input file")
 		("loop", po::value<bool>(&loop)->default_value( false ), "retransmit the signal in a loop")
-		("sob", po::value<double>(&sob)->default_value( 10 ), "delay transmission for sob seconds")
+		("sob", po::value<double>(&sob)->default_value( 2 ), "delay transmission for sob seconds")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -681,7 +681,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //create a transmit streamer
     uhd::stream_args_t stream_args( "sc16", "sc16" );
     stream_args.channels = tx_channel_nums;
+    std::cout << "Getting TX Streamer.." << std::endl;
     uhd::tx_streamer::sptr tx_stream = tx_usrp->get_tx_stream( stream_args );
+    std::cout << "Got TX Streamer.." << std::endl;
 
 	std::signal(SIGINT, &sig_int_handler);
 	std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
@@ -705,13 +707,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     md.end_of_burst   = false;
     if ( sob > 0 ) {
 		md.has_time_spec = true;
-		md.time_spec = uhd::time_spec_t( tx_usrp->get_time_now().get_real_secs() + sob );
+
+		uhd::time_spec_t now = tx_usrp->get_time_now();
+		uhd::time_spec_t then = now + sob;
+
+		std::cout << "Now: " << std::setprecision(10) << now.get_real_secs() << std::endl;
+		std::cout << "SoB: " << std::setprecision(10) << then.get_real_secs() << std::endl;
+
+		md.time_spec = then;
     } else {
     	sob = 0;
     	md.has_time_spec = false;
     }
 
-	std::cout << "Sending " << input_stream_data.n_samples + 1 << " samples, " << sob << " s from now" << std::endl;
+    std::cout << "Sending " << input_stream_data.n_samples << " samples, " << sob << " s from now" << std::endl;
 
     //send data until the signal handler gets called
     for( ;; ) {

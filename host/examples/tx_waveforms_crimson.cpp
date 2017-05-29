@@ -127,7 +127,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
-		("sob", po::value<double>(&sob)->default_value(0.5), "start of burst in N seconds, 0 to disable")
+		("sob", po::value<double>(&sob)->default_value(10), "start of burst in N seconds, 0 to disable")
         ("rate", po::value<double>(&rate)->default_value(10e6), "rate of outgoing samples")
         ("freq", po::value<double>(&freq)->default_value(2.4e9), "RF center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(1500)), "amplitude of the waveform [0 to 32767]")
