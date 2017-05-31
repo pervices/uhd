@@ -15,15 +15,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <iostream>
-#include <csignal>
-#include <thread>
-
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <pthread.h> // pthread_setaffinity_np
-
 #include "wavetable.hpp"
 #include <uhd/utils/thread_priority.hpp>
 #include <uhd/utils/safe_main.hpp>
@@ -37,12 +28,10 @@
 #include <boost/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
+#include <iostream>
+#include <csignal>
 
 namespace po = boost::program_options;
-
-#ifndef CRIMSON_TNG_TX_CHANNELS
-#define CRIMSON_TNG_TX_CHANNELS 4
-#endif
 
 /***********************************************************************
  * Signal handlers
@@ -50,75 +39,16 @@ namespace po = boost::program_options;
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
-struct thread_ctx {
-	thread_ctx()
-	: should_exit( false ), buff( NULL )
-	{
-	}
-	bool should_exit;
-	const std::vector<std::complex<int16_t>> *buff;
-	uhd::stream_args_t stream_args;
-	uhd::tx_streamer::sptr tx_stream;
-	std::thread th;
-	uhd::tx_metadata_t md;
-};
-
-static void set_affinity( size_t cpu_idx ) {
-	static const size_t cpu_set_size = sizeof( cpu_set_t );
-	const pthread_t this_thread = pthread_self();
-	cpu_set_t cpu_set;
-	int r;
-	std::string error_msg;
-
-	CPU_ZERO( & cpu_set );
-	CPU_SET( cpu_idx, & cpu_set );
-
-	// XXX: non-portable, also could fail if we have < CRIMSON_TNG_TX_CHANNELS logical cores
-	r = pthread_setaffinity_np( this_thread, cpu_set_size, & cpu_set );
-	if ( 0 != r ) {
-		error_msg = (
-			boost::format( "%s( %d ): %s (%d)" )
-			% "pthread_setaffinity_np"
-			% cpu_idx
-			% std::strerror( errno )
-			% errno
-		).str();
-		throw uhd::runtime_error( error_msg );
-	}
-}
-
-static void thread_fn( thread_ctx *ctx ) {
-
-	// kb 3992: theoretically, system would be less memory-bound if this thread always runs on the same core
-	set_affinity( ctx->stream_args.channels[ 0 ] );
-	// kb 3993: set thread priority to realtime
-	uhd::set_thread_priority_safe();
-
-	std::vector<std::complex<int16_t> *> buffs( 1, (std::complex<int16_t> *) & ctx->buff->front() );
-
-	while( ! ctx->should_exit ) {
-
-	    ctx->tx_stream->send( buffs, ctx->buff->size(), ctx->md );
-
-	    ctx->md.start_of_burst = false;
-	    ctx->md.has_time_spec = false;
-	}
-
-    //send a mini EOB packet
-	ctx->md.end_of_burst = true;
-	ctx->tx_stream->send("", 0, ctx->md);
-}
-
 /***********************************************************************
  * Main function
  **********************************************************************/
 int UHD_SAFE_MAIN(int argc, char *argv[]){
+    uhd::set_thread_priority_safe();
 
     //variables to be set by po
     std::string args, wave_type, ant, subdev, ref, otw, channel_list;
     size_t spb;
-    double rate, freq, gain, wave_freq;
-    double sob;
+    double rate, freq, gain, wave_freq, bw;
     float ampl;
 
     //setup the program options
@@ -127,15 +57,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
-		("sob", po::value<double>(&sob)->default_value(10), "start of burst in N seconds, 0 to disable")
         ("rate", po::value<double>(&rate)->default_value(10e6), "rate of outgoing samples")
         ("freq", po::value<double>(&freq)->default_value(2.4e9), "RF center frequency in Hz")
-        ("ampl", po::value<float>(&ampl)->default_value(float(1500)), "amplitude of the waveform [0 to 32767]")
+        ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("gain", po::value<double>(&gain)->default_value(20), "gain for the RF chain")
+        ("ant", po::value<std::string>(&ant), "daughterboard antenna selection")
+        ("subdev", po::value<std::string>(&subdev), "daughterboard subdevice specification")
+        ("bw", po::value<double>(&bw), "daughterboard IF filter bandwidth in Hz")
         ("wave-type", po::value<std::string>(&wave_type)->default_value("SINE"), "waveform type (CONST, SQUARE, RAMP, SINE)")
         ("wave-freq", po::value<double>(&wave_freq)->default_value( 5e6 ), "waveform frequency in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo)")
+        ("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
         ("channels", po::value<std::string>(&channel_list)->default_value("0,1,2,3"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("int-n", "tune USRP with integer-N tuning")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -168,6 +102,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //Lock mboard clocks
     usrp->set_clock_source(ref);
 
+    //always select the subdevice first, the channel mapping affects the other settings
+    if (vm.count("subdev")) usrp->set_tx_subdev_spec(subdev);
+
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //set the sample rate
@@ -188,6 +125,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
         uhd::tune_request_t tune_request(freq);
+        if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
         std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
 
@@ -197,6 +135,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             usrp->set_tx_gain(gain, channel_nums[ch]);
             std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
         }
+
+        //set the IF filter bandwidth
+        if (vm.count("bw")){
+            std::cout << boost::format("Setting TX Bandwidth: %f MHz...") % bw << std::endl;
+            usrp->set_tx_bandwidth(bw, channel_nums[ch]);
+            std::cout << boost::format("Actual TX Bandwidth: %f MHz...") % usrp->get_tx_bandwidth(channel_nums[ch]) << std::endl << std::endl;
+        }
+
+        //set the antenna
+        if (vm.count("ant")) usrp->set_tx_antenna(ant, channel_nums[ch]);
     }
 
     boost::this_thread::sleep(boost::posix_time::seconds(1)); //allow for some setup time
@@ -221,35 +169,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    std::vector<thread_ctx> ctx( channel_nums.size() );
-    uhd::stream_args_t common_stream_args("sc16", "sc16");
-    for( size_t i = 0; i < channel_nums.size(); i++ ) {
-    	ctx[ i ].stream_args = common_stream_args;
-    	ctx[ i ].stream_args.channels = std::vector<size_t>{ channel_nums[ i ] };
-        ctx[ i ].tx_stream = usrp->get_tx_stream( ctx[ i ].stream_args );
-    }
+    uhd::stream_args_t stream_args("sc16", otw);
+    stream_args.channels = channel_nums;
+    uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
     //allocate a buffer which we re-use for each channel
-    if (spb == 0) spb = ctx[ 0 ].tx_stream->get_max_num_samps()*10;
+    if (spb == 0) spb = tx_stream->get_max_num_samps()*10;
     std::vector<std::complex<int16_t> > buff(spb);
+    std::vector<std::complex<int16_t> *> buffs(channel_nums.size(), &buff.front());
 
-    uhd::time_spec_t sob_time( usrp->get_time_now().get_real_secs() + sob );
-
-    for( auto &_ctx: ctx ) {
-    	_ctx.buff = & buff;
-
-        //setup the metadata flags
-        _ctx.md.start_of_burst = true;
-        _ctx.md.end_of_burst   = false;
-
-        if ( 0 == sob ) {
-        	_ctx.md.has_time_spec = false;
-        } else {
-        	_ctx.md.has_time_spec = true;
-        	_ctx.md.time_spec = sob_time;
-        }
-
-    }
+    //setup the metadata flags
+    uhd::tx_metadata_t md;
+    md.start_of_burst = true;
+    md.end_of_burst   = false;
+    md.has_time_spec  = true;
+    md.time_spec = uhd::time_spec_t::get_system_time() + uhd::time_spec_t( 5, 0 );
 
     //std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     //usrp->set_time_now(uhd::time_spec_t(0.0));
@@ -283,19 +217,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         buff[n] = wave_table(index += step);
     }
 
-    for ( size_t i = 0; i < ctx.size(); i++ ) {
-    	ctx[ i ].th = std::thread( thread_fn, & ctx[ i ] );
-    }
-
     //send data until the signal handler gets called
     while(not stop_signal_called){
-    	usleep( 1000000 );
+
+        //send the entire contents of the buffer
+        tx_stream->send(buffs, buff.size(), md);
+
+        md.start_of_burst = false;
+        md.has_time_spec = false;
     }
 
-    for ( auto & _ctx: ctx ) {
-    	_ctx.should_exit = true;
-    	_ctx.th.join();
-    }
+    //send a mini EOB packet
+    md.end_of_burst = true;
+    tx_stream->send("", 0, md);
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
