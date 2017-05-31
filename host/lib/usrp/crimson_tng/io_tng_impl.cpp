@@ -545,7 +545,8 @@ public:
 //					}
 //
 					if ( metadata.has_time_spec ) {
-						uhd::time_spec_t last = _last_time[ i ];
+
+            uhd::time_spec_t last = _last_time[ i ];
 						uhd::time_spec_t now = get_time_now();
 						uhd::time_spec_t dt = last - now;
 
