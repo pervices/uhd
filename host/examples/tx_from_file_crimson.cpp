@@ -744,6 +744,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
+    // wait for tx buffers to drain completely before disabling tx
+    sleep( 3 );
+
     std::cout << "sending EOB" << std::endl;
 
     //send a mini EOB packet
