@@ -71,6 +71,11 @@ namespace uhd {
 			return last_time;
 		}
 
+		// XXX: @CF: should only be used in the case where last time is not necessarily when the pidc constructor was called
+		void set_last_time( double t ) {
+			last_time = t;
+		}
+
 		double get_control_variable() {
 			return cv;
 		}
