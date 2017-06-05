@@ -37,15 +37,17 @@ void foo() {
 	//const size_t max_iterations = ceil( fc.nominal_sample_rate / fc.pid_sample_rate );
 	const size_t max_iterations = 3 * f_s / MTU;
 
+	uhd::time_spec_t t0 = uhd::time_spec_t::get_system_time();
+
 	for(
-		t = uhd::time_spec_t::get_system_time(),
+		t = t0,
 			i = 0,
 			dt = uhd::time_spec_t( 0, 0 );
 		i <= max_iterations;
 		i++
 	) {
 		std::cout
-			<< std::setprecision( 10 ) << t.get_real_secs()
+			<< std::setprecision( 10 ) << ( t - t0 ).get_real_secs()
 			<< ", "
 			<< std::setprecision( 10 ) << fc.get_buffer_level_pcnt()
 			<< std::endl;
