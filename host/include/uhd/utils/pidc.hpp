@@ -9,6 +9,12 @@ namespace uhd {
 
 	public:
 
+		typedef enum {
+			K_P,
+			K_I,
+			K_D,
+		} k_t;
+
 		pidc()
 		:
 			pidc( 0.0, 0.0, 0.0, 0.0 )
@@ -37,13 +43,12 @@ namespace uhd {
 
 		virtual ~pidc() {}
 
-		double update_control_variable( const double sp, const double pv ) {
+		double update_control_variable( const double sp, const double pv, const double now = uhd::time_spec_t::get_system_time().get_real_secs() ) {
 			// XXX: @CF: Use "velocity algorithm" form?
 			// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation
 			// Possibly better to not use the velocity algorithm form to avoid several opportunities for numerical instability
 
 			double then = last_time;
-			double now = uhd::time_spec_t::get_system_time().get_real_secs();
 
 			double dt = now - then;
 			double e_1 = e;
@@ -78,6 +83,15 @@ namespace uhd {
 
 		double get_control_variable() {
 			return cv;
+		}
+
+		double get_k( k_t k ) {
+			switch( k ) {
+			case K_P: return Kp;
+			case K_I: return Ki;
+			case K_D: return Kd;
+			default: return 0;
+			}
 		}
 
 	protected:
