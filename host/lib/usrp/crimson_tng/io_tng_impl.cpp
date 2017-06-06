@@ -571,19 +571,16 @@ public:
 					);
 				then = now + dt;
 
-				if ( metadata.has_time_spec ) {
+				//
+				// Extended Delay for Start of Burst
+				//
 
-					//
-					// Extended Delay for Start of Burst
-					//
-
-					dt -= 10e-6;
-					if ( dt.get_real_secs() > 30e-6 ) {
-						struct timespec req, rem;
-						req.tv_sec = (time_t) dt.get_full_secs();
-						req.tv_nsec = dt.get_frac_secs()*1e9;
-						nanosleep( &req, &rem );
-					}
+				dt -= 10e-6;
+				if ( dt.get_real_secs() > 30e-6 ) {
+					struct timespec req, rem;
+					req.tv_sec = (time_t) dt.get_full_secs();
+					req.tv_nsec = dt.get_frac_secs()*1e9;
+					nanosleep( &req, &rem );
 				}
 				for(
 					now = get_time_now();
@@ -604,7 +601,7 @@ public:
 				// Update Flow Control
 				//
 
-				_flow_control[ i ].update( data_len / sizeof( uint32_t ), get_time_now() );
+				_flow_control[ i ].update( data_len / sizeof( uint32_t ), then );
 
 				//
 				// Decrement Byte / Sample Counters

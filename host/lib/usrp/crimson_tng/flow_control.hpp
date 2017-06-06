@@ -15,7 +15,7 @@
 #include "../../../include/uhd/utils/pidc_tl.hpp"
 
 #ifndef DEBUG_FLOW_CONTROL
-//#define DEBUG_FLOW_CONTROL 1
+#define DEBUG_FLOW_CONTROL 1
 #endif
 
 namespace uhd {
@@ -52,6 +52,8 @@ public:
 	ssize_t buffer_level;
 	double sample_rate;
 	pidc_tl pidc;
+
+	uhd::time_spec_t msg_time;
 
 	/**
 	 * flow_control ctor
@@ -96,6 +98,10 @@ public:
 				).str()
 			);
 		}
+
+#ifdef DEBUG_FLOW_CONTROL
+		msg_time = uhd::time_spec_t::get_system_time();
+#endif
 	}
 
 	flow_control( const uhd::flow_control &other )
@@ -109,6 +115,10 @@ public:
 		buffer_level = other.buffer_level;
 		sample_rate  = other.sample_rate;
 		pidc         = other.pidc;
+
+#ifdef DEBUG_FLOW_CONTROL
+		msg_time     = other.msg_time;
+#endif
 	}
 
 	virtual ~flow_control()
@@ -226,67 +236,97 @@ public:
 
 		then = uhd::time_spec_t( pidc.get_last_time() );
 		dt = now - then;
-		nsamples_consumed = round( dt.get_real_secs() * nominal_sample_rate );
 
-		buffer_level -= nsamples_consumed;
-		buffer_level += nsamples_sent;
+		if ( dt > 0.0 ) {
+			nsamples_consumed = floor( dt.get_real_secs() * nominal_sample_rate );
 
-#if defined( DEBUG_FLOW_CONTROL )
-		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
-			throw runtime_error(
-				(
-					boost::format( "buffer level has fallen below 0 and is at %u" )
-					% buffer_level
-				).str()
-			);
+			buffer_level -= nsamples_consumed;
+			buffer_level += nsamples_sent;
+		} else {
+			std::cout << "";
 		}
 
-		if ( BOOST_UNLIKELY( buffer_level > buffer_size ) ) {
-			throw runtime_error(
-				(
+#if defined( DEBUG_FLOW_CONTROL )
+		if ( BOOST_UNLIKELY( dt < 0.0 ) ) {
+			std::string msg = (
+					boost::format( "time-difference is negative! %f" )
+					% dt.get_real_secs()
+				).str();
+			std::cerr << msg << std::endl;
+//			throw runtime_error( msg );
+		}
+
+		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
+			std::string msg = (
+					boost::format( "buffer level has fallen below 0 and is at %u" )
+					% buffer_level
+				).str();
+			std::cerr << msg << std::endl;
+//			throw runtime_error( msg );
+		}
+
+		if ( BOOST_UNLIKELY( buffer_level > (ssize_t)buffer_size ) ) {
+			std::string msg = (
 					boost::format( "buffer level has risen above %u and is at %u" )
 					% buffer_size
 					% buffer_level
-				).str()
-			);
+				).str();
+			std::cerr << msg << std::endl;
+//			throw runtime_error( msg );
 		}
 #endif
 
-		sp = nominal_buffer_level;
-		pv = buffer_level;
-		if ( now >= pidc.get_last_time() + 1 / pid_sample_rate ) {
-			// XXX: do *not* update the PID too frequently!! It is designed to be
-			// updated at pid_sample_rate only. As dt -> 0, high frequency updates
-			// introduce numerical instability in the differentiator.
-			cv = pidc.update_control_variable( sp, pv, now.get_real_secs() );
-		} else {
-			cv = pidc.get_control_variable();
-		}
+		if ( 0 != nsamples_sent ) {
+			sp = nominal_buffer_level;
+			pv = buffer_level;
+			//if ( now >= pidc.get_last_time() + 1 / pid_sample_rate ) {
+				// XXX: do *not* update the PID too frequently!! It is designed to be
+				// updated at pid_sample_rate only. As dt -> 0, high frequency updates
+				// introduce numerical instability in the differentiator.
+				cv = pidc.update_control_variable( sp, pv, now.get_real_secs() );
+//			} else {
+//				cv = pidc.get_control_variable();
+//			}
 
-		// Plant: 1st Order Conversion: CV -> Sample Rate
-		// ==============================================
-		// CV is the desired buffer level and PV is the actual buffer level
-		// dt is based on the tx time of the previous nsamples_sent
-		// If sample_rate is extremely high, then that simply forces the
-		// get_time_until_next_send() to 0, and then sample_rate is updated
-		// again.
-		sample_rate = ( cv - pv ) / dt.get_real_secs();
+			// Plant: 1st Order Conversion: CV -> Sample Rate
+			// ==============================================
+			// CV is the desired buffer level and PV is the actual buffer level
+			// dt is based on the tx time of the previous nsamples_sent
+			// If sample_rate is extremely high, then that simply forces the
+			// get_time_until_next_send() to 0, and then sample_rate is updated
+			// again.
+			sample_rate = ( cv - pv ) / dt.get_real_secs();
+		} else {
+			sample_rate = nominal_sample_rate;
+		}
 
 
 #if defined( DEBUG_FLOW_CONTROL )
 		if ( BOOST_UNLIKELY( sample_rate < 0 ) ) {
-			throw runtime_error(
-				(
+			std::string msg = (
 					boost::format( "sample rate has fallen below 0 and is at %f" )
 					% sample_rate
-				).str()
-			);
+				).str();
+			std::cerr << msg << std::endl;
+//			throw runtime_error( msg );
 		}
 #endif
 
 		first_update = false;
 
 		lock.unlock();
+
+#ifdef DEBUG_FLOW_CONTROL
+		if ( uhd::time_spec_t::get_system_time() > msg_time + 1.0 ) {
+			msg_time = uhd::time_spec_t::get_system_time();
+
+			std::cout <<
+				"buffer_level: " << buffer_level << ", "
+				"sample_rate: " << sample_rate <<
+				std::endl;
+
+		}
+#endif
 	}
 	/**
 	 * update
