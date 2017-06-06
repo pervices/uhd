@@ -101,10 +101,14 @@ BOOST_AUTO_TEST_CASE( test_time_until_second_send ) {
 	double expected_double;
 	double actual_double;
 
+	uhd::time_spec_t now;
+	uhd::time_spec_t then;
+
 	uhd::flow_control fc( DEFAULT_FC );
 
+	now = uhd::time_spec_t::get_system_time();
 	fc.update( MTU );
-	uhd::time_spec_t then = fc.get_time_until_next_send( MTU );
+	then = fc.get_time_until_next_send( MTU );
 	size_t buffer_level = fc.get_buffer_level();
 
 	// ensure we have a non-zero time to wait (albeit very, very small)
@@ -113,8 +117,8 @@ BOOST_AUTO_TEST_CASE( test_time_until_second_send ) {
 	BOOST_CHECK_MESSAGE( actual_double > expected_double, "negative time to second send" );
 
 	// ensure that the time we wait until the second send does not exhaust the buffer resources
-	expected_double = buffer_level / fc.nominal_sample_rate;
-	actual_double = then.get_real_secs();
+	expected_double = buffer_level / fc.get_sample_rate();
+	actual_double = ( then - now ).get_real_secs();
 	BOOST_CHECK_MESSAGE( actual_double < expected_double, "flow control not compensating after first packet" );
 }
 
@@ -139,7 +143,7 @@ BOOST_AUTO_TEST_CASE( test_inter_pid_sample_convergence ) {
 
 	uhd::flow_control fc( DEFAULT_FC );
 
-	const size_t max_iterations =
+	const size_t max_iterations = BUF_LEN / MTU;
 
 	for(
 		t = uhd::time_spec_t::get_system_time(),
@@ -156,11 +160,11 @@ BOOST_AUTO_TEST_CASE( test_inter_pid_sample_convergence ) {
 		fc.update( MTU, t );
 
 		buffer_level = fc.get_buffer_level();
-		if ( is_close( (double) fc.nominal_buffer_level, (double) buffer_level, (double) MTU ) ) {
+		if ( is_close( SP, buffer_level / (double)BUF_LEN, 0.05 ) ) {
 			break;
 		}
 
-		// ensure that the difference between actual and desired buffer levels is converges to zero
+		// ensure that the difference between actual and desired buffer levels converges to zero
 		expected_double = abs( fc.nominal_buffer_level - prev_buffer_level );
 		actual_double = abs( fc.nominal_buffer_level - buffer_level );
 		BOOST_CHECK_MESSAGE(
@@ -172,7 +176,7 @@ BOOST_AUTO_TEST_CASE( test_inter_pid_sample_convergence ) {
 			).str()
 		);
 
-		// ensure that delay grows when buffer levels converge
+		// ensure that delay grows when converging on the set point
 		expected_double = prev_dt.get_real_secs();
 		actual_double = dt.get_real_secs();
 		BOOST_CHECK_MESSAGE(
@@ -199,7 +203,7 @@ BOOST_AUTO_TEST_CASE( test_inter_pid_sample_convergence ) {
 	expected_size_t = max_iterations;
 	actual_size_t = i;
 	BOOST_CHECK_MESSAGE(
-		actual_size_t == expected_size_t,
+		actual_size_t < expected_size_t,
 		(
 			boost::format( "buffer levels did not converge within %u iterations" )
 			% max_iterations
