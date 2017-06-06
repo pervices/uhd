@@ -30,8 +30,6 @@ void foo() {
 	uhd::time_spec_t t;
 	uhd::time_spec_t dt;
 
-	ssize_t buffer_level;
-
 	uhd::flow_control fc( DEFAULT_FC );
 
 	//const size_t max_iterations = ceil( fc.nominal_sample_rate / fc.pid_sample_rate );

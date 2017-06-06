@@ -323,19 +323,30 @@ public:
 		// TODO: potentially add extra delay if nsamples_to_send is 'large' so that we do not overflow
 		boost::ignore_unused( nsamples_to_send );
 
-		uhd::time_spec_t r;
 		uhd::time_spec_t dt;
+		uhd::time_spec_t last;
 
 		lock.lock();
 
 		if ( first_update ) {
-			r = uhd::time_spec_t( 0, 0 );
+
+			dt = uhd::time_spec_t( 0, 0 );
+
 		} else {
-			r = uhd::time_spec_t( buffer_level / sample_rate );
+
+			last = pidc.get_last_time();
+
+			if ( last > now ) {
+				// delayed send
+				dt = last - uhd::time_spec_t( nominal_buffer_level / nominal_sample_rate ) - now;
+			} else {
+				dt = uhd::time_spec_t( buffer_level / sample_rate );
+			}
 		}
 
 		lock.unlock();
-		return r;
+
+		return dt;
 	}
 	/**
 	 * get_time_until_next_send

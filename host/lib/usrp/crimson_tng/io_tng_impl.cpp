@@ -520,12 +520,10 @@ public:
 		// Timeout
 		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout) + ( metadata.has_time_spec ? metadata.time_spec : time_spec_t( 0.0 ) );
 
-		while ( samp_sent < nsamps_per_buff * _channels.size() ) {			// All Samples for all channels must be sent
+		while ( samp_sent < nsamps_per_buff * _channels.size() ) {
 
-			// send to each connected stream data in buffs[i]
-			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
+			for (unsigned int i = 0; i < _channels.size(); i++) {
 
-				// Skip Channel is Nothing left to send
 				if (remaining_bytes[i] == 0) {
 					continue;
 				}
@@ -947,38 +945,61 @@ private:
 	// the buffer monitor thread
 	static void bm_thread_fn( crimson_tng_tx_streamer* txstream ) {
 
+		const uhd::time_spec_t T( 1 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 		uint16_t fifo_lvl[ CRIMSON_TNG_TX_CHANNELS ];
+		uhd::time_spec_t now, then, dt;
+		struct timespec req, rem;
 
-		for( ; ! txstream->_bm_thread_should_exit; ) {
-			try {
+		for(
+			now = txstream->get_time_now(),
+				then = now + T
+				;
 
-				if ( 0 == txstream->_instance_num ) {
-					txstream->time_diff_send();
-				}
+			! txstream->_bm_thread_should_exit
+				;
 
-				txstream->_flow_iface -> poke_str("Read fifo");
-				std::string buff_read = txstream->_flow_iface -> peek_str();
+			then += T
+		) {
 
-				buff_read.erase(0, 5); // remove "flow,"
-				std::stringstream ss(buff_read);
-				for ( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
-					ss >> fifo_lvl[ j ];
-					ss.ignore(); // skip ','
-				}
-
-				if ( 0 == txstream->_instance_num ) {
-					txstream->time_diff_process( time_diff_extract( ss ) );
-				}
-
-				// update flow controllers with actual buffer levels
-				for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
-				}
-
-				// alert user of underflow?
-
-			} catch ( boost::thread_interrupted &e ) {
-				break;
+			for(
+				now = txstream->get_time_now(),
+					dt = then - now
+					;
+				dt > 0.0
+					;
+				now = txstream->get_time_now()
+			) {
+				req.tv_sec = dt.get_full_secs();
+				req.tv_nsec = dt.get_frac_secs() * 1e9;
+				nanosleep( &req, &rem );
 			}
+
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_send();
+			}
+
+			txstream->_flow_iface -> poke_str("Read fifo");
+			std::string buff_read = txstream->_flow_iface -> peek_str();
+
+			buff_read.erase(0, 5); // remove "flow,"
+			std::stringstream ss(buff_read);
+			for ( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
+				ss >> fifo_lvl[ j ];
+				ss.ignore(); // skip ','
+			}
+
+			if ( 0 == txstream->_instance_num ) {
+				txstream->time_diff_process( time_diff_extract( ss ) );
+			}
+
+			// update flow controllers with actual buffer levels
+			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
+				txstream->_flow_control[ i ].set_buffer_level(
+					fifo_lvl[ txstream->_channels[ i ] ]
+				);
+			}
+
+			// alert user of underflow?
 		}
 	}
 

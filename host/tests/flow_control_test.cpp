@@ -221,3 +221,35 @@ BOOST_AUTO_TEST_CASE( test_inter_pid_sample_convergence ) {
 		).str()
 	);
 }
+
+BOOST_AUTO_TEST_CASE( test_sob ) {
+
+	const uhd::time_spec_t prebuffer_in_time( SP * CRIMSON_TNG_BUFF_SIZE / (double) f_s );
+	uhd::time_spec_t now, then, dt;
+
+	uhd::flow_control fc( DEFAULT_FC );
+
+	// let's say that I want to send 5 minutes in the future
+	dt =  uhd::time_spec_t( 60 * 5, 0 );
+	now = uhd::time_spec_t::get_system_time();
+	then = now + dt;
+
+	// so we give flow_control an empty update with the future time
+	fc.update( 0, then );
+
+	// now, the next time that the flow_control tells us to send should be
+
+	double expected_double = ( then - prebuffer_in_time - now ).get_real_secs();
+	double actual_double;
+
+	actual_double = fc.get_time_until_next_send( -1, now ).get_real_secs();
+
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double ),
+		(
+			boost::format( "not the expected amount of time to wait ( expected: %f, actual: %f )" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+}
