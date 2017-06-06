@@ -139,8 +139,7 @@ BOOST_AUTO_TEST_CASE( test_inter_pid_sample_convergence ) {
 
 	uhd::flow_control fc( DEFAULT_FC );
 
-	//const size_t max_iterations = ceil( fc.nominal_sample_rate / fc.pid_sample_rate );
-	const size_t max_iterations = 20;
+	const size_t max_iterations =
 
 	for(
 		t = uhd::time_spec_t::get_system_time(),
@@ -197,16 +196,16 @@ BOOST_AUTO_TEST_CASE( test_inter_pid_sample_convergence ) {
 		).str()
 	);
 
-//	expected_size_t = max_iterations;
-//	actual_size_t = i;
-//	BOOST_CHECK_MESSAGE(
-//		actual_size_t == expected_size_t,
-//		(
-//			boost::format( "buffer levels did not converge within %u iterations" )
-//			% max_iterations
-//		).str()
-//	);
-//
+	expected_size_t = max_iterations;
+	actual_size_t = i;
+	BOOST_CHECK_MESSAGE(
+		actual_size_t == expected_size_t,
+		(
+			boost::format( "buffer levels did not converge within %u iterations" )
+			% max_iterations
+		).str()
+	);
+
 	expected_double = fc.nominal_sample_rate;
 	actual_double = fc.get_sample_rate();
 	BOOST_CHECK_MESSAGE(

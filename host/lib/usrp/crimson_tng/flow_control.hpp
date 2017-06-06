@@ -13,15 +13,29 @@
 
 #include "../../../include/uhd/utils/pidc_tl.hpp"
 
+#ifndef DEBUG_FLOW_CONTROL
+//#define DEBUG_FLOW_CONTROL 1
+#endif
+
 namespace uhd {
 
 /**
  * This is a slightly odd wrapper around a PID controller.
  *
- * What makes it odd, is that the software-based PID controller code cannot
- * sample the Process nearly fast enough due to the fact that it is I/O bound.
+ * What makes it odd, is that the software-based PID controller cannot sample
+ * the Process Variable nearly fast enough due to the fact that it is
+ * I/O bound.
  *
- * However, we can infer the
+ * However, we can infer the Process Variable by simply counting samples that
+ * we have sent. It's an approximation, albeit a fairly accurate one. The
+ * Process Variable is considered as rejected disturbance. The flow controller
+ * allows for PV updates synchronously or asynchronously via monitor methods.
+ * That is to say, a separate thread can sample the PV at a particular interval
+ * and correct our approximation.
+ *
+ * Our Plant is responsible for translating the Process Variable and Control
+ * Variable to a sample rate which the system uses to determine what delay to
+ * use until the next burst of data is sent, thus rate-limiting transmission.
  */
 class flow_control {
 
@@ -38,6 +52,14 @@ public:
 	double sample_rate;
 	pidc_tl pidc;
 
+	/**
+	 * flow_control ctor
+	 *
+	 * @param nominal_sample_rate        the operating tx rate [samples / s]
+	 * @param pid_sample_rate            the rate at which the process variable is to be sampled [Hz]
+	 * @param nominal_buffer_level_pcnt  the desired buffer level [%]
+	 * @param buffer_size                the buffer size [samples]
+	 */
 	flow_control( const double nominal_sample_rate, const double pid_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size )
 	:
 		buffer_size( buffer_size ),
@@ -49,7 +71,7 @@ public:
 		sample_rate( nominal_sample_rate ),
 		pidc(
 			nominal_buffer_level_pcnt * buffer_size,
-			std::min( nominal_buffer_level_pcnt, 1 - nominal_buffer_level_pcnt ) * buffer_size,
+			std::min( nominal_buffer_level_pcnt, 1 - nominal_buffer_level_pcnt ),
 			2 / pid_sample_rate
 		)
 	{
@@ -65,7 +87,7 @@ public:
 				).str()
 			);
 		}
-		if ( nominal_sample_rate <= 0 ) {
+		if ( nominal_sample_rate <= 0 || nominal_sample_rate < 10 * pid_sample_rate ) {
 			throw uhd::value_error(
 				(
 					boost::format( "Invalid sample_rate %f" )
@@ -73,14 +95,21 @@ public:
 				).str()
 			);
 		}
-
-		// XXX: insert some sanity checks w.r.t. tx sample rate > pid sample rate, etc
 	}
 
 	virtual ~flow_control()
 	{
 	}
 
+	/**
+	 * get_buffer_level
+	 *
+	 * Get the (approximate) level of the buffer. Under normal operating
+	 * conditions, this reflects the level of the actual tx buffer. Periodic
+	 * updates of actual tx buffer levels are treated as rejected disturbances.
+	 *
+	 * @return the buffer level [samples]
+	 */
 	size_t get_buffer_level() {
 		size_t r;
 		lock.lock();
@@ -88,6 +117,13 @@ public:
 		lock.unlock();
 		return r;
 	}
+	/**
+	 * set_buffer_level
+	 *
+	 * Set the buffer level, presumably based on valid data.
+	 *
+	 * @param level   the actual buffer level [samples]
+	 */
 	void set_buffer_level( const size_t level ) {
 		lock.lock();
 		if ( level > buffer_size ) {
@@ -103,13 +139,38 @@ public:
 		lock.unlock();
 	}
 
+	/**
+	 * get_buffer_level_pcnt
+	 *
+	 * Get the (approximate) level of the buffer. Under normal operating
+	 * conditions, this reflects the level of the actual tx buffer. Periodic
+	 * updates of actual tx buffer levels are treated as rejected disturbances.
+	 *
+	 * @return the buffer level [%]
+	 */
 	double get_buffer_level_pcnt() {
 		return get_buffer_level() / (double) buffer_size;
 	}
+	/**
+	 * set_buffer_level
+	 *
+	 * Set the buffer level, presumably based on valid data.
+	 *
+	 * @param pcnt   the actual buffer level [%]
+	 */
 	void set_buffer_level_pcnt( const double pcnt ) {
 		set_buffer_level( pcnt * buffer_size );
 	}
 
+	/**
+	 * get_sample_rate
+	 *
+	 * Get the current, compensating, sample rate. The sample rate
+	 * is the output of the flow controller. The flow controller
+	 * translates from desired buffer level, in samples, to sample rate.
+	 *
+	 * @return the current, compensating, sample rate
+	 */
 	double get_sample_rate() {
 		double r;
 		lock.lock();
@@ -118,6 +179,16 @@ public:
 		return r;
 	}
 
+	/**
+	 * update
+	 *
+	 * Report to the flow controller, that the caller has sent additional
+	 * samples and that the flow controller should adjust its buffer levels,
+	 * internal state, and sample rate, appropriately.
+	 *
+	 * @param nsamples_sent   The number of samples sent
+	 * @param now             The time at which the samples were sent
+	 */
 	void update( const size_t nsamples_sent, const uhd::time_spec_t & now ) {
 
 		uhd::time_spec_t then;
@@ -129,7 +200,7 @@ public:
 
 		lock.lock();
 
-		if ( first_update ) {
+		if ( BOOST_UNLIKELY( first_update ) ) {
 
 			then = now;
 			then -= nominal_buffer_level / nominal_sample_rate;
@@ -146,7 +217,8 @@ public:
 		buffer_level -= nsamples_consumed;
 		buffer_level += nsamples_sent;
 
-		if ( buffer_level < 0 ) {
+#if defined( DEBUG_FLOW_CONTROL )
+		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
 			throw runtime_error(
 				(
 					boost::format( "buffer level has fallen below 0 and is at %u" )
@@ -155,16 +227,39 @@ public:
 			);
 		}
 
+		if ( BOOST_UNLIKELY( buffer_level > buffer_size ) ) {
+			throw runtime_error(
+				(
+					boost::format( "buffer level has risen above %u and is at %u" )
+					% buffer_size
+					% buffer_level
+				).str()
+			);
+		}
+#endif
+
 		sp = nominal_buffer_level;
 		pv = buffer_level;
-		if ( now >= pidc.get_last_time() + 2 / pid_sample_rate ) {
+		if ( now >= pidc.get_last_time() + 1 / pid_sample_rate ) {
+			// XXX: do *not* update the PID too frequently!! It is designed to be
+			// updated at pid_sample_rate only. As dt -> 0, high frequency updates
+			// introduce numerical instability in the differentiator.
 			cv = pidc.update_control_variable( sp, pv, now.get_real_secs() );
 		} else {
 			cv = pidc.get_control_variable();
 		}
 
-		sample_rate = nominal_sample_rate + ( cv - pv ) * 2 / pid_sample_rate;
+		// Plant: 1st Order Conversion: CV -> Sample Rate
+		// ==============================================
+		// CV is the desired buffer level and PV is the actual buffer level
+		// dt is based on the tx time of the previous nsamples_sent
+		// If sample_rate is extremely high, then that simply forces the
+		// get_time_until_next_send() to 0, and then sample_rate is updated
+		// again.
+		sample_rate = ( cv - pv ) / dt.get_real_secs();
 
+
+#if defined( DEBUG_FLOW_CONTROL )
 		if ( BOOST_UNLIKELY( sample_rate < 0 ) ) {
 			throw runtime_error(
 				(
@@ -173,16 +268,45 @@ public:
 				).str()
 			);
 		}
+#endif
 
 		first_update = false;
 
 		lock.unlock();
 	}
+	/**
+	 * update
+	 *
+	 * Report to the flow controller, that the caller has sent additional
+	 * samples and that the flow controller should adjust its buffer levels,
+	 * internal state, and sample rate, appropriately.
+	 *
+	 * This variant of update uses the current system time.
+	 *
+	 * @param nsamples_sent
+	 */
 	void update( const size_t nsamples_sent ) {
 		update( nsamples_sent, uhd::time_spec_t::get_system_time() );
 	}
 
-	uhd::time_spec_t get_time_until_next_send( const size_t mtu, const uhd::time_spec_t &now ) {
+	/**
+	 * get_time_until_next_send
+	 *
+	 * The primary purpose of a flow controller is to act as a rate-limiter.
+	 * If samples are sent too quickly, input buffers can overflow and
+	 * data is corrupted. If samples are sent too slowly, input buffers can
+	 * underflow resulting in signal corruption (typically zeros are inserted).
+	 *
+	 * This functions determines the amount of time to wait between
+	 * transmitting bursts of data.
+	 *
+	 * @param nsamples_to_send   The number of samples the caller would like to send
+	 * @param now                The time to wait from
+	 * @return                   The amount of time to wait from 'now'
+	 */
+	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
+
+		// XXX: potentially add extra delay if nsamples_to_send is 'large' so that we do not overflow
 
 		uhd::time_spec_t r;
 		uhd::time_spec_t dt;
@@ -199,6 +323,17 @@ public:
 		lock.unlock();
 		return r;
 	}
+	/**
+	 * get_time_until_next_send
+	 *
+	 * This functions determines the amount of time to wait between
+	 * transmitting bursts of data.
+	 *
+	 * This method variant uses the current system time.
+	 *
+	 * @param nsamples_to_send   The number of samples the caller would like to send
+	 * @return                   The amount of time to wait from 'now'
+	 */
 	uhd::time_spec_t get_time_until_next_send( const size_t mtu ) {
 		return get_time_until_next_send( mtu, uhd::time_spec_t::get_system_time() );
 	}
