@@ -7,6 +7,7 @@
 
 #include <mutex>
 
+#include <boost/core/ignore_unused.hpp>
 #include <boost/format.hpp>
 
 #include <uhd/exception.hpp>
@@ -95,6 +96,19 @@ public:
 				).str()
 			);
 		}
+	}
+
+	flow_control( const uhd::flow_control &other )
+	:
+		buffer_size( other.buffer_size ),
+		nominal_buffer_level( other.nominal_buffer_level ),
+		nominal_sample_rate( other.nominal_sample_rate ),
+		pid_sample_rate( other.pid_sample_rate )
+	{
+		first_update = other.first_update;
+		buffer_level = other.buffer_level;
+		sample_rate  = other.sample_rate;
+		pidc         = other.pidc;
 	}
 
 	virtual ~flow_control()
@@ -306,11 +320,11 @@ public:
 	 */
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
 
-		// XXX: potentially add extra delay if nsamples_to_send is 'large' so that we do not overflow
+		// TODO: potentially add extra delay if nsamples_to_send is 'large' so that we do not overflow
+		boost::ignore_unused( nsamples_to_send );
 
 		uhd::time_spec_t r;
 		uhd::time_spec_t dt;
-		size_t nsamples_consumed;
 
 		lock.lock();
 
@@ -334,8 +348,8 @@ public:
 	 * @param nsamples_to_send   The number of samples the caller would like to send
 	 * @return                   The amount of time to wait from 'now'
 	 */
-	uhd::time_spec_t get_time_until_next_send( const size_t mtu ) {
-		return get_time_until_next_send( mtu, uhd::time_spec_t::get_system_time() );
+	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send ) {
+		return get_time_until_next_send( nsamples_to_send, uhd::time_spec_t::get_system_time() );
 	}
 };
 
