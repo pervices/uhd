@@ -73,7 +73,7 @@ extern "C" {
 #define CRIMSON_TNG_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
-#define CRIMSON_TNG_BUFF_SIZE	65532
+#define CRIMSON_TNG_BUFF_SIZE	65536
 
 // Crimson RF Settings
 #define CRIMSON_TNG_RF_TX_GAIN_RANGE_START	0.0

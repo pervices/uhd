@@ -43,7 +43,7 @@ namespace uhd {
 
 		virtual ~pidc() {}
 
-		double update_control_variable( const double sp, const double pv, const double now = uhd::time_spec_t::get_system_time().get_real_secs() ) {
+		double update_control_variable( const double sp, const double pv, double now = uhd::time_spec_t::get_system_time().get_real_secs() ) {
 			// XXX: @CF: Use "velocity algorithm" form?
 			// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation
 			// Possibly better to not use the velocity algorithm form to avoid several opportunities for numerical instability

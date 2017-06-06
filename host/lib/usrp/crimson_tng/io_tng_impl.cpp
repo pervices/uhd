@@ -951,7 +951,7 @@ private:
 		struct timespec req, rem;
 
 		for(
-			now = txstream->get_time_now(),
+			now = uhd::time_spec_t::get_system_time(),
 				then = now + T
 				;
 
@@ -962,12 +962,13 @@ private:
 		) {
 
 			for(
-				now = txstream->get_time_now(),
+				now = uhd::time_spec_t::get_system_time(),
 					dt = then - now
 					;
-				dt > 0.0
+				dt.get_real_secs() > 0.0
 					;
-				now = txstream->get_time_now()
+				now = uhd::time_spec_t::get_system_time(),
+					dt = then - now
 			) {
 				req.tv_sec = dt.get_full_secs();
 				req.tv_nsec = dt.get_frac_secs() * 1e9;
@@ -994,8 +995,9 @@ private:
 
 			// update flow controllers with actual buffer levels
 			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
+				int ch = txstream->_channels[ i ];
 				txstream->_flow_control[ i ].set_buffer_level(
-					fifo_lvl[ txstream->_channels[ i ] ]
+					fifo_lvl[ ch ]
 				);
 			}
 
@@ -1087,7 +1089,6 @@ bool crimson_tng_tx_streamer::_pid_converged = false;
 /***********************************************************************
  * Async Data
  **********************************************************************/
-// async messages are currently disabled and are deprecated according to UHD
 bool crimson_tng_impl::recv_async_msg( async_metadata_t &async_metadata, double timeout ){
 	boost::ignore_unused( async_metadata, timeout );
     return false;

@@ -731,7 +731,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
 
         //send the entire contents of the buffer
-        tx_stream->send( buff_ptrs, input_stream_data.n_samples, md );
+        tx_stream->send( buff_ptrs, input_stream_data.n_samples, md, 5.0 );
 
 		sent_sob = true;
 
