@@ -97,7 +97,7 @@ std::string crimson_iface::peek_str(void) {
 
 
         // if seq is incorrect, return an error
-        sscanf(tokens[0].c_str(), "%"SCNd32, &iseq);
+        sscanf(tokens[0].c_str(), "%" SCNd32, &iseq);
 
 
     } while(iseq != seq - 1 && tries++ < num_tries && !flow_cntrl);
