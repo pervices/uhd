@@ -30,7 +30,7 @@ namespace uhd {
 			i( 0.0 ),
 			// initialize the control variable to be equal to the set point, so error is initially zero
 			cv( sp ),
-			last_time( uhd::time_spec_t::get_system_time().get_real_secs() )
+			last_time( 0 )
 		{
 			const std::string s[] = { "Kp", "Ki", "Kd" };
 			const double K[] = { Kp, Ki, Kd };

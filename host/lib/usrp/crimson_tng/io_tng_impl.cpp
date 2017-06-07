@@ -513,7 +513,7 @@ public:
 		if ( metadata.has_time_spec ) {
 			// Prime buffers for Start of Burst
 			for( unsigned i = 0; i < _channels.size(); i++ ) {
-				_flow_control[ i ].update( 0, metadata.time_spec );
+				_flow_control[ i ].set_start_of_burst_time( metadata.time_spec );
 			}
 		}
 
@@ -601,7 +601,7 @@ public:
 				// Update Flow Control
 				//
 
-				_flow_control[ i ].update( data_len / sizeof( uint32_t ), then );
+				_flow_control[ i ].update( data_len / sizeof( uint32_t ), get_time_now() );
 
 				//
 				// Decrement Byte / Sample Counters
