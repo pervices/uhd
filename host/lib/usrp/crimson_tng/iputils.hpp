@@ -21,9 +21,7 @@ extern "C" {
 #include <net/if.h>
 
 #include <netdb.h>
-#ifndef __APPLE__
 extern int h_errno;
-#endif
 
 }
 
@@ -97,9 +95,6 @@ public:
 		int sockfd;
 		ifreq req;
 
-#ifdef __APPLE__
-		mtu = 1400;
-#else
 		snprintf( (char *)& req.ifr_ifrn, sizeof( req.ifr_ifrn ), "%s", iface.c_str() );
 		r = socket( AF_INET, SOCK_DGRAM, 0 );
 		if ( -1 == r ) {
@@ -127,7 +122,7 @@ public:
 		close( sockfd );
 
 		mtu = req.ifr_ifru.ifru_mtu;
-#endif
+
 		return mtu;
 	}
 };
