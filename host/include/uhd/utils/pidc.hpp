@@ -1,6 +1,8 @@
 #ifndef INCLUDED_UHD_UTILS_PIDC_HPP
 #define INCLUDED_UHD_UTILS_PIDC_HPP
 
+#include <cmath>
+
 #include "uhd/types/time_spec.hpp"
 
 namespace uhd {
@@ -52,6 +54,12 @@ namespace uhd {
 
 			double dt = now - then;
 			double e_1 = e;
+
+			if ( std::abs( dt ) < 1e-9 || dt < 0 ) {
+				// when dt is incredibly small (or negative) do not perform any updates
+				return cv;
+			}
+
 			e = sp - pv;
 
 			// proportional

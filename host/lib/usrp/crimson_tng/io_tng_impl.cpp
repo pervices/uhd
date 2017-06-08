@@ -729,12 +729,14 @@ private:
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
 			const double nominal_pid_sample_rate = nominal_sample_rate / _if_mtu[ i ];
 			const double nominal_buffer_level_pcnt = 0.8;
+			uhd::pidc flow_control_pidc = pidc( nominal_buffer_level_pcnt * CRIMSON_TNG_BUFF_SIZE, 1.0, 0.0, 0.0 );
 			_flow_control.push_back(
 				flow_control(
 					nominal_sample_rate,
 					nominal_pid_sample_rate,
-					nominal_buffer_level_pcnt,
-					CRIMSON_TNG_BUFF_SIZE
+					nominal_buffer_level_pcnt * CRIMSON_TNG_BUFF_SIZE,
+					flow_control_pidc,
+					nominal_sample_rate / ( 2.0 * _if_mtu[ i ] )
 				)
 			);
 		}

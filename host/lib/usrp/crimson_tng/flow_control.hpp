@@ -49,14 +49,14 @@ public:
 	const size_t buffer_size;
 	const double nominal_buffer_level;
 	const double nominal_sample_rate;
-	const double pid_sample_rate;
 
 	std::mutex lock;
 	ssize_t buffer_level;
 	uhd::time_spec_t buffer_level_set_time;
 
 	double sample_rate;
-	pidc_tl pidc;
+	uhd::pidc pidc;
+	const double pid_sample_rate;
 
 	uhd::time_spec_t sob_time;
 
@@ -64,27 +64,15 @@ public:
 	uhd::time_spec_t msg_time;
 #endif
 
-	/**
-	 * flow_control ctor
-	 *
-	 * @param nominal_sample_rate        the operating tx rate [samples / s]
-	 * @param pid_sample_rate            the rate at which the process variable is to be sampled [Hz]
-	 * @param nominal_buffer_level_pcnt  the desired buffer level [%]
-	 * @param buffer_size                the buffer size [samples]
-	 */
-	flow_control( const double nominal_sample_rate, const double pid_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size )
+	flow_control( const double nominal_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size, const uhd::pidc & pidc, const double pid_sample_rate )
 	:
 		buffer_size( buffer_size ),
 		nominal_buffer_level( nominal_buffer_level_pcnt * buffer_size ),
 		nominal_sample_rate( nominal_sample_rate ),
-		pid_sample_rate( pid_sample_rate ),
-		buffer_level( 0 ),
 		sample_rate( nominal_sample_rate ),
-		pidc(
-			nominal_buffer_level_pcnt * buffer_size,
-			std::min( nominal_buffer_level_pcnt, 1 - nominal_buffer_level_pcnt ),
-			2 / pid_sample_rate
-		)
+		pidc( pidc ),
+		pid_sample_rate( pid_sample_rate ),
+		buffer_level( 0 )
 	{
 		if (
 			false
@@ -98,7 +86,7 @@ public:
 				).str()
 			);
 		}
-		if ( nominal_sample_rate <= 0 || nominal_sample_rate < 10 * pid_sample_rate ) {
+		if ( nominal_sample_rate <= 0 ) {
 			throw uhd::value_error(
 				(
 					boost::format( "Invalid sample_rate %f" )
@@ -106,10 +94,6 @@ public:
 				).str()
 			);
 		}
-
-#ifdef DEBUG_FLOW_CONTROL
-		msg_time = uhd::time_spec_t::get_system_time();
-#endif
 	}
 
 	flow_control( const uhd::flow_control &other )
@@ -117,15 +101,11 @@ public:
 		buffer_size( other.buffer_size ),
 		nominal_buffer_level( other.nominal_buffer_level ),
 		nominal_sample_rate( other.nominal_sample_rate ),
+		buffer_level( other.buffer_level ),
+		sample_rate( other.sample_rate ),
+		pidc( other.pidc ),
 		pid_sample_rate( other.pid_sample_rate )
 	{
-		buffer_level = other.buffer_level;
-		sample_rate  = other.sample_rate;
-		pidc         = other.pidc;
-
-#ifdef DEBUG_FLOW_CONTROL
-		msg_time     = other.msg_time;
-#endif
 	}
 
 	virtual ~flow_control()
@@ -181,6 +161,9 @@ public:
 	 */
 	static size_t interp( const uhd::time_spec_t & a, const uhd::time_spec_t & b, const double sample_rate ) {
 
+		size_t r;
+
+/*
 		if ( BOOST_UNLIKELY( b < a ) ) {
 			throw value_error(
 				(
@@ -190,8 +173,20 @@ public:
 				).str()
 			);
 		}
+*/
 
-		return floor( ( b - a ).get_real_secs() / sample_rate );
+		double ta = a.get_real_secs();
+		double tb = b.get_real_secs();
+
+		if ( tb > ta ) {
+			double dt = tb - ta;
+			double nsamps = sample_rate * dt;
+			r = floor( nsamps );
+		} else {
+			r = 0;
+		}
+
+		return r;
 	}
 
 	/**
@@ -297,6 +292,11 @@ public:
 
 		uhd::time_spec_t dt;
 
+		dt = deadline - now;
+		if ( 0.0 == dt ) {
+			return current_sample_rate;
+		}
+
 #ifdef DEBUG_FLOW_CONTROL
 		if ( BOOST_UNLIKELY( current_buffer_level >= buffer_size ) ) {
 			std::string msg =
@@ -343,33 +343,47 @@ public:
 #endif
 		}
 
-		if ( BOOST_UNLIKELY( deadline < now ) ) {
-			std::string msg =
-				(
-					boost::format( "deadline (%f) < now (%f)" )
-					% deadline.get_real_secs()
-					% now.get_real_secs()
-				).str();
-#ifdef DEBUG_FLOW_CONTROL_EXCEPTIONS
-			throw uhd::value_error( msg );
-#else
-			std::cerr << msg << std::endl;
-			return current_sample_rate;
-#endif
-		}
+//		if ( BOOST_UNLIKELY( deadline < now ) ) {
+//			std::string msg =
+//				(
+//					boost::format( "deadline (%f) < now (%f)" )
+//					% deadline.get_real_secs()
+//					% now.get_real_secs()
+//				).str();
+//#ifdef DEBUG_FLOW_CONTROL_EXCEPTIONS
+//			throw uhd::value_error( msg );
+//#else
+//			std::cerr << msg << std::endl;
+//			return current_sample_rate;
+//#endif
+//		}
 #endif
 
 		//
 		// Sample Rate Adjustment Algorithm
 		// --------------------------------
 		//
-		dt = deadline - now;
-		if ( dt < 1e-6 ) {
-			return current_sample_rate;
-		}
 
-		double foo = ( target_buffer_level - current_buffer_level ) / dt.get_real_secs();
-		sample_rate = nominal_sample_rate * ( 1 + (foo/nominal_sample_rate ) );
+		if ( std::abs( dt.get_real_secs() ) < 1 / nominal_sample_rate ) {
+
+			sample_rate = current_sample_rate;
+
+		} else {
+
+			bool we_are_behind = dt < 0.0 || ( target_buffer_level >= current_buffer_level );
+
+			double foo = ( target_buffer_level - current_buffer_level ) / std::abs( dt.get_real_secs() );
+
+			if ( we_are_behind ) {
+
+				sample_rate = foo;
+
+			} else {
+
+				sample_rate = current_sample_rate - foo;
+			}
+
+		}
 
 #ifdef DEBUG_FLOW_CONTROL
 //		if ( std::abs( sample_rate ) >= 200e6 ) {
@@ -479,8 +493,8 @@ public:
 		// Update Buffer Level
 		//
 
-		buffer_level = unlocked_get_buffer_level( now );
 		buffer_level += nsamples_sent;
+		buffer_level = unlocked_get_buffer_level( now );
 
 		buffer_level = buffer_level >= (ssize_t)buffer_size ? buffer_size - 1 : buffer_level;
 		buffer_level = buffer_level <= 0 ? 0 : buffer_level;
@@ -492,22 +506,16 @@ public:
 		//
 
 		if ( 0.0 == pidc.get_last_time() ) {
-			then = ( now - 1 / pid_sample_rate );
+			then = now - 1 / pid_sample_rate;
 			pidc.set_last_time( then.get_real_secs() );
-			//then -= ( now - then ).get_real_secs() * 0.10;
 		} else {
-			then = uhd::time_spec_t( pidc.get_last_time() );
+			then = pidc.get_last_time();
 		}
 
-		sp = nominal_buffer_level;
-		pv = buffer_level;
-
-		if ( now >= then ) {
-
+		if ( now >= then + 1 / pid_sample_rate ) {
+			sp = nominal_buffer_level;
+			pv = buffer_level;
 			cv = pidc.update_control_variable( sp, pv, now.get_real_secs() );
-
-			then = now + 1 / pid_sample_rate;
-
 		} else {
 			cv = pidc.get_control_variable();
 		}
@@ -518,17 +526,21 @@ public:
 
 		// Plant: Must convert desired buffer level to sample rate
 		// =======================================================
-		sample_rate = update_sample_rate( buffer_level, cv, nominal_buffer_level, buffer_size, sample_rate, nominal_sample_rate, now, then );
+		sample_rate = update_sample_rate( pv, cv, sp, buffer_size, sample_rate, nominal_sample_rate, now, then );
 
 #ifdef DEBUG_FLOW_CONTROL
 //		if ( uhd::time_spec_t::get_system_time() > msg_time + 1.0 ) {
 //			msg_time = uhd::time_spec_t::get_system_time();
 //
 			std::cerr <<
-				"current_buffer_level: " << buffer_level << ", "
-				"target_buffer_level: " << cv << ", "
-				"sample_rate: " << sample_rate << ", "
-				"dt: " << ( then - now ).get_real_secs() <<
+				(
+					boost::format( "t: %.9f, sp: %d, pv: %d, cv: %d, samp_rate: %d" )
+					% now.get_real_secs()
+					% (ssize_t) sp
+					% (ssize_t) pv
+					% (ssize_t) cv
+					% (ssize_t) sample_rate
+				).str() <<
 				std::endl;
 //
 //		}
@@ -569,12 +581,10 @@ public:
 
 		} else {
 
-			cv = pidc.get_control_variable();
 			pv = unlocked_get_buffer_level( now );
-
-			dt = ( cv - pv ) / sample_rate;
-
-			dt = dt < 0.0 ? 0.0 : dt;
+			cv = pidc.get_control_variable();
+			dt = nsamples_to_send / sample_rate;
+			//dt = ( cv - pv ) / sample_rate;
 		}
 
 		return dt;
@@ -590,7 +600,10 @@ private:
 
 		// decrement the buffer level only when we are actively sending
 		if ( BOOST_LIKELY( ! unlocked_start_of_burst_pending( now ) ) ) {
-			r -= interp( now < buffer_level_set_time ? now : buffer_level_set_time, now, sample_rate );
+			uhd::time_spec_t a = buffer_level_set_time;
+			uhd::time_spec_t b = now;
+			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
+			r -= nsamples_consumed;
 		}
 
 		r = r < 0 ? 0 : r;
