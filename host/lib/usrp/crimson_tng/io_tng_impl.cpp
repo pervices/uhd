@@ -490,14 +490,14 @@ public:
 		vrt::if_packet_info_t if_packet_info;
 
 		// need r/w capabilities for 'has_time_spec'
-		tx_metadata_t metadata = _metadata;
+		std::vector<tx_metadata_t> metadata;
 
 		uhd::time_spec_t now, then, dt;
 
 		if (
 			true
-			&& false == metadata.start_of_burst
-			&& true == metadata.end_of_burst
+			&& false == _metadata.start_of_burst
+			&& true == _metadata.end_of_burst
 			&& 0 == nsamps_per_buff
 		) {
 			// empty end-of-burst packet signals tx_streamer to stop
@@ -507,18 +507,19 @@ public:
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
+			metadata.push_back( _metadata );
 		}
 
-		compose_if_packet_info( metadata, if_packet_info );
-		if ( metadata.has_time_spec ) {
+		compose_if_packet_info( _metadata, if_packet_info );
+		if ( _metadata.has_time_spec ) {
 			// Prime buffers for Start of Burst
 			for( unsigned i = 0; i < _channels.size(); i++ ) {
-				_flow_control[ i ]->set_start_of_burst_time( metadata.time_spec );
+				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec );
 			}
 		}
 
 		// Timeout
-		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout) + ( metadata.has_time_spec ? metadata.time_spec : time_spec_t( 0.0 ) );
+		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout) + ( _metadata.has_time_spec ? _metadata.time_spec : time_spec_t( 0.0 ) );
 
 		while ( samp_sent < nsamps_per_buff * _channels.size() ) {
 
@@ -533,7 +534,7 @@ public:
 				//
 
 				size_t samp_ptr_offset = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
-				if_packet_info.num_header_words32 = metadata.has_time_spec ? 4 : 1;
+				if_packet_info.num_header_words32 = metadata[ i ].has_time_spec ? 4 : 1;
 				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
 				if_packet_info.num_payload_words32 = data_len / sizeof( uint32_t );
 				if_packet_info.num_payload_bytes = data_len;
@@ -541,14 +542,14 @@ public:
 				_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
 				_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
 
-				if ( metadata.has_time_spec ) {
+				if ( metadata[ i ].has_time_spec ) {
 
-					uint64_t ps = metadata.time_spec.get_frac_secs() * 1e12;
+					uint64_t ps = metadata[i].time_spec.get_frac_secs() * 1e12;
 
 					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
 					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
 
-					_tmp_buf[ i ][ 1 ] = metadata.time_spec.get_full_secs();
+					_tmp_buf[ i ][ 1 ] = metadata[ i ].time_spec.get_full_secs();
 					_tmp_buf[ i ][ 2 ] = (uint32_t)( ps >> 32 );
 					_tmp_buf[ i ][ 3 ] = (uint32_t)( ps >> 0  );
 				}
@@ -609,11 +610,11 @@ public:
 
 				remaining_bytes[i] -= data_len;
 				samp_sent += data_len / sizeof( uint32_t );
+
+				// this ensures we only send the vita time spec on the first packet of the burst
+				metadata[ i ].has_time_spec = false;
 			}
 		}
-
-		// this ensures we only send the vita time spec on the first packet of the burst
-		metadata.has_time_spec = false;
 
 		// Exit if Timeout has lapsed
 		if (get_time_now() > timeout_lapsed) {
@@ -730,8 +731,8 @@ private:
 			const double nominal_buffer_level_pcnt = 0.8;
 			_flow_control.push_back(
 				uhd::flow_control_nonlinear::make(
-					nominal_buffer_level_pcnt,
 					nominal_sample_rate,
+					nominal_buffer_level_pcnt,
 					(size_t)CRIMSON_TNG_BUFF_SIZE
 				)
 			);
@@ -1005,7 +1006,8 @@ private:
 			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
 				int ch = txstream->_channels[ i ];
 				txstream->_flow_control[ i ]->set_buffer_level(
-					fifo_lvl[ ch ]
+					fifo_lvl[ ch ],
+					txstream->get_time_now()
 				);
 			}
 

@@ -66,7 +66,7 @@ public:
 		return unlocked_get_buffer_level( now );
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
-
+/*
 		std::lock_guard<std::mutex> _lock( lock );
 
 		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
@@ -79,8 +79,13 @@ public:
 			throw uhd::value_error( msg );
 		}
 
+		//std::cout << std::setprecision( 10 ) << now.get_real_secs() << ", " << level << std::endl;
+
 		buffer_level = level;
 		buffer_level_set_time = now;
+*/
+		boost::ignore_unused( level );
+		boost::ignore_unused( now );
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
@@ -92,8 +97,12 @@ public:
 
 		if ( BOOST_UNLIKELY( unlocked_start_of_burst_pending( now ) ) ) {
 
-			dt = sob_time - now;
-			dt -= nominal_buffer_level / nominal_sample_rate;
+			bl = unlocked_get_buffer_level( now );
+			if ( nominal_buffer_level > bl ) {
+				dt = 0.0;
+			} else {
+				dt = sob_time - now;
+			}
 
 		} else {
 

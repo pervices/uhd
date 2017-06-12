@@ -594,7 +594,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //transmit variables to be set by po
     std::string tx_args, tx_channels;
     double tx_rate, tx_freq, tx_gain;
-    bool loop;
+    size_t loop;
     double sob;
     bool once;
 
@@ -607,7 +607,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("tx-args", po::value<std::string>(&tx_args)->default_value(""), "uhd transmit device address args")
         ("input", po::value<std::string>(&input_fn)->default_value("input.csv"), "name of the input file")
-		("loop", po::value<bool>(&loop)->default_value( false ), "retransmit the signal in a loop")
+		("loop", po::value<size_t>(&loop)->default_value( 0 ), "retransmit the signal in a loop n times")
 		("sob", po::value<double>(&sob)->default_value( 3 ), "delay transmission for sob seconds")
 		("one-sob", po::value<bool>(&once)->default_value( true ), "only issue start-of-burst (sob) once")
     ;
@@ -735,7 +735,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
 		sent_sob = true;
 
-        if ( ! loop ) {
+        loop--;
+        if ( 0 == loop ) {
         	break;
         }
 
