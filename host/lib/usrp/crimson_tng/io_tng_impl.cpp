@@ -39,7 +39,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/diff.hpp>
-#include "flow_control_nonlinear.hpp"
+#include "flow_control.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/msg.hpp>
 #include <uhd/utils/pidc_tl.hpp>
@@ -513,7 +513,7 @@ public:
 		if ( metadata.has_time_spec ) {
 			// Prime buffers for Start of Burst
 			for( unsigned i = 0; i < _channels.size(); i++ ) {
-				_flow_control[ i ].set_start_of_burst_time( metadata.time_spec );
+				_flow_control[ i ]->set_start_of_burst_time( metadata.time_spec );
 			}
 		}
 
@@ -565,8 +565,8 @@ public:
 
 				now = get_time_now();
 				dt =
-					_flow_control[ i ].get_time_until_next_send(
-						-1 /* XXX: currently unused */,
+					_flow_control[ i ]->get_time_until_next_send(
+						if_packet_info.num_payload_words32,
 						now
 					);
 				then = now + dt;
@@ -601,7 +601,7 @@ public:
 				// Update Flow Control
 				//
 
-				_flow_control[ i ].update( data_len / sizeof( uint32_t ), get_time_now() );
+				_flow_control[ i ]->update( data_len / sizeof( uint32_t ), get_time_now() );
 
 				//
 				// Decrement Byte / Sample Counters
@@ -727,12 +727,16 @@ private:
 			counter->push_back(0);
 
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
-			const double nominal_pid_sample_rate = nominal_sample_rate / _if_mtu[ i ];
 			const double nominal_buffer_level_pcnt = 0.8;
 			_flow_control.push_back(
-				flow_control_nonlinear(  );
+				uhd::flow_control_nonlinear::make(
+					nominal_buffer_level_pcnt,
+					nominal_sample_rate,
+					(size_t)CRIMSON_TNG_BUFF_SIZE
+				)
 			);
 /*
+ 			const double nominal_pid_sample_rate = nominal_sample_rate / _if_mtu[ i ];
 			uhd::pidc flow_control_pidc = pidc( nominal_buffer_level_pcnt * CRIMSON_TNG_BUFF_SIZE, 1.0, 0.0, 0.0 );
 			_flow_control.push_back(
 				flow_control(
@@ -1000,7 +1004,7 @@ private:
 			// update flow controllers with actual buffer levels
 			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
 				int ch = txstream->_channels[ i ];
-				txstream->_flow_control[ i ].set_buffer_level(
+				txstream->_flow_control[ i ]->set_buffer_level(
 					fifo_lvl[ ch ]
 				);
 			}
@@ -1024,7 +1028,7 @@ private:
 	property_tree::sptr _tree;
 	size_t _pay_len;
 	std::vector<size_t> _if_mtu;
-	std::vector<uhd::flow_control> _flow_control;
+	std::vector<uhd::flow_control::sptr> _flow_control;
 	std::vector<uhd::time_spec_t> _last_time;
 	uhd::wb_iface::sptr _flow_iface;
 	boost::mutex* _udp_mutex_add;

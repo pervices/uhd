@@ -22,20 +22,16 @@ void foo() {
 	double t;
 	double dt;
 
-	//uhd::pidc pidc( SP * BUF_LEN, 1.0, 0, 0 );
-	uhd::pidc_tl pidc( SP * BUF_LEN, 0.2, MTU / f_s );
-	uhd::flow_control fc( f_s, SP, BUF_LEN, pidc, f_s / MTU );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
 
 	for( t = 0.0 ; ; ) {
 
-		dt = fc.get_time_until_next_send( MTU, t ).get_real_secs();
-		if ( dt < 0.0 ) {
-			fc.pidc.update_control_variable( fc.nominal_buffer_level , fc.get_buffer_level( t + dt ), t + dt );
-		} else {
+		dt = fc->get_time_until_next_send( MTU, t ).get_real_secs();
+		if ( dt > 0.0 ) {
 			t += dt; // i.e. sleep( dt )
 		}
 
-		fc.update( MTU, t );
+		fc->update( MTU, t );
 	}
 }
 

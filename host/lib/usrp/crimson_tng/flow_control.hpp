@@ -1,6 +1,9 @@
 #ifndef HOST_LIB_USRP_CRIMSON_TNG_FLOW_CONTROL_HPP_
 #define HOST_LIB_USRP_CRIMSON_TNG_FLOW_CONTROL_HPP_
 
+#include <cmath>
+
+#include <boost/shared_ptr.hpp>
 #include <boost/core/ignore_unused.hpp>
 
 #include <uhd/types/time_spec.hpp>
@@ -10,27 +13,27 @@ namespace uhd {
 class flow_control {
 
 public:
-
-	flow_control( const double nominal_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size );
-	flow_control( const uhd::flow_control &other );
+	typedef boost::shared_ptr<uhd::flow_control> sptr;
 	virtual ~flow_control() {}
 
 	/**
 	 * @return the sizeof the underlying buffer
 	 */
-	virtual size_t get_buffer_size();
+	virtual size_t get_buffer_size() = 0;
 	/**
 	 * @return the desired level of the underlying buffer at steady-state operation
 	 */
-	virtual size_t get_nominal_buffer_level();
+	virtual size_t get_nominal_buffer_level() = 0;
 	/**
 	 * @return the desired level of the underlying buffer at steady-state operation
 	 */
-	virtual double get_nominal_buffer_level_pcnt();
+	inline double get_nominal_buffer_level_pcnt() {
+		return get_nominal_buffer_level() / (double) get_buffer_size();
+	}
 	/**
 	 * @return the desired level of the underlying buffer at steady-state operation
 	 */
-	virtual double get_nominal_sample_rate();
+	virtual double get_nominal_sample_rate() = 0;
 
 	/**
 	 * Report whether the specified time is less than the start of burst time.
@@ -38,23 +41,21 @@ public:
 	 * @param now  the time to compare with the start of burst time
 	 * @return true if the specified time is less than the start of burst time, otherwise false
 	 */
-	virtual bool start_of_burst_pending( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() );
+	virtual bool start_of_burst_pending( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
 	/**
 	 * Set the time for a start of burst
 	 *
 	 * @param now  the start of burst time
 	 */
-	virtual void set_start_of_burst_time( const uhd::time_spec_t & sob );
+	virtual void set_start_of_burst_time( const uhd::time_spec_t & sob ) = 0;
 	/**
 	 * Get the time for a start of burst
 	 *
 	 * @param now  the start of burst time [default is 0, when no start of burst is set]
 	 */
-	virtual uhd::time_spec_t get_start_of_burst_time();
+	virtual uhd::time_spec_t get_start_of_burst_time() = 0;
 
 	/**
-	 * interp()
-	 *
 	 * Using linear interpolation, compute the number of samples transmitted
 	 * from time a to time b at a given sample rate.
 	 *
@@ -83,8 +84,6 @@ public:
 	}
 
 	/**
-	 * get_buffer_level
-	 *
 	 * Get the (approximate) level of the buffer. Under normal operating
 	 * conditions, this reflects the level of the actual tx buffer. Periodic
 	 * updates of actual tx buffer levels are treated as rejected disturbances.
@@ -94,19 +93,18 @@ public:
 	 *
 	 * @return the buffer level [samples]
 	 */
-	virtual size_t get_buffer_level( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() );
+	virtual size_t get_buffer_level( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
 	/**
-	 * set_buffer_level
-	 *
 	 * Set the buffer level, presumably based on valid data.
+	 *
+	 * Valid values of buffer level are in the range [0, buffer size), that
+	 * is the range zero-inclusive but strictly less than the buffer size.
 	 *
 	 * @param level   the actual buffer level [samples]
 	 */
-	virtual void set_buffer_level( const size_t level, const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() );
+	virtual void set_buffer_level( const size_t level, const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
 
 	/**
-	 * get_buffer_level_pcnt
-	 *
 	 * Get the (approximate) level of the buffer. Under normal operating
 	 * conditions, this reflects the level of the actual tx buffer. Periodic
 	 * updates of actual tx buffer levels are treated as rejected disturbances.
@@ -114,7 +112,7 @@ public:
 	 * @return the buffer level [%]
 	 */
 	inline double get_buffer_level_pcnt( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) {
-		return get_buffer_level( now ) / get_buffer_size();
+		return get_buffer_level( now ) / (double) get_buffer_size();
 	}
 	/**
 	 * Set the buffer level, presumably based on valid data.
@@ -126,8 +124,6 @@ public:
 	}
 
 	/**
-	 * get_sample_rate
-	 *
 	 * If a start of burst is pending, return the nominal sample rate.
 	 *
 	 * Otherwise, return the sample rate with flow control compensation.
@@ -141,40 +137,53 @@ public:
 	 * @return the sample rate [sample / s]
 	 */
 	virtual double get_sample_rate( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) {
-		BOOST_UNUSED( now );
+		boost::ignore_unused( now );
 		return get_nominal_sample_rate();
 	}
 
 	/**
-	 * update
-	 *
-	 * Report to the flow controller, that the caller has sent additional
-	 * samples and that the flow controller should adjust its buffer levels,
-	 * internal state, and sample rate, appropriately.
-	 *
-	 * @param nsamples_sent   The number of samples sent
-	 * @param now             The time at which the samples were sent [default: current system time]
-	 */
-	virtual void update( const size_t nsamples_sent, const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() );
-
-	/**
-	 * get_time_until_next_send
-	 *
 	 * The primary purpose of a flow controller is to act as a rate-limiter.
-	 * If samples are sent too quickly, input buffers can overflow and
-	 * data is corrupted. If samples are sent too slowly, input buffers can
+	 * If samples are sent too quickly, input buffers can overflow and signals
+	 * are corrupted. If samples are sent too slowly, input buffers can
 	 * underflow resulting in signal corruption (typically zeros are inserted).
 	 *
 	 * This functions determines the amount of time to wait until it is
 	 * necessary to send data in order to maintain the nominal sample rate.
 	 *
+	 * Users will typically call this function before sending data.
+	 *
 	 * @param nsamples_to_send   The number of samples the caller would like to send
 	 * @param now                The time to wait from
 	 * @return                   The amount of time to wait from 'now'
 	 */
-	virtual uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now = uhd::time_spec_t::get_system_time() );
+	virtual uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now = uhd::time_spec_t::get_system_time() ) = 0;
+
+
+	/**
+	 * Report to the flow controller, that the caller has sent additional
+	 * samples and that the flow controller should adjust its buffer levels,
+	 * internal state, and sample rate, appropriately.
+	 *
+	 * Users will typically call this function directly after sending data.
+	 *
+	 * @param nsamples_sent   The number of samples sent
+	 * @param now             The time at which the samples were sent [default: current system time]
+	 */
+	virtual void update( const size_t nsamples_sent, const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
+
+protected:
+
+	flow_control() {}
+	flow_control( const double nominal_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size )
+	{
+		boost::ignore_unused( nominal_sample_rate );
+		boost::ignore_unused( nominal_buffer_level_pcnt );
+		boost::ignore_unused( buffer_size );
+	}
 };
 
 }
+
+#include "flow_control_nonlinear.hpp"
 
 #endif /* HOST_LIB_USRP_CRIMSON_TNG_FLOW_CONTROL_HPP_ */

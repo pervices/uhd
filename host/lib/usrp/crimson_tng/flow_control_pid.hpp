@@ -12,8 +12,6 @@
 
 #include "../../../include/uhd/utils/pidc_tl.hpp"
 
-#include "flow_control.hpp"
-
 #ifndef DEBUG_FLOW_CONTROL
 #define DEBUG_FLOW_CONTROL 1BOO
 #ifndef DEBUG_FLOW_CONTROL_EXCEPTIONS
@@ -41,7 +39,7 @@ namespace uhd {
  * Variable to a sample rate which the system uses to determine what delay to
  * use until the next burst of data is sent, thus rate-limiting transmission.
  */
-class flow_control_pid : virtual uhd::flow_control {
+class flow_control_pid {
 
 public:
 
