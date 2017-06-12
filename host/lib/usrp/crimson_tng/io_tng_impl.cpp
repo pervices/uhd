@@ -39,7 +39,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/diff.hpp>
-#include "flow_control.hpp"
+#include "flow_control_nonlinear.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/msg.hpp>
 #include <uhd/utils/pidc_tl.hpp>
@@ -729,6 +729,10 @@ private:
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
 			const double nominal_pid_sample_rate = nominal_sample_rate / _if_mtu[ i ];
 			const double nominal_buffer_level_pcnt = 0.8;
+			_flow_control.push_back(
+				flow_control_nonlinear(  );
+			);
+/*
 			uhd::pidc flow_control_pidc = pidc( nominal_buffer_level_pcnt * CRIMSON_TNG_BUFF_SIZE, 1.0, 0.0, 0.0 );
 			_flow_control.push_back(
 				flow_control(
@@ -739,6 +743,7 @@ private:
 					nominal_sample_rate / ( 2.0 * _if_mtu[ i ] )
 				)
 			);
+*/
 		}
 
 		if ( 0 == _instance_num ) {
