@@ -16,7 +16,10 @@
 
 template<typename T>
 static bool is_close( T a, T b, T eps = T(0.0001) ) {
-	return abs( a - b ) <= eps * std::max( abs( a ), abs( b ) );
+	T diff = std::abs( a - b );
+	T _max = std::max( std::abs( a ), std::abs( b ) );
+	T _max_eps = eps * _max;
+	return diff <= _max_eps;
 }
 
 BOOST_AUTO_TEST_CASE( test_empty_buffer ) {
@@ -132,7 +135,7 @@ BOOST_AUTO_TEST_CASE( test_time_until_send_at_steady_state ) {
 	fc->set_buffer_level( fc->get_nominal_buffer_level(), now );
 	uhd::time_spec_t then = fc->get_time_until_next_send( MTU, now );
 
-	expected_double = MTU / fc->get_sample_rate( now );
+	expected_double = 0;
 	actual_double = then.get_real_secs();
 
 	BOOST_CHECK_MESSAGE(
@@ -156,11 +159,11 @@ BOOST_AUTO_TEST_CASE( test_time_until_send_at_one_mtu_above_steady_state ) {
 	fc->set_buffer_level( fc->get_nominal_buffer_level() + MTU, now );
 	uhd::time_spec_t then = fc->get_time_until_next_send( MTU, now );
 
-	expected_double = 0;
+	expected_double = MTU / fc->get_nominal_sample_rate();
 	actual_double = then.get_real_secs();
 
 	BOOST_CHECK_MESSAGE(
-		is_close( actual_double, expected_double ),
+		is_close( actual_double, expected_double, 1 / fc->get_nominal_sample_rate() ),
 		(
 			boost::format( "wrong time until send at steady-state (expected: %f, actual: %f)" )
 			% expected_double
@@ -349,7 +352,7 @@ BOOST_AUTO_TEST_CASE( test_convergence_from_above ) {
 		if ( dt > 0.0 ) {
 			t += dt; // i.e. sleep( dt )
 		}
-		fc->update( mtu, t );
+		fc->update( 0, t );
 
 		buffer_level = fc->get_buffer_level( t );
 		if (
@@ -536,3 +539,32 @@ BOOST_AUTO_TEST_CASE( test_overflow ) {
 
 	BOOST_CHECK_MESSAGE( actual_exception_ptr != expected_exception_ptr, "no exception was thrown!" );
 }
+
+
+BOOST_AUTO_TEST_CASE( test_underflow ) {
+
+	uhd::time_spec_t now, then, dt;
+
+	std::exception_ptr expected_exception_ptr;
+	std::exception_ptr actual_exception_ptr;
+
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+
+	expected_exception_ptr = NULL;
+	actual_exception_ptr = NULL;
+	try {
+		for(
+			size_t i = 0;
+			i < 2 * fc->get_buffer_size() / MTU;
+			i++
+		) {
+			// we should overflow if we keep putting samples into the buffer
+			fc->update( MTU, now + 5.0 );
+		}
+	} catch( ... ) {
+		actual_exception_ptr = std::current_exception();
+	}
+
+	BOOST_CHECK_MESSAGE( actual_exception_ptr != expected_exception_ptr, "no exception was thrown!" );
+}
+

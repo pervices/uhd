@@ -115,7 +115,7 @@ public:
 		} else {
 
 			bl = unlocked_get_buffer_level( now );
-			dt = ( ( bl + nsamples_to_send ) - (double)nominal_buffer_level ) / nominal_sample_rate;
+			dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
 		}
 
 		return dt;
