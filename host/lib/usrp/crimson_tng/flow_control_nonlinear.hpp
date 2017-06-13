@@ -61,12 +61,23 @@ public:
 	}
 	size_t get_buffer_level( const uhd::time_spec_t & now ) {
 
+		ssize_t r;
+
 		std::lock_guard<std::mutex> _lock( lock );
 
-		return unlocked_get_buffer_level( now );
+		r = unlocked_get_buffer_level( now );
+
+		if ( r < 0 ) {
+			r = 0;
+		}
+		if ( r > (ssize_t)buffer_size - 1 ) {
+			r = buffer_size - 1;
+		}
+
+		return r;
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
-/*
+
 		std::lock_guard<std::mutex> _lock( lock );
 
 		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
@@ -83,9 +94,6 @@ public:
 
 		buffer_level = level;
 		buffer_level_set_time = now;
-*/
-		boost::ignore_unused( level );
-		boost::ignore_unused( now );
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
@@ -121,7 +129,32 @@ public:
 
 		buffer_level += nsamples_sent;
 		buffer_level = unlocked_get_buffer_level( now );
-		buffer_level_set_time = now;
+		if ( BOOST_LIKELY( unlocked_start_of_burst_pending( now ) ) ) {
+			buffer_level_set_time = sob_time;
+		} else {
+			buffer_level_set_time = now;
+		}
+
+		// underflow
+		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
+			std::string msg =
+				(
+					boost::format( "Underflow occurred %u / %u" )
+					% buffer_level
+					% buffer_size
+				).str();
+			throw uhd::value_error( msg );
+		}
+		// overflow
+		if ( BOOST_UNLIKELY( buffer_level > (ssize_t)buffer_size - 1 ) ) {
+			std::string msg =
+				(
+					boost::format( "Overflow occurred %u / %u" )
+					% buffer_level
+					% buffer_size
+				).str();
+			throw uhd::value_error( msg );
+		}
 	}
 
 protected:
@@ -176,15 +209,6 @@ protected:
 			uhd::time_spec_t b = now;
 			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
 			r -= nsamples_consumed;
-		}
-
-		if ( r < 0 ) {
-			// underflow - warn?
-			r = 0;
-		}
-		if ( r > (ssize_t)buffer_size - 1 ) {
-			// overflow - warn?
-			r = buffer_size - 1;
 		}
 
 		return r;

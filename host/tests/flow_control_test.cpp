@@ -24,10 +24,11 @@ BOOST_AUTO_TEST_CASE( test_empty_buffer ) {
 	size_t expected_size_t;
 	size_t actual_size_t;
 
+	uhd::time_spec_t now = 0.0;
 	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
 
 	expected_size_t = 0;
-	actual_size_t = fc->get_buffer_level();
+	actual_size_t = fc->get_buffer_level( now );
 	BOOST_CHECK_MESSAGE( actual_size_t == expected_size_t, "unexpected buffer level" );
 }
 
@@ -38,7 +39,7 @@ BOOST_AUTO_TEST_CASE( test_set_buffer_level ) {
 
 	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
 
-	uhd::time_spec_t now = uhd::time_spec_t::get_system_time();
+	uhd::time_spec_t now = 0.0;
 
 	fc->set_buffer_level( MTU, now );
 
@@ -55,17 +56,19 @@ BOOST_AUTO_TEST_CASE( test_set_buffer_level_to_buffer_size ) {
 	std::exception_ptr expected_exception_ptr;
 	std::exception_ptr actual_exception_ptr;
 
+	uhd::time_spec_t now = 0.0;
+
 	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
 
-	expected_size_t = fc->get_buffer_level();
+	expected_size_t = fc->get_buffer_level( now );
 	expected_exception_ptr = NULL;
 	try {
 		// XXX: this should throw an exception
-		fc->set_buffer_level( fc->get_buffer_size() );
+		fc->set_buffer_level( fc->get_buffer_size(), now );
 	} catch( ... ) {
 		actual_exception_ptr = std::current_exception();
 	}
-	actual_size_t = fc->get_buffer_level();
+	actual_size_t = fc->get_buffer_level( now );
 	BOOST_CHECK_MESSAGE( actual_exception_ptr != expected_exception_ptr, "no exception was thrown!" );
 	BOOST_CHECK_MESSAGE( actual_size_t == expected_size_t, ( boost::format( "buffer_level changed! (expected: %u, actual: %u" ) % expected_size_t % actual_size_t ).str() );
 }
@@ -78,16 +81,18 @@ BOOST_AUTO_TEST_CASE( test_set_buffer_level_too_large ) {
 	std::exception_ptr expected_exception_ptr;
 	std::exception_ptr actual_exception_ptr;
 
+	uhd::time_spec_t now = 0.0;
+
 	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
 
-	expected_size_t = fc->get_buffer_level();
+	expected_size_t = fc->get_buffer_level( now );
 	expected_exception_ptr = NULL;
 	try {
-		fc->set_buffer_level( -1 );
+		fc->set_buffer_level( -1, now );
 	} catch( ... ) {
 		actual_exception_ptr = std::current_exception();
 	}
-	actual_size_t = fc->get_buffer_level();
+	actual_size_t = fc->get_buffer_level( now );
 	BOOST_CHECK_MESSAGE( actual_exception_ptr != expected_exception_ptr, "no exception was thrown!" );
 	BOOST_CHECK_MESSAGE( actual_size_t == expected_size_t, ( boost::format( "buffer_level changed! (expected: %u, actual: %u" ) % expected_size_t % actual_size_t ).str() );
 }
@@ -97,9 +102,11 @@ BOOST_AUTO_TEST_CASE( test_time_until_first_send ) {
 	double expected_double;
 	double actual_double;
 
+	uhd::time_spec_t now = 0.0;
+
 	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
 
-	uhd::time_spec_t then = fc->get_time_until_next_send( MTU );
+	uhd::time_spec_t then = fc->get_time_until_next_send( MTU, now );
 
 	expected_double = 0;
 	actual_double = then.get_real_secs();
@@ -198,7 +205,7 @@ BOOST_AUTO_TEST_CASE( test_time_until_second_send ) {
 
 	now = 0.0;
 	fc->update( MTU, now );
-	then = fc->get_time_until_next_send( MTU );
+	then = fc->get_time_until_next_send( MTU, now );
 	size_t buffer_level = fc->get_buffer_level( now );
 
 	// ensure that the time we wait until the second send does not exhaust the buffer resources
@@ -378,82 +385,154 @@ BOOST_AUTO_TEST_CASE( test_convergence_from_above ) {
 	);
 }
 
-//BOOST_AUTO_TEST_CASE( test_initial_sob ) {
-//
-//	double expected_double;
-//	double actual_double;
-//
-//	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
-//
-//	expected_double = 0;
-//	actual_double = fc->get_start_of_burst_time().get_real_secs();
-//	BOOST_CHECK_MESSAGE(
-//		is_close( actual_double, expected_double, 0.000000001 ),
-//		(
-//			boost::format( "nonzero initial start of burst! (expected: %f, actual: %f)" )
-//			% expected_double
-//			% actual_double
-//		).str()
-//	);
-//}
+BOOST_AUTO_TEST_CASE( test_initial_sob ) {
 
-//BOOST_AUTO_TEST_CASE( test_sob ) {
-//
-//	const uhd::time_spec_t prebuffer_in_time( SP * CRIMSON_TNG_BUFF_SIZE / (double) f_s );
-//
-//	uhd::time_spec_t now, then, dt, next_send_time;
-//
-//	double expected_double;
-//	double actual_double;
-//
-//	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
-//
-//	// let's say that I want to send 5 minutes in the future
-//	dt =  uhd::time_spec_t( 60 * 5, 0 );
-//	now = uhd::time_spec_t::get_system_time();
-//	then = now + dt;
-//
-//	// so we give flow_control an empty update with the future time
-//	fc->set_start_of_burst_time( then );
-//
-//	// now, the next time that the flow_control tells us to send should be equal to
-//	next_send_time = uhd::time_spec_t( then - prebuffer_in_time - now );
-//
-//	expected_double = next_send_time.get_real_secs();
-//	actual_double = fc->get_time_until_next_send( MTU, now ).get_real_secs();
-//
-//	BOOST_CHECK_MESSAGE(
-//		is_close( actual_double, expected_double ),
-//		(
-//			boost::format( "not the expected amount of time to wait ( expected: %f, actual: %f )" )
-//			% expected_double
-//			% actual_double
-//		).str()
-//	);
-//
-//	// FURTHERMORE, at the SoB time, the buffer level should be nominal
-//	expected_double = SP;
-//	actual_double = fc->get_buffer_level( next_send_time );
-//
-//	BOOST_CHECK_MESSAGE(
-//		is_close( actual_double, expected_double ),
-//		(
-//			boost::format( "not the expected buffer level at next send time ( expected: %f, actual: %f )" )
-//			% expected_double
-//			% actual_double
-//		).str()
-//	);
-//
-//	// FURTHERMORE, up to and including the next send time, the sample rate should be nominal
-//	expected_double = f_s;
-//	actual_double = fc->get_sample_rate( next_send_time );
-//
-//	BOOST_CHECK_MESSAGE(
-//		is_close( actual_double, expected_double ),
-//		(
-//			boost::format( "not the expected sample rate at next send time ( expected: %f, actual: %f )" )
-//			% expected_double
-//			% actual_double
-//		).str()
-//	);
-//}
+	double expected_double;
+	double actual_double;
+
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+
+	expected_double = 0;
+	actual_double = fc->get_start_of_burst_time().get_real_secs();
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double, 0.000000001 ),
+		(
+			boost::format( "nonzero initial start of burst! (expected: %f, actual: %f)" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+}
+
+BOOST_AUTO_TEST_CASE( test_sob ) {
+
+	uhd::time_spec_t now, then, dt;
+
+	double expected_double;
+	double actual_double;
+
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+
+	// let's say that I want to send 5 minutes in the future
+	dt =  uhd::time_spec_t( 60 * 5, 0 );
+	now = uhd::time_spec_t::get_system_time();
+	then = now + dt;
+	fc->set_start_of_burst_time( then );
+
+	// now, we should be able to start sending right away
+	expected_double = 0;
+	actual_double = fc->get_time_until_next_send( MTU, now ).get_real_secs();
+
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double ),
+		(
+			boost::format( "not the expected amount of time to wait ( expected: %f, actual: %f )" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+
+	// NEXT, we should be able to fill up the buffer to ~SP
+	// and then we should be forced to wait approximately dt seconds (assuming no passage of time)
+	for(
+		size_t i = 0;
+		true
+			&& i < fc->get_buffer_size() / MTU
+			&& is_close( 0.0, fc->get_time_until_next_send( MTU, now ).get_real_secs() )
+		;
+		i++
+	) {
+		fc->update( MTU, now );
+	}
+
+	expected_double = fc->get_nominal_buffer_level();
+	actual_double = fc->get_buffer_level( now );
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double, fc->get_buffer_size() / (double)MTU ),
+		(
+			boost::format( "not the expected buffer level after prefill ( expected: %f, actual: %f )" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+
+	expected_double = dt.get_real_secs();
+	actual_double = fc->get_time_until_next_send( MTU, now ).get_real_secs();
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double, 0.1 ),
+		(
+			boost::format( "not the time until next send ( expected: %f, actual: %f )" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+
+	// FURTHERMORE, at the SoB time, the buffer level should be nominal
+	expected_double = fc->get_nominal_buffer_level();
+	actual_double = fc->get_buffer_level( then );
+
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double, 0.15 ),
+		(
+			boost::format( "not the expected buffer level at SoB time ( expected: %f, actual: %f )" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+
+	// FURTHERMORE, up to and including the SoB time, the sample rate should be nominal
+	expected_double = f_s;
+	actual_double = fc->get_sample_rate( then );
+
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double ),
+		(
+			boost::format( "not the expected sample rate at SoB time ( expected: %f, actual: %f )" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+
+	// LASTLY, at 1 MTU's worth of time past the SoB, the buffer level should be
+	// about 1 MTU's worth of samples below the set point, assuming we do not send any samples
+	then += MTU / fc->get_nominal_sample_rate();
+
+	expected_double = fc->get_nominal_buffer_level() - MTU;
+	actual_double = fc->get_buffer_level( then );
+
+	BOOST_CHECK_MESSAGE(
+		is_close( actual_double, expected_double, MTU / (double) fc->get_buffer_size() ),
+		(
+			boost::format( "level did not drop after SoB ( expected: %f, actual: %f )" )
+			% expected_double
+			% actual_double
+		).str()
+	);
+}
+
+BOOST_AUTO_TEST_CASE( test_overflow ) {
+
+	uhd::time_spec_t now, then, dt;
+
+	std::exception_ptr expected_exception_ptr;
+	std::exception_ptr actual_exception_ptr;
+
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+
+	expected_exception_ptr = NULL;
+	actual_exception_ptr = NULL;
+	try {
+		for(
+			size_t i = 0;
+			i < 2 * fc->get_buffer_size() / MTU;
+			i++
+		) {
+			// we should overflow if we keep putting samples into the buffer
+			fc->update( MTU, now );
+		}
+	} catch( ... ) {
+		actual_exception_ptr = std::current_exception();
+	}
+
+	BOOST_CHECK_MESSAGE( actual_exception_ptr != expected_exception_ptr, "no exception was thrown!" );
+}
