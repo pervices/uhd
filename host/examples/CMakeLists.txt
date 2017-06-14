@@ -20,6 +20,7 @@
 ########################################################################
 SET(example_sources
     benchmark_rate.cpp
+    flow_control_example.cpp
     nco_check.cpp
     network_relay.cpp
     rx_multi_samples.cpp

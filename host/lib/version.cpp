@@ -22,6 +22,7 @@
 
 #ifndef UHD_DONT_PRINT_SYSTEM_INFO
 UHD_STATIC_BLOCK(print_system_info){
+#if 0
     std::cout
         << BOOST_PLATFORM << "; "
         << BOOST_COMPILER << "; "
@@ -29,6 +30,7 @@ UHD_STATIC_BLOCK(print_system_info){
         << "UHD_" << uhd::get_version_string()
         << std::endl << std::endl
     ;
+#endif
 }
 #endif
 

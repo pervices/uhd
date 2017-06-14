@@ -1,6 +1,8 @@
 #ifndef INCLUDED_UHD_UTILS_PIDC_HPP
 #define INCLUDED_UHD_UTILS_PIDC_HPP
 
+#include <cmath>
+
 #include "uhd/types/time_spec.hpp"
 
 namespace uhd {
@@ -8,6 +10,12 @@ namespace uhd {
 	class pidc {
 
 	public:
+
+		typedef enum {
+			K_P,
+			K_I,
+			K_D,
+		} k_t;
 
 		pidc()
 		:
@@ -24,7 +32,7 @@ namespace uhd {
 			i( 0.0 ),
 			// initialize the control variable to be equal to the set point, so error is initially zero
 			cv( sp ),
-			last_time( uhd::time_spec_t::get_system_time().get_real_secs() )
+			last_time( 0 )
 		{
 			const std::string s[] = { "Kp", "Ki", "Kd" };
 			const double K[] = { Kp, Ki, Kd };
@@ -37,16 +45,21 @@ namespace uhd {
 
 		virtual ~pidc() {}
 
-		double update_control_variable( const double sp, const double pv ) {
+		double update_control_variable( const double sp, const double pv, double now ) {
 			// XXX: @CF: Use "velocity algorithm" form?
 			// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation
 			// Possibly better to not use the velocity algorithm form to avoid several opportunities for numerical instability
 
 			double then = last_time;
-			double now = uhd::time_spec_t::get_system_time().get_real_secs();
 
 			double dt = now - then;
 			double e_1 = e;
+
+			if ( std::abs( dt ) < 1e-9 || dt < 0 ) {
+				// when dt is incredibly small (or negative) do not perform any updates
+				return cv;
+			}
+
 			e = sp - pv;
 
 			// proportional
@@ -71,8 +84,29 @@ namespace uhd {
 			return last_time;
 		}
 
+		// XXX: @CF: should only be used in the case where last time is not necessarily when the pidc constructor was called
+		void set_last_time( double t ) {
+			last_time = t;
+		}
+
 		double get_control_variable() {
 			return cv;
+		}
+
+		double get_k( k_t k ) {
+			switch( k ) {
+			case K_P: return Kp;
+			case K_I: return Ki;
+			case K_D: return Kd;
+			default: return 0;
+			}
+		}
+
+		void reset( const double sp, const double time ) {
+			cv = sp;
+			last_time = time;
+			e = 0;
+			i = 0;
 		}
 
 	protected:

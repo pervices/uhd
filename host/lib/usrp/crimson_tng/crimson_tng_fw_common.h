@@ -69,11 +69,11 @@ extern "C" {
 #define CRIMSON_TNG_MAX_MTU		(9000 - 96)
 
 // Crimson Flowcontrol Update Per Second
-#define CRIMSON_TNG_UPDATE_PER_SEC	150
+#define CRIMSON_TNG_UPDATE_PER_SEC	50
 #define CRIMSON_TNG_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
-#define CRIMSON_TNG_BUFF_SIZE	65532
+#define CRIMSON_TNG_BUFF_SIZE	65536
 
 // Crimson RF Settings
 #define CRIMSON_TNG_RF_TX_GAIN_RANGE_START	0.0
