@@ -514,7 +514,7 @@ public:
 		if ( _metadata.has_time_spec ) {
 			// Prime buffers for Start of Burst
 			for( unsigned i = 0; i < _channels.size(); i++ ) {
-				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec );
+				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec - _time_diff_pidc.get_control_variable() );
 			}
 		}
 
