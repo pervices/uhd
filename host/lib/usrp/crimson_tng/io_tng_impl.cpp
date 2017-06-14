@@ -1000,6 +1000,7 @@ private:
 				txstream->time_diff_process( time_diff_extract( ss ), now );
 			}
 
+			/*
 			// update flow controllers with actual buffer levels
 			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
 				int ch = txstream->_channels[ i ];
@@ -1008,6 +1009,7 @@ private:
 					txstream->get_time_now()
 				);
 			}
+			*/
 
 //			// XXX: overruns - we need to fix this
 //			now = uhd::time_spec_t::get_system_time();
