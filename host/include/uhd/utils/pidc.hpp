@@ -102,6 +102,13 @@ namespace uhd {
 			}
 		}
 
+		void reset( const double sp, const double time = uhd::time_spec_t::get_system_time().get_real_secs() ) {
+			cv = sp;
+			last_time = time;
+			e = 0;
+			i = 0;
+		}
+
 	protected:
 		double Kp, Ki, Kd;
 

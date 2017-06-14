@@ -57,7 +57,7 @@
 #include "iputils.hpp"
 
 #ifndef DEBUG_START_OF_BURST
-//#define DEBUG_START_OF_BURST 1
+#define DEBUG_START_OF_BURST 1
 #endif
 #ifndef DEBUG_RECV
 //#define DEBUG_RECV 1
@@ -470,7 +470,7 @@ public:
 		if ( NULL == _crimson_tng_impl || NULL == _crimson_tng_impl->get_multi() ) {
 			return time_spec_t::get_system_time();
 		} else {
-			return time_spec_t( _crimson_tng_impl->get_multi()->get_time_now().get_real_secs() + _crimson_tng_impl->get_time_diff() );
+			return _crimson_tng_impl->get_multi()->get_time_now();
 		}
 	}
 
@@ -728,7 +728,7 @@ private:
 			counter->push_back(0);
 
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
-			const double nominal_buffer_level_pcnt = 0.8;
+			const double nominal_buffer_level_pcnt = 0.5;
 			_flow_control.push_back(
 				uhd::flow_control_nonlinear::make(
 					nominal_sample_rate,
@@ -866,10 +866,7 @@ private:
 		// Input to Process (includes feedback from PID Controller)
 		make_time_diff_packet(
 			pkt,
-			time_spec_t(
-				get_time_now().get_real_secs()
-				+ _time_diff_pidc.get_control_variable()
-			)
+			uhd::time_spec_t::get_system_time() + _time_diff_pidc.get_control_variable()
 		);
 
 		_time_diff_iface->send(
@@ -900,25 +897,43 @@ private:
 		return pv;
 	}
 
+	static void print_pid_status( double t, double cv, double pv ) {
+
+		UHD_MSG(status)
+			<< "t: " << std::fixed << std::setprecision(6) << t << ", "
+			<< "cv: " << std::fixed << std::setprecision( 20 ) << cv << ", "
+			<< "pv: " << std::fixed << std::setprecision( 20 ) << pv << ", "
+//				<< "dpv: " << std::fixed << std::setprecision( 20 ) << dpv << ", "
+			<< std::endl;
+
+	}
+
 	/// SoB Time Diff: feed the time diff error back into out control system
-	void time_diff_process( double pv ) {
+	void time_diff_process( const double pv, const uhd::time_spec_t & now ) {
 
 		static const double sp = 0.0;
 
 		//double cv = _cv_filter.update( _time_diff_pidc.update_control_variable( sp, pv ) );
-		double cv = _time_diff_pidc.update_control_variable( sp, pv );
+		double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
 #ifdef DEBUG_START_OF_BURST
 		double x = _time_diff_pidc.get_last_time();
 #endif
 
 		double filtered_pv = _dpv_filter.update( std::abs( pv ) );
 
+#if DEBUG_START_OF_BURST
+		if ( 0 == clock_drift_print_counter % CRIMSON_TNG_UPDATE_PER_SEC ) {
+			print_pid_status( x - _streamer_start_time, cv, filtered_pv );
+		}
+		clock_drift_print_counter++;
+#endif
+
 		if ( ! _pid_converged ) {
 			if ( std::abs( filtered_pv ) < crimson_tng_tx_streamer::PV_MAX_ERROR_FOR_CONVERGENCE * 0.9  ) {
 				_pid_converged = true;
 #ifdef DEBUG_START_OF_BURST
+				print_pid_status( x - _streamer_start_time, cv, filtered_pv );
 				UHD_MSG(status)
-					<< "t: " << std::fixed << std::setprecision(6) << x << ", "
 					<< "PID converged after : " << std::scientific << x - _streamer_start_time << " s" << std::endl;
 #endif
 			}
@@ -927,9 +942,12 @@ private:
 				_pid_converged = false;
 #ifdef DEBUG_START_OF_BURST
 				UHD_MSG(status)
-					<< "t: " << std::fixed << std::setprecision(6) << x << ", "
 					<< "PID diverged after : " << std::scientific << x - _streamer_start_time << " s" << std::endl;
+				print_pid_status( x, cv, filtered_pv );
+				UHD_MSG(status)
+					<< "PID reset" << std::endl;
 #endif
+				_time_diff_pidc.reset( 0.0 );
 			}
 		}
 
@@ -937,30 +955,25 @@ private:
 		if ( NULL != _crimson_tng_impl && _pid_converged ) {
 			_crimson_tng_impl->set_time_diff( cv );
 		}
-
-#if DEBUG_START_OF_BURST
-		if ( 0 == clock_drift_print_counter % CRIMSON_TNG_UPDATE_PER_SEC ) {
-			UHD_MSG(status)
-				<< "t: " << std::fixed << std::setprecision(6) << x << ", "
-				<< "cv: " << std::fixed << std::setprecision( 20 ) << cv << ", "
-				<< "pv: " << std::fixed << std::setprecision( 20 ) << filtered_pv << ", "
-//				<< "dpv: " << std::fixed << std::setprecision( 20 ) << dpv << ", "
-				<< std::endl;
-		}
-		clock_drift_print_counter++;
-#endif
 	}
 
 	// the buffer monitor thread
 	static void bm_thread_fn( crimson_tng_tx_streamer* txstream ) {
 
-		const uhd::time_spec_t T( 1 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
+		uhd::set_thread_priority_safe();
+
+		const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 		uint16_t fifo_lvl[ CRIMSON_TNG_TX_CHANNELS ];
-		uhd::time_spec_t now, then, dt;
+		uhd::time_spec_t now, then, dt, overrun;
 		struct timespec req, rem;
 
+		UHD_MSG( status )
+			<< __func__ << "(): Using update period of 1 / " << CRIMSON_TNG_UPDATE_PER_SEC << " = " << T.get_real_secs() << " s"
+			<< std::endl;
+
 		for(
-			now = uhd::time_spec_t::get_system_time(),
+			overrun = 0.0,
+				now = uhd::time_spec_t::get_system_time(),
 				then = now + T
 				;
 
@@ -971,13 +984,12 @@ private:
 		) {
 
 			for(
-				now = uhd::time_spec_t::get_system_time(),
-					dt = then - now
+				dt = then - now - overrun
 					;
-				dt.get_real_secs() > 0.0
+				dt > 0.0
 					;
 				now = uhd::time_spec_t::get_system_time(),
-					dt = then - now
+					dt = then - now - overrun
 			) {
 				req.tv_sec = dt.get_full_secs();
 				req.tv_nsec = dt.get_frac_secs() * 1e9;
@@ -999,19 +1011,31 @@ private:
 			}
 
 			if ( 0 == txstream->_instance_num ) {
-				txstream->time_diff_process( time_diff_extract( ss ) );
+				txstream->time_diff_process( time_diff_extract( ss ), now );
 			}
 
 			// update flow controllers with actual buffer levels
 			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
+				/*
 				int ch = txstream->_channels[ i ];
 				txstream->_flow_control[ i ]->set_buffer_level(
 					fifo_lvl[ ch ],
 					txstream->get_time_now()
 				);
+				*/
 			}
 
-			// alert user of underflow?
+//			// XXX: overruns - we need to fix this
+//			now = uhd::time_spec_t::get_system_time();
+//
+//			if ( now >= then ) {
+//				UHD_MSG( warning )
+//					<< __func__ << "(): Overran time for update by " << ( now - then ).get_real_secs() << " s"
+//					<< std::endl;
+//				if ( now - then > overrun ) {
+//					overrun = now - then;
+//				}
+//			}
 		}
 	}
 
