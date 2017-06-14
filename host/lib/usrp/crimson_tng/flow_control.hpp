@@ -41,7 +41,7 @@ public:
 	 * @param now  the time to compare with the start of burst time
 	 * @return true if the specified time is less than the start of burst time, otherwise false
 	 */
-	virtual bool start_of_burst_pending( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
+	virtual bool start_of_burst_pending( const uhd::time_spec_t & now ) = 0;
 	/**
 	 * Set the time for a start of burst
 	 *
@@ -93,7 +93,7 @@ public:
 	 *
 	 * @return the buffer level [samples]
 	 */
-	virtual size_t get_buffer_level( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
+	virtual size_t get_buffer_level( const uhd::time_spec_t & now ) = 0;
 	/**
 	 * Set the buffer level, presumably based on valid data.
 	 *
@@ -102,7 +102,7 @@ public:
 	 *
 	 * @param level   the actual buffer level [samples]
 	 */
-	virtual void set_buffer_level( const size_t level, const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
+	virtual void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) = 0;
 
 	/**
 	 * Get the (approximate) level of the buffer. Under normal operating
@@ -111,7 +111,7 @@ public:
 	 *
 	 * @return the buffer level [%]
 	 */
-	inline double get_buffer_level_pcnt( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) {
+	inline double get_buffer_level_pcnt( const uhd::time_spec_t & now ) {
 		return get_buffer_level( now ) / (double) get_buffer_size();
 	}
 	/**
@@ -119,7 +119,7 @@ public:
 	 *
 	 * @param pcnt   the actual buffer level [%]
 	 */
-	inline void set_buffer_level_pcnt( const double pcnt, const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) {
+	inline void set_buffer_level_pcnt( const double pcnt, const uhd::time_spec_t & now ) {
 		set_buffer_level( pcnt * get_buffer_size(), now );
 	}
 
@@ -136,7 +136,7 @@ public:
 	 *
 	 * @return the sample rate [sample / s]
 	 */
-	virtual double get_sample_rate( const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) {
+	virtual double get_sample_rate( const uhd::time_spec_t & now ) {
 		boost::ignore_unused( now );
 		return get_nominal_sample_rate();
 	}
@@ -156,7 +156,7 @@ public:
 	 * @param now                The time to wait from
 	 * @return                   The amount of time to wait from 'now'
 	 */
-	virtual uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now = uhd::time_spec_t::get_system_time() ) = 0;
+	virtual uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) = 0;
 
 
 	/**
@@ -169,7 +169,7 @@ public:
 	 * @param nsamples_sent   The number of samples sent
 	 * @param now             The time at which the samples were sent [default: current system time]
 	 */
-	virtual void update( const size_t nsamples_sent, const uhd::time_spec_t & now = uhd::time_spec_t::get_system_time() ) = 0;
+	virtual void update( const size_t nsamples_sent, const uhd::time_spec_t & now ) = 0;
 
 protected:
 

@@ -57,7 +57,7 @@
 #include "iputils.hpp"
 
 #ifndef DEBUG_START_OF_BURST
-#define DEBUG_START_OF_BURST 1
+//#define DEBUG_START_OF_BURST 1
 #endif
 #ifndef DEBUG_RECV
 //#define DEBUG_RECV 1
@@ -576,7 +576,6 @@ public:
 				// Extended Delay for Start of Burst
 				//
 
-				dt -= 10e-6;
 				if ( dt.get_real_secs() > 30e-6 ) {
 					struct timespec req, rem;
 					req.tv_sec = (time_t) dt.get_full_secs();
@@ -736,19 +735,6 @@ private:
 					(size_t)CRIMSON_TNG_BUFF_SIZE
 				)
 			);
-/*
- 			const double nominal_pid_sample_rate = nominal_sample_rate / _if_mtu[ i ];
-			uhd::pidc flow_control_pidc = pidc( nominal_buffer_level_pcnt * CRIMSON_TNG_BUFF_SIZE, 1.0, 0.0, 0.0 );
-			_flow_control.push_back(
-				flow_control(
-					nominal_sample_rate,
-					nominal_pid_sample_rate,
-					nominal_buffer_level_pcnt * CRIMSON_TNG_BUFF_SIZE,
-					flow_control_pidc,
-					nominal_sample_rate / ( 2.0 * _if_mtu[ i ] )
-				)
-			);
-*/
 		}
 
 		if ( 0 == _instance_num ) {
@@ -947,7 +933,7 @@ private:
 				UHD_MSG(status)
 					<< "PID reset" << std::endl;
 #endif
-				_time_diff_pidc.reset( 0.0 );
+				_time_diff_pidc.reset( 0.0, get_time_now().get_real_secs() );
 			}
 		}
 
@@ -1016,13 +1002,11 @@ private:
 
 			// update flow controllers with actual buffer levels
 			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
-				/*
 				int ch = txstream->_channels[ i ];
 				txstream->_flow_control[ i ]->set_buffer_level(
 					fifo_lvl[ ch ],
 					txstream->get_time_now()
 				);
-				*/
 			}
 
 //			// XXX: overruns - we need to fix this

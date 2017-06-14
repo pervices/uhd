@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE( test_time_until_second_send ) {
 	size_t buffer_level = fc->get_buffer_level( now );
 
 	// ensure that the time we wait until the second send does not exhaust the buffer resources
-	expected_double = buffer_level / fc->get_sample_rate();
+	expected_double = buffer_level / fc->get_sample_rate( now );
 	actual_double = ( then - now ).get_real_secs();
 	BOOST_CHECK_MESSAGE( actual_double < expected_double, "flow control not compensating after first packet" );
 }
