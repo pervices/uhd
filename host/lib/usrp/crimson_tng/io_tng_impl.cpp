@@ -846,14 +846,14 @@ private:
 	}
 
 	/// SoB Time Diff: send sync packet (must be done before reading flow iface)
-	void time_diff_send() {
+	void time_diff_send( const uhd::time_spec_t & crimson_now ) {
 
 		time_diff_packet pkt;
 
 		// Input to Process (includes feedback from PID Controller)
 		make_time_diff_packet(
 			pkt,
-			uhd::time_spec_t::get_system_time() + _time_diff_pidc.get_control_variable()
+			crimson_now
 		);
 
 		_time_diff_iface->send(
@@ -952,7 +952,10 @@ private:
 		const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 		uint16_t fifo_lvl[ CRIMSON_TNG_TX_CHANNELS ];
 		uhd::time_spec_t now, then, dt, overrun;
+		uhd::time_spec_t crimson_now;
 		struct timespec req, rem;
+
+		double time_diff;
 
 		UHD_MSG( status )
 			<< __func__ << "(): Using update period of 1 / " << CRIMSON_TNG_UPDATE_PER_SEC << " = " << T.get_real_secs() << " s"
@@ -984,7 +987,9 @@ private:
 			}
 
 			if ( 0 == txstream->_instance_num ) {
-				txstream->time_diff_send();
+				time_diff = txstream->_time_diff_pidc.get_control_variable();
+				crimson_now = now + time_diff;
+				txstream->time_diff_send( crimson_now );
 			}
 
 			txstream->_flow_iface -> poke_str("Read fifo");
