@@ -715,7 +715,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 			md.has_time_spec = true;
 
 			uhd::time_spec_t now = tx_usrp->get_time_now();
-			uhd::time_spec_t then = now + sob;
+			// XXX: fractional seconds currently ignored for start of burst!!! will be fixed momentarily!
+			uhd::time_spec_t then = ( now + sob ).get_full_secs();
 
 			std::cout << "Now: " << std::setprecision(10) << now.get_real_secs() << std::endl;
 			std::cout << "SoB: " << std::setprecision(10) << then.get_real_secs() << std::endl;
