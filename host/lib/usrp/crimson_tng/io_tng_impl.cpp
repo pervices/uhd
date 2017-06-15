@@ -512,9 +512,10 @@ public:
 
 		compose_if_packet_info( _metadata, if_packet_info );
 		if ( _metadata.has_time_spec ) {
+			double dt = NULL == _crimson_tng_impl ? 0 : _crimson_tng_impl->get_time_diff();
 			// Prime buffers for Start of Burst
 			for( unsigned i = 0; i < _channels.size(); i++ ) {
-				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec - _time_diff_pidc.get_control_variable() );
+				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec - dt );
 			}
 		}
 
