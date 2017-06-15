@@ -601,7 +601,7 @@ public:
 				// Update Flow Control
 				//
 
-				_flow_control[ i ]->update( data_len / sizeof( uint32_t ), get_time_now() );
+				_flow_control[ i ]->update( data_len / sizeof( uint32_t ), now );
 
 				//
 				// Decrement Byte / Sample Counters
