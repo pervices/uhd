@@ -90,8 +90,6 @@ public:
 			throw uhd::value_error( msg );
 		}
 
-		//std::cout << std::setprecision( 10 ) << now.get_real_secs() << ", " << level << std::endl;
-
 		buffer_level = level;
 		buffer_level_set_time = now;
 	}

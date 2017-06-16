@@ -51,6 +51,11 @@ namespace uhd {
 			return avg;
 		}
 
+		void reset() {
+			avg = 0;
+			X.clear();
+		}
+
 	protected:
 
 		// would make this const, but some of our code calls an init() function inside of a constructor,
