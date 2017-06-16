@@ -56,8 +56,15 @@
 
 #include "iputils.hpp"
 
-#ifndef DEBUG_RECV
-//#define DEBUG_RECV 1
+#ifndef DEBUG_RX
+//#define DEBUG_RX 1
+#endif
+#ifndef DEBUG_TX
+#define DEBUG_TX 1
+#endif
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE( x ) ((int)( sizeof( x ) / sizeof( (x)[ 0 ] ) ))
 #endif
 
 using namespace uhd;
@@ -151,7 +158,7 @@ public:
 
 		double _timeout = timeout;
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 		//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
 
 		// XXX: do not timeout when debugging
@@ -182,7 +189,7 @@ public:
 				nbytes = fifo_level[ i ] - _fifo[ 0 ].size();
 				nsamples = nbytes / 4;
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": POP [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
 #endif
 			}
@@ -210,7 +217,7 @@ public:
 			nbytes -= (vita_hdr + vita_tlr) * sizeof( uint32_t );
 			nsamples = nbytes / sizeof( uint32_t );
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 			UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": STREAM [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
 #endif
 
@@ -294,7 +301,7 @@ public:
 					return 0;
 				}
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": PUSH [ " << (char)( i + 'A' ) << " ]: nbytes: " << vita_payload_len_bytes - nbytes_payload << ", nsamples: " << ( vita_payload_len_bytes - nbytes_payload ) / 4 << std::endl;
 #endif
 			}
@@ -426,7 +433,45 @@ public:
 		return _pay_len/4;
 	}
 
-	void compose_if_packet_info( const tx_metadata_t &metadata, if_packet_info_t &ifo ) {
+	/**
+	 * It's been found that the existing uhd if_packet_info_t is lacking and
+	 * so we use it primarily for a place to store variables rather than
+	 * for it's constructor and other methods until it is rewritten.
+	 *
+	 * Once it's been rewritten, the output buffer should be removed, as
+	 * presumably the VRT49 structure (currently if_packet_info_t) would
+	 * handle that.
+	 *
+	 * Lastly, if we ever switch to vector writes, we must also eliminate
+	 * copying to the output buffer.
+	 *
+	 * @param metadata            metadata for packet (input)
+	 * @param sample_data         sample data (input)
+	 * @param mtu_bytes           mtu for the channel, in bytes (input)
+	 * @param remaining_samples   samples remaining for the channel (input)
+	 * @param buf_len             output buffer length (input)
+	 * @param buf                 output buffer (output)
+	 * @param ifo                 VRT49 structure (output)
+	 */
+	static void compose_vrt49_packet(
+		const tx_metadata_t &metadata,
+		const uint32_t *sample_data,
+		const size_t mtu_bytes,
+		const size_t remaining_samples,
+		const size_t buf_len,
+		uint32_t *buf,
+		if_packet_info_t &ifo
+	) {
+
+		const size_t N =
+			std::min(
+				( mtu_bytes
+					- 60 // IPv4 Header
+					- 8  // UDP Header
+					- vrt::max_if_hdr_words32 * sizeof( uint32_t )
+				) / sizeof( uint32_t ),
+				remaining_samples
+			);
 
 		//translate the metadata to vrt if packet info
 		ifo.link_type = vrt::if_packet_info_t::LINK_TYPE_NONE;
@@ -439,9 +484,9 @@ public:
 
 		if ( metadata.has_time_spec ) {
 			ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
-			ifo.tsi = (uint32_t)metadata.time_spec.get_full_secs();
+			ifo.tsi = (uint32_t) metadata.time_spec.get_full_secs();
 			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
-			ifo.tsf = (uint64_t) (metadata.time_spec.get_frac_secs() / 1e12);
+			ifo.tsf = (uint64_t)( metadata.time_spec.get_frac_secs() * 1e12 );
 		}
 
 		// XXX: these flags denote the first and last packets in burst sample data
@@ -449,6 +494,49 @@ public:
 		ifo.sob = metadata.start_of_burst;
 		ifo.eob	= metadata.end_of_burst;
 
+		ifo.num_header_words32 = metadata.has_time_spec ? 4 : 1;
+		ifo.num_payload_words32 = N;
+		ifo.num_payload_bytes = N * sizeof( uint32_t );
+
+		ifo.num_packet_words32 = ifo.num_header_words32 + ifo.num_payload_words32 + ( ifo.has_tlr ? 1 : 0 );
+
+		if ( BOOST_UNLIKELY( buf_len < ifo.num_packet_words32 ) ) {
+			throw runtime_error(
+				(
+					boost::format( "buf_len ( %u ) is not large enough for packet ( %u )" )
+					% buf_len
+				    % ifo.num_packet_words32
+				).str()
+			);
+		}
+
+		buf[ 0 ] = 0;
+		buf[ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
+		buf[ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
+		buf[ 0 ] |= (uint16_t) ifo.num_packet_words32;
+
+		if ( metadata.has_time_spec ) {
+
+			buf[ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
+			buf[ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
+
+			buf[ 1 ] = ifo.tsi;
+			buf[ 2 ] = (uint32_t)( ifo.tsf >> 32 );
+			buf[ 3 ] = (uint32_t)( ifo.tsf >> 0  );
+		}
+		for( size_t k = 0; k < ifo.num_header_words32; k++ ) {
+			boost::endian::native_to_big_inplace( buf[ k ] );
+		}
+
+		memcpy(
+			& buf[ ifo.num_header_words32 ],
+			sample_data,
+			N * sizeof( uint32_t )
+		);
+
+		if ( ifo.has_tlr ) {
+			buf[ ifo.num_packet_words32 -1 ] = ifo.tlr;
+		}
 	}
 
 	inline bool is_start_of_burst( vrt::if_packet_info_t & if_packet_info ) {
@@ -479,9 +567,6 @@ public:
         	const double timeout = 0.1)
 	{
 
-		static const size_t CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES =
-				CRIMSON_TNG_MAX_MTU - vrt::max_if_hdr_words32 * sizeof(uint32_t);
-
 		size_t samp_sent = 0;
 		size_t remaining_bytes[ _channels.size() ];
 		vrt::if_packet_info_t if_packet_info;
@@ -490,6 +575,8 @@ public:
 		std::vector<tx_metadata_t> metadata;
 
 		uhd::time_spec_t now, then, dt;
+
+		uhd::time_spec_t send_deadline;
 
 		if (
 			true
@@ -510,20 +597,19 @@ public:
 			}
 		}
 
-		for(
-			uhd::time_spec_t send_deadline =
-				get_time_now()
-					+ timeout
-					+ (
-						_metadata.has_time_spec
-							? _metadata.time_spec
-							: 0.0
-					)
-				;
-			samp_sent < nsamps_per_buff * _channels.size()
-				;
-		) {
+		send_deadline = get_time_now();
+		send_deadline += timeout;
+		send_deadline += ( _metadata.has_time_spec ? _metadata.time_spec : 0.0 );
 
+		for(
+			;
+			true
+#ifndef DEBUG_TX
+			&& get_time_now() > send_deadline
+#endif
+			&& samp_sent < nsamps_per_buff * _channels.size()
+			;
+		) {
 			for ( size_t i = 0; i < _channels.size(); i++ ) {
 
 				if ( 0 == remaining_bytes[ i ] ) {
@@ -531,40 +617,22 @@ public:
 				}
 
 				//
-				// Process Vita Header
+				// Compose VRT49 Packet
 				//
 
-				compose_if_packet_info( metadata[ i ], if_packet_info );
-
-				size_t samp_ptr_offset = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
-				if_packet_info.num_header_words32 = metadata[ i ].has_time_spec ? 4 : 1;
-				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
-				if_packet_info.num_payload_words32 = data_len / sizeof( uint32_t );
-				if_packet_info.num_payload_bytes = data_len;
-				_tmp_buf[ i ][ 0 ] = 0;
-				_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
-				_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
-
-				if ( metadata[ i ].has_time_spec ) {
-
-					uint64_t ps = metadata[i].time_spec.get_frac_secs() * 1e12;
-
-					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
-					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
-
-					_tmp_buf[ i ][ 1 ] = metadata[ i ].time_spec.get_full_secs();
-					_tmp_buf[ i ][ 2 ] = (uint32_t)( ps >> 32 );
-					_tmp_buf[ i ][ 3 ] = (uint32_t)( ps >> 0  );
-				}
-				_tmp_buf[ i ][ 0 ] |= (uint16_t) ( if_packet_info.num_payload_words32 + if_packet_info.num_header_words32 );
-				for( size_t k = 0; k < if_packet_info.num_header_words32; k++ ) {
-					boost::endian::native_to_big_inplace( _tmp_buf[ i ][ k ] );
-				}
-				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
-				std::memcpy( (uint8_t *)_tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
+				size_t sample_byte_offs = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
+				compose_vrt49_packet(
+					metadata[ i ],
+					(uint32_t *)( & ( (uint8_t *)buffs[ i ] )[ sample_byte_offs ] ),
+					_if_mtu[ i ],
+					remaining_bytes[ i ] / sizeof( uint32_t ),
+					CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ),
+					_tmp_buf[ i ],
+					if_packet_info
+				);
 
 				//
-				// Delay for Flow Control
+				// Flow Control
 				//
 
 				now = get_time_now();
@@ -574,10 +642,6 @@ public:
 						now
 					);
 				then = now + dt;
-
-				//
-				// Extended Delay for Start of Burst
-				//
 
 				if ( dt.get_real_secs() > 30e-6 ) {
 					struct timespec req, rem;
@@ -598,28 +662,23 @@ public:
 				// Send Data
 				//
 
-				_udp_stream[ i ]->stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
+				_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
 
 				//
 				// Update Flow Control
 				//
 
-				_flow_control[ i ]->update( data_len / sizeof( uint32_t ), now );
+				_flow_control[ i ]->update( if_packet_info.num_payload_words32, now );
 
 				//
 				// Decrement Byte / Sample Counters
 				//
 
-				remaining_bytes[i] -= data_len;
-				samp_sent += data_len / sizeof( uint32_t );
+				remaining_bytes[ i ] -= if_packet_info.num_payload_bytes;
+				samp_sent += if_packet_info.num_payload_words32;
 
 				// this ensures we only send the vita time spec on the first packet of the burst
 				metadata[ i ].has_time_spec = false;
-			}
-
-			// Exit if Timeout has lapsed
-			if ( get_time_now() > send_deadline ) {
-				return samp_sent / _channels.size();
 			}
 		}
 
@@ -710,7 +769,7 @@ private:
 			// vita enable (as of kb #3804, always use vita headers for tx)
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("1");
 
-			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU ] );
+			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ) ] );
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
