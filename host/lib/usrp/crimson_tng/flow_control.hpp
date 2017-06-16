@@ -101,6 +101,7 @@ public:
 	 * is the range zero-inclusive but strictly less than the buffer size.
 	 *
 	 * @param level   the actual buffer level [samples]
+	 * @param now     the current clock time
 	 */
 	virtual void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) = 0;
 

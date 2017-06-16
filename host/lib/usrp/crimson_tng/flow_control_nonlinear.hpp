@@ -6,6 +6,7 @@
 #include <boost/format.hpp>
 
 #include <uhd/exception.hpp>
+#include <uhd/utils/sma.hpp>
 
 #include "flow_control.hpp"
 
@@ -26,6 +27,8 @@ public:
 	ssize_t buffer_level;
 	uhd::time_spec_t buffer_level_set_time;
 	uhd::time_spec_t sob_time;
+
+	uhd::sma buffer_level_filter;
 
 	static sptr make( const double nominal_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size ) {
 		return sptr( (uhd::flow_control *) new flow_control_nonlinear( nominal_sample_rate, nominal_buffer_level_pcnt, buffer_size ) );
@@ -90,6 +93,9 @@ public:
 			throw uhd::value_error( msg );
 		}
 
+		buffer_level_filter.update( level );
+		buffer_level = buffer_level_filter.get_average();
+
 		buffer_level = level;
 		buffer_level_set_time = now;
 	}
@@ -113,6 +119,7 @@ public:
 		} else {
 
 			bl = unlocked_get_buffer_level( now );
+			//dt = 0.2*( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
 			dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
 		}
 
@@ -170,7 +177,8 @@ protected:
 		buffer_size( buffer_size ),
 		nominal_buffer_level( nominal_buffer_level_pcnt * buffer_size ),
 		nominal_sample_rate( nominal_sample_rate ),
-		buffer_level( 0 )
+		buffer_level( 0 ),
+		buffer_level_filter( 2 )
 	{
 		if (
 			false

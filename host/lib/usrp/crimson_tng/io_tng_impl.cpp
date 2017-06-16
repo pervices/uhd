@@ -435,7 +435,7 @@ public:
 
 	/**
 	 * It's been found that the existing uhd if_packet_info_t is lacking and
-	 * so we use it primarily for a place to store variables rather than
+	 * so we will use it primarily for a place to store variables rather than
 	 * for it's constructor and other methods until it is rewritten.
 	 *
 	 * Once it's been rewritten, the output buffer should be removed, as
@@ -1007,17 +1007,16 @@ private:
 
 			time_diff = time_diff_extract( ss );
 			txstream->time_diff_process( time_diff, now );
-
-			/*
+/*
 			// update flow controllers with actual buffer levels
 			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
 				int ch = txstream->_channels[ i ];
 				txstream->_flow_control[ i ]->set_buffer_level(
 					fifo_lvl[ ch ],
-					txstream->get_time_now()
+					crimson_now
 				);
 			}
-			*/
+*/
 
 //			// XXX: overruns - we need to fix this
 //			now = uhd::time_spec_t::get_system_time();
