@@ -81,6 +81,8 @@ public:
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
 
+		ssize_t _level = level;
+
 		std::lock_guard<std::mutex> _lock( lock );
 
 		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
@@ -93,11 +95,9 @@ public:
 			throw uhd::value_error( msg );
 		}
 
-		buffer_level_filter.update( level );
-		buffer_level = buffer_level_filter.get_average();
+		//buffer_level_filter.update( level );
+		buffer_level = buffer_level + 0.006 * ( _level - buffer_level );
 
-		buffer_level = level;
-		buffer_level_set_time = now;
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
@@ -119,7 +119,6 @@ public:
 		} else {
 
 			bl = unlocked_get_buffer_level( now );
-			//dt = 0.2*( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
 			dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
 		}
 
@@ -178,7 +177,7 @@ protected:
 		nominal_buffer_level( nominal_buffer_level_pcnt * buffer_size ),
 		nominal_sample_rate( nominal_sample_rate ),
 		buffer_level( 0 ),
-		buffer_level_filter( 2 )
+		buffer_level_filter( 1 )
 	{
 		if (
 			false

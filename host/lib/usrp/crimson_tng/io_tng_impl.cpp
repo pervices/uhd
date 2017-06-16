@@ -99,19 +99,19 @@ static uint32_t get_if_mtu( const std::string & remote_addr ) {
 	iputils::get_route( remote_addr, iface );
 	size_t mtu = iputils::get_mtu( iface );
 
-	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
-		throw runtime_error(
-			(
-				boost::format( "mtu %u on iface %s is below minimum recommended size of %u. Use 'sudo ifconfig %s mtu %u' to correct." )
-					% mtu
-					% iface
-					% CRIMSON_TNG_MIN_MTU
-					% iface
-					% CRIMSON_TNG_MIN_MTU
-			).str()
-		);
-	}
-
+//	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
+//		throw runtime_error(
+//			(
+//				boost::format( "mtu %u on iface %s is below minimum recommended size of %u. Use 'sudo ifconfig %s mtu %u' to correct." )
+//					% mtu
+//					% iface
+//					% CRIMSON_TNG_MIN_MTU
+//					% iface
+//					% CRIMSON_TNG_MIN_MTU
+//			).str()
+//		);
+//	}
+//
 	return mtu;
 }
 
@@ -789,7 +789,7 @@ private:
 			counter->push_back(0);
 
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
-			const double nominal_buffer_level_pcnt = 0.5;
+			const double nominal_buffer_level_pcnt = 0.8;
 			_flow_control.push_back(
 				uhd::flow_control_nonlinear::make(
 					nominal_sample_rate,
@@ -1007,16 +1007,19 @@ private:
 
 			time_diff = time_diff_extract( ss );
 			txstream->time_diff_process( time_diff, now );
-/*
-			// update flow controllers with actual buffer levels
-			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
-				int ch = txstream->_channels[ i ];
-				txstream->_flow_control[ i ]->set_buffer_level(
-					fifo_lvl[ ch ],
-					crimson_now
-				);
+
+
+			if ( txstream->_time_diff_converged ) {
+				// update flow controllers with actual buffer levels
+				for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
+					int ch = txstream->_channels[ i ];
+					txstream->_flow_control[ i ]->set_buffer_level(
+						fifo_lvl[ ch ],
+						crimson_now
+					);
+				}
 			}
-*/
+
 
 //			// XXX: overruns - we need to fix this
 //			now = uhd::time_spec_t::get_system_time();
