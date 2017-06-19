@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cmath>
 #include <cstdio>
 #include <iomanip>
 #include <iostream>
@@ -70,6 +71,9 @@ namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 namespace trans = uhd::transport;
 
+// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+static void destroy_other_processes_using_crimson();
+
 static int channels_to_mask( std::vector<size_t> channels ) {
 	unsigned mask = 0;
 
@@ -82,7 +86,7 @@ static int channels_to_mask( std::vector<size_t> channels ) {
 	return mask;
 }
 
-static void check_mtu( const std::string & remote_addr ) {
+static uint32_t get_if_mtu( const std::string & remote_addr ) {
 
 	std::string iface;
 
@@ -101,6 +105,8 @@ static void check_mtu( const std::string & remote_addr ) {
 			).str()
 		);
 	}
+
+	return mtu;
 }
 
 class crimson_tng_rx_streamer : public uhd::rx_streamer {
@@ -327,6 +333,7 @@ private:
 
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
+		_if_mtu = std::vector<size_t>( _channels.size() );
 
 		_fifo = std::vector<std::queue<uint8_t>>( _channels.size() );
 
@@ -343,7 +350,7 @@ private:
 			_rate = tree->access<double>(mb_path / "rx_dsps" / "Channel_"+ch / "rate" / "value").get();
 			_pay_len = tree->access<int>(mb_path / "link" / iface / "pay_len").get();
 
-			check_mtu( ip_addr );
+			_if_mtu[ i ] = get_if_mtu( ip_addr );
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
@@ -387,6 +394,7 @@ private:
 	property_tree::sptr _tree;
 	size_t _prev_frame;
 	size_t _pay_len;
+	std::vector<size_t> _if_mtu;
 	double _rate;
 	uint64_t _start_ticks;
 	device_addr_t _addr;
@@ -465,7 +473,6 @@ public:
 	}
 
 
-
 	size_t send(
         	const buffs_type &buffs,
         	const size_t nsamps_per_buff,
@@ -500,18 +507,23 @@ public:
 		}
 
 		compose_if_packet_info( metadata, if_packet_info );
-		if ( is_start_of_burst( if_packet_info ) ) {
-			_sob_time = metadata.time_spec.get_real_secs();
+		if ( metadata.has_time_spec ) {
 			for( unsigned i = 0; i < _channels.size(); i++ ) {
 				// start sending SoB data 1/2 a buffer (in time) before SoB
-				_last_time[ i ] = metadata.time_spec - (double)( CRIMSON_TNG_BUFF_SIZE / 2 ) / _crimson_samp_rate[ i ] ;
+				double half_buffer = CRIMSON_TNG_BUFF_SIZE / 2.0 / _crimson_samp_rate[ i ];
+				_last_time[ i ] = metadata.time_spec - uhd::time_spec_t( half_buffer );
+//				UHD_MSG( status ) << "SoB Info[ " << i << " ]:\n\t"
+//					<< "_last_time[ " << i << " ]: " << std::setprecision(10) << _last_time[ i ].get_real_secs() << "\n\t"
+//					<< "metadata.time_spec: " << std::setprecision(10) << metadata.time_spec.get_real_secs() << "\n\t"
+//					<< "_crimson_samp_rate[ " << i << " ]: " << _crimson_samp_rate[ i ] << "\n\t"
+//					<< "1/2 buffer[ " << i << " ]: " << std::setprecision(10) << half_buffer << std::endl;
 			}
 		}
 
 		// Timeout
 		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout) + ( metadata.has_time_spec ? metadata.time_spec : time_spec_t( 0.0 ) );
 
-		while ( samp_sent / 4 < nsamps_per_buff * _channels.size() ) {			// All Samples for all channels must be sent
+		while ( samp_sent < nsamps_per_buff * _channels.size() ) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
 
@@ -520,33 +532,60 @@ public:
 					continue;
 				}
 
-				size_t ret = 0;
-				// update sample rate if we don't know the sample rate
-				setup_steadystate( i );
-
-				size_t samp_ptr_offset = nsamps_per_buff * 4 - remaining_bytes[ i ];
-				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
+				if ( ! metadata.has_time_spec ) {
+					// update sample rate if we don't know the sample rate
+					setup_steadystate( i );
+					update_samplerate( i );
+				}
 
 				if ( _en_fc ) {
 
+//					if ( _last_time[ i ] > get_time_now() ) {
+//						UHD_MSG( warning ) << "OVERFLOW: Channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
+//					}
+//
 					if ( metadata.has_time_spec ) {
-						double dt = _last_time[ i ].get_real_secs() - get_time_now().get_real_secs();
-						if ( dt > 0.001 ) {
+
+            uhd::time_spec_t last = _last_time[ i ];
+						uhd::time_spec_t now = get_time_now();
+						uhd::time_spec_t dt = last - now;
+
+//						UHD_MSG( status ) << "SoB Sleep[ " << i << " ]:\n\t"
+//							<< "_last_time[ " << i << " ]: " << std::setprecision(10) << _last_time[ i ].get_real_secs() << "\n\t"
+//							<< "now: " << std::setprecision(10) << now.get_real_secs() << "\n\t";
+//
+						dt -= 10e-6;
+						if ( dt.get_real_secs() > 30e-6 ) {
 							//UHD_MSG( status ) << "sleeping " <<  (unsigned) ( ( dt - 0.001 ) * 1e6 ) << " us" << std::endl;
-							usleep( (unsigned) ( ( dt - 0.001 ) * 1e6 ) );
+							struct timespec req, rem;
+							req.tv_sec = (time_t) dt.get_full_secs();
+							req.tv_nsec = dt.get_frac_secs()*1e9;
+							nanosleep( &req, &rem );
+
+//							UHD_MSG( status )
+//								<< "SoB Sleep[ " << i << " ]:\n\t"
+//								<< "requested: " << ( ( req.tv_sec * 1000000000 + req.tv_nsec ) / 1e9 ) << "\n\t"
+//								<< "remaining: " << ( ( rem.tv_sec * 1000000000 + rem.tv_nsec ) / 1e9 )
+//								<< std::endl;
 						}
 					}
 					while ( ( get_time_now() < _last_time[i] ) ) {
-						update_samplerate( i );
+//						// nop
+						__asm__ __volatile__( "" );
 					}
 				}
 
-				if_packet_info.num_payload_words32 = data_len / 4;
+				size_t samp_ptr_offset = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
+
+				if_packet_info.num_header_words32 = metadata.has_time_spec ? 4 : 1;
+
+				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
+
+				if_packet_info.num_payload_words32 = data_len / sizeof( uint32_t );
 				if_packet_info.num_payload_bytes = data_len;
 
 				_tmp_buf[ i ][ 0 ] = 0;
 
-				if_packet_info.num_header_words32 = 1;
 				_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
 				_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
 
@@ -560,8 +599,6 @@ public:
 					_tmp_buf[ i ][ 1 ] = metadata.time_spec.get_full_secs();
 					_tmp_buf[ i ][ 2 ] = (uint32_t)( ps >> 32 );
 					_tmp_buf[ i ][ 3 ] = (uint32_t)( ps >> 0  );
-
-					if_packet_info.num_header_words32 += 3;
 				}
 
 				_tmp_buf[ i ][ 0 ] |= (uint16_t) ( if_packet_info.num_payload_words32 + if_packet_info.num_header_words32 );
@@ -575,7 +612,8 @@ public:
 
 //				UHD_MSG( status ) << "sending " << if_packet_info.num_payload_words32 << " samples to channel " << (char)( 'A' + _channels[ i ] ) << std::endl;
 
-				ret += _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
+				size_t ret = _udp_stream[i] -> stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
+
 				//ret -= header_len_bytes;
 
 				//update last_time with when it was supposed to have been sent:
@@ -592,7 +630,7 @@ public:
 				}
 
 				remaining_bytes[i] -= data_len;
-				samp_sent += data_len;
+				samp_sent += data_len / sizeof( uint32_t );
 			}
 
 			// this ensures we only send the vita time spec on the first packet of the burst
@@ -600,11 +638,12 @@ public:
 
 			// Exit if Timeout has lapsed
 			if (get_time_now() > timeout_lapsed) {
-				return (samp_sent / 4) / _channels.size();
+				UHD_MSG( warning ) << __func__ << "():" << __LINE__ <<  ": timeout lapsed!!!" << std::endl;
+				return samp_sent / _channels.size();
 			}
 		}
 
-		return samp_sent / 4 / _channels.size();
+		return samp_sent / _channels.size();
 	}
 
 	// async messages are currently disabled
@@ -639,6 +678,9 @@ private:
 	// init function, common to both constructors
 	void init_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels,boost::mutex* udp_mutex_add, std::vector<int>* async_comm, boost::mutex* async_mutex) {
 
+		// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+		destroy_other_processes_using_crimson();
+
 		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
 		// to prevent any other constructors from returning before the PID is locked, surround the entire
 		// init_tx_streamer() with mutex protection.
@@ -662,6 +704,7 @@ private:
 
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
+		_if_mtu = std::vector<size_t>( _channels.size() );
 
 		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
 			tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( channels_to_mask( _channels ) );
@@ -697,7 +740,7 @@ private:
 			std::string ip_addr  = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
 			_pay_len = tree->access<int>(mb_path / "link" / sfp / "pay_len").get();
 
-			check_mtu( ip_addr );
+			_if_mtu[ i ] = get_if_mtu( ip_addr );
 
 			// power on the channel
 			tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("1");
@@ -744,7 +787,6 @@ private:
 			//Initialize "Time Diff" mechanism before starting flow control thread
 			time_spec_t ts = time_spec_t::get_system_time();
 			_streamer_start_time = ts.get_real_secs();
-			_sob_time = _streamer_start_time;
 			// The problem is that this class does not hold a multi_crimson instance
 			tree->access<time_spec_t>( time_path / "now" ).set( ts );
 
@@ -1004,10 +1046,10 @@ private:
 			if (samp_rate_update_ctr == 0) {
 				for (int c = 0; c < txstream->_channels.size(); c++) {
 					if (new_samp_rate[c] != txstream->_host_samp_rate[c]) {
-						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+//						if (new_samp_rate[c] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
 							txstream->_fifo_level_perc[c] = 50;
-						else
-							txstream->_fifo_level_perc[c] = 80;
+//						else
+//							txstream->_fifo_level_perc[c] = 80;
 						txstream->_crimson_samp_rate[c] = new_samp_rate[c];
 						txstream->_host_samp_rate[c] = txstream->_crimson_samp_rate[c];
 					}
@@ -1049,6 +1091,7 @@ private:
 			txstream->_flowcontrol_mutex.unlock();
 		}
 
+		txstream->_flow_running = false;
 	}
 
 	// Actual Flow Control Controller
@@ -1114,10 +1157,10 @@ private:
 			_host_samp_rate[i] = _crimson_samp_rate[i];
 
 			// Set FIFO level steady state target accordingly
-			if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+//			if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
 				_fifo_level_perc[i] = 50;
-			else
-				_fifo_level_perc[i] = 80;
+//			else
+//				_fifo_level_perc[i] = 80;
 		}
 
 		if (_crimson_samp_rate[i] == 0 || _underflow_flag[i]) {
@@ -1151,6 +1194,7 @@ private:
 	std::vector<time_spec_t> _last_time;
 	property_tree::sptr _tree;
 	size_t _pay_len;
+	std::vector<size_t> _if_mtu;
 	uhd::wb_iface::sptr _flow_iface;
 	boost::mutex _flowcontrol_mutex;
 	double _fifo_lvl[4];
@@ -1278,4 +1322,86 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 	crimson_tng_tx_streamer::sptr r( new crimson_tng_tx_streamer(this->_addr, this->_tree, args.channels, &this->_udp_mutex, &this->_async_comm, &this->_async_mutex) );
 	r->set_device( this );
 	return r;
+}
+
+// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <signal.h>
+
+#include <regex>
+
+static void destroy_other_processes_using_crimson() {
+
+	static const std::regex re( "^crimson-([1-9][0-9]*).lock$" );
+	DIR *dp;
+	std::string lock_file_name;
+	std::smatch match;
+	uint64_t pidn;
+	std::stringstream ss;
+	int fd;
+	struct stat st;
+
+	dp = opendir( "/tmp" );
+	if ( NULL == dp ) {
+		throw runtime_error(
+			(
+				boost::format( "opendir: %s (%d)" )
+				% std::strerror( errno )
+				% errno
+			).str()
+		);
+	}
+
+	for( dirent *de = readdir( dp ); NULL != de; de = readdir( dp ) ) {
+
+		if ( DT_REG != de->d_type ) {
+			continue;
+		}
+
+		lock_file_name = std::string( de->d_name );
+
+		if ( ! std::regex_search( lock_file_name, match, re ) ) {
+			continue;
+		}
+
+		ss = std::stringstream( match.str( 1 ) );
+		ss >> pidn;
+
+		if ( getpid() == pid_t( pidn ) ) {
+			// skip this PID, if an existing tx streamer has already been made
+			continue;
+		}
+
+		if ( 0 == kill( pid_t( pidn ), SIGKILL ) ) {
+			UHD_MSG( warning ) << "killed hung process " << pidn << std::endl;
+		}
+
+		lock_file_name = "/tmp/" + lock_file_name;
+		if ( 0 == remove( lock_file_name.c_str() ) ) {
+			UHD_MSG( warning ) << "removed stale lockfile " << lock_file_name << std::endl;
+		} else {
+			UHD_MSG( warning ) << "failed to remove stale lockfile " << lock_file_name << std::endl;
+		}
+	}
+	closedir( dp );
+
+	ss.clear();
+	ss << "/tmp/crimson-" << (uint64_t) getpid() << ".lock";
+
+	lock_file_name = ss.str();
+
+	if ( 0 == stat( lock_file_name.c_str(), &st ) ) {
+		// file already exists (created by another tx streamer instance)
+		return;
+	}
+
+	fd = open( lock_file_name.c_str(), O_RDWR | O_CREAT, 0666 );
+	if ( -1 == fd ) {
+		UHD_MSG( warning ) << "failed to create lockfile " << lock_file_name << ": " << strerror( errno ) << std::endl;
+	} else {
+		close( fd );
+	}
 }

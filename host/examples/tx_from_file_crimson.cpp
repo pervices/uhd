@@ -388,7 +388,7 @@ public:
 				sampleno = lineno - 5;
 				sampleno /= 2;
 
-				r.n_samples = sampleno;
+				r.n_samples = sampleno + 1;
 
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
 
@@ -586,96 +586,34 @@ static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
 /***********************************************************************
- * transmit_worker function
- * A function to be used as a boost::thread_group thread for transmitting
- **********************************************************************/
-void transmit_worker(
-	StreamData &sd,
-	uhd::usrp::multi_usrp::sptr tx_usrp,
-    uhd::tx_streamer::sptr tx_streamer,
-    uhd::tx_metadata_t metadata,
-    std::vector<size_t> tx_channel_nums
-){
-	if ( sd.n_channels != tx_channel_nums.size() ) {
-		throw new uhd::runtime_error( "number of channels not consistent" );
-	}
-
-	std::vector<size_t> indeces( tx_channel_nums.size() );
-
-	std::vector< std::vector< std::complex< short > > > buffs( tx_channel_nums.size() );
-
-	sd.sizeBuffers( buffs );
-
-    std::vector< std::complex< short > * > buff_ptrs;
-    for( unsigned i = 0; i < buffs.size(); i++ ) {
-    	buff_ptrs.push_back( (std::complex<short int> * const &) & buffs[ i ].front() );
-    }
-
-    sd.fillBuffers( tx_channel_nums, buffs, indeces );
-
-	double delay_s = 0.5;
-
-	metadata.has_time_spec = true;
-	metadata.time_spec = uhd::time_spec_t( tx_usrp->get_time_now().get_real_secs() + delay_s );
-
-	std::cout << "Sending " << sd.n_samples << " samples, " << delay_s << " s from now" << std::endl;
-
-    //send data until the signal handler gets called
-    while(not stop_signal_called){
-
-        //send the entire contents of the buffer
-        size_t sent_samples = tx_streamer->send( buff_ptrs, sd.n_samples, metadata );
-//        std::cout << "sent " << sent_samples << " samples" << std::endl;
-
-        metadata.start_of_burst = false;
-        metadata.has_time_spec = false;
-    }
-
-    std::cout << "sending EOB" << std::endl;
-
-    //send a mini EOB packet
-    metadata.end_of_burst = true;
-    tx_streamer->send("", 0, metadata);
-}
-
-
-/***********************************************************************
  * Main function
  **********************************************************************/
 int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //transmit variables to be set by po
-    std::string tx_args, wave_type, tx_ant, tx_subdev, ref, otw, tx_channels;
+    std::string tx_args, tx_channels;
     double tx_rate, tx_freq, tx_gain;
+    bool loop;
+    double sob;
+    bool once;
 
     //receive variables to be set by po
-    std::string rx_args, input_fn, output_fn, type, rx_ant, rx_subdev, rx_channels;
-    double rx_rate, rx_freq;
-    float settling;
-    float rxtime;
-    size_t rxsamp;
+    std::string input_fn;
 
     //setup the program options
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "help message")
         ("tx-args", po::value<std::string>(&tx_args)->default_value(""), "uhd transmit device address args")
-        ("rx-args", po::value<std::string>(&rx_args)->default_value(""), "uhd receive device address args")
         ("input", po::value<std::string>(&input_fn)->default_value("input.csv"), "name of the input file")
-		("output", po::value<std::string>(&output_fn)->default_value("output.csv"), "name of the output file")
-        ("settling", po::value<float>(&settling)->default_value(1), "settling time (seconds) before receiving")
-        ("rxtime", po::value<float>(&rxtime)->default_value(1), "maximum receive time (seconds)")
-        ("rxsamp", po::value<size_t>(&rxsamp)->default_value( DEFAULT_SAMPLE_LIMIT ), "maximum number of received samples")
+		("loop", po::value<bool>(&loop)->default_value( false ), "retransmit the signal in a loop")
+		("sob", po::value<double>(&sob)->default_value( 3 ), "delay transmission for sob seconds")
+		("one-sob", po::value<bool>(&once)->default_value( true ), "only issue start-of-burst (sob) once")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
-
-    if ( rxtime < 0 ) {
-        std::cerr << boost::format("rxtime %f invalid") % rxtime << std::endl;
-        return ~0;
-    }
 
     //print the help message
     if (vm.count("help")){
@@ -689,7 +627,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     StreamData::fromFile( input_stream_data, input_fn );
 
     //create a usrp device
-    std::cout << boost::format("Creating the transmit crimson device with: %s...") % tx_args << std::endl;
     uhd::usrp::multi_usrp::sptr tx_usrp = uhd::usrp::multi_usrp::make(tx_args);
 
     //detect which channels to use
@@ -698,12 +635,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         tx_channel_nums.push_back( to[ n ] );
     }
 
-    std::vector<size_t> rx_channel_nums;
-    for( std::string &n: input_stream_data.channels ) {
-        rx_channel_nums.push_back( to[ n ] );
-    }
-
-    std::cout << boost::format("Using Device: %s") % tx_usrp->get_pp_string() << std::endl;
+	if ( input_stream_data.n_channels != tx_channel_nums.size() ) {
+		throw new uhd::runtime_error( "number of channels not consistent" );
+	}
 
     //set the transmit center frequency
     for( const auto& kv: input_stream_data.tx_center_freq ) {
@@ -749,34 +683,75 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //create a transmit streamer
     uhd::stream_args_t stream_args( "sc16", "sc16" );
     stream_args.channels = tx_channel_nums;
+    std::cout << "Getting TX Streamer.." << std::endl;
     uhd::tx_streamer::sptr tx_stream = tx_usrp->get_tx_stream( stream_args );
-
-    //setup the metadata flags
-    uhd::tx_metadata_t md;
-    md.start_of_burst = true;
-    md.end_of_burst   = false;
-    md.has_time_spec  = true;
-    md.time_spec = uhd::time_spec_t(0.1); //give us 0.1 seconds to fill the tx buffers
+    std::cout << "Got TX Streamer.." << std::endl;
 
 	std::signal(SIGINT, &sig_int_handler);
 	std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
-	/*
-    XXX: @CF: Setting device timestamp to an arbitrary value (such as zero) can negatively
-    	 affect Crimson TNG time synchronization. The user is strongly discouraged from doing so.
-    */
-    //reset usrp time to prepare for transmit/receive
-	// std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-	// tx_usrp->set_time_now(uhd::time_spec_t(0.0));
+	std::vector<size_t> indeces( tx_channel_nums.size() );
 
-    //start transmit worker thread
-    boost::thread_group transmit_thread;
-    transmit_thread.create_thread( boost::bind( &transmit_worker, input_stream_data, tx_usrp, tx_stream, md, tx_channel_nums ) );
+	std::vector< std::vector< std::complex< short > > > buffs( tx_channel_nums.size() );
 
-    //clean up transmit worker
-    //stop_signal_called = true;
+	input_stream_data.sizeBuffers( buffs );
 
-    transmit_thread.join_all();
+    std::vector< std::complex< short > * > buff_ptrs;
+    for( unsigned i = 0; i < buffs.size(); i++ ) {
+    	buff_ptrs.push_back( (std::complex<short int> * const &) & buffs[ i ].front() );
+    }
+
+    input_stream_data.fillBuffers( tx_channel_nums, buffs, indeces );
+
+    //setup the metadata flags
+    uhd::tx_metadata_t md;
+
+    //send data until the signal handler gets called
+    for( bool sent_sob = false;; ) {
+
+        md.start_of_burst = true;
+        md.end_of_burst   = false;
+        if ( sob > 0 && ( ! once || ( once && ! sent_sob ) ) ) {
+			md.has_time_spec = true;
+
+			uhd::time_spec_t now = tx_usrp->get_time_now();
+			uhd::time_spec_t then = now + sob;
+
+			std::cout << "Now: " << std::setprecision(10) << now.get_real_secs() << std::endl;
+			std::cout << "SoB: " << std::setprecision(10) << then.get_real_secs() << std::endl;
+
+			md.time_spec = then;
+        } else {
+        	sob = 0;
+        	md.has_time_spec = false;
+        }
+
+        if ( once && ! sent_sob ) {
+        	std::cout << "Sending " << input_stream_data.n_samples << " samples, " << sob << " s from now" << std::endl;
+        }
+
+        //send the entire contents of the buffer
+        tx_stream->send( buff_ptrs, input_stream_data.n_samples, md );
+
+		sent_sob = true;
+
+        if ( ! loop ) {
+        	break;
+        }
+
+        if ( stop_signal_called ) {
+        	break;
+        }
+    }
+
+    // wait for tx buffers to drain completely before disabling tx
+    sleep( 3 );
+
+    std::cout << "sending EOB" << std::endl;
+
+    //send a mini EOB packet
+    md.end_of_burst = true;
+    tx_stream->send("", 0, md);
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
