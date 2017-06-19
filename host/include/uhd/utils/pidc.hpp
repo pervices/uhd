@@ -1,15 +1,26 @@
 #ifndef INCLUDED_UHD_UTILS_PIDC_HPP
 #define INCLUDED_UHD_UTILS_PIDC_HPP
 
+#ifndef DEBUG_PIDC
+//#define DEBUG_PIDC 1
+#endif
+
+#ifdef DEBUG_PIDC
+#include <iostream>
+#include <iomanip>
+#endif
 #include <cmath>
 
-#include "uhd/types/time_spec.hpp"
+#include <uhd/types/time_spec.hpp>
+#include <uhd/utils/sma.hpp>
 
 namespace uhd {
 
 	class pidc {
 
 	public:
+
+		static constexpr double DEFAULT_MAX_ERROR_FOR_CONVERGENCE = 100e-6;
 
 		typedef enum {
 			K_P,
@@ -32,7 +43,11 @@ namespace uhd {
 			i( 0.0 ),
 			// initialize the control variable to be equal to the set point, so error is initially zero
 			cv( sp ),
-			last_time( 0 )
+			sp( sp ),
+			last_time( 0 ),
+			last_status_time( 0 ),
+			converged( false ),
+			max_error_for_convergence( DEFAULT_MAX_ERROR_FOR_CONVERGENCE )
 		{
 			const std::string s[] = { "Kp", "Ki", "Kd" };
 			const double K[] = { Kp, Ki, Kd };
@@ -60,7 +75,9 @@ namespace uhd {
 				return cv;
 			}
 
+			this->sp = sp;
 			e = sp - pv;
+			error_filter.update( std::abs( e ) );
 
 			// proportional
 			double P = Kp * e;
@@ -75,6 +92,8 @@ namespace uhd {
 
 			// ouput
 			cv = P + I + D;
+
+			is_converged( now );
 			last_time = now;
 
 			return cv;
@@ -107,6 +126,50 @@ namespace uhd {
 			last_time = time;
 			e = 0;
 			i = 0;
+			converged = false;
+		}
+
+		bool is_converged( const double time ) {
+
+			double filtered_error;
+
+			filtered_error = error_filter.get_average();
+
+			if ( time - last_status_time >= 1 ) {
+				print_pid_status( time, cv, filtered_error );
+				last_status_time = time;
+			}
+
+			if ( ! converged ) {
+				if ( filtered_error < max_error_for_convergence * 0.9  ) {
+					converged = true;
+					print_pid_status( time, cv, filtered_error );
+					print_pid_converged();
+				}
+			} else {
+				if ( filtered_error >= max_error_for_convergence * 1.10 ) {
+					converged = false;
+					print_pid_diverged();
+					print_pid_status( time, cv, filtered_error );
+					reset( sp, time );
+					print_pid_reset();
+				}
+			}
+
+			return converged;
+		}
+
+		double get_max_error_for_convergence() {
+			return max_error_for_convergence;
+		}
+		void set_max_error_for_convergence( const double error ) {
+			max_error_for_convergence = std::abs( error );
+		}
+		void set_error_filter_length( size_t len ) {
+			double avg = error_filter.get_average();
+			error_filter.set_window_size( len );
+			error_filter.reset();
+			error_filter.update( avg );
 		}
 
 	protected:
@@ -115,8 +178,49 @@ namespace uhd {
 		double e; // error memory
 		double i; // integral memory
 		double cv; // output memory
+		double sp;
 
 		double last_time;
+		double last_status_time;
+
+		bool converged;
+		double max_error_for_convergence;
+		uhd::sma error_filter;
+
+		static void print_pid_status( double t, double cv, double pv ) {
+#ifdef DEBUG_PIDC
+			std::cerr
+				<< "t: " << std::fixed << std::setprecision(6) << t << ", "
+				<< "cv: " << std::fixed << std::setprecision( 20 ) << cv << ", "
+				<< "pv: " << std::fixed << std::setprecision( 20 ) << pv << ", "
+				<< std::endl;
+#else
+			(void)t;
+			(void)cv;
+			(void)pv;
+#endif
+		}
+		static void print_pid_converged() {
+#ifdef DEBUG_PIDC
+			std::cerr
+				<< "PID Converged"
+				<< std::endl;
+#endif
+		}
+		static void print_pid_diverged() {
+#ifdef DEBUG_PIDC
+			std::cerr
+				<< "PID Diverged"
+				<< std::endl;
+#endif
+		}
+		static void print_pid_reset() {
+#ifdef DEBUG_PIDC
+			std::cerr
+				<< "PID Reset"
+				<< std::endl;
+#endif
+		}
 	};
 
 } // namespace uhd

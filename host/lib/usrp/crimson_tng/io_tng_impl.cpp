@@ -56,11 +56,15 @@
 
 #include "iputils.hpp"
 
-#ifndef DEBUG_START_OF_BURST
-//#define DEBUG_START_OF_BURST 1
+#ifndef DEBUG_RX
+//#define DEBUG_RX 1
 #endif
-#ifndef DEBUG_RECV
-//#define DEBUG_RECV 1
+#ifndef DEBUG_TX
+#define DEBUG_TX 1
+#endif
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE( x ) ((int)( sizeof( x ) / sizeof( (x)[ 0 ] ) ))
 #endif
 
 using namespace uhd;
@@ -95,19 +99,19 @@ static uint32_t get_if_mtu( const std::string & remote_addr ) {
 	iputils::get_route( remote_addr, iface );
 	size_t mtu = iputils::get_mtu( iface );
 
-	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
-		throw runtime_error(
-			(
-				boost::format( "mtu %u on iface %s is below minimum recommended size of %u. Use 'sudo ifconfig %s mtu %u' to correct." )
-					% mtu
-					% iface
-					% CRIMSON_TNG_MIN_MTU
-					% iface
-					% CRIMSON_TNG_MIN_MTU
-			).str()
-		);
-	}
-
+//	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
+//		throw runtime_error(
+//			(
+//				boost::format( "mtu %u on iface %s is below minimum recommended size of %u. Use 'sudo ifconfig %s mtu %u' to correct." )
+//					% mtu
+//					% iface
+//					% CRIMSON_TNG_MIN_MTU
+//					% iface
+//					% CRIMSON_TNG_MIN_MTU
+//			).str()
+//		);
+//	}
+//
 	return mtu;
 }
 
@@ -154,7 +158,7 @@ public:
 
 		double _timeout = timeout;
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 		//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
 
 		// XXX: do not timeout when debugging
@@ -185,7 +189,7 @@ public:
 				nbytes = fifo_level[ i ] - _fifo[ 0 ].size();
 				nsamples = nbytes / 4;
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": POP [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
 #endif
 			}
@@ -213,7 +217,7 @@ public:
 			nbytes -= (vita_hdr + vita_tlr) * sizeof( uint32_t );
 			nsamples = nbytes / sizeof( uint32_t );
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 			UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": STREAM [ " << (char)( i + 'A' ) << " ]: nbytes: " << nbytes << ", nsamples: " << nsamples << std::endl;
 #endif
 
@@ -297,7 +301,7 @@ public:
 					return 0;
 				}
 
-#ifdef DEBUG_RECV
+#ifdef DEBUG_RX
 				UHD_MSG( status ) << __func__ << "():" << __LINE__ << ": PUSH [ " << (char)( i + 'A' ) << " ]: nbytes: " << vita_payload_len_bytes - nbytes_payload << ", nsamples: " << ( vita_payload_len_bytes - nbytes_payload ) / 4 << std::endl;
 #endif
 			}
@@ -429,7 +433,45 @@ public:
 		return _pay_len/4;
 	}
 
-	void compose_if_packet_info( const tx_metadata_t &metadata, if_packet_info_t &ifo ) {
+	/**
+	 * It's been found that the existing uhd if_packet_info_t is lacking and
+	 * so we will use it primarily for a place to store variables rather than
+	 * for it's constructor and other methods until it is rewritten.
+	 *
+	 * Once it's been rewritten, the output buffer should be removed, as
+	 * presumably the VRT49 structure (currently if_packet_info_t) would
+	 * handle that.
+	 *
+	 * Lastly, if we ever switch to vector writes, we must also eliminate
+	 * copying to the output buffer.
+	 *
+	 * @param metadata            metadata for packet (input)
+	 * @param sample_data         sample data (input)
+	 * @param mtu_bytes           mtu for the channel, in bytes (input)
+	 * @param remaining_samples   samples remaining for the channel (input)
+	 * @param buf_len             output buffer length (input)
+	 * @param buf                 output buffer (output)
+	 * @param ifo                 VRT49 structure (output)
+	 */
+	static void compose_vrt49_packet(
+		const tx_metadata_t &metadata,
+		const uint32_t *sample_data,
+		const size_t mtu_bytes,
+		const size_t remaining_samples,
+		const size_t buf_len,
+		uint32_t *buf,
+		if_packet_info_t &ifo
+	) {
+
+		const size_t N =
+			std::min(
+				( mtu_bytes
+					- 60 // IPv4 Header
+					- 8  // UDP Header
+					- vrt::max_if_hdr_words32 * sizeof( uint32_t )
+				) / sizeof( uint32_t ),
+				remaining_samples
+			);
 
 		//translate the metadata to vrt if packet info
 		ifo.link_type = vrt::if_packet_info_t::LINK_TYPE_NONE;
@@ -442,9 +484,9 @@ public:
 
 		if ( metadata.has_time_spec ) {
 			ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
-			ifo.tsi = (uint32_t)metadata.time_spec.get_full_secs();
+			ifo.tsi = (uint32_t) metadata.time_spec.get_full_secs();
 			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
-			ifo.tsf = (uint64_t) (metadata.time_spec.get_frac_secs() / 1e12);
+			ifo.tsf = (uint64_t)( metadata.time_spec.get_frac_secs() * 1e12 );
 		}
 
 		// XXX: these flags denote the first and last packets in burst sample data
@@ -452,6 +494,49 @@ public:
 		ifo.sob = metadata.start_of_burst;
 		ifo.eob	= metadata.end_of_burst;
 
+		ifo.num_header_words32 = metadata.has_time_spec ? 4 : 1;
+		ifo.num_payload_words32 = N;
+		ifo.num_payload_bytes = N * sizeof( uint32_t );
+
+		ifo.num_packet_words32 = ifo.num_header_words32 + ifo.num_payload_words32 + ( ifo.has_tlr ? 1 : 0 );
+
+		if ( BOOST_UNLIKELY( buf_len < ifo.num_packet_words32 ) ) {
+			throw runtime_error(
+				(
+					boost::format( "buf_len ( %u ) is not large enough for packet ( %u )" )
+					% buf_len
+				    % ifo.num_packet_words32
+				).str()
+			);
+		}
+
+		buf[ 0 ] = 0;
+		buf[ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
+		buf[ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
+		buf[ 0 ] |= (uint16_t) ifo.num_packet_words32;
+
+		if ( metadata.has_time_spec ) {
+
+			buf[ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
+			buf[ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
+
+			buf[ 1 ] = ifo.tsi;
+			buf[ 2 ] = (uint32_t)( ifo.tsf >> 32 );
+			buf[ 3 ] = (uint32_t)( ifo.tsf >> 0  );
+		}
+		for( size_t k = 0; k < ifo.num_header_words32; k++ ) {
+			boost::endian::native_to_big_inplace( buf[ k ] );
+		}
+
+		memcpy(
+			& buf[ ifo.num_header_words32 ],
+			sample_data,
+			N * sizeof( uint32_t )
+		);
+
+		if ( ifo.has_tlr ) {
+			buf[ ifo.num_packet_words32 -1 ] = ifo.tlr;
+		}
 	}
 
 	inline bool is_start_of_burst( vrt::if_packet_info_t & if_packet_info ) {
@@ -482,9 +567,6 @@ public:
         	const double timeout = 0.1)
 	{
 
-		static const size_t CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES =
-				CRIMSON_TNG_MAX_MTU - vrt::max_if_hdr_words32 * sizeof(uint32_t);
-
 		size_t samp_sent = 0;
 		size_t remaining_bytes[ _channels.size() ];
 		vrt::if_packet_info_t if_packet_info;
@@ -493,6 +575,8 @@ public:
 		std::vector<tx_metadata_t> metadata;
 
 		uhd::time_spec_t now, then, dt;
+
+		uhd::time_spec_t send_deadline;
 
 		if (
 			true
@@ -505,63 +589,50 @@ public:
 			return 0;
 		}
 
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			remaining_bytes[i] =  (nsamps_per_buff * 4);
+		for ( size_t i = 0; i < _channels.size(); i++ ) {
+			remaining_bytes[ i ] = nsamps_per_buff * sizeof( uint32_t );
 			metadata.push_back( _metadata );
-		}
-
-		compose_if_packet_info( _metadata, if_packet_info );
-		if ( _metadata.has_time_spec ) {
-			// Prime buffers for Start of Burst
-			for( unsigned i = 0; i < _channels.size(); i++ ) {
+			if ( _metadata.has_time_spec ) {
 				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec );
 			}
 		}
 
-		// Timeout
-		time_spec_t timeout_lapsed = get_time_now() + time_spec_t(timeout) + ( _metadata.has_time_spec ? _metadata.time_spec : time_spec_t( 0.0 ) );
+		send_deadline = get_time_now();
+		send_deadline += timeout;
+		send_deadline += ( _metadata.has_time_spec ? _metadata.time_spec : 0.0 );
 
-		while ( samp_sent < nsamps_per_buff * _channels.size() ) {
+		for(
+			;
+			true
+#ifndef DEBUG_TX
+			&& get_time_now() > send_deadline
+#endif
+			&& samp_sent < nsamps_per_buff * _channels.size()
+			;
+		) {
+			for ( size_t i = 0; i < _channels.size(); i++ ) {
 
-			for (unsigned int i = 0; i < _channels.size(); i++) {
-
-				if (remaining_bytes[i] == 0) {
+				if ( 0 == remaining_bytes[ i ] ) {
 					continue;
 				}
 
 				//
-				// Process Vita Header
+				// Compose VRT49 Packet
 				//
 
-				size_t samp_ptr_offset = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
-				if_packet_info.num_header_words32 = metadata[ i ].has_time_spec ? 4 : 1;
-				size_t data_len = std::min( CRIMSON_MAX_VITA_PAYLOAD_LEN_BYTES, remaining_bytes[ i ] ) & ~(4 - 1);
-				if_packet_info.num_payload_words32 = data_len / sizeof( uint32_t );
-				if_packet_info.num_payload_bytes = data_len;
-				_tmp_buf[ i ][ 0 ] = 0;
-				_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::PACKET_TYPE_DATA << 28;
-				_tmp_buf[ i ][ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
-
-				if ( metadata[ i ].has_time_spec ) {
-
-					uint64_t ps = metadata[i].time_spec.get_frac_secs() * 1e12;
-
-					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
-					_tmp_buf[ i ][ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
-
-					_tmp_buf[ i ][ 1 ] = metadata[ i ].time_spec.get_full_secs();
-					_tmp_buf[ i ][ 2 ] = (uint32_t)( ps >> 32 );
-					_tmp_buf[ i ][ 3 ] = (uint32_t)( ps >> 0  );
-				}
-				_tmp_buf[ i ][ 0 ] |= (uint16_t) ( if_packet_info.num_payload_words32 + if_packet_info.num_header_words32 );
-				for( size_t k = 0; k < if_packet_info.num_header_words32; k++ ) {
-					boost::endian::native_to_big_inplace( _tmp_buf[ i ][ k ] );
-				}
-				size_t header_len_bytes = if_packet_info.num_header_words32 * sizeof(uint32_t);
-				std::memcpy( (uint8_t *)_tmp_buf[ i ] + header_len_bytes, (uint8_t *)buffs[i] + samp_ptr_offset, data_len );
+				size_t sample_byte_offs = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
+				compose_vrt49_packet(
+					metadata[ i ],
+					(uint32_t *)( & ( (uint8_t *)buffs[ i ] )[ sample_byte_offs ] ),
+					_if_mtu[ i ],
+					remaining_bytes[ i ] / sizeof( uint32_t ),
+					CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ),
+					_tmp_buf[ i ],
+					if_packet_info
+				);
 
 				//
-				// Delay for Flow Control
+				// Flow Control
 				//
 
 				now = get_time_now();
@@ -571,10 +642,6 @@ public:
 						now
 					);
 				then = now + dt;
-
-				//
-				// Extended Delay for Start of Burst
-				//
 
 				if ( dt.get_real_secs() > 30e-6 ) {
 					struct timespec req, rem;
@@ -595,29 +662,24 @@ public:
 				// Send Data
 				//
 
-				_udp_stream[ i ]->stream_out( _tmp_buf[ i ], header_len_bytes + data_len );
+				_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
 
 				//
 				// Update Flow Control
 				//
 
-				_flow_control[ i ]->update( data_len / sizeof( uint32_t ), now );
+				_flow_control[ i ]->update( if_packet_info.num_payload_words32, now );
 
 				//
 				// Decrement Byte / Sample Counters
 				//
 
-				remaining_bytes[i] -= data_len;
-				samp_sent += data_len / sizeof( uint32_t );
+				remaining_bytes[ i ] -= if_packet_info.num_payload_bytes;
+				samp_sent += if_packet_info.num_payload_words32;
 
 				// this ensures we only send the vita time spec on the first packet of the burst
 				metadata[ i ].has_time_spec = false;
 			}
-		}
-
-		// Exit if Timeout has lapsed
-		if (get_time_now() > timeout_lapsed) {
-			return samp_sent / _channels.size();
 		}
 
 		return samp_sent / _channels.size();
@@ -707,7 +769,7 @@ private:
 			// vita enable (as of kb #3804, always use vita headers for tx)
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("1");
 
-			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU ] );
+			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ) ] );
 
 			// connect to UDP port
 			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
@@ -727,7 +789,7 @@ private:
 			counter->push_back(0);
 
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
-			const double nominal_buffer_level_pcnt = 0.5;
+			const double nominal_buffer_level_pcnt = 0.8;
 			_flow_control.push_back(
 				uhd::flow_control_nonlinear::make(
 					nominal_sample_rate,
@@ -751,28 +813,21 @@ private:
 				// measured P-ultimate is inverse of 1/2 the flow-control sample rate
 				2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
 			);
-			// initial values are just to ensure that our PID does not think its converged right away
-			// which could be the case if the initial y value was 0.
-			_pv_derivor = uhd::diff( 0, 100 );
-			_cv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::CV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
-			_dpv_filter.set_window_size( (size_t)( crimson_tng_tx_streamer::DPV_FILTER_WINDOW_S * (double)CRIMSON_TNG_UPDATE_PER_SEC ) );
-		}
 
-		//Set up initial flow control variables
-		_bm_thread_should_exit = false;
-		_bm_thread = std::thread( bm_thread_fn, this );
+			//Set up initial flow control variables
+			_bm_thread_should_exit = false;
+			_bm_thread = std::thread( bm_thread_fn, this );
+		}
 
 		for(
 			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
 			time_now = time_then
-			; ! _pid_converged;
+			; ! _time_diff_converged;
 			time_now = uhd::time_spec_t::get_system_time()
 		) {
-#ifndef DEBUG_START_OF_BURST
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
 			}
-#endif
 			usleep( 100000 );
 		}
 
@@ -798,8 +853,10 @@ private:
 			}
 		}
 
-		_bm_thread_should_exit = true;
-		_bm_thread.join();		// wait for flow control thread to exit
+		if ( 0 == _instance_num ) {
+			_bm_thread_should_exit = true;
+			_bm_thread.join();		// wait for flow control thread to exit
+		}
 
 		const fs_path mb_path   = "/mboards/0";
 		const fs_path prop_path = mb_path / "tx_link";
@@ -883,62 +940,15 @@ private:
 		return pv;
 	}
 
-	static void print_pid_status( double t, double cv, double pv ) {
-
-		UHD_MSG(status)
-			<< "t: " << std::fixed << std::setprecision(6) << t << ", "
-			<< "cv: " << std::fixed << std::setprecision( 20 ) << cv << ", "
-			<< "pv: " << std::fixed << std::setprecision( 20 ) << pv << ", "
-//				<< "dpv: " << std::fixed << std::setprecision( 20 ) << dpv << ", "
-			<< std::endl;
-
-	}
-
 	/// SoB Time Diff: feed the time diff error back into out control system
 	void time_diff_process( const double pv, const uhd::time_spec_t & now ) {
 
 		static const double sp = 0.0;
-
-		//double cv = _cv_filter.update( _time_diff_pidc.update_control_variable( sp, pv ) );
 		double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
-#ifdef DEBUG_START_OF_BURST
-		double x = _time_diff_pidc.get_last_time();
-#endif
+		_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
 
-		double filtered_pv = _dpv_filter.update( std::abs( pv ) );
-
-#if DEBUG_START_OF_BURST
-		if ( 0 == clock_drift_print_counter % CRIMSON_TNG_UPDATE_PER_SEC ) {
-			print_pid_status( x - _streamer_start_time, cv, filtered_pv );
-		}
-		clock_drift_print_counter++;
-#endif
-
-		if ( ! _pid_converged ) {
-			if ( std::abs( filtered_pv ) < crimson_tng_tx_streamer::PV_MAX_ERROR_FOR_CONVERGENCE * 0.9  ) {
-				_pid_converged = true;
-#ifdef DEBUG_START_OF_BURST
-				print_pid_status( x - _streamer_start_time, cv, filtered_pv );
-				UHD_MSG(status)
-					<< "PID converged after : " << std::scientific << x - _streamer_start_time << " s" << std::endl;
-#endif
-			}
-		} else {
-			if ( std::abs( filtered_pv ) >= crimson_tng_tx_streamer::PV_MAX_ERROR_FOR_CONVERGENCE * 1.10 ) {
-				_pid_converged = false;
-#ifdef DEBUG_START_OF_BURST
-				UHD_MSG(status)
-					<< "PID diverged after : " << std::scientific << x - _streamer_start_time << " s" << std::endl;
-				print_pid_status( x, cv, filtered_pv );
-				UHD_MSG(status)
-					<< "PID reset" << std::endl;
-#endif
-				_time_diff_pidc.reset( 0.0, get_time_now().get_real_secs() );
-			}
-		}
-
-		// For SoB, record the absolute, instantaneous time difference + compensation
-		if ( NULL != _crimson_tng_impl && _pid_converged ) {
+		// For SoB, record the instantaneous time difference + compensation
+		if ( NULL != _crimson_tng_impl && _time_diff_converged ) {
 			_crimson_tng_impl->set_time_diff( cv );
 		}
 	}
@@ -955,10 +965,6 @@ private:
 		struct timespec req, rem;
 
 		double time_diff;
-
-		UHD_MSG( status )
-			<< __func__ << "(): Using update period of 1 / " << CRIMSON_TNG_UPDATE_PER_SEC << " = " << T.get_real_secs() << " s"
-			<< std::endl;
 
 		for(
 			overrun = 0.0,
@@ -985,11 +991,9 @@ private:
 				nanosleep( &req, &rem );
 			}
 
-			if ( 0 == txstream->_instance_num ) {
-				time_diff = txstream->_time_diff_pidc.get_control_variable();
-				crimson_now = now + time_diff;
-				txstream->time_diff_send( crimson_now );
-			}
+			time_diff = txstream->_time_diff_pidc.get_control_variable();
+			crimson_now = now + time_diff;
+			txstream->time_diff_send( crimson_now );
 
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
@@ -1001,20 +1005,21 @@ private:
 				ss.ignore(); // skip ','
 			}
 
-			if ( 0 == txstream->_instance_num ) {
-				txstream->time_diff_process( time_diff_extract( ss ), now );
+			time_diff = time_diff_extract( ss );
+			txstream->time_diff_process( time_diff, now );
+
+
+			if ( txstream->_time_diff_converged ) {
+				// update flow controllers with actual buffer levels
+				for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
+					int ch = txstream->_channels[ i ];
+					txstream->_flow_control[ i ]->set_buffer_level(
+						fifo_lvl[ ch ],
+						crimson_now
+					);
+				}
 			}
 
-			/*
-			// update flow controllers with actual buffer levels
-			for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
-				int ch = txstream->_channels[ i ];
-				txstream->_flow_control[ i ]->set_buffer_level(
-					fifo_lvl[ ch ],
-					txstream->get_time_now()
-				);
-			}
-			*/
 
 //			// XXX: overruns - we need to fix this
 //			now = uhd::time_spec_t::get_system_time();
@@ -1086,30 +1091,13 @@ private:
 	 *           drift is dwarfed by both the noise and the DC component.
 	 */
 	uhd::pidc _time_diff_pidc;
-	/**
-	 * For safetely purposes, we can only rely on the PID control variable (CV) when the
-	 * state of the PID controller is in convergence.
-	 *
-	 * We define the state of convergence when the short-time average slope of the
-	 * process variable becomes negligibly small.
-	 */
-	static constexpr double PV_MAX_ERROR_FOR_CONVERGENCE = 100e-6;
-	static constexpr double CV_FILTER_WINDOW_S = 2;
-	static constexpr double DPV_FILTER_WINDOW_S = 0.25;
-	static bool _pid_converged;
-	uhd::diff _pv_derivor;
-	uhd::sma _dpv_filter;
-	uhd::sma _cv_filter;
+	bool _time_diff_converged;
 	/// Store results of time diff in _crimson_tng_impl object
 	crimson_tng_impl *_crimson_tng_impl = NULL;
-#ifdef DEBUG_START_OF_BURST
-	size_t clock_drift_print_counter = 0;
-#endif
 };
 std::mutex crimson_tng_tx_streamer::num_instances_lock;
 size_t crimson_tng_tx_streamer::num_instances = 0;
 size_t crimson_tng_tx_streamer::instance_counter = 0;
-bool crimson_tng_tx_streamer::_pid_converged = false;
 
 /***********************************************************************
  * Async Data

@@ -6,6 +6,7 @@
 #include <boost/format.hpp>
 
 #include <uhd/exception.hpp>
+#include <uhd/utils/sma.hpp>
 
 #include "flow_control.hpp"
 
@@ -26,6 +27,8 @@ public:
 	ssize_t buffer_level;
 	uhd::time_spec_t buffer_level_set_time;
 	uhd::time_spec_t sob_time;
+
+	uhd::sma buffer_level_filter;
 
 	static sptr make( const double nominal_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size ) {
 		return sptr( (uhd::flow_control *) new flow_control_nonlinear( nominal_sample_rate, nominal_buffer_level_pcnt, buffer_size ) );
@@ -78,6 +81,8 @@ public:
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
 
+		ssize_t _level = level;
+
 		std::lock_guard<std::mutex> _lock( lock );
 
 		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
@@ -90,10 +95,9 @@ public:
 			throw uhd::value_error( msg );
 		}
 
-		//std::cout << std::setprecision( 10 ) << now.get_real_secs() << ", " << level << std::endl;
+		//buffer_level_filter.update( level );
+		buffer_level = buffer_level + 0.006 * ( _level - buffer_level );
 
-		buffer_level = level;
-		buffer_level_set_time = now;
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
@@ -172,7 +176,8 @@ protected:
 		buffer_size( buffer_size ),
 		nominal_buffer_level( nominal_buffer_level_pcnt * buffer_size ),
 		nominal_sample_rate( nominal_sample_rate ),
-		buffer_level( 0 )
+		buffer_level( 0 ),
+		buffer_level_filter( 1 )
 	{
 		if (
 			false
@@ -200,7 +205,7 @@ protected:
 		return now < sob_time;
 	}
 
-	size_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
+	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
 
 		// decrement the buffer level only when we are actively sending
