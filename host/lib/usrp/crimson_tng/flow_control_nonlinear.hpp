@@ -95,9 +95,8 @@ public:
 			throw uhd::value_error( msg );
 		}
 
-		//buffer_level_filter.update( level );
-		buffer_level = buffer_level + 0.006 * ( _level - buffer_level );
-
+		//buffer_level = _level;
+		buffer_level = buffer_level + 0.06 * ( _level - buffer_level );
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
