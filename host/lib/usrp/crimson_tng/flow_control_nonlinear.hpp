@@ -205,7 +205,7 @@ protected:
 		return now < sob_time;
 	}
 
-	size_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
+	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
 
 		// decrement the buffer level only when we are actively sending
