@@ -643,14 +643,14 @@ public:
 					);
 				then = now + dt;
 
-				if ( dt.get_real_secs() > 30e-6 ) {
+				if ( dt.get_real_secs() > 3e-3 ) {
 					struct timespec req, rem;
 					req.tv_sec = (time_t) dt.get_full_secs();
 					req.tv_nsec = dt.get_frac_secs()*1e9;
 					nanosleep( &req, &rem );
 				}
 				for(
-					now = get_time_now();
+					;
 					now < then;
 					now = get_time_now()
 				) {
@@ -789,7 +789,7 @@ private:
 			counter->push_back(0);
 
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
-			const double nominal_buffer_level_pcnt = 0.8;
+			const double nominal_buffer_level_pcnt = 0.5;
 			_flow_control.push_back(
 				uhd::flow_control_nonlinear::make(
 					nominal_sample_rate,
