@@ -20,7 +20,7 @@ namespace uhd {
 
 	public:
 
-		static constexpr double DEFAULT_MAX_ERROR_FOR_CONVERGENCE = 100e-6;
+		static constexpr double DEFAULT_MAX_ERROR_FOR_DIVERGENCE = 100e-6;
 
 		typedef enum {
 			K_P,
@@ -47,7 +47,7 @@ namespace uhd {
 			last_time( 0 ),
 			last_status_time( 0 ),
 			converged( false ),
-			max_error_for_convergence( DEFAULT_MAX_ERROR_FOR_CONVERGENCE )
+			max_error_for_divergence( DEFAULT_MAX_ERROR_FOR_DIVERGENCE )
 		{
 			const std::string s[] = { "Kp", "Ki", "Kd" };
 			const double K[] = { Kp, Ki, Kd };
@@ -141,13 +141,13 @@ namespace uhd {
 			}
 
 			if ( ! converged ) {
-				if ( filtered_error < max_error_for_convergence * 0.9  ) {
+				if ( filtered_error < max_error_for_divergence * 0.05  ) {
 					converged = true;
 					print_pid_status( time, cv, filtered_error );
 					print_pid_converged();
 				}
 			} else {
-				if ( filtered_error >= max_error_for_convergence * 1.10 ) {
+				if ( filtered_error >= max_error_for_divergence ) {
 					converged = false;
 					print_pid_diverged();
 					print_pid_status( time, cv, filtered_error );
@@ -160,10 +160,10 @@ namespace uhd {
 		}
 
 		double get_max_error_for_convergence() {
-			return max_error_for_convergence;
+			return max_error_for_divergence;
 		}
 		void set_max_error_for_convergence( const double error ) {
-			max_error_for_convergence = std::abs( error );
+			max_error_for_divergence = std::abs( error );
 		}
 		void set_error_filter_length( size_t len ) {
 			double avg = error_filter.get_average();
@@ -184,7 +184,7 @@ namespace uhd {
 		double last_status_time;
 
 		bool converged;
-		double max_error_for_convergence;
+		double max_error_for_divergence;
 		uhd::sma error_filter;
 
 		static void print_pid_status( double t, double cv, double pv ) {

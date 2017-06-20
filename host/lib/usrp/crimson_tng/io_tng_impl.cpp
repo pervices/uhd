@@ -604,8 +604,13 @@ public:
 				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec );
 			}
 		}
+		if ( _metadata.has_time_spec ) {
+			_sob_time = _metadata.time_spec;
+		}
 
-		send_deadline = get_time_now();
+		now = get_time_now();
+
+		send_deadline = now;
 		send_deadline += timeout;
 		send_deadline += ( _metadata.has_time_spec ? _metadata.time_spec : 0.0 );
 
@@ -641,6 +646,29 @@ public:
 				);
 
 				//
+				// Ensure that we have primed the buffers if SoB was given
+				//
+
+				if ( BOOST_UNLIKELY( 0.0 != _sob_time ) ) {
+					if ( now > _sob_time - 1e-3 && now < _sob_time ) {
+						size_t expected_buffer_level = _flow_control[ i ]->get_nominal_buffer_level();
+						size_t actual_buffer_level = _flow_control[ i ]->get_buffer_level( now );
+						if ( actual_buffer_level < expected_buffer_level ) {
+							throw runtime_error(
+								(
+									boost::format( "Premature Start-of-Burst detected on channel %c ( expected: %u, actual: %u )" )
+									% (char)( 'A' + _channels[ i ] )
+									% expected_buffer_level
+									% actual_buffer_level
+								).str()
+							);
+						}
+					} else {
+						_sob_time = 0.0;
+					}
+				}
+
+				//
 				// Flow Control
 				//
 
@@ -651,21 +679,6 @@ public:
 						now
 					);
 				then = now + dt;
-
-				if (
-					true
-					&& 0 == i
-					&& 0 == samp_sent
-					&& dt.get_real_secs() < 1e-3
-				) {
-					throw value_error(
-						(
-							boost::format( "Premature Start-of-Burst ( expected: >%f, actual: %f)" )
-							% 1e-3
-							% dt.get_real_secs()
-						).str()
-					);
-				}
 				if ( dt.get_real_secs() > 1e-3 ) {
 					struct timespec req, rem;
 					req.tv_sec = (time_t) dt.get_full_secs();
@@ -1102,7 +1115,7 @@ private:
 	 * Start of Burst (SoB) objects
 	 */
 	double _streamer_start_time;
-	double _sob_time;
+	uhd::time_spec_t _sob_time;
 	/// UDP endpoint that receives our Time Diff packets
 	udp_simple::sptr _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
