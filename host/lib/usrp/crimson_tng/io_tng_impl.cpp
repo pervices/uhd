@@ -459,6 +459,7 @@ public:
 		const size_t mtu_bytes,
 		const size_t remaining_samples,
 		const size_t buf_len,
+		const size_t sample_count,
 		uint32_t *buf,
 		if_packet_info_t &ifo
 	) {
@@ -472,6 +473,8 @@ public:
 				) / sizeof( uint32_t ),
 				remaining_samples
 			);
+
+		size_t k;
 
 		//translate the metadata to vrt if packet info
 		ifo.link_type = vrt::if_packet_info_t::LINK_TYPE_NONE;
@@ -487,6 +490,10 @@ public:
 			ifo.tsi = (uint32_t) metadata.time_spec.get_full_secs();
 			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
 			ifo.tsf = (uint64_t)( metadata.time_spec.get_frac_secs() * 1e12 );
+		} else {
+			ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_NONE;
+			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_FREE;
+			ifo.tsf = (uint64_t)( sample_count );
 		}
 
 		// XXX: these flags denote the first and last packets in burst sample data
@@ -494,7 +501,7 @@ public:
 		ifo.sob = metadata.start_of_burst;
 		ifo.eob	= metadata.end_of_burst;
 
-		ifo.num_header_words32 = metadata.has_time_spec ? 4 : 1;
+		ifo.num_header_words32 = metadata.has_time_spec ? 4 : 3;
 		ifo.num_payload_words32 = N;
 		ifo.num_payload_bytes = N * sizeof( uint32_t );
 
@@ -515,15 +522,16 @@ public:
 		buf[ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
 		buf[ 0 ] |= (uint16_t) ifo.num_packet_words32;
 
+		buf[ 0 ] |= ifo.tsi_type << 22;
+		buf[ 0 ] |= ifo.tsf_type << 20;
+
+		k = 1;
 		if ( metadata.has_time_spec ) {
-
-			buf[ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
-			buf[ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
-
-			buf[ 1 ] = ifo.tsi;
-			buf[ 2 ] = (uint32_t)( ifo.tsf >> 32 );
-			buf[ 3 ] = (uint32_t)( ifo.tsf >> 0  );
+			buf[ k++ ] = ifo.tsi;
 		}
+		buf[ k++ ] = (uint32_t)( ifo.tsf >> 32 );
+		buf[ k++ ] = (uint32_t)( ifo.tsf >> 0  );
+
 		for( size_t k = 0; k < ifo.num_header_words32; k++ ) {
 			boost::endian::native_to_big_inplace( buf[ k ] );
 		}
@@ -627,6 +635,7 @@ public:
 					_if_mtu[ i ],
 					remaining_bytes[ i ] / sizeof( uint32_t ),
 					CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ),
+					_sample_count[ i ],
 					_tmp_buf[ i ],
 					if_packet_info
 				);
@@ -688,6 +697,7 @@ public:
 				// Decrement Byte / Sample Counters
 				//
 
+				_sample_count[ i ] += if_packet_info.num_payload_words32;
 				remaining_bytes[ i ] -= if_packet_info.num_payload_bytes;
 				samp_sent += if_packet_info.num_payload_words32;
 
@@ -744,6 +754,7 @@ private:
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 		_if_mtu = std::vector<size_t>( _channels.size() );
+		_sample_count = std::vector<size_t>( _channels.size() );
 
 		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
 			tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( channels_to_mask( _channels ) );
@@ -1062,6 +1073,7 @@ private:
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
+	std::vector<size_t> _sample_count;
 	std::thread _bm_thread;
 	property_tree::sptr _tree;
 	size_t _pay_len;
