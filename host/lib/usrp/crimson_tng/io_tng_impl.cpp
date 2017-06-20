@@ -643,7 +643,21 @@ public:
 					);
 				then = now + dt;
 
-				if ( dt.get_real_secs() > 3e-3 ) {
+				if (
+					true
+					&& 0 == i
+					&& 0 == samp_sent
+					&& dt.get_real_secs() < 1e-3
+				) {
+					throw value_error(
+						(
+							boost::format( "Premature Start-of-Burst ( expected: >%f, actual: %f)" )
+							% 1e-3
+							% dt.get_real_secs()
+						).str()
+					);
+				}
+				if ( dt.get_real_secs() > 1e-3 ) {
 					struct timespec req, rem;
 					req.tv_sec = (time_t) dt.get_full_secs();
 					req.tv_nsec = dt.get_frac_secs()*1e9;
