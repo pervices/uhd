@@ -960,35 +960,37 @@ private:
 
 		const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 		uint16_t fifo_lvl[ CRIMSON_TNG_TX_CHANNELS ];
-		uhd::time_spec_t now, then, dt, overrun;
+		uhd::time_spec_t now, then, dt;
 		uhd::time_spec_t crimson_now;
 		struct timespec req, rem;
 
 		double time_diff;
 
 		for(
-			overrun = 0.0,
-				now = uhd::time_spec_t::get_system_time(),
+			now = uhd::time_spec_t::get_system_time(),
 				then = now + T
 				;
 
 			! txstream->_bm_thread_should_exit
 				;
 
-			then += T
+			then += T,
+				now = uhd::time_spec_t::get_system_time()
 		) {
 
-			for(
-				dt = then - now - overrun
-					;
-				dt > 0.0
-					;
-				now = uhd::time_spec_t::get_system_time(),
-					dt = then - now - overrun
-			) {
+			dt = then - now;
+			if ( dt > 30e-6 ) {
 				req.tv_sec = dt.get_full_secs();
 				req.tv_nsec = dt.get_frac_secs() * 1e9;
 				nanosleep( &req, &rem );
+			}
+			for(
+				;
+				now < then;
+				now = uhd::time_spec_t::get_system_time()
+			) {
+				// nop
+				asm __volatile__( "" );
 			}
 
 			time_diff = txstream->_time_diff_pidc.get_control_variable();
