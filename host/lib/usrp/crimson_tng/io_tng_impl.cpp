@@ -646,29 +646,6 @@ public:
 				);
 
 				//
-				// Ensure that we have primed the buffers if SoB was given
-				//
-
-				if ( BOOST_UNLIKELY( 0.0 != _sob_time ) ) {
-					if ( now > _sob_time - 1e-3 && now < _sob_time ) {
-						size_t expected_buffer_level = _flow_control[ i ]->get_nominal_buffer_level();
-						size_t actual_buffer_level = _flow_control[ i ]->get_buffer_level( now );
-						if ( actual_buffer_level < expected_buffer_level ) {
-							throw runtime_error(
-								(
-									boost::format( "Premature Start-of-Burst detected on channel %c ( expected: %u, actual: %u )" )
-									% (char)( 'A' + _channels[ i ] )
-									% expected_buffer_level
-									% actual_buffer_level
-								).str()
-							);
-						}
-					} else {
-						_sob_time = 0.0;
-					}
-				}
-
-				//
 				// Flow Control
 				//
 
@@ -684,6 +661,7 @@ public:
 					req.tv_sec = (time_t) dt.get_full_secs();
 					req.tv_nsec = dt.get_frac_secs()*1e9;
 					nanosleep( &req, &rem );
+					_sob_time = 0.0;
 				}
 				for(
 					;
@@ -692,6 +670,26 @@ public:
 				) {
 					// nop
 					__asm__ __volatile__( "" );
+				}
+
+				//
+				// Ensure that we have primed the buffers if SoB was given
+				//
+
+				if (
+					true
+					&& 0.0 != _sob_time // set to 0.0 if we nanosleep
+					&& now >= _sob_time
+					&& _flow_control[ i ]->get_buffer_level( now ) < _flow_control[ i ]->get_nominal_buffer_level()
+				) {
+					throw runtime_error(
+						(
+							boost::format( "Premature Start-of-Burst detected on channel %c ( expected: %u, actual: %u )" )
+							% (char)( 'A' + _channels[ i ] )
+							% _flow_control[ i ]->get_nominal_buffer_level()
+							% _flow_control[ i ]->get_buffer_level( now )
+						).str()
+					);
 				}
 
 				//
