@@ -851,6 +851,9 @@ private:
 			time_now = uhd::time_spec_t::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
+				UHD_MSG( error )
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+					<< std::endl;
 				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
 			}
 			usleep( 100000 );
