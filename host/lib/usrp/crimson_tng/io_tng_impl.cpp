@@ -39,6 +39,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/diff.hpp>
+//#define DEBUG_FLOW_CONTROL 1
 #include "flow_control.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/msg.hpp>
@@ -656,7 +657,8 @@ public:
 						now
 					);
 				then = now + dt;
-				if ( dt.get_real_secs() > 1e-3 ) {
+				if ( dt.get_real_secs() > 100e-3 ) {
+					dt -= 2e-3;
 					struct timespec req, rem;
 					req.tv_sec = (time_t) dt.get_full_secs();
 					req.tv_nsec = dt.get_frac_secs()*1e9;
@@ -664,7 +666,7 @@ public:
 					_sob_time = 0.0;
 				}
 				for(
-					;
+					now = get_time_now();
 					now < then;
 					now = get_time_now()
 				) {
@@ -825,7 +827,7 @@ private:
 			counter->push_back(0);
 
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
-			const double nominal_buffer_level_pcnt = 0.5;
+			const double nominal_buffer_level_pcnt = 0.8;
 			_flow_control.push_back(
 				uhd::flow_control_nonlinear::make(
 					nominal_sample_rate,
