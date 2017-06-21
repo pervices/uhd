@@ -118,12 +118,18 @@ static uint32_t get_if_mtu( const std::string & remote_addr ) {
 
 class crimson_tng_rx_streamer : public uhd::rx_streamer {
 public:
-	crimson_tng_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
-		init_rx_streamer(addr, tree, channels);
+	crimson_tng_rx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels )
+	:
+		_prev_frame( 0 ),
+		_pay_len( 0 ),
+		_rate( 0.0 ),
+		_start_ticks( 0 )
+	{
+		init_rx_streamer( addr, tree, channels );
 	}
 
 	crimson_tng_rx_streamer(device_addr_t addr, property_tree::sptr tree) {
-		init_rx_streamer(addr, tree, std::vector<size_t>(1, 0));
+		init_rx_streamer( addr, tree, std::vector<size_t>(1, 0) );
 	}
 
 	~crimson_tng_rx_streamer() {
@@ -412,8 +418,17 @@ public:
 
 	typedef boost::shared_ptr<crimson_tng_tx_streamer> sptr;
 
-	crimson_tng_tx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex) {
-		init_tx_streamer(addr, tree, channels, udp_mutex_add, async_comm, async_mutex);
+	crimson_tng_tx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex )
+	:
+		_pay_len( 0 ),
+		_max_clock_ppm_error( 0.0 ),
+		_bm_thread_should_exit( false ),
+		_instance_num( -1 ),
+		_streamer_start_time( 0.0 ),
+		_time_diff_converged( false ),
+		_crimson_tng_impl( NULL )
+	{
+		init_tx_streamer( addr, tree, channels, udp_mutex_add, async_comm, async_mutex );
 	}
 
 	crimson_tng_tx_streamer(device_addr_t addr, property_tree::sptr tree, boost::mutex* udp_mutex_add, std::vector<int>* async_comm,  boost::mutex* async_mutex) {
