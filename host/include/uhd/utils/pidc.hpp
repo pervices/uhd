@@ -2,7 +2,7 @@
 #define INCLUDED_UHD_UTILS_PIDC_HPP
 
 #ifndef DEBUG_PIDC
-#define DEBUG_PIDC 1
+//#define DEBUG_PIDC 1
 #endif
 
 #ifdef DEBUG_PIDC
