@@ -39,6 +39,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/diff.hpp>
+//#define DEBUG_FLOW_CONTROL 1
 #include "flow_control.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/msg.hpp>
@@ -459,6 +460,7 @@ public:
 		const size_t mtu_bytes,
 		const size_t remaining_samples,
 		const size_t buf_len,
+		const size_t sample_count,
 		uint32_t *buf,
 		if_packet_info_t &ifo
 	) {
@@ -472,6 +474,8 @@ public:
 				) / sizeof( uint32_t ),
 				remaining_samples
 			);
+
+		size_t k;
 
 		//translate the metadata to vrt if packet info
 		ifo.link_type = vrt::if_packet_info_t::LINK_TYPE_NONE;
@@ -487,6 +491,10 @@ public:
 			ifo.tsi = (uint32_t) metadata.time_spec.get_full_secs();
 			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
 			ifo.tsf = (uint64_t)( metadata.time_spec.get_frac_secs() * 1e12 );
+		} else {
+			ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_NONE;
+			ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_FREE;
+			ifo.tsf = (uint64_t)( sample_count );
 		}
 
 		// XXX: these flags denote the first and last packets in burst sample data
@@ -494,7 +502,7 @@ public:
 		ifo.sob = metadata.start_of_burst;
 		ifo.eob	= metadata.end_of_burst;
 
-		ifo.num_header_words32 = metadata.has_time_spec ? 4 : 1;
+		ifo.num_header_words32 = metadata.has_time_spec ? 4 : 3;
 		ifo.num_payload_words32 = N;
 		ifo.num_payload_bytes = N * sizeof( uint32_t );
 
@@ -515,15 +523,16 @@ public:
 		buf[ 0 ] |= 1 << 25; // set reserved bit (so wireshark works). this should eventually be removed
 		buf[ 0 ] |= (uint16_t) ifo.num_packet_words32;
 
+		buf[ 0 ] |= ifo.tsi_type << 22;
+		buf[ 0 ] |= ifo.tsf_type << 20;
+
+		k = 1;
 		if ( metadata.has_time_spec ) {
-
-			buf[ 0 ] |= vrt::if_packet_info_t::TSI_TYPE_OTHER << 22;
-			buf[ 0 ] |= vrt::if_packet_info_t::TSF_TYPE_PICO << 20;
-
-			buf[ 1 ] = ifo.tsi;
-			buf[ 2 ] = (uint32_t)( ifo.tsf >> 32 );
-			buf[ 3 ] = (uint32_t)( ifo.tsf >> 0  );
+			buf[ k++ ] = ifo.tsi;
 		}
+		buf[ k++ ] = (uint32_t)( ifo.tsf >> 32 );
+		buf[ k++ ] = (uint32_t)( ifo.tsf >> 0  );
+
 		for( size_t k = 0; k < ifo.num_header_words32; k++ ) {
 			boost::endian::native_to_big_inplace( buf[ k ] );
 		}
@@ -596,8 +605,13 @@ public:
 				_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec );
 			}
 		}
+		if ( _metadata.has_time_spec ) {
+			_sob_time = _metadata.time_spec;
+		}
 
-		send_deadline = get_time_now();
+		now = get_time_now();
+
+		send_deadline = now;
 		send_deadline += timeout;
 		send_deadline += ( _metadata.has_time_spec ? _metadata.time_spec : 0.0 );
 
@@ -627,6 +641,7 @@ public:
 					_if_mtu[ i ],
 					remaining_bytes[ i ] / sizeof( uint32_t ),
 					CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ),
+					_sample_count[ i ],
 					_tmp_buf[ i ],
 					if_packet_info
 				);
@@ -642,20 +657,41 @@ public:
 						now
 					);
 				then = now + dt;
-
-				if ( dt.get_real_secs() > 3e-3 ) {
+				if ( dt.get_real_secs() > 100e-3 ) {
+					dt -= 2e-3;
 					struct timespec req, rem;
 					req.tv_sec = (time_t) dt.get_full_secs();
 					req.tv_nsec = dt.get_frac_secs()*1e9;
 					nanosleep( &req, &rem );
+					_sob_time = 0.0;
 				}
 				for(
-					;
+					now = get_time_now();
 					now < then;
 					now = get_time_now()
 				) {
 					// nop
 					__asm__ __volatile__( "" );
+				}
+
+				//
+				// Ensure that we have primed the buffers if SoB was given
+				//
+
+				if (
+					true
+					&& 0.0 != _sob_time // set to 0.0 if we nanosleep
+					&& now >= _sob_time
+					&& _flow_control[ i ]->get_buffer_level( now ) < _flow_control[ i ]->get_nominal_buffer_level()
+				) {
+					throw runtime_error(
+						(
+							boost::format( "Premature Start-of-Burst detected on channel %c ( expected: %u, actual: %u )" )
+							% (char)( 'A' + _channels[ i ] )
+							% _flow_control[ i ]->get_nominal_buffer_level()
+							% _flow_control[ i ]->get_buffer_level( now )
+						).str()
+					);
 				}
 
 				//
@@ -674,6 +710,7 @@ public:
 				// Decrement Byte / Sample Counters
 				//
 
+				_sample_count[ i ] += if_packet_info.num_payload_words32;
 				remaining_bytes[ i ] -= if_packet_info.num_payload_bytes;
 				samp_sent += if_packet_info.num_payload_words32;
 
@@ -730,6 +767,7 @@ private:
 		// if no channels specified, default to channel 1 (0)
 		_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 		_if_mtu = std::vector<size_t>( _channels.size() );
+		_sample_count = std::vector<size_t>( _channels.size() );
 
 		if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
 			tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( channels_to_mask( _channels ) );
@@ -789,7 +827,7 @@ private:
 			counter->push_back(0);
 
 			const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
-			const double nominal_buffer_level_pcnt = 0.5;
+			const double nominal_buffer_level_pcnt = 0.8;
 			_flow_control.push_back(
 				uhd::flow_control_nonlinear::make(
 					nominal_sample_rate,
@@ -826,6 +864,9 @@ private:
 			time_now = uhd::time_spec_t::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
+				UHD_MSG( error )
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+					<< std::endl;
 				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
 			}
 			usleep( 100000 );
@@ -960,35 +1001,37 @@ private:
 
 		const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 		uint16_t fifo_lvl[ CRIMSON_TNG_TX_CHANNELS ];
-		uhd::time_spec_t now, then, dt, overrun;
+		uhd::time_spec_t now, then, dt;
 		uhd::time_spec_t crimson_now;
 		struct timespec req, rem;
 
 		double time_diff;
 
 		for(
-			overrun = 0.0,
-				now = uhd::time_spec_t::get_system_time(),
+			now = uhd::time_spec_t::get_system_time(),
 				then = now + T
 				;
 
 			! txstream->_bm_thread_should_exit
 				;
 
-			then += T
+			then += T,
+				now = uhd::time_spec_t::get_system_time()
 		) {
 
-			for(
-				dt = then - now - overrun
-					;
-				dt > 0.0
-					;
-				now = uhd::time_spec_t::get_system_time(),
-					dt = then - now - overrun
-			) {
+			dt = then - now;
+			if ( dt > 30e-6 ) {
 				req.tv_sec = dt.get_full_secs();
 				req.tv_nsec = dt.get_frac_secs() * 1e9;
 				nanosleep( &req, &rem );
+			}
+			for(
+				;
+				now < then;
+				now = uhd::time_spec_t::get_system_time()
+			) {
+				// nop
+				asm __volatile__( "" );
 			}
 
 			time_diff = txstream->_time_diff_pidc.get_control_variable();
@@ -1046,6 +1089,7 @@ private:
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
+	std::vector<size_t> _sample_count;
 	std::thread _bm_thread;
 	property_tree::sptr _tree;
 	size_t _pay_len;
@@ -1071,7 +1115,7 @@ private:
 	 * Start of Burst (SoB) objects
 	 */
 	double _streamer_start_time;
-	double _sob_time;
+	uhd::time_spec_t _sob_time;
 	/// UDP endpoint that receives our Time Diff packets
 	udp_simple::sptr _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.

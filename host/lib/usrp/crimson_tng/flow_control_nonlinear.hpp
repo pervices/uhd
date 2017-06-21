@@ -138,26 +138,28 @@ public:
 			buffer_level_set_time = now;
 		}
 
-//		// underflow
-//		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
-//			std::string msg =
-//				(
-//					boost::format( "Underflow occurred %u / %u" )
-//					% buffer_level
-//					% buffer_size
-//				).str();
-//			throw uhd::value_error( msg );
-//		}
-//		// overflow
-//		if ( BOOST_UNLIKELY( buffer_level > (ssize_t)buffer_size - 1 ) ) {
-//			std::string msg =
-//				(
-//					boost::format( "Overflow occurred %u / %u" )
-//					% buffer_level
-//					% buffer_size
-//				).str();
-//			throw uhd::value_error( msg );
-//		}
+#ifdef DEBUG_FLOW_CONTROL
+		// underflow
+		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
+			std::string msg =
+				(
+					boost::format( "Underflow occurred %u / %u" )
+					% buffer_level
+					% buffer_size
+				).str();
+			throw uhd::value_error( msg );
+		}
+		// overflow
+		if ( BOOST_UNLIKELY( buffer_level > (ssize_t)buffer_size - 1 ) ) {
+			std::string msg =
+				(
+					boost::format( "Overflow occurred %u / %u" )
+					% buffer_level
+					% buffer_size
+				).str();
+			throw uhd::value_error( msg );
+		}
+#endif
 	}
 
 protected:
