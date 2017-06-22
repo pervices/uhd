@@ -61,7 +61,7 @@
 //#define DEBUG_RX 1
 #endif
 #ifndef DEBUG_TX
-#define DEBUG_TX 1
+//#define DEBUG_TX 1
 #endif
 
 #ifndef ARRAY_SIZE
@@ -866,6 +866,11 @@ private:
 				// measured P-ultimate is inverse of 1/2 the flow-control sample rate
 				2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
 			);
+			_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+
+			// XXX: kb 4034: (please remove at a later date)
+			// give crimson some settling time after enabling vita for jesd sync
+			sleep( 2 );
 
 			//Set up initial flow control variables
 			_bm_thread_should_exit = false;
@@ -1074,19 +1079,16 @@ private:
 					txstream->_flow_control[ i ]->set_buffer_level_async( fifo_lvl[ ch ] );
 				}
 			}
+#ifdef DEBUG_TX
+			// XXX: overruns - we need to fix this
+			now = uhd::time_spec_t::get_system_time();
 
-
-//			// XXX: overruns - we need to fix this
-//			now = uhd::time_spec_t::get_system_time();
-//
-//			if ( now >= then ) {
-//				UHD_MSG( warning )
-//					<< __func__ << "(): Overran time for update by " << ( now - then ).get_real_secs() << " s"
-//					<< std::endl;
-//				if ( now - then > overrun ) {
-//					overrun = now - then;
-//				}
-//			}
+			if ( now >= then + T ) {
+				UHD_MSG( warning )
+					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
+					<< std::endl;
+			}
+#endif
 		}
 	}
 
