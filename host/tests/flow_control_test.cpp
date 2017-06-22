@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "../lib/usrp/crimson_tng/crimson_tng_fw_common.h"
+#define DEBUG_FLOW_CONTROL 1
 #include "../lib/usrp/crimson_tng/flow_control.hpp"
 
 #define BYTES_PER_SAMPLE 4
@@ -13,6 +14,9 @@
 #define BUF_LEN  CRIMSON_TNG_BUFF_SIZE
 #define SP       0.8
 #define MTU      ( CRIMSON_TNG_MAX_MTU / BYTES_PER_SAMPLE )
+
+#define FC_DEFAULT \
+	f_s, SP, BUF_LEN
 
 template<typename T>
 static bool is_close( T a, T b, T eps = T(0.0001) ) {
@@ -28,7 +32,7 @@ BOOST_AUTO_TEST_CASE( test_empty_buffer ) {
 	size_t actual_size_t;
 
 	uhd::time_spec_t now = 0.0;
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	expected_size_t = 0;
 	actual_size_t = fc->get_buffer_level( now );
@@ -40,7 +44,7 @@ BOOST_AUTO_TEST_CASE( test_set_buffer_level ) {
 	size_t expected_size_t;
 	size_t actual_size_t;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	uhd::time_spec_t now = 0.0;
 
@@ -61,7 +65,7 @@ BOOST_AUTO_TEST_CASE( test_set_buffer_level_to_buffer_size ) {
 
 	uhd::time_spec_t now = 0.0;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	expected_size_t = fc->get_buffer_level( now );
 	expected_exception_ptr = NULL;
@@ -86,7 +90,7 @@ BOOST_AUTO_TEST_CASE( test_set_buffer_level_too_large ) {
 
 	uhd::time_spec_t now = 0.0;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	expected_size_t = fc->get_buffer_level( now );
 	expected_exception_ptr = NULL;
@@ -107,7 +111,7 @@ BOOST_AUTO_TEST_CASE( test_time_until_first_send ) {
 
 	uhd::time_spec_t now = 0.0;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	uhd::time_spec_t then = fc->get_time_until_next_send( MTU, now );
 
@@ -130,7 +134,7 @@ BOOST_AUTO_TEST_CASE( test_time_until_send_at_steady_state ) {
 	double actual_double;
 
 	uhd::time_spec_t now = 0.0;
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	fc->set_buffer_level( fc->get_nominal_buffer_level(), now );
 	uhd::time_spec_t then = fc->get_time_until_next_send( MTU, now );
@@ -154,7 +158,7 @@ BOOST_AUTO_TEST_CASE( test_time_until_send_at_one_mtu_above_steady_state ) {
 	double actual_double;
 
 	uhd::time_spec_t now = 0.0;
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	fc->set_buffer_level( fc->get_nominal_buffer_level() + MTU, now );
 	uhd::time_spec_t then = fc->get_time_until_next_send( MTU, now );
@@ -177,7 +181,7 @@ BOOST_AUTO_TEST_CASE( test_buffer_level_after_first_update ) {
 	ssize_t expected_ssize_t;
 	ssize_t actual_ssize_t;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	uhd::time_spec_t now = 0.0;
 
@@ -204,7 +208,7 @@ BOOST_AUTO_TEST_CASE( test_time_until_second_send ) {
 	uhd::time_spec_t now;
 	uhd::time_spec_t then;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	now = 0.0;
 	fc->update( MTU, now );
@@ -236,7 +240,7 @@ BOOST_AUTO_TEST_CASE( test_convergence_from_below ) {
 	ssize_t buffer_level;
 	ssize_t prev_buffer_level;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	const size_t mtu = MTU / 10;
 	const size_t max_iterations = BUF_LEN / mtu;
@@ -333,7 +337,7 @@ BOOST_AUTO_TEST_CASE( test_convergence_from_above ) {
 	ssize_t buffer_level;
 	ssize_t prev_buffer_level;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	const size_t mtu = MTU / 10;
 	const size_t max_iterations = BUF_LEN / mtu;
@@ -393,7 +397,7 @@ BOOST_AUTO_TEST_CASE( test_initial_sob ) {
 	double expected_double;
 	double actual_double;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	expected_double = 0;
 	actual_double = fc->get_start_of_burst_time().get_real_secs();
@@ -414,7 +418,7 @@ BOOST_AUTO_TEST_CASE( test_sob ) {
 	double expected_double;
 	double actual_double;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	// let's say that I want to send 5 minutes in the future
 	dt =  uhd::time_spec_t( 60 * 5, 0 );
@@ -520,7 +524,7 @@ BOOST_AUTO_TEST_CASE( test_overflow ) {
 	std::exception_ptr expected_exception_ptr;
 	std::exception_ptr actual_exception_ptr;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	expected_exception_ptr = NULL;
 	actual_exception_ptr = NULL;
@@ -548,7 +552,7 @@ BOOST_AUTO_TEST_CASE( test_underflow ) {
 	std::exception_ptr expected_exception_ptr;
 	std::exception_ptr actual_exception_ptr;
 
-	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( f_s, SP, BUF_LEN );
+	uhd::flow_control::sptr fc = uhd::flow_control_nonlinear::make( FC_DEFAULT );
 
 	expected_exception_ptr = NULL;
 	actual_exception_ptr = NULL;
@@ -567,4 +571,3 @@ BOOST_AUTO_TEST_CASE( test_underflow ) {
 
 	BOOST_CHECK_MESSAGE( actual_exception_ptr != expected_exception_ptr, "no exception was thrown!" );
 }
-

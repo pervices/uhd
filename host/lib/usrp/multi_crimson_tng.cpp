@@ -744,9 +744,9 @@ freq_range_t multi_crimson_tng::get_fe_rx_freq_range(size_t chan){
 // set RX frontend gain on specified channel, name specifies which IC to configure the gain for
 void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
-	double atten_val;
-	double gain_val;
-	double lna_val;
+	double atten_val = 0;
+	double gain_val = 0;
+	double lna_val = 0;
 
 	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
 	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;

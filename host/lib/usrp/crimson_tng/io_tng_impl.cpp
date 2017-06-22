@@ -672,8 +672,8 @@ public:
 						now
 					);
 				then = now + dt;
-				if ( dt.get_real_secs() > 100e-3 ) {
-					dt -= 2e-3;
+				if ( dt.get_real_secs() > 1e-3 ) {
+					dt -= 30e-6;
 					struct timespec req, rem;
 					req.tv_sec = (time_t) dt.get_full_secs();
 					req.tv_nsec = dt.get_frac_secs()*1e9;
@@ -1071,10 +1071,7 @@ private:
 				// update flow controllers with actual buffer levels
 				for( size_t i = 0; i < txstream->_channels.size(); i++ ) {
 					int ch = txstream->_channels[ i ];
-					txstream->_flow_control[ i ]->set_buffer_level(
-						fifo_lvl[ ch ],
-						crimson_now
-					);
+					txstream->_flow_control[ i ]->set_buffer_level_async( fifo_lvl[ ch ] );
 				}
 			}
 
