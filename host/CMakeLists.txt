@@ -105,7 +105,10 @@ SET(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "")
 #force UHD_RELEASE_MODE to be a string for cmake-gui
 SET(UHD_RELEASE_MODE "${UHD_RELEASE_MODE}" CACHE STRING "UHD Release Mode")
 
+ADD_DEFINITIONS(-std=c++11)
+
 IF(CMAKE_COMPILER_IS_GNUCXX)
+
     # XXX: @CF: kb 3834: comment-out the following block to step through unit tests
 #    IF(STRIP_BINARIES)
 #        IF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
