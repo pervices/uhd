@@ -866,6 +866,7 @@ private:
 				// measured P-ultimate is inverse of 1/2 the flow-control sample rate
 				2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
 			);
+			_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
 
 			//Set up initial flow control variables
 			_bm_thread_should_exit = false;

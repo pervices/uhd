@@ -2,7 +2,7 @@
 #define INCLUDED_UHD_UTILS_PIDC_HPP
 
 #ifndef DEBUG_PIDC
-//#define DEBUG_PIDC 1
+#define DEBUG_PIDC 1
 #endif
 
 #ifdef DEBUG_PIDC
@@ -90,10 +90,11 @@ namespace uhd {
 			// the only possible numerical instability in this format is division by dt
 			double D = Kd * (e - e_1) / dt;
 
+			is_converged( now );
+
 			// ouput
 			cv = P + I + D;
 
-			is_converged( now );
 			last_time = now;
 
 			return cv;
