@@ -1066,6 +1066,15 @@ private:
 			time_diff = time_diff_extract( ss );
 			txstream->time_diff_process( time_diff, now );
 
+						UHD_MSG( status )
+							<< "Buffer levels: { "
+							<< fifo_lvl[ 0 ] << ", "
+							<< fifo_lvl[ 1 ] << ", "
+							<< fifo_lvl[ 2 ] << ", "
+							<< fifo_lvl[ 3 ] << ""
+							<< " }"
+							<< std::endl;
+
 
 			if ( txstream->_time_diff_converged ) {
 				// update flow controllers with actual buffer levels
