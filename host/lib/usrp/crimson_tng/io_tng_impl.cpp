@@ -1075,18 +1075,14 @@ private:
 				}
 			}
 
+			// XXX: overruns - we need to fix this
+			now = uhd::time_spec_t::get_system_time();
 
-//			// XXX: overruns - we need to fix this
-//			now = uhd::time_spec_t::get_system_time();
-//
-//			if ( now >= then ) {
-//				UHD_MSG( warning )
-//					<< __func__ << "(): Overran time for update by " << ( now - then ).get_real_secs() << " s"
-//					<< std::endl;
-//				if ( now - then > overrun ) {
-//					overrun = now - then;
-//				}
-//			}
+			if ( now >= then + T ) {
+				UHD_MSG( warning )
+					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
+					<< std::endl;
+			}
 		}
 	}
 
