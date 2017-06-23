@@ -714,7 +714,16 @@ public:
 				// Send Data
 				//
 
-				_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
+				size_t r =_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
+				if ( r != if_packet_info.num_packet_words32 * sizeof( uint32_t ) ) {
+					throw runtime_error(
+						(
+							boost::format( "Failed to send a packet ( expected: %u, actual: %u )" )
+							% ( if_packet_info.num_packet_words32 * sizeof( uint32_t ) )
+							% r
+						).str()
+					);
+				}
 
 				//
 				// Update Flow Control
@@ -1041,7 +1050,8 @@ private:
 		) {
 
 			dt = then - now;
-			if ( dt > 30e-6 ) {
+			if ( dt > 100e-6 ) {
+				dt -= 30e-6;
 				req.tv_sec = dt.get_full_secs();
 				req.tv_nsec = dt.get_frac_secs() * 1e9;
 				nanosleep( &req, &rem );
