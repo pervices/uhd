@@ -62,7 +62,7 @@ public:
 
 		return sob_time;
 	}
-	size_t get_buffer_level( const uhd::time_spec_t & now ) {
+	ssize_t get_buffer_level( const uhd::time_spec_t & now ) {
 
 		ssize_t r;
 
@@ -92,7 +92,9 @@ public:
 
 		std::lock_guard<std::mutex> _lock( lock );
 
-		unlocked_set_buffer_level( buffer_level + 0.06 * ( _level - buffer_level ) );
+		_level = buffer_level + 0.06 * ( _level - buffer_level );
+
+		unlocked_set_buffer_level( _level );
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
@@ -216,17 +218,17 @@ protected:
 		return r;
 	}
 
-	void unlocked_set_buffer_level( const size_t level ) {
+	void unlocked_set_buffer_level( const ssize_t level ) {
 
-		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
-			std::string msg =
-				(
-					boost::format( "Invalid buffer level %u / %u" )
-					% level
-					% buffer_size
-				).str();
-			throw uhd::value_error( msg );
-		}
+//		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
+//			std::string msg =
+//				(
+//					boost::format( "Invalid buffer level %u / %u" )
+//					% level
+//					% buffer_size
+//				).str();
+//			throw uhd::value_error( msg );
+//		}
 
 		buffer_level = level;
 	}

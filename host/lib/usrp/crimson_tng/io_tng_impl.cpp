@@ -692,7 +692,7 @@ public:
 				//
 				// Ensure that we have primed the buffers if SoB was given
 				//
-
+/*
 				if (
 					true
 					&& 0.0 != _sob_time // set to 0.0 if we nanosleep
@@ -708,6 +708,7 @@ public:
 						).str()
 					);
 				}
+*/
 
 				//
 				// Send Data
@@ -1046,7 +1047,7 @@ private:
 				nanosleep( &req, &rem );
 			}
 			for(
-				;
+				now = uhd::time_spec_t::get_system_time();
 				now < then;
 				now = uhd::time_spec_t::get_system_time()
 			) {
@@ -1060,6 +1061,12 @@ private:
 
 			txstream->_flow_iface -> poke_str("Read fifo");
 			std::string buff_read = txstream->_flow_iface -> peek_str();
+
+			if ( "TIMEOUT" == buff_read ) {
+				std::cout << "timeout reading fifo levels" << std::endl;
+				then = now;
+				continue;
+			}
 
 			buff_read.erase(0, 5); // remove "flow,"
 			std::stringstream ss(buff_read);
@@ -1079,16 +1086,16 @@ private:
 					txstream->_flow_control[ i ]->set_buffer_level_async( fifo_lvl[ ch ] );
 				}
 			}
-#ifdef DEBUG_TX
-			// XXX: overruns - we need to fix this
-			now = uhd::time_spec_t::get_system_time();
-
-			if ( now >= then + T ) {
-				UHD_MSG( warning )
-					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
-					<< std::endl;
-			}
-#endif
+//#ifdef DEBUG_TX
+//			// XXX: overruns - we need to fix this
+//			now = uhd::time_spec_t::get_system_time();
+//
+//			if ( now >= then + T ) {
+//				UHD_MSG( warning )
+//					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
+//					<< std::endl;
+//			}
+//#endif
 		}
 	}
 
