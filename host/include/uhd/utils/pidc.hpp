@@ -2,7 +2,7 @@
 #define INCLUDED_UHD_UTILS_PIDC_HPP
 
 #ifndef DEBUG_PIDC
-#define DEBUG_PIDC 1
+//#define DEBUG_PIDC 1
 #endif
 
 #ifdef DEBUG_PIDC
@@ -39,10 +39,10 @@ namespace uhd {
 			Kp( Kp ),
 			Ki( Ki ),
 			Kd( Kd ),
-			e( DEFAULT_MAX_ERROR_FOR_DIVERGENCE ),
+			e( max_error_for_divergence ),
 			i( 0.0 ),
 			// initialize the control variable to be equal to the set point, so error is initially zero
-			cv( sp ),
+			cv( 0.0 ),
 			sp( sp ),
 			last_time( 0 ),
 			last_status_time( 0 ),
@@ -125,7 +125,7 @@ namespace uhd {
 		void reset( const double sp, const double time ) {
 			cv = sp;
 			last_time = time;
-			e = 0;
+			e = max_error_for_divergence;
 			i = 0;
 			converged = false;
 		}
@@ -136,20 +136,26 @@ namespace uhd {
 
 			filtered_error = error_filter.get_average();
 
+			if ( filtered_error >= 10000 ) {
+				print_pid_diverged();
+				print_pid_status( time, cv, filtered_error );
+				reset( sp, time );
+				return false;
+			}
+
 			if ( time - last_status_time >= 1 ) {
 				print_pid_status( time, cv, filtered_error );
 				last_status_time = time;
 			}
 
 			if ( ! converged ) {
-				if ( filtered_error < max_error_for_divergence * 0.05  ) {
+				if ( filtered_error < max_error_for_divergence ) {
 					converged = true;
 					print_pid_status( time, cv, filtered_error );
 					print_pid_converged();
 				}
 			} else {
 				if ( filtered_error >= max_error_for_divergence ) {
-					converged = false;
 					print_pid_diverged();
 					print_pid_status( time, cv, filtered_error );
 					reset( sp, time );

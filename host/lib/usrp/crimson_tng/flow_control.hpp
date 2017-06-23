@@ -93,7 +93,7 @@ public:
 	 *
 	 * @return the buffer level [samples]
 	 */
-	virtual size_t get_buffer_level( const uhd::time_spec_t & now ) = 0;
+	virtual ssize_t get_buffer_level( const uhd::time_spec_t & now ) = 0;
 	/**
 	 * Set the buffer level, presumably based on valid data.
 	 *
