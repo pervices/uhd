@@ -96,8 +96,9 @@ static int channels_to_mask( std::vector<size_t> channels ) {
 static uint32_t get_if_mtu( const std::string & remote_addr ) {
 
 	std::string iface;
+	std::string local_addr;
 
-	iputils::get_route( remote_addr, iface );
+	iputils::get_route( remote_addr, iface, local_addr );
 	size_t mtu = iputils::get_mtu( iface );
 
 //	if ( mtu < CRIMSON_TNG_MIN_MTU ) {
@@ -835,7 +836,28 @@ private:
 			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ) ] );
 
 			// connect to UDP port
-			_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
+			//_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
+
+			std::string local_addr;
+			iputils::get_route( ip_addr, iface, local_addr );
+
+			int fd;
+			int r;
+			r = socket( AF_INET, SOCK_DGRAM, 0 );
+			if ( -1 == r ) {
+				throw uhd::os_error(
+					(
+						boost::format( "socket() failed: %s (%d)" )
+						% std::strerror( errno )
+						% errno
+					).str()
+				);
+			}
+			fd = r;
+
+			r = bind( fd,  );
+
+			_udp_socket.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
 			if ( 0 == _instance_num && ! have_time_diff_iface ) {
 
@@ -1118,6 +1140,7 @@ private:
 	}
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
+	std::vector<int> _udp_socket;
 	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
 	std::vector<size_t> _sample_count;

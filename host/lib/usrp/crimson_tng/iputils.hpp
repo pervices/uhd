@@ -32,7 +32,7 @@ namespace uhd {
 class iputils {
 
 public:
-	static void get_route( const std::string remote_addr, std::string & iface ) {
+	static void get_route( const std::string remote_addr, std::string & iface, std::string & local_addr ) {
 		FILE *fp;
 
 		char buf[ 256 ];
@@ -89,6 +89,7 @@ public:
 		}
 
 		iface = last_iface;
+		local_addr = last_addr;
 	}
 
 	static size_t get_mtu( const std::string iface ) {
