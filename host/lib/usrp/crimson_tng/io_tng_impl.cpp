@@ -737,6 +737,7 @@ public:
 						).str()
 					);
 				}
+				fsync( _udp_socket[ i ] );
 
 				//
 				// Update Flow Control
