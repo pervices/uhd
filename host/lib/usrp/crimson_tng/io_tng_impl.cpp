@@ -715,7 +715,8 @@ public:
 				// Send Data
 				//
 
-				size_t r =_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
+				//size_t r =_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
+				size_t r = write( _udp_socket[ i ], _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
 				if ( r != if_packet_info.num_packet_words32 * sizeof( uint32_t ) ) {
 					throw runtime_error(
 						(
@@ -838,26 +839,16 @@ private:
 			// connect to UDP port
 			//_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
-			std::string local_addr;
-			iputils::get_route( ip_addr, iface, local_addr );
-
+			std::string local_addrs;
+			struct sockaddr_storage remote_addr, local_addr;
+			socklen_t remote_addr_len = sizeof( remote_addr ), local_addr_len = sizeof( local_addr );
 			int fd;
-			int r;
-			r = socket( AF_INET, SOCK_DGRAM, 0 );
-			if ( -1 == r ) {
-				throw uhd::os_error(
-					(
-						boost::format( "socket() failed: %s (%d)" )
-						% std::strerror( errno )
-						% errno
-					).str()
-				);
-			}
-			fd = r;
 
-			r = bind( fd,  );
-
-			_udp_socket.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
+			iputils::get_route( ip_addr, iface, local_addrs );
+			iputils::to_sockaddr( ip_addr, (sockaddr *) & remote_addr, remote_addr_len );
+			iputils::to_sockaddr( local_addrs, (sockaddr *) & local_addr, local_addr_len );
+			fd = iputils::connect_udp( (sockaddr *) & local_addr, local_addr_len, (sockaddr *) & remote_addr, remote_addr_len );
+			_udp_socket.push_back( fd );
 
 			if ( 0 == _instance_num && ! have_time_diff_iface ) {
 
@@ -1139,7 +1130,7 @@ private:
 			(*data & 0xff000000) >> 24;
 	}
 
-	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
+	//std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<int> _udp_socket;
 	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
