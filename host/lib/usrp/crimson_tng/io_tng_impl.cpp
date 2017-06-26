@@ -600,7 +600,7 @@ public:
 
 		uhd::time_spec_t send_deadline;
 
-		uint32_t _tmp_buf[ vrt::max_if_hdr_words32 * sizeof( uint32_t ) ];
+		uint32_t tmp_buf[ vrt::max_if_hdr_words32 * sizeof( uint32_t ) ];
 
 		if (
 			true
@@ -656,7 +656,7 @@ public:
 					remaining_bytes[ i ] / sizeof( uint32_t ),
 					CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ),
 					_sample_count[ i ],
-					_tmp_buf,
+					tmp_buf,
 					if_packet_info
 				);
 
@@ -713,7 +713,7 @@ public:
 				// Send Data
 				//
 
-				iov[ 0 ].iov_base = _tmp_buf;
+				iov[ 0 ].iov_base = tmp_buf;
 				iov[ 0 ].iov_len = if_packet_info.num_header_words32 * sizeof( uint32_t );
 				iov[ 1 ].iov_base = & ( (uint8_t *)buffs[ i ] )[ sample_byte_offs ];
 				iov[ 1 ].iov_len = if_packet_info.num_payload_bytes;
@@ -848,8 +848,7 @@ private:
 			// vita enable (as of kb #3804, always use vita headers for tx)
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("1");
 
-			// connect to UDP port
-			//_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
+			// connect UDP socket
 
 			std::string local_addrs;
 			struct sockaddr_storage remote_addr, local_addr;
@@ -1142,9 +1141,7 @@ private:
 			(*data & 0xff000000) >> 24;
 	}
 
-	//std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<int> _udp_socket;
-	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
 	std::vector<size_t> _sample_count;
 	std::thread _bm_thread;
