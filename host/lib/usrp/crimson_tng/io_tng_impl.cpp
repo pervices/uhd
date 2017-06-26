@@ -719,7 +719,6 @@ public:
 				// Send Data
 				//
 
-				//size_t r =_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
 				ssize_t r = ::send( _udp_socket[ i ], _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ), 0 );
 				if ( r != (ssize_t) ( if_packet_info.num_packet_words32 * sizeof( uint32_t ) ) ) {
 					throw runtime_error(
@@ -843,8 +842,7 @@ private:
 
 			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ) ] );
 
-			// connect to UDP port
-			//_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
+			// connect UDP socket
 
 			std::string local_addrs;
 			struct sockaddr_storage remote_addr, local_addr;
@@ -1138,7 +1136,6 @@ private:
 			(*data & 0xff000000) >> 24;
 	}
 
-	//std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<int> _udp_socket;
 	std::vector<uint32_t *> _tmp_buf;
 	std::vector<size_t> _channels;
