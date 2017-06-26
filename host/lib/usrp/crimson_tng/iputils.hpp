@@ -64,9 +64,17 @@ public:
 				line = line.substr( strlen( "default via " ) , line.length() - strlen( "default via " ) );
 			}
 			boost::split( strs, line, boost::is_any_of( "\t " ) );
+			last_addr = strs[ 0 ];
+			last_iface = strs[ 2 ];
+
 			if ( strs.size() >= 3 ) {
-				last_addr = strs[ 0 ];
-				last_iface = strs[ 2 ];
+				for( size_t i = 3; i < strs.size(); i++ ) {
+					he = gethostbyname( strs[ i ].c_str() );
+					if ( NULL == he ) {
+						continue;
+					}
+					last_addr = strs[ i ];
+				}
 			}
 
 			ssize_t slash = last_addr.find( "/" );
@@ -197,18 +205,6 @@ public:
 			);
 		}
 		fd = r;
-
-		r = bind( fd, local_addr, local_addr_len );
-		if ( -1 == r ) {
-			close( fd );
-			fd = -1;
-			throw runtime_error(
-				( boost::format( "bind: %s ( %d )" )
-					% strerror( errno )
-					% errno
-				).str()
-			);
-		}
 
 		r = connect( fd, remote_addr, remote_addr_len );
 		if ( -1 == r ) {

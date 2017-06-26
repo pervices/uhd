@@ -15,6 +15,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
 #include <algorithm>
 #include <cinttypes>
 #include <cmath>
@@ -716,8 +720,8 @@ public:
 				//
 
 				//size_t r =_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
-				size_t r = write( _udp_socket[ i ], _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
-				if ( r != if_packet_info.num_packet_words32 * sizeof( uint32_t ) ) {
+				ssize_t r = ::send( _udp_socket[ i ], _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ), 0 );
+				if ( r != (ssize_t) ( if_packet_info.num_packet_words32 * sizeof( uint32_t ) ) ) {
 					throw runtime_error(
 						(
 							boost::format( "Failed to send a packet ( expected: %u, actual: %u )" )
@@ -821,6 +825,9 @@ private:
 
 			std::string ch       = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			std::string udp_port = tree->access<std::string>(prop_path / "Channel_"+ch / "port").get();
+			std::stringstream udp_port_ss( udp_port );
+			uint16_t port;
+			udp_port_ss >> port;
 			std::string iface    = tree->access<std::string>(prop_path / "Channel_"+ch / "iface").get();
 			std::string ip_addr  = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
 			_pay_len = tree->access<int>(mb_path / "link" / sfp / "pay_len").get();
@@ -846,6 +853,7 @@ private:
 
 			iputils::get_route( ip_addr, iface, local_addrs );
 			iputils::to_sockaddr( ip_addr, (sockaddr *) & remote_addr, remote_addr_len );
+			((sockaddr_in *)& remote_addr )->sin_port = ::htons( port );
 			iputils::to_sockaddr( local_addrs, (sockaddr *) & local_addr, local_addr_len );
 			fd = iputils::connect_udp( (sockaddr *) & local_addr, local_addr_len, (sockaddr *) & remote_addr, remote_addr_len );
 			_udp_socket.push_back( fd );
