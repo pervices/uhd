@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/uio.h>
 
 #include <algorithm>
 #include <cinttypes>
@@ -476,7 +477,6 @@ public:
 	 */
 	static void compose_vrt49_packet(
 		const tx_metadata_t &metadata,
-		const uint32_t *sample_data,
 		const size_t mtu_bytes,
 		const size_t remaining_samples,
 		const size_t buf_len,
@@ -528,12 +528,12 @@ public:
 
 		ifo.num_packet_words32 = ifo.num_header_words32 + ifo.num_payload_words32 + ( ifo.has_tlr ? 1 : 0 );
 
-		if ( BOOST_UNLIKELY( buf_len < ifo.num_packet_words32 ) ) {
+		if ( BOOST_UNLIKELY( buf_len < ifo.num_header_words32 ) ) {
 			throw runtime_error(
 				(
-					boost::format( "buf_len ( %u ) is not large enough for packet ( %u )" )
+					boost::format( "buf_len ( %u ) is not large enough for header ( %u )" )
 					% buf_len
-				    % ifo.num_packet_words32
+				    % ifo.num_header_words32
 				).str()
 			);
 		}
@@ -555,16 +555,6 @@ public:
 
 		for( size_t k = 0; k < ifo.num_header_words32; k++ ) {
 			boost::endian::native_to_big_inplace( buf[ k ] );
-		}
-
-		memcpy(
-			& buf[ ifo.num_header_words32 ],
-			sample_data,
-			N * sizeof( uint32_t )
-		);
-
-		if ( ifo.has_tlr ) {
-			buf[ ifo.num_packet_words32 -1 ] = ifo.tlr;
 		}
 	}
 
@@ -600,12 +590,17 @@ public:
 		size_t remaining_bytes[ _channels.size() ];
 		vrt::if_packet_info_t if_packet_info;
 
+
+		iovec iov[ 2 ];
+
 		// need r/w capabilities for 'has_time_spec'
 		std::vector<tx_metadata_t> metadata;
 
 		uhd::time_spec_t now, then, dt;
 
 		uhd::time_spec_t send_deadline;
+
+		uint32_t _tmp_buf[ vrt::max_if_hdr_words32 * sizeof( uint32_t ) ];
 
 		if (
 			true
@@ -657,12 +652,11 @@ public:
 				size_t sample_byte_offs = nsamps_per_buff * sizeof( uint32_t ) - remaining_bytes[ i ];
 				compose_vrt49_packet(
 					metadata[ i ],
-					(uint32_t *)( & ( (uint8_t *)buffs[ i ] )[ sample_byte_offs ] ),
 					_if_mtu[ i ],
 					remaining_bytes[ i ] / sizeof( uint32_t ),
 					CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ),
 					_sample_count[ i ],
-					_tmp_buf[ i ],
+					_tmp_buf,
 					if_packet_info
 				);
 
@@ -719,8 +713,21 @@ public:
 				// Send Data
 				//
 
-				//size_t r =_udp_stream[ i ]->stream_out( _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ) );
-				ssize_t r = ::send( _udp_socket[ i ], _tmp_buf[ i ], if_packet_info.num_packet_words32 * sizeof( uint32_t ), 0 );
+				iov[ 0 ].iov_base = _tmp_buf;
+				iov[ 0 ].iov_len = if_packet_info.num_header_words32 * sizeof( uint32_t );
+				iov[ 1 ].iov_base = & ( (uint8_t *)buffs[ i ] )[ sample_byte_offs ];
+				iov[ 1 ].iov_len = if_packet_info.num_payload_bytes;
+
+				ssize_t r = writev( _udp_socket[ i ], iov, ARRAY_SIZE( iov ) );
+				if ( -1 == r ) {
+					throw runtime_error(
+						(
+							boost::format( "writev: %s (%d)" )
+							% std::strerror( errno )
+							% errno
+						).str()
+					);
+				}
 				if ( r != (ssize_t) ( if_packet_info.num_packet_words32 * sizeof( uint32_t ) ) ) {
 					throw runtime_error(
 						(
@@ -841,8 +848,6 @@ private:
 			// vita enable (as of kb #3804, always use vita headers for tx)
 			tree->access<std::string>(prop_path / "Channel_"+ch / "vita_en").set("1");
 
-			_tmp_buf.push_back( new uint32_t[ CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ) ] );
-
 			// connect to UDP port
 			//_udp_stream.push_back(uhd::transport::udp_stream::make_tx_stream(ip_addr, udp_port));
 
@@ -956,7 +961,6 @@ private:
 		_tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( 0 );
 
 		for (unsigned int i = 0; i < _channels.size(); i++) {
-			delete[] _tmp_buf[ i ];
 			std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 			// power off the channel
 			_tree->access<std::string>(mb_path / "tx" / "Channel_"+ch / "pwr").set("0");
