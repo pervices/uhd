@@ -12,8 +12,6 @@
 
 #include <uhd/exception.hpp>
 
-extern "C" {
-
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -25,14 +23,12 @@ extern "C" {
 extern int h_errno;
 #endif
 
-}
-
 namespace uhd {
 
 class iputils {
 
 public:
-	static void get_route( const std::string remote_addr, std::string & iface ) {
+	static void get_route( const std::string remote_addr, std::string & iface, std::string & local_addr ) {
 		FILE *fp;
 
 		char buf[ 256 ];
@@ -68,9 +64,17 @@ public:
 				line = line.substr( strlen( "default via " ) , line.length() - strlen( "default via " ) );
 			}
 			boost::split( strs, line, boost::is_any_of( "\t " ) );
+			last_addr = strs[ 0 ];
+			last_iface = strs[ 2 ];
+
 			if ( strs.size() >= 3 ) {
-				last_addr = strs[ 0 ];
-				last_iface = strs[ 2 ];
+				for( size_t i = 3; i < strs.size(); i++ ) {
+					he = gethostbyname( strs[ i ].c_str() );
+					if ( NULL == he ) {
+						continue;
+					}
+					last_addr = strs[ i ];
+				}
 			}
 
 			ssize_t slash = last_addr.find( "/" );
@@ -89,6 +93,7 @@ public:
 		}
 
 		iface = last_iface;
+		local_addr = last_addr;
 	}
 
 	static size_t get_mtu( const std::string iface ) {
@@ -129,6 +134,91 @@ public:
 		mtu = req.ifr_ifru.ifru_mtu;
 #endif
 		return mtu;
+	}
+
+	static void to_sockaddr( const std::string & host, sockaddr *addr, socklen_t & addr_len ) {
+
+		int r;
+
+		int fd;
+		sockaddr_storage a;
+		socklen_t alen;
+		addrinfo *res, *rp;
+
+		addrinfo hints;
+
+		memset( & hints, 0, sizeof( hints ) );
+
+		hints.ai_family = AF_INET,
+		hints.ai_socktype = SOCK_DGRAM,
+
+		r = getaddrinfo( host.c_str(), NULL, & hints, & res );
+		if ( 0 != r ) {
+			std::string es;
+			int e;
+			if ( EAI_SYSTEM == r ) {
+				e = errno;
+				es = std::string( strerror( e ) );
+			} else {
+				e = r;
+				es = std::string( gai_strerror( e ) );
+			}
+			throw runtime_error(
+				( boost::format( "getaddrinfo( '%s' ): %s ( %d )" )
+					% host
+					% es
+					% e
+				).str()
+			);
+		}
+		for ( rp = res; rp != NULL; rp = rp->ai_next ) {
+			// should really only need the first
+			break;
+		}
+
+		if ( !( NULL == addr || addr_len < rp->ai_addrlen ) ) {
+			memcpy( addr, rp->ai_addr, rp->ai_addrlen );
+			addr_len = rp->ai_addrlen;
+		}
+		freeaddrinfo( res );
+
+		if ( NULL == addr || addr_len < rp->ai_addrlen ) {
+			throw value_error( "invalid arguments" );
+		}
+	}
+
+	static int connect_udp(
+		const sockaddr *local_addr, const socklen_t local_addr_len,
+		const sockaddr *remote_addr, const socklen_t remote_addr_len
+	) {
+
+		int r;
+		int fd;
+
+		r = socket( AF_INET, SOCK_DGRAM, 0 );
+		if ( -1 == r ) {
+			throw runtime_error(
+				( boost::format( "socket: %s ( %d )" )
+					% strerror( errno )
+					% errno
+				).str()
+			);
+		}
+		fd = r;
+
+		r = connect( fd, remote_addr, remote_addr_len );
+		if ( -1 == r ) {
+			close( fd );
+			fd = -1;
+			throw runtime_error(
+				( boost::format( "connect: %s ( %d )" )
+					% strerror( errno )
+					% errno
+				).str()
+			);
+		}
+
+		return fd;
 	}
 };
 
