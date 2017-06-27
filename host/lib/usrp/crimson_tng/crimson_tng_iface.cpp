@@ -68,7 +68,7 @@ void crimson_tng_iface::poke_str(std::string data) {
 
 // Never call this function by itself, always call through crimson_tng_impl::get/set(),
 // else it will mess up the protocol with the sequencing and will contian no error checks.
-std::string crimson_tng_iface::peek_str(void) {
+std::string crimson_tng_iface::peek_str( float timeout_s ) {
     uint32_t iseq;
     std::vector<std::string> tokens;
     uint8_t tries = 0;
@@ -78,7 +78,7 @@ std::string crimson_tng_iface::peek_str(void) {
     do {
         // clears the buffer and receives the message
         memset( _buff, 0, sizeof( _buff ) );
-        const size_t nbytes = _ctrl_transport -> recv(boost::asio::buffer(_buff), 6.250);
+        const size_t nbytes = _ctrl_transport -> recv(boost::asio::buffer(_buff), timeout_s );
         if (nbytes == 0) return "TIMEOUT";
 
         // parses it through tokens: seq, status, [data]
@@ -107,6 +107,10 @@ std::string crimson_tng_iface::peek_str(void) {
     } else {
     	return tokens[2];
     }
+}
+
+std::string crimson_tng_iface::peek_str() {
+	return peek_str( 6.250 );
 }
 
 /***********************************************************************

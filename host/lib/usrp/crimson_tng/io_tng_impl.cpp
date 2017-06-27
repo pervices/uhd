@@ -1094,14 +1094,18 @@ private:
 			crimson_now = now + time_diff;
 			txstream->time_diff_send( crimson_now );
 
-			txstream->_flow_iface -> poke_str("Read fifo");
-			std::string buff_read = txstream->_flow_iface -> peek_str();
 
-			if ( "TIMEOUT" == buff_read ) {
-				std::cout << "timeout reading fifo levels" << std::endl;
-				then = now;
-				continue;
-			}
+			std::string buff_read;
+			do {
+				txstream->_flow_iface -> poke_str("Read fifo");
+				buff_read = txstream->_flow_iface -> peek_str( 0.001 );
+
+				if ( "TIMEOUT" == buff_read ) {
+					std::cout << "timeout reading fifo levels" << std::endl;
+					continue;
+				}
+				break;
+			} while( true );
 
 			buff_read.erase(0, 5); // remove "flow,"
 			std::stringstream ss(buff_read);
@@ -1151,7 +1155,7 @@ private:
 	std::vector<size_t> _if_mtu;
 	std::vector<uhd::flow_control::sptr> _flow_control;
 	std::vector<uhd::time_spec_t> _last_time;
-	uhd::wb_iface::sptr _flow_iface;
+	crimson_tng_iface::sptr _flow_iface;
 	boost::mutex* _udp_mutex_add;
 	boost::mutex* _async_mutex;
 	std::vector<int>* _async_comm;

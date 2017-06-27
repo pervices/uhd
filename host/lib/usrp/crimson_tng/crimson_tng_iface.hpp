@@ -50,6 +50,9 @@ public:
     // Recieve/read a data packet (string), null terminated
     virtual std::string peek_str(void);
 
+    // Recieve/read a data packet (string), null terminated
+    virtual std::string peek_str( float timeout_s );
+
 private:
     //this lovely lady makes it all possible
     uhd::transport::udp_simple::sptr _ctrl_transport;

@@ -134,7 +134,7 @@ private:
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
-    uhd::wb_iface::sptr _iface;
+    crimson_tng_iface::sptr _iface;
 
     boost::mutex _udp_mutex;
     boost::mutex _async_mutex;
