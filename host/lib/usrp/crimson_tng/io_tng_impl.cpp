@@ -1106,6 +1106,11 @@ private:
 				}
 				break;
 			}
+			if ( "TIMEOUT" == buff_read ) {
+				std::cout << "Maximum number of timeouts reached reading fifo levels" << std::endl;
+				then = now;
+				continue;
+			}
 
 			buff_read.erase(0, 5); // remove "flow,"
 			std::stringstream ss(buff_read);
