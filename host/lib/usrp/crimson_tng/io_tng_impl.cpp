@@ -779,9 +779,6 @@ private:
 		boost::ignore_unused( async_comm );
 		boost::ignore_unused( async_mutex );
 
-		// kb 4001: stop-gap solution until kb #4000 is fixed!!!
-		destroy_other_processes_using_crimson();
-
 		// kb #3850: we only instantiate / converge the PID controller for the 0th txstreamer instance
 		// to prevent any other constructors from returning before the PID is locked, surround the entire
 		// init_tx_streamer() with mutex protection.
@@ -789,6 +786,11 @@ private:
 
 		_instance_num = instance_counter++;
 		num_instances++;
+
+		if ( 0 == _instance_num ) {
+			// kb 4001: stop-gap solution until kb #4000 is fixed!!!
+			destroy_other_processes_using_crimson();
+		}
 
 		// save the tree
 		_tree = tree;
@@ -911,21 +913,21 @@ private:
 			//Set up initial flow control variables
 			_bm_thread_should_exit = false;
 			_bm_thread = std::thread( bm_thread_fn, this );
-		}
 
-		for(
-			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
-			time_now = time_then
-			; ! _time_diff_converged;
-			time_now = uhd::time_spec_t::get_system_time()
-		) {
-			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_MSG( error )
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
-					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+			for(
+				time_spec_t time_then = uhd::time_spec_t::get_system_time(),
+				time_now = time_then
+				; ! _time_diff_converged;
+				time_now = uhd::time_spec_t::get_system_time()
+			) {
+				if ( (time_now - time_then).get_full_secs() > 20 ) {
+					UHD_MSG( error )
+						<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+						<< std::endl;
+					throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+				}
+				usleep( 100000 );
 			}
-			usleep( 100000 );
 		}
 
 		num_instances_lock.unlock();
