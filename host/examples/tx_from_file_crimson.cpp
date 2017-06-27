@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-
 #include <map>
 #include <complex>
 #include <cstdlib>
@@ -639,6 +638,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 		throw new uhd::runtime_error( "number of channels not consistent" );
 	}
 
+    //set the transmit sample rate
+    for( const auto& kv: input_stream_data.tx_sample_rate ) {
+		std::string chan = kv.first;
+		int chani = to[ chan ];
+
+		tx_rate = kv.second;
+		std::cout << boost::format("Setting TX Rate for Channel %s: %f Msps...") % chan % (tx_rate/1e6) << std::endl;
+	    tx_usrp->set_tx_rate( tx_rate, chani );
+
+	    tx_rate = tx_usrp->get_tx_rate();
+	    std::cout << boost::format("Actual TX Rate: %f Msps...") % ( tx_rate / 1e6 ) << std::endl;
+    }
+
     //set the transmit center frequency
     for( const auto& kv: input_stream_data.tx_center_freq ) {
 
@@ -652,19 +664,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         tx_freq = tx_usrp->get_tx_freq( chani );
         std::cout << boost::format("Actual TX Freq: %f MHz...") % ( tx_freq / 1e6 ) << std::endl;
-    }
-
-    //set the transmit sample rate
-    for( const auto& kv: input_stream_data.tx_sample_rate ) {
-		std::string chan = kv.first;
-		int chani = to[ chan ];
-
-		tx_rate = kv.second;
-		std::cout << boost::format("Setting TX Rate for Channel %s: %f Msps...") % chan % (tx_rate/1e6) << std::endl;
-	    tx_usrp->set_tx_rate( tx_rate, chani );
-
-	    tx_rate = tx_usrp->get_tx_rate();
-	    std::cout << boost::format("Actual TX Rate: %f Msps...") % ( tx_rate / 1e6 ) << std::endl;
     }
 
     //set the transmit gain
