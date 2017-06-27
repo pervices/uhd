@@ -1096,16 +1096,16 @@ private:
 
 
 			std::string buff_read;
-			do {
+			for( size_t n_flow_iface_timeouts = 0; n_flow_iface_timeouts < 20; n_flow_iface_timeouts++ ) {
 				txstream->_flow_iface -> poke_str("Read fifo");
-				buff_read = txstream->_flow_iface -> peek_str( 0.001 );
+				buff_read = txstream->_flow_iface -> peek_str( T / 2 );
 
 				if ( "TIMEOUT" == buff_read ) {
 					std::cout << "timeout reading fifo levels" << std::endl;
 					continue;
 				}
 				break;
-			} while( true );
+			}
 
 			buff_read.erase(0, 5); // remove "flow,"
 			std::stringstream ss(buff_read);
