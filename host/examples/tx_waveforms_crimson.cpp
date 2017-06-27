@@ -187,7 +187,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::stream_args_t stream_args("sc16", "sc16");
     for( size_t i = 0; i < channel_nums.size(); i++ ) {
         stream_args.channels = std::vector<size_t>{ channel_nums[ i ] };
+        std::cout << "Getting TX Streamer for Channel " << (char)('A' + channel_nums[ i ]) << std::endl;
         ctx[ i ].tx_stream = usrp->get_tx_stream(stream_args);
+        std::cout << "Got TX Streamer for Channel " << (char)('A' + channel_nums[ i ]) << std::endl;
     }
 
     //allocate a buffer which we re-use for each channel
