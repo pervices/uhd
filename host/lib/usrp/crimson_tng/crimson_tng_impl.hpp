@@ -18,6 +18,7 @@
 #ifndef INCLUDED_CRIMSON_TNG_IMPL_HPP
 #define INCLUDED_CRIMSON_TNG_IMPL_HPP
 
+#include <set>
 #include <vector>
 #include <thread>
 
@@ -55,13 +56,14 @@ public:
 
     inline double time_diff_get() { return _time_diff; }
     inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }
-    bool time_diff_converged() { return _time_diff_converged; }
+    bool time_diff_converged();
+    void start_bm();
 
     inline void set_multi( uhd::usrp::multi_crimson_tng *multi ) { _multi = multi; }
     inline uhd::usrp::multi_crimson_tng * get_multi() { return _multi; }
 
-    void bm_listener_add( const uhd::crimson_tng_tx_streamer *listener ) {}
-    void bm_listener_rem( const uhd::crimson_tng_tx_streamer *listener ) {}
+    void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
+    void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
 
 private:
     // helper functions to wrap send and recv as get and set
@@ -110,13 +112,14 @@ private:
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
     uhd::crimson_tng_iface::sptr _iface;
+    std::mutex _iface_lock;
 
 	/**
 	 * Clock Domain Synchronization Objects
 	 */
 
 	/// UDP endpoint that receives our Time Diff packets
-	uhd::transport::udp_simple::sptr _time_diff_iface;
+	uhd::transport::udp_stream::sptr _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -125,11 +128,11 @@ private:
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
-    double _time_diff = 0;
+    double _time_diff;
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
 	// this is only requires so that multi_crimson_tng devices get get the right time
-    uhd::usrp::multi_crimson_tng * _multi = NULL;
+    uhd::usrp::multi_crimson_tng * _multi;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
     void time_diff_process( const double pv, const uhd::time_spec_t & now );
 
@@ -137,11 +140,13 @@ private:
      * Buffer Management Objects
      */
 
-    std::vector<uhd::crimson_tng_tx_streamer> _bm_listeners;
+    std::set<uhd::crimson_tng_tx_streamer *> _bm_listeners;
 
 	crimson_tng_iface::sptr _bm_iface;
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	std::thread _bm_thread;
+	std::mutex _bm_thread_mutex;
+	bool _bm_thread_running;
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
 };

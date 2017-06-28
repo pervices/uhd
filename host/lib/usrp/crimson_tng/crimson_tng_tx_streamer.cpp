@@ -17,6 +17,10 @@
 
 #include "iputils.hpp"
 
+#ifdef DEBUG_TX
+#include <iostream>
+#endif
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE( x ) ((int)( sizeof( x ) / sizeof( (x)[ 0 ] ) ))
 #endif
@@ -208,9 +212,9 @@ size_t crimson_tng_tx_streamer::send(
 	for(
 		;
 		true
-#ifndef DEBUG_TX
-		&& get_time_now() > send_deadline
-#endif
+//#ifndef DEBUG_TX
+//		&& get_time_now() > send_deadline
+//#endif
 		&& samp_sent < nsamps_per_buff * _channels.size()
 		;
 	) {
@@ -391,11 +395,15 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 
 		std::string ch       = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
 		std::string udp_port = tree->access<std::string>(prop_path / "Channel_"+ch / "port").get();
+
 		std::stringstream udp_port_ss( udp_port );
+
 		uint16_t port;
 		udp_port_ss >> port;
+
 		std::string iface    = tree->access<std::string>(prop_path / "Channel_"+ch / "iface").get();
 		std::string ip_addr  = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
+
 		_pay_len = tree->access<int>(mb_path / "link" / sfp / "pay_len").get();
 
 		_if_mtu[ i ] = iputils::get_if_mtu( ip_addr );
@@ -421,10 +429,6 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 		fd = iputils::connect_udp( (sockaddr *) & local_addr, local_addr_len, (sockaddr *) & remote_addr, remote_addr_len );
 		_udp_socket.push_back( fd );
 
-		std::vector<uint32_t> *counter = new std::vector<uint32_t>();
-		counter->push_back(0);
-		counter->push_back(0);
-
 		const double nominal_sample_rate = _tree->access<double>( "/mboards/0/tx_dsps/Channel_" + ch + "/rate/value" ).get();
 		const double nominal_buffer_level_pcnt = 0.8;
 		_flow_control.push_back(
@@ -434,28 +438,6 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 				(size_t)CRIMSON_TNG_BUFF_SIZE
 			)
 		);
-	}
-
-	// XXX: kb 4034: (please remove at a later date)
-	// give crimson some settling time after enabling vita for jesd sync
-	sleep( 2 );
-
-	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
-	for(
-		time_spec_t time_then = uhd::time_spec_t::get_system_time(),
-			time_now = time_then
-			;
-		NULL == dev || dev->time_diff_converged()
-			;
-		time_now = uhd::time_spec_t::get_system_time()
-	) {
-		if ( (time_now - time_then).get_full_secs() > 20 ) {
-			UHD_MSG( error )
-				<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
-				<< std::endl;
-			throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
-		}
-		usleep( 100000 );
 	}
 }
 

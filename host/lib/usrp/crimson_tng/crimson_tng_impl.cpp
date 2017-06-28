@@ -24,7 +24,7 @@
 #include "crimson_tng_impl.hpp"
 
 #include "uhd/transport/if_addrs.hpp"
-#include "uhd/transport/udp_simple.hpp"
+#include "uhd/transport/udp_stream.hpp"
 #include "uhd/utils/msg.hpp"
 #include "uhd/utils/static.hpp"
 #include "uhd/utils/thread_priority.hpp"
@@ -64,8 +64,10 @@ void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char deli
 // base wrapper that calls the simple UDP interface to get messages to and from Crimson
 std::string crimson_tng_impl::get_string(std::string req) {
 
+	std::lock_guard<std::mutex> _lock( _iface_lock );
+
 	// format the string and poke (write)
-    	_iface -> poke_str("get," + req);
+    _iface -> poke_str("get," + req);
 
 	// peek (read) back the data
 	std::string ret = _iface -> peek_str();
@@ -74,6 +76,8 @@ std::string crimson_tng_impl::get_string(std::string req) {
 	else 			return ret;
 }
 void crimson_tng_impl::set_string(const std::string pre, std::string data) {
+
+	std::lock_guard<std::mutex> _lock( _iface_lock );
 
 	// format the string and poke (write)
 	_iface -> poke_str("set," + pre + "," + data);
@@ -213,9 +217,12 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 			\"sc16\" Q16 I16" << std::endl;
 	}
 
+	start_bm();
+
 	// TODO firmware support for other otw_format, cpu_format
 	crimson_tng_tx_streamer::sptr r( new uhd::crimson_tng_tx_streamer( this->_addr, this->_tree, args.channels ) );
 	r->set_device( static_cast<uhd::device *>( this ) );
+	bm_listener_add( (crimson_tng_tx_streamer *) r.get() );
 	return r;
 }
 
@@ -406,12 +413,7 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 		crimson_now
 	);
 
-	_time_diff_iface->send(
-		boost::asio::const_buffer(
-			(void *) &pkt,
-			sizeof( pkt )
-		)
-	);
+	_time_diff_iface->stream_out( &pkt, sizeof( pkt ) );
 }
 
 /// Extract time diff details from flow-control message string
@@ -445,6 +447,52 @@ void crimson_tng_impl::time_diff_process( const double pv, const uhd::time_spec_
 	if ( _time_diff_converged ) {
 		time_diff_set( cv );
 	}
+}
+
+void crimson_tng_impl::start_bm() {
+
+	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
+
+	if ( ! _bm_thread_running ) {
+		_bm_thread = std::thread( bm_thread_fn, this );
+		// XXX: kb 4034: (please remove at a later date)
+		// give crimson some settling time after enabling vita for jesd sync
+
+		for(
+			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
+				time_now = time_then
+				;
+			! time_diff_converged()
+				;
+			time_now = uhd::time_spec_t::get_system_time()
+		) {
+			if ( (time_now - time_then).get_full_secs() > 20 ) {
+				UHD_MSG( error )
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+					<< std::endl;
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+			}
+			usleep( 100000 );
+		}
+
+	}
+}
+
+bool crimson_tng_impl::time_diff_converged() {
+	return _time_diff_converged;
+}
+
+void crimson_tng_impl::bm_listener_add( uhd::crimson_tng_tx_streamer *listener ) {
+
+	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
+
+	_bm_listeners.insert( listener );
+}
+void crimson_tng_impl::bm_listener_rem( uhd::crimson_tng_tx_streamer *listener ) {
+
+	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
+
+	_bm_listeners.erase( listener );
 }
 
 // the buffer monitor thread
@@ -522,9 +570,11 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 
 		if ( dev->_time_diff_converged ) {
+			dev->_bm_thread_mutex.lock();
 			for( auto & l: dev->_bm_listeners ) {
-				l.on_buffer_level_read( fifo_lvl );
+				l->on_buffer_level_read( fifo_lvl );
 			}
+			dev->_bm_thread_mutex.unlock();
 		}
 #if 0
 			// XXX: overruns - we need to fix this
@@ -579,8 +629,11 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 :
+	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
-	_time_diff_converged( false )
+	_time_diff_converged( false ),
+	_time_diff( 0 ),
+	_multi( NULL )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
@@ -864,8 +917,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 
 	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
+	std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfpa" / "ip_addr" ).get();
 	std::string time_diff_port = std::to_string( sfpa_port );
-	_time_diff_iface = udp_simple::make_connected( _addr["addr"], time_diff_port );
+	_time_diff_iface = udp_stream::make_tx_stream( time_diff_ip, time_diff_port );
 
 	//Initialize "Time Diff" mechanism before starting flow control thread
 	time_spec_t ts = time_spec_t::get_system_time();
@@ -881,9 +935,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
 	);
 	_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
-
-	_bm_thread = std::thread( bm_thread_fn, this );
-
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)

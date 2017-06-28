@@ -74,6 +74,7 @@ static void thread_fn( thread_ctx *ctx ) {
  * Main function
  **********************************************************************/
 int UHD_SAFE_MAIN(int argc, char *argv[]){
+
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
@@ -261,7 +262,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //finished
-    std::cout << std::endl << "Done!" << std::endl << std::endl;
+    std::cout << std::endl << "Done @ " << usrp->get_time_now().get_real_secs() << std::endl;
     return EXIT_SUCCESS;
 }
 
