@@ -1,7 +1,7 @@
-#ifndef INCLUDED_UHD_UTILS_PIDC_TL_HPP
-#define INCLUDED_UHD_UTILS_PIDC_TL_HPP
+#ifndef PIDC_TL_HPP_
+#define PIDC_TL_HPP_
 
-#include <uhd/utils/pidc.hpp>
+#include "pidc.hpp"
 
 namespace uhd {
 
@@ -44,4 +44,4 @@ namespace uhd {
 
 } // namespace uhd
 
-#endif /* INCLUDED_UHD_UTILS_PIDC_HPP */
+#endif /* PIDC_TL_HPP_ */

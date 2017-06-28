@@ -6,9 +6,8 @@
 #include <boost/format.hpp>
 
 #include <uhd/exception.hpp>
-#include <uhd/utils/sma.hpp>
-
 #include "flow_control.hpp"
+#include "sma.hpp"
 
 namespace uhd {
 

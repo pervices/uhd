@@ -1,5 +1,5 @@
-#ifndef INCLUDED_UHD_UTILS_PIDC_HPP
-#define INCLUDED_UHD_UTILS_PIDC_HPP
+#ifndef PIDC_HPP_
+#define PIDC_HPP_
 
 #ifndef DEBUG_PIDC
 //#define DEBUG_PIDC 1
@@ -12,7 +12,7 @@
 #include <cmath>
 
 #include <uhd/types/time_spec.hpp>
-#include <uhd/utils/sma.hpp>
+#include "sma.hpp"
 
 namespace uhd {
 
@@ -232,4 +232,6 @@ namespace uhd {
 
 } // namespace uhd
 
-#endif /* INCLUDED_UHD_UTILS_PIDC_HPP */
+#include "pidc_tl.hpp"
+
+#endif /* PIDC_HPP_ */

@@ -18,50 +18,21 @@
 #ifndef INCLUDED_CRIMSON_TNG_IMPL_HPP
 #define INCLUDED_CRIMSON_TNG_IMPL_HPP
 
-#include <uhd/property_tree.hpp>
-#include <uhd/device.hpp>
-#include <uhd/usrp/mboard_eeprom.hpp>
-#include <uhd/usrp/dboard_manager.hpp>
-#include <uhd/usrp/dboard_eeprom.hpp>
-#include <uhd/usrp/subdev_spec.hpp>
-#include <uhd/types/sensors.hpp>
-#include <uhd/transport/udp_simple.hpp> //mtu
-#include <uhd/utils/tasks.hpp>
-#include <boost/weak_ptr.hpp>
-#include <uhd/usrp/gps_ctrl.hpp>
-#include <uhd/usrp/mboard_eeprom.hpp>
-#include <uhd/transport/bounded_buffer.hpp>
-#include <uhd/transport/nirio/niusrprio_session.h>
-#include <uhd/transport/vrt_if_packet.hpp>
-#include <uhd/types/wb_iface.hpp>
-#include <boost/asio.hpp>
-#include <uhd/stream.hpp>
-#include <uhd/types/metadata.hpp>
-#include <uhd/types/ranges.hpp>
-#include <uhd/usrp/multi_crimson_tng.hpp>
-#include "crimson_tng_fw_common.h"
-#include "crimson_tng_iface.hpp"
 #include <vector>
+#include <thread>
 
-static const double CRIMSON_TNG_DEFAULT_TICK_RATE          = 200e6;        //Hz
-static const double CRIMSON_TNG_BUS_CLOCK_RATE             = 166.666667e6; //Hz
+#include "uhd/device.hpp"
+#include "uhd/usrp/dboard_eeprom.hpp"
+#include "uhd/usrp/mboard_eeprom.hpp"
+#include "uhd/usrp/multi_crimson_tng.hpp"
 
-static const size_t CRIMSON_TNG_10GE_DATA_FRAME_MAX_SIZE   = 8000;     //bytes
-static const size_t CRIMSON_TNG_1GE_DATA_FRAME_MAX_SIZE    = 1472;     //bytes
-static const size_t CRIMSON_TNG_ETH_MSG_FRAME_SIZE         = uhd::transport::udp_simple::mtu;  //bytes
+#include "crimson_tng_iface.hpp"
+#include "crimson_tng_tx_streamer.hpp"
+#include "pidc.hpp"
 
-static const size_t CRIMSON_TNG_ETH_MSG_NUM_FRAMES         = 32;
-static const size_t CRIMSON_TNG_ETH_DATA_NUM_FRAMES        = 32;
-static const double CRIMSON_TNG_DEFAULT_SYSREF_RATE        = 10e6;
+namespace uhd {
+namespace usrp {
 
-static const size_t CRIMSON_TNG_MAX_RATE_10GIGE            = 800000000; // bytes/s
-static const size_t CRIMSON_TNG_MAX_RATE_1GIGE             = 100000000; // bytes/s
-
-uhd::wb_iface::sptr crimson_tng_make_ctrl_iface_enet(uhd::transport::udp_simple::sptr udp);
-
-/*******************************************************************
- * Crimson Device Implementation Class
- ******************************************************************/
 class crimson_tng_impl : public uhd::device
 {
 public:
@@ -82,11 +53,15 @@ public:
 
     uhd::device_addr_t _addr;
 
-    inline double get_time_diff() { return _time_diff; }
-    inline void set_time_diff( double time_diff ) { _time_diff = time_diff; }
+    inline double time_diff_get() { return _time_diff; }
+    inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }
+    bool time_diff_converged() { return _time_diff_converged; }
 
     inline void set_multi( uhd::usrp::multi_crimson_tng *multi ) { _multi = multi; }
     inline uhd::usrp::multi_crimson_tng * get_multi() { return _multi; }
+
+    void bm_listener_add( const uhd::crimson_tng_tx_streamer *listener ) {}
+    void bm_listener_rem( const uhd::crimson_tng_tx_streamer *listener ) {}
 
 private:
     // helper functions to wrap send and recv as get and set
@@ -134,14 +109,44 @@ private:
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
-    crimson_tng_iface::sptr _iface;
+    uhd::crimson_tng_iface::sptr _iface;
 
-    boost::mutex _udp_mutex;
-    boost::mutex _async_mutex;
-    std::vector<int> _async_comm;
+	/**
+	 * Clock Domain Synchronization Objects
+	 */
 
-    double _time_diff = 0; // measured in seconds
+	/// UDP endpoint that receives our Time Diff packets
+	uhd::transport::udp_simple::sptr _time_diff_iface;
+	/** PID controller that rejects differences between Crimson's clock and the host's clock.
+	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
+	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
+	 *  -> The Control Variable of the controller (the output) is the required compensation for the host
+	 *     such that the error is forced to zero.
+	 *     => Crimson Time Now := Host Time Now + CV
+	 */
+	uhd::pidc _time_diff_pidc;
+    double _time_diff = 0;
+	bool _time_diff_converged;
+	uhd::time_spec_t _streamer_start_time;
+	// this is only requires so that multi_crimson_tng devices get get the right time
     uhd::usrp::multi_crimson_tng * _multi = NULL;
+    void time_diff_send( const uhd::time_spec_t & crimson_now );
+    void time_diff_process( const double pv, const uhd::time_spec_t & now );
+
+    /**
+     * Buffer Management Objects
+     */
+
+    std::vector<uhd::crimson_tng_tx_streamer> _bm_listeners;
+
+	crimson_tng_iface::sptr _bm_iface;
+	// N.B: the _bm_thread is also used for clock domain synchronization
+	std::thread _bm_thread;
+	bool _bm_thread_should_exit;
+	static void bm_thread_fn( crimson_tng_impl *dev );
 };
+
+}
+}
 
 #endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
