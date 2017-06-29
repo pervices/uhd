@@ -182,6 +182,13 @@ size_t crimson_tng_tx_streamer::send(
 	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
 	dev->start_bm();
 
+	// workaround for current overflow issue
+	tx_metadata_t md = _metadata;
+	if ( _first_send && ! md.has_time_spec ) {
+		md.has_time_spec = true;
+		md.time_spec = get_time_now() + 1.0;
+	}
+
 	if (
 		true
 		&& false == _metadata.start_of_burst
@@ -195,9 +202,9 @@ size_t crimson_tng_tx_streamer::send(
 
 	for ( size_t i = 0; i < _channels.size(); i++ ) {
 		remaining_bytes[ i ] = nsamps_per_buff * sizeof( uint32_t );
-		metadata.push_back( _metadata );
-		if ( _metadata.has_time_spec ) {
-			_flow_control[ i ]->set_start_of_burst_time( _metadata.time_spec );
+		metadata.push_back( md );
+		if ( md.has_time_spec ) {
+			_flow_control[ i ]->set_start_of_burst_time( md.time_spec );
 		}
 	}
 
@@ -205,7 +212,7 @@ size_t crimson_tng_tx_streamer::send(
 
 	send_deadline = now;
 	send_deadline += timeout;
-	send_deadline += ( _metadata.has_time_spec ? _metadata.time_spec : 0.0 );
+	send_deadline += ( md.has_time_spec ? md.time_spec : 0.0 );
 
 	for(
 		;
@@ -331,6 +338,7 @@ size_t crimson_tng_tx_streamer::send(
 		}
 	}
 
+	_first_send = false;
 	return samp_sent / _channels.size();
 }
 

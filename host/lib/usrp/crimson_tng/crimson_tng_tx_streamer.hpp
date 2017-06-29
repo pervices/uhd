@@ -28,7 +28,8 @@ public:
 	:
 		_pay_len( 0 ),
 		_max_clock_ppm_error( 0.0 ),
-		_dev( NULL )
+		_dev( NULL ),
+		_first_send( true )
 	{
 		init_tx_streamer( addr, tree, channels );
 	}
@@ -89,6 +90,7 @@ private:
 	std::vector<uhd::flow_control::sptr> _flow_control;
 	double _max_clock_ppm_error;
 	uint32_t _vita_hdr_buf[ 16 ];
+	bool _first_send;
 
 	/// Store results of time diff in _crimson_tng_impl object
 	uhd::device *_dev;
