@@ -311,7 +311,6 @@ size_t crimson_tng_tx_streamer::send(
 					).str()
 				);
 			}
-			fsync( _udp_socket[ i ] );
 
 			//
 			// Update Flow Control
