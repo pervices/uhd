@@ -88,6 +88,7 @@ private:
 	std::vector<size_t> _if_mtu;
 	std::vector<uhd::flow_control::sptr> _flow_control;
 	double _max_clock_ppm_error;
+	uint32_t _vita_hdr_buf[ 16 ];
 
 	/// Store results of time diff in _crimson_tng_impl object
 	uhd::device *_dev;

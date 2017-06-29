@@ -170,7 +170,6 @@ size_t crimson_tng_tx_streamer::send(
 	size_t remaining_bytes[ _channels.size() ];
 	vrt::if_packet_info_t if_packet_info;
 
-
 	iovec iov[ 2 ];
 
 	// need r/w capabilities for 'has_time_spec'
@@ -179,8 +178,6 @@ size_t crimson_tng_tx_streamer::send(
 	uhd::time_spec_t now, then, dt;
 
 	uhd::time_spec_t send_deadline;
-
-	uint32_t tmp_buf[ vrt::max_if_hdr_words32 * sizeof( uint32_t ) ];
 
 	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
 	dev->start_bm();
@@ -234,7 +231,7 @@ size_t crimson_tng_tx_streamer::send(
 				remaining_bytes[ i ] / sizeof( uint32_t ),
 				CRIMSON_TNG_MAX_MTU / sizeof( uint32_t ),
 				_sample_count[ i ],
-				tmp_buf,
+				_vita_hdr_buf,
 				if_packet_info
 			);
 
@@ -290,7 +287,7 @@ size_t crimson_tng_tx_streamer::send(
 			// Send Data
 			//
 
-			iov[ 0 ].iov_base = tmp_buf;
+			iov[ 0 ].iov_base = _vita_hdr_buf;
 			iov[ 0 ].iov_len = if_packet_info.num_header_words32 * sizeof( uint32_t );
 			iov[ 1 ].iov_base = & ( (uint8_t *)buffs[ i ] )[ sample_byte_offs ];
 			iov[ 1 ].iov_len = if_packet_info.num_payload_bytes;
