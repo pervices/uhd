@@ -58,6 +58,7 @@ public:
     inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }
     bool time_diff_converged();
     void start_bm();
+    void stop_bm();
 
     inline void set_multi( uhd::usrp::multi_crimson_tng *multi ) { _multi = multi; }
     inline uhd::usrp::multi_crimson_tng * get_multi() { return _multi; }

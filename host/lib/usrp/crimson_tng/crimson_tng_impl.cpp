@@ -15,6 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <iostream>
+
 #include <boost/assign.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -454,9 +456,15 @@ void crimson_tng_impl::start_bm() {
 	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
 
 	if ( ! _bm_thread_running ) {
+
+		std::cout << "Starting Buffer Management Thread.." << std::endl;
+
+		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
 		// XXX: kb 4034: (please remove at a later date)
 		// give crimson some settling time after enabling vita for jesd sync
+
+		std::cout << "Buffer Management Thread started, waiting for convergence.." << std::endl;
 
 		for(
 			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
@@ -475,6 +483,17 @@ void crimson_tng_impl::start_bm() {
 			usleep( 100000 );
 		}
 
+		std::cout << "Buffer Management Thread converged" << std::endl;
+	}
+}
+
+void crimson_tng_impl::stop_bm() {
+
+	if ( _bm_thread_running ) {
+		std::cout << "Stopping Buffer Management Thread.." << std::endl;
+		_bm_thread_should_exit = true;
+		_bm_thread.join();
+		std::cout << "Buffer Management Thread stopped" << std::endl;
 	}
 }
 
@@ -497,6 +516,8 @@ void crimson_tng_impl::bm_listener_rem( uhd::crimson_tng_tx_streamer *listener )
 
 // the buffer monitor thread
 void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
+
+	dev->_bm_thread_running = true;
 
 	uhd::set_thread_priority_safe();
 
@@ -547,13 +568,13 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			buff_read = dev->_bm_iface->peek_str( T.get_real_secs() / 2 );
 
 			if ( "TIMEOUT" == buff_read ) {
-				//std::cout << "timeout reading fifo levels" << std::endl;
+				std::cout << "timeout reading fifo levels" << std::endl;
 				continue;
 			}
 			break;
 		}
 		if ( "TIMEOUT" == buff_read ) {
-			//std::cout << "Maximum number of timeouts reached reading fifo levels" << std::endl;
+			std::cout << "Maximum number of timeouts reached reading fifo levels" << std::endl;
 			then = now;
 			continue;
 		}
@@ -587,6 +608,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			}
 #endif
 	}
+	dev->_bm_thread_running = false;
 }
 
 /***********************************************************************
@@ -935,6 +957,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
 	);
 	_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+
+	start_bm();
+	stop_bm();
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)
