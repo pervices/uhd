@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "uhd/utils/sma.hpp"
+#include "../lib/usrp/crimson_tng/sma.hpp"
 
 BOOST_AUTO_TEST_CASE( test_W16_N0 ) {
 	uhd::sma sma;

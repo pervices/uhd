@@ -357,7 +357,6 @@ multi_crimson_tng::multi_crimson_tng(const device_addr_t &addr) {
     // this make will invoke the correct inherited crimson device class
     _dev  = device::make(addr, device::CRIMSON_TNG);
     crimson_tng_impl::sptr dev_impl = boost::static_pointer_cast<crimson_tng_impl>( _dev );
-    dev_impl->set_multi( this );
     _tree = _dev  -> get_tree();
 }
 
@@ -488,7 +487,7 @@ static bool printed_get_time_now;
 // Get the current time on Crimson
 time_spec_t multi_crimson_tng::get_time_now(size_t mboard){
 	crimson_tng_impl::sptr dev = boost::static_pointer_cast<crimson_tng_impl>( _dev );
-	double diff = NULL == dev.get() ? 0 : dev.get()->get_time_diff();
+	double diff = NULL == dev.get() ? 0 : dev.get()->time_diff_get();
 	if ( ! printed_get_time_now ) {
 		if ( NULL != dev.get() ) {
 			std::cout << "time diff is " << diff << std::endl;

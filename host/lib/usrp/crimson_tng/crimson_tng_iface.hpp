@@ -27,6 +27,8 @@
 #include <string>
 #include "crimson_tng_fw_common.h"
 
+namespace uhd {
+
 /*!
  * The crimson_tng interface class:
  * Provides a set of functions to UDP implementation layer.
@@ -69,5 +71,7 @@ private:
     // buffer for in and out
     char _buff[ CRIMSON_TNG_MAX_MTU ];
 };
+
+}
 
 #endif /* INCLUDED_CRIMSON_TNG_IFACE_HPP */

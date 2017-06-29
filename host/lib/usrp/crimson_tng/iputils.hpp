@@ -220,6 +220,17 @@ public:
 
 		return fd;
 	}
+
+	static uint32_t get_if_mtu( const std::string & remote_addr ) {
+
+		std::string iface;
+		std::string local_addr;
+
+		get_route( remote_addr, iface, local_addr );
+		size_t mtu = get_mtu( iface );
+
+		return mtu;
+	}
 };
 
 }

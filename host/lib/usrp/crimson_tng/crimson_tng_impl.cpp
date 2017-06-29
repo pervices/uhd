@@ -15,30 +15,30 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <boost/algorithm/string.hpp>
+#ifndef DEBUG_BM
+#define DEBUG_BM 1
+#endif
+
+#ifdef DEBUG_BM
+#include <iostream>
+#endif
+
+#include <boost/assign.hpp>
 #include <boost/asio.hpp>
-#include "apply_corrections.hpp"
-#include <uhd/utils/static.hpp>
-#include <uhd/utils/msg.hpp>
-#include <uhd/utils/images.hpp>
-#include <uhd/utils/safe_call.hpp>
-#include <uhd/usrp/subdev_spec.hpp>
-#include <uhd/transport/if_addrs.hpp>
-#include <boost/foreach.hpp>
 #include <boost/bind.hpp>
-#include <boost/functional/hash.hpp>
-#include <boost/assign/list_of.hpp>
-#include <boost/thread/mutex.hpp>
-#include <fstream>
-#include <uhd/transport/udp_zero_copy.hpp>
-#include <uhd/transport/udp_constants.hpp>
-#include <uhd/transport/nirio_zero_copy.hpp>
-#include <uhd/transport/nirio/niusrprio_session.h>
-#include <uhd/utils/platform.hpp>
-#include <string>
-#include <vector>
-#include <uhd/types/ranges.hpp>
+#include <boost/foreach.hpp>
+#include <boost/endian/buffers.hpp>
+
 #include "crimson_tng_impl.hpp"
+
+#include "uhd/transport/if_addrs.hpp"
+#include "uhd/transport/udp_stream.hpp"
+#include "uhd/utils/msg.hpp"
+#include "uhd/utils/static.hpp"
+#include "uhd/utils/thread_priority.hpp"
+
+#include "crimson_tng_rx_streamer.hpp"
+#include "crimson_tng_tx_streamer.hpp"
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -71,20 +71,21 @@ void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char deli
 
 // base wrapper that calls the simple UDP interface to get messages to and from Crimson
 std::string crimson_tng_impl::get_string(std::string req) {
-	this->_udp_mutex.lock();
+
+	std::lock_guard<std::mutex> _lock( _iface_lock );
 
 	// format the string and poke (write)
-    	_iface -> poke_str("get," + req);
+    _iface -> poke_str("get," + req);
 
 	// peek (read) back the data
 	std::string ret = _iface -> peek_str();
 
-	this->_udp_mutex.unlock();
 	if (ret == "TIMEOUT") 	throw uhd::runtime_error("crimson_tng_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
 void crimson_tng_impl::set_string(const std::string pre, std::string data) {
-	this->_udp_mutex.lock();
+
+	std::lock_guard<std::mutex> _lock( _iface_lock );
 
 	// format the string and poke (write)
 	_iface -> poke_str("set," + pre + "," + data);
@@ -92,7 +93,6 @@ void crimson_tng_impl::set_string(const std::string pre, std::string data) {
 	// peek (read) anyways for error check, since Crimson will reply back
 	std::string ret = _iface -> peek_str();
 
-	this->_udp_mutex.unlock();
 	if (ret == "TIMEOUT" || ret == "ERROR")
 		throw uhd::runtime_error("crimson_tng_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
 	else
@@ -208,6 +208,50 @@ void crimson_tng_impl::set_time_spec(const std::string pre, time_spec_t data) {
 	return;
 }
 
+
+/***********************************************************************
+ * Transmit streamer
+ **********************************************************************/
+tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args){
+	// Crimson currently only supports cpu_format of "sc16" (complex<int16_t>) stream
+	if (strcmp(args.cpu_format.c_str(), "sc16") != 0 && strcmp(args.cpu_format.c_str(), "") != 0 ) {
+		UHD_MSG(error) << "CRIMSON_TNG Stream only supports cpu_format of \
+			\"sc16\" complex<int16_t>" << std::endl;
+	}
+
+	// Crimson currently only supports (over the wire) otw_format of "sc16" - Q16 I16 if specified
+	if (strcmp(args.otw_format.c_str(), "sc16") != 0 && strcmp(args.otw_format.c_str(), "") != 0 ) {
+		UHD_MSG(error) << "CRIMSON_TNG Stream only supports otw_format of \
+			\"sc16\" Q16 I16" << std::endl;
+	}
+
+	// TODO firmware support for other otw_format, cpu_format
+	crimson_tng_tx_streamer::sptr r( new uhd::crimson_tng_tx_streamer( this->_addr, this->_tree, args.channels ) );
+	r->set_device( static_cast<uhd::device *>( this ) );
+	bm_listener_add( (crimson_tng_tx_streamer *) r.get() );
+	return r;
+}
+
+/***********************************************************************
+ * Receive streamer
+ **********************************************************************/
+rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args){
+	// Crimson currently only supports cpu_format of "sc16" (complex<int16_t>) stream
+	if (strcmp(args.cpu_format.c_str(), "sc16") != 0 && strcmp(args.cpu_format.c_str(), "") != 0 ) {
+		UHD_MSG(error) << "CRIMSON_TNG Stream only supports cpu_format of \
+			\"sc16\" complex<int16_t>" << std::endl;
+	}
+
+	// Crimson currently only supports (over the wire) otw_format of "sc16" - Q16 I16 if specified
+	if (strcmp(args.otw_format.c_str(), "sc16") != 0 && strcmp(args.otw_format.c_str(), "") != 0 ) {
+		UHD_MSG(error) << "CRIMSON_TNG Stream only supports otw_format of \
+			\"sc16\" Q16 I16" << std::endl;
+	}
+
+	// TODO firmware support for other otw_format, cpu_format
+	return rx_streamer::sptr( new crimson_tng_rx_streamer( this->_addr, this->_tree, args.channels ) );
+}
+
 /***********************************************************************
  * Discovery over the udp transport
  **********************************************************************/
@@ -313,11 +357,12 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
 
     if (!hint.has_key("resource"))
     {
-        //otherwise, no address was specified, send a broadcast on each interface
-        BOOST_FOREACH(const if_addrs_t &if_addrs, get_if_addrs())
+        for( auto & if_addrs: get_if_addrs() )
         {
             //avoid the loopback device
-            if (if_addrs.inet == asio::ip::address_v4::loopback().to_string()) continue;
+            if ( asio::ip::address_v4::loopback().to_string() == if_addrs.inet ) {
+            	continue;
+            }
 
             //create a new hint with this broadcast address
             device_addr_t new_hint = hint;
@@ -330,6 +375,300 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
     }
 
     return addrs;
+}
+
+/**
+ * Buffer Management / Time Diff
+ */
+
+// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
+static constexpr double tick_period_ns = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE * 1e9;
+static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
+	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
+}
+static inline int64_t nsecs_to_ticks( int64_t tv_nsec ) {
+	return (int64_t)( (double) tv_nsec / tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
+}
+
+#pragma pack(push,1)
+struct time_diff_packet {
+	uint64_t header; // 1 for time diff
+	int64_t tv_sec;
+	int64_t tv_tick;
+};
+#pragma pack(pop)
+
+static inline void make_time_diff_packet( time_diff_packet & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
+	pkt.header = 1;
+	pkt.tv_sec = ts.get_full_secs();
+	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
+
+	boost::endian::native_to_big_inplace( pkt.header );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+}
+
+/// SoB Time Diff: send sync packet (must be done before reading flow iface)
+void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
+
+	time_diff_packet pkt;
+
+	// Input to Process (includes feedback from PID Controller)
+	make_time_diff_packet(
+		pkt,
+		crimson_now
+	);
+
+	_time_diff_iface->stream_out( &pkt, sizeof( pkt ) );
+}
+
+/// Extract time diff details from flow-control message string
+static inline double time_diff_extract( std::stringstream &ss ) {
+
+	// note: requires position of stringstream to be at beginning of time diff
+
+	int64_t tv_sec;
+	int64_t tv_tick;
+	uint64_t tmp;
+	ss >> std::hex >> tmp;
+	tv_sec = (int64_t) tmp;
+	ss.ignore();
+	ss >> std::hex >> tmp;
+	tv_tick = (int64_t) tmp;
+
+	// Output from Process (fed back into PID controller)
+	double pv = (double)tv_sec + (double)ticks_to_nsecs( tv_tick ) / 1e9;
+
+	return pv;
+}
+
+/// SoB Time Diff: feed the time diff error back into out control system
+void crimson_tng_impl::time_diff_process( const double pv, const uhd::time_spec_t & now ) {
+
+	static const double sp = 0.0;
+	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
+	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
+
+	// For SoB, record the instantaneous time difference + compensation
+	if ( _time_diff_converged ) {
+		time_diff_set( cv );
+	}
+}
+
+static void print_bm_starting() {
+#ifdef DEBUG_BM
+		std::cout << "Starting Buffer Management Thread.." << std::endl;
+#endif
+}
+
+static void print_bm_started() {
+#ifdef DEBUG_BM
+		std::cout << "Buffer Management Thread started, waiting for convergence.." << std::endl;
+#endif
+}
+
+static void print_bm_converged() {
+#ifdef DEBUG_BM
+	std::cout << "Buffer Management Thread converged" << std::endl;
+#endif
+}
+
+static void print_bm_stopping() {
+#ifdef DEBUG_BM
+		std::cout << "Stopping Buffer Management Thread.." << std::endl;
+#endif
+}
+
+static void print_bm_stopped() {
+#ifdef DEBUG_BM
+		std::cout << "Buffer Management Thread stopped" << std::endl;
+#endif
+}
+
+static void print_bm_fifo_timeout() {
+#ifdef DEBUG_BM
+	std::cout << "timeout reading fifo levels" << std::endl;
+#endif
+}
+
+static void print_bm_fifo_max_timeout() {
+#ifdef DEBUG_BM
+	std::cout << "Maximum number of timeouts reached reading fifo levels" << std::endl;
+#endif
+}
+
+static void print_bm_exception() {
+#ifdef DEBUG_BM
+	std::cout << "Caught an exception in the Buffer Management Thread!" << std::endl;
+#endif
+}
+
+void crimson_tng_impl::start_bm() {
+
+	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
+
+	if ( ! _bm_thread_running ) {
+
+		print_bm_starting();
+
+		_bm_thread_should_exit = false;
+		_bm_thread = std::thread( bm_thread_fn, this );
+		// XXX: kb 4034: (please remove at a later date)
+		// give crimson some settling time after enabling vita for jesd sync
+
+		print_bm_started();
+
+		for(
+			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
+				time_now = time_then
+				;
+			! time_diff_converged()
+				;
+			time_now = uhd::time_spec_t::get_system_time()
+		) {
+			if ( (time_now - time_then).get_full_secs() > 20 ) {
+				UHD_MSG( error )
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+					<< std::endl;
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+			}
+			usleep( 100000 );
+		}
+
+		print_bm_converged();
+	}
+}
+
+void crimson_tng_impl::stop_bm() {
+
+	if ( _bm_thread_running ) {
+
+		print_bm_stopping();
+
+		_bm_thread_should_exit = true;
+		_bm_thread.join();
+
+		print_bm_stopped();
+
+	}
+}
+
+bool crimson_tng_impl::time_diff_converged() {
+	return _time_diff_converged;
+}
+
+void crimson_tng_impl::bm_listener_add( uhd::crimson_tng_tx_streamer *listener ) {
+
+	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
+
+	_bm_listeners.insert( listener );
+}
+void crimson_tng_impl::bm_listener_rem( uhd::crimson_tng_tx_streamer *listener ) {
+
+	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
+
+	_bm_listeners.erase( listener );
+}
+
+// the buffer monitor thread
+void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
+
+	dev->_bm_thread_running = true;
+
+	uhd::set_thread_priority_safe();
+
+	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
+	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS );
+	uhd::time_spec_t now, then, dt;
+	uhd::time_spec_t crimson_now;
+	struct timespec req, rem;
+
+	double time_diff;
+
+	for(
+		now = uhd::time_spec_t::get_system_time(),
+			then = now + T
+			;
+
+		! dev->_bm_thread_should_exit
+			;
+
+		then += T,
+			now = uhd::time_spec_t::get_system_time()
+	) {
+
+		dt = then - now;
+		if ( dt > 100e-6 ) {
+			dt -= 30e-6;
+			req.tv_sec = dt.get_full_secs();
+			req.tv_nsec = dt.get_frac_secs() * 1e9;
+			nanosleep( &req, &rem );
+		}
+		for(
+			now = uhd::time_spec_t::get_system_time();
+			now < then;
+			now = uhd::time_spec_t::get_system_time()
+		) {
+			// nop
+			asm __volatile__( "" );
+		}
+
+		time_diff = dev->_time_diff_pidc.get_control_variable();
+		crimson_now = now + time_diff;
+		dev->time_diff_send( crimson_now );
+
+
+		std::string buff_read;
+		for( size_t n_flow_iface_timeouts = 0; n_flow_iface_timeouts < 20; n_flow_iface_timeouts++ ) {
+			dev->_bm_iface -> poke_str("Read fifo");
+			buff_read = dev->_bm_iface->peek_str( T.get_real_secs() / 2 );
+
+			if ( "TIMEOUT" == buff_read ) {
+
+				print_bm_fifo_timeout();
+
+				continue;
+			}
+			break;
+		}
+		if ( "TIMEOUT" == buff_read ) {
+
+			print_bm_fifo_max_timeout();
+
+			then = now;
+			continue;
+		}
+
+		buff_read.erase(0, 5); // remove "flow,"
+		std::stringstream ss(buff_read);
+		for ( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
+			ss >> fifo_lvl[ j ];
+			ss.ignore(); // skip ','
+		}
+
+		time_diff = time_diff_extract( ss );
+		dev->time_diff_process( time_diff, now );
+
+
+		if ( dev->_time_diff_converged ) {
+			dev->_bm_thread_mutex.lock();
+			for( auto & l: dev->_bm_listeners ) {
+				l->on_buffer_level_read( fifo_lvl );
+			}
+			dev->_bm_thread_mutex.unlock();
+		}
+#if 0
+			// XXX: overruns - we need to fix this
+			now = uhd::time_spec_t::get_system_time();
+
+			if ( now >= then + T ) {
+				UHD_MSG( warning )
+					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
+					<< std::endl;
+			}
+#endif
+	}
+	dev->_bm_thread_running = false;
 }
 
 /***********************************************************************
@@ -371,14 +710,23 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
+:
+	_bm_thread_running( false ),
+	_bm_thread_should_exit( false ),
+	_time_diff_converged( false ),
+	_time_diff( 0 )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
     _addr = dev_addr;
 
     // Makes the UDP comm connection
-    _iface = crimson_tng_iface::make( udp_simple::make_connected(
-    			dev_addr["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT)) );
+    _iface = crimson_tng_iface::make(
+		udp_simple::make_connected(
+			dev_addr["addr"],
+			BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
+		)
+    );
 
     // TODO make transports for each RX/TX chain
     // TODO check if locked already
@@ -639,10 +987,48 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
 	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
 	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
+
+	// setup the flow control UDP channel
+	_bm_iface = crimson_tng_iface::make(
+		udp_simple::make_connected(
+			_addr["addr"],
+			BOOST_STRINGIZE(CRIMSON_TNG_FLOW_CNTRL_UDP_PORT)
+		)
+	);
+
+	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
+	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
+	std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfpa" / "ip_addr" ).get();
+	std::string time_diff_port = std::to_string( sfpa_port );
+	_time_diff_iface = udp_stream::make_tx_stream( time_diff_ip, time_diff_port );
+
+	//Initialize "Time Diff" mechanism before starting flow control thread
+	time_spec_t ts = time_spec_t::get_system_time();
+	_streamer_start_time = ts.get_real_secs();
+	// The problem is that this class does not hold a multi_crimson instance
+	_tree->access<time_spec_t>( time_path / "now" ).set( ts );
+
+	// Tyreus-Luyben tuned PID controller
+	_time_diff_pidc = uhd::pidc_tl(
+		0.0, // desired set point is 0.0s error
+		1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+		// measured P-ultimate is inverse of 1/2 the flow-control sample rate
+		2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+	);
+	_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+
+	start_bm();
+	stop_bm();
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
     // TODO send commands to mute all radio chains, mute everything
     // unlock the Crimson device to this process
+}
+
+bool crimson_tng_impl::recv_async_msg( uhd::async_metadata_t &async_metadata, double timeout ) {
+	boost::ignore_unused( async_metadata );
+	boost::ignore_unused( timeout );
+	return false;
 }

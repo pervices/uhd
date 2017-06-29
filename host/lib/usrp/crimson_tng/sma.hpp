@@ -1,6 +1,8 @@
 #ifndef INCLUDED_UHD_UTILS_SMA_HPP
 #define INCLUDED_UHD_UTILS_SMA_HPP
 
+#include <cstddef>
+
 #include <deque>
 
 namespace uhd {
