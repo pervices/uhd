@@ -143,11 +143,9 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 
 time_spec_t crimson_tng_tx_streamer::get_time_now() {
 	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
-	if ( NULL == dev || NULL == dev->get_multi() ) {
-		return time_spec_t::get_system_time();
-	} else {
-		return dev->get_multi()->get_time_now();
-	}
+	uhd::time_spec_t r = uhd::time_spec_t::get_system_time();
+	r += NULL == dev ? 0.0 : dev->time_diff_get();
+	return r;
 }
 
 void crimson_tng_tx_streamer::set_device( uhd::device *dev ) {
@@ -184,6 +182,9 @@ size_t crimson_tng_tx_streamer::send(
 
 	uint32_t tmp_buf[ vrt::max_if_hdr_words32 * sizeof( uint32_t ) ];
 
+	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
+	dev->start_bm();
+
 	if (
 		true
 		&& false == _metadata.start_of_burst
@@ -212,9 +213,7 @@ size_t crimson_tng_tx_streamer::send(
 	for(
 		;
 		true
-//#ifndef DEBUG_TX
-//		&& get_time_now() > send_deadline
-//#endif
+		&& get_time_now() < send_deadline
 		&& samp_sent < nsamps_per_buff * _channels.size()
 		;
 	) {

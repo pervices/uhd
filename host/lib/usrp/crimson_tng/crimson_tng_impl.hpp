@@ -60,9 +60,6 @@ public:
     void start_bm();
     void stop_bm();
 
-    inline void set_multi( uhd::usrp::multi_crimson_tng *multi ) { _multi = multi; }
-    inline uhd::usrp::multi_crimson_tng * get_multi() { return _multi; }
-
     void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
     void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
 
@@ -132,8 +129,6 @@ private:
     double _time_diff;
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
-	// this is only requires so that multi_crimson_tng devices get get the right time
-    uhd::usrp::multi_crimson_tng * _multi;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
     void time_diff_process( const double pv, const uhd::time_spec_t & now );
 

@@ -55,6 +55,8 @@ struct thread_ctx {
 
 static void thread_fn( thread_ctx *ctx ) {
 
+	uhd::set_thread_priority_safe();
+
 	std::vector<std::complex<int16_t> *> buffs( 1, (std::complex<int16_t> *) & ctx->buff->front() );
 
 	while( ! ctx->should_exit ) {
@@ -74,8 +76,6 @@ static void thread_fn( thread_ctx *ctx ) {
  * Main function
  **********************************************************************/
 int UHD_SAFE_MAIN(int argc, char *argv[]){
-
-    uhd::set_thread_priority_safe();
 
     //variables to be set by po
     std::string args, wave_type, ant, subdev, ref, otw, channel_list;
@@ -197,22 +197,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) spb = ctx[ 0 ].tx_stream->get_max_num_samps()*10;
     std::vector<std::complex<int16_t> > buff(spb);
 
-    uhd::time_spec_t sob_time( usrp->get_time_now().get_real_secs() + sob );
-
     for( auto &_ctx: ctx ) {
     	_ctx.buff = & buff;
-
-        //setup the metadata flags
-        _ctx.md.start_of_burst = true;
-        _ctx.md.end_of_burst   = false;
-
-        if ( 0 == sob ) {
-        	_ctx.md.has_time_spec = false;
-        } else {
-        	_ctx.md.has_time_spec = true;
-        	_ctx.md.time_spec = sob_time;
-        }
-
     }
 
     //std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
@@ -245,6 +231,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //fill the buffer with the waveform
     for (size_t n = 0; n < buff.size(); n++){
         buff[n] = wave_table(index += step);
+    }
+
+    uhd::tx_metadata_t md;
+    uhd::time_spec_t sob_time = usrp->get_time_now() + sob;
+    md.start_of_burst = true;
+    md.end_of_burst = false;
+    if ( 0 == sob ) {
+    	md.has_time_spec = false;
+    } else {
+    	md.has_time_spec = true;
+    	md.time_spec = sob_time;
+    }
+    for( auto & _ctx: ctx ) {
+    	_ctx.md = md;
     }
 
     for ( size_t i = 0; i < ctx.size(); i++ ) {

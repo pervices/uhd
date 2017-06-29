@@ -15,7 +15,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#ifndef DEBUG_BM
+#define DEBUG_BM 1
+#endif
+
+#ifdef DEBUG_BM
 #include <iostream>
+#endif
 
 #include <boost/assign.hpp>
 #include <boost/asio.hpp>
@@ -218,8 +224,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 		UHD_MSG(error) << "CRIMSON_TNG Stream only supports otw_format of \
 			\"sc16\" Q16 I16" << std::endl;
 	}
-
-	start_bm();
 
 	// TODO firmware support for other otw_format, cpu_format
 	crimson_tng_tx_streamer::sptr r( new uhd::crimson_tng_tx_streamer( this->_addr, this->_tree, args.channels ) );
@@ -451,20 +455,68 @@ void crimson_tng_impl::time_diff_process( const double pv, const uhd::time_spec_
 	}
 }
 
+static void print_bm_starting() {
+#ifdef DEBUG_BM
+		std::cout << "Starting Buffer Management Thread.." << std::endl;
+#endif
+}
+
+static void print_bm_started() {
+#ifdef DEBUG_BM
+		std::cout << "Buffer Management Thread started, waiting for convergence.." << std::endl;
+#endif
+}
+
+static void print_bm_converged() {
+#ifdef DEBUG_BM
+	std::cout << "Buffer Management Thread converged" << std::endl;
+#endif
+}
+
+static void print_bm_stopping() {
+#ifdef DEBUG_BM
+		std::cout << "Stopping Buffer Management Thread.." << std::endl;
+#endif
+}
+
+static void print_bm_stopped() {
+#ifdef DEBUG_BM
+		std::cout << "Buffer Management Thread stopped" << std::endl;
+#endif
+}
+
+static void print_bm_fifo_timeout() {
+#ifdef DEBUG_BM
+	std::cout << "timeout reading fifo levels" << std::endl;
+#endif
+}
+
+static void print_bm_fifo_max_timeout() {
+#ifdef DEBUG_BM
+	std::cout << "Maximum number of timeouts reached reading fifo levels" << std::endl;
+#endif
+}
+
+static void print_bm_exception() {
+#ifdef DEBUG_BM
+	std::cout << "Caught an exception in the Buffer Management Thread!" << std::endl;
+#endif
+}
+
 void crimson_tng_impl::start_bm() {
 
 	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
 
 	if ( ! _bm_thread_running ) {
 
-		std::cout << "Starting Buffer Management Thread.." << std::endl;
+		print_bm_starting();
 
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
 		// XXX: kb 4034: (please remove at a later date)
 		// give crimson some settling time after enabling vita for jesd sync
 
-		std::cout << "Buffer Management Thread started, waiting for convergence.." << std::endl;
+		print_bm_started();
 
 		for(
 			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
@@ -483,17 +535,21 @@ void crimson_tng_impl::start_bm() {
 			usleep( 100000 );
 		}
 
-		std::cout << "Buffer Management Thread converged" << std::endl;
+		print_bm_converged();
 	}
 }
 
 void crimson_tng_impl::stop_bm() {
 
 	if ( _bm_thread_running ) {
-		std::cout << "Stopping Buffer Management Thread.." << std::endl;
+
+		print_bm_stopping();
+
 		_bm_thread_should_exit = true;
 		_bm_thread.join();
-		std::cout << "Buffer Management Thread stopped" << std::endl;
+
+		print_bm_stopped();
+
 	}
 }
 
@@ -568,13 +624,17 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			buff_read = dev->_bm_iface->peek_str( T.get_real_secs() / 2 );
 
 			if ( "TIMEOUT" == buff_read ) {
-				std::cout << "timeout reading fifo levels" << std::endl;
+
+				print_bm_fifo_timeout();
+
 				continue;
 			}
 			break;
 		}
 		if ( "TIMEOUT" == buff_read ) {
-			std::cout << "Maximum number of timeouts reached reading fifo levels" << std::endl;
+
+			print_bm_fifo_max_timeout();
+
 			then = now;
 			continue;
 		}
@@ -654,8 +714,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_time_diff_converged( false ),
-	_time_diff( 0 ),
-	_multi( NULL )
+	_time_diff( 0 )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;

@@ -357,9 +357,6 @@ multi_crimson_tng::multi_crimson_tng(const device_addr_t &addr) {
     // this make will invoke the correct inherited crimson device class
     _dev  = device::make(addr, device::CRIMSON_TNG);
     crimson_tng_impl::sptr dev_impl = boost::static_pointer_cast<crimson_tng_impl>( _dev );
-    // XXX: This is bound to fail. The user application gets the one smart pointer that
-    // should refer to this, so if we give out a pointer to dev_impl, it will eventually become invalid!!!
-    dev_impl->set_multi( this );
     _tree = _dev  -> get_tree();
 }
 
