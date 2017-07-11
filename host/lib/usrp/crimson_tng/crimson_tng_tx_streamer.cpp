@@ -182,13 +182,6 @@ size_t crimson_tng_tx_streamer::send(
 	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
 	dev->start_bm();
 
-	// workaround for current overflow issue
-	tx_metadata_t md = _metadata;
-	if ( _first_send && ! md.has_time_spec ) {
-		md.has_time_spec = true;
-		md.time_spec = get_time_now() + 1.0;
-	}
-
 	if (
 		true
 		&& false == _metadata.start_of_burst
@@ -198,6 +191,20 @@ size_t crimson_tng_tx_streamer::send(
 		// empty end-of-burst packet signals tx_streamer to stop
 		fini_tx_streamer();
 		return 0;
+	}
+
+	tx_metadata_t md = _metadata;
+	if ( _first_send && _sob_arg > 0.0 ) {
+		md.has_time_spec = true;
+		md.time_spec = get_time_now() + _sob_arg;
+		//std::cout << "sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
+	}
+	// XXX: @CF: workaround for current overflow issue
+	// found that when SoB was zero, buffer level did not get up to set point. 
+	// suggested a minimal SoB to pre-fill the buffer.
+	if ( _first_send && ! md.has_time_spec ) {
+		md.has_time_spec = true;
+		md.time_spec = get_time_now() + 1.0;
 	}
 
 	for ( size_t i = 0; i < _channels.size(); i++ ) {
@@ -377,6 +384,13 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 			bs.set( ch );
 		}
 		tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( bs.to_ulong() );
+	}
+
+	if ( addr.has_key( "sob_s" )  ) {
+		//std::cout << "_sob_s=" << addr[ "sob_s" ] << std::endl;
+		double d = std::atof( addr[ "sob_s" ].c_str() );
+		_sob_arg = d >= 0.0 ? d : 0.0;
+		//std::cout << "set _sob_arg = " << _sob_arg << " s" << std::endl;
 	}
 
 	//Set up constants
