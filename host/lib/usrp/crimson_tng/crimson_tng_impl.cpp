@@ -1043,9 +1043,5 @@ crimson_tng_impl::~crimson_tng_impl(void)
 bool crimson_tng_impl::recv_async_msg( uhd::async_metadata_t &async_metadata, double timeout ) {
 	boost::ignore_unused( async_metadata );
 	boost::ignore_unused( timeout );
-
-	UHD_MSG( status ) << __func__ << "() called" << std::endl;
-	// would I typically call standard_async_msg_prints() here??
-
 	return false;
 }
