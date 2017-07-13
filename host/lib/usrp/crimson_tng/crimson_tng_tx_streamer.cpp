@@ -181,6 +181,7 @@ size_t crimson_tng_tx_streamer::send(
 
 	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
 	dev->start_bm();
+	dev->uoflow_enable_reporting();
 
 	if (
 		true

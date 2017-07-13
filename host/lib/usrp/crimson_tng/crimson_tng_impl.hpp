@@ -34,6 +34,25 @@
 namespace uhd {
 namespace usrp {
 
+
+#pragma pack(push,1)
+struct time_diff_req {
+	uint64_t header; // 1 for time diff
+	int64_t tv_sec;
+	int64_t tv_tick;
+};
+#pragma pack(pop)
+
+#pragma pack(push,1)
+struct time_diff_resp {
+	int64_t tv_sec;
+	int64_t tv_tick;
+	uint16_t fifo[ CRIMSON_TNG_TX_CHANNELS ];
+	uint32_t uflow[ CRIMSON_TNG_TX_CHANNELS ];
+	uint32_t oflow[ CRIMSON_TNG_TX_CHANNELS ];
+};
+#pragma pack(pop)
+
 class crimson_tng_impl : public uhd::device
 {
 public:
@@ -62,6 +81,8 @@ public:
 
     void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
     void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
+
+    void uoflow_enable_reporting( bool en = true );
 
 private:
     // helper functions to wrap send and recv as get and set
@@ -108,6 +129,8 @@ private:
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
+    void uoflow_update_counters( const time_diff_resp & tdr );
+
     // private pointer to the UDP interface, this is the path to send commands to Crimson
     uhd::crimson_tng_iface::sptr _iface;
     std::mutex _iface_lock;
@@ -117,7 +140,7 @@ private:
 	 */
 
 	/// UDP endpoint that receives our Time Diff packets
-	uhd::transport::udp_stream::sptr _time_diff_iface;
+	uhd::transport::udp_simple::sptr _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -130,7 +153,9 @@ private:
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
-    void time_diff_process( const double pv, const uhd::time_spec_t & now );
+    void time_diff_recv( time_diff_resp & tdr );
+    void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
+    void fifo_update_process( const time_diff_resp & tdr );
 
     /**
      * Buffer Management Objects
@@ -145,6 +170,10 @@ private:
 	bool _bm_thread_running;
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
+
+	std::vector<uint32_t> _uflow;
+	std::vector<uint32_t> _oflow;
+	bool _uoflow_report_en;
 };
 
 }
