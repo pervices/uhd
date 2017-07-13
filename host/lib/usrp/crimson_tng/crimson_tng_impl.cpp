@@ -1030,7 +1030,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
 
 	start_bm();
-	stop_bm();
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)
