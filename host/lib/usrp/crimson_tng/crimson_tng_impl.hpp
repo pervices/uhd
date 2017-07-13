@@ -163,8 +163,8 @@ private:
 
     std::set<uhd::crimson_tng_tx_streamer *> _bm_listeners;
 
-	crimson_tng_iface::sptr _bm_iface;
 	// N.B: the _bm_thread is also used for clock domain synchronization
+	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
 	std::mutex _bm_thread_mutex;
 	bool _bm_thread_running;

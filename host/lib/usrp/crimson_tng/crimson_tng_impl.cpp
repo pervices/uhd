@@ -1000,14 +1000,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		_oflow[ j ] = _tree->access<int>( "/mboards/0/tx" / std::to_string( (char)( 'a' + j ) ) / "qa/oflow" ).set( 0 ).get();
 	}
 
-	// setup the flow control UDP channel
-	_bm_iface = crimson_tng_iface::make(
-		udp_simple::make_connected(
-			_addr["addr"],
-			BOOST_STRINGIZE(CRIMSON_TNG_FLOW_CNTRL_UDP_PORT)
-		)
-	);
-
 	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
 	std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfpa" / "ip_addr" ).get();
