@@ -578,20 +578,19 @@ void crimson_tng_impl::bm_listener_rem( uhd::crimson_tng_tx_streamer *listener )
 }
 
 void crimson_tng_impl::uoflow_update_counters( const time_diff_resp & tdr ) {
-
 	for ( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
 
 		// update uflow counters, notify user on change
 
 		if ( _uoflow_report_en && _uflow[ j ] != tdr.uflow[ j ] ) {
-			UHD_MSG( fastpath ) << "(U" << ((char) ( 'a' + j ) ) << ")";
+			UHD_MSG( fastpath ) << "U" << ((char) ( 'a' + j ) );
 		}
 		_uflow[ j ] = tdr.uflow[ j ];
 
 		// update oflow counters, notify user on change
 
 		if ( _uoflow_report_en && _oflow[ j ] != tdr.oflow[ j ] ) {
-			UHD_MSG( fastpath ) << "(O" << ((char) ( 'a' + j ) ) << ")";
+			UHD_MSG( fastpath ) << "O" << ((char) ( 'a' + j ) );
 		}
 		_oflow[ j ] = tdr.oflow[ j ];
 
@@ -715,7 +714,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	_time_diff_converged( false ),
 	_time_diff( 0 ),
 	_oflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
-	_uflow( CRIMSON_TNG_TX_CHANNELS, 0 )
+	_uflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
+	_uoflow_report_en( false )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
@@ -738,6 +738,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
     const fs_path time_path = mb_path / "time";
     const fs_path tx_path   = mb_path / "tx";
     const fs_path rx_path   = mb_path / "rx";
+
+    std::string lc_num;
 
     // Create the file tree of properties.
     // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
@@ -978,9 +980,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
 
 		// QA Settings
-		TREE_CREATE_RW(tx_path / lc_num / "qa" / "fifo_lvl", "tx_"+lc_num+"/qa/fifo_lvl", int, int);
-		TREE_CREATE_RW(tx_path / lc_num / "qa" / "oflow", "tx_"+lc_num+"/qa/oflow", int, int);
-		TREE_CREATE_RW(tx_path / lc_num / "qa" / "uflow", "tx_"+lc_num+"/qa/uflow", int, int);
+// XXX: @CF: 20170713: Not sure why these are not working, so disable for the time being.
+//		TREE_CREATE_RW( tx_path / lc_num / "qa" / "fifo_lvl", "tx_"+lc_num+"/qa/fifo_lvl", int, int);
+//		TREE_CREATE_RW( tx_path / lc_num / "qa" / "uflow", "tx_"+lc_num+"/qa/uflow", int, int);
+//		TREE_CREATE_RW( tx_path / lc_num / "qa" / "oflow", "tx_"+lc_num+"/qa/oflow", int, int);
     }
 
 	const fs_path cm_path  = mb_path / "cm";
@@ -995,10 +998,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
 
 	// use the slow path for the initial read of the uflow / oflow registers
-	for( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
-		_uflow[ j ] = _tree->access<int>( "/mboards/0/tx" / std::to_string( (char)( 'a' + j ) ) / "qa/uflow" ).set( 0 ).get();
-		_oflow[ j ] = _tree->access<int>( "/mboards/0/tx" / std::to_string( (char)( 'a' + j ) ) / "qa/oflow" ).set( 0 ).get();
-	}
+// XXX: @CF: 20170713: Not sure why these are not working, so disable for the time being.
+//	for( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
+//		std::string lc_num = std::to_string( (char)( 'a' + j ) );
+//		_uflow[ j ] = _tree->access<int>( tx_path / lc_num / "qa" / "uflow" ).set( 0 ).get();
+//		_oflow[ j ] = _tree->access<int>( tx_path / lc_num / "qa" / "oflow" ).set( 0 ).get();
+//	}
 
 	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
