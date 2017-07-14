@@ -36,7 +36,6 @@
 #include "uhd/transport/udp_simple.hpp"
 #include "uhd/utils/msg.hpp"
 #include "uhd/utils/static.hpp"
-#include "uhd/utils/thread_priority.hpp"
 
 #include "crimson_tng_rx_streamer.hpp"
 #include "crimson_tng_tx_streamer.hpp"
@@ -605,8 +604,6 @@ void crimson_tng_impl::uoflow_enable_reporting( bool en ) {
 void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	dev->_bm_thread_running = true;
-
-	uhd::set_thread_priority_safe();
 
 	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS );
