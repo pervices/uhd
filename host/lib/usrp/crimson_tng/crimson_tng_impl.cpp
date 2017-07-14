@@ -429,8 +429,8 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	for( int i = 0; i < CRIMSON_TNG_TX_CHANNELS; i++ ) {
 		boost::endian::big_to_native_inplace( tdr.fifo[ i ] );
-		boost::endian::big_to_native_inplace( tdr.uflow[ i ] );
-		boost::endian::big_to_native_inplace( tdr.oflow[ i ] );
+		boost::endian::big_to_native_inplace( tdr.uoflow[ i ].uflow );
+		boost::endian::big_to_native_inplace( tdr.uoflow[ i ].oflow );
 	}
 
 	return true;
@@ -589,17 +589,17 @@ void crimson_tng_impl::uoflow_update_counters( const time_diff_resp & tdr ) {
 
 		// update uflow counters, notify user on change
 
-		if ( _uoflow_report_en && _uflow[ j ] != tdr.uflow[ j ] ) {
+		if ( _uoflow_report_en && _uflow[ j ] != tdr.uoflow[ j ].uflow ) {
 			UHD_MSG( fastpath ) << "U" << ((char) ( 'a' + j ) );
 		}
-		_uflow[ j ] = tdr.uflow[ j ];
+		_uflow[ j ] = tdr.uoflow[ j ].uflow;
 
 		// update oflow counters, notify user on change
 
-		if ( _uoflow_report_en && _oflow[ j ] != tdr.oflow[ j ] ) {
+		if ( _uoflow_report_en && _oflow[ j ] != tdr.uoflow[ j ].oflow ) {
 			UHD_MSG( fastpath ) << "O" << ((char) ( 'a' + j ) );
 		}
-		_oflow[ j ] = tdr.oflow[ j ];
+		_oflow[ j ] = tdr.uoflow[ j ].oflow;
 
 	}
 }
