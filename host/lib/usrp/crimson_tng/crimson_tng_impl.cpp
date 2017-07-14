@@ -414,9 +414,15 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
-void crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
+bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
-	_time_diff_iface->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+	size_t r;
+
+	r = _time_diff_iface->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+
+	if ( 0 == r ) {
+		return false;
+	}
 
 	boost::endian::big_to_native_inplace( tdr.tv_sec );
 	boost::endian::big_to_native_inplace( tdr.tv_tick );
@@ -426,6 +432,8 @@ void crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 		boost::endian::big_to_native_inplace( tdr.uflow[ i ] );
 		boost::endian::big_to_native_inplace( tdr.oflow[ i ] );
 	}
+
+	return true;
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
@@ -647,7 +655,9 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		crimson_now = now + time_diff;
 
 		dev->time_diff_send( crimson_now );
-		dev->time_diff_recv( tdr );
+		if ( ! dev->time_diff_recv( tdr ) ) {
+			continue;
+		}
 		dev->time_diff_process( tdr, now );
 		dev->fifo_update_process( tdr );
 		dev->uoflow_update_counters( tdr );
