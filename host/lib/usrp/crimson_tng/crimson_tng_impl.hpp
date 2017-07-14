@@ -45,8 +45,8 @@ struct time_diff_req {
 
 #pragma pack(push,1)
 struct time_diff_uoflow {
-	uint32_t uflow;
-	uint32_t oflow;
+	uint64_t uflow;
+	uint64_t oflow;
 };
 #pragma pack(pop)
 
@@ -177,8 +177,8 @@ private:
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
 
-	std::vector<uint32_t> _uflow;
-	std::vector<uint32_t> _oflow;
+	std::vector<uint64_t> _uflow;
+	std::vector<uint64_t> _oflow;
 	bool _uoflow_report_en;
 };
 
