@@ -281,7 +281,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 			break;
 
 		case tune_request_t::POLICY_MANUAL:
-			target_dsp_freq = dsp_range.clip(tune_request.dsp_freq);
+			target_dsp_freq = tune_request.dsp_freq;
 			break;
 
 		case tune_request_t::POLICY_NONE:
