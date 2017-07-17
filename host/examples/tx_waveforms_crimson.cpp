@@ -92,11 +92,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
 		("sob", po::value<double>(&sob)->default_value(0.5), "start of burst in N seconds, 0 to disable")
         ("rate", po::value<double>(&rate)->default_value(10e6), "rate of outgoing samples")
-        ("freq", po::value<double>(&freq)->default_value(2.4e9), "RF center frequency in Hz")
-        ("ampl", po::value<float>(&ampl)->default_value(float(1500)), "amplitude of the waveform [0 to 32767]")
+        ("freq", po::value<double>(&freq)->default_value(15e6), "RF center frequency in Hz")
+        ("ampl", po::value<float>(&ampl)->default_value(float(15000)), "amplitude of the waveform [0 to 32767]")
         ("gain", po::value<double>(&gain)->default_value(20), "gain for the RF chain")
-        ("wave-type", po::value<std::string>(&wave_type)->default_value("SINE"), "waveform type (CONST, SQUARE, RAMP, SINE)")
-        ("wave-freq", po::value<double>(&wave_freq)->default_value( 5e6 ), "waveform frequency in Hz")
+        ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "waveform type (CONST, SQUARE, RAMP, SINE)")
+        ("wave-freq", po::value<double>(&wave_freq)->default_value( 300e3 ), "waveform frequency in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo)")
         ("channels", po::value<std::string>(&channel_list)->default_value("0,1,2,3"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
     ;
@@ -131,7 +131,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //Lock mboard clocks
     usrp->set_clock_source(ref);
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    //std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //set the sample rate
     if (not vm.count("rate")){
