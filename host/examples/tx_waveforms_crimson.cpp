@@ -51,11 +51,28 @@ struct thread_ctx {
 	uhd::tx_streamer::sptr tx_stream;
 	std::thread th;
 	uhd::tx_metadata_t md;
+	int idx;
 };
+
+static void set_thread_affinity( int idx ) {
+#ifndef __APPLE__
+	int r;
+	cpu_set_t cpuset;
+
+	CPU_ZERO_S( sizeof( cpuset ), & cpuset );
+	CPU_SET( idx, & cpuset );
+
+	r = pthread_setaffinity_np( pthread_self(), sizeof( cpuset ) , & cpuset );
+	if ( EXIT_SUCCESS != r ) {
+		throw std::runtime_error( std::string( strerror( r ) ) );
+	}
+#endif
+}
 
 static void thread_fn( thread_ctx *ctx ) {
 
 	uhd::set_thread_priority_safe();
+	set_thread_affinity( ctx->idx );
 
 	std::vector<std::complex<int16_t> *> buffs( 1, (std::complex<int16_t> *) & ctx->buff->front() );
 
@@ -248,6 +265,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     for ( size_t i = 0; i < ctx.size(); i++ ) {
+    	ctx[ i ].idx = i;
     	ctx[ i ].th = std::thread( thread_fn, & ctx[ i ] );
     }
 
