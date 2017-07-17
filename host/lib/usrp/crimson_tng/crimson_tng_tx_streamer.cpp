@@ -260,6 +260,7 @@ size_t crimson_tng_tx_streamer::send(
 					now
 				);
 			then = now + dt;
+			// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
 			if ( dt.get_real_secs() > 1e-3 ) {
 				dt -= 30e-6;
 				struct timespec req, rem;
