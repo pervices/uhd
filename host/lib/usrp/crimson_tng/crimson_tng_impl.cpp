@@ -521,6 +521,10 @@ void crimson_tng_impl::start_bm() {
 
 	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
 
+	if ( ! _bm_thread_needed ) {
+		return;
+	}
+
 	if ( ! _bm_thread_running ) {
 
 		print_bm_starting();
@@ -716,6 +720,7 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 :
+	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_time_diff_converged( false ),
@@ -1018,22 +1023,27 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	std::string time_diff_port = std::to_string( sfpa_port );
 	_time_diff_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
 
-	//Initialize "Time Diff" mechanism before starting flow control thread
-	time_spec_t ts = time_spec_t::get_system_time();
-	_streamer_start_time = ts.get_real_secs();
-	// The problem is that this class does not hold a multi_crimson instance
-	_tree->access<time_spec_t>( time_path / "now" ).set( ts );
 
-	// Tyreus-Luyben tuned PID controller
-	_time_diff_pidc = uhd::pidc_tl(
-		0.0, // desired set point is 0.0s error
-		1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-		// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-		2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
-	);
-	_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+	_bm_thread_needed = is_bm_thread_needed();
+	if ( _bm_thread_needed ) {
 
-	start_bm();
+		//Initialize "Time Diff" mechanism before starting flow control thread
+		time_spec_t ts = time_spec_t::get_system_time();
+		_streamer_start_time = ts.get_real_secs();
+		// The problem is that this class does not hold a multi_crimson instance
+		_tree->access<time_spec_t>( time_path / "now" ).set( ts );
+
+		// Tyreus-Luyben tuned PID controller
+		_time_diff_pidc = uhd::pidc_tl(
+			0.0, // desired set point is 0.0s error
+			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
+			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+		);
+		_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+
+		start_bm();
+	}
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)
@@ -1047,4 +1057,28 @@ bool crimson_tng_impl::recv_async_msg( uhd::async_metadata_t &async_metadata, do
 	boost::ignore_unused( async_metadata );
 	boost::ignore_unused( timeout );
 	return false;
+}
+
+bool crimson_tng_impl::is_bm_thread_needed() {
+	bool r = true;
+
+#ifndef __APPLE__ // eventually use something like HAVE_PROGRAM_INVOCATION_NAME
+	static const std::vector<std::string> utils {
+		"uhd_find_devices",
+		"uhd_usrp_probe",
+	};
+
+	// see `man 3 program_invocation_short_name'
+	std::string pin( program_invocation_short_name );
+
+	for( auto & s: utils ) {
+		if ( s == pin ) {
+			r = false;
+			break;
+		}
+	}
+
+#endif
+
+	return r;
 }
