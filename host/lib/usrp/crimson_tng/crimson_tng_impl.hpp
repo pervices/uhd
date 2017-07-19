@@ -173,9 +173,11 @@ private:
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
 	std::mutex _bm_thread_mutex;
+	bool _bm_thread_needed;
 	bool _bm_thread_running;
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
+	bool is_bm_thread_needed();
 
 	std::vector<uint64_t> _uflow;
 	std::vector<uint64_t> _oflow;
