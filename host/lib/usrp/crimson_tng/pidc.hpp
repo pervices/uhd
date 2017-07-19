@@ -137,9 +137,6 @@ namespace uhd {
 			filtered_error = error_filter.get_average();
 
 			if ( filtered_error >= 10000 ) {
-				print_pid_diverged();
-				print_pid_status( time, cv, filtered_error );
-				reset( sp, time );
 				return false;
 			}
 
@@ -159,8 +156,6 @@ namespace uhd {
 					converged = false;
 					print_pid_diverged();
 					print_pid_status( time, cv, filtered_error );
-					reset( sp, time );
-					print_pid_reset();
 				}
 			}
 
