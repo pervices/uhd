@@ -20,7 +20,7 @@ namespace uhd {
 
 	public:
 
-		static constexpr double DEFAULT_MAX_ERROR_FOR_DIVERGENCE = 100e-6;
+		static constexpr double DEFAULT_MAX_ERROR_FOR_DIVERGENCE = 10e-6;
 
 		typedef enum {
 			K_P,
@@ -137,8 +137,10 @@ namespace uhd {
 			filtered_error = error_filter.get_average();
 
 			if ( filtered_error >= 10000 ) {
-				print_pid_diverged();
-				print_pid_status( time, cv, filtered_error );
+				if ( time - last_status_time >= 1 ) {
+					print_pid_diverged();
+					print_pid_status( time, cv, filtered_error );
+				}
 				reset( sp, time );
 				return false;
 			}
@@ -149,17 +151,16 @@ namespace uhd {
 			}
 
 			if ( ! converged ) {
-				if ( filtered_error < max_error_for_divergence ) {
+				if ( filtered_error < max_error_for_divergence * 0.9 ) {
 					converged = true;
 					print_pid_status( time, cv, filtered_error );
 					print_pid_converged();
 				}
 			} else {
 				if ( filtered_error >= max_error_for_divergence ) {
+					converged = false;
 					print_pid_diverged();
 					print_pid_status( time, cv, filtered_error );
-					reset( sp, time );
-					print_pid_reset();
 				}
 			}
 
