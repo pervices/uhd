@@ -20,7 +20,7 @@ namespace uhd {
 
 	public:
 
-		static constexpr double DEFAULT_MAX_ERROR_FOR_DIVERGENCE = 100e-6;
+		static constexpr double DEFAULT_MAX_ERROR_FOR_DIVERGENCE = 10e-6;
 
 		typedef enum {
 			K_P,
@@ -156,6 +156,7 @@ namespace uhd {
 				}
 			} else {
 				if ( filtered_error >= max_error_for_divergence ) {
+					converged = false;
 					print_pid_diverged();
 					print_pid_status( time, cv, filtered_error );
 					reset( sp, time );
