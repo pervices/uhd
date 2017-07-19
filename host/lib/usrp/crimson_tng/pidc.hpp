@@ -149,7 +149,7 @@ namespace uhd {
 			}
 
 			if ( ! converged ) {
-				if ( filtered_error < max_error_for_divergence ) {
+				if ( filtered_error < max_error_for_divergence * 0.9 ) {
 					converged = true;
 					print_pid_status( time, cv, filtered_error );
 					print_pid_converged();
