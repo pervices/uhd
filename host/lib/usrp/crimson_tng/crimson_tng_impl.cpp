@@ -1040,9 +1040,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
 			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
 		);
+
 		_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
 
+		// XXX: @CF: 20170720: coarse to fine for convergence
+		// we coarsely lock on at first, to ensure the class instantiates properly
+		// and then switch to a finer error tolerance
+		_time_diff_pidc.set_max_error_for_convergence( 100e-6 );
 		start_bm();
+		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
 }
 
