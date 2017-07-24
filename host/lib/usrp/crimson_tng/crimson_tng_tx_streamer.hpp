@@ -30,6 +30,8 @@ public:
 		_max_clock_ppm_error( 0.0 ),
 		_dev( NULL ),
 		_first_send( true ),
+		_first_send_was_0len( false ),
+		_saved_sob( 0.0 ),
 		_sob_arg( 0.0 )
 	{
 		init_tx_streamer( addr, tree, channels );
@@ -92,6 +94,8 @@ private:
 	double _max_clock_ppm_error;
 	uint32_t _vita_hdr_buf[ 16 ];
 	bool _first_send;
+	bool _first_send_was_0len;
+	double _saved_sob;
 	double _sob_arg;
 
 	/// Store results of time diff in _crimson_tng_impl object
