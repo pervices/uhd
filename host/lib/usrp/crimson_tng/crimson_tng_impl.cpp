@@ -457,7 +457,7 @@ void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
 	// for now we have to copy the fifo levels into a std::vector<size_t> for processing
 	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS, 0 );
 	for( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
-		fifo_lvl[ j ] = tdr.fifo[ j ];
+		fifo_lvl[ j ] = tdr.fifo[ CRIMSON_TNG_TX_CHANNELS - j - 1 ];
 	}
 
 	if ( _time_diff_converged ) {
