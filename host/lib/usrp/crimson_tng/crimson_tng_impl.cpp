@@ -640,7 +640,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 	) {
 
 		dt = then - now;
-		if ( dt > 1e-3 ) {
+		if ( dt > 100e-6 ) {
 			dt -= 30e-6;
 			req.tv_sec = dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
