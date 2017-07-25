@@ -225,12 +225,16 @@ size_t crimson_tng_tx_streamer::send(
 		;
 		true
 		&& get_time_now() < send_deadline
-		&& samp_sent < nsamps_per_buff * _channels.size()
+		&& (
+			false
+			|| samp_sent < nsamps_per_buff * _channels.size()
+			|| 0 == nsamps_per_buff
+		)
 		;
 	) {
 		for ( size_t i = 0; i < _channels.size(); i++ ) {
 
-			if ( 0 == remaining_bytes[ i ] ) {
+			if ( 0 == remaining_bytes[ i ] && 0 != nsamps_per_buff ) {
 				continue;
 			}
 
@@ -343,6 +347,10 @@ size_t crimson_tng_tx_streamer::send(
 
 			// this ensures we only send the vita time spec on the first packet of the burst
 			metadata[ i ].has_time_spec = false;
+		}
+
+		if ( 0 == nsamps_per_buff ) {
+			break;
 		}
 	}
 
