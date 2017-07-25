@@ -182,8 +182,6 @@ size_t crimson_tng_tx_streamer::send(
 	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
 	dev->uoflow_enable_reporting();
 
-	//std::cout << "sending " << nsamps_per_buff << " samples per channel" << std::endl;
-
 	if (
 		true
 		&& false == _metadata.start_of_burst
@@ -197,31 +195,16 @@ size_t crimson_tng_tx_streamer::send(
 
 	tx_metadata_t md = _metadata;
 	if ( _first_send && _sob_arg > 0.0 ) {
-		//std::cout << "_first_send and _sob_arg is " << _sob_arg << std::endl;
 		md.has_time_spec = true;
 		md.time_spec = get_time_now() + _sob_arg;
 		//std::cout << "sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
 	}
-
 	// XXX: @CF: workaround for current overflow issue
 	// found that when SoB was zero, buffer level did not get up to set point. 
 	// suggested a minimal SoB to pre-fill the buffer.
 	if ( _first_send && ! md.has_time_spec ) {
-		//std::cout << "_first_send and ! md.has_time_spec" << std::endl;
 		md.has_time_spec = true;
 		md.time_spec = get_time_now() + 1.0;
-	}
-
-	if ( _first_send && 0 == nsamps_per_buff ) {
-		_saved_sob = md.time_spec.get_real_secs();
-		//std::cout << "_first_send and 0 == nsamps_per_buff. _saved_sob = " << _saved_sob << std::endl;
-		_first_send_was_0len = true;
-		return 0;
-	}
-	if ( _first_send_was_0len && nsamps_per_buff > 0 ) {
-		//std::cout << "_first_send_was_0len && nsamps_per_buff > 0. _saved_sob = " << _saved_sob << std::endl;
-		md.time_spec = _saved_sob;
-		_first_send_was_0len = false;
 	}
 
 	for ( size_t i = 0; i < _channels.size(); i++ ) {
