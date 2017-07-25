@@ -155,8 +155,8 @@ private:
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
-    double _time_diff;
-	bool _time_diff_converged;
+    static double _time_diff;
+	static bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
     bool time_diff_recv( time_diff_resp & tdr );
@@ -172,16 +172,16 @@ private:
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
-	std::mutex _bm_thread_mutex;
-	bool _bm_thread_needed;
-	bool _bm_thread_running;
-	bool _bm_thread_should_exit;
+	static std::mutex _bm_thread_mutex;
+	static bool _bm_thread_needed;
+	static bool _bm_thread_running;
+	static bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
-	bool is_bm_thread_needed();
+	static bool is_bm_thread_needed();
 
-	std::vector<uint64_t> _uflow;
-	std::vector<uint64_t> _oflow;
-	bool _uoflow_report_en;
+	static std::vector<uint64_t> _uflow;
+	static std::vector<uint64_t> _oflow;
+	static bool _uoflow_report_en;
 };
 
 }
