@@ -171,10 +171,10 @@ private:
 
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
-	std::thread _bm_thread;
-	std::mutex _bm_thread_mutex;
+	static std::thread _bm_thread;
+	static std::mutex _bm_thread_mutex;
+	static bool _bm_thread_running;
 	bool _bm_thread_needed;
-	bool _bm_thread_running;
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
 	bool is_bm_thread_needed();

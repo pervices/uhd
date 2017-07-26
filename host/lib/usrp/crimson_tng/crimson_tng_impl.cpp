@@ -471,9 +471,17 @@ void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
 
 static void print_bm_starting() {
 #ifdef DEBUG_BM
-		std::cout << "Starting Buffer Management Thread.." << std::endl;
+		std::cout << "Starting Buffer Management Thread " << std::endl;
 #endif
 }
+
+#ifdef DEBUG_BM
+static void print_bm_id( const std::thread::id & tid ) {
+	std::cout << "Buffer Management Thread ID: " << std::hex << tid << std::endl;
+}
+#else
+#define print_bm_id( ... )
+#endif
 
 static void print_bm_started() {
 #ifdef DEBUG_BM
@@ -627,6 +635,8 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	struct time_diff_resp tdr;
 
+	print_bm_id( crimson_tng_impl::_bm_thread.get_id() );
+
 	for(
 		now = uhd::time_spec_t::get_system_time(),
 			then = now + T
@@ -718,10 +728,13 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
+std::thread crimson_tng_impl::_bm_thread;
+std::mutex crimson_tng_impl::_bm_thread_mutex;
+bool crimson_tng_impl::_bm_thread_running = false;
+
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 :
 	_bm_thread_needed( false ),
-	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_time_diff_converged( false ),
 	_time_diff( 0 ),
@@ -1083,8 +1096,11 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 			break;
 		}
 	}
-
 #endif
+
+	if ( _bm_thread_running ) {
+		r = false;
+	}
 
 	return r;
 }
