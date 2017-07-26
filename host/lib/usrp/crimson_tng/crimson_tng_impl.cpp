@@ -627,8 +627,6 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	struct time_diff_resp tdr;
 
-	std::cout << __func__ << "(): This is thread " << _bm_thread.get_id() << std::endl;
-
 	for(
 		now = uhd::time_spec_t::get_system_time(),
 			then = now + T
@@ -720,22 +718,16 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
-std::thread crimson_tng_impl::_bm_thread;
-std::mutex crimson_tng_impl::_bm_thread_mutex;
-bool crimson_tng_impl::_bm_thread_needed;
-bool crimson_tng_impl::_bm_thread_running;
-bool crimson_tng_impl::_bm_thread_should_exit;
-
-std::vector<size_t> crimson_tng_impl::_oflow( CRIMSON_TNG_TX_CHANNELS, 0 );
-std::vector<size_t> crimson_tng_impl::_uflow( CRIMSON_TNG_TX_CHANNELS, 0 );
-bool crimson_tng_impl::_uoflow_report_en;
-
-std::set<uhd::crimson_tng_tx_streamer *> crimson_tng_impl::_bm_listeners;
-
-bool crimson_tng_impl::_time_diff_converged;
-double crimson_tng_impl::_time_diff;
-
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
+:
+	_bm_thread_needed( false ),
+	_bm_thread_running( false ),
+	_bm_thread_should_exit( false ),
+	_time_diff_converged( false ),
+	_time_diff( 0 ),
+	_oflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
+	_uflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
+	_uoflow_report_en( false )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
@@ -1076,8 +1068,6 @@ bool crimson_tng_impl::recv_async_msg( uhd::async_metadata_t &async_metadata, do
 bool crimson_tng_impl::is_bm_thread_needed() {
 	bool r = true;
 
-	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
-
 #ifndef __APPLE__ // eventually use something like HAVE_PROGRAM_INVOCATION_NAME
 	static const std::vector<std::string> utils {
 		"uhd_find_devices",
@@ -1092,10 +1082,6 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 			r = false;
 			break;
 		}
-	}
-
-	if ( _bm_thread_running ) {
-		r = false;
 	}
 
 #endif
