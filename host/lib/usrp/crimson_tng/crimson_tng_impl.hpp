@@ -169,7 +169,7 @@ private:
 
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
-	std::thread _bm_thread;
+	static std::thread _bm_thread;
 	static std::mutex _bm_thread_mutex;
 	static bool _bm_thread_needed;
 	static bool _bm_thread_running;

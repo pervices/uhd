@@ -627,6 +627,8 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	struct time_diff_resp tdr;
 
+	std::cout << __func__ << "(): This is thread " << _bm_thread.get_id() << std::endl;
+
 	for(
 		now = uhd::time_spec_t::get_system_time(),
 			then = now + T
@@ -718,6 +720,7 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
+std::thread crimson_tng_impl::_bm_thread;
 std::mutex crimson_tng_impl::_bm_thread_mutex;
 bool crimson_tng_impl::_bm_thread_needed;
 bool crimson_tng_impl::_bm_thread_running;
