@@ -85,8 +85,8 @@ public:
     void start_bm();
     void stop_bm();
 
-    void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
-    void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
+    static void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
+    static void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
 
     void uoflow_enable_reporting( bool en = true );
 
@@ -167,8 +167,6 @@ private:
      * Buffer Management Objects
      */
 
-    std::set<uhd::crimson_tng_tx_streamer *> _bm_listeners;
-
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
@@ -182,6 +180,8 @@ private:
 	static std::vector<uint64_t> _uflow;
 	static std::vector<uint64_t> _oflow;
 	static bool _uoflow_report_en;
+
+    static std::set<uhd::crimson_tng_tx_streamer *> _bm_listeners;
 };
 
 }

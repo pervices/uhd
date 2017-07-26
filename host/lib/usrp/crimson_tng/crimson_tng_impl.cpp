@@ -727,6 +727,8 @@ std::vector<size_t> crimson_tng_impl::_oflow( CRIMSON_TNG_TX_CHANNELS, 0 );
 std::vector<size_t> crimson_tng_impl::_uflow( CRIMSON_TNG_TX_CHANNELS, 0 );
 bool crimson_tng_impl::_uoflow_report_en;
 
+std::set<uhd::crimson_tng_tx_streamer *> crimson_tng_impl::_bm_listeners;
+
 bool crimson_tng_impl::_time_diff_converged;
 double crimson_tng_impl::_time_diff;
 
