@@ -184,7 +184,6 @@ size_t crimson_tng_tx_streamer::send(
 
 	if (
 		true
-		&& false == _metadata.start_of_burst
 		&& true == _metadata.end_of_burst
 		&& 0 == nsamps_per_buff
 	) {
@@ -215,12 +214,6 @@ size_t crimson_tng_tx_streamer::send(
 	}
 
 	now = get_time_now();
-
-#ifdef DEBUG_TX
-	if ( _first_send ) {
-		std::cout << __func__ << "(): Now: " << now.get_real_secs() << ", SoB: " << md.time_spec.get_real_secs() << std::endl;;
-	}
-#endif
 
 	send_deadline = now;
 	send_deadline += timeout;
@@ -285,12 +278,6 @@ size_t crimson_tng_tx_streamer::send(
 				// nop
 				__asm__ __volatile__( "" );
 			}
-#ifdef DEBUG_TX
-	if ( _first_send ) {
-		std::cout << __func__ << "(): Now: " << now.get_real_secs() << std::endl;
-		_first_send = false;
-	}
-#endif
 
 			//
 			// Ensure that we have primed the buffers if SoB was given
