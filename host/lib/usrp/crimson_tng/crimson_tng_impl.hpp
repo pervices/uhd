@@ -31,6 +31,10 @@
 #include "crimson_tng_tx_streamer.hpp"
 #include "pidc.hpp"
 
+#ifndef DEBUG_BM
+//#define DEBUG_BM 1
+#endif
+
 namespace uhd {
 namespace usrp {
 

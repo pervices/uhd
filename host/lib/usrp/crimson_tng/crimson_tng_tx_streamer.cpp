@@ -197,7 +197,6 @@ size_t crimson_tng_tx_streamer::send(
 	if ( _first_send && _sob_arg > 0.0 ) {
 		md.has_time_spec = true;
 		md.time_spec = get_time_now() + _sob_arg;
-		//std::cout << "sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
 	}
 	// XXX: @CF: workaround for current overflow issue
 	// found that when SoB was zero, buffer level did not get up to set point. 
@@ -216,6 +215,12 @@ size_t crimson_tng_tx_streamer::send(
 	}
 
 	now = get_time_now();
+
+#ifdef DEBUG_TX
+	if ( _first_send ) {
+		std::cout << __func__ << "(): Now: " << now.get_real_secs() << ", SoB: " << md.time_spec.get_real_secs() << std::endl;;
+	}
+#endif
 
 	send_deadline = now;
 	send_deadline += timeout;
@@ -280,6 +285,12 @@ size_t crimson_tng_tx_streamer::send(
 				// nop
 				__asm__ __volatile__( "" );
 			}
+#ifdef DEBUG_TX
+	if ( _first_send ) {
+		std::cout << __func__ << "(): Now: " << now.get_real_secs() << std::endl;
+		_first_send = false;
+	}
+#endif
 
 			//
 			// Ensure that we have primed the buffers if SoB was given

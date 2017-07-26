@@ -15,14 +15,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef DEBUG_BM
-#define DEBUG_BM 1
-#endif
-
-#ifdef DEBUG_BM
-#include <iostream>
-#endif
-
 #include <boost/assign.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -39,6 +31,10 @@
 
 #include "crimson_tng_rx_streamer.hpp"
 #include "crimson_tng_tx_streamer.hpp"
+
+#ifdef DEBUG_BM
+#include <iostream>
+#endif
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -439,6 +435,9 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 /// SoB Time Diff: feed the time diff error back into out control system
 void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
+	static uhd::time_spec_t then;
+	uhd::time_spec_t right_now;
+
 	static const double sp = 0.0;
 
 	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
@@ -448,6 +447,13 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 
 	// For SoB, record the instantaneous time difference + compensation
 	if ( _time_diff_converged ) {
+#ifdef DEBUG_BM
+		right_now = uhd::time_spec_t::get_system_time();
+		if ( right_now - then > 1.0 ) {
+			then = right_now;
+			std::cout << std::endl << __func__ << "(): Time Diff: " << cv << std::endl;
+		}
+#endif
 		time_diff_set( cv );
 	}
 }
@@ -597,22 +603,38 @@ void crimson_tng_impl::bm_listener_rem( uhd::crimson_tng_tx_streamer *listener )
 }
 
 void crimson_tng_impl::uoflow_update_counters( const time_diff_resp & tdr ) {
+
+	std::stringstream uflow_ss;
+	std::stringstream oflow_ss;
+
+	std::string uflow_s;
+	std::string oflow_s;
+
 	for ( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
 
 		// update uflow counters, notify user on change
 
 		if ( _uoflow_report_en && _uflow[ j ] != tdr.uoflow[ j ].uflow ) {
-			UHD_MSG( fastpath ) << "U" << ((char) ( 'a' + j ) );
+			uflow_ss << "U" << ((char) ( 'a' + j ) );
 		}
 		_uflow[ j ] = tdr.uoflow[ j ].uflow;
 
 		// update oflow counters, notify user on change
 
 		if ( _uoflow_report_en && _oflow[ j ] != tdr.uoflow[ j ].oflow ) {
-			UHD_MSG( fastpath ) << "O" << ((char) ( 'a' + j ) );
+			oflow_ss << "O" << ((char) ( 'a' + j ) );
 		}
 		_oflow[ j ] = tdr.uoflow[ j ].oflow;
 
+	}
+
+	uflow_s = uflow_ss.str();
+	if ( ! uflow_s.empty() ) {
+		UHD_MSG( fastpath ) << uflow_s;
+	}
+	oflow_s = oflow_ss.str();
+	if ( ! oflow_s.empty() ) {
+		UHD_MSG( fastpath ) << oflow_s;
 	}
 }
 
