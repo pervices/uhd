@@ -330,7 +330,7 @@ public:
 			_flowcontrol_thread->join();		// wait for flow control thread to exit
 
 			// Restore Adjusted Sample Rates to Original Values
-			for ( size_t c = 0; c < _channels.size(); c++ ) {
+			for (int c = 0; c < _channels.size(); c++) {
 				_samp_rate[c] = _samp_rate_usr;
 			}
 		}
@@ -434,7 +434,7 @@ private:
 			else
 				txstream->_fifo_level_perc = 80;
 			txstream->_samp_rate_usr = new_samp_rate;
-			for ( size_t c = 0; c < txstream->_channels.size(); c++ ) {
+			for (int c = 0; c < txstream->_channels.size(); c++) {
 				txstream->_samp_rate[c] = txstream->_samp_rate_usr;
 			}
 
@@ -494,7 +494,7 @@ private:
 					else
 						txstream->_fifo_level_perc = 80;
 					txstream->_samp_rate_usr = new_samp_rate;
-					for ( size_t c = 0; c < txstream->_channels.size(); c++ ) {
+					for (int c = 0; c < txstream->_channels.size(); c++) {
 						txstream->_samp_rate[c] = txstream->_samp_rate_usr;
 					}
 				}
@@ -508,13 +508,13 @@ private:
 			}
 
 			//increment buffer count to say we have data
-			for ( size_t j = 0; j < txstream->_channels.size(); j++ ) {
+			for (int j = 0; j < txstream->_channels.size(); j++) {
 				txstream->_buffer_alert[j] = true;	// For coordinating sample rate updates
 			}
 			txstream->_async_mutex->lock();
 
 			//If under run, alert controller
-			for ( size_t ch = 0; ch < txstream->_channels.size(); ch++ ) {				// Alert send when FIFO level is < 20% (~13106)
+			for (int ch = 0; ch < txstream->_channels.size(); ch++) {				// Alert send when FIFO level is < 20% (~13106)
 				if ( txstream->_fifo_lvl[txstream->_channels[ch]] < CRIMSON_UNDERFLOW_LIMIT ) {
 					txstream->_underflow_flag[ch] = true;
 				} else if (txstream->_fifo_lvl[txstream->_channels[ch]] > CRIMSON_OVERFLOW_LIMIT ) {	// Alert send when FIFO level > 90% (~58979)

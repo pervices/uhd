@@ -36,13 +36,9 @@ public:
     }
 
     UHD_INLINE void register_tx_streams(const uint32_t tx_stream_indices[]) {
-	abort();
-/*
-	// XXX: @CF: KB 4033: inappropriate use of sizeof()
         for (size_t i = 0; i < sizeof(tx_stream_indices)/sizeof(*tx_stream_indices); i++) {
             _tx_stream_fifo_indices.insert(tx_stream_indices[i]);
         }
-*/
     }
 
     UHD_INLINE void add_tx_fifo(uint32_t index) {

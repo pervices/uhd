@@ -296,10 +296,8 @@ public:
             std::string record;
             file >> record;
 
-        if (!(record.length() > 0)) {
-        	// XXX: @CF: KB 4033: this ‘if’ clause does not guard... [-Werror=misleading-indentation]
+        if (!(record.length() > 0))
             continue;
-        }
 
             /* Check for valid Intel HEX record. */
             if (!checksum(record) || !parse_record(record, len, \
