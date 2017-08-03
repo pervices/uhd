@@ -101,6 +101,8 @@ size_t crimson_tng_rx_streamer::recv(
 		if ( now >= metadata.time_spec ) {
 			UHD_MSG( warning ) << "not enough time to empty the receive buffers!" << std::endl;
 		}
+
+		_timeout += metadata.time_spec;
 	}
 
 	std::vector<size_t> fifo_level( _channels.size() );
