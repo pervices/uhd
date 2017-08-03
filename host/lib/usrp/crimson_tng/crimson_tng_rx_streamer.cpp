@@ -26,6 +26,10 @@ static void make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t ch
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_psec = ts.get_frac_secs() * 1e12;
 
+	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
+	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
+	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
+
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_psec );
@@ -73,6 +77,8 @@ size_t crimson_tng_rx_streamer::recv(
 
 	if ( metadata.has_time_spec ) {
 
+		std::cout << "have rx SoB" << std::endl;
+
 		uhd::time_spec_t now;
 
 		now = get_time_now();
@@ -82,16 +88,19 @@ size_t crimson_tng_rx_streamer::recv(
 
 		uhd::usrp::rx_sob_req rx_sob;
 		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			std::cout << "Sending rx SoB req on Channel " << _channels[ i ] << std::endl;
 			make_rx_sob_req_packet( metadata.time_spec, _channels[ i ], rx_sob );
 			dev->send_rx_sob_req( rx_sob );
 		}
 
 		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			std::cout << "Emptying Channel " << _channels[ i ] << " fifo" << std::endl;
 			std::queue<uint8_t> empty;
 			std::swap( _fifo[ i ], empty );
 		}
 
 		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			std::cout << "Flushing Channel " << _channels[ i ] << " socket" << std::endl;
 			// flush socket for _channels[ i ]
 			uint32_t xbuf[ 128 ];
 			_udp_stream[ i ]->stream_in( xbuf, 128, 1e-9 );
@@ -102,7 +111,8 @@ size_t crimson_tng_rx_streamer::recv(
 			UHD_MSG( warning ) << "not enough time to empty the receive buffers!" << std::endl;
 		}
 
-		_timeout += metadata.time_spec;
+		_timeout += metadata.time_spec.get_real_secs();
+		std::cout << "Timeout set to " << _timeout  << " socket" << std::endl;
 	}
 
 	std::vector<size_t> fifo_level( _channels.size() );

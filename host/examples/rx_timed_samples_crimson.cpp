@@ -81,8 +81,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     usrp->set_rx_rate(rate);
     std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate()/1e6) << std::endl << std::endl;
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-    usrp->set_time_now(uhd::time_spec_t(0.0));
+//    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+//    usrp->set_time_now(uhd::time_spec_t(0.0));
 
     //create a receive streamer
     uhd::stream_args_t stream_args("sc16", "sc16");
@@ -102,6 +102,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //meta-data will be filled in by recv()
     uhd::rx_metadata_t md;
+
+    md.time_spec = usrp->get_time_now() + seconds_in_future;
+
 
     //allocate buffer to receive with samples
     std::vector<std::complex<int16_t> > buff(rx_stream->get_max_num_samps());
@@ -141,6 +144,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
+
+    std::cout << "received " << num_acc_samps << std::endl;
 
     return EXIT_SUCCESS;
 }

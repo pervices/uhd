@@ -1,3 +1,4 @@
+
 /*
  * crimson_tng_rx_streamer.hpp
  *
@@ -8,6 +9,7 @@
 #ifndef HOST_LIB_USRP_CRIMSON_TNG_CRIMSON_TNG_RX_STREAMER_HPP_
 #define HOST_LIB_USRP_CRIMSON_TNG_CRIMSON_TNG_RX_STREAMER_HPP_
 
+#include <iostream>
 #include <queue>
 #include <vector>
 
