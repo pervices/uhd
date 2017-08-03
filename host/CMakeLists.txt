@@ -106,28 +106,30 @@ SET(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "")
 SET(UHD_RELEASE_MODE "${UHD_RELEASE_MODE}" CACHE STRING "UHD Release Mode")
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
-    # XXX: @CF: kb 3834: comment-out the following block to step through unit tests
-    IF(STRIP_BINARIES)
-        IF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s")
-        ENDIF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    ENDIF(STRIP_BINARIES)
+
+    # XXX: @CF: KB 4033: requirement to compile treating all warnings as errors
     ADD_DEFINITIONS(-Wall)
     ADD_DEFINITIONS(-Wextra)
-    ADD_DEFINITIONS(-Wsign-compare)
+    ADD_DEFINITIONS(-Wno-unused)
+    ADD_DEFINITIONS(-Wno-empty-body)
+    #ADD_DEFINITIONS(-Werror)
+    UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG(-Wno-reorder HAVE_WNOREORDER)
+    UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG(-std=c++11 HAVE_CXX11)
 
-    # XXX: @CF: kb 3834: uncomment the following to step through unit tests
-    # ADD_DEFINITIONS(-g -O0)
-
-    #ADD_DEFINITIONS(-Wconversion)
-    #ADD_DEFINITIONS(-pedantic)
-    #ADD_DEFINITIONS(-ansi)
-    # XXX: @CF: kb 3834: comment-out the following to call global functions from unit tests
-    IF(NOT WIN32)
-        #only export symbols that are declared to be part of the uhd api (non dll platforms)
-        UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG(-fvisibility=hidden HAVE_VISIBILITY_HIDDEN)
-        UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG(-fvisibility-inlines-hidden HAVE_VISIBILITY_INLINES_HIDDEN)
-    ENDIF(NOT WIN32)
+    IF( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+        ADD_DEFINITIONS(-g -O0)
+        IF(NOT WIN32)
+            #only export symbols that are declared to be part of the uhd api (non dll platforms)
+            UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG(-fvisibility=hidden HAVE_VISIBILITY_HIDDEN)
+            UHD_ADD_OPTIONAL_CXX_COMPILER_FLAG(-fvisibility-inlines-hidden HAVE_VISIBILITY_INLINES_HIDDEN)
+        ENDIF(NOT WIN32)
+    ELSE( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+        ADD_DEFINITIONS(-O3)
+        IF(STRIP_BINARIES)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s")
+        ENDIF(STRIP_BINARIES)
+    ENDIF( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+    
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
 IF(MSVC)
