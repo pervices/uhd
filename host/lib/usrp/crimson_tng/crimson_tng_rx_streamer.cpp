@@ -4,6 +4,8 @@
 #include <boost/range/numeric.hpp>
 
 #include "crimson_tng_rx_streamer.hpp"
+#include "crimson_tng_impl.hpp"
+#include "uhd/utils/msg.hpp"
 #include "uhd/usrp/multi_crimson_tng.hpp"
 
 #include "iputils.hpp"
@@ -19,6 +21,23 @@ size_t crimson_tng_rx_streamer::get_max_num_samps(void) const {
 	return _pay_len/4;
 }
 
+static void make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t channel, uhd::usrp::rx_sob_req & pkt ) {
+	pkt.header = 0x10000 + channel;
+	pkt.tv_sec = ts.get_full_secs();
+	pkt.tv_psec = ts.get_frac_secs() * 1e12;
+
+	boost::endian::native_to_big_inplace( pkt.header );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_psec );
+}
+
+time_spec_t crimson_tng_rx_streamer::get_time_now() {
+	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
+	uhd::time_spec_t r = uhd::time_spec_t::get_system_time();
+	r += NULL == dev ? 0.0 : dev->time_diff_get();
+	return r;
+}
+
 size_t crimson_tng_rx_streamer::recv(
 		const buffs_type &buffs,
 		const size_t nsamps_per_buff,
@@ -26,6 +45,8 @@ size_t crimson_tng_rx_streamer::recv(
 		const double timeout = 0.1,
 		const bool one_packet = true )
 {
+	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
+
 	const size_t vita_hdr = 4;
 	const size_t vita_tlr = 1;
 	const size_t vita_pck = nsamps_per_buff + vita_hdr + vita_tlr;
@@ -49,6 +70,38 @@ size_t crimson_tng_rx_streamer::recv(
 
 	// temp buffer: vita hdr + data
 	uint32_t vita_buf[vita_pck];
+
+	if ( metadata.has_time_spec ) {
+
+		uhd::time_spec_t now;
+
+		now = get_time_now();
+		if ( now >= metadata.time_spec ) {
+			UHD_MSG( warning ) << "time now ( " << now.get_real_secs() << " ) >= metadata.time_spec ( " << metadata.time_spec.get_real_secs() << " )" << std::endl;
+		}
+
+		uhd::usrp::rx_sob_req rx_sob;
+		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			make_rx_sob_req_packet( metadata.time_spec, _channels[ i ], rx_sob );
+			dev->send_rx_sob_req( rx_sob );
+		}
+
+		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			std::queue<uint8_t> empty;
+			std::swap( _fifo[ i ], empty );
+		}
+
+		for( unsigned i = 0; i < _channels.size(); i++ ) {
+			// flush socket for _channels[ i ]
+			uint32_t xbuf[ 128 ];
+			_udp_stream[ i ]->stream_in( xbuf, 128, 1e-9 );
+		}
+
+		now = get_time_now();
+		if ( now >= metadata.time_spec ) {
+			UHD_MSG( warning ) << "not enough time to empty the receive buffers!" << std::endl;
+		}
+	}
 
 	std::vector<size_t> fifo_level( _channels.size() );
 	for( unsigned i = 0; i < _channels.size(); i++ ) {
@@ -122,7 +175,7 @@ size_t crimson_tng_rx_streamer::recv(
 	}
 
 	// save the time to metadata
-	time_ticks = time_ticks - _start_ticks;
+	time_ticks -= _start_ticks;
 	metadata.time_spec = time_spec_t::from_ticks(time_ticks, _rate);
 
 	// process vita sequencing

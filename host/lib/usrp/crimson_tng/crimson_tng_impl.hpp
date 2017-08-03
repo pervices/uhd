@@ -59,6 +59,14 @@ struct time_diff_resp {
 };
 #pragma pack(pop)
 
+#pragma pack(push,1)
+struct rx_sob_req {
+    uint64_t header;
+    int64_t tv_sec;    // when the SoB should take place
+    int64_t tv_psec;   // when the SoB should take place (ps)
+};
+#pragma pack(pop)
+
 class crimson_tng_impl : public uhd::device
 {
 public:
@@ -89,6 +97,8 @@ public:
     void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
 
     void uoflow_enable_reporting( bool en = true );
+
+    void send_rx_sob_req( const rx_sob_req & req );
 
 private:
     // helper functions to wrap send and recv as get and set

@@ -248,8 +248,9 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 			\"sc16\" Q16 I16" << std::endl;
 	}
 
-	// TODO firmware support for other otw_format, cpu_format
-	return rx_streamer::sptr( new crimson_tng_rx_streamer( this->_addr, this->_tree, args.channels ) );
+	crimson_tng_rx_streamer::sptr r( new uhd::crimson_tng_rx_streamer( this->_addr, this->_tree, args.channels ) );
+	r->set_device( static_cast<uhd::device *>( this ) );
+	return r;
 }
 
 /***********************************************************************
@@ -398,6 +399,10 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+}
+
+void crimson_tng_impl::send_rx_sob_req( const rx_sob_req & req ) {
+	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)

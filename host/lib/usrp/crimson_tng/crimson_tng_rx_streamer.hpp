@@ -11,6 +11,7 @@
 #include <queue>
 #include <vector>
 
+#include "uhd/device.hpp"
 #include "uhd/property_tree.hpp"
 #include "uhd/stream.hpp"
 #include "uhd/transport/udp_stream.hpp"
@@ -19,12 +20,15 @@ namespace uhd {
 
 class crimson_tng_rx_streamer : public uhd::rx_streamer {
 public:
+	typedef boost::shared_ptr<crimson_tng_rx_streamer> sptr;
+
 	crimson_tng_rx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels )
 	:
 		_prev_frame( 0 ),
 		_pay_len( 0 ),
 		_rate( 0.0 ),
-		_start_ticks( 0 )
+		_start_ticks( 0 ),
+		_dev( NULL )
 	{
 		init_rx_streamer( addr, tree, channels );
 	}
@@ -50,6 +54,10 @@ public:
 
 	void update_fifo_metadata( rx_metadata_t &meta, size_t n_samples );
 
+	void set_device( uhd::device *dev ) {
+		_dev = dev;
+	}
+
 private:
 	void init_rx_streamer(
 		device_addr_t addr,
@@ -57,6 +65,8 @@ private:
 		std::vector<size_t> channels
 	);
 	void fini_rx_streamer();
+
+	time_spec_t get_time_now();
 
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
@@ -69,6 +79,8 @@ private:
 	double _rate;
 	uint64_t _start_ticks;
 	device_addr_t _addr;
+
+	uhd::device *_dev;
 };
 
 } /* namespace uhd */
