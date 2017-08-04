@@ -104,20 +104,23 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_metadata_t md;
 
     //allocate buffer to receive with samples
-    std::vector<std::complex<int16_t> > buff(rx_stream->get_max_num_samps());
+    size_t buff_sz = rx_stream->get_max_num_samps();
     std::vector<void *> buffs;
-    for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++)
-        buffs.push_back(&buff.front()); //same buffer for each channel
+    for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++) {
+        buffs.push_back( malloc( buff_sz * sizeof( std::complex<int16_t> ) ) );
+    }
 
     //the first call to recv() will block this many seconds before receiving
-    double timeout = 0.1; //timeout (delay before receive + padding)
+    double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
     size_t num_acc_samps = 0; //number of accumulated samples
-    while(num_acc_samps < total_num_samps){
+    while(num_acc_samps < total_num_samps * buffs.size() ){
         //receive a single packet
         size_t num_rx_samps = rx_stream->recv(
-            buffs, buff.size(), md, timeout, true
+            buffs, buff_sz, md, timeout, true
         );
+
+        std::cout << "received " << num_rx_samps << " samples" << std::endl;
 
         //use a small timeout for subsequent packets
         timeout = 0.1;

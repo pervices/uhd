@@ -685,14 +685,14 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 
 		double actual_rate = _tree->access<double>(rx_dsp_root(ch) / "rate" / "value").get();
 
-		boost::format base_message (
-				"RX Sample Rate Request:\n"
-				"  Requested sample rate: %f MSps\n"
-				"  Actual sample rate: %f MSps\n");
-		base_message % (rate/1e6) % (actual_rate/1e6);
-		std::string results_string = base_message.str();
-
-		UHD_MSG(status) << results_string;
+//		boost::format base_message (
+//				"RX Sample Rate Request:\n"
+//				"  Requested sample rate: %f MSps\n"
+//				"  Actual sample rate: %f MSps\n");
+//		base_message % (rate/1e6) % (actual_rate/1e6);
+//		std::string results_string = base_message.str();
+//
+//		UHD_MSG(status) << results_string;
 	}
 }
 

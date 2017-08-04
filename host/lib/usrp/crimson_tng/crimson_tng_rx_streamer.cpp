@@ -309,7 +309,7 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 				std::cout << "Flushing Channel " << _channels[ i ] << " socket" << std::endl;
 				// flush socket for _channels[ i ]
 				uint32_t xbuf[ 128 ];
-				_udp_stream[ i ]->stream_in( xbuf, 128, 1e-9 );
+				_udp_stream[ i ]->stream_in( xbuf, 128, 1e-6 );
 			}
 		}
 		_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( stream_prop );
