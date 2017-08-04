@@ -49,11 +49,19 @@ size_t crimson_tng_rx_streamer::recv(
 		const double timeout = 0.1,
 		const bool one_packet = true )
 {
-	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
+	const size_t _nsamps_per_buff =
+		(
+			false
+			|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE == _stream_cmd.stream_mode
+			|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE == _stream_cmd.stream_mode
+		)
+		? _stream_cmd_samples_remaining[ 0 ]
+		: nsamps_per_buff;
 
 	const size_t vita_hdr = 4;
+	// XXX: @CF: 20170804: Should examine the received header rather than assuming the existence of a trailer
 	const size_t vita_tlr = 1;
-	const size_t vita_pck = nsamps_per_buff + vita_hdr + vita_tlr;
+	const size_t vita_pck = _nsamps_per_buff + vita_hdr + vita_tlr;
 	size_t nbytes = 0;
 	size_t nsamples = 0;
 
@@ -75,46 +83,6 @@ size_t crimson_tng_rx_streamer::recv(
 	// temp buffer: vita hdr + data
 	uint32_t vita_buf[vita_pck];
 
-	if ( metadata.has_time_spec ) {
-
-		std::cout << "have rx SoB" << std::endl;
-
-		uhd::time_spec_t now;
-
-		now = get_time_now();
-		if ( now >= metadata.time_spec ) {
-			UHD_MSG( warning ) << "time now ( " << now.get_real_secs() << " ) >= metadata.time_spec ( " << metadata.time_spec.get_real_secs() << " )" << std::endl;
-		}
-
-		uhd::usrp::rx_sob_req rx_sob;
-		for( unsigned i = 0; i < _channels.size(); i++ ) {
-			std::cout << "Sending rx SoB req on Channel " << _channels[ i ] << std::endl;
-			make_rx_sob_req_packet( metadata.time_spec, _channels[ i ], rx_sob );
-			dev->send_rx_sob_req( rx_sob );
-		}
-
-		for( unsigned i = 0; i < _channels.size(); i++ ) {
-			std::cout << "Emptying Channel " << _channels[ i ] << " fifo" << std::endl;
-			std::queue<uint8_t> empty;
-			std::swap( _fifo[ i ], empty );
-		}
-
-		for( unsigned i = 0; i < _channels.size(); i++ ) {
-			std::cout << "Flushing Channel " << _channels[ i ] << " socket" << std::endl;
-			// flush socket for _channels[ i ]
-			uint32_t xbuf[ 128 ];
-			_udp_stream[ i ]->stream_in( xbuf, 128, 1e-9 );
-		}
-
-		now = get_time_now();
-		if ( now >= metadata.time_spec ) {
-			UHD_MSG( warning ) << "not enough time to empty the receive buffers!" << std::endl;
-		}
-
-		_timeout += metadata.time_spec.get_real_secs();
-		std::cout << "Timeout set to " << _timeout  << " socket" << std::endl;
-	}
-
 	std::vector<size_t> fifo_level( _channels.size() );
 	for( unsigned i = 0; i < _channels.size(); i++ ) {
 		fifo_level[ i ] = _fifo[ i ].size();
@@ -123,7 +91,7 @@ size_t crimson_tng_rx_streamer::recv(
 	if ( 0 != boost::accumulate( fifo_level, 0 ) ) {
 
 		for( unsigned i = 0; i < _channels.size(); i++ ) {
-			for( unsigned j = 0; j < nsamps_per_buff * 4 && ! _fifo[ i ].empty(); j++ ) {
+			for( unsigned j = 0; j < _nsamps_per_buff * 4 && ! _fifo[ i ].empty(); j++ ) {
 				( (uint8_t *) buffs[ i ] )[ j ] = _fifo[ i ].front();
 				_fifo[ i ].pop();
 			}
@@ -139,6 +107,16 @@ size_t crimson_tng_rx_streamer::recv(
 
 		update_fifo_metadata( _fifo_metadata, nsamples );
 
+		if (
+			false
+			|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE == _stream_cmd.stream_mode
+			|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE == _stream_cmd.stream_mode
+		) {
+			for( size_t i = 0; i < _channels.size(); i++ ) {
+				_stream_cmd_samples_remaining[ i ] -= nsamples;
+			}
+		}
+
 		return nsamples;
 	}
 
@@ -147,7 +125,7 @@ size_t crimson_tng_rx_streamer::recv(
 
 		// clear temp buffer and output buffer
 		memset(vita_buf, 0, vita_pck * 4);
-		memset(buffs[i], 0, nsamps_per_buff * 4);
+		memset(buffs[i], 0, _nsamps_per_buff * 4);
 
 		// read in vita_pck*4 bytes to temp buffer
 		nbytes = _udp_stream[i] -> stream_in(vita_buf, vita_pck * 4, _timeout);
@@ -250,14 +228,93 @@ size_t crimson_tng_rx_streamer::recv(
 		update_fifo_metadata( _fifo_metadata, ( vita_payload_len_bytes - nbytes ) / 4 );
 	}
 
+	if (
+		false
+		|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE == _stream_cmd.stream_mode
+		|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE == _stream_cmd.stream_mode
+	) {
+		for( size_t i = 0; i < _channels.size(); i++ ) {
+			_stream_cmd_samples_remaining[ i ] -= nsamples;
+		}
+	}
+
 	return nsamples;		// removed the 5 VITA 32-bit words
 }
 
+static fs_path mb_root(const size_t mboard)
+{
+    try
+    {
+        //const std::string name = _tree->list("/mboards").at(mboard);
+        return "/mboards/" + mboard;
+    }
+    catch(const std::exception &e)
+    {
+        throw uhd::index_error(str(boost::format("multi_usrp::mb_root(%u) - %s") % mboard % e.what()));
+    }
+}
+
+static std::string chan_to_string(size_t chan) {
+    return "Channel_" + boost::lexical_cast<std::string>((char)(chan + 65));
+}
+
+static fs_path rx_link_root(const size_t chan) {
+    size_t channel;
+    if (chan > CRIMSON_TNG_RX_CHANNELS) 	channel = 0;
+    else				channel = chan;
+    return fs_path( "/mboards/0" ) / "rx_link" / chan_to_string(channel);
+}
+
 void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
-	uhd::usrp::multi_crimson_tng m( _addr );
-	for( unsigned i = 0; i < _channels.size(); i++ ) {
-		m.issue_stream_cmd( stream_cmd, _channels[ i ] );
+	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
+
+	uhd::time_spec_t now;
+	uhd::time_spec_t then;
+	uhd::usrp::rx_sob_req rx_sob;
+	std::string stream_prop;
+
+	// store the _stream_cmd so that recv() can use it
+	_stream_cmd = stream_cmd;
+
+	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == _stream_cmd.stream_mode ) {
+		stream_prop = "0";
+	} else {
+		stream_prop = "1";
 	}
+
+	now = get_time_now();
+	if ( _stream_cmd.stream_now || now >= _stream_cmd.time_spec ) {
+		_stream_cmd.stream_now = true;
+		then = now;
+	} else {
+		then = _stream_cmd.time_spec;
+	}
+
+	for( size_t i = 0; i < _channels.size(); i++ ) {
+
+		if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
+
+			std::cout << "Sending RX SoB req on Channel " << _channels[ i ] << std::endl;
+			make_rx_sob_req_packet( stream_cmd.time_spec, _channels[ i ], rx_sob );
+			dev->send_rx_sob_req( rx_sob );
+
+			if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
+
+				_stream_cmd_samples_remaining[ i ] = _stream_cmd.num_samps;
+
+				std::cout << "Emptying Channel " << _channels[ i ] << " fifo" << std::endl;
+				std::queue<uint8_t> empty;
+				std::swap( _fifo[ i ], empty );
+
+				std::cout << "Flushing Channel " << _channels[ i ] << " socket" << std::endl;
+				// flush socket for _channels[ i ]
+				uint32_t xbuf[ 128 ];
+				_udp_stream[ i ]->stream_in( xbuf, 128, 1e-9 );
+			}
+		}
+		_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( stream_prop );
+	}
+
 	if ( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode ) {
 		fini_rx_streamer();
 	}
@@ -285,6 +342,7 @@ void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree
 	_if_mtu = std::vector<size_t>( _channels.size() );
 
 	_fifo = std::vector<std::queue<uint8_t>>( _channels.size() );
+	_stream_cmd_samples_remaining = std::vector<size_t>( _channels.size() );
 
 	if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
 		std::bitset<32> bs;

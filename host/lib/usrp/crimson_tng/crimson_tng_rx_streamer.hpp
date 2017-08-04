@@ -30,13 +30,16 @@ public:
 		_pay_len( 0 ),
 		_rate( 0.0 ),
 		_start_ticks( 0 ),
-		_dev( NULL )
+		_dev( NULL ),
+		_stream_cmd( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS )
 	{
 		init_rx_streamer( addr, tree, channels );
 	}
 
-	crimson_tng_rx_streamer(device_addr_t addr, property_tree::sptr tree) {
-		init_rx_streamer( addr, tree, std::vector<size_t>(1, 0) );
+	crimson_tng_rx_streamer(device_addr_t addr, property_tree::sptr tree)
+	:
+		crimson_tng_rx_streamer( addr, tree, std::vector<size_t>(1, 0) )
+	{
 	}
 
 	~crimson_tng_rx_streamer() {
@@ -73,6 +76,7 @@ private:
 	std::vector<uhd::transport::udp_stream::sptr> _udp_stream;
 	std::vector<size_t> _channels;
 	std::vector<std::queue<uint8_t>> _fifo;
+	std::vector<size_t> _stream_cmd_samples_remaining;
 	rx_metadata_t _fifo_metadata;
 	property_tree::sptr _tree;
 	size_t _prev_frame;
@@ -83,6 +87,8 @@ private:
 	device_addr_t _addr;
 
 	uhd::device *_dev;
+
+	uhd::stream_cmd_t _stream_cmd;
 };
 
 } /* namespace uhd */

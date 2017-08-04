@@ -536,18 +536,18 @@ void multi_crimson_tng::clear_command_time(size_t mboard){
 }
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
-    switch( stream_cmd.stream_mode ) {
-    case stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE:
-    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE:
-    	// currently we do not differentiate between any kind of stream-enable
-    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
-    	break;
-    case stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS:
-    default:
-    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
-    	break;
-    }
+//    switch( stream_cmd.stream_mode ) {
+//    case stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+//    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE:
+//    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE:
+//    	// currently we do not differentiate between any kind of stream-enable
+//    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
+//    	break;
+//    case stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS:
+//    default:
+//    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
+//    	break;
+//    }
 }
 
 void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, size_t mboard) {

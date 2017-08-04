@@ -103,9 +103,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //meta-data will be filled in by recv()
     uhd::rx_metadata_t md;
 
-    md.time_spec = usrp->get_time_now() + seconds_in_future;
-
-
     //allocate buffer to receive with samples
     std::vector<std::complex<int16_t> > buff(rx_stream->get_max_num_samps());
     std::vector<void *> buffs;
