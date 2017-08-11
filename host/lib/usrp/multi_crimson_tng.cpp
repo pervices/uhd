@@ -553,16 +553,18 @@ void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t 
 
 	then = stream_cmd.time_spec;
 
-	for( size_t i = 0; i < _channels.size(); i++ ) {
+
+
+	//for( size_t i = 0; i < _channels.size(); i++ ) {
 
 		if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != stream_cmd.stream_mode ) {
 
-			std::cout << "Sending RX SoB req on Channel " << _channels[ i ] << std::endl;
-			dev->make_rx_sob_req_packet( stream_cmd.time_spec, _channels[ i ], rx_sob );
+			std::cout << "Sending RX SoB req on Channel " << chan << std::endl;
+			dev->make_rx_sob_req_packet( stream_cmd.time_spec, chan, rx_sob );
 			dev->send_rx_sob_req( rx_sob );
 		}
-		_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( stream_prop );
-	}
+		_tree->access<std::string>(rx_link_root( chan ) / "stream").set( stream_prop );
+	//}
 }
 
 void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, size_t mboard) {
