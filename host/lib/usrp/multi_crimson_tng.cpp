@@ -536,18 +536,33 @@ void multi_crimson_tng::clear_command_time(size_t mboard){
 }
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
-//    switch( stream_cmd.stream_mode ) {
-//    case stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-//    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE:
-//    case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE:
-//    	// currently we do not differentiate between any kind of stream-enable
-//    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("1");
-//    	break;
-//    case stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS:
-//    default:
-//    	_tree->access<std::string>(rx_link_root(chan) / "stream").set("0");
-//    	break;
-//    }
+	// questionable pointer casting..
+	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev.get() );
+
+	uhd::time_spec_t now;
+	uhd::time_spec_t then;
+	uhd::usrp::rx_sob_req rx_sob;
+	std::string stream_prop;
+	std::vector<std::size_t> _channels;
+
+	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode ) {
+		stream_prop = "0";
+	} else {
+		stream_prop = "1";
+	}
+
+	then = stream_cmd.time_spec;
+
+	for( size_t i = 0; i < _channels.size(); i++ ) {
+
+		if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != stream_cmd.stream_mode ) {
+
+			std::cout << "Sending RX SoB req on Channel " << _channels[ i ] << std::endl;
+			dev->make_rx_sob_req_packet( stream_cmd.time_spec, _channels[ i ], rx_sob );
+			dev->send_rx_sob_req( rx_sob );
+		}
+		_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( stream_prop );
+	}
 }
 
 void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, size_t mboard) {
