@@ -55,7 +55,7 @@ size_t crimson_tng_rx_streamer::recv(
 			|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE == _stream_cmd.stream_mode
 			|| stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE == _stream_cmd.stream_mode
 		)
-		? _stream_cmd_samples_remaining[ 0 ]
+		? std::min (_stream_cmd_samples_remaining[ 0 ],nsamps_per_buff)
 		: nsamps_per_buff;
 
 	const size_t vita_hdr = 4;
