@@ -401,6 +401,20 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
+void crimson_tng_impl::make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t channel, uhd::usrp::rx_sob_req & pkt ) {
+	pkt.header = 0x10000 + channel;
+	pkt.tv_sec = ts.get_full_secs();
+	pkt.tv_psec = ts.get_frac_secs() * 1e12;
+
+	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
+	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
+	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
+
+	boost::endian::native_to_big_inplace( pkt.header );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_psec );
+}
+
 void crimson_tng_impl::send_rx_sob_req( const rx_sob_req & req ) {
 	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }

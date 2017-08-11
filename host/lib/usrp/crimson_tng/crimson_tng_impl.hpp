@@ -99,6 +99,7 @@ public:
     void uoflow_enable_reporting( bool en = true );
 
     void send_rx_sob_req( const rx_sob_req & req );
+    static void make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t channel, uhd::usrp::rx_sob_req & pkt );
 
 private:
     // helper functions to wrap send and recv as get and set
