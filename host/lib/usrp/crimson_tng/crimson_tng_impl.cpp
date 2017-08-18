@@ -1049,9 +1049,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		//Initialize "Time Diff" mechanism before starting flow control thread
 		time_spec_t ts = time_spec_t::get_system_time();
 		_streamer_start_time = ts.get_real_secs();
+
 		// The problem is that this class does not hold a multi_crimson instance
-		_tree->access<time_spec_t>( time_path / "now" ).set( ts );
-		std::cout << "set crimson time to " << ts.get_real_secs() << std::endl;
+		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
+		//_tree->access<time_spec_t>( time_path / "now" ).set( ts );
+		//std::cout << "set crimson time to " << ts.get_real_secs() << std::endl;
 
 		// Tyreus-Luyben tuned PID controller
 		_time_diff_pidc = uhd::pidc_tl(
