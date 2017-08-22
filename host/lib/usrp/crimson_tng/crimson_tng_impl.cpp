@@ -646,6 +646,12 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	struct time_diff_resp tdr;
 
+	//Gett offset
+	now = uhd::time_spec_t::get_system_time();
+	dev->time_diff_send( now );
+	dev->time_diff_recv( tdr );
+	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+
 	for(
 		now = uhd::time_spec_t::get_system_time(),
 			then = now + T
@@ -1052,8 +1058,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 
 		// The problem is that this class does not hold a multi_crimson instance
 		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
-		_tree->access<time_spec_t>( time_path / "now" ).set( ts );
-		std::cout << "set crimson time to " << ts.get_real_secs() << std::endl;
 
 		// Tyreus-Luyben tuned PID controller
 		_time_diff_pidc = uhd::pidc_tl(

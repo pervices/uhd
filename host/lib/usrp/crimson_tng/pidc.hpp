@@ -77,7 +77,7 @@ namespace uhd {
 
 			this->sp = sp;
 			e = sp - pv;
-			error_filter.update( std::abs( e ) );
+			error_filter.update(  e  );
 
 			// proportional
 			double P = Kp * e;
@@ -134,7 +134,7 @@ namespace uhd {
 
 			double filtered_error;
 
-			filtered_error = error_filter.get_average();
+			filtered_error = abs(error_filter.get_average());
 
 			if ( filtered_error >= 1000000 ) {
 				if ( time - last_status_time >= 1 ) {
@@ -180,6 +180,12 @@ namespace uhd {
 			error_filter.update( avg );
 		}
 
+		void set_offset( const double timeOffset ) {
+			offset = std::abs( timeOffset );
+		}
+		double get_offset(){
+			return offset;
+		}
 	protected:
 		double Kp, Ki, Kd;
 
@@ -187,6 +193,8 @@ namespace uhd {
 		double i; // integral memory
 		double cv; // output memory
 		double sp;
+
+		double offset; //time offset
 
 		double last_time;
 		double last_status_time;
