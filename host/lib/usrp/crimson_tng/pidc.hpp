@@ -97,7 +97,7 @@ namespace uhd {
 
 			last_time = now;
 
-			return cv;
+			return cv - offset;
 		}
 
 		double get_last_time() {
@@ -110,7 +110,7 @@ namespace uhd {
 		}
 
 		double get_control_variable() {
-			return cv;
+			return cv - offset;
 		}
 
 		double get_k( k_t k ) {
@@ -181,7 +181,7 @@ namespace uhd {
 		}
 
 		void set_offset( const double timeOffset ) {
-			offset = std::abs( timeOffset );
+			offset =  timeOffset;
 		}
 		double get_offset(){
 			return offset;
