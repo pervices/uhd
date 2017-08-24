@@ -648,6 +648,8 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 	now = uhd::time_spec_t::get_system_time();
 	dev->time_diff_send( now );
 	dev->time_diff_recv( tdr );
+	dev->time_diff_send( now );
+	dev->time_diff_recv( tdr );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -681,6 +683,10 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		time_diff = dev->_time_diff_pidc.get_control_variable();
 		crimson_now = now + time_diff;
 
+		dev->time_diff_send( crimson_now );
+		if ( ! dev->time_diff_recv( tdr ) ) {
+			continue;
+		}
 		dev->time_diff_send( crimson_now );
 		if ( ! dev->time_diff_recv( tdr ) ) {
 			continue;
