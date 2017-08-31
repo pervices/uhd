@@ -479,11 +479,12 @@ void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
 		fifo_lvl[ j ] = tdr.fifo[ CRIMSON_TNG_TX_CHANNELS - j - 1 ];
 	}
 
-		_bm_thread_mutex.try_lock();{
+	if ( _bm_thread_mutex.try_lock() ) {
 		for( auto & l: _bm_listeners ) {
 			l->on_buffer_level_read( fifo_lvl );
 		}
-		_bm_thread_mutex.unlock();}
+		_bm_thread_mutex.unlock();
+	}
 }
 
 static void print_bm_starting() {
