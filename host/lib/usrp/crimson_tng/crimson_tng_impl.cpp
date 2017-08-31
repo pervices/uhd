@@ -473,17 +473,17 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 
 void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
 
+	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
+
 	// for now we have to copy the fifo levels into a std::vector<size_t> for processing
 	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS, 0 );
 	for( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
 		fifo_lvl[ j ] = tdr.fifo[ CRIMSON_TNG_TX_CHANNELS - j - 1 ];
 	}
 
-		_bm_thread_mutex.try_lock();{
-		for( auto & l: _bm_listeners ) {
-			l->on_buffer_level_read( fifo_lvl );
-		}
-		_bm_thread_mutex.unlock();}
+	for( auto & l: _bm_listeners ) {
+		l->on_buffer_level_read( fifo_lvl );
+	}
 }
 
 static void print_bm_starting() {
