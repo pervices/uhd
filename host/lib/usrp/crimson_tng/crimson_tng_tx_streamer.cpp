@@ -184,7 +184,6 @@ size_t crimson_tng_tx_streamer::send(
 
 	if (
 		true
-		&& false == _metadata.start_of_burst
 		&& true == _metadata.end_of_burst
 		&& 0 == nsamps_per_buff
 	) {
@@ -197,7 +196,6 @@ size_t crimson_tng_tx_streamer::send(
 	if ( _first_send && _sob_arg > 0.0 ) {
 		md.has_time_spec = true;
 		md.time_spec = get_time_now() + _sob_arg;
-		//std::cout << "sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
 	}
 	// XXX: @CF: workaround for current overflow issue
 	// found that when SoB was zero, buffer level did not get up to set point. 
@@ -225,12 +223,16 @@ size_t crimson_tng_tx_streamer::send(
 		;
 		true
 		&& get_time_now() < send_deadline
-		&& samp_sent < nsamps_per_buff * _channels.size()
+		&& (
+			false
+			|| samp_sent < nsamps_per_buff * _channels.size()
+			|| 0 == nsamps_per_buff
+		)
 		;
 	) {
 		for ( size_t i = 0; i < _channels.size(); i++ ) {
 
-			if ( 0 == remaining_bytes[ i ] ) {
+			if ( 0 == remaining_bytes[ i ] && 0 != nsamps_per_buff ) {
 				continue;
 			}
 
@@ -343,6 +345,10 @@ size_t crimson_tng_tx_streamer::send(
 
 			// this ensures we only send the vita time spec on the first packet of the burst
 			metadata[ i ].has_time_spec = false;
+		}
+
+		if ( 0 == nsamps_per_buff ) {
+			break;
 		}
 	}
 

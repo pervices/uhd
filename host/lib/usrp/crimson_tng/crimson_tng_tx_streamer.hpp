@@ -13,7 +13,7 @@
 #include "flow_control.hpp"
 
 #ifndef DEBUG_TX
-#define DEBUG_TX 1
+//#define DEBUG_TX 1
 #endif
 
 namespace uhd {
