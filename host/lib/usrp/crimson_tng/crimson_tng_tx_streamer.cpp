@@ -159,6 +159,11 @@ void crimson_tng_tx_streamer::on_buffer_level_read( const std::vector<size_t> & 
 	}
 }
 
+void crimson_tng_tx_streamer::push_async_msg( uhd::async_metadata_t &async_metadata ) {
+	std::lock_guard<std::mutex> _lock( _async_mutex );
+	_async_msg_fifo.push_with_pop_on_full( async_metadata );
+}
+
 size_t crimson_tng_tx_streamer::send(
 		const buffs_type &buffs,
 		const size_t nsamps_per_buff,
@@ -179,8 +184,7 @@ size_t crimson_tng_tx_streamer::send(
 
 	uhd::time_spec_t send_deadline;
 
-	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev );
-	dev->uoflow_enable_reporting();
+	uoflow_enable_reporting();
 
 	if (
 		true
@@ -352,11 +356,11 @@ size_t crimson_tng_tx_streamer::send(
 
 // async messages are currently disabled
 bool crimson_tng_tx_streamer::recv_async_msg(
-	async_metadata_t &async_metadata,
+	uhd::async_metadata_t &async_metadata,
 	double timeout
 ) {
-	boost::ignore_unused( async_metadata, timeout );
-	return false;
+	std::lock_guard<std::mutex> _lock( _async_mutex );
+	return _async_msg_fifo.pop_with_timed_wait( async_metadata, timeout );
 }
 
 void crimson_tng_tx_streamer::init_tx_streamer(
@@ -480,4 +484,48 @@ void crimson_tng_tx_streamer::fini_tx_streamer() {
 	}
 
 	_dev = NULL;
+}
+
+void crimson_tng_tx_streamer::on_uoflow_read( const uhd::usrp::time_diff_resp & tdr ) {
+
+	async_metadata_t metadata;
+
+	for ( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
+
+		// update uflow counters, notify user on change
+
+		if ( _uoflow_report_en && _uflow[ j ] != tdr.uoflow[ j ].uflow ) {
+
+			// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+            // async_metadata_t metadata;
+            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+			metadata.channel = j;
+			metadata.has_time_spec = true;
+			metadata.time_spec = uhd::time_spec_t::get_system_time();
+			metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
+			push_async_msg( metadata );
+			//UHD_MSG( fastpath ) << "U" << ((char) ( 'a' + j ) );
+		}
+		_uflow[ j ] = tdr.uoflow[ j ].uflow;
+
+		// update oflow counters, notify user on change
+
+		if ( _uoflow_report_en && _oflow[ j ] != tdr.uoflow[ j ].oflow ) {
+			// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+            // async_metadata_t metadata;
+            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+			metadata.channel = j;
+			metadata.has_time_spec = true;
+			metadata.time_spec = uhd::time_spec_t::get_system_time();
+			metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
+			push_async_msg( metadata );
+			//UHD_MSG( fastpath ) << "O" << ((char) ( 'a' + j ) );
+		}
+		_oflow[ j ] = tdr.uoflow[ j ].oflow;
+
+	}
+}
+
+void crimson_tng_tx_streamer::uoflow_enable_reporting( bool en ) {
+	_uoflow_report_en = en;
 }

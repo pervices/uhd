@@ -469,6 +469,10 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 	if ( _time_diff_converged ) {
 		time_diff_set( cv );
 	}
+
+	for( auto & l: _bm_listeners ) {
+		l->on_uoflow_read( tdr );
+	}
 }
 
 void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
@@ -605,30 +609,6 @@ void crimson_tng_impl::bm_listener_rem( uhd::crimson_tng_tx_streamer *listener )
 	_bm_listeners.erase( listener );
 }
 
-void crimson_tng_impl::uoflow_update_counters( const time_diff_resp & tdr ) {
-	for ( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
-
-		// update uflow counters, notify user on change
-
-		if ( _uoflow_report_en && _uflow[ j ] != tdr.uoflow[ j ].uflow ) {
-			UHD_MSG( fastpath ) << "U" << ((char) ( 'a' + j ) );
-		}
-		_uflow[ j ] = tdr.uoflow[ j ].uflow;
-
-		// update oflow counters, notify user on change
-
-		if ( _uoflow_report_en && _oflow[ j ] != tdr.uoflow[ j ].oflow ) {
-			UHD_MSG( fastpath ) << "O" << ((char) ( 'a' + j ) );
-		}
-		_oflow[ j ] = tdr.uoflow[ j ].oflow;
-
-	}
-}
-
-void crimson_tng_impl::uoflow_enable_reporting( bool en ) {
-	_uoflow_report_en = en;
-}
-
 // the buffer monitor thread
 void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
@@ -693,7 +673,6 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		}
 		dev->time_diff_process( tdr, now );
 		dev->fifo_update_process( tdr );
-		dev->uoflow_update_counters( tdr );
 
 #if 0
 			// XXX: overruns - we need to fix this
@@ -753,10 +732,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_time_diff_converged( false ),
-	_time_diff( 0 ),
-	_oflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
-	_uflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
-	_uoflow_report_en( false )
+	_time_diff( 0 )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;

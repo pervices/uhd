@@ -7,9 +7,11 @@
 #include "uhd/device.hpp"
 #include "uhd/property_tree.hpp"
 #include "uhd/stream.hpp"
+#include "uhd/transport/bounded_buffer.hpp"
 #include "uhd/transport/udp_stream.hpp"
 #include "uhd/transport/vrt_if_packet.hpp"
 
+#include "crimson_tng_impl.hpp"
 #include "flow_control.hpp"
 
 #ifndef DEBUG_TX
@@ -30,13 +32,19 @@ public:
 		_max_clock_ppm_error( 0.0 ),
 		_dev( NULL ),
 		_first_send( true ),
-		_sob_arg( 0.0 )
+		_sob_arg( 0.0 ),
+		_async_msg_fifo( 64 ),
+		_oflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
+		_uflow( CRIMSON_TNG_TX_CHANNELS, 0 ),
+		_uoflow_report_en( false )
 	{
 		init_tx_streamer( addr, tree, channels );
 	}
 
-	crimson_tng_tx_streamer( device_addr_t addr, property_tree::sptr tree ) {
-		init_tx_streamer( addr, tree, std::vector<size_t>(1, 0) );
+	crimson_tng_tx_streamer( device_addr_t addr, property_tree::sptr tree )
+	:
+		crimson_tng_tx_streamer( addr, tree, std::vector<size_t>(1, 0) )
+	{
 	}
 
 	~crimson_tng_tx_streamer() {
@@ -71,6 +79,8 @@ public:
 	void set_device( uhd::device *dev );
 
 	void on_buffer_level_read( const std::vector<size_t> & buffer_levels );
+	void on_uoflow_read( const uhd::usrp::time_diff_resp & tdr );
+	void push_async_msg( uhd::async_metadata_t &async_metadata );
 
 private:
 	// init function, common to both constructors
@@ -96,6 +106,13 @@ private:
 
 	/// Store results of time diff in _crimson_tng_impl object
 	uhd::device *_dev;
+
+	std::mutex _async_mutex;
+	uhd::transport::bounded_buffer<uhd::async_metadata_t> _async_msg_fifo;
+	std::vector<uint64_t> _uflow;
+	std::vector<uint64_t> _oflow;
+	bool _uoflow_report_en;
+    void uoflow_enable_reporting( bool en = true );
 };
 
 } /* namespace uhd */

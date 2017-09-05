@@ -28,12 +28,11 @@
 #include "uhd/usrp/multi_crimson_tng.hpp"
 
 #include "crimson_tng_iface.hpp"
-#include "crimson_tng_tx_streamer.hpp"
+#include "crimson_tng_impl.hpp"
 #include "pidc.hpp"
 
 namespace uhd {
 namespace usrp {
-
 
 #pragma pack(push,1)
 struct time_diff_req {
@@ -67,6 +66,15 @@ struct rx_sob_req {
 };
 #pragma pack(pop)
 
+}
+}
+
+#include "crimson_tng_tx_streamer.hpp"
+#include "crimson_tng_rx_streamer.hpp"
+
+namespace uhd {
+namespace usrp {
+
 class crimson_tng_impl : public uhd::device
 {
 public:
@@ -95,8 +103,6 @@ public:
 
     void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
     void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
-
-    void uoflow_enable_reporting( bool en = true );
 
     void send_rx_sob_req( const rx_sob_req & req );
     static void make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t channel, uhd::usrp::rx_sob_req & pkt );
@@ -146,8 +152,6 @@ private:
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
-    void uoflow_update_counters( const time_diff_resp & tdr );
-
     // private pointer to the UDP interface, this is the path to send commands to Crimson
     uhd::crimson_tng_iface::sptr _iface;
     std::mutex _iface_lock;
@@ -189,10 +193,6 @@ private:
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
 	bool is_bm_thread_needed();
-
-	std::vector<uint64_t> _uflow;
-	std::vector<uint64_t> _oflow;
-	bool _uoflow_report_en;
 };
 
 }
