@@ -216,6 +216,7 @@ size_t crimson_tng_tx_streamer::send(
 		metadata.push_back( md );
 		if ( md.has_time_spec ) {
 			_flow_control[ i ]->set_start_of_burst_time( md.time_spec );
+			_sample_count[ i ] = 0;
 		}
 	}
 
