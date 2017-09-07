@@ -193,6 +193,9 @@ size_t crimson_tng_tx_streamer::send(
 		&& 0 == nsamps_per_buff
 	) {
 		// empty end-of-burst packet signals tx_streamer to stop
+		for ( size_t i = 0; i < _channels.size(); i++ ) {
+				_sample_count[ i ] = 0;
+		}
 		fini_tx_streamer();
 		return 0;
 	}
