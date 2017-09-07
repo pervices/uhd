@@ -97,7 +97,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //variables to be set by po
     std::string args, wave_type, ant, subdev, ref, otw, channel_list;
     size_t spb;
-    double rate, freq, gain, wave_freq;
+    double rate, freq,nco, gain, wave_freq;
     double sob;
     float ampl;
 
@@ -110,6 +110,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 		("sob", po::value<double>(&sob)->default_value(0.5), "start of burst in N seconds, 0 to disable")
         ("rate", po::value<double>(&rate)->default_value(10e6), "rate of outgoing samples")
         ("freq", po::value<double>(&freq)->default_value(15e6), "RF center frequency in Hz")
+        ("nco", po::value<double>(&nco), "NCO center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(15000)), "amplitude of the waveform [0 to 32767]")
         ("gain", po::value<double>(&gain)->default_value(20), "gain for the RF chain")
         ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "waveform type (CONST, SQUARE, RAMP, SINE)")
@@ -165,12 +166,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
+
+
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(freq);
-        usrp->set_tx_freq(tune_request, channel_nums[ch]);
-        std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
-
+		uhd::tune_request_t tune_request(freq);
+        if (vm.count("nco")){
+    		std::cout << boost::format("Manually setting Freq %f MHz") % (freq ) << boost::format(" NCO %f MHz...") % (nco ) <<std::endl << std::endl;
+        	tune_request.rf_freq_policy = uhd::tune_request_t::POLICY_MANUAL;
+        	tune_request.dsp_freq = nco;
+        	tune_request.dsp_freq_policy = uhd::tune_request_t::POLICY_MANUAL;
+        	tune_request.rf_freq = freq;
+        }
+		usrp->set_tx_freq(tune_request, channel_nums[ch]);
+		std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
         //set the rf gain
         if (vm.count("gain")){
             std::cout << boost::format("Setting TX Gain: %f dB...") % gain << std::endl;
