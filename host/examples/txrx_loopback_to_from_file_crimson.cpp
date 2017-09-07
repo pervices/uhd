@@ -614,12 +614,14 @@ void transmit_worker(
     // with it outside the loop at least the signal is continuous, albeit with an occasional phase jump
     sd.fillBuffers( tx_channel_nums, buffs, indeces );
 
+   //	std::cout<<"TS Burst set to:  "<< metadata.time_spec.get_full_secs()<<std::endl;// <<"Time now: "<< now.get_full_secs()<<std::endl;
     //send data until the signal handler gets called
+	sleep(5);
     while(not stop_signal_called){
 
         //send the entire contents of the buffer
         size_t sent_samples = tx_streamer->send( buff_ptrs, sd.n_samples, metadata );
-        //std::cout << "sent " << sent_samples << " samples" << std::endl;
+       // std::cout << "sent " << sent_samples << " samples" << std::endl;
 
         metadata.start_of_burst = false;
         metadata.has_time_spec = false;
@@ -635,6 +637,7 @@ void transmit_worker(
 
 void recv_to_stream_data(
     uhd::usrp::multi_usrp::sptr usrp,
+	uhd::time_spec_t  rxtime,
     float settling_time,
     float maximum_rxtime_s,
     size_t maximum_rxsamples,
@@ -659,9 +662,8 @@ void recv_to_stream_data(
     }
 
     sd.n_samples = std::min( (size_t)( maximum_rxtime_s * highest_sample_rate ), (size_t)maximum_rxsamples );
-
     int num_requested_samples = sd.n_samples * sd.n_channels;
-    int num_total_samps = 0;
+    size_t num_total_samps = 0;
 
     std::vector< std::vector< std::complex< short > > > buffs(
 		rx_channel_nums.size(), std::vector< std::complex< short > >( sd.n_samples )
@@ -675,23 +677,19 @@ void recv_to_stream_data(
     bool overflow_message = true;
     float timeout = settling_time + 0.1; //expected settling time + padding for first recv
 
-    //setup streaming
-// XXX: @CF: currently we only support STREAM_MODE_START_CONTINUOUS
-//    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
-//        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-//        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
-//    );
     uhd::stream_cmd_t stream_cmd( uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS );
     stream_cmd.num_samps = num_requested_samples;
     stream_cmd.stream_now = true;
-    stream_cmd.time_spec = uhd::time_spec_t(settling_time);
+    stream_cmd.time_spec = rxtime + uhd::time_spec_t(settling_time);
     rx_stream->issue_stream_cmd(stream_cmd);
 
     uhd::rx_metadata_t md;
 
-    while(not stop_signal_called and (num_total_samps < num_requested_samples or num_requested_samples == 0)){
-        size_t num_rx_samps = rx_stream->recv( buff_ptrs, buffs.size(), md, timeout);
+    while(not stop_signal_called and (num_total_samps < sd.n_samples or num_requested_samples == 0)){
+        size_t num_rx_samps = rx_stream->recv( buff_ptrs, (sd.n_samples-num_total_samps), md, timeout);
         timeout = 0.1; //small timeout for subsequent recv
+
+
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
@@ -716,25 +714,10 @@ void recv_to_stream_data(
 
         // Typically one sample comes in per-channel when sampling several at once.
         // That's a fairly fool-proof strategy to serialization / deserialization.
-        size_t inc_amount = num_rx_samps / buff_ptrs.size();
+        size_t inc_amount = num_rx_samps;
         for( unsigned i = 0; i < buff_ptrs.size(); i++ ) {
         	buff_ptrs[ i ] += inc_amount;
         }
-
-//		if ( 0 == num_total_samps % 100 ) {
-//			if ( 0 != num_total_samps ) {
-//				std::cout << '\r';
-//				for( int i = 0; i < 80; i++ ) {
-//					//std::cout << '\b';
-//					std::cout << ' ';
-//				}
-//				std::cout << '\r';
-//				std::cout << std::flush;
-//			}
-//
-//			std::cout << "Received " << num_total_samps << " / " << num_requested_samples << " samples ( " << (int)( 100.0 * (float)num_total_samps / (float)num_requested_samples) << "% )";
-//			std::cout << std::flush;
-//		}
     }
 
 
@@ -766,6 +749,8 @@ void recv_to_stream_data(
 
     	std::cout << std::endl;
     }
+
+
 }
 
 /***********************************************************************
@@ -822,11 +807,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     output_stream_data.channels = input_stream_data.channels;
 
     //create a usrp device
-    std::cout << boost::format("Creating the transmit crimson device with: %s...") % tx_args << std::endl;
     uhd::usrp::multi_usrp::sptr tx_usrp = uhd::usrp::multi_usrp::make(tx_args);
-
-    std::cout << boost::format("Creating the receive usrp device with: %s...") % rx_args << std::endl;
-    uhd::usrp::multi_usrp::sptr rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
 
     //detect which channels to use
     std::vector<size_t> tx_channel_nums;
@@ -834,13 +815,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         tx_channel_nums.push_back( to[ n ] );
     }
 
-    std::vector<size_t> rx_channel_nums;
-    for( std::string &n: input_stream_data.channels ) {
-        rx_channel_nums.push_back( to[ n ] );
-    }
-
-    std::cout << boost::format("Using Device: %s") % tx_usrp->get_pp_string() << std::endl;
-    std::cout << boost::format("Using Device: %s") % rx_usrp->get_pp_string() << std::endl;
+	if ( input_stream_data.n_channels != tx_channel_nums.size() ) {
+		throw new uhd::runtime_error( "number of channels not consistent" );
+	}
 
     //set the transmit sample rate
     for( const auto& kv: input_stream_data.tx_sample_rate ) {
@@ -849,23 +826,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
 		tx_rate = kv.second;
 		std::cout << boost::format("Setting TX Rate for Channel %s: %f Msps...") % chan % (tx_rate/1e6) << std::endl;
-	    tx_usrp->set_tx_rate(tx_rate, chani );
+	    tx_usrp->set_tx_rate( tx_rate, chani );
 
-	    output_stream_data.tx_sample_rate[ chan ] = tx_usrp->get_tx_rate();
-	    std::cout << boost::format("Actual TX Rate: %f Msps...") % ( output_stream_data.tx_sample_rate[ chan ] / 1e6 ) << std::endl;
-    }
-
-    //set the receive sample rate
-    for( const auto& kv: input_stream_data.rx_sample_rate ) {
-		std::string chan = kv.first;
-		int chani = to[ chan ];
-
-		rx_rate = kv.second;
-		std::cout << boost::format("Setting RX Rate for Channel %s: %f Msps...") % chan % (rx_rate/1e6) << std::endl;
-	    rx_usrp->set_rx_rate(rx_rate, chani);
-
-	    output_stream_data.rx_sample_rate[ chan ] = tx_usrp->get_rx_rate( chani );
-	    std::cout << boost::format("Actual RX Rate: %f Msps...") % ( output_stream_data.rx_sample_rate[ chan ] / 1e6 ) << std::endl;
+	    tx_rate = tx_usrp->get_tx_rate();
+	    std::cout << boost::format("Actual TX Rate: %f Msps...") % ( tx_rate / 1e6 ) << std::endl;
     }
 
     //set the transmit center frequency
@@ -879,8 +843,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         uhd::tune_request_t tx_tune_request(tx_freq);
         tx_usrp->set_tx_freq( tx_tune_request, chani );
 
-        output_stream_data.tx_center_freq[ chan ] = tx_usrp->get_tx_freq( chani );
-        std::cout << boost::format("Actual TX Freq: %f MHz...") % ( output_stream_data.tx_center_freq[ chan ] / 1e6 ) << std::endl;
+        tx_freq = tx_usrp->get_tx_freq( chani );
+        std::cout << boost::format("Actual TX Freq: %f MHz...") % ( tx_freq / 1e6 ) << std::endl;
     }
 
     //set the transmit gain
@@ -889,12 +853,45 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     	std::string chan = kv.first;
 		int chani = to[ chan ];
 
-        tx_gain = 0;
+        tx_gain = 20.0;
         std::cout << boost::format("Setting TX Gain: %f dB...") % tx_gain << std::endl;
-    	tx_usrp->set_tx_gain( 0, chani );
+    	tx_usrp->set_tx_gain( tx_gain, chani );
     	tx_gain = tx_usrp->get_tx_gain( chani );
-    	std::cout << boost::format("Actual TX Gain: %f dB...") % tx_gain << std::endl;
+    	std::cout << boost::format("Actual TX Gain: %f dB...") % tx_gain << std::endl << std::endl;
     }
+
+    //create a transmit streamer
+    uhd::stream_args_t stream_args( "sc16", "sc16" );
+    stream_args.channels = tx_channel_nums;
+    std::cout << "Getting TX Streamer.." << std::endl;
+    uhd::tx_streamer::sptr tx_stream = tx_usrp->get_tx_stream( stream_args );
+    std::cout << "Got TX Streamer.." << std::endl;
+    //RX
+
+    std::cout << boost::format("Creating the receive usrp device with: %s...") % rx_args << std::endl;
+    uhd::usrp::multi_usrp::sptr rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
+
+
+    std::vector<size_t> rx_channel_nums;
+    for( std::string &n: input_stream_data.channels ) {
+        rx_channel_nums.push_back( to[ n ] );
+    }
+
+
+    //set the receive sample rate
+    for( const auto& kv: input_stream_data.rx_sample_rate ) {
+		std::string chan = kv.first;
+		int chani = to[ chan ];
+
+		rx_rate = kv.second;
+		std::cout << boost::format("Setting RX Rate for Channel %s: %f Msps...") % chan % (rx_rate/1e6) << std::endl;
+	    rx_usrp->set_rx_rate(rx_rate, chani);
+
+	    output_stream_data.rx_sample_rate[ chan ] = rx_usrp->get_rx_rate( chani );
+	    std::cout << boost::format("Actual RX Rate: %f Msps...") % ( output_stream_data.rx_sample_rate[ chan ] / 1e6 ) << std::endl;
+    }
+
+
 
     //set the receive center frequency
     for( const auto& kv: input_stream_data.rx_center_freq ) {
@@ -917,25 +914,25 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     	std::string chan = kv.first;
 		int chani = to[ chan ];
 
-        rx_gain = 0;
+        rx_gain = 40;
         std::cout << boost::format("Setting RX Gain: %f dB...") % rx_gain << std::endl;
     	rx_usrp->set_rx_gain( rx_gain, chani );
     	rx_gain = rx_usrp->get_rx_gain( chani );
     	std::cout << boost::format("Actual RX Gain: %f dB...") % rx_gain << std::endl;
     }
 
-    //create a transmit streamer
-    uhd::stream_args_t stream_args( "sc16", "sc16" );
-    stream_args.channels = tx_channel_nums;
-    uhd::tx_streamer::sptr tx_stream = tx_usrp->get_tx_stream( stream_args );
-
-    //setup the metadata flags
     uhd::tx_metadata_t md;
     md.start_of_burst = true;
-    md.end_of_burst   = false;
-    md.has_time_spec  = true;
-    md.time_spec = uhd::time_spec_t(0.1); //give us 0.1 seconds to fill the tx buffers
 
+           md.start_of_burst = true;
+           md.end_of_burst   = false;
+   			uhd::time_spec_t now = tx_usrp->get_time_now();
+   			// XXX: fractional seconds currently ignored for start of burst!!! will be fixed momentarily!
+   			uhd::time_spec_t then =  now + uhd::time_spec_t(settling);
+   			md.time_spec = then;
+
+			md.has_time_spec = true;
+   	std::cout<<"Burst set to:  "<< then.get_full_secs()<<std::endl <<"Time now: "<< now.get_full_secs()<<std::endl;
 	/*
     XXX: @CF: Setting device timestamp to an arbitrary value (such as zero) can negatively
     	 affect Crimson TNG time synchronization. The user is strongly discouraged from doing so.
@@ -949,7 +946,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     transmit_thread.create_thread( boost::bind( &transmit_worker, input_stream_data, tx_stream, md, tx_channel_nums ) );
 
     //recv to file
-    recv_to_stream_data( rx_usrp, settling, rxtime, rxsamp, output_stream_data, rx_channel_nums );
+    recv_to_stream_data( rx_usrp, now,settling, rxtime, rxsamp, output_stream_data, rx_channel_nums );
 
     //clean up transmit worker
     stop_signal_called = true;
