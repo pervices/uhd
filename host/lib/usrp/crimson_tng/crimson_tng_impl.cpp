@@ -428,7 +428,7 @@ void crimson_tng_impl::send_rx_sob_req( const rx_sob_req & req ) {
 	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
-void crimson_tng_impl::time_set(time_spec_t &time_spec){
+void crimson_tng_impl::time_set( const uhd::time_spec_t & ts ){
 
 
 	time_diff_req pkt;
@@ -436,7 +436,7 @@ void crimson_tng_impl::time_set(time_spec_t &time_spec){
 	// Input to Process (includes feedback from PID Controller)
 	make_time_set_packet(
 		pkt,
-		time_spec
+		ts
 	);
 
 	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
