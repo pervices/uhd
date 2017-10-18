@@ -400,6 +400,15 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
+static inline void make_time_set_packet( time_diff_req & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
+	pkt.header = 2;
+	pkt.tv_sec = ts.get_full_secs();
+	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
+
+	boost::endian::native_to_big_inplace( pkt.header );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+}
 
 void crimson_tng_impl::make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t channel, uhd::usrp::rx_sob_req & pkt ) {
 	pkt.header = 0x10000 + channel;
@@ -417,6 +426,20 @@ void crimson_tng_impl::make_rx_sob_req_packet( const uhd::time_spec_t & ts, cons
 
 void crimson_tng_impl::send_rx_sob_req( const rx_sob_req & req ) {
 	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
+}
+
+void crimson_tng_impl::time_set(time_spec_t &time_spec){
+
+
+	time_diff_req pkt;
+
+	// Input to Process (includes feedback from PID Controller)
+	make_time_set_packet(
+		pkt,
+		time_spec
+	);
+
+	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
@@ -474,6 +497,7 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 		l->on_uoflow_read( tdr );
 	}
 }
+
 
 void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
 
@@ -817,7 +841,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
     TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_CLOCK_RATE);
 
     TREE_CREATE_ST(time_path / "cmd", time_spec_t, time_spec_t(0.0));
-    TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
+    TREE_CREATE_ST(time_path / "now", time_spec_t, time_spec_t(0.0));
+    //TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
     TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, mboard_eeprom_t());
@@ -1051,6 +1076,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
 }
+
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {

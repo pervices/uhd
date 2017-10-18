@@ -504,7 +504,9 @@ time_spec_t multi_crimson_tng::get_time_last_pps(size_t mboard){
 
 // Set the current time on Crimson
 void multi_crimson_tng::set_time_now(const time_spec_t &time_spec, size_t mboard){
-    _tree->access<time_spec_t>(mb_root(0) / "time/now").set(time_spec);
+	crimson_tng_impl::sptr dev = boost::static_pointer_cast<crimson_tng_impl>( _dev );
+	dev.get()->time_set(time_spec);
+    //_tree->access<time_spec_t>(mb_root(0) / "time/now").set(time_spec);
     return;
 }
 

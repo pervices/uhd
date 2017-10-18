@@ -96,6 +96,7 @@ public:
     uhd::device_addr_t _addr;
 
     inline double time_diff_get() { return _time_diff; }
+    void time_set(time_spec_t &time_spec);
     inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }
     bool time_diff_converged();
     void start_bm();
