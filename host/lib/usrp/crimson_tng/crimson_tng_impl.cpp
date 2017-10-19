@@ -440,6 +440,14 @@ void crimson_tng_impl::time_set( const uhd::time_spec_t & ts ){
 	);
 
 	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+
+	uhd::time_spec_t now;
+	now = uhd::time_spec_t::get_system_time();
+
+	struct time_diff_resp tdr;
+	time_diff_send( now );
+	time_diff_recv( tdr );
+	_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
