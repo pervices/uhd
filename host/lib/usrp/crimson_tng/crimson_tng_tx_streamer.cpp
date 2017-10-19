@@ -155,6 +155,7 @@ void crimson_tng_tx_streamer::set_device( uhd::device *dev ) {
 void crimson_tng_tx_streamer::on_buffer_level_read( const std::vector<size_t> & buffer_levels ) {
 	for( size_t i = 0; i < _channels.size(); i++ ) {
 		int ch = _channels[ i ];
+		std::cout<<"Ch: "<<ch<<"  Buffer: "<< buffer_levels[ ch ]<< std::endl;
 		_flow_control[ i ]->set_buffer_level_async( buffer_levels[ ch ] );
 	}
 }
