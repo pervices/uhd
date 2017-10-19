@@ -269,6 +269,7 @@ size_t crimson_tng_tx_streamer::send(
 					now
 				);
 			then = now + dt;
+			int count_in_wait = 0;
 			// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
 			if ( dt.get_real_secs() > 100e-6 ) {
 				dt -= 30e-6;
@@ -283,9 +284,10 @@ size_t crimson_tng_tx_streamer::send(
 				now = get_time_now()
 			) {
 				// nop
+				count_in_wait = 1;
 				__asm__ __volatile__( "" );
 			}
-
+			if (count_in_wait) std::cout<< "BACK PRESSURE"<<std::endl;
 			//
 			// Ensure that we have primed the buffers if SoB was given
 			//
