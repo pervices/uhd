@@ -116,6 +116,7 @@ public:
 
 			bl = unlocked_get_buffer_level( now );
 			dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
+			std::cout << std::setprecision(9) <<"bl now: " <<bl <<"  nsr: "<<  nominal_sample_rate<< "  dt: "<< dt<< std::endl;
 		}
 
 		return dt;
