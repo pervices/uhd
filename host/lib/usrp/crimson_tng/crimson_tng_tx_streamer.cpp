@@ -280,7 +280,7 @@ size_t crimson_tng_tx_streamer::send(
 				struct timespec req, rem;
 				req.tv_sec = (time_t) dt.get_full_secs();
 				req.tv_nsec = dt.get_frac_secs()*1e9;
-				nanosleep( &req, &rem );
+				//nanosleep( &req, &rem );
 			}
 			for(
 				now = get_time_now();
