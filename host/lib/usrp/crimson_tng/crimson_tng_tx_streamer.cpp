@@ -272,12 +272,15 @@ size_t crimson_tng_tx_streamer::send(
 			int count_in_wait = 0;
 			// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
 			if ( dt.get_real_secs() > 100e-6 ) {
+
+				count_in_wait = 1;
+				std::cout<< "BACK PRESSURE sleep  INDEX: "<<i<<" BL: "<<_flow_control[ i ]->get_buffer_level( now );
+
 				dt -= 30e-6;
 				struct timespec req, rem;
 				req.tv_sec = (time_t) dt.get_full_secs();
 				req.tv_nsec = dt.get_frac_secs()*1e9;
 				nanosleep( &req, &rem );
-				std::cout<< "BACK PRESSURE sleep"<<std::endl
 			}
 			for(
 				now = get_time_now();
@@ -288,7 +291,7 @@ size_t crimson_tng_tx_streamer::send(
 				count_in_wait = 1;
 				__asm__ __volatile__( "" );
 			}
-			if (count_in_wait > 0){ std::cout<< "BACK PRESSURE"<<std::endl};
+			if (count_in_wait > 0){ std::cout<< "  END   BL: "<<_flow_control[ i ]->get_buffer_level( now )<< std::endl;}
 			//
 			// Ensure that we have primed the buffers if SoB was given
 			//
