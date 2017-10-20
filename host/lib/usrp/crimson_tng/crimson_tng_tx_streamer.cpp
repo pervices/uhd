@@ -86,8 +86,8 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 	ifo.has_sid = false; // currently unused
 	ifo.has_cid = false; // currently unused
 	ifo.has_tlr = false; // currently unused
-	ifo.has_tsi = metadata.has_time_spec;
-	ifo.has_tsf = metadata.has_time_spec;
+	ifo.has_tsi = metadata.has_time_spec && metadata.start_of_burst;
+	ifo.has_tsf = true;//metadata.has_time_spec;
 
 	if ( metadata.has_time_spec && metadata.start_of_burst) {
 		ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
@@ -105,7 +105,7 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 	ifo.sob = metadata.start_of_burst;
 	ifo.eob	= metadata.end_of_burst;
 
-	ifo.num_header_words32 = metadata.has_time_spec ? 4 : 3;
+	ifo.num_header_words32 = (metadata.has_time_spec && metadata.start_of_burst)? 4 : 3;
 	ifo.num_payload_words32 = N;
 	ifo.num_payload_bytes = N * sizeof( uint32_t );
 
@@ -353,6 +353,7 @@ size_t crimson_tng_tx_streamer::send(
 
 			// this ensures we only send the vita time spec on the first packet of the burst
 			metadata[ i ].has_time_spec = false;
+			metadata[ i ].start_of_burst = false;
 		}
 	}
 
