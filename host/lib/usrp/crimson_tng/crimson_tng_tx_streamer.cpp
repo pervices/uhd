@@ -89,7 +89,7 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 	ifo.has_tsi = metadata.has_time_spec;
 	ifo.has_tsf = metadata.has_time_spec;
 
-	if ( metadata.has_time_spec ) {
+	if ( metadata.has_time_spec && metadata.start_of_burst) {
 		ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
 		ifo.tsi = (uint32_t) metadata.time_spec.get_full_secs();
 		ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
@@ -130,7 +130,7 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 	buf[ 0 ] |= ifo.tsf_type << 20;
 
 	k = 1;
-	if ( metadata.has_time_spec ) {
+	if ( metadata.has_time_spec && metadata.start_of_burst) {
 		buf[ k++ ] = ifo.tsi;
 	}
 	buf[ k++ ] = (uint32_t)( ifo.tsf >> 32 );
@@ -203,6 +203,7 @@ size_t crimson_tng_tx_streamer::send(
 	tx_metadata_t md = _metadata;
 	if ( _first_send && _sob_arg > 0.0 ) {
 		md.has_time_spec = true;
+		md.start_of_burst = true;
 		md.time_spec = get_time_now() + _sob_arg;
 		//std::cout << "sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
 	}
@@ -211,13 +212,14 @@ size_t crimson_tng_tx_streamer::send(
 	// suggested a minimal SoB to pre-fill the buffer.
 	if ( _first_send && ! md.has_time_spec ) {
 		md.has_time_spec = true;
+		md.start_of_burst = true;
 		md.time_spec = get_time_now() + 1.0;
 	}
 
 	for ( size_t i = 0; i < _channels.size(); i++ ) {
 		remaining_bytes[ i ] = nsamps_per_buff * sizeof( uint32_t );
 		metadata.push_back( md );
-		if ( md.has_time_spec ) {
+		if ( md.has_time_spec && md.start_of_burst) {
 			_flow_control[ i ]->set_start_of_burst_time( md.time_spec );
 			_sample_count[ i ] = 0;
 		}
