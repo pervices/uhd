@@ -86,10 +86,10 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 	ifo.has_sid = false; // currently unused
 	ifo.has_cid = false; // currently unused
 	ifo.has_tlr = false; // currently unused
-	ifo.has_tsi = metadata.has_time_spec;
-	ifo.has_tsf = metadata.has_time_spec;
+	ifo.has_tsi = metadata.has_time_spec && metadata.start_of_burst;
+	ifo.has_tsf = true;//metadata.has_time_spec;
 
-	if ( metadata.has_time_spec ) {
+	if ( metadata.has_time_spec && metadata.start_of_burst) {
 		ifo.tsi_type = vrt::if_packet_info_t::TSI_TYPE_OTHER;
 		ifo.tsi = (uint32_t) metadata.time_spec.get_full_secs();
 		ifo.tsf_type = vrt::if_packet_info_t::TSF_TYPE_PICO;
@@ -105,7 +105,7 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 	ifo.sob = metadata.start_of_burst;
 	ifo.eob	= metadata.end_of_burst;
 
-	ifo.num_header_words32 = metadata.has_time_spec ? 4 : 3;
+	ifo.num_header_words32 = (metadata.has_time_spec && metadata.start_of_burst)? 4 : 3;
 	ifo.num_payload_words32 = N;
 	ifo.num_payload_bytes = N * sizeof( uint32_t );
 
@@ -130,7 +130,7 @@ void crimson_tng_tx_streamer::compose_vrt49_packet(
 	buf[ 0 ] |= ifo.tsf_type << 20;
 
 	k = 1;
-	if ( metadata.has_time_spec ) {
+	if ( metadata.has_time_spec && metadata.start_of_burst) {
 		buf[ k++ ] = ifo.tsi;
 	}
 	buf[ k++ ] = (uint32_t)( ifo.tsf >> 32 );
@@ -203,6 +203,7 @@ size_t crimson_tng_tx_streamer::send(
 	tx_metadata_t md = _metadata;
 	if ( _first_send && _sob_arg > 0.0 ) {
 		md.has_time_spec = true;
+		md.start_of_burst = true;
 		md.time_spec = get_time_now() + _sob_arg;
 		//std::cout << "sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
 	}
@@ -211,13 +212,14 @@ size_t crimson_tng_tx_streamer::send(
 	// suggested a minimal SoB to pre-fill the buffer.
 	if ( _first_send && ! md.has_time_spec ) {
 		md.has_time_spec = true;
+		md.start_of_burst = true;
 		md.time_spec = get_time_now() + 1.0;
 	}
 
 	for ( size_t i = 0; i < _channels.size(); i++ ) {
 		remaining_bytes[ i ] = nsamps_per_buff * sizeof( uint32_t );
 		metadata.push_back( md );
-		if ( md.has_time_spec ) {
+		if ( md.has_time_spec && md.start_of_burst) {
 			_flow_control[ i ]->set_start_of_burst_time( md.time_spec );
 			_sample_count[ i ] = 0;
 		}
@@ -351,6 +353,7 @@ size_t crimson_tng_tx_streamer::send(
 
 			// this ensures we only send the vita time spec on the first packet of the burst
 			metadata[ i ].has_time_spec = false;
+			metadata[ i ].start_of_burst = false;
 		}
 	}
 
