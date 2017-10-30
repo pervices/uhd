@@ -205,7 +205,7 @@ size_t crimson_tng_tx_streamer::send(
 		md.has_time_spec = true;
 		md.start_of_burst = true;
 		md.time_spec = get_time_now() + _sob_arg;
-		//std::cout << "sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
+		//std::cout << "SOB, sending " <<  nsamps_per_buff << " samples in " << _sob_arg << " s" << std::endl;
 	}
 	// XXX: @CF: workaround for current overflow issue
 	// found that when SoB was zero, buffer level did not get up to set point. 
@@ -213,8 +213,11 @@ size_t crimson_tng_tx_streamer::send(
 	if ( _first_send && ! md.has_time_spec ) {
 		md.has_time_spec = true;
 		md.start_of_burst = true;
-		md.time_spec = get_time_now() + 1.0;
+		md.time_spec = get_time_now() + 2.0;
+		//std::cout << "NO SOB, sending " <<  nsamps_per_buff << " samples in " << 2 << " s" << std::endl;
 	}
+	//if ( _first_send ) 		std::cout << "Time now " <<  get_time_now().get_real_secs()  << " Send at " << md.time_spec.get_real_secs() << std::endl;
+
 
 	for ( size_t i = 0; i < _channels.size(); i++ ) {
 		remaining_bytes[ i ] = nsamps_per_buff * sizeof( uint32_t );
@@ -235,14 +238,10 @@ size_t crimson_tng_tx_streamer::send(
 		;
 		true
 		&& get_time_now() < send_deadline
-		&& samp_sent < nsamps_per_buff * _channels.size()
+		&& ((samp_sent < nsamps_per_buff * _channels.size())|| md.start_of_burst)
 		;
 	) {
 		for ( size_t i = 0; i < _channels.size(); i++ ) {
-
-			if ( 0 == remaining_bytes[ i ] ) {
-				continue;
-			}
 
 			//
 			// Compose VRT49 Packet
@@ -355,6 +354,7 @@ size_t crimson_tng_tx_streamer::send(
 			metadata[ i ].has_time_spec = false;
 			metadata[ i ].start_of_burst = false;
 		}
+		md.start_of_burst = false;
 	}
 
 	_first_send = false;
