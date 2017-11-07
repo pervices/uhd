@@ -259,21 +259,30 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 // This find function will be called if a hint is passed onto the find function
 static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
 {
+	uhd::time_spec_t then, now;
+
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
         hint["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
+
+	//UHD_MSG( status ) << "Probing crimson_tng at " << hint[ "addr" ] << std::endl;
+
+	then = uhd::time_spec_t::get_system_time();
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
-    while (true)
-    {
-        char buff[CRIMSON_TNG_FW_COMMS_MTU] = {};
-        const size_t nbytes = comm->recv(asio::buffer(buff), 0.050);
-        if (nbytes == 0) break;
+    char buff[CRIMSON_TNG_FW_COMMS_MTU] = {};
+
+    for(
+		float to = 0.2;
+    	comm->recv(asio::buffer(buff), to);
+    	to = 0.05
+    ) {
+    	now = uhd::time_spec_t::get_system_time();
 
         // parse the return buffer and store it in a vector
         std::vector<std::string> tokens;
@@ -294,6 +303,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
             (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
+        	//UHD_MSG( status ) << "Found crimson_tng at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
             addrs.push_back(new_addr);
         }
     }
