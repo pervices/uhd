@@ -254,12 +254,12 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 			\"sc16\" Q16 I16" << std::endl;
 	}
 
+	set_properties_from_addr();
+
 	// TODO firmware support for other otw_format, cpu_format
 	crimson_tng_tx_streamer::sptr r( new uhd::crimson_tng_tx_streamer( this->_addr, this->_tree, args.channels ) );
 	r->set_device( static_cast<uhd::device *>( this ) );
 	bm_listener_add( (crimson_tng_tx_streamer *) r.get() );
-
-	set_properties_from_addr();
 
 	return r;
 }
@@ -280,10 +280,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 			\"sc16\" Q16 I16" << std::endl;
 	}
 
+	set_properties_from_addr();
+
 	crimson_tng_rx_streamer::sptr r( new uhd::crimson_tng_rx_streamer( this->_addr, this->_tree, args.channels ) );
 	r->set_device( static_cast<uhd::device *>( this ) );
-
-	set_properties_from_addr();
 
 	return r;
 }
