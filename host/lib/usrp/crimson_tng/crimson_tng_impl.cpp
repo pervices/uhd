@@ -208,6 +208,35 @@ void crimson_tng_impl::set_time_spec(const std::string pre, time_spec_t data) {
 	return;
 }
 
+void crimson_tng_impl::set_properties_from_addr() {
+	static const std::string crimson_prop_prefix( "crimson:" );
+	for( auto & prop: _addr.keys() ) {
+		if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
+			std::string key = prop.substr( crimson_prop_prefix.length() );
+			std::string expected_string = _addr[ key ];
+
+			UHD_MSG( error )
+				<< __func__ << "(): "
+				<< "Setting Crimson property: "
+				<< "key: '"<< key << "', "
+				<< "val: '" << expected_string << "'"
+				<< std::endl;
+
+			set_string( key, expected_string );
+
+			std::string actual_string = get_string( key );
+			if ( actual_string != expected_string ) {
+				UHD_MSG( error )
+					<< __func__ << "(): "
+					<< "Setting Crimson property failed: "
+					<< "key: '"<< key << "', "
+					<< "expected val: '" << expected_string << "', "
+					<< "actual val: '" << actual_string  << "'"
+					<< std::endl;
+			}
+		}
+	}
+}
 
 /***********************************************************************
  * Transmit streamer
@@ -229,6 +258,9 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 	crimson_tng_tx_streamer::sptr r( new uhd::crimson_tng_tx_streamer( this->_addr, this->_tree, args.channels ) );
 	r->set_device( static_cast<uhd::device *>( this ) );
 	bm_listener_add( (crimson_tng_tx_streamer *) r.get() );
+
+	set_properties_from_addr();
+
 	return r;
 }
 
@@ -250,6 +282,9 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
 	crimson_tng_rx_streamer::sptr r( new uhd::crimson_tng_rx_streamer( this->_addr, this->_tree, args.channels ) );
 	r->set_device( static_cast<uhd::device *>( this ) );
+
+	set_properties_from_addr();
+
 	return r;
 }
 
