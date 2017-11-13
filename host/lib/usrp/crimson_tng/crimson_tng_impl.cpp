@@ -215,12 +215,12 @@ void crimson_tng_impl::set_properties_from_addr() {
 			std::string key = prop.substr( crimson_prop_prefix.length() );
 			std::string expected_string = _addr[ prop ];
 
-			UHD_MSG( error )
-				<< __func__ << "(): "
-				<< "Setting Crimson property: "
-				<< "key: '"<< key << "', "
-				<< "val: '" << expected_string << "'"
-				<< std::endl;
+//			UHD_MSG( status )
+//				<< __func__ << "(): "
+//				<< "Setting Crimson property: "
+//				<< "key: '"<< key << "', "
+//				<< "val: '" << expected_string << "'"
+//				<< std::endl;
 
 			set_string( key, expected_string );
 
