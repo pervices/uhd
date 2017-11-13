@@ -211,20 +211,9 @@ void crimson_tng_impl::set_time_spec(const std::string pre, time_spec_t data) {
 void crimson_tng_impl::set_properties_from_addr() {
 	static const std::string crimson_prop_prefix( "crimson:" );
 	for( auto & prop: _addr.keys() ) {
-
-		std::string k = prop;
-		std::string v = _addr[ k ];
-
-		UHD_MSG( status )
-			<< __func__ << "(): "
-			<< "k: '"<< k << "', "
-			<< "v: '" << _addr.get( k ) << "'"
-			<< std::endl;
-
-
 		if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
 			std::string key = prop.substr( crimson_prop_prefix.length() );
-			std::string expected_string = _addr.get( key );
+			std::string expected_string = _addr[ prop ];
 
 			UHD_MSG( error )
 				<< __func__ << "(): "

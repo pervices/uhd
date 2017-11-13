@@ -58,7 +58,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     bool verbose = vm.count("dilv") == 0;
 
-    args += ", crimson:/rx/d/link/mac_dest=00:11:22:33:44:55";
+    args += ", crimson:rx/d/link/mac_dest=00:11:22:33:44:55";
 
     //create a usrp device
     std::cout << std::endl;
