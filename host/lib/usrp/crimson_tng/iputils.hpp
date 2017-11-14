@@ -226,8 +226,14 @@ public:
 		std::string iface;
 		std::string local_addr;
 
-		get_route( remote_addr, iface, local_addr );
-		size_t mtu = get_mtu( iface );
+		size_t mtu = 1500;
+
+		try {
+			get_route( remote_addr, iface, local_addr );
+			mtu = get_mtu( iface );
+		} catch( ... ) {
+			std::cerr << "Unable to determine default route to %s and, subsequently, interface mtu. Defaulting to " << mtu << std::endl;
+		}
 
 		return mtu;
 	}
