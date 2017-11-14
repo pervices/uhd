@@ -2,6 +2,7 @@
 #define HOST_LIB_USRP_CRIMSON_TNG_IPUTILS_HPP_
 
 #include <cstdio>
+#include <iostream>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -232,7 +233,7 @@ public:
 			get_route( remote_addr, iface, local_addr );
 			mtu = get_mtu( iface );
 		} catch( ... ) {
-			std::cerr << "Unable to determine default route to %s and, subsequently, interface mtu. Defaulting to " << mtu << std::endl;
+			std::cerr << "Unable to determine default route to " << remote_addr << " and, subsequently, interface mtu. Defaulting to " << mtu << std::endl;
 		}
 
 		return mtu;
