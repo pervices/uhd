@@ -44,7 +44,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming samples")
-        ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("channels", po::value<std::string>(&channel_list)->default_value("0,1,2,3"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -60,6 +60,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
+    args += ", crimson:sob=20";
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
@@ -90,14 +91,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     //setup streaming
-    std::cout << std::endl;
-    std::cout << boost::format(
-        "Begin streaming %u samples, %f seconds in the future..."
-    ) % total_num_samps % seconds_in_future << std::endl;
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
     stream_cmd.num_samps = total_num_samps;
-    stream_cmd.stream_now = false;
-    stream_cmd.time_spec = usrp->get_time_now() + seconds_in_future;
+    if ( seconds_in_future > 0 ) {
+        std::cout << std::endl;
+		std::cout << boost::format(
+			"Begin streaming %u samples, %f seconds in the future..."
+		) % total_num_samps % seconds_in_future << std::endl;
+	    stream_cmd.stream_now = false;
+	    stream_cmd.time_spec = usrp->get_time_now() + seconds_in_future;
+    }
     rx_stream->issue_stream_cmd(stream_cmd);
 
     //meta-data will be filled in by recv()
