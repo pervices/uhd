@@ -27,9 +27,9 @@ static void make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t ch
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_psec = ts.get_frac_secs() * 1e12;
 
-	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
-	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
-	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
+//	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
+//	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
+//	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
 
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
@@ -68,6 +68,19 @@ size_t crimson_tng_rx_streamer::recv(
 
 	double _timeout = timeout;
 
+	if ( _first_recv && _sob_arg > 0.0 && stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
+		stream_cmd_t stream_cmd = _stream_cmd;
+		stream_cmd.stream_now = false;
+		stream_cmd.time_spec = get_time_now() + _sob_arg;
+
+		std::cout << "Time now " <<  get_time_now().get_real_secs()  << " Recv at " << stream_cmd.time_spec.get_real_secs() << std::endl;
+
+		issue_stream_cmd( stream_cmd );
+		_timeout += _sob_arg;
+	}
+	_first_recv = false;
+	_sob_arg = 0;
+
 #ifdef DEBUG_RX
 	//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
 
@@ -83,17 +96,6 @@ size_t crimson_tng_rx_streamer::recv(
 
 	// temp buffer: vita hdr + data
 	uint32_t vita_buf[vita_pck];
-
-	if ( _first_recv && _sob_arg > 0.0 ) {
-		stream_cmd_t stream_cmd = _stream_cmd;
-		stream_cmd.stream_now = false;
-		stream_cmd.time_spec = get_time_now() + _sob_arg;
-
-		std::cout << "Time now " <<  get_time_now().get_real_secs()  << " Recv at " << stream_cmd.time_spec.get_real_secs() << std::endl;
-
-		issue_stream_cmd( stream_cmd );
-	}
-	_first_recv = false;
 
 	std::vector<size_t> fifo_level( _channels.size() );
 	for( unsigned i = 0; i < _channels.size(); i++ ) {
@@ -293,6 +295,7 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 		_stream_cmd.stream_now = true;
 		then = now;
 	} else {
+		_stream_cmd.stream_now = false;
 		then = _stream_cmd.time_spec;
 	}
 
@@ -300,19 +303,16 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 
 		if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
 
-			std::cout << "Sending RX SoB req on Channel " << _channels[ i ] << std::endl;
-			make_rx_sob_req_packet( stream_cmd.time_spec, _channels[ i ], rx_sob );
+			make_rx_sob_req_packet( _stream_cmd.time_spec, _channels[ i ], rx_sob );
 			dev->send_rx_sob_req( rx_sob );
 
 			if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
 
 				_stream_cmd_samples_remaining[ i ] = _stream_cmd.num_samps;
 
-				std::cout << "Emptying Channel " << _channels[ i ] << " fifo" << std::endl;
 				std::queue<uint8_t> empty;
 				std::swap( _fifo[ i ], empty );
 
-				std::cout << "Flushing Channel " << _channels[ i ] << " socket" << std::endl;
 				// flush socket for _channels[ i ]
 				uint32_t xbuf[ 128 ];
 				_udp_stream[ i ]->stream_in( xbuf, 128, 1e-6 );
@@ -346,6 +346,8 @@ void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree
 	if ( addr.has_key( "crimson:sob" )  ) {
 		if ( ! sscanf( addr[ "crimson:sob" ].c_str(), "%lf", & _sob_arg ) ) {
 			UHD_MSG( warning )  << __func__ << "(): Unrecognized argument crimson:sob=" << addr[ "crimson:sob" ] << std::endl;
+		} else {
+			UHD_MSG( status )  << __func__ << "(): Set crimson:sob to " << _sob_arg << std::endl;
 		}
 	}
 
