@@ -31,7 +31,9 @@ public:
 		_rate( 0.0 ),
 		_start_ticks( 0 ),
 		_dev( NULL ),
-		_stream_cmd( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS )
+		_stream_cmd( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS ),
+		_first_recv( true ),
+		_sob_arg( 0.0 )
 	{
 		init_rx_streamer( addr, tree, channels );
 	}
@@ -85,6 +87,8 @@ private:
 	double _rate;
 	uint64_t _start_ticks;
 	device_addr_t _addr;
+	bool _first_recv;
+	double _sob_arg;
 
 	uhd::device *_dev;
 

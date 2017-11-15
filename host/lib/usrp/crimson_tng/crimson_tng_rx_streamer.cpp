@@ -1,4 +1,5 @@
 #include <bitset>
+#include <cinttypes>
 
 #include <boost/endian/buffers.hpp>
 #include <boost/range/numeric.hpp>
@@ -83,6 +84,17 @@ size_t crimson_tng_rx_streamer::recv(
 	// temp buffer: vita hdr + data
 	uint32_t vita_buf[vita_pck];
 
+	if ( _first_recv && _sob_arg > 0.0 ) {
+		stream_cmd_t stream_cmd = _stream_cmd;
+		stream_cmd.stream_now = false;
+		stream_cmd.time_spec = get_time_now() + _sob_arg;
+
+		std::cout << "Time now " <<  get_time_now().get_real_secs()  << " Recv at " << stream_cmd.time_spec.get_real_secs() << std::endl;
+
+		issue_stream_cmd( stream_cmd );
+	}
+	_first_recv = false;
+
 	std::vector<size_t> fifo_level( _channels.size() );
 	for( unsigned i = 0; i < _channels.size(); i++ ) {
 		fifo_level[ i ] = _fifo[ i ].size();
@@ -95,7 +107,7 @@ size_t crimson_tng_rx_streamer::recv(
 				( (uint8_t *) buffs[ i ] )[ j ] = _fifo[ i ].front();
 				_fifo[ i ].pop();
 			}
-			nbytes = fifo_level[ i ] - _fifo[ 0 ].size();
+			nbytes = fifo_level[ i ] - _fifo[ i ].size();
 			nsamples = nbytes / 4;
 
 #ifdef DEBUG_RX
@@ -147,15 +159,9 @@ size_t crimson_tng_rx_streamer::recv(
 	// process vita timestamps based on the last stream input's time stamp
 	uint32_t vb2 = (uint32_t)vita_buf[2];
 	uint32_t vb3 = (uint32_t)vita_buf[3];
-	vb2 = ((vb2 &  0x000000ff) << 24)
-		| ((vb2 &  0x0000ff00) << 8 )
-		| ((vb2 &  0x00ff0000) >> 8 )
-		| ((vb2 &  0xff000000) >> 24);
 
-	vb3 = ((vb3 &  0x000000ff) << 24)
-		| ((vb3 &  0x0000ff00) << 8 )
-		| ((vb3 &  0x00ff0000) >> 8 )
-		| ((vb3 &  0xff000000) >> 24);
+	boost::endian::big_to_native_inplace( vb2 );
+	boost::endian::big_to_native_inplace( vb3 );
 
 	uint64_t time_ticks = ((uint64_t)vb2 << 32) | ((uint64_t)vb3);
 
@@ -336,6 +342,12 @@ void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree
 	// get the property root path
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path link_path = mb_path / "rx_link";
+
+	if ( addr.has_key( "crimson:sob" )  ) {
+		if ( ! sscanf( addr[ "crimson:sob" ].c_str(), "%lf", & _sob_arg ) ) {
+			UHD_MSG( warning )  << __func__ << "(): Unrecognized argument crimson:sob=" << addr[ "crimson:sob" ] << std::endl;
+		}
+	}
 
 	// if no channels specified, default to channel 1 (0)
 	_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
