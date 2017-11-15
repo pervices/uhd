@@ -390,9 +390,9 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 	_if_mtu = std::vector<size_t>( _channels.size() );
 	_sample_count = std::vector<size_t>( _channels.size() );
 
-	if ( addr.has_key( "sob_s" )  ) {
+	if ( addr.has_key( "crimson:sob" )  ) {
 		//std::cout << "_sob_s=" << addr[ "sob_s" ] << std::endl;
-		double d = std::atof( addr[ "sob_s" ].c_str() );
+		double d = std::atof( addr[ "crimson:sob" ].c_str() );
 		_sob_arg = d >= 0.0 ? d : 0.0;
 		//std::cout << "set _sob_arg = " << _sob_arg << " s" << std::endl;
 	}
