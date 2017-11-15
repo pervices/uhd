@@ -209,9 +209,23 @@ void crimson_tng_impl::set_time_spec(const std::string pre, time_spec_t data) {
 }
 
 void crimson_tng_impl::set_properties_from_addr() {
+
 	static const std::string crimson_prop_prefix( "crimson:" );
+	static const std::vector<std::string> blacklist { "crimson:sob" };
+
 	for( auto & prop: _addr.keys() ) {
 		if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
+
+			bool is_blacklisted = false;
+			for( auto & e: blacklist ) {
+				if ( e == prop ) {
+					is_blacklisted = true;
+				}
+			}
+			if ( is_blacklisted ) {
+				continue;
+			}
+
 			std::string key = prop.substr( crimson_prop_prefix.length() );
 			std::string expected_string = _addr[ prop ];
 
