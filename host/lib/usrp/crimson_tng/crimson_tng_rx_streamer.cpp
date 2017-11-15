@@ -344,14 +344,6 @@ void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree
 	_fifo = std::vector<std::queue<uint8_t>>( _channels.size() );
 	_stream_cmd_samples_remaining = std::vector<size_t>( _channels.size() );
 
-	if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
-		std::bitset<32> bs;
-		for( auto & ch: _channels ) {
-			bs.set( ch );
-		}
-		tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( bs.to_ulong() );
-	}
-
 	for (unsigned int i = 0; i < _channels.size(); i++) {
 		// get the channel parameters
 		std::string ch       = boost::lexical_cast<std::string>((char)(_channels[i] + 65));

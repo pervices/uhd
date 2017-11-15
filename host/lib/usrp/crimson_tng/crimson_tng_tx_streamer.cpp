@@ -390,14 +390,6 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 	_if_mtu = std::vector<size_t>( _channels.size() );
 	_sample_count = std::vector<size_t>( _channels.size() );
 
-	if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
-		std::bitset<32> bs;
-		for( auto & ch: _channels ) {
-			bs.set( ch );
-		}
-		tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( bs.to_ulong() );
-	}
-
 	if ( addr.has_key( "sob_s" )  ) {
 		//std::cout << "_sob_s=" << addr[ "sob_s" ] << std::endl;
 		double d = std::atof( addr[ "sob_s" ].c_str() );
