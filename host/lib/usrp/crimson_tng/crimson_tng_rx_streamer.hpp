@@ -24,6 +24,8 @@ class crimson_tng_rx_streamer : public uhd::rx_streamer {
 public:
 	typedef boost::shared_ptr<crimson_tng_rx_streamer> sptr;
 
+	static const size_t ALL_CHANS = ~0;
+
 	crimson_tng_rx_streamer( device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels )
 	:
 		_prev_frame( 0 ),
@@ -60,6 +62,8 @@ public:
     void issue_stream_cmd( const stream_cmd_t &stream_cmd );
 
 	void update_fifo_metadata( rx_metadata_t &meta, size_t n_samples );
+	void clear_fifo( size_t chan = ALL_CHANS );
+	void flush_socket( size_t chan = ALL_CHANS );
 
 	void set_device( uhd::device *dev ) {
 		_dev = dev;

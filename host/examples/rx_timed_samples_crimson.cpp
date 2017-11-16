@@ -60,7 +60,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
-    args += ", crimson:sob=20";
+    // use --secs=0 and uncomment the line below to demonstrate setting SoB through device_addr_t arguments
+    // args += ", crimson:sob=20";
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
@@ -100,6 +101,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 		) % total_num_samps % seconds_in_future << std::endl;
 	    stream_cmd.stream_now = false;
 	    stream_cmd.time_spec = usrp->get_time_now() + seconds_in_future;
+    } else {
+        stream_cmd.stream_now = true;
     }
     rx_stream->issue_stream_cmd(stream_cmd);
 

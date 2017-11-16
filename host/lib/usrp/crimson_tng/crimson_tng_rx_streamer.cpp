@@ -68,12 +68,12 @@ size_t crimson_tng_rx_streamer::recv(
 
 	double _timeout = timeout;
 
-	if ( _first_recv && _sob_arg > 0.0 && stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
+	if ( _first_recv && _sob_arg > 0 && stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
 		stream_cmd_t stream_cmd = _stream_cmd;
 		stream_cmd.stream_now = false;
 		stream_cmd.time_spec = get_time_now() + _sob_arg;
 
-		std::cout << "Time now " <<  get_time_now().get_real_secs()  << " Recv at " << stream_cmd.time_spec.get_real_secs() << std::endl;
+		// std::cout << "Time now " <<  (uint64_t)get_time_now().get_real_secs()  << " Recv at " << (uint64_t)stream_cmd.time_spec.get_real_secs() << std::endl;
 
 		issue_stream_cmd( stream_cmd );
 		_timeout += _sob_arg;
@@ -310,12 +310,8 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 
 				_stream_cmd_samples_remaining[ i ] = _stream_cmd.num_samps;
 
-				std::queue<uint8_t> empty;
-				std::swap( _fifo[ i ], empty );
-
-				// flush socket for _channels[ i ]
-				uint32_t xbuf[ 128 ];
-				_udp_stream[ i ]->stream_in( xbuf, 128, 1e-6 );
+				clear_fifo( i );
+				flush_socket( i );
 			}
 		}
 		_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( stream_prop );
@@ -328,6 +324,28 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 
 void crimson_tng_rx_streamer::update_fifo_metadata( rx_metadata_t &meta, size_t n_samples ) {
 	meta.time_spec += time_spec_t::from_ticks( n_samples, _rate );
+}
+
+void crimson_tng_rx_streamer::clear_fifo( size_t chan ) {
+	std::queue<uint8_t> empty;
+	if ( ALL_CHANS == chan ) {
+		for ( size_t i = 0; i < _fifo.size(); i++ ) {
+			clear_fifo( i );
+		}
+		return;
+	}
+	std::swap( _fifo[ chan ], empty );
+}
+
+void crimson_tng_rx_streamer::flush_socket( size_t chan ) {
+	uint32_t xbuf[ 128 ];
+	if ( ALL_CHANS == chan ) {
+		for ( size_t i = 0; i < _fifo.size(); i++ ) {
+			flush_socket( i );
+		}
+		return;
+	}
+	while( _udp_stream[ chan ]->stream_in( xbuf, 128, 1e-6 ) );
 }
 
 void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
@@ -346,8 +364,6 @@ void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree
 	if ( addr.has_key( "crimson:sob" )  ) {
 		if ( ! sscanf( addr[ "crimson:sob" ].c_str(), "%lf", & _sob_arg ) ) {
 			UHD_MSG( warning )  << __func__ << "(): Unrecognized argument crimson:sob=" << addr[ "crimson:sob" ] << std::endl;
-		} else {
-			UHD_MSG( status )  << __func__ << "(): Set crimson:sob to " << _sob_arg << std::endl;
 		}
 	}
 
