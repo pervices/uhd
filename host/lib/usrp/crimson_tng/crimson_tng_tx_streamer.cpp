@@ -390,19 +390,10 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 	_if_mtu = std::vector<size_t>( _channels.size() );
 	_sample_count = std::vector<size_t>( _channels.size() );
 
-	if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
-		std::bitset<32> bs;
-		for( auto & ch: _channels ) {
-			bs.set( ch );
+	if ( addr.has_key( "crimson:sob" )  ) {
+		if ( ! sscanf( addr[ "crimson:sob" ].c_str(), "%lf", & _sob_arg ) ) {
+			UHD_MSG( warning )  << __func__ << "(): Unrecognized argument crimson:sob=" << addr[ "crimson:sob" ] << std::endl;
 		}
-		tree->access<int>( mb_path / "cm" / "chanmask-tx" ).set( bs.to_ulong() );
-	}
-
-	if ( addr.has_key( "sob_s" )  ) {
-		//std::cout << "_sob_s=" << addr[ "sob_s" ] << std::endl;
-		double d = std::atof( addr[ "sob_s" ].c_str() );
-		_sob_arg = d >= 0.0 ? d : 0.0;
-		//std::cout << "set _sob_arg = " << _sob_arg << " s" << std::endl;
 	}
 
 	//Set up constants
