@@ -284,6 +284,12 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 	// store the _stream_cmd so that recv() can use it
 	_stream_cmd = stream_cmd;
 
+	if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
+		for( size_t i = 0; i < _channels.size(); i++ ) {
+			_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( "0" );
+		}
+	}
+
 	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == _stream_cmd.stream_mode ) {
 		stream_prop = "0";
 	} else {
