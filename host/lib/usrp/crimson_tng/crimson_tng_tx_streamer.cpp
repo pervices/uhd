@@ -442,7 +442,7 @@ void crimson_tng_tx_streamer::init_tx_streamer(
 		socklen_t remote_addr_len = sizeof( remote_addr ), local_addr_len = sizeof( local_addr );
 		int fd;
 
-		iputils::get_route( ip_addr, iface, local_addrs );
+		iputils::get_route( iputils::get_route_info( ip_addr ), iface, local_addrs );
 		iputils::to_sockaddr( ip_addr, (sockaddr *) & remote_addr, remote_addr_len );
 		((sockaddr_in *)& remote_addr )->sin_port = htons( port );
 		iputils::to_sockaddr( local_addrs, (sockaddr *) & local_addr, local_addr_len );

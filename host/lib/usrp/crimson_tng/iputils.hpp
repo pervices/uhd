@@ -29,15 +29,15 @@ namespace uhd {
 class iputils {
 
 public:
-	static void get_route( const std::string remote_addr, std::string & iface, std::string & local_addr ) {
+
+	static std::string get_route_info( const std::string remote_addr ) {
+
+		std::stringstream rr;
+
 		FILE *fp;
 
 		char buf[ 256 ];
 		size_t sz;
-		std::vector<std::string> strs;
-		hostent *he;
-
-		//ip route show to match 10.10.10.2
 
 		std::string cmd = ( boost::format( "ip route show to match %s" ) % remote_addr ).str();
 
@@ -50,51 +50,51 @@ public:
 			);
 		}
 
-		memset( buf, '\0', sizeof( buf ) );
-		sz = fread( buf, 1, sizeof( buf ), fp );
+		for(
+			memset( buf, '\0', sizeof( buf ) ),
+				sz = fread( buf, 1, sizeof( buf ), fp );
+			sz > 0;
+			rr << std::string( buf, sz ),
+				memset( buf, '\0', sizeof( buf ) ),
+				sz = fread( buf, 1, sizeof( buf ), fp )
+		);
 		pclose( fp );
 
-		std::string bufstr( buf, sz );
-		std::stringstream ss( bufstr );
-		std::string line;
-		std::string last_addr;
-		std::string last_iface;
+		return rr.str();
+	}
 
+	static void get_route( const std::string route_info, std::string & iface, std::string & local_addr ) {
+
+		std::stringstream ss( route_info );
+		std::string line;
+		std::vector<std::string> strs;
+
+		std::vector<std::pair<std::string,std::string>> pairs;
+
+		// we always take the last entry. not sure if that is wise
 		for( ; getline( ss, line ); ) {
+
 			if ( boost::starts_with( line, "default via " ) ) {
 				line = line.substr( strlen( "default via " ) , line.length() - strlen( "default via " ) );
 			}
 			boost::split( strs, line, boost::is_any_of( "\t " ) );
-			last_addr = strs[ 0 ];
-			last_iface = strs[ 2 ];
 
-			if ( strs.size() >= 3 ) {
-				for( size_t i = 3; i < strs.size(); i++ ) {
-					he = gethostbyname( strs[ i ].c_str() );
-					if ( NULL == he ) {
-						continue;
-					}
-					last_addr = strs[ i ];
+			if ( strs.size() < 5 ) {
+				continue;
+			}
+
+			for( size_t i = 0; i < strs.size(); i++ ) {
+				if ( "dev" == strs[ i ] && i + 1 < strs.size() ) {
+					iface = strs[ i + 1 ];
 				}
 			}
 
-			ssize_t slash = last_addr.find( "/" );
-			if ( -1 != slash ) {
-				last_addr = last_addr.substr( 0, slash );
+			for( size_t i = 0; i < strs.size(); i++ ) {
+				if ( "src" == strs[ i ] && i + 1 < strs.size() ) {
+					local_addr = strs[ i + 1 ];
+				}
 			}
 		}
-
-		he = gethostbyname( last_addr.c_str() );
-		if ( NULL == he ) {
-			throw runtime_error(
-				( boost::format( "gethostbyname( '%s' ) failed" )
-				  % strs[ 0 ]
-				).str()
-			);
-		}
-
-		iface = last_iface;
-		local_addr = last_addr;
 	}
 
 	static size_t get_mtu( const std::string iface ) {
