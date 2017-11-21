@@ -1,4 +1,5 @@
 #include <bitset>
+#include <cinttypes>
 
 #include <boost/endian/buffers.hpp>
 #include <boost/range/numeric.hpp>
@@ -26,9 +27,9 @@ static void make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t ch
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_psec = ts.get_frac_secs() * 1e12;
 
-	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
-	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
-	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
+//	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
+//	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
+//	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
 
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
@@ -67,6 +68,19 @@ size_t crimson_tng_rx_streamer::recv(
 
 	double _timeout = timeout;
 
+	if ( _first_recv && _sob_arg > 0 && stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
+		stream_cmd_t stream_cmd = _stream_cmd;
+		stream_cmd.stream_now = false;
+		stream_cmd.time_spec = get_time_now() + _sob_arg;
+
+		// std::cout << "Time now " <<  (uint64_t)get_time_now().get_real_secs()  << " Recv at " << (uint64_t)stream_cmd.time_spec.get_real_secs() << std::endl;
+
+		issue_stream_cmd( stream_cmd );
+		_timeout += _sob_arg;
+	}
+	_first_recv = false;
+	_sob_arg = 0;
+
 #ifdef DEBUG_RX
 	//UHD_MSG( status ) << __func__ << "( buffs: " << (void *) & buffs << ", nsamps_per_buff: " << nsamps_per_buff << ", metadata: " << (void *) & metadata << ", timeout: " << timeout << ", one_packet: " << one_packet << " )" << std::endl;
 
@@ -95,7 +109,7 @@ size_t crimson_tng_rx_streamer::recv(
 				( (uint8_t *) buffs[ i ] )[ j ] = _fifo[ i ].front();
 				_fifo[ i ].pop();
 			}
-			nbytes = fifo_level[ i ] - _fifo[ 0 ].size();
+			nbytes = fifo_level[ i ] - _fifo[ i ].size();
 			nsamples = nbytes / 4;
 
 #ifdef DEBUG_RX
@@ -147,15 +161,9 @@ size_t crimson_tng_rx_streamer::recv(
 	// process vita timestamps based on the last stream input's time stamp
 	uint32_t vb2 = (uint32_t)vita_buf[2];
 	uint32_t vb3 = (uint32_t)vita_buf[3];
-	vb2 = ((vb2 &  0x000000ff) << 24)
-		| ((vb2 &  0x0000ff00) << 8 )
-		| ((vb2 &  0x00ff0000) >> 8 )
-		| ((vb2 &  0xff000000) >> 24);
 
-	vb3 = ((vb3 &  0x000000ff) << 24)
-		| ((vb3 &  0x0000ff00) << 8 )
-		| ((vb3 &  0x00ff0000) >> 8 )
-		| ((vb3 &  0xff000000) >> 24);
+	boost::endian::big_to_native_inplace( vb2 );
+	boost::endian::big_to_native_inplace( vb3 );
 
 	uint64_t time_ticks = ((uint64_t)vb2 << 32) | ((uint64_t)vb3);
 
@@ -276,6 +284,12 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 	// store the _stream_cmd so that recv() can use it
 	_stream_cmd = stream_cmd;
 
+	if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
+		for( size_t i = 0; i < _channels.size(); i++ ) {
+			_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( "0" );
+		}
+	}
+
 	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == _stream_cmd.stream_mode ) {
 		stream_prop = "0";
 	} else {
@@ -287,6 +301,7 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 		_stream_cmd.stream_now = true;
 		then = now;
 	} else {
+		_stream_cmd.stream_now = false;
 		then = _stream_cmd.time_spec;
 	}
 
@@ -294,22 +309,15 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 
 		if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
 
-			std::cout << "Sending RX SoB req on Channel " << _channels[ i ] << std::endl;
-			make_rx_sob_req_packet( stream_cmd.time_spec, _channels[ i ], rx_sob );
+			make_rx_sob_req_packet( _stream_cmd.time_spec, _channels[ i ], rx_sob );
 			dev->send_rx_sob_req( rx_sob );
 
 			if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
 
 				_stream_cmd_samples_remaining[ i ] = _stream_cmd.num_samps;
 
-				std::cout << "Emptying Channel " << _channels[ i ] << " fifo" << std::endl;
-				std::queue<uint8_t> empty;
-				std::swap( _fifo[ i ], empty );
-
-				std::cout << "Flushing Channel " << _channels[ i ] << " socket" << std::endl;
-				// flush socket for _channels[ i ]
-				uint32_t xbuf[ 128 ];
-				_udp_stream[ i ]->stream_in( xbuf, 128, 1e-6 );
+				clear_fifo( i );
+				flush_socket( i );
 			}
 		}
 		_tree->access<std::string>(rx_link_root( _channels[ i ] ) / "stream").set( stream_prop );
@@ -322,6 +330,28 @@ void crimson_tng_rx_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd) {
 
 void crimson_tng_rx_streamer::update_fifo_metadata( rx_metadata_t &meta, size_t n_samples ) {
 	meta.time_spec += time_spec_t::from_ticks( n_samples, _rate );
+}
+
+void crimson_tng_rx_streamer::clear_fifo( size_t chan ) {
+	std::queue<uint8_t> empty;
+	if ( ALL_CHANS == chan ) {
+		for ( size_t i = 0; i < _fifo.size(); i++ ) {
+			clear_fifo( i );
+		}
+		return;
+	}
+	std::swap( _fifo[ chan ], empty );
+}
+
+void crimson_tng_rx_streamer::flush_socket( size_t chan ) {
+	uint32_t xbuf[ 128 ];
+	if ( ALL_CHANS == chan ) {
+		for ( size_t i = 0; i < _fifo.size(); i++ ) {
+			flush_socket( i );
+		}
+		return;
+	}
+	while( _udp_stream[ chan ]->stream_in( xbuf, 128, 1e-6 ) );
 }
 
 void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree::sptr tree, std::vector<size_t> channels) {
@@ -337,20 +367,18 @@ void crimson_tng_rx_streamer::init_rx_streamer(device_addr_t addr, property_tree
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path link_path = mb_path / "rx_link";
 
+	if ( addr.has_key( "crimson:sob" )  ) {
+		if ( ! sscanf( addr[ "crimson:sob" ].c_str(), "%lf", & _sob_arg ) ) {
+			UHD_MSG( warning )  << __func__ << "(): Unrecognized argument crimson:sob=" << addr[ "crimson:sob" ] << std::endl;
+		}
+	}
+
 	// if no channels specified, default to channel 1 (0)
 	_channels = _channels.empty() ? std::vector<size_t>(1, 0) : _channels;
 	_if_mtu = std::vector<size_t>( _channels.size() );
 
 	_fifo = std::vector<std::queue<uint8_t>>( _channels.size() );
 	_stream_cmd_samples_remaining = std::vector<size_t>( _channels.size() );
-
-	if ( addr.has_key( "sync_multichannel_params" ) && "1" == addr[ "sync_multichannel_params" ] ) {
-		std::bitset<32> bs;
-		for( auto & ch: _channels ) {
-			bs.set( ch );
-		}
-		tree->access<int>( mb_path / "cm" / "chanmask-rx" ).set( bs.to_ulong() );
-	}
 
 	for (unsigned int i = 0; i < _channels.size(); i++) {
 		// get the channel parameters

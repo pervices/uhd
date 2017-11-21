@@ -152,6 +152,9 @@ private:
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
+    // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
+    void set_properties_from_addr();
+
     // private pointer to the UDP interface, this is the path to send commands to Crimson
     uhd::crimson_tng_iface::sptr _iface;
     std::mutex _iface_lock;

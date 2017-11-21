@@ -44,7 +44,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming samples")
-        ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("channels", po::value<std::string>(&channel_list)->default_value("0,1,2,3"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -60,6 +60,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
+    // use --secs=0 and uncomment the line below to demonstrate setting SoB through device_addr_t arguments
+    // args += ", crimson:sob=20";
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
@@ -90,14 +92,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     //setup streaming
-    std::cout << std::endl;
-    std::cout << boost::format(
-        "Begin streaming %u samples, %f seconds in the future..."
-    ) % total_num_samps % seconds_in_future << std::endl;
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
     stream_cmd.num_samps = total_num_samps;
-    stream_cmd.stream_now = false;
-    stream_cmd.time_spec = usrp->get_time_now() + seconds_in_future;
+    if ( seconds_in_future > 0 ) {
+        std::cout << std::endl;
+		std::cout << boost::format(
+			"Begin streaming %u samples, %f seconds in the future..."
+		) % total_num_samps % seconds_in_future << std::endl;
+	    stream_cmd.stream_now = false;
+	    stream_cmd.time_spec = usrp->get_time_now() + seconds_in_future;
+    } else {
+        stream_cmd.stream_now = true;
+    }
     rx_stream->issue_stream_cmd(stream_cmd);
 
     //meta-data will be filled in by recv()
@@ -105,22 +111,36 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //allocate buffer to receive with samples
     size_t buff_sz = rx_stream->get_max_num_samps();
-    std::vector<void *> buffs;
+
+    std::vector< std::vector< std::complex< short > > > buffs(
+		channel_nums.size(), std::vector< std::complex< short > >( total_num_samps )
+    );
+
+    std::vector< std::complex< short > * > buff_ptrs;
     for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++) {
-        buffs.push_back( malloc( buff_sz * sizeof( std::complex<int16_t> ) ) );
+        buff_ptrs.push_back( (std::complex< short > * const) & buffs[ ch ].front() );
     }
 
     //the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
-    size_t num_acc_samps = 0; //number of accumulated samples
-    while(num_acc_samps < total_num_samps * buffs.size() ){
-        //receive a single packet
-        size_t num_rx_samps = rx_stream->recv(
-            buffs, buff_sz, md, timeout, true
-        );
+    size_t num_acc_samps, num_rx_samps;
+    for(
+		num_acc_samps = 0,
+			num_rx_samps = 0;
 
-        std::cout << "received " << num_rx_samps << " samples" << std::endl;
+        num_acc_samps < total_num_samps * buffs.size();
+
+        num_acc_samps += num_rx_samps,
+				num_rx_samps = 0
+	){
+        //receive a single packet
+        num_rx_samps = rx_stream->recv(
+            buff_ptrs, total_num_samps - num_acc_samps, md, timeout, true
+        );
+        if ( 0 == num_rx_samps ) {
+            break;
+        }
 
         //use a small timeout for subsequent packets
         timeout = 0.1;
@@ -136,8 +156,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         if(verbose) std::cout << boost::format(
             "Received packet: %u samples, %u full secs, %f frac secs"
         ) % num_rx_samps % md.time_spec.get_full_secs() % md.time_spec.get_frac_secs() << std::endl;
-
-        num_acc_samps += num_rx_samps;
     }
 
     if (num_acc_samps < total_num_samps) std::cerr << "Receive timeout before all samples received..." << std::endl;
