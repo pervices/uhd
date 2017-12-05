@@ -83,13 +83,13 @@ bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-double choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree ) {
+double choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, double & lo_freq /* output */ ) {
 
 	/*
 	 * Scenario 1) Channels A and B
 	 *
 	 * We want a shift such that the full bandwidth fits inside of one of the
-	 * dashed regions.
+	 * dashed regions, or (in the worst case) in 2x of the full region.
 	 *
 	 * Our margin around each sensitive area is 1 MHz on either side.
 	 *
@@ -124,7 +124,8 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 		freq_range_t( 26e6, 86.9e6 ), // B
 		freq_range_t( 26e6, 136e6 ), // F = B + C
 		freq_range_t( 3e6, 136e6 ), // G = A + B + C
-		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Catch All)
+		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Upper Half)
+		freq_range_t( -162.5e6, 162.5e6 ), // I = 2 * H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
@@ -149,11 +150,21 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 	static const std::vector<freq_range_t> CD_regions {
 		freq_range_t( 3e6, 24e6 ), // A
 		freq_range_t( 26e6, 81.25e6 ), // B
-		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
+		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Upper Half)
+		freq_range_t( -81.25e6, 81.25e6 ), // D = 2 * C (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
 	static const double lo_step = 25e6;
+
+	if ( target_freq < 0 ) {
+		throw runtime_error(
+			(
+				boost::format( "Not a suitable suitable target_freq: %f" )
+				% target_freq
+			).str()
+		);
+	}
 
 	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
 	const char channel = ( dsp_range.stop() - dsp_range.start() ) > 81.25e6 ? 'A' : 'C';
@@ -186,6 +197,7 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 
 			for( const freq_range_t & _range: regions ) {
 				if ( range_contains( _range, candidate_range ) ) {
+					lo_freq = candidate_lo;
 					return candidate_nco;
 				}
 			}
@@ -230,6 +242,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 	//------------------------------------------------------------------
 	double target_rf_freq = 0.0;
 	double dsp_nco_shift = 0;
+	double dummy_lo_freq;
 
 	// kb #3689, for phase coherency, we must set the DAC NCO to 0
 	if ( TX_SIGN == xx_sign ) {
@@ -246,7 +259,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 				target_rf_freq = 0;
 				break;
 			case HIGH_BAND:
-				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
+				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree, dummy_lo_freq );
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
