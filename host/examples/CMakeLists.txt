@@ -23,6 +23,7 @@ SET(example_sources
     flow_control_example.cpp
     nco_check.cpp
     network_relay.cpp
+    rxtx_inline_filter_crimson.cpp
     rx_multi_samples.cpp
     rx_samples_to_file.cpp
     rx_samples_to_udp.cpp
