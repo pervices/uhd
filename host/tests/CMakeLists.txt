@@ -32,6 +32,7 @@ SET(test_sources
     byteswap_test.cpp
     convert_test.cpp
     cast_test.cpp
+    conv_test.cpp
     dict_test.cpp
     error_test.cpp
     flow_control_test.cpp
@@ -50,6 +51,7 @@ SET(test_sources
     subdev_spec_test.cpp
     time_spec_test.cpp
     vrt_test.cpp
+    xlate_test.cpp
 )
 
 # XXX: @CF: kb 3834: add this to the group above after
