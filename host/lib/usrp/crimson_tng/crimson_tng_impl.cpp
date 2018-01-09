@@ -281,6 +281,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 /***********************************************************************
  * Receive streamer
  **********************************************************************/
+/*
 rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args){
 	// Crimson currently only supports cpu_format of "sc16" (complex<int16_t>) stream
 	if (strcmp(args.cpu_format.c_str(), "sc16") != 0 && strcmp(args.cpu_format.c_str(), "") != 0 ) {
@@ -301,6 +302,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
 	return r;
 }
+*/
 
 /***********************************************************************
  * Discovery over the udp transport
