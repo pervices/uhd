@@ -38,6 +38,8 @@
 #include "uhd/utils/msg.hpp"
 #include "uhd/utils/static.hpp"
 
+#include "../../transport/super_recv_packet_handler.hpp"
+
 #include "crimson_tng_rx_streamer.hpp"
 #include "crimson_tng_tx_streamer.hpp"
 
@@ -54,6 +56,18 @@ namespace asio = boost::asio;
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
+
+static std::string chan_to_string(size_t chan) {
+    return "Channel_" + boost::lexical_cast<std::string>((char)(chan + 65));
+}
+
+static fs_path rx_link_root(const size_t chan) {
+    size_t channel;
+    if (chan > CRIMSON_TNG_RX_CHANNELS) 	channel = 0;
+    else				channel = chan;
+    return fs_path( "/mboards/0" ) / "rx_link" / chan_to_string(channel);
+}
+
 // seperates the input data into the vector tokens based on delim
 void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 	int i = 0;
@@ -193,6 +207,7 @@ stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
 	return temp;
 }
 void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd ) {
+
 	UHD_MSG( status )
 		<< __FILE__ << ": " << __func__ << "(): " << __LINE__ << ": "
 		<< "pre: '" << pre << "'" << ", "
@@ -203,6 +218,57 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 			<< "time_spec: " << std::setprecision( 6 ) << cmd.time_spec.get_real_secs()
 			<< " }"
 		<< std::endl;
+
+	uhd::time_spec_t now;
+	uhd::time_spec_t then;
+	uhd::usrp::rx_sob_req rx_sob;
+	std::string stream_prop;
+
+	// store the _stream_cmd so that recv() can use it
+	_stream_cmd = cmd;
+
+	if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
+		for( size_t i = 0; i < _rx_channels.size(); i++ ) {
+			_tree->access<std::string>(rx_link_root( _rx_channels[ i ] ) / "stream").set( "0" );
+		}
+	}
+
+	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == _stream_cmd.stream_mode ) {
+		stream_prop = "0";
+	} else {
+		stream_prop = "1";
+	}
+
+	now = get_time_now();
+	if ( _stream_cmd.stream_now || now >= _stream_cmd.time_spec ) {
+		_stream_cmd.stream_now = true;
+		then = now;
+	} else {
+		_stream_cmd.stream_now = false;
+		then = _stream_cmd.time_spec;
+	}
+
+	for( size_t i = 0; i < _rx_channels.size(); i++ ) {
+
+		if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != _stream_cmd.stream_mode ) {
+
+			make_rx_sob_req_packet( _stream_cmd.time_spec, _rx_channels[ i ], rx_sob );
+			send_rx_sob_req( rx_sob );
+
+			if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
+
+				_stream_cmd_samples_remaining[ i ] = _stream_cmd.num_samps;
+
+//				clear_fifo( i );
+//				flush_socket( i );
+			}
+		}
+		_tree->access<std::string>(rx_link_root( _rx_channels[ i ] ) / "stream").set( stream_prop );
+	}
+
+//	if ( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode ) {
+//		fini_rx_streamer();
+//	}
 }
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
@@ -477,9 +543,9 @@ void crimson_tng_impl::make_rx_sob_req_packet( const uhd::time_spec_t & ts, cons
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_psec = ts.get_frac_secs() * 1e12;
 
-	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
-	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
-	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
+//	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
+//	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
+//	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
 
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
@@ -797,7 +863,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_time_diff_converged( false ),
-	_time_diff( 0 )
+	_time_diff( 0 ),
+	_stream_cmd( stream_cmd_t::STREAM_MODE_START_CONTINUOUS )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
@@ -1037,7 +1104,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 			break;
 		}
 
-		TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate",    double, double);
+		//TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate",    double, double);
+
+		_tree->create<double> (rx_dsp_path / "rate" / "value")
+			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
+			.subscribe(boost::bind(&crimson_tng_impl::update_rx_samp_rate, this, (size_t) chain, _1))
+			.publish  (boost::bind(&crimson_tng_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
+
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
 
@@ -1160,4 +1233,23 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 #endif
 
 	return r;
+}
+
+double crimson_tng_impl::update_rx_samp_rate( const size_t & chan_i, const double & rate ) {
+
+    set_double( "rx_" + std::to_string( 'A' + chan_i ) + "/dsp/rate", rate );
+
+    boost::shared_ptr<sph::recv_packet_streamer> my_streamer;
+
+    if ( chan_i < rx_streamers.size() ) {
+
+    	my_streamer = boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ chan_i ].lock() );
+
+		if ( nullptr != my_streamer.get() ) {
+			my_streamer->set_samp_rate(rate);
+			//my_streamer->set_scale_factor(adj);
+		}
+    }
+
+    return rate;
 }

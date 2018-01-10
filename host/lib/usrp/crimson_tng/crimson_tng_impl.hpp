@@ -97,6 +97,10 @@ public:
 
     uhd::device_addr_t _addr;
 
+    uhd::time_spec_t get_time_now() {
+    	double diff = time_diff_get();
+    	return time_spec_t::get_system_time() + diff;
+    }
     inline double time_diff_get() { return _time_diff; }
     inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }
     bool time_diff_converged();
@@ -200,6 +204,15 @@ private:
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
 	bool is_bm_thread_needed();
+
+	/**
+	 * RX Streamer Objects
+	 */
+	std::vector<size_t> _rx_channels;
+	uhd::stream_cmd_t _stream_cmd;
+	std::vector<size_t> _stream_cmd_samples_remaining;
+	std::vector<boost::weak_ptr<uhd::rx_streamer>> rx_streamers;
+	double update_rx_samp_rate( const size_t & chan_i, const double & rate );
 };
 
 }
