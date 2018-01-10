@@ -17,7 +17,9 @@
 
 #include <iomanip>
 #include <iostream>
+
 #include <boost/bind.hpp>
+#include <boost/ref.hpp>
 
 #include "uhd/stream.hpp"
 
@@ -71,6 +73,33 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     const size_t bpi = convert::get_bytes_per_item(args.otw_format);
     const size_t spp = unsigned(args.args.cast<double>("spp", bpp/bpi));
 
+    const fs_path mb_path   = "/mboards/0";
+	const fs_path link_path = mb_path / "rx_link";
+
+    const zero_copy_xport_params zcxp = {
+        .recv_frame_size = bpp,
+        .send_frame_size = 0,
+        .num_recv_frames = 5,
+        .num_send_frames = 0,
+    };
+
+    udp_zero_copy::buff_params bp = {
+        .recv_buff_size = bpp,
+        .send_buff_size = 0,
+    };
+
+
+    rx_if = std::vector<uhd::transport::udp_zero_copy::sptr>( args.channels.size() );
+    for( size_t i = 0; i < rx_if.size(); i++ ) {
+		// get the channel parameters
+		std::string ch       = boost::lexical_cast<std::string>((char)(args.channels[i] + 'A'));
+		std::string udp_port = _tree->access<std::string>(link_path / "Channel_"+ch / "port").get();
+		std::string ip_addr  = _tree->access<std::string>(link_path / "Channel_"+ch / "ip_dest").get();
+		std::string iface    = _tree->access<std::string>(link_path / "Channel_"+ch / "iface").get();
+
+		rx_if[ i ] = uhd::transport::udp_zero_copy::make( ip_addr, udp_port, zcxp, bp, _addr );
+    }
+
     //make the new streamer given the samples per packet
     boost::shared_ptr<sph::recv_packet_streamer> my_streamer = boost::make_shared<sph::recv_packet_streamer>(spp);
 
@@ -88,21 +117,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     //bind callbacks for the handler
     for ( size_t i = 0; i < args.channels.size(); i++ ) {
-
-//        my_streamer->set_xport_chan_get_buff(
-//			i,
-//			//boost::bind( & get_recv_buff_nop ),
-//			boost::bind( &zero_copy_if::get_recv_buff ),
-//        	true /* flush */
-//		);
-//
-
-//    	my_streamer->set_issue_stream_cmd(
-//        	i,
-//			boost::bind(
-//				& issue_stream_command_nop
-//			)
-//        );
+        my_streamer->set_xport_chan_get_buff( i, boost::bind( &zero_copy_if::get_recv_buff, rx_if[ i ], _1 ), true /*flush*/);
+		my_streamer->set_issue_stream_cmd( i, boost::bind( & crimson_tng_impl::set_stream_cmd, boost::ref( *this ), std::to_string( i ), _1 ) );
     }
 
     //set the packet threshold to be an entire socket buffer's worth

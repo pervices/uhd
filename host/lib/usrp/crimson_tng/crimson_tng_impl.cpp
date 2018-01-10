@@ -34,6 +34,7 @@
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_stream.hpp"
 #include "uhd/transport/udp_simple.hpp"
+#include "uhd/types/stream_cmd.hpp"
 #include "uhd/utils/msg.hpp"
 #include "uhd/utils/static.hpp"
 
@@ -191,8 +192,17 @@ stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
 	stream_cmd_t temp = stream_cmd_t(mode);
 	return temp;
 }
-void crimson_tng_impl::set_stream_cmd(const std::string pre, stream_cmd_t data) {
-	return;
+void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd ) {
+	UHD_MSG( status )
+		<< __FILE__ << ": " << __func__ << "(): " << __LINE__ << ": "
+		<< "pre: '" << pre << "'" << ", "
+		<< "stream_cmd: "
+			<< "{ "
+			<< "stream_mode: " << (char) cmd.stream_mode << ", "
+			<< "stream_now: " << cmd.stream_now << ", "
+			<< "time_spec: " << std::setprecision( 6 ) << cmd.time_spec.get_real_secs()
+			<< " }"
+		<< std::endl;
 }
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
@@ -1030,7 +1040,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate",    double, double);
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
-		//TREE_CREATE_ST(rx_dsp_path / "stream_cmd",     stream_cmd_t, (stream_cmd_t)0);
+
+		typedef stream_cmd_t stream_cmd;
+		TREE_CREATE_RW(rx_dsp_path / "stream_cmd",  "rx_"+lc_num+"/stream_cmd", stream_cmd, stream_cmd);
 
 		TREE_CREATE_RW(tx_dsp_path / "rate" / "value", "tx_"+lc_num+"/dsp/rate",    double, double);
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
