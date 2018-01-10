@@ -27,6 +27,8 @@
 #include "uhd/usrp/mboard_eeprom.hpp"
 #include "uhd/usrp/multi_crimson_tng.hpp"
 
+#include "uhd/transport/udp_zero_copy.hpp"
+
 #include "crimson_tng_iface.hpp"
 #include "crimson_tng_impl.hpp"
 #include "pidc.hpp"
@@ -158,6 +160,8 @@ private:
     // private pointer to the UDP interface, this is the path to send commands to Crimson
     uhd::crimson_tng_iface::sptr _iface;
     std::mutex _iface_lock;
+
+    std::vector<uhd::transport::udp_zero_copy::sptr> rx_if;
 
 	/**
 	 * Clock Domain Synchronization Objects
