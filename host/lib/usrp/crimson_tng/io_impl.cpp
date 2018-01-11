@@ -22,12 +22,7 @@
 #include <boost/ref.hpp>
 
 #include "uhd/stream.hpp"
-<<<<<<< HEAD
 #include "uhd/transport/udp_stream_zero_copy.hpp"
-=======
-
-
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
 
 #include "../../transport/super_recv_packet_handler.hpp"
 
@@ -37,28 +32,6 @@ using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
 
-<<<<<<< HEAD
-=======
-/*
-static managed_recv_buffer::sptr get_recv_buff_nop( double timeout ) {
-	std::cout
-		<< __FILE__ << ": " << __func__ << "(): " << __LINE__ << ":"
-		<< std::endl;
-	return
-}
-*/
-
-static void issue_stream_command_nop( const uhd::stream_cmd_t &stream_cmd ) {
-	std::cout
-		<< __FILE__ << ": " << __func__ << "(): " << __LINE__ << ":"
-		<< "would issue stream cmd { "
-		<< "stream_mode: " << (char) stream_cmd.stream_mode << ", "
-		<< "stream_now: " << stream_cmd.stream_now << ", "
-		<< "time_spec: " << std::setprecision( 6 ) << stream_cmd.time_spec.get_real_secs() << " }"
-		<< std::endl;
-}
-
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
 /***********************************************************************
  * Receive streamer
  **********************************************************************/
@@ -66,15 +39,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-<<<<<<< HEAD
     args.otw_format = "sc16";
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
     _rx_channels = args.channels;
 	_stream_cmd_samples_remaining = std::vector<size_t>( args.channels.size(), 0 );
-=======
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
-    args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
 
     //calculate packet size
     static const size_t hdr_size = 0
@@ -90,7 +58,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     const fs_path mb_path   = "/mboards/0";
 	const fs_path link_path = mb_path / "rx_link";
 
-<<<<<<< HEAD
     zero_copy_xport_params zcxp;
     udp_zero_copy::buff_params bp;
 
@@ -104,20 +71,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
     set_properties_from_addr();
-=======
-    const zero_copy_xport_params zcxp = {
-        .recv_frame_size = bpp,
-        .send_frame_size = 0,
-        .num_recv_frames = 5,
-        .num_send_frames = 0,
-    };
-
-    udp_zero_copy::buff_params bp = {
-        .recv_buff_size = bpp,
-        .send_buff_size = 0,
-    };
-
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
 
     rx_if = std::vector<uhd::transport::udp_zero_copy::sptr>( args.channels.size() );
     for( size_t i = 0; i < rx_if.size(); i++ ) {
@@ -127,7 +80,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 		std::string ip_addr  = _tree->access<std::string>(link_path / "Channel_"+ch / "ip_dest").get();
 		std::string iface    = _tree->access<std::string>(link_path / "Channel_"+ch / "iface").get();
 
-<<<<<<< HEAD
 		// power on the channel
 		_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
 		usleep(500000);
@@ -136,9 +88,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 		_tree->access<std::string>(link_path / "Channel_"+ch / "vita_en").set("1");
 
 		rx_if[ i ] = udp_stream_zero_copy::make( ip_addr, udp_port, "127.0.0.1", "1", zcxp, bp, _addr );
-=======
-		rx_if[ i ] = uhd::transport::udp_zero_copy::make( ip_addr, udp_port, zcxp, bp, _addr );
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
     }
 
     //make the new streamer given the samples per packet
@@ -148,17 +97,11 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_unpacker(&vrt::if_hdr_unpack_be);
 
-<<<<<<< HEAD
     rx_streamers.resize( args.channels.size() );
 
     //set the converter
     uhd::convert::id_type id;
     id.input_format = args.otw_format + "_item32_le";
-=======
-    //set the converter
-    uhd::convert::id_type id;
-    id.input_format = args.otw_format + "_item32_be";
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
     id.num_inputs = 1;
     id.output_format = args.cpu_format;
     id.num_outputs = 1;
@@ -166,7 +109,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     //bind callbacks for the handler
     for ( size_t i = 0; i < args.channels.size(); i++ ) {
-<<<<<<< HEAD
         my_streamer->set_xport_chan_get_buff(
 			i,
 			boost::bind(
@@ -192,10 +134,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 			)
 		);
 		rx_streamers[ i ] = my_streamer; //store weak pointer
-=======
-        my_streamer->set_xport_chan_get_buff( i, boost::bind( &zero_copy_if::get_recv_buff, rx_if[ i ], _1 ), true /*flush*/);
-		my_streamer->set_issue_stream_cmd( i, boost::bind( & crimson_tng_impl::set_stream_cmd, boost::ref( *this ), std::to_string( i ), _1 ) );
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
     }
 
     //set the packet threshold to be an entire socket buffer's worth
@@ -203,7 +141,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 //    my_streamer->set_alignment_failure_threshold( packets_per_sock_buff );
 
     //sets all tick and samp rates on this streamer
-<<<<<<< HEAD
     for( auto & i: _rx_channels ) {
 
     	std::string path = (
@@ -213,9 +150,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     	_tree->access<double>( path ).update();
     }
-=======
-//    this->update_rates();
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
 
     return my_streamer;
 }

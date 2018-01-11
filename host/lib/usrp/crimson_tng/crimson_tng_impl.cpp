@@ -207,7 +207,6 @@ stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
 	return temp;
 }
 void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd ) {
-<<<<<<< HEAD
 	uhd::time_spec_t now;
 	uhd::time_spec_t then;
 	uhd::usrp::rx_sob_req rx_sob;
@@ -260,18 +259,6 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 //	if ( uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode ) {
 //		fini_rx_streamer();
 //	}
-=======
-	UHD_MSG( status )
-		<< __FILE__ << ": " << __func__ << "(): " << __LINE__ << ": "
-		<< "pre: '" << pre << "'" << ", "
-		<< "stream_cmd: "
-			<< "{ "
-			<< "stream_mode: " << (char) cmd.stream_mode << ", "
-			<< "stream_now: " << cmd.stream_now << ", "
-			<< "time_spec: " << std::setprecision( 6 ) << cmd.time_spec.get_real_secs()
-			<< " }"
-		<< std::endl;
->>>>>>> 41187eee4c3e34d4f6756edb74794bd43b6910e0
 }
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
