@@ -39,7 +39,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
+    args.otw_format = "sc16";
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
     _rx_channels = args.channels;
 	_stream_cmd_samples_remaining = std::vector<size_t>( args.channels.size(), 0 );
