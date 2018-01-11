@@ -28,9 +28,7 @@ IF(ENABLE_CRIMSON_TNG)
     LIBUHD_APPEND_SOURCES(
         ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_iface.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_tx_streamer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
     )
 ENDIF(ENABLE_CRIMSON_TNG)
-
-#        ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_rx_streamer.cpp
