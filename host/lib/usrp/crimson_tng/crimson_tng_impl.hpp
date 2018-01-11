@@ -72,7 +72,6 @@ struct rx_sob_req {
 }
 
 #include "crimson_tng_tx_streamer.hpp"
-#include "crimson_tng_rx_streamer.hpp"
 
 namespace uhd {
 namespace usrp {

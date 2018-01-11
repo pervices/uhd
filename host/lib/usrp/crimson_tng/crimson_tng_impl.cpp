@@ -40,7 +40,6 @@
 
 #include "../../transport/super_recv_packet_handler.hpp"
 
-#include "crimson_tng_rx_streamer.hpp"
 #include "crimson_tng_tx_streamer.hpp"
 
 using namespace uhd;
