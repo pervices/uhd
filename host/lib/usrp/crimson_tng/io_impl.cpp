@@ -22,8 +22,7 @@
 #include <boost/ref.hpp>
 
 #include "uhd/stream.hpp"
-
-
+#include "uhd/transport/udp_stream_zero_copy.hpp"
 
 #include "../../transport/super_recv_packet_handler.hpp"
 
@@ -59,15 +58,19 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     const fs_path mb_path   = "/mboards/0";
 	const fs_path link_path = mb_path / "rx_link";
 
-    const zero_copy_xport_params zcxp = {
-        .recv_frame_size = bpp,
-        .send_frame_size = 0,
-        .num_recv_frames = 5,
-        .num_send_frames = 0,
-    };
-
+    zero_copy_xport_params zcxp;
     udp_zero_copy::buff_params bp;
 
+#ifndef DEFAULT_NUM_FRAMES
+#define DEFAULT_NUM_FRAMES 32
+#endif
+
+    zcxp.send_frame_size = 0;
+    zcxp.recv_frame_size = bpp;
+    zcxp.num_send_frames = 0;
+    zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
+
+    set_properties_from_addr();
 
     rx_if = std::vector<uhd::transport::udp_zero_copy::sptr>( args.channels.size() );
     for( size_t i = 0; i < rx_if.size(); i++ ) {
@@ -84,7 +87,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 		// vita enable
 		_tree->access<std::string>(link_path / "Channel_"+ch / "vita_en").set("1");
 
-		rx_if[ i ] = uhd::transport::udp_zero_copy::make( ip_addr, udp_port, zcxp, bp, _addr );
+		rx_if[ i ] = udp_stream_zero_copy::make( ip_addr, udp_port, "127.0.0.1", "1", zcxp, bp, _addr );
     }
 
     //make the new streamer given the samples per packet
@@ -98,7 +101,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     //set the converter
     uhd::convert::id_type id;
-    id.input_format = args.otw_format + "_item32_be";
+    id.input_format = args.otw_format + "_item32_le";
     id.num_inputs = 1;
     id.output_format = args.cpu_format;
     id.num_outputs = 1;

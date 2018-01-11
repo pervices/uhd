@@ -207,18 +207,6 @@ stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
 	return temp;
 }
 void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd ) {
-
-	UHD_MSG( status )
-		<< __FILE__ << ": " << __func__ << "(): " << __LINE__ << ": "
-		<< "pre: '" << pre << "'" << ", "
-		<< "stream_cmd: "
-			<< "{ "
-			<< "stream_mode: " << (char) cmd.stream_mode << ", "
-			<< "stream_now: " << cmd.stream_now << ", "
-			<< "time_spec: " << std::setprecision( 6 ) << cmd.time_spec.get_real_secs()
-			<< " }"
-		<< std::endl;
-
 	uhd::time_spec_t now;
 	uhd::time_spec_t then;
 	uhd::usrp::rx_sob_req rx_sob;
@@ -227,11 +215,11 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 	// store the _stream_cmd so that recv() can use it
 	_stream_cmd = cmd;
 
-	if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
+//	if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
 		for( size_t i = 0; i < _rx_channels.size(); i++ ) {
 			_tree->access<std::string>(rx_link_root( _rx_channels[ i ] ) / "stream").set( "0" );
 		}
-	}
+//	}
 
 	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == _stream_cmd.stream_mode ) {
 		stream_prop = "0";
@@ -255,13 +243,15 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 			make_rx_sob_req_packet( _stream_cmd.time_spec, _rx_channels[ i ], rx_sob );
 			send_rx_sob_req( rx_sob );
 
-			if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
+//			if ( stream_cmd_t::STREAM_MODE_START_CONTINUOUS != _stream_cmd.stream_mode ) {
 
 				_stream_cmd_samples_remaining[ i ] = _stream_cmd.num_samps;
 
-//				clear_fifo( i );
-//				flush_socket( i );
-			}
+				boost::shared_ptr<sph::recv_packet_streamer> my_streamer =
+					boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ i ].lock() );
+
+				my_streamer->flush_all( 0.1 );
+//			}
 		}
 		_tree->access<std::string>(rx_link_root( _rx_channels[ i ] ) / "stream").set( stream_prop );
 	}
@@ -1246,6 +1236,7 @@ double crimson_tng_impl::update_rx_samp_rate( const size_t & chan_i, const doubl
     	my_streamer = boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ chan_i ].lock() );
 
 		if ( nullptr != my_streamer.get() ) {
+			my_streamer->set_tick_rate((double)CRIMSON_TNG_MASTER_CLOCK_RATE);
 			my_streamer->set_samp_rate(rate);
 			//my_streamer->set_scale_factor(adj);
 		}
