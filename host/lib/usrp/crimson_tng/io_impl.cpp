@@ -42,7 +42,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     args.otw_format = "sc16";
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
     _rx_channels = args.channels;
-	_stream_cmd_samples_remaining = std::vector<size_t>( args.channels.size(), 0 );
 
     //calculate packet size
     static const size_t hdr_size = 0
@@ -82,7 +81,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
 		// power on the channel
 		_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
-		usleep(500000);
+		usleep( 500000 );
 
 		// vita enable
 		_tree->access<std::string>(link_path / "Channel_"+ch / "vita_en").set("1");
@@ -96,8 +95,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_unpacker(&vrt::if_hdr_unpack_be);
-
-    rx_streamers.resize( args.channels.size() );
 
     //set the converter
     uhd::convert::id_type id;
@@ -129,7 +126,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 				// the default behaviour is to copy arguments, and in this case, that's ok, because it's
 				// a shared_ptr.
 				this,
-				std::to_string( i ),
+				"rx_" + std::string( 1, (char)( 'a' + args.channels[ i ] ) ) + "/stream",
 				_1
 			)
 		);

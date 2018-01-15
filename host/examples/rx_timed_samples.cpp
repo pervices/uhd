@@ -100,7 +100,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
     stream_cmd.num_samps = total_num_samps;
     stream_cmd.stream_now = false;
-    stream_cmd.time_spec = uhd::time_spec_t(seconds_in_future);
+    // FIXME: @CF: 20180115: Crimson currently only recognizes absolute times based off its own clock for timed RX
+    stream_cmd.time_spec = uhd::time_spec_t(seconds_in_future + usrp->get_time_now() );
     rx_stream->issue_stream_cmd(stream_cmd);
 
     //meta-data will be filled in by recv()

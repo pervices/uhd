@@ -208,9 +208,8 @@ private:
 	 * RX Streamer Objects
 	 */
 	std::vector<size_t> _rx_channels;
-	uhd::stream_cmd_t _stream_cmd;
 	std::vector<size_t> _stream_cmd_samples_remaining;
-	std::vector<boost::weak_ptr<uhd::rx_streamer>> rx_streamers;
+	std::map<size_t,boost::weak_ptr<uhd::rx_streamer>> rx_streamers;
 	double update_rx_samp_rate( const size_t & chan_i, const double & rate );
 };
 
