@@ -662,24 +662,19 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 
-	std::list<size_t> _chan(
-		ALL_CHANS == chan
-		? CRIMSON_TNG_RX_CHANNELS
-		: 0
-	);
-
 	if ( ALL_CHANS == chan ) {
-		std::iota( std::begin( _chan ), std::end( _chan ), 0 );
-	} else {
-		_chan.push_back( chan );
+
+		for( size_t i = 0; i < CRIMSON_TNG_RX_CHANNELS; i++ ) {
+			set_rx_rate( rate, i );
+		}
+
+		return;
 	}
 
-	for( auto &ch: _chan ) {
+	_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
-		_tree->access<double>(rx_dsp_root(ch) / "rate" / "value").set(rate);
-
-		double actual_rate = _tree->access<double>(rx_dsp_root(ch) / "rate" / "value").get();
-
+//	double actual_rate = _tree->access<double>(rx_dsp_root(ch) / "rate" / "value").get();
+//
 //		boost::format base_message (
 //				"RX Sample Rate Request:\n"
 //				"  Requested sample rate: %f MSps\n"
@@ -688,7 +683,6 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 //		std::string results_string = base_message.str();
 //
 //		UHD_MSG(status) << results_string;
-	}
 }
 
 // Get the current RX sampling rate on specified channel

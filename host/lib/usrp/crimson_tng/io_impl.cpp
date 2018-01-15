@@ -71,10 +71,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     set_properties_from_addr();
 
-    rx_if = std::vector<uhd::transport::udp_zero_copy::sptr>( args.channels.size() );
-    for( size_t i = 0; i < rx_if.size(); i++ ) {
+    rx_if.resize( _rx_channels.size() );
+    for( size_t i = 0; i < _rx_channels.size(); i++ ) {
 		// get the channel parameters
-		std::string ch       = boost::lexical_cast<std::string>((char)(args.channels[i] + 'A'));
+		std::string ch       = std::string( 1, _rx_channels[ i ] + 'A' );
 		std::string udp_port = _tree->access<std::string>(link_path / "Channel_"+ch / "port").get();
 		std::string ip_addr  = _tree->access<std::string>(link_path / "Channel_"+ch / "ip_dest").get();
 		std::string iface    = _tree->access<std::string>(link_path / "Channel_"+ch / "iface").get();
@@ -105,7 +105,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     my_streamer->set_converter(id);
 
     //bind callbacks for the handler
-    for ( size_t i = 0; i < args.channels.size(); i++ ) {
+    rx_streamers.resize( _rx_channels.size() );
+    for ( size_t i = 0; i < _rx_channels.size(); i++ ) {
         my_streamer->set_xport_chan_get_buff(
 			i,
 			boost::bind(
@@ -126,7 +127,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 				// the default behaviour is to copy arguments, and in this case, that's ok, because it's
 				// a shared_ptr.
 				this,
-				"rx_" + std::string( 1, (char)( 'a' + args.channels[ i ] ) ) + "/stream",
+				"rx_" + std::string( 1, (char)( 'a' + _rx_channels[ i ] ) ) + "/stream",
 				_1
 			)
 		);

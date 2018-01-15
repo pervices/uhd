@@ -240,7 +240,15 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 	const std::string stream_path = "/mboards/0/rx_link/Channel_" + std::string( 1, (char) 'A' + ch ) + "/stream";
 	const std::string pwr_path = "/mboards/0/rx/Channel_" + std::string( 1, (char) 'A' + ch ) + "/pwr";
 
-	boost::shared_ptr<sph::recv_packet_streamer> my_streamer = boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ ch ].lock() );
+	size_t chan_i = -1;
+	for( size_t i = 0; i < _rx_channels.size(); i++ ) {
+		if ( ch == _rx_channels[ i ] ) {
+			chan_i = i;
+			break;
+		}
+	}
+
+	boost::shared_ptr<sph::recv_packet_streamer> my_streamer = boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ chan_i ].lock() );
 
 	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == cmd.stream_mode ) {
 
@@ -1229,20 +1237,24 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 	return r;
 }
 
-double crimson_tng_impl::update_rx_samp_rate( const size_t & chan_i, const double & rate ) {
+double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double & rate ) {
 
-    set_double( "rx_" + std::to_string( 'A' + chan_i ) + "/dsp/rate", rate );
+    set_double( "rx_" + std::to_string( 'A' + chan ) + "/dsp/rate", rate );
 
-    boost::shared_ptr<sph::recv_packet_streamer> my_streamer;
+    for( size_t i = 0; i < _rx_channels.size(); i++ ) {
 
-    if ( chan_i < rx_streamers.size() ) {
+		if ( chan == _rx_channels[ i ] ) {
 
-    	my_streamer = boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ chan_i ].lock() );
+			boost::shared_ptr<sph::recv_packet_streamer> my_streamer
+				= boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ i ].lock() );
 
-		if ( nullptr != my_streamer.get() ) {
-			my_streamer->set_tick_rate((double)CRIMSON_TNG_MASTER_CLOCK_RATE);
-			my_streamer->set_samp_rate(rate);
-			//my_streamer->set_scale_factor(adj);
+			if ( nullptr != my_streamer.get() ) {
+				my_streamer->set_tick_rate((double)CRIMSON_TNG_MASTER_CLOCK_RATE);
+				my_streamer->set_samp_rate(rate);
+				//my_streamer->set_scale_factor(adj);
+			}
+
+			break;
 		}
     }
 
