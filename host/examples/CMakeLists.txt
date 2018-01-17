@@ -28,7 +28,6 @@ SET(example_sources
     rx_samples_to_file.cpp
     rx_samples_to_udp.cpp
     rx_timed_samples.cpp
-    rx_timed_samples_crimson.cpp
     test_dboard_coercion.cpp
     test_messages.cpp
     test_pps_input.cpp

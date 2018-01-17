@@ -149,5 +149,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     	_tree->access<double>( path ).update();
     }
 
+    // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
+    for( ;! time_diff_converged(); ) {
+		usleep( 10000 );
+    }
+
     return my_streamer;
 }
