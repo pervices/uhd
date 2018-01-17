@@ -536,35 +536,13 @@ void multi_crimson_tng::clear_command_time(size_t mboard){
 }
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
-	// questionable pointer casting..
-	uhd::usrp::crimson_tng_impl *dev = static_cast<uhd::usrp::crimson_tng_impl *>( _dev.get() );
-
-	uhd::time_spec_t now;
-	uhd::time_spec_t then;
-	uhd::usrp::rx_sob_req rx_sob;
-	std::string stream_prop;
-	std::vector<std::size_t> _channels;
-
-	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode ) {
-		stream_prop = "0";
-	} else {
-		stream_prop = "1";
-	}
-
-	then = stream_cmd.time_spec;
-
-
-
-	//for( size_t i = 0; i < _channels.size(); i++ ) {
-
-		if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != stream_cmd.stream_mode ) {
-
-			std::cout << "Sending RX SoB req on Channel " << chan << std::endl;
-			dev->make_rx_sob_req_packet( stream_cmd.time_spec, chan, rx_sob );
-			dev->send_rx_sob_req( rx_sob );
-		}
-		_tree->access<std::string>(rx_link_root( chan ) / "stream").set( stream_prop );
-	//}
+    if (chan != ALL_CHANS){
+        _tree->access<stream_cmd_t>(rx_dsp_root(chan) / "stream_cmd").set(stream_cmd);
+        return;
+    }
+    for (size_t c = 0; c < get_rx_num_channels(); c++){
+        issue_stream_cmd(stream_cmd, c);
+    }
 }
 
 void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, size_t mboard) {
@@ -683,33 +661,12 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
-
-	std::list<size_t> _chan(
-		ALL_CHANS == chan
-		? CRIMSON_TNG_RX_CHANNELS
-		: 0
-	);
-
-	if ( ALL_CHANS == chan ) {
-		std::iota( std::begin( _chan ), std::end( _chan ), 0 );
-	} else {
-		_chan.push_back( chan );
+	if (chan != ALL_CHANS){
+		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
+		return;
 	}
-
-	for( auto &ch: _chan ) {
-
-		_tree->access<double>(rx_dsp_root(ch) / "rate" / "value").set(rate);
-
-		double actual_rate = _tree->access<double>(rx_dsp_root(ch) / "rate" / "value").get();
-
-//		boost::format base_message (
-//				"RX Sample Rate Request:\n"
-//				"  Requested sample rate: %f MSps\n"
-//				"  Actual sample rate: %f MSps\n");
-//		base_message % (rate/1e6) % (actual_rate/1e6);
-//		std::string results_string = base_message.str();
-//
-//		UHD_MSG(status) << results_string;
+	for (size_t c = 0; c < get_rx_num_channels(); c++){
+		set_rx_rate( rate, c );
 	}
 }
 
@@ -955,33 +912,12 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
-
-	std::list<size_t> _chan(
-		ALL_CHANS == chan
-		? CRIMSON_TNG_TX_CHANNELS
-		: 0
-	);
-
-	if ( ALL_CHANS == chan ) {
-		std::iota( std::begin( _chan ), std::end( _chan ), 0 );
-	} else {
-		_chan.push_back( chan );
+	if (chan != ALL_CHANS){
+		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
+		return;
 	}
-
-	for( auto &ch: _chan ) {
-
-		_tree->access<double>(tx_dsp_root(ch) / "rate" / "value").set(rate);
-
-		double actual_rate = _tree->access<double>(tx_dsp_root(ch) / "rate" / "value").get();
-
-		boost::format base_message (
-				"TX Sample Rate Request:\n"
-				"  Requested sample rate: %f MSps\n"
-				"  Actual sample rate: %f MSps\n");
-		base_message % (rate/1e6) % (actual_rate/1e6);
-		std::string results_string = base_message.str();
-
-		UHD_MSG(status) << results_string;
+	for (size_t c = 0; c < get_tx_num_channels(); c++){
+		set_tx_rate( rate, c );
 	}
 }
 
