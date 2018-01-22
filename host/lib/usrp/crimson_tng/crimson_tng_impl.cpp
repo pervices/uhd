@@ -1239,7 +1239,7 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 
 double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double & rate ) {
 
-    set_double( "rx_" + std::to_string( 'A' + chan ) + "/dsp/rate", rate );
+    set_double( "rx_" + std::string( 1, 'A' + chan ) + "/dsp/rate", rate );
 
     for( size_t i = 0; i < _rx_channels.size(); i++ ) {
 
