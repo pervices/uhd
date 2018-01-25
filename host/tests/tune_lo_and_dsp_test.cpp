@@ -2,6 +2,8 @@
 
 #include "tune_lo_and_dsp_test_fixture.hpp"
 
+#include "uhd/usrp/multi_crimson_tng.hpp"
+
 #define k *1e3
 #define M *1e6
 
@@ -149,7 +151,7 @@ void check_lo_modulus( tune_lo_and_dsp_test_fixture & f ) {
 void common( tune_lo_and_dsp_test_fixture & f ) {
 	const bool warn = true;
 
-	f.res = tune_lo_and_dsp( f.tx ? TX_SIGN : RX_SIGN, f.dsp_subtree, f.rf_subtree, f.req );
+	f.res = uhd::usrp::multi_crimson_tng::tune_lo_and_dsp( f.tx ? TX_SIGN : RX_SIGN, f.dsp_subtree, f.rf_subtree, f.req );
 
 	// mandatory (tune request must give use the correct overal result
 	check_tune( f );
@@ -353,6 +355,40 @@ TEST_( 30, 85,
 	// 70               85                     100-->
 
 	tune_lo_and_dsp_test_fixture f( fc, bw, true, 'C' );
+	common( f );
+
+	// this is high band for channels C & D, but not for channels A & B
+	check_band( f, 1 );
+	check_lo( f, 100 M );
+	check_nco( f, -15 M );
+)
+
+//
+// High BW Tests
+//
+
+TEST_( 130, 85,
+
+	//  -----------------------------------------
+	//  |                                       |
+	//  0               65                     130-->
+
+	tune_lo_and_dsp_test_fixture f( fc, bw, true );
+	common( f );
+
+	// this is high band for channels C & D, but not for channels A & B
+	check_band( f, 1 );
+	check_lo( f, 100 M );
+	check_nco( f, -15 M );
+)
+
+TEST_( 260, 130,
+
+	//  -----------------------------------------
+	//  |                                       |
+	//  0               65                     130-->
+
+	tune_lo_and_dsp_test_fixture f( fc, bw, true );
 	common( f );
 
 	// this is high band for channels C & D, but not for channels A & B
