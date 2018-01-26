@@ -20,7 +20,7 @@ void check_tune( const tune_lo_and_dsp_test_fixture &f ) {
 		+ f.res.actual_rf_freq
 		+ f.res.actual_dsp_freq
 	;
-	BOOST_CHECK_CLOSE( expected_double, actual_double, 1 k );
+	BOOST_CHECK_CLOSE( expected_double, actual_double, 1 );
 }
 
 bool range_overlaps( const meta_range_t &r, double val ) {
@@ -116,18 +116,6 @@ void check_lo_below( tune_lo_and_dsp_test_fixture & f, double expected_lo, bool 
 	}
 }
 
-void check_overlap_nyquist( tune_lo_and_dsp_test_fixture & f ) {
-	double nco = f.dsp_subtree->access<double>( "/freq/value" ).get();
-	double bw = f.dsp_subtree->access<double>( "/rate/value" ).get();
-
-	double nyquist = f.dsp_subtree->access<meta_range_t>( "/rate/range" ).get().stop();
-
-	BOOST_CHECK_MESSAGE(
-		nco + bw / 2.0 < nyquist,
-		( boost::format( "nco (%f) + bw/2 (%f) > nyquist (%f)" ) % nco % (bw / 2) % nyquist ).str()
-	);
-}
-
 void check_lo_modulus( tune_lo_and_dsp_test_fixture & f ) {
 
 	// XXX: @CF: this should be part of the test fixture
@@ -158,7 +146,6 @@ void common( tune_lo_and_dsp_test_fixture & f ) {
 
 	// mandatory
 	check_overlap( f, 0 );
-	check_overlap_nyquist( f );
 	check_lo_modulus( f );
 
 	// preferred
@@ -183,7 +170,7 @@ void check_lo( tune_lo_and_dsp_test_fixture & f, double expected_lo ) {
 
 	actual_lo = f.rf_subtree->access<double>( "/freq/value" ).get();
 
-	BOOST_CHECK_CLOSE( expected_lo, actual_lo, 10 k );
+	BOOST_CHECK_CLOSE( expected_lo, actual_lo, 1 );
 }
 
 void check_nco( tune_lo_and_dsp_test_fixture & f, double expected_nco ) {
@@ -191,7 +178,7 @@ void check_nco( tune_lo_and_dsp_test_fixture & f, double expected_nco ) {
 
 	actual_nco = f.dsp_subtree->access<double>( "/freq/value" ).get();
 
-	BOOST_CHECK_CLOSE( expected_nco, actual_nco, 10 k );
+	BOOST_CHECK_CLOSE( expected_nco, actual_nco, 1 );
 }
 
 // TX tests
@@ -213,8 +200,8 @@ TEST_( 40, 660,
 	common( f );
 
 	check_band( f, 1 );
-	check_lo( f, 625 M );
-	check_nco( f, 35 M );
+	check_lo( f, 675 M );
+	check_nco( f, -15 M );
 )
 
 TEST_( 25, 4005,
@@ -227,8 +214,8 @@ TEST_( 25, 4005,
 	common( f );
 
 	check_band( f, 1 );
-	check_lo( f, 3950 M );
-	check_nco( f, -55 M );
+	check_lo( f, 4025 M );
+	check_nco( f, -20 M );
 )
 
 TEST_( 1, 4005,
@@ -242,7 +229,7 @@ TEST_( 1, 4005,
 
 	check_band( f, 1 );
 	check_lo( f, 4000 M );
-	check_nco( f, -5 M );
+	check_nco( f, -20 M );
 )
 
 TEST_( 8, 4005,
@@ -255,8 +242,8 @@ TEST_( 8, 4005,
 	common( f );
 
 	check_band( f, 1 );
-	check_lo( f, 4000 M );
-	check_nco( f, -5 M );
+	check_lo( f, 4025 M );
+	check_nco( f, -20 M );
 )
 
 TEST_( 10, 4015,
@@ -269,8 +256,8 @@ TEST_( 10, 4015,
 	common( f );
 
 	check_band( f, 1 );
-	check_lo( f, 4000 M );
-	check_nco( f, -15 M );
+	check_lo( f, 4025 M );
+	check_nco( f, -10 M );
 )
 
 TEST_( 40, 4015,
@@ -283,8 +270,8 @@ TEST_( 40, 4015,
 	common( f );
 
 	check_band( f, 1 );
-	check_lo( f, 3950 M );
-	check_nco( f, -65 M );
+	check_lo( f, 4025 M );
+	check_nco( f, -10 M );
 )
 
 TEST_( 5, 130,
@@ -298,7 +285,7 @@ TEST_( 5, 130,
 
 	check_band( f, 0 );
 	check_lo( f, 0 M );
-	check_nco( f, -130 M );
+	check_nco( f, 130 M );
 )
 
 TEST_( 20, 130,
@@ -312,7 +299,7 @@ TEST_( 20, 130,
 
 	check_band( f, 1 );
 	check_lo( f, 150 M );
-	check_nco( f, 20 M );
+	check_nco( f, -20 M );
 )
 
 TEST_( 30, 90,
@@ -326,7 +313,7 @@ TEST_( 30, 90,
 
 	check_band( f, 0 );
 	check_lo( f, 0 M );
-	check_nco( f, -90 M );
+	check_nco( f, 90 M );
 )
 
 // this test exposed something wonkey about the nco choice
@@ -340,8 +327,8 @@ TEST_( 1, 300,
 	common( f );
 
 	check_band( f, 1 );
-	check_lo( f, 275 M );
-	check_nco( f, 25 M );
+	check_lo( f, 325 M );
+	check_nco( f, -25 M );
 )
 
 //
@@ -357,7 +344,6 @@ TEST_( 30, 85,
 	tune_lo_and_dsp_test_fixture f( fc, bw, true, 'C' );
 	common( f );
 
-	// this is high band for channels C & D, but not for channels A & B
 	check_band( f, 1 );
 	check_lo( f, 100 M );
 	check_nco( f, -15 M );
@@ -376,7 +362,6 @@ TEST_( 130, 85,
 	tune_lo_and_dsp_test_fixture f( fc, bw, true );
 	common( f );
 
-	// this is high band for channels C & D, but not for channels A & B
 	check_band( f, 1 );
 	check_lo( f, 100 M );
 	check_nco( f, -15 M );
@@ -391,16 +376,46 @@ TEST_( 260, 130,
 	tune_lo_and_dsp_test_fixture f( fc, bw, true );
 	common( f );
 
-	// this is high band for channels C & D, but not for channels A & B
 	check_band( f, 1 );
-	check_lo( f, 100 M );
-	check_nco( f, -15 M );
+	check_lo( f, 125 M );
+	check_nco( f, 5 M );
 )
+
+BOOST_AUTO_TEST_CASE( test_260_MHz_BW_at_135_MHz_Fc ) {
+	double fc = 135 M;
+	double bw = 260 M;
+
+	//  -----------------------------------------
+	//  |                                       |
+	//  5               135                     265-->
+
+	std::exception_ptr p = nullptr;
+
+	tune_lo_and_dsp_test_fixture f( fc, bw, true, (char)'C' );
+
+	try {
+
+		common( f );
+
+		check_band( f, 1 );
+		check_lo( f, 125 M );
+		check_nco( f, 5 M );
+
+	} catch( ... ) {
+		p = std::current_exception();
+	}
+
+	BOOST_CHECK_MESSAGE(
+		nullptr != p,
+		"expected exception to be thrown because channel C cannot achieve " << ( f.bw / (1e6) ) << " MSps"
+	);
+}
 
 //
 // Rx tests
 //
 
+/*
 BOOST_AUTO_TEST_CASE( test_high_band_nco_symmetry ) {
 
 	bool tx = true;
@@ -448,3 +463,4 @@ BOOST_AUTO_TEST_CASE( test_low_band_nco_antisymmetry ) {
 	// for low band, the sign of the NCO shift indicates tx vs rx
 	check_nco( f_rx, -wanted_nco );
 }
+*/
