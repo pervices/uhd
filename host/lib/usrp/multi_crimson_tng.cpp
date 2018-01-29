@@ -83,7 +83,7 @@ bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-double choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree ) {
+double multi_crimson_tng::choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree ) {
 
 	/*
 	 * Scenario 1) Channels A and B
@@ -125,6 +125,7 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 		freq_range_t( 26e6, 136e6 ), // F = B + C
 		freq_range_t( 3e6, 136e6 ), // G = A + B + C
 		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Catch All)
+		freq_range_t( -162.5e6, 162.5e6 ), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
@@ -150,6 +151,7 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 		freq_range_t( 3e6, 24e6 ), // A
 		freq_range_t( 26e6, 81.25e6 ), // B
 		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
+		freq_range_t( -81.25e6, 81.25e6 ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
@@ -208,7 +210,7 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 }
 
 // See multi_usrp.cpp::tune_xx_subdev_and_dsp()
-tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+tune_result_t multi_crimson_tng::tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 
 	enum {
 		LOW_BAND,
@@ -356,7 +358,6 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 multi_crimson_tng::multi_crimson_tng(const device_addr_t &addr) {
     // this make will invoke the correct inherited crimson device class
     _dev  = device::make(addr, device::CRIMSON_TNG);
-    crimson_tng_impl::sptr dev_impl = boost::static_pointer_cast<crimson_tng_impl>( _dev );
     _tree = _dev  -> get_tree();
 }
 
@@ -662,7 +663,11 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 	if (chan != ALL_CHANS){
-		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
+		meta_range_t range = _tree->access<meta_range_t>( rx_dsp_root( chan ) / "rate" / "range" ).get();
+		if ( rate < range.start() || rate > range.stop() ) {
+			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
+		}
+		double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate).get();
 		return;
 	}
 	for (size_t c = 0; c < get_rx_num_channels(); c++){
@@ -913,7 +918,11 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
 	if (chan != ALL_CHANS){
-		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
+		meta_range_t range = _tree->access<meta_range_t>( tx_dsp_root( chan ) / "rate" / "range" ).get();
+		if ( rate < range.start() || rate > range.stop() ) {
+			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
+		}
+		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate).get();
 		return;
 	}
 	for (size_t c = 0; c < get_tx_num_channels(); c++){
