@@ -358,7 +358,6 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 multi_crimson_tng::multi_crimson_tng(const device_addr_t &addr) {
     // this make will invoke the correct inherited crimson device class
     _dev  = device::make(addr, device::CRIMSON_TNG);
-    crimson_tng_impl::sptr dev_impl = boost::static_pointer_cast<crimson_tng_impl>( _dev );
     _tree = _dev  -> get_tree();
 }
 
