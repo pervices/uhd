@@ -663,7 +663,11 @@ std::string multi_crimson_tng::get_rx_subdev_name(size_t chan){
 // Set the current RX sampling rate on specified channel
 void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 	if (chan != ALL_CHANS){
-		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
+		meta_range_t range = _tree->access<meta_range_t>( rx_dsp_root( chan ) / "rate" / "range" ).get();
+		if ( rate < range.start() || rate > range.stop() ) {
+			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
+		}
+		double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate).get();
 		return;
 	}
 	for (size_t c = 0; c < get_rx_num_channels(); c++){
@@ -914,7 +918,11 @@ std::string multi_crimson_tng::get_tx_subdev_name(size_t chan){
 // Set the current TX sampling rate on specified channel
 void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
 	if (chan != ALL_CHANS){
-		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
+		meta_range_t range = _tree->access<meta_range_t>( tx_dsp_root( chan ) / "rate" / "range" ).get();
+		if ( rate < range.start() || rate > range.stop() ) {
+			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
+		}
+		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate).get();
 		return;
 	}
 	for (size_t c = 0; c < get_tx_num_channels(); c++){
