@@ -240,16 +240,6 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 	const std::string stream_path = "/mboards/0/rx_link/Channel_" + std::string( 1, (char) 'A' + ch ) + "/stream";
 	const std::string pwr_path = "/mboards/0/rx/Channel_" + std::string( 1, (char) 'A' + ch ) + "/pwr";
 
-	size_t chan_i = -1;
-	for( size_t i = 0; i < _rx_channels.size(); i++ ) {
-		if ( ch == _rx_channels[ i ] ) {
-			chan_i = i;
-			break;
-		}
-	}
-
-	boost::shared_ptr<sph::recv_packet_streamer> my_streamer = boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ chan_i ].lock() );
-
 	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == cmd.stream_mode ) {
 
 		_tree->access<std::string>( stream_path ).set( "0" );
