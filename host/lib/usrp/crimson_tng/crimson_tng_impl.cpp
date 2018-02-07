@@ -250,9 +250,8 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 		uhd::usrp::rx_sob_req rx_sob;
 
 		uhd::time_spec_t now = get_time_now();
-		uhd::time_spec_t then = cmd.stream_now ? now : cmd.time_spec;
 
-		make_rx_sob_req_packet( then, ch, rx_sob );
+		make_rx_sob_req_packet( cmd, now, ch, rx_sob );
 		send_rx_sob_req( rx_sob );
 
 		_tree->access<std::string>( stream_path ).set( "1" );
@@ -526,18 +525,43 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
-void crimson_tng_impl::make_rx_sob_req_packet( const uhd::time_spec_t & ts, const size_t channel, uhd::usrp::rx_sob_req & pkt ) {
+void crimson_tng_impl::make_rx_sob_req_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_sob_req & pkt ) {
+
+    typedef boost::tuple<bool, bool, bool, bool> inst_t;
+    static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
+                                                            //reload, chain, samps, stop
+        (stream_cmd_t::STREAM_MODE_START_CONTINUOUS,   inst_t(true,  true,  false, false))
+        (stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS,    inst_t(false, false, false, true))
+        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(false, false, true,  false))
+        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(false, true,  true,  false))
+    ;
+
 	pkt.header = 0x10000 + channel;
+
+    //setup the instruction flag values
+    bool inst_reload, inst_chain, inst_samps, inst_stop;
+    boost::tie(inst_reload, inst_chain, inst_samps, inst_stop) = mode_to_inst[cmd.stream_mode];
+
+    pkt.header |= inst_reload ? ( 0b1000 << 20 ) : 0;
+    pkt.header |= inst_chain  ? ( 0b0100 << 20 ) : 0;
+    pkt.header |= inst_samps  ? ( 0b0010 << 20 ) : 0;
+    pkt.header |= inst_stop   ? ( 0b0001 << 20 ) : 0;
+
+	uhd::time_spec_t ts = cmd.stream_now ? now : cmd.time_spec;
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_psec = ts.get_frac_secs() * 1e12;
+
+	pkt.nsamples = inst_samps ? cmd.num_samps : 0;
 
 //	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
 //	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
 //	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
+//	std::cout << "nsampls: " << std::dec << pkt.nsamples << std::endl;
 
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_psec );
+	boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
 }
 
 void crimson_tng_impl::send_rx_sob_req( const rx_sob_req & req ) {
