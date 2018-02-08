@@ -129,7 +129,6 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/if_addrs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/udp_simple.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/udp_stream.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/udp_stream_zero_copy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nirio_zero_copy.cpp
 )
 

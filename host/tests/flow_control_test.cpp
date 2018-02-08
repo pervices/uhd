@@ -270,8 +270,8 @@ BOOST_AUTO_TEST_CASE( test_convergence_from_below ) {
 		}
 
 		// ensure that the difference between actual and desired buffer levels converges to zero
-		expected_double = abs( (double) ( fc->get_nominal_buffer_level() - prev_buffer_level ) );
-		actual_double = abs( (double) ( fc->get_nominal_buffer_level() - buffer_level ) );
+		expected_double = abs( fc->get_nominal_buffer_level() - prev_buffer_level );
+		actual_double = abs( fc->get_nominal_buffer_level() - buffer_level );
 		BOOST_CHECK_MESSAGE(
 			actual_double < expected_double,
 			(
