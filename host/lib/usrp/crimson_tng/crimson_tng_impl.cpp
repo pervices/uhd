@@ -261,14 +261,22 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd )
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
 time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
-	double fracpart, intpart;
-	fracpart = modf(get_double(req), &intpart);
-	time_spec_t temp = time_spec_t((time_t)intpart, fracpart);
-	return temp;
+	if ( "time/clk/cur_time" == req ) {
+		return get_time_now();
+	} else {
+		double fracpart, intpart;
+		fracpart = modf(get_double(req), &intpart);
+		time_spec_t temp = time_spec_t((time_t)intpart, fracpart);
+		return temp;
+	}
 }
 void crimson_tng_impl::set_time_spec(const std::string pre, time_spec_t data) {
 	set_double(pre, (double)data.get_full_secs() + data.get_frac_secs());
-	return;
+	if ( "time/clk/cur_time" == pre ) {
+		for( _time_diff_converged = false; ! _time_diff_converged; ) {
+			usleep( 100000 );
+		}
+	}
 }
 
 void crimson_tng_impl::set_properties_from_addr() {
@@ -701,8 +709,6 @@ void crimson_tng_impl::start_bm() {
 
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
-		// XXX: kb 4034: (please remove at a later date)
-		// give crimson some settling time after enabling vita for jesd sync
 
 		print_bm_started();
 
