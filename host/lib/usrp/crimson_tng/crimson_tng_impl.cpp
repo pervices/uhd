@@ -542,10 +542,10 @@ void crimson_tng_impl::make_rx_sob_req_packet( const uhd::stream_cmd_t & cmd, co
     bool inst_reload, inst_chain, inst_samps, inst_stop;
     boost::tie(inst_reload, inst_chain, inst_samps, inst_stop) = mode_to_inst[cmd.stream_mode];
 
-    pkt.header |= inst_reload ? ( 0b1000 << 20 ) : 0;
-    pkt.header |= inst_chain  ? ( 0b0100 << 20 ) : 0;
-    pkt.header |= inst_samps  ? ( 0b0010 << 20 ) : 0;
-    pkt.header |= inst_stop   ? ( 0b0001 << 20 ) : 0;
+    pkt.header |= inst_reload ? ( 0b1000LL << 36 ) : 0;
+    pkt.header |= inst_chain  ? ( 0b0100LL << 36 ) : 0;
+    pkt.header |= inst_samps  ? ( 0b0010LL << 36 ) : 0;
+    pkt.header |= inst_stop   ? ( 0b0001LL << 36 ) : 0;
 
 	uhd::time_spec_t ts = cmd.stream_now ? now : cmd.time_spec;
 	pkt.tv_sec = ts.get_full_secs();
