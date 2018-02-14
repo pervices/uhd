@@ -61,7 +61,7 @@ struct time_diff_resp {
 #pragma pack(pop)
 
 #pragma pack(push,1)
-struct rx_sob_req {
+struct rx_stream_cmd {
     uint64_t header;   // 0x10000 for RX SoB
     int64_t tv_sec;    // when the SoB should take place
     int64_t tv_psec;   // when the SoB should take place (ps)
@@ -110,8 +110,8 @@ public:
     void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
     void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
 
-    void send_rx_sob_req( const rx_sob_req & req );
-    static void make_rx_sob_req_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_sob_req & pkt );
+    void send_rx_stream_cmd_req( const rx_stream_cmd & req );
+    static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
 private:
     // helper functions to wrap send and recv as get and set
