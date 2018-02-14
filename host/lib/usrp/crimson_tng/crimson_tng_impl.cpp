@@ -1209,6 +1209,8 @@ crimson_tng_impl::~crimson_tng_impl(void)
 	for ( auto & ch: _rx_channels ) {
 		stream_cmd_t cmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
 		set_stream_cmd( "rx_" + std::string( 1, (char) 'a' + ch ) + "/stream", cmd );
+		const std::string pwr_path = "/mboards/0/rx/Channel_" + std::string( 1, (char) 'A' + ch ) + "/pwr";
+		_tree->access<std::string>( pwr_path ).set( "0" );
 	}
 }
 
