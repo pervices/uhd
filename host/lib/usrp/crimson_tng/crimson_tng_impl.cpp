@@ -226,36 +226,21 @@ static std::ostream & operator<<( std::ostream & os, const stream_cmd_t & cmd ) 
 	return os;
 }
 
-// XXX: @CF: 20180115: FWIU, we need to implement a FIFO of stream commands in HW. This is just enough to make things functional
-
 stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
+	// XXX: @CF: 20180214: stream_cmd is basically a write-only property, but we have to return a dummy variable of some kind
 	stream_cmd_t::stream_mode_t mode = stream_cmd_t::STREAM_MODE_START_CONTINUOUS;
 	stream_cmd_t temp = stream_cmd_t(mode);
 	return temp;
 }
-void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t cmd ) {
+void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
 
 	const size_t ch = pre_to_ch( pre );
+	const uhd::time_spec_t now = get_time_now();
 
-	const std::string stream_path = "/mboards/0/rx_link/Channel_" + std::string( 1, (char) 'A' + ch ) + "/stream";
-	const std::string pwr_path = "/mboards/0/rx/Channel_" + std::string( 1, (char) 'A' + ch ) + "/pwr";
+	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
-	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == cmd.stream_mode ) {
-
-		_tree->access<std::string>( stream_path ).set( "0" );
-		_tree->access<std::string>( pwr_path ).set( "0" );
-
-	} else {
-
-		uhd::usrp::rx_sob_req rx_sob;
-
-		uhd::time_spec_t now = get_time_now();
-
-		make_rx_sob_req_packet( cmd, now, ch, rx_sob );
-		send_rx_sob_req( rx_sob );
-
-		_tree->access<std::string>( stream_path ).set( "1" );
-	}
+	make_rx_stream_cmd_packet( stream_cmd, now, ch, rx_stream_cmd );
+	send_rx_stream_cmd_req( rx_stream_cmd );
 }
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
@@ -533,7 +518,7 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
-void crimson_tng_impl::make_rx_sob_req_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_sob_req & pkt ) {
+void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
 
     typedef boost::tuple<bool, bool, bool, bool> inst_t;
     static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
@@ -572,7 +557,7 @@ void crimson_tng_impl::make_rx_sob_req_packet( const uhd::stream_cmd_t & cmd, co
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
 }
 
-void crimson_tng_impl::send_rx_sob_req( const rx_sob_req & req ) {
+void crimson_tng_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
 	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
