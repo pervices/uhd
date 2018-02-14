@@ -81,10 +81,13 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
 		// power on the channel
 		_tree->access<std::string>(mb_path / "rx" / "Channel_"+ch / "pwr").set("1");
-		usleep( 500000 );
+		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
+		//usleep( 500000 );
 
 		// vita enable
 		_tree->access<std::string>(link_path / "Channel_"+ch / "vita_en").set("1");
+		// stream enable
+		_tree->access<std::string>(link_path / "Channel_"+ch / "stream").set("1");
 
 		rx_if[ i ] = udp_stream_zero_copy::make( ip_addr, udp_port, "127.0.0.1", "1", zcxp, bp, _addr );
     }
@@ -105,7 +108,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     my_streamer->set_converter(id);
 
     //bind callbacks for the handler
-    rx_streamers.resize( _rx_channels.size() );
+    _rx_streamers.resize( _rx_channels.size() );
     for ( size_t i = 0; i < _rx_channels.size(); i++ ) {
         my_streamer->set_xport_chan_get_buff(
 			i,
@@ -131,7 +134,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 				_1
 			)
 		);
-		rx_streamers[ i ] = my_streamer; //store weak pointer
+		_rx_streamers[ i ] = my_streamer; //store weak pointer
     }
 
     //set the packet threshold to be an entire socket buffer's worth

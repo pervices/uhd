@@ -239,8 +239,27 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
+	//UHD_MSG( status ) << "Received stream command " << stream_cmd << std::endl;
+
 	make_rx_stream_cmd_packet( stream_cmd, now, ch, rx_stream_cmd );
 	send_rx_stream_cmd_req( rx_stream_cmd );
+
+	// XXX: @CF: 20180214: While I would have preferred to *not* put this in here, it seems to be the safest place.
+	// If GNURadio is using libuhd "/stream" is not set to 0 if this code is not here. Possibly improper reference counting.
+	if (
+		true
+		&& stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS == stream_cmd.stream_mode
+		&& (
+			false
+			|| stream_cmd.stream_now
+			|| now >= stream_cmd.time_spec
+		)
+	) {
+		const std::string stream_path = "/mboards/0/rx_link/Channel_" + std::string( 1, (char) 'A' + ch ) + "/stream";
+		const std::string pwr_path = "/mboards/0/rx/Channel_" + std::string( 1, (char) 'A' + ch ) + "/pwr";
+		_tree->access<std::string>( stream_path ).set( "0" );
+		_tree->access<std::string>( pwr_path ).set( "0" );
+	}
 }
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
@@ -1202,15 +1221,14 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
-    // TODO send commands to mute all radio chains, mute everything
-    // unlock the Crimson device to this process
+	static const stream_cmd_t cmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
+
+	// TODO send commands to mute all radio chains, mute everything
+	// unlock the Crimson device to this process
 	stop_bm();
 
 	for ( auto & ch: _rx_channels ) {
-		stream_cmd_t cmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
 		set_stream_cmd( "rx_" + std::string( 1, (char) 'a' + ch ) + "/stream", cmd );
-		const std::string pwr_path = "/mboards/0/rx/Channel_" + std::string( 1, (char) 'A' + ch ) + "/pwr";
-		_tree->access<std::string>( pwr_path ).set( "0" );
 	}
 }
 
@@ -1253,7 +1271,7 @@ double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double 
 		if ( chan == _rx_channels[ i ] ) {
 
 			boost::shared_ptr<sph::recv_packet_streamer> my_streamer
-				= boost::dynamic_pointer_cast<sph::recv_packet_streamer>( rx_streamers[ i ].lock() );
+				= boost::dynamic_pointer_cast<sph::recv_packet_streamer>( _rx_streamers[ i ].lock() );
 
 			if ( nullptr != my_streamer.get() ) {
 				my_streamer->set_tick_rate((double)CRIMSON_TNG_MASTER_CLOCK_RATE);

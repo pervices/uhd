@@ -210,7 +210,7 @@ private:
 	 */
 	std::vector<size_t> _rx_channels;
 	std::vector<size_t> _stream_cmd_samples_remaining;
-	std::vector<boost::weak_ptr<uhd::rx_streamer>> rx_streamers;
+	std::vector<boost::weak_ptr<uhd::rx_streamer>> _rx_streamers;
 	double update_rx_samp_rate( const size_t & chan_i, const double & rate );
 };
 
