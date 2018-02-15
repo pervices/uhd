@@ -39,6 +39,24 @@ namespace vrt{
             LINK_TYPE_VRLP = 0x2
         } link_type;
 
+        //tsi type
+        enum tsi_type_t
+        {
+            TSI_TYPE_NONE    = 0x0,
+                       TSI_TYPE_UTC     = 0x1,
+                       TSI_TYPE_GPS     = 0x2,
+                       TSI_TYPE_OTHER   = 0x3,
+        } tsi_type;
+
+        //tsf type
+        enum tsf_type_t
+        {
+            TSF_TYPE_NONE    = 0x0,
+                       TSF_TYPE_SAMP    = 0x1,
+                       TSF_TYPE_PICO    = 0x2,
+                       TSF_TYPE_FREE    = 0x3,
+        } tsf_type;
+
         //packet type
         enum packet_type_t
         {
@@ -188,8 +206,8 @@ namespace vrt{
         error(false),
         has_sid(false), sid(0),
         has_cid(false), cid(0),
-        has_tsi(false), tsi(0),
-        has_tsf(false), tsf(0),
+        has_tsi(false), tsi(0), tsi_type(TSI_TYPE_NONE),
+        has_tsf(false), tsf(0), tsf_type(TSF_TYPE_NONE),
         has_tlr(false), tlr(0)
     {}
 

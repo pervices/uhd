@@ -27,6 +27,8 @@
 #include <cmath>
 #include <bitset>
 
+#include "uhd/usrp/multi_crimson_tng.hpp"
+
 using namespace uhd;
 using namespace uhd::usrp;
 
@@ -2411,5 +2413,14 @@ multi_usrp::~multi_usrp(void){
  **********************************************************************/
 multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
     UHD_LOGGER_TRACE("MULTI_USRP") << "multi_usrp::make with args " << dev_addr.to_pp_string() ;
-    return sptr(new multi_usrp_impl(dev_addr));
+
+    // This is where the code branches off to the Crimson implementation.
+    // The instantiation of multi_usrp_impl will throw an error, when no USRP device is found.
+    // This also means that you cannot support both Crimson and USRP devices within the same
+    // network hub.
+    try {
+        return sptr(new multi_usrp_impl(dev_addr));
+    } catch (...) {
+	   return sptr(new multi_crimson_tng(dev_addr));
+    }
 }

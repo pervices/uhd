@@ -36,7 +36,8 @@ public:
     enum device_filter_t {
         ANY,
         USRP,
-        CLOCK
+        CLOCK,
+		CRIMSON_TNG
     };
     virtual ~device(void) = 0;
 
