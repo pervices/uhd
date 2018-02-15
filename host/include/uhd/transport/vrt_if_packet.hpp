@@ -206,6 +206,8 @@ namespace vrt{
 
     UHD_INLINE if_packet_info_t::if_packet_info_t(void):
         link_type(LINK_TYPE_NONE),
+		tsi_type(TSI_TYPE_NONE),
+		tsf_type(TSF_TYPE_NONE),
         packet_type(PACKET_TYPE_DATA),
         num_payload_words32(0),
         num_payload_bytes(0),
@@ -216,8 +218,8 @@ namespace vrt{
         error(false),
         has_sid(false), sid(0),
         has_cid(false), cid(0),
-        has_tsi(false), tsi(0), tsi_type(TSI_TYPE_NONE),
-        has_tsf(false), tsf(0), tsf_type(TSF_TYPE_NONE),
+		has_tsi(false), tsi(0),
+		has_tsf(false), tsf(0),
         has_tlr(false), tlr(0)
     {}
 
