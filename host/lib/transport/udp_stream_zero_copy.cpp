@@ -331,7 +331,7 @@ udp_stream_zero_copy::sptr udp_stream_zero_copy::make(
     xport_params.num_send_frames = size_t(hints.cast<double>("num_send_frames", default_buff_args.num_send_frames));
 
     //extract buffer size hints from the device addr
-    size_t usr_recv_buff_size = size_t(hints.cast<double>("recv_buff_size", 0.0));
+    size_t usr_recv_buff_size = size_t(hints.cast<double>("recv_buff_size", 4 * 80e6 * 2));
     size_t usr_send_buff_size = size_t(hints.cast<double>("send_buff_size", 0.0));
 
     if (hints.has_key("recv_buff_size")) {
