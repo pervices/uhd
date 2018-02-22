@@ -30,7 +30,7 @@
 #include "uhd/transport/udp_zero_copy.hpp"
 
 #include "crimson_tng_iface.hpp"
-#include "crimson_tng_impl.hpp"
+#include "flow_control.hpp"
 #include "pidc.hpp"
 
 namespace uhd {
@@ -107,9 +107,6 @@ public:
     void start_bm();
     void stop_bm();
 
-    void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
-    void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
-
     void send_rx_stream_cmd_req( const rx_stream_cmd & req );
     static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
@@ -165,8 +162,6 @@ private:
     uhd::crimson_tng_iface::sptr _iface;
     std::mutex _iface_lock;
 
-    std::vector<uhd::transport::udp_zero_copy::sptr> rx_if;
-
 	/**
 	 * Clock Domain Synchronization Objects
 	 */
@@ -193,8 +188,6 @@ private:
      * Buffer Management Objects
      */
 
-    std::set<uhd::crimson_tng_tx_streamer *> _bm_listeners;
-
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
@@ -211,7 +204,29 @@ private:
 	std::vector<size_t> _rx_channels;
 	std::vector<size_t> _stream_cmd_samples_remaining;
 	std::vector<boost::weak_ptr<uhd::rx_streamer>> _rx_streamers;
+    std::vector<uhd::transport::udp_zero_copy::sptr> _rx_if;
 	double update_rx_samp_rate( const size_t & chan_i, const double & rate );
+
+	/**
+	 * TX Streamer Objects
+	 */
+	std::vector<size_t> _tx_channels;
+	std::vector<boost::weak_ptr<uhd::tx_streamer>> _tx_streamers;
+	std::vector<uhd::transport::udp_zero_copy::sptr> _tx_if;
+	transport::managed_send_buffer::sptr get_send_buff( size_t chan, double timeout );
+	double update_tx_samp_rate( const size_t & chan_i, const double & rate );
+	std::vector<uhd::flow_control::sptr> _flow_control;
+	void uoflow_process( const time_diff_resp & tdr );
+
+	/**
+	 * Async Msg Objects
+	 */
+	std::mutex _async_mutex;
+	uhd::transport::bounded_buffer<uhd::async_metadata_t> _async_msg_fifo;
+	void push_async_msg( const async_metadata_t & metadata );
+	static const size_t _uoflow_ignore = -1;
+	std::vector<size_t> _uflow;
+	std::vector<size_t> _oflow;
 };
 
 }
