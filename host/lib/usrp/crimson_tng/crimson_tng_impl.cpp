@@ -16,7 +16,7 @@
 //
 
 #ifndef DEBUG_BM
-#define DEBUG_BM 1
+#define DEBUG_BM 0
 #endif
 
 #ifdef DEBUG_BM
@@ -39,6 +39,7 @@
 #include "uhd/utils/static.hpp"
 
 #include "../../transport/super_recv_packet_handler.hpp"
+#include "../../transport/super_send_packet_handler.hpp"
 
 #include "crimson_tng_tx_streamer.hpp"
 
@@ -328,58 +329,6 @@ void crimson_tng_impl::set_properties_from_addr() {
 }
 
 /***********************************************************************
- * Transmit streamer
- **********************************************************************/
-tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args){
-	// Crimson currently only supports cpu_format of "sc16" (complex<int16_t>) stream
-	if (strcmp(args.cpu_format.c_str(), "sc16") != 0 && strcmp(args.cpu_format.c_str(), "") != 0 ) {
-		UHD_MSG(error) << "CRIMSON_TNG Stream only supports cpu_format of \
-			\"sc16\" complex<int16_t>" << std::endl;
-	}
-
-	// Crimson currently only supports (over the wire) otw_format of "sc16" - Q16 I16 if specified
-	if (strcmp(args.otw_format.c_str(), "sc16") != 0 && strcmp(args.otw_format.c_str(), "") != 0 ) {
-		UHD_MSG(error) << "CRIMSON_TNG Stream only supports otw_format of \
-			\"sc16\" Q16 I16" << std::endl;
-	}
-
-	set_properties_from_addr();
-
-	// TODO firmware support for other otw_format, cpu_format
-	crimson_tng_tx_streamer::sptr r( new uhd::crimson_tng_tx_streamer( this->_addr, this->_tree, args.channels ) );
-	r->set_device( static_cast<uhd::device *>( this ) );
-	bm_listener_add( (crimson_tng_tx_streamer *) r.get() );
-
-	return r;
-}
-
-/***********************************************************************
- * Receive streamer
- **********************************************************************/
-/*
-rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args){
-	// Crimson currently only supports cpu_format of "sc16" (complex<int16_t>) stream
-	if (strcmp(args.cpu_format.c_str(), "sc16") != 0 && strcmp(args.cpu_format.c_str(), "") != 0 ) {
-		UHD_MSG(error) << "CRIMSON_TNG Stream only supports cpu_format of \
-			\"sc16\" complex<int16_t>" << std::endl;
-	}
-
-	// Crimson currently only supports (over the wire) otw_format of "sc16" - Q16 I16 if specified
-	if (strcmp(args.otw_format.c_str(), "sc16") != 0 && strcmp(args.otw_format.c_str(), "") != 0 ) {
-		UHD_MSG(error) << "CRIMSON_TNG Stream only supports otw_format of \
-			\"sc16\" Q16 I16" << std::endl;
-	}
-
-	set_properties_from_addr();
-
-	crimson_tng_rx_streamer::sptr r( new uhd::crimson_tng_rx_streamer( this->_addr, this->_tree, args.channels ) );
-	r->set_device( static_cast<uhd::device *>( this ) );
-
-	return r;
-}
-*/
-
-/***********************************************************************
  * Discovery over the udp transport
  **********************************************************************/
 // This find function will be called if a hint is passed onto the find function
@@ -631,9 +580,7 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 		time_diff_set( cv );
 	}
 
-	for( auto & l: _bm_listeners ) {
-		l->on_uoflow_read( tdr );
-	}
+	uoflow_process( tdr );
 }
 
 void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
@@ -644,10 +591,7 @@ void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
 	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS, 0 );
 	for( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
 		fifo_lvl[ j ] = tdr.fifo[ CRIMSON_TNG_TX_CHANNELS - j - 1 ];
-	}
-
-	for( auto & l: _bm_listeners ) {
-		l->on_buffer_level_read( fifo_lvl );
+		_flow_control[ j ]->set_buffer_level_async( fifo_lvl[ j ] );
 	}
 }
 
@@ -753,19 +697,6 @@ void crimson_tng_impl::stop_bm() {
 
 bool crimson_tng_impl::time_diff_converged() {
 	return _time_diff_converged;
-}
-
-void crimson_tng_impl::bm_listener_add( uhd::crimson_tng_tx_streamer *listener ) {
-
-	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
-
-	_bm_listeners.insert( listener );
-}
-void crimson_tng_impl::bm_listener_rem( uhd::crimson_tng_tx_streamer *listener ) {
-
-	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
-
-	_bm_listeners.erase( listener );
 }
 
 // the buffer monitor thread
@@ -885,7 +816,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_time_diff_converged( false ),
-	_time_diff( 0 )
+	_time_diff( 0 ),
+	_async_msg_fifo( 64 )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
@@ -1125,8 +1057,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 			break;
 		}
 
-		//TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate",    double, double);
-
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
 			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
 			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_rx_samp_rate, this, (size_t) chain, _1))
@@ -1138,7 +1068,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 		typedef stream_cmd_t stream_cmd;
 		TREE_CREATE_RW(rx_dsp_path / "stream_cmd",  "rx_"+lc_num+"/stream_cmd", stream_cmd, stream_cmd);
 
-		TREE_CREATE_RW(tx_dsp_path / "rate" / "value", "tx_"+lc_num+"/dsp/rate",    double, double);
+		_tree->create<double> (tx_dsp_path / "rate" / "value")
+			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
+			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_tx_samp_rate, this, (size_t) chain, _1))
+			.set_publisher(boost::bind(&crimson_tng_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
+
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
@@ -1230,6 +1164,17 @@ crimson_tng_impl::~crimson_tng_impl(void)
 	for ( auto & ch: _rx_channels ) {
 		set_stream_cmd( "rx_" + std::string( 1, (char) 'a' + ch ) + "/stream", cmd );
 	}
+
+	for( auto & ch: _tx_channels ) {
+		std::string path = (
+			boost::format(
+				"/mboards/0/tx/Channel_%s/pwr"
+			) % std::string( 1, (char) 'A' + ch )
+		).str();
+		_tree->access<std::string>( path ).set( "0" );
+		//UHD_MSG( status ) << "Disabling TX " << std::string( 1, (char) 'A' + ch ) << std::endl;
+		usleep( 10000 );
+	}
 }
 
 bool crimson_tng_impl::recv_async_msg( uhd::async_metadata_t &async_metadata, double timeout ) {
@@ -1262,9 +1207,10 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 	return r;
 }
 
-double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double & rate ) {
+double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double & rate_ ) {
 
-    set_double( "rx_" + std::string( 1, 'a' + chan ) + "/dsp/rate", rate );
+    set_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate", rate_ );
+    double rate = get_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate" );
 
     for( size_t i = 0; i < _rx_channels.size(); i++ ) {
 
@@ -1284,4 +1230,115 @@ double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double 
     }
 
     return rate;
+}
+
+double crimson_tng_impl::update_tx_samp_rate( const size_t & chan, const double & rate_ ) {
+
+    set_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate", rate_ );
+    double rate = get_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate" );
+
+    for( size_t i = 0; i < _tx_channels.size(); i++ ) {
+
+               if ( chan == _tx_channels[ i ] ) {
+
+                       boost::shared_ptr<sph::send_packet_streamer> my_streamer
+                               = boost::dynamic_pointer_cast<sph::send_packet_streamer>( _tx_streamers[ i ].lock() );
+
+                       if ( nullptr != my_streamer.get() ) {
+                               my_streamer->set_tick_rate((double)CRIMSON_TNG_MASTER_CLOCK_RATE);
+                               my_streamer->set_samp_rate(rate);
+                               //my_streamer->set_scale_factor(adj);
+                       }
+
+                       if ( nullptr != _flow_control[ i ].get() ) {
+                    	   	   _flow_control[ i ]->set_sample_rate( get_time_now(), rate );
+                        }
+
+                       break;
+               }
+    }
+
+    return rate;
+}
+
+managed_send_buffer::sptr crimson_tng_impl::get_send_buff( size_t chan, double timeout ) {
+
+       managed_send_buffer::sptr r;
+
+       size_t i;
+       uhd::time_spec_t now, then;
+
+       for( i = 0; i < _tx_channels.size(); i++ ) {
+               if ( chan == _tx_channels[ i ] ) {
+                       break;
+               }
+       }
+
+       for(
+		   now = get_time_now(),
+		   	   then = now + timeout
+			   ;
+    		   now < then;
+           now = get_time_now()
+       ) {
+    	   if ( _flow_control[ i ]->get_buffer_level( now ) < (ssize_t) _flow_control[ i ]->get_nominal_buffer_level() ) {
+    		   break;
+    	   }
+       }
+       if ( now >= then ) {
+    	   // timeout occurred
+    	   return managed_send_buffer::sptr();
+       }
+
+       r = _tx_if[ i ]->get_send_buff( (then - now).get_real_secs() );
+
+       return r;
+}
+
+void crimson_tng_impl::push_async_msg( const async_metadata_t & metadata ) {
+	std::lock_guard<std::mutex> _lock( _async_mutex );
+	_async_msg_fifo.push_with_pop_on_full( metadata );
+}
+void crimson_tng_impl::uoflow_process( const time_diff_resp & tdr ) {
+
+	async_metadata_t metadata;
+
+	uhd::time_spec_t now = get_time_now();
+
+	for ( size_t j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
+
+		if ( _tx_channels.end() == std::find( _tx_channels.begin(), _tx_channels.end(), j ) ) {
+			continue;
+		}
+
+		// update uflow counters
+
+		if ( crimson_tng_impl::_uoflow_ignore !=  _uflow[ j ] && _uflow[ j ] != tdr.uoflow[ j ].uflow ) {
+			// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+            // async_metadata_t metadata;
+            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+			metadata.channel = j;
+			metadata.has_time_spec = true;
+			metadata.time_spec = now;
+			metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
+			push_async_msg( metadata );
+			//UHD_MSG( fastpath ) << "U" << ((char) ( 'a' + j ) );
+		}
+		_uflow[ j ] = tdr.uoflow[ j ].uflow;
+
+		// update oflow counters
+
+		if ( crimson_tng_impl::_uoflow_ignore !=  _oflow[ j ]  && _oflow[ j ] != tdr.uoflow[ j ].oflow ) {
+			// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+            // async_metadata_t metadata;
+            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+			metadata.channel = j;
+			metadata.has_time_spec = true;
+			metadata.time_spec = now;
+			metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
+			push_async_msg( metadata );
+			//UHD_MSG( fastpath ) << "O" << ((char) ( 'a' + j ) );
+		}
+		_oflow[ j ] = tdr.uoflow[ j ].oflow;
+	}
 }

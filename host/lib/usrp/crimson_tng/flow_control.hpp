@@ -152,6 +152,16 @@ public:
 	}
 
 	/**
+	 * Users may set the device sample rate after the flow controller is
+	 * initantiated. In that case, when updating the device sample rate
+	 * also update the flow controller sample rate.
+	 *
+	 * @param now the time to set the sample rate
+	 * @param rate the new sample rate
+	 */
+	virtual void set_sample_rate( const uhd::time_spec_t & now, const double & rate ) = 0;
+
+	/**
 	 * The primary purpose of a flow controller is to act as a rate-limiter.
 	 * If samples are sent too quickly, input buffers can overflow and signals
 	 * are corrupted. If samples are sent too slowly, input buffers can
