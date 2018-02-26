@@ -1274,7 +1274,7 @@ double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double 
 				= boost::dynamic_pointer_cast<sph::recv_packet_streamer>( _rx_streamers[ i ].lock() );
 
 			if ( nullptr != my_streamer.get() ) {
-				my_streamer->set_tick_rate((double)CRIMSON_TNG_MASTER_CLOCK_RATE);
+				my_streamer->set_tick_rate(rate);
 				my_streamer->set_samp_rate(rate);
 				//my_streamer->set_scale_factor(adj);
 			}
