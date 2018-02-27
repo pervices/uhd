@@ -36,6 +36,8 @@
 #include <boost/make_shared.hpp>
 #include <iostream>
 
+#include <vector>
+
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
@@ -48,7 +50,6 @@ namespace pt = boost::posix_time;
 static UHD_INLINE pt::time_duration to_time_dur(double timeout){
     return pt::microseconds(long(timeout*1e6));
 }
-
 
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
 class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer {
@@ -89,6 +90,95 @@ public:
 
 private:
     size_t _max_num_samps;
+};
+
+// XXX: @CF: 20180227: We need this for several reasons
+// 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
+// 2) to wrap sph::send_packet_streamer::send() and use our existing flow control algorithm
+class crimson_tng_send_packet_streamer : public sph::send_packet_streamer {
+public:
+
+	typedef boost::function<void(void)> onfini_type;
+	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
+
+	crimson_tng_send_packet_streamer(
+		const size_t max_num_samps,
+		onfini_type on_fini,
+		timenow_type time_now,
+		const std::vector<uhd::flow_control::sptr> & fc,
+		std::vector<uhd::transport::zero_copy_if::sptr> tx_xports
+	)
+	:
+		sph::send_packet_streamer( max_num_samps ),
+		_max_num_samps( max_num_samps ),
+		_on_fini( on_fini ),
+		_time_now( time_now ),
+		_fc( fc ),
+		_tx_xports( tx_xports )
+	{
+		if ( fc.size() != this->size() ) {
+			throw value_error( "flow control vector and streamer object must be same size" );
+		}
+
+		if ( tx_xports.size() != this->size() ) {
+			throw value_error( "xports vector and streamer object must be same size" );
+		}
+	}
+
+	virtual ~crimson_tng_send_packet_streamer() {
+		_on_fini();
+	}
+
+    size_t get_num_channels(void) const{
+        return this->size();
+    }
+
+    size_t get_max_num_samps(void) const{
+        return _max_num_samps;
+    }
+
+    size_t send(
+        const tx_streamer::buffs_type &buffs,
+        const size_t nsamps_per_buff,
+        const uhd::tx_metadata_t &metadata,
+        const double timeout
+    ){
+    	size_t r;
+        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
+        uhd::time_spec_t now = _time_now();
+        for( size_t i = 0; i < this->size(); i++ ) {
+        	_fc[ i ]->update( r, now );
+        }
+        return r;
+    }
+
+    bool recv_async_msg(
+        uhd::async_metadata_t &async_metadata, double timeout = 0.1
+    ){
+        return send_packet_handler::recv_async_msg( async_metadata, timeout );
+    }
+
+    managed_send_buffer::sptr get_send_buff(size_t chan, double timeout){
+
+        //wait on flow control w/ timeout
+        if (not check_fc_condition( _fc[ chan ], _time_now(), timeout) ) return managed_send_buffer::sptr();
+
+        //get a buffer from the transport w/ timeout
+        managed_send_buffer::sptr buff = _tx_xports[ chan ]->get_send_buff( timeout );
+
+        return buff;
+    }
+
+private:
+    size_t _max_num_samps;
+    onfini_type _on_fini;
+    timenow_type _time_now;
+    std::vector<uhd::flow_control::sptr> _fc;
+    std::vector<uhd::transport::zero_copy_if::sptr> _tx_xports;
+
+    static bool check_fc_condition( const uhd::flow_control::sptr fc, const uhd::time_spec_t & now, const double & timeout ) {
+    	return false;
+    }
 };
 
 
@@ -388,19 +478,19 @@ void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const 
 }
 
 void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-//    fs_path root = "/mboards/" + which_mb + "/dboards";
-//
-//    //sanity checking
-//    validate_subdev_spec(_tree, spec, "tx", which_mb);
-//
+    fs_path root = "/mboards/" + which_mb + "/dboards";
+
+    //sanity checking
+    validate_subdev_spec(_tree, spec, "tx", which_mb);
+
 //    //set the mux for this spec
 //    const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
 //    _mbc[which_mb].tx_fe->set_mux(conn);
-//
-//    //compute the new occupancy and resize
-//    _mbc[which_mb].tx_chan_occ = spec.size();
-//    size_t nchan = 0;
-//    BOOST_FOREACH(const std::string &mb, _mbc.keys()) nchan += _mbc[mb].tx_chan_occ;
+
+    //compute the new occupancy and resize
+    _mbc[which_mb].tx_chan_occ = spec.size();
+    size_t nchan = 0;
+    BOOST_FOREACH(const std::string &mb, _mbc.keys()) nchan += _mbc[mb].tx_chan_occ;
 }
 
 /***********************************************************************
@@ -477,6 +567,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     //setup defaults for unspecified values
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
+
+    if (args.otw_format != "sc16"){
+        throw uhd::value_error("USRP1 TX cannot handle requested wire format: " + args.otw_format);
+    }
 
     //calculate packet size
     static const size_t hdr_size = 0
@@ -568,6 +662,10 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
+    if (args.otw_format != "sc16"){
+        throw uhd::value_error("USRP1 TX cannot handle requested wire format: " + args.otw_format);
+    }
+
     //calculate packet size
     static const size_t hdr_size = 0
         + vrt_send_header_offset_words32*sizeof(uint32_t)
@@ -599,23 +697,24 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
-        size_t abs = 0;
+        //size_t abs = 0;
         BOOST_FOREACH(const std::string &mb, _mbc.keys()){
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
-                if (not args.args.has_key("noclear")){
-                    _io_impl->fc_mons[abs]->clear();
-                }
+//                if (not args.args.has_key("noclear")){
+//                    _io_impl->fc_mons[abs]->clear();
+//                }
                 //_mbc[mb].tx_dsp->setup(args);
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                    &crimson_tng_impl::io_impl::get_send_buff, _io_impl.get(), abs, _1
+                    //&crimson_tng_impl::io_impl::get_send_buff, _io_impl.get(), abs, _1
+                	&crimson_tng_impl::io_impl::get_send_buff, _io_impl.get(), chan_i, _1
                 ));
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
                 _mbc[mb].tx_streamers[dsp] = my_streamer; //store weak pointer
                 break;
             }
-            abs += 1; //assume 1 tx dsp
+            //abs += 1; //assume 1 tx dsp
         }
     }
 
