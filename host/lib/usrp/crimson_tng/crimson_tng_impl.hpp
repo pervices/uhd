@@ -95,7 +95,7 @@ public:
     // UHD legacy support
     virtual bool recv_async_msg(uhd::async_metadata_t &async_metadata, double timeout = 0.1);
 
-    uhd::device_addr_t _addr;
+    uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now() {
     	double diff = time_diff_get();
@@ -199,22 +199,12 @@ private:
 	bool is_bm_thread_needed();
 
 	/**
-	 * RX Streamer Objects
-	 */
-	std::vector<size_t> _rx_channels;
-	std::vector<size_t> _stream_cmd_samples_remaining;
-	std::vector<boost::weak_ptr<uhd::rx_streamer>> _rx_streamers;
-    std::vector<uhd::transport::udp_zero_copy::sptr> _rx_if;
-	double update_rx_samp_rate( const size_t & chan_i, const double & rate );
-
-	/**
 	 * TX Streamer Objects
 	 */
 	std::vector<size_t> _tx_channels;
 	std::vector<boost::weak_ptr<uhd::tx_streamer>> _tx_streamers;
 	std::vector<uhd::transport::udp_zero_copy::sptr> _tx_if;
 	transport::managed_send_buffer::sptr get_send_buff( size_t chan, double timeout );
-	double update_tx_samp_rate( const size_t & chan_i, const double & rate );
 	std::vector<uhd::flow_control::sptr> _flow_control;
 	void uoflow_process( const time_diff_resp & tdr );
 
@@ -242,9 +232,9 @@ private:
 
     UHD_PIMPL_DECL(io_impl) _io_impl;
     void io_init(void);
-    void update_tick_rate(const double rate);
-    void update_rx_samp_rate(const std::string &, const size_t, const double rate);
-    void update_tx_samp_rate(const std::string &, const size_t, const double rate);
+    //void update_tick_rate(const double rate);
+    void update_rx_samp_rate(const std::string & mb, const size_t chan, const double rate);
+    void update_tx_samp_rate(const std::string & mb, const size_t chan, const double rate);
     void update_rates(void);
     //update spec methods are coercers until we only accept db_name == A
     void update_rx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
@@ -253,6 +243,9 @@ private:
     uhd::meta_range_t get_tx_dsp_freq_range(const std::string &);
     void update_clock_source(const std::string &, const std::string &);
     void program_stream_dest(uhd::transport::zero_copy_if::sptr &, const uhd::stream_args_t &);
+
+
+    static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port );
 };
 
 }

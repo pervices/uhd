@@ -293,7 +293,7 @@ void crimson_tng_impl::set_properties_from_addr() {
 	static const std::string crimson_prop_prefix( "crimson:" );
 	static const std::vector<std::string> blacklist { "crimson:sob" };
 
-	for( auto & prop: _addr.keys() ) {
+	for( auto & prop: device_addr.keys() ) {
 		if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
 
 			bool is_blacklisted = false;
@@ -307,7 +307,7 @@ void crimson_tng_impl::set_properties_from_addr() {
 			}
 
 			std::string key = prop.substr( crimson_prop_prefix.length() );
-			std::string expected_string = _addr[ prop ];
+			std::string expected_string = device_addr[ prop ];
 
 //			UHD_MSG( status )
 //				<< __func__ << "(): "
@@ -814,9 +814,9 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
-crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
+crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 :
-	_addr( dev_addr ),
+	device_addr( _device_addr ),
 	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
@@ -826,29 +826,59 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
-    _addr = dev_addr;
+    device_addr = _device_addr;
 
-    if (not _addr.has_key("recv_buff_size")){
+    //setup the dsp transport hints (default to a large recv buff)
+    if (not device_addr.has_key("recv_buff_size")){
         #if defined(UHD_PLATFORM_MACOS) || defined(UHD_PLATFORM_BSD)
             //limit buffer resize on macos or it will error
-            _addr["recv_buff_size"] = "1e6";
+            device_addr["recv_buff_size"] = "1e6";
         #elif defined(UHD_PLATFORM_LINUX) || defined(UHD_PLATFORM_WIN32)
             //set to half-a-second of buffering at max rate
-            _addr["recv_buff_size"] = "50e6";
+            device_addr["recv_buff_size"] = "50e6";
         #endif
     }
-    if (not _addr.has_key("send_buff_size")){
+    if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        _addr["send_buff_size"] = boost::lexical_cast<std::string>( CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
     }
+
+    device_addrs_t device_args = separate_device_addr(device_addr);
+
+    // XXX: @CF: 20180227: we need the property tree to extract actual values from hardware
+    //extract the user's requested MTU size or default
+//    mtu_result_t user_mtu;
+//    user_mtu.recv_mtu = size_t(device_addr.cast<double>("recv_frame_size", udp_simple::mtu));
+//    user_mtu.send_mtu = size_t(device_addr.cast<double>("send_frame_size", udp_simple::mtu));
+//
+//    try{
+//        //calculate the minimum send and recv mtu of all devices
+//        mtu_result_t mtu = determine_mtu(device_args[0]["addr"], user_mtu);
+//        for (size_t i = 1; i < device_args.size(); i++){
+//            mtu_result_t mtu_i = determine_mtu(device_args[i]["addr"], user_mtu);
+//            mtu.recv_mtu = std::min(mtu.recv_mtu, mtu_i.recv_mtu);
+//            mtu.send_mtu = std::min(mtu.send_mtu, mtu_i.send_mtu);
+//        }
+//
+//        device_addr["recv_frame_size"] = boost::lexical_cast<std::string>(mtu.recv_mtu);
+//        device_addr["send_frame_size"] = boost::lexical_cast<std::string>(mtu.send_mtu);
+//
+//        UHD_MSG(status) << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
+//        UHD_MSG(status) << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
+//    }
+//    catch(const uhd::not_implemented_error &){
+//        //just ignore this error, makes older fw work...
+//    }
+
+    device_args = separate_device_addr(device_addr); //update args for new frame sizes
 
     static const size_t mbi = 0;
     static const std::string mb = std::to_string( mbi );
     // Makes the UDP comm connection
     _mbc[mb].iface = crimson_tng_iface::make(
 		udp_simple::make_connected(
-			dev_addr["addr"],
+			_device_addr["addr"],
 			BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
 		)
     );
@@ -950,8 +980,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 
     // loop for all RX chains
     for( size_t chain = 0; chain < CRIMSON_TNG_RX_CHANNELS; chain++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(chain + 'A'));
-		std::string num     = boost::lexical_cast<std::string>((char)(chain + 'a'));
+		std::string lc_num  = boost::lexical_cast<std::string>((char)(chain + 'a'));
+		std::string num     = boost::lexical_cast<std::string>((char)(chain + 'A'));
 		std::string chan    = "Channel_" + num;
 
 		const fs_path rx_codec_path = mb_path / "rx_codecs" / num;
@@ -1039,7 +1069,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
 			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_rx_samp_rate, this, (size_t) chain, _1))
+			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_rx_samp_rate, this, mb, (size_t) chain, _1))
 			.set_publisher(boost::bind(&crimson_tng_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
@@ -1078,16 +1108,16 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 				"1",
 				zcxp,
 				bp,
-				_addr
+				device_addr
 			)
 		);
-
     }
+    _mbc[ mb ].rx_chan_occ = 4;
 
     // loop for all TX chains
     for( int chain = 0; chain < CRIMSON_TNG_TX_CHANNELS; chain++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(chain + 'A'));
-		std::string num     = boost::lexical_cast<std::string>((char)(chain + 'a'));
+		std::string lc_num  = boost::lexical_cast<std::string>((char)(chain + 'a'));
+		std::string num     = boost::lexical_cast<std::string>((char)(chain + 'A'));
 		std::string chan    = "Channel_" + num;
 
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
@@ -1167,7 +1197,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
 			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_tx_samp_rate, this, (size_t) chain, _1))
+			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_tx_samp_rate, this, mb, (size_t) chain, _1))
 			.set_publisher(boost::bind(&crimson_tng_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
@@ -1192,23 +1222,26 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 	    ;
 		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
 
-		zcxp.send_frame_size = 0;
-		zcxp.recv_frame_size = bpp;
-		zcxp.num_send_frames = 0;
-		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
+		zcxp.send_frame_size = bpp;
+		zcxp.recv_frame_size = 0;
+		zcxp.num_send_frames = CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_recv_frames = 0;
+
+		std::string ip_addr;
+		uint16_t udp_port;
+		get_tx_endpoint( _tree, chain, ip_addr, udp_port );
 
 		_mbc[mb].tx_dsp_xports.push_back(
-			udp_stream_zero_copy::make(
-				_tree->access<std::string>( tx_link_path / "ip_dest" ).get(),
-				_tree->access<std::string>( tx_link_path / "port" ).get(),
-				"127.0.0.1",
-				"1",
+			udp_zero_copy::make(
+				ip_addr,
+				std::to_string( udp_port ),
 				zcxp,
 				bp,
-				_addr
+				device_addr
 			)
 		);
     }
+    _mbc[ mb ].tx_chan_occ = 4;
 
 	const fs_path cm_path  = mb_path / "cm";
 
@@ -1269,15 +1302,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &dev_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
-	static const stream_cmd_t cmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
-
 	// TODO send commands to mute all radio chains, mute everything
 	// unlock the Crimson device to this process
 	stop_bm();
-
-	for ( auto & ch: _rx_channels ) {
-		set_stream_cmd( "rx_" + std::string( 1, (char) 'a' + ch ) + "/stream", cmd );
-	}
 
 	for( auto & ch: _tx_channels ) {
 		std::string path = (
@@ -1313,60 +1340,6 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 #endif
 
 	return r;
-}
-
-double crimson_tng_impl::update_rx_samp_rate( const size_t & chan, const double & rate_ ) {
-
-    set_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate", rate_ );
-    double rate = get_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate" );
-
-    for( size_t i = 0; i < _rx_channels.size(); i++ ) {
-
-		if ( chan == _rx_channels[ i ] ) {
-
-			boost::shared_ptr<sph::recv_packet_streamer> my_streamer
-				= boost::dynamic_pointer_cast<sph::recv_packet_streamer>( _rx_streamers[ i ].lock() );
-
-			if ( nullptr != my_streamer.get() ) {
-				my_streamer->set_tick_rate(rate);
-				my_streamer->set_samp_rate(rate);
-				//my_streamer->set_scale_factor(adj);
-			}
-
-			break;
-		}
-    }
-
-    return rate;
-}
-
-double crimson_tng_impl::update_tx_samp_rate( const size_t & chan, const double & rate_ ) {
-
-    set_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate", rate_ );
-    double rate = get_double( "tx_" + std::string( 1, 'a' + chan ) + "/dsp/rate" );
-
-    for( size_t i = 0; i < _tx_channels.size(); i++ ) {
-
-               if ( chan == _tx_channels[ i ] ) {
-
-                       boost::shared_ptr<sph::send_packet_streamer> my_streamer
-                               = boost::dynamic_pointer_cast<sph::send_packet_streamer>( _tx_streamers[ i ].lock() );
-
-                       if ( nullptr != my_streamer.get() ) {
-                               my_streamer->set_tick_rate((double)CRIMSON_TNG_MASTER_CLOCK_RATE);
-                               my_streamer->set_samp_rate(rate);
-                               //my_streamer->set_scale_factor(adj);
-                       }
-
-                       if ( nullptr != _flow_control[ i ].get() ) {
-                    	   	   _flow_control[ i ]->set_sample_rate( get_time_now(), rate );
-                        }
-
-                       break;
-               }
-    }
-
-    return rate;
 }
 
 managed_send_buffer::sptr crimson_tng_impl::get_send_buff( size_t chan, double timeout ) {
@@ -1449,4 +1422,31 @@ void crimson_tng_impl::uoflow_process( const time_diff_resp & tdr ) {
 		}
 		_oflow[ j ] = tdr.uoflow[ j ].oflow;
 	}
+}
+
+void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port ) {
+
+	std::string sfp;
+
+	switch( chan ) {
+	case 0:
+	case 2:
+		sfp = "sfpa";
+		break;
+	case 1:
+	case 3:
+		sfp = "sfpb";
+		break;
+	}
+
+	const std::string chan_str( 1, 'A' + chan );
+	const fs_path mb_path   = "/mboards/0";
+	const fs_path prop_path = mb_path / "tx_link";
+
+	const std::string udp_port_str = tree->access<std::string>(prop_path / "Channel_" + chan_str / "port").get();
+
+	std::stringstream udp_port_ss( udp_port_str );
+	udp_port_ss >> udp_port;
+
+	ip_addr = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
 }
