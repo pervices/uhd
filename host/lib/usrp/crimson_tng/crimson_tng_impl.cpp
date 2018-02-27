@@ -1305,17 +1305,6 @@ crimson_tng_impl::~crimson_tng_impl(void)
 	// TODO send commands to mute all radio chains, mute everything
 	// unlock the Crimson device to this process
 	stop_bm();
-
-	for( auto & ch: _tx_channels ) {
-		std::string path = (
-			boost::format(
-				"/mboards/0/tx/Channel_%s/pwr"
-			) % std::string( 1, (char) 'A' + ch )
-		).str();
-		_tree->access<std::string>( path ).set( "0" );
-		//UHD_MSG( status ) << "Disabling TX " << std::string( 1, (char) 'A' + ch ) << std::endl;
-		usleep( 10000 );
-	}
 }
 
 bool crimson_tng_impl::is_bm_thread_needed() {
