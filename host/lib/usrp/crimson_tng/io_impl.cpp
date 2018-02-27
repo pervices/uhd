@@ -49,6 +49,49 @@ static UHD_INLINE pt::time_duration to_time_dur(double timeout){
     return pt::microseconds(long(timeout*1e6));
 }
 
+
+// XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
+class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer {
+public:
+	crimson_tng_recv_packet_streamer(const size_t max_num_samps)
+	: sph::recv_packet_streamer( max_num_samps )
+	{
+        _max_num_samps = max_num_samps;
+    }
+
+	virtual ~crimson_tng_recv_packet_streamer() {
+		static const stream_cmd_t cmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
+		issue_stream_cmd( cmd );
+	}
+
+    size_t get_num_channels(void) const{
+        return this->size();
+    }
+
+    size_t get_max_num_samps(void) const{
+        return _max_num_samps;
+    }
+
+    size_t recv(
+        const rx_streamer::buffs_type &buffs,
+        const size_t nsamps_per_buff,
+        uhd::rx_metadata_t &metadata,
+        const double timeout,
+        const bool one_packet
+    ){
+        return recv_packet_handler::recv(buffs, nsamps_per_buff, metadata, timeout, one_packet);
+    }
+
+    void issue_stream_cmd(const stream_cmd_t &stream_cmd)
+    {
+        return recv_packet_handler::issue_stream_cmd(stream_cmd);
+    }
+
+private:
+    size_t _max_num_samps;
+};
+
+
 /***********************************************************************
  * constants
  **********************************************************************/
@@ -256,43 +299,53 @@ void crimson_tng_impl::io_init(void){
 //    }
 }
 
-void crimson_tng_impl::update_tick_rate(const double rate){
-    _io_impl->tick_rate = rate; //shadow for async msg
+//void crimson_tng_impl::update_tick_rate(const double rate){
+//    _io_impl->tick_rate = rate; //shadow for async msg
+//
+//    //update the tick rate on all existing streamers -> thread safe
+//    BOOST_FOREACH(const std::string &mb, _mbc.keys()){
+//        for (size_t i = 0; i < _mbc[mb].rx_streamers.size(); i++){
+//            boost::shared_ptr<sph::recv_packet_streamer> my_streamer =
+//                boost::dynamic_pointer_cast<sph::recv_packet_streamer>(_mbc[mb].rx_streamers[i].lock());
+//            if (my_streamer.get() == NULL) continue;
+//            my_streamer->set_tick_rate(rate);
+//        }
+//        for (size_t i = 0; i < _mbc[mb].tx_streamers.size(); i++){
+//            boost::shared_ptr<sph::send_packet_streamer> my_streamer =
+//                boost::dynamic_pointer_cast<sph::send_packet_streamer>(_mbc[mb].tx_streamers[i].lock());
+//            if (my_streamer.get() == NULL) continue;
+//            my_streamer->set_tick_rate(rate);
+//        }
+//    }
+//}
 
-    //update the tick rate on all existing streamers -> thread safe
-    BOOST_FOREACH(const std::string &mb, _mbc.keys()){
-        for (size_t i = 0; i < _mbc[mb].rx_streamers.size(); i++){
-            boost::shared_ptr<sph::recv_packet_streamer> my_streamer =
-                boost::dynamic_pointer_cast<sph::recv_packet_streamer>(_mbc[mb].rx_streamers[i].lock());
-            if (my_streamer.get() == NULL) continue;
-            my_streamer->set_tick_rate(rate);
-        }
-        for (size_t i = 0; i < _mbc[mb].tx_streamers.size(); i++){
-            boost::shared_ptr<sph::send_packet_streamer> my_streamer =
-                boost::dynamic_pointer_cast<sph::send_packet_streamer>(_mbc[mb].tx_streamers[i].lock());
-            if (my_streamer.get() == NULL) continue;
-            my_streamer->set_tick_rate(rate);
-        }
-    }
-}
+void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
 
-void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate){
-    boost::shared_ptr<sph::recv_packet_streamer> my_streamer =
-        boost::dynamic_pointer_cast<sph::recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
+    set_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
+    double rate = get_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
+
+    boost::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer =
+        boost::dynamic_pointer_cast<crimson_tng_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
+    my_streamer->set_tick_rate(rate);
 //    const double adj = _mbc[mb].rx_dsps[dsp]->get_scaling_adjustment();
 //    my_streamer->set_scale_factor(adj);
     my_streamer->set_scale_factor(1.0);
 }
 
-void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate){
-    boost::shared_ptr<sph::send_packet_streamer> my_streamer =
+void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
+
+    set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
+    double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
+
+	boost::shared_ptr<sph::send_packet_streamer> my_streamer =
         boost::dynamic_pointer_cast<sph::send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
+    my_streamer->set_tick_rate(rate);
 //    const double adj = _mbc[mb].tx_dsp->get_scaling_adjustment();
 //    my_streamer->set_scale_factor(adj);
     my_streamer->set_scale_factor(1.0);
@@ -314,12 +367,12 @@ void crimson_tng_impl::update_rates(void){
 }
 
 void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-//    fs_path root = "/mboards/" + which_mb + "/dboards";
-//
-//    //sanity checking
-//    validate_subdev_spec(_tree, spec, "rx", which_mb);
-//
-//    //setup mux for this spec
+    fs_path root = "/mboards/" + which_mb + "/dboards";
+
+    //sanity checking
+    validate_subdev_spec(_tree, spec, "rx", which_mb);
+
+    //setup mux for this spec
 //    bool fe_swapped = false;
 //    for (size_t i = 0; i < spec.size(); i++){
 //        const std::string conn = _tree->access<std::string>(root / spec[i].db_name / "rx_frontends" / spec[i].sd_name / "connection").get();
@@ -327,11 +380,11 @@ void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const 
 //        _mbc[which_mb].rx_dsps[i]->set_mux(conn, fe_swapped);
 //    }
 //    _mbc[which_mb].rx_fe->set_mux(fe_swapped);
-//
-//    //compute the new occupancy and resize
-//    _mbc[which_mb].rx_chan_occ = spec.size();
-//    size_t nchan = 0;
-//    BOOST_FOREACH(const std::string &mb, _mbc.keys()) nchan += _mbc[mb].rx_chan_occ;
+
+    //compute the new occupancy and resize
+    _mbc[which_mb].rx_chan_occ = spec.size();
+    size_t nchan = 0;
+    BOOST_FOREACH(const std::string &mb, _mbc.keys()) nchan += _mbc[mb].rx_chan_occ;
 }
 
 void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
@@ -425,11 +478,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    static const size_t ip_udp_size = 0
-    	+ 60 // IPv4 Header
-		+ 8  // UDP Header
-    ;
-
     //calculate packet size
     static const size_t hdr_size = 0
         + vrt::max_if_hdr_words32*sizeof(uint32_t)
@@ -437,13 +485,12 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
     ;
-    const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size - hdr_size;
-    //const size_t bpp = _mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size() - hdr_size;
+    const size_t bpp = _mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size() - hdr_size;
     const size_t bpi = convert::get_bytes_per_item(args.otw_format);
     const size_t spp = args.args.cast<size_t>("spp", bpp/bpi);
 
     //make the new streamer given the samples per packet
-    boost::shared_ptr<sph::recv_packet_streamer> my_streamer = boost::make_shared<sph::recv_packet_streamer>(spp);
+    boost::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = boost::make_shared<crimson_tng_recv_packet_streamer>(spp);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -471,8 +518,9 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
                     &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], _1
                 ), true /*flush*/);
-//                my_streamer->set_issue_stream_cmd(chan_i, boost::bind(
-//                    &rx_dsp_core_200::issue_stream_command, _mbc[mb].rx_dsps[dsp], _1));
+                my_streamer->set_issue_stream_cmd(chan_i, boost::bind(
+                	&crimson_tng_impl::set_stream_cmd, this,
+					"rx_" + std::string( 1, (char)( 'a' + args.channels[ chan_i  ] ) ) + "/stream", _1));
                 _mbc[mb].rx_streamers[dsp] = my_streamer; //store weak pointer
                 break;
             }
@@ -485,6 +533,27 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     //sets all tick and samp rates on this streamer
     this->update_rates();
+
+    // XXX: @CF: 20170227: extra setup for crimson
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+    	const std::string chan    = "Channel_" + std::string( 1, 'A' + chan_i );
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path rx_path   = mb_path / "rx";
+    	const fs_path rx_link_path  = mb_path / "rx_link" / chan;
+
+		// power on the channel
+		_tree->access<std::string>(rx_path / chan / "pwr").set("1");
+		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
+		//usleep( 500000 );
+		// vita enable
+		_tree->access<std::string>(rx_link_path / "vita_en").set("1");
+		// stream enable
+		_tree->access<std::string>(rx_link_path / "stream").set("1");
+    }
+	// XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
+	for( ;! time_diff_converged(); ) {
+		usleep( 10000 );
+	}
 
     return my_streamer;
 }
@@ -499,11 +568,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    static const size_t ip_udp_size = 0
-    	+ 60 // IPv4 Header
-		+ 8  // UDP Header
-    ;
-
     //calculate packet size
     static const size_t hdr_size = 0
         + vrt_send_header_offset_words32*sizeof(uint32_t)
@@ -513,8 +577,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         - sizeof(vrt::if_packet_info_t().sid) //no stream id ever used
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
     ;
-    const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size - hdr_size;
-    //const size_t bpp = _mbc[_mbc.keys().front()].tx_dsp_xport->get_send_frame_size() - hdr_size;
+    const size_t bpp = _mbc[_mbc.keys().front()].tx_dsp_xports[0]->get_send_frame_size() - hdr_size;
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
 
     //make the new streamer given the samples per packet
