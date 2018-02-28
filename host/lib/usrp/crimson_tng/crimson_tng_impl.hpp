@@ -224,7 +224,7 @@ private:
         std::vector<boost::weak_ptr<uhd::tx_streamer> > tx_streamers;
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
         std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
-        uhd::transport::zero_copy_if::sptr fifo_ctrl_xport;
+        std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
         size_t rx_chan_occ, tx_chan_occ;
         mb_container_type(void): rx_chan_occ(0), tx_chan_occ(0){}
     };
@@ -245,7 +245,7 @@ private:
     void program_stream_dest(uhd::transport::zero_copy_if::sptr &, const uhd::stream_args_t &);
 
 
-    static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port );
+    static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
 };
 
 }

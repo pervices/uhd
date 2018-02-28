@@ -16,7 +16,7 @@
 //
 
 #ifndef DEBUG_BM
-#define DEBUG_BM 0
+//#define DEBUG_BM 1
 #endif
 
 #ifdef DEBUG_BM
@@ -1229,7 +1229,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		std::string ip_addr;
 		uint16_t udp_port;
-		get_tx_endpoint( _tree, chain, ip_addr, udp_port );
+		std::string sfp;
+		get_tx_endpoint( _tree, chain, ip_addr, udp_port, sfp );
 
 		_mbc[mb].tx_dsp_xports.push_back(
 			udp_zero_copy::make(
@@ -1238,6 +1239,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 				zcxp,
 				bp,
 				device_addr
+			)
+		);
+
+		_mbc[mb].fifo_ctrl_xports.push_back(
+			udp_simple::make_connected(
+				_tree->access<std::string>( mb_path / "link" / sfp / "ip_addr" ).get(),
+				std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
 			)
 		);
     }
@@ -1413,9 +1421,7 @@ void crimson_tng_impl::uoflow_process( const time_diff_resp & tdr ) {
 	}
 }
 
-void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port ) {
-
-	std::string sfp;
+void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	switch( chan ) {
 	case 0:
