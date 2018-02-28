@@ -512,23 +512,23 @@ void multi_crimson_tng::set_time_next_pps(const time_spec_t &time_spec, size_t m
 
 void multi_crimson_tng::set_time_unknown_pps(const time_spec_t &time_spec){
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
 }
 
 bool multi_crimson_tng::get_time_synchronized(void){
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
     return true;
 }
 void multi_crimson_tng::set_command_time(const time_spec_t &time_spec, size_t mboard){
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
     return;
 }
 void multi_crimson_tng::clear_command_time(size_t mboard){
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
-    return;
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //return;
 }
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
