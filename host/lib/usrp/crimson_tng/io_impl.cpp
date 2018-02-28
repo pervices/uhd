@@ -35,7 +35,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/make_shared.hpp>
 #include <iostream>
-
+#include <thread>
 #include <vector>
 
 using namespace uhd;
@@ -100,33 +100,26 @@ public:
 
 	typedef boost::function<void(void)> onfini_type;
 	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
+	typedef boost::function<void(double&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
 
-	crimson_tng_send_packet_streamer(
-		const size_t max_num_samps,
-		onfini_type on_fini,
-		timenow_type time_now,
-		const std::vector<uhd::flow_control::sptr> & fc,
-		std::vector<uhd::transport::zero_copy_if::sptr> tx_xports
-	)
+	crimson_tng_send_packet_streamer( const size_t max_num_samps )
 	:
 		sph::send_packet_streamer( max_num_samps ),
 		_max_num_samps( max_num_samps ),
-		_on_fini( on_fini ),
-		_time_now( time_now ),
-		_fc( fc ),
-		_tx_xports( tx_xports )
+		_blessbless( false ) // icelandic (viking) for bye
 	{
-		if ( fc.size() != this->size() ) {
-			throw value_error( "flow control vector and streamer object must be same size" );
-		}
-
-		if ( tx_xports.size() != this->size() ) {
-			throw value_error( "xports vector and streamer object must be same size" );
-		}
 	}
 
 	virtual ~crimson_tng_send_packet_streamer() {
-		_on_fini();
+		_blessbless = false;
+		if ( _pillage_thread.joinable() ) {
+			_pillage_thread.join();
+		}
+		for( auto & ep: _eprops ) {
+			if ( ep.on_fini ) {
+				ep.on_fini();
+			}
+		}
 	}
 
     size_t get_num_channels(void) const{
@@ -145,9 +138,11 @@ public:
     ){
     	size_t r;
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
-        uhd::time_spec_t now = _time_now();
-        for( size_t i = 0; i < this->size(); i++ ) {
-        	_fc[ i ]->update( r, now );
+        uhd::time_spec_t now = get_time_now();
+        for( auto & ep: _eprops ) {
+        	if ( nullptr != ep.flow_control.get() ) {
+        		ep.flow_control->update( r, now );
+        	}
         }
         return r;
     }
@@ -161,26 +156,135 @@ public:
     managed_send_buffer::sptr get_send_buff(size_t chan, double timeout){
 
         //wait on flow control w/ timeout
-        if (not check_fc_condition( _fc[ chan ], _time_now(), timeout) ) return managed_send_buffer::sptr();
+        if (not check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
-        managed_send_buffer::sptr buff = _tx_xports[ chan ]->get_send_buff( timeout );
+        managed_send_buffer::sptr buff = _eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
         return buff;
     }
 
+    void set_on_fini( size_t chan, onfini_type on_fini ) {
+    	_eprops.at(chan).on_fini = on_fini;
+    }
+    void set_time_now( timenow_type time_now ) {
+    	_time_now = time_now;
+    }
+    uhd::time_spec_t get_time_now() {
+    	return _time_now ? _time_now() : uhd::time_spec_t::get_system_time();
+    }
+    void set_xport_chan( size_t chan, uhd::transport::zero_copy_if::sptr xport ) {
+    	_eprops.at(chan).xport_chan = xport;
+    }
+    void set_xport_chan_fifo_lvl( size_t chan, xport_chan_fifo_lvl_type get_fifo_lvl ) {
+    	_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
+    }
+
+    void resize(const size_t size){
+    	if ( this->size() != size ) {
+    		_eprops.resize( size );
+    		for( auto & ep: _eprops ) {
+    			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
+    		}
+    	}
+    	sph::send_packet_handler::resize(size);
+    }
+
+    void set_samp_rate(const double rate){
+    	uhd::time_spec_t now = get_time_now();
+    	for( size_t i = 0; i < this->size(); i++ ) {
+    		for( auto & ep: _eprops ) {
+    			if ( nullptr != ep.flow_control.get() ) {
+    				ep.flow_control->set_sample_rate( now, rate );
+    			}
+    		}
+    	}
+    	sph::send_packet_handler::set_samp_rate( rate );
+    }
+
+	void pillage() {
+		_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
+	}
+
 private:
     size_t _max_num_samps;
-    onfini_type _on_fini;
+    bool _blessbless;
+    std::thread _pillage_thread;
+
     timenow_type _time_now;
-    std::vector<uhd::flow_control::sptr> _fc;
-    std::vector<uhd::transport::zero_copy_if::sptr> _tx_xports;
 
-    static bool check_fc_condition( const uhd::flow_control::sptr fc, const uhd::time_spec_t & now, const double & timeout ) {
-    	return false;
+    // extended per-channel properties, beyond what is available in sph::send_packet_handler::xport_chan_props_type
+    struct eprops_type{
+    	onfini_type on_fini;
+    	uhd::transport::zero_copy_if::sptr xport_chan;
+    	xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
+    	uhd::flow_control::sptr flow_control;
+    };
+    std::vector<eprops_type> _eprops;
+
+    bool check_fc_condition( const size_t chan, const double & timeout ) {
+/*
+    	uhd::time_spec_t now, then, dt;
+
+    	now = get_time_now();
+    	if ( _eprops.at( chan ).flow_control.get() != nullptr ) {
+    		dt = _eprops.at( chan ).flow_control->get_time_until_next_send( 0, now );
+    	} else {
+    		dt = 0.0;
+    	}
+    	then = now + dt;
+
+    	if ( dt > timeout ) {
+    		return false;
+    	}
+
+		// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
+		if ( dt.get_real_secs() > 100e-6 ) {
+			dt -= 30e-6;
+			struct timespec req, rem;
+			req.tv_sec = (time_t) dt.get_full_secs();
+			req.tv_nsec = dt.get_frac_secs()*1e9;
+			nanosleep( &req, &rem );
+		}
+		for(
+			now = get_time_now();
+			now < then;
+			now = get_time_now()
+		) {
+			// nop
+			__asm__ __volatile__( "" );
+		}
+*/
+    	return true;
     }
-};
 
+	static void send_viking_loop( crimson_tng_send_packet_streamer *self ) {
+		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
+		for( ; ! self->_blessbless; ) {
+			::usleep( 100000 );
+			for( auto & ep: self->_eprops ) {
+
+				xport_chan_fifo_lvl_type get_fifo_level;
+				uhd::flow_control::sptr fc;
+
+				get_fifo_level = ep.xport_chan_fifo_lvl;
+				fc = ep.flow_control;
+
+				if ( !( get_fifo_level && fc.get() ) ) {
+					continue;
+				}
+
+				uhd::time_spec_t now;
+				double level_pcnt;
+				size_t max_level = fc->get_buffer_size();
+
+				ep.xport_chan_fifo_lvl( level_pcnt, now );
+				size_t level = level_pcnt * max_level;
+				ep.flow_control->set_buffer_level_async( level );
+			}
+		}
+	}
+};
 
 /***********************************************************************
  * constants
@@ -430,8 +534,8 @@ void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t d
     set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
     double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
 
-	boost::shared_ptr<sph::send_packet_streamer> my_streamer =
-        boost::dynamic_pointer_cast<sph::send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
+	boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+        boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
@@ -655,6 +759,18 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
+static void onfini( void ) {
+	std::cout << __func__ << "(): " << std::endl;
+}
+
+static void get_fifo_lvl_udp( uhd::transport::udp_simple::sptr xport, double & pcnt, uhd::time_spec_t & now ) {
+
+}
+
+static void pwr_off( uhd::property_tree::sptr tree, std::string path ) {
+	tree->access<std::string>( path ).set( "0" );
+}
+
 tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
@@ -679,11 +795,28 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
 
     //make the new streamer given the samples per packet
-    boost::shared_ptr<sph::send_packet_streamer> my_streamer = boost::make_shared<sph::send_packet_streamer>(spp);
+    crimson_tng_send_packet_streamer::onfini_type onfini_ = boost::bind( & onfini );
+    crimson_tng_send_packet_streamer::timenow_type timenow_ = boost::bind( & crimson_tng_impl::get_time_now, this );
+    std::vector<uhd::transport::zero_copy_if::sptr> xports;
+    for( auto & i: args.channels ) {
+    	xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
+    }
+    boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = boost::make_shared<crimson_tng_send_packet_streamer>( spp );
+
+//		onfini_,
+//		timenow_,
+//	    std::vector<uhd::flow_control::sptr>(
+//	    	args.channels.size(),
+//			uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE )
+//	    ),
+//		xports
+//	);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
+
+    my_streamer->set_time_now(boost::bind(&crimson_tng_impl::get_time_now,this));
 
     //set the converter
     uhd::convert::id_type id;
@@ -697,7 +830,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
-        //size_t abs = 0;
         BOOST_FOREACH(const std::string &mb, _mbc.keys()){
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
@@ -706,11 +838,18 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 //                    _io_impl->fc_mons[abs]->clear();
 //                }
                 //_mbc[mb].tx_dsp->setup(args);
+                my_streamer->set_on_fini(dsp, boost::bind( & pwr_off, _tree, "/mboards/" + mb + "/tx/Channel_" + std::string( 1, (char) 'A' + chan_i ) + "/pwr" ) );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
                     //&crimson_tng_impl::io_impl::get_send_buff, _io_impl.get(), abs, _1
-                	&crimson_tng_impl::io_impl::get_send_buff, _io_impl.get(), chan_i, _1
+                	&crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, _1
                 ));
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
+                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[chan_i]);
+                my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
+                	&get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[ chan_i ], _1, _2
+                ));
+
+
                 _mbc[mb].tx_streamers[dsp] = my_streamer; //store weak pointer
                 break;
             }
@@ -720,6 +859,14 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 
     //sets all tick and samp rates on this streamer
     this->update_rates();
+
+    // XXX: @CF: 20170228: extra setup for crimson
+
+    // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
+	for( ;! time_diff_converged(); ) {
+		usleep( 10000 );
+	}
+    my_streamer->pillage();
 
     return my_streamer;
 }
