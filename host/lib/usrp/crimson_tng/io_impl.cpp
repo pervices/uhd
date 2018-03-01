@@ -793,7 +793,9 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         - sizeof(vrt::if_packet_info_t().tlr) //crimson tng does not use trailer on tx
         - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
         - sizeof(vrt::if_packet_info_t().sid) //no stream id ever used
-        - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
+        //- sizeof(vrt::if_packet_info_t().tsi) //Crimson TNG uses TSI field
+		//tsi_type OTHER => sob, tsi is full seconds, tsf_type PICO
+		//tsi_type UTC => regular packet, tsi is ignored, tsf_type FREE
     ;
     const size_t bpp = _mbc[_mbc.keys().front()].tx_dsp_xports[0]->get_send_frame_size() - hdr_size;
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
@@ -806,15 +808,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     	xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
     boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = boost::make_shared<crimson_tng_send_packet_streamer>( spp );
-
-//		onfini_,
-//		timenow_,
-//	    std::vector<uhd::flow_control::sptr>(
-//	    	args.channels.size(),
-//			uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE )
-//	    ),
-//		xports
-//	);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -842,22 +835,20 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 //                    _io_impl->fc_mons[abs]->clear();
 //                }
                 //_mbc[mb].tx_dsp->setup(args);
-                my_streamer->set_on_fini(dsp, boost::bind( & pwr_off, _tree, "/mboards/" + mb + "/tx/Channel_" + std::string( 1, (char) 'A' + chan_i ) + "/pwr" ) );
+                my_streamer->set_on_fini(dsp, boost::bind( & pwr_off, _tree, "/mboards/" + mb + "/tx/Channel_" + std::string( 1, (char) 'A' + chan ) + "/pwr" ) );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                    //&crimson_tng_impl::io_impl::get_send_buff, _io_impl.get(), abs, _1
-                	&crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, _1
+                	&crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan, _1
                 ));
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
-                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[chan_i]);
+                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[chan]);
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
-                	&get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[ chan_i ], _1, _2
+                	&get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[ chan ], _1, _2
                 ));
 
 
                 _mbc[mb].tx_streamers[dsp] = my_streamer; //store weak pointer
                 break;
             }
-            //abs += 1; //assume 1 tx dsp
         }
     }
 
@@ -865,6 +856,20 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     this->update_rates();
 
     // XXX: @CF: 20170228: extra setup for crimson
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        size_t chan = args.channels[ chan_i ];
+        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path tx_path   = mb_path / "tx";
+        const fs_path tx_link_path  = mb_path / "tx_link" / ch;
+
+		// power on the channel
+		_tree->access<std::string>(tx_path / ch / "pwr").set("1");
+		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
+		//usleep( 500000 );
+		// vita enable
+		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
+    }
 
     // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
 	for( ;! time_diff_converged(); ) {
