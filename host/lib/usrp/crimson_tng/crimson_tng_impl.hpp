@@ -72,8 +72,6 @@ struct rx_stream_cmd {
 }
 }
 
-#include "crimson_tng_tx_streamer.hpp"
-
 namespace uhd {
 namespace usrp {
 
@@ -92,8 +90,7 @@ public:
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);
     virtual uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 
-    // UHD legacy support
-    virtual bool recv_async_msg(uhd::async_metadata_t &async_metadata, double timeout = 0.1);
+    bool recv_async_msg(uhd::async_metadata_t &, double);
 
     uhd::device_addr_t device_addr;
 
@@ -197,26 +194,6 @@ private:
 	bool _bm_thread_should_exit;
 	static void bm_thread_fn( crimson_tng_impl *dev );
 	bool is_bm_thread_needed();
-
-	/**
-	 * TX Streamer Objects
-	 */
-	std::vector<size_t> _tx_channels;
-	std::vector<boost::weak_ptr<uhd::tx_streamer>> _tx_streamers;
-	std::vector<uhd::transport::udp_zero_copy::sptr> _tx_if;
-	transport::managed_send_buffer::sptr get_send_buff( size_t chan, double timeout );
-	std::vector<uhd::flow_control::sptr> _flow_control;
-	void uoflow_process( const time_diff_resp & tdr );
-
-	/**
-	 * Async Msg Objects
-	 */
-	std::mutex _async_mutex;
-	uhd::transport::bounded_buffer<uhd::async_metadata_t> _async_msg_fifo;
-	void push_async_msg( const async_metadata_t & metadata );
-	static const size_t _uoflow_ignore = -1;
-	std::vector<size_t> _uflow;
-	std::vector<size_t> _oflow;
 
     struct mb_container_type{
         crimson_tng_iface::sptr iface;

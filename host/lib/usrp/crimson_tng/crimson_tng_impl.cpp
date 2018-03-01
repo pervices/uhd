@@ -41,8 +41,6 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
-#include "crimson_tng_tx_streamer.hpp"
-
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
@@ -583,20 +581,6 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 	if ( _time_diff_converged ) {
 		time_diff_set( cv );
 	}
-
-	uoflow_process( tdr );
-}
-
-void crimson_tng_impl::fifo_update_process( const time_diff_resp & tdr ) {
-
-	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
-
-	// for now we have to copy the fifo levels into a std::vector<size_t> for processing
-	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS, 0 );
-	for( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
-		fifo_lvl[ j ] = tdr.fifo[ CRIMSON_TNG_TX_CHANNELS - j - 1 ];
-		_flow_control[ j ]->set_buffer_level_async( fifo_lvl[ j ] );
-	}
 }
 
 static void print_bm_starting() {
@@ -821,8 +805,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_time_diff_converged( false ),
-	_time_diff( 0 ),
-	_async_msg_fifo( 64 )
+	_time_diff( 0 )
 {
     UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
@@ -1357,88 +1340,6 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 #endif
 
 	return r;
-}
-
-managed_send_buffer::sptr crimson_tng_impl::get_send_buff( size_t chan, double timeout ) {
-
-       managed_send_buffer::sptr r;
-
-       size_t i;
-       uhd::time_spec_t now, then;
-
-       for( i = 0; i < _tx_channels.size(); i++ ) {
-               if ( chan == _tx_channels[ i ] ) {
-                       break;
-               }
-       }
-
-       for(
-		   now = get_time_now(),
-		   	   then = now + timeout
-			   ;
-    		   now < then;
-           now = get_time_now()
-       ) {
-    	   if ( _flow_control[ i ]->get_buffer_level( now ) < (ssize_t) _flow_control[ i ]->get_nominal_buffer_level() ) {
-    		   break;
-    	   }
-       }
-       if ( now >= then ) {
-    	   // timeout occurred
-    	   return managed_send_buffer::sptr();
-       }
-
-       r = _tx_if[ i ]->get_send_buff( (then - now).get_real_secs() );
-
-       return r;
-}
-
-void crimson_tng_impl::push_async_msg( const async_metadata_t & metadata ) {
-	std::lock_guard<std::mutex> _lock( _async_mutex );
-	_async_msg_fifo.push_with_pop_on_full( metadata );
-}
-void crimson_tng_impl::uoflow_process( const time_diff_resp & tdr ) {
-
-	async_metadata_t metadata;
-
-	uhd::time_spec_t now = get_time_now();
-
-	for ( size_t j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
-
-		if ( _tx_channels.end() == std::find( _tx_channels.begin(), _tx_channels.end(), j ) ) {
-			continue;
-		}
-
-		// update uflow counters
-
-		if ( crimson_tng_impl::_uoflow_ignore !=  _uflow[ j ] && _uflow[ j ] != tdr.uoflow[ j ].uflow ) {
-			// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
-            // async_metadata_t metadata;
-            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
-			metadata.channel = j;
-			metadata.has_time_spec = true;
-			metadata.time_spec = now;
-			metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
-			push_async_msg( metadata );
-			//UHD_MSG( fastpath ) << "U" << ((char) ( 'a' + j ) );
-		}
-		_uflow[ j ] = tdr.uoflow[ j ].uflow;
-
-		// update oflow counters
-
-		if ( crimson_tng_impl::_uoflow_ignore !=  _oflow[ j ]  && _oflow[ j ] != tdr.uoflow[ j ].oflow ) {
-			// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
-            // async_metadata_t metadata;
-            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
-			metadata.channel = j;
-			metadata.has_time_spec = true;
-			metadata.time_spec = now;
-			metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
-			push_async_msg( metadata );
-			//UHD_MSG( fastpath ) << "O" << ((char) ( 'a' + j ) );
-		}
-		_oflow[ j ] = tdr.uoflow[ j ].oflow;
-	}
 }
 
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {

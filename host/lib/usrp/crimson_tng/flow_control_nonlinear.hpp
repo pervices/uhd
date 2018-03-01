@@ -102,6 +102,8 @@ public:
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
 
+		(void)nsamples_to_send;
+
 		uhd::time_spec_t dt;
 		double bl;
 
