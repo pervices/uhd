@@ -712,14 +712,17 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                 const size_t dsp = chan + _mbc[mb].rx_chan_occ - num_chan_so_far;
 //                _mbc[mb].rx_dsps[dsp]->set_nsamps_per_packet(spp); //seems to be a good place to set this
 //                _mbc[mb].rx_dsps[dsp]->setup(args);
-                this->program_stream_dest(_mbc[mb].rx_dsp_xports[dsp], args);
+                //this->program_stream_dest(_mbc[mb].rx_dsp_xports[dsp], args);
+                std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
+                stream_cmd_t scmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
+                scmd.stream_now = true;
+                set_stream_cmd( scmd_pre, scmd );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
                     &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], _1
                 ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, boost::bind(
-                	&crimson_tng_impl::set_stream_cmd, this,
-					"rx_" + std::string( 1, (char)( 'a' + args.channels[ chan_i  ] ) ) + "/stream", _1));
-                _mbc[mb].rx_streamers[dsp] = my_streamer; //store weak pointer
+                    &crimson_tng_impl::set_stream_cmd, this, scmd_pre, _1));
+                _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
         }
@@ -734,13 +737,14 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // XXX: @CF: 20170227: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
-    	const std::string chan    = "Channel_" + std::string( 1, 'A' + chan_i );
+        size_t chan = args.channels[ chan_i ];
+        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
         const fs_path mb_path   = "/mboards/0";
         const fs_path rx_path   = mb_path / "rx";
-    	const fs_path rx_link_path  = mb_path / "rx_link" / chan;
+        const fs_path rx_link_path  = mb_path / "rx_link" / ch;
 
 		// power on the channel
-		_tree->access<std::string>(rx_path / chan / "pwr").set("1");
+		_tree->access<std::string>(rx_path / ch / "pwr").set("1");
 		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
 		//usleep( 500000 );
 		// vita enable
