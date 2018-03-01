@@ -1,5 +1,6 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Per Vices Corporation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -47,9 +48,6 @@ namespace pt = boost::posix_time;
 /***********************************************************************
  * helpers
  **********************************************************************/
-static UHD_INLINE pt::time_duration to_time_dur(double timeout){
-    return pt::microseconds(long(timeout*1e6));
-}
 
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
 class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer {
@@ -100,7 +98,8 @@ public:
 
 	typedef boost::function<void(void)> onfini_type;
 	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
-	typedef boost::function<void(double&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
+	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
+	typedef boost::function<bool(async_metadata_t&)> async_pusher_type;
 
 	crimson_tng_send_packet_streamer( const size_t max_num_samps )
 	:
@@ -148,12 +147,6 @@ public:
         return r;
     }
 
-    bool recv_async_msg(
-        uhd::async_metadata_t &async_metadata, double timeout = 0.1
-    ){
-        return send_packet_handler::recv_async_msg( async_metadata, timeout );
-    }
-
     managed_send_buffer::sptr get_send_buff(size_t chan, double timeout){
 
         //wait on flow control w/ timeout
@@ -180,6 +173,9 @@ public:
     void set_xport_chan_fifo_lvl( size_t chan, xport_chan_fifo_lvl_type get_fifo_lvl ) {
     	_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
     }
+    void set_async_pusher( async_pusher_type pusher ) {
+    	async_pusher = pusher;
+    }
 
     void resize(const size_t size){
     	if ( this->size() != size ) {
@@ -203,7 +199,9 @@ public:
     	sph::send_packet_handler::set_samp_rate( rate );
     }
 
+    //create a new viking thread for each zc if (skryke!!)
 	void pillage() {
+		//spawn a new viking to raid the send hoardes
 		_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
 	}
 
@@ -211,6 +209,7 @@ private:
     size_t _max_num_samps;
     bool _blessbless;
     std::thread _pillage_thread;
+    async_pusher_type async_pusher;
 
     timenow_type _time_now;
 
@@ -220,10 +219,21 @@ private:
     	uhd::transport::zero_copy_if::sptr xport_chan;
     	xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
     	uhd::flow_control::sptr flow_control;
+    	uint64_t oflow;
+    	uint64_t uflow;
+    	eprops_type() : oflow( -1 ), uflow( -1 ) {}
     };
     std::vector<eprops_type> _eprops;
 
+    void push_async_msg( uhd::async_metadata_t &async_metadata ){
+    	if ( async_pusher ) {
+    		async_pusher( async_metadata );
+    	}
+    }
+
     bool check_fc_condition( const size_t chan, const double & timeout ) {
+    	(void)chan;
+    	(void)timeout;
 /*
     	uhd::time_spec_t now, then, dt;
 
@@ -259,6 +269,13 @@ private:
     	return true;
     }
 
+    /***********************************************************************
+     * Send Viking Loop
+     * - while pillaging, raid for message packet
+     * - update buffer levels
+     * - update over / underflow counters
+     * - put async message packets into queue
+     **********************************************************************/
 	static void send_viking_loop( crimson_tng_send_packet_streamer *self ) {
 		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
 
@@ -266,7 +283,8 @@ private:
 
 		for( ; ! self->_blessbless; ) {
 			::usleep( 100000 );
-			for( auto & ep: self->_eprops ) {
+			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
+				eprops_type & ep = self->_eprops[ i ];
 
 				xport_chan_fifo_lvl_type get_fifo_level;
 				uhd::flow_control::sptr fc;
@@ -280,12 +298,46 @@ private:
 
 				uhd::time_spec_t now;
 				double level_pcnt;
+				uint64_t uflow;
+				uint64_t oflow;
+				async_metadata_t metadata;
+
 				size_t max_level = fc->get_buffer_size();
 
-				ep.xport_chan_fifo_lvl( level_pcnt, now );
+				ep.xport_chan_fifo_lvl( level_pcnt, uflow, oflow, now );
 
 				size_t level = level_pcnt * max_level;
 				ep.flow_control->set_buffer_level_async( level );
+
+				if ( false ) {
+				} else if ( (uint64_t)-1 == ep.uflow ) {
+					ep.uflow = uflow;
+				} else if ( uflow != ep.uflow ) {
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+		            // async_metadata_t metadata;
+		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+					metadata.channel = i;
+					metadata.has_time_spec = true;
+					metadata.time_spec = now;
+					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
+					self->push_async_msg( metadata );
+				}
+				ep.uflow = uflow;
+
+				if ( false ) {
+				} else if ( (uint64_t)-1 == ep.oflow ) {
+					ep.oflow = oflow;
+				} else if ( oflow != ep.oflow ) {
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+		            // async_metadata_t metadata;
+		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+					metadata.channel = i;
+					metadata.has_time_spec = true;
+					metadata.time_spec = now;
+					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
+					self->push_async_msg( metadata );
+				}
+				ep.oflow = oflow;
 			}
 		}
 		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
@@ -298,226 +350,40 @@ private:
 static const size_t vrt_send_header_offset_words32 = 0;
 
 /***********************************************************************
- * flow control monitor for a single tx channel
- *  - the pirate thread calls update
- *  - the get send buffer calls check
- **********************************************************************/
-class flow_control_monitor{
-public:
-    typedef uint32_t seq_type;
-    typedef boost::shared_ptr<flow_control_monitor> sptr;
-
-    /*!
-     * Make a new flow control monitor.
-     * \param max_seqs_out num seqs before throttling
-     */
-    flow_control_monitor(seq_type max_seqs_out):_max_seqs_out(max_seqs_out){
-        this->clear();
-        _ready_fcn = boost::bind(&flow_control_monitor::ready, this);
-    }
-
-    //! Clear the monitor, Ex: when a streamer is created
-    void clear(void){
-        _last_seq_out = 0;
-        _last_seq_ack = 0;
-    }
-
-    /*!
-     * Gets the current sequence number to go out.
-     * Increments the sequence for the next call
-     * \return the sequence to be sent to the dsp
-     */
-    UHD_INLINE seq_type get_curr_seq_out(void){
-        return _last_seq_out++;
-    }
-
-    /*!
-     * Check the flow control condition.
-     * \param timeout the timeout in seconds
-     * \return false on timeout
-     */
-    UHD_INLINE bool check_fc_condition(double timeout){
-        boost::mutex::scoped_lock lock(_fc_mutex);
-        if (this->ready()) return true;
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
-        return _fc_cond.timed_wait(lock, to_time_dur(timeout), _ready_fcn);
-    }
-
-    /*!
-     * Update the flow control condition.
-     * \param seq the last sequence number to be ACK'd
-     */
-    UHD_INLINE void update_fc_condition(seq_type seq){
-        boost::mutex::scoped_lock lock(_fc_mutex);
-        _last_seq_ack = seq;
-        lock.unlock();
-        _fc_cond.notify_one();
-    }
-
-private:
-    bool ready(void){
-        return seq_type(_last_seq_out -_last_seq_ack) < _max_seqs_out;
-    }
-
-    boost::mutex _fc_mutex;
-    boost::condition _fc_cond;
-    seq_type _last_seq_out, _last_seq_ack;
-    const seq_type _max_seqs_out;
-    boost::function<bool(void)> _ready_fcn;
-};
-
-/***********************************************************************
  * io impl details (internal to this file)
- * - pirate crew
  * - alignment buffer
- * - thread loop
- * - vrt packet handler states
  **********************************************************************/
 struct crimson_tng_impl::io_impl{
 
     io_impl(void):
-        async_msg_fifo(1000/*messages deep*/),
-        tick_rate(1 /*non-zero default*/)
+        async_msg_fifo(1000/*messages deep*/)
     {
         /* NOP */
     }
 
     ~io_impl(void){
-        //Manually deconstuct the tasks, since this was not happening automatically.
-        pirate_tasks.clear();
     }
 
-    managed_send_buffer::sptr get_send_buff(size_t chan, double timeout){
-        flow_control_monitor &fc_mon = *fc_mons[chan];
-
-        //wait on flow control w/ timeout
-        if (not fc_mon.check_fc_condition(timeout)) return managed_send_buffer::sptr();
-
-        //get a buffer from the transport w/ timeout
-        managed_send_buffer::sptr buff = tx_xports[chan]->get_send_buff(timeout);
-
-        //write the flow control word into the buffer
-        if (buff.get()) buff->cast<uint32_t *>()[0] = uhd::htonx(fc_mon.get_curr_seq_out());
-
-        return buff;
-    }
-
-    //tx dsp: xports and flow control monitors
-    std::vector<zero_copy_if::sptr> tx_xports;
-    std::vector<flow_control_monitor::sptr> fc_mons;
-
-    //methods and variables for the pirate crew
-    void recv_pirate_loop(zero_copy_if::sptr, size_t);
-    std::list<task::sptr> pirate_tasks;
+    //methods and variables for the viking scourge
     bounded_buffer<async_metadata_t> async_msg_fifo;
-    double tick_rate;
+
+    // TODO: @CF: 20180301: move time diff code into io_impl
 };
-
-/***********************************************************************
- * Receive Pirate Loop
- * - while raiding, loot for message packet
- * - update flow control condition count
- * - put async message packets into queue
- **********************************************************************/
-void crimson_tng_impl::io_impl::recv_pirate_loop(
-    zero_copy_if::sptr err_xport, size_t index
-){
-    set_thread_priority_safe();
-
-    //store a reference to the flow control monitor (offset by max dsps)
-    flow_control_monitor &fc_mon = *(this->fc_mons[index]);
-
-    while (not boost::this_thread::interruption_requested()){
-        managed_recv_buffer::sptr buff = err_xport->get_recv_buff();
-        if (not buff.get()) continue; //ignore timeout/error buffers
-
-        try{
-//            //extract the vrt header packet info
-//            vrt::if_packet_info_t if_packet_info;
-//            if_packet_info.num_packet_words32 = buff->size()/sizeof(uint32_t);
-//            const uint32_t *vrt_hdr = buff->cast<const uint32_t *>();
-//            vrt::if_hdr_unpack_be(vrt_hdr, if_packet_info);
-//
-//            //handle a tx async report message
-//            if (if_packet_info.sid == CRIMSON_TNG_TX_ASYNC_SID and if_packet_info.packet_type != vrt::if_packet_info_t::PACKET_TYPE_DATA){
-//
-//                //fill in the async metadata
-//                async_metadata_t metadata;
-//                load_metadata_from_buff(uhd::ntohx<uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index);
-//
-//                //catch the flow control packets and react
-//                if (metadata.event_code == 0){
-//                    uint32_t fc_word32 = (vrt_hdr + if_packet_info.num_header_words32)[1];
-//                    fc_mon.update_fc_condition(uhd::ntohx(fc_word32));
-//                    continue;
-//                }
-//                //else UHD_MSG(often) << "metadata.event_code " << metadata.event_code << std::endl;
-//                async_msg_fifo.push_with_pop_on_full(metadata);
-//
-//                standard_async_msg_prints(metadata);
-//            }
-//            else{
-//                //TODO unknown received packet, may want to print error...
-//            }
-        }catch(const std::exception &e){
-            UHD_MSG(error) << "Error in recv pirate loop: " << e.what() << std::endl;
-        }
-    }
-}
 
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
 void crimson_tng_impl::io_init(void){
-    //create new io impl
-    _io_impl = UHD_PIMPL_MAKE(io_impl, ());
 
-//    //init first so we dont have an access race
-//    BOOST_FOREACH(const std::string &mb, _mbc.keys()){
-//        //init the tx xport and flow control monitor
-//        _io_impl->tx_xports.push_back(_mbc[mb].tx_dsp_xport);
-//        _io_impl->fc_mons.push_back(flow_control_monitor::sptr(new flow_control_monitor(
-//            _addr.cast("send_buff_size", CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) ) /
-//            _mbc[mb].tx_dsp_xport->get_send_frame_size()
-//        )));
-//    }
-//
+	// TODO: @CF: 20180301: move time diff code into io_impl
+	_io_impl = UHD_PIMPL_MAKE(io_impl, ());
+
     //allocate streamer weak ptrs containers
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
         _mbc[mb].rx_streamers.resize( CRIMSON_TNG_RX_CHANNELS );
         _mbc[mb].tx_streamers.resize( CRIMSON_TNG_TX_CHANNELS );
     }
-
-//    //create a new pirate thread for each zc if (yarr!!)
-//    size_t index = 0;
-//    BOOST_FOREACH(const std::string &mb, _mbc.keys()){
-//        //spawn a new pirate to plunder the recv booty
-//        _io_impl->pirate_tasks.push_back(task::make(boost::bind(
-//            &crimson_tng_impl::io_impl::recv_pirate_loop, _io_impl.get(),
-//            _mbc[mb].tx_dsp_xport[], index++
-//        )));
-//    }
 }
-
-//void crimson_tng_impl::update_tick_rate(const double rate){
-//    _io_impl->tick_rate = rate; //shadow for async msg
-//
-//    //update the tick rate on all existing streamers -> thread safe
-//    BOOST_FOREACH(const std::string &mb, _mbc.keys()){
-//        for (size_t i = 0; i < _mbc[mb].rx_streamers.size(); i++){
-//            boost::shared_ptr<sph::recv_packet_streamer> my_streamer =
-//                boost::dynamic_pointer_cast<sph::recv_packet_streamer>(_mbc[mb].rx_streamers[i].lock());
-//            if (my_streamer.get() == NULL) continue;
-//            my_streamer->set_tick_rate(rate);
-//        }
-//        for (size_t i = 0; i < _mbc[mb].tx_streamers.size(); i++){
-//            boost::shared_ptr<sph::send_packet_streamer> my_streamer =
-//                boost::dynamic_pointer_cast<sph::send_packet_streamer>(_mbc[mb].tx_streamers[i].lock());
-//            if (my_streamer.get() == NULL) continue;
-//            my_streamer->set_tick_rate(rate);
-//        }
-//    }
-//}
 
 void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
 
@@ -571,43 +437,6 @@ void crimson_tng_impl::update_rates(void){
     }
 }
 
-void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    fs_path root = "/mboards/" + which_mb + "/dboards";
-
-    //sanity checking
-    validate_subdev_spec(_tree, spec, "rx", which_mb);
-
-    //setup mux for this spec
-//    bool fe_swapped = false;
-//    for (size_t i = 0; i < spec.size(); i++){
-//        const std::string conn = _tree->access<std::string>(root / spec[i].db_name / "rx_frontends" / spec[i].sd_name / "connection").get();
-//        if (i == 0 and (conn == "QI" or conn == "Q")) fe_swapped = true;
-//        _mbc[which_mb].rx_dsps[i]->set_mux(conn, fe_swapped);
-//    }
-//    _mbc[which_mb].rx_fe->set_mux(fe_swapped);
-
-    //compute the new occupancy and resize
-    _mbc[which_mb].rx_chan_occ = spec.size();
-    size_t nchan = 0;
-    BOOST_FOREACH(const std::string &mb, _mbc.keys()) nchan += _mbc[mb].rx_chan_occ;
-}
-
-void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    fs_path root = "/mboards/" + which_mb + "/dboards";
-
-    //sanity checking
-    validate_subdev_spec(_tree, spec, "tx", which_mb);
-
-//    //set the mux for this spec
-//    const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
-//    _mbc[which_mb].tx_fe->set_mux(conn);
-
-    //compute the new occupancy and resize
-    _mbc[which_mb].tx_chan_occ = spec.size();
-    size_t nchan = 0;
-    BOOST_FOREACH(const std::string &mb, _mbc.keys()) nchan += _mbc[mb].tx_chan_occ;
-}
-
 /***********************************************************************
  * Async Data
  **********************************************************************/
@@ -616,61 +445,6 @@ bool crimson_tng_impl::recv_async_msg(
 ){
     boost::this_thread::disable_interruption di; //disable because the wait can throw
     return _io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
-}
-
-/***********************************************************************
- * Stream destination programmer
- **********************************************************************/
-void crimson_tng_impl::program_stream_dest(
-    zero_copy_if::sptr &xport, const uhd::stream_args_t &args
-){
-//    //perform an initial flush of transport
-//    while (xport->get_recv_buff(0.0)){}
-//
-//    //program the stream command
-//    crimson_tng_stream_ctrl_t stream_ctrl = crimson_tng_stream_ctrl_t();
-//    stream_ctrl.sequence = uhd::htonx(uint32_t(0 /* don't care seq num */));
-//    stream_ctrl.vrt_hdr = uhd::htonx(uint32_t(CRIMSON_TNG_INVALID_VRT_HEADER));
-//
-//    //user has provided an alternative address and port for destination
-//    if (args.args.has_key("addr") and args.args.has_key("port")){
-//        UHD_MSG(status) << boost::format(
-//            "Programming streaming destination for custom address.\n"
-//            "IPv4 Address: %s, UDP Port: %s\n"
-//        ) % args.args["addr"] % args.args["port"] << std::endl;
-//
-//        asio::io_service io_service;
-//        asio::ip::udp::resolver resolver(io_service);
-//        asio::ip::udp::resolver::query query(asio::ip::udp::v4(), args.args["addr"], args.args["port"]);
-//        asio::ip::udp::endpoint endpoint = *resolver.resolve(query);
-//        stream_ctrl.ip_addr = uhd::htonx(uint32_t(endpoint.address().to_v4().to_ulong()));
-//        stream_ctrl.udp_port = uhd::htonx(uint32_t(endpoint.port()));
-//
-//        for (size_t i = 0; i < 3; i++){
-//            UHD_MSG(status) << "ARP attempt " << i << std::endl;
-//            managed_send_buffer::sptr send_buff = xport->get_send_buff();
-//            std::memcpy(send_buff->cast<void *>(), &stream_ctrl, sizeof(stream_ctrl));
-//            send_buff->commit(sizeof(stream_ctrl));
-//            send_buff.reset();
-//            boost::this_thread::sleep(boost::posix_time::milliseconds(300));
-//            managed_recv_buffer::sptr recv_buff = xport->get_recv_buff(0.0);
-//            if (recv_buff and recv_buff->size() >= sizeof(uint32_t)){
-//                const uint32_t result = uhd::ntohx(recv_buff->cast<const uint32_t *>()[0]);
-//                if (result == 0){
-//                    UHD_MSG(status) << "Success! " << std::endl;
-//                    return;
-//                }
-//            }
-//        }
-//        throw uhd::runtime_error("Device failed to ARP when programming alternative streaming destination.");
-//    }
-//
-//    else{
-//        //send the partial stream control without destination
-//        managed_send_buffer::sptr send_buff = xport->get_send_buff();
-//        std::memcpy(send_buff->cast<void *>(), &stream_ctrl, sizeof(stream_ctrl));
-//        send_buff->commit(sizeof(stream_ctrl)/2);
-//    }
 }
 
 /***********************************************************************
@@ -721,9 +495,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].rx_chan_occ - num_chan_so_far;
-//                _mbc[mb].rx_dsps[dsp]->set_nsamps_per_packet(spp); //seems to be a good place to set this
-//                _mbc[mb].rx_dsps[dsp]->setup(args);
-                //this->program_stream_dest(_mbc[mb].rx_dsp_xports[dsp], args);
                 std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
                 stream_cmd_t scmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
                 scmd.stream_now = true;
@@ -774,8 +545,12 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
-static void get_fifo_lvl_udp( uhd::transport::udp_simple::sptr xport, double & pcnt, uhd::time_spec_t & now ) {
-
+static void get_fifo_lvl_udp( uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+	(void) xport;
+	(void) pcnt;
+	(void) uflow;
+	(void) oflow;
+	(void) now;
 }
 
 static void pwr_off( uhd::property_tree::sptr tree, std::string path ) {
@@ -838,21 +613,16 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
-//                if (not args.args.has_key("noclear")){
-//                    _io_impl->fc_mons[abs]->clear();
-//                }
-                //_mbc[mb].tx_dsp->setup(args);
                 my_streamer->set_on_fini(dsp, boost::bind( & pwr_off, _tree, "/mboards/" + mb + "/tx/Channel_" + std::string( 1, (char) 'A' + chan ) + "/pwr" ) );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
                 	&crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan, _1
                 ));
-                my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[chan]);
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
-                	&get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[ chan ], _1, _2
+                	&get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[ chan ], _1, _2, _3, _4
                 ));
-
-
+                my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
+                my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
