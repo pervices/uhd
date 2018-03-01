@@ -111,7 +111,7 @@ public:
 	}
 
 	virtual ~crimson_tng_send_packet_streamer() {
-		_blessbless = false;
+		_blessbless = true;
 		if ( _pillage_thread.joinable() ) {
 			_pillage_thread.join();
 		}
@@ -120,6 +120,7 @@ public:
 				ep.on_fini();
 			}
 		}
+		_eprops.clear();
 	}
 
     size_t get_num_channels(void) const{
@@ -260,6 +261,9 @@ private:
 
 	static void send_viking_loop( crimson_tng_send_packet_streamer *self ) {
 		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
+
+		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
+
 		for( ; ! self->_blessbless; ) {
 			::usleep( 100000 );
 			for( auto & ep: self->_eprops ) {
@@ -279,10 +283,12 @@ private:
 				size_t max_level = fc->get_buffer_size();
 
 				ep.xport_chan_fifo_lvl( level_pcnt, now );
+
 				size_t level = level_pcnt * max_level;
 				ep.flow_control->set_buffer_level_async( level );
 			}
 		}
+		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
 	}
 };
 
@@ -555,7 +561,12 @@ void crimson_tng_impl::update_rates(void){
             _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
         }
         BOOST_FOREACH(const std::string &name, _tree->list(root / "tx_dsps")){
-            _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
+            // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
+            // if the current application does not require tx, then we should not enable it
+            // just checking for power is not a great way to do this, but it mostly works
+            if ( "1" == _tree->access<std::string>( root / "tx" / name / "pwr").get() ) {
+                _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
+            }
         }
     }
 }
@@ -763,15 +774,12 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
-static void onfini( void ) {
-	std::cout << __func__ << "(): " << std::endl;
-}
-
 static void get_fifo_lvl_udp( uhd::transport::udp_simple::sptr xport, double & pcnt, uhd::time_spec_t & now ) {
 
 }
 
 static void pwr_off( uhd::property_tree::sptr tree, std::string path ) {
+	//std::cout << __func__ << "(): Writing 0 to " << path << std::endl;
 	tree->access<std::string>( path ).set( "0" );
 }
 
@@ -801,7 +809,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
 
     //make the new streamer given the samples per packet
-    crimson_tng_send_packet_streamer::onfini_type onfini_ = boost::bind( & onfini );
     crimson_tng_send_packet_streamer::timenow_type timenow_ = boost::bind( & crimson_tng_impl::get_time_now, this );
     std::vector<uhd::transport::zero_copy_if::sptr> xports;
     for( auto & i: args.channels ) {
@@ -846,7 +853,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
 
 
-                _mbc[mb].tx_streamers[dsp] = my_streamer; //store weak pointer
+                _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
         }
