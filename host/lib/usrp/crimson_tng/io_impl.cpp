@@ -579,9 +579,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         - sizeof(vrt::if_packet_info_t().tlr) //crimson tng does not use trailer on tx
         - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
         - sizeof(vrt::if_packet_info_t().sid) //no stream id ever used
-        //- sizeof(vrt::if_packet_info_t().tsi) //Crimson TNG uses TSI field
-		//tsi_type OTHER => sob, tsi is full seconds, tsf_type PICO
-		//tsi_type UTC => regular packet, tsi is ignored, tsf_type FREE
+        - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
     ;
     const size_t bpp = _mbc[_mbc.keys().front()].tx_dsp_xports[0]->get_send_frame_size() - hdr_size;
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
