@@ -178,12 +178,10 @@ public:
     }
 
     void resize(const size_t size){
-    	if ( this->size() != size ) {
-    		_eprops.resize( size );
-    		for( auto & ep: _eprops ) {
-    			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
-    		}
-    	}
+		_eprops.resize( size );
+		for( auto & ep: _eprops ) {
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
+		}
     	sph::send_packet_handler::resize(size);
     }
 
@@ -424,7 +422,12 @@ void crimson_tng_impl::update_rates(void){
 
         //and now that the tick rate is set, init the host rates to something
         BOOST_FOREACH(const std::string &name, _tree->list(root / "rx_dsps")){
-            _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
+            // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
+            // if the current application does not require rx, then we should not enable it
+            // just checking for power is not a great way to do this, but it mostly works
+            if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
+                _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
+            }
         }
         BOOST_FOREACH(const std::string &name, _tree->list(root / "tx_dsps")){
             // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
@@ -458,7 +461,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("USRP1 TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -566,7 +569,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("USRP1 TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -613,13 +616,13 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
-                my_streamer->set_on_fini(dsp, boost::bind( & pwr_off, _tree, "/mboards/" + mb + "/tx/Channel_" + std::string( 1, (char) 'A' + chan ) + "/pwr" ) );
+                my_streamer->set_on_fini(chan_i, boost::bind( & pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/Channel_" + std::string( 1, 'A' + chan ) + "/pwr" ) ) );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                	&crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan, _1
+                    &crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, _1
                 ));
-                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[chan]);
+                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
-                	&get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[ chan ], _1, _2, _3, _4
+                    &get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
                 my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));
