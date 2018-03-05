@@ -517,9 +517,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     const size_t packets_per_sock_buff = size_t(50e6/_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size());
     my_streamer->set_alignment_failure_threshold(packets_per_sock_buff);
 
-    //sets all tick and samp rates on this streamer
-    this->update_rates();
-
     // XXX: @CF: 20170227: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
@@ -537,7 +534,11 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 		// stream enable
 		_tree->access<std::string>(rx_link_path / "stream").set("1");
     }
-	// XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
+
+    //sets all tick and samp rates on this streamer
+    this->update_rates();
+
+    // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
 	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
 	}
@@ -630,9 +631,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         }
     }
 
-    //sets all tick and samp rates on this streamer
-    this->update_rates();
-
     // XXX: @CF: 20170228: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
@@ -648,6 +646,9 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 		// vita enable
 		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
     }
+
+    //sets all tick and samp rates on this streamer
+    this->update_rates();
 
     // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
 	for( ;! time_diff_converged(); ) {
