@@ -199,7 +199,7 @@ public:
 
         //resolve the remote address
         asio::ip::udp::resolver::query remote_query(asio::ip::udp::v4(), remote_addr, remote_port);
-        asio::ip::udp::endpoint remote_endpoint = *resolver.resolve(remote_query);
+        //asio::ip::udp::endpoint remote_endpoint = *resolver.resolve(remote_query);
 
         //create, open, and connect the socket
         _socket = socket_sptr(new asio::ip::udp::socket(_io_service));
