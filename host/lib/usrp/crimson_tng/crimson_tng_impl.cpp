@@ -15,14 +15,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef DEBUG_BM
-//#define DEBUG_BM 1
-#endif
-
-#ifdef DEBUG_BM
-#include <iostream>
-#endif
-
 #include <boost/assign.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -137,6 +129,7 @@ void crimson_tng_impl::set_int(const std::string pre, int data){
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
 mboard_eeprom_t crimson_tng_impl::get_mboard_eeprom(std::string req) {
+	(void)req;
 	mboard_eeprom_t temp;
 	temp["name"]     = get_string("fpga/about/name");
 	temp["vendor"]   = "Per Vices";
@@ -144,12 +137,15 @@ mboard_eeprom_t crimson_tng_impl::get_mboard_eeprom(std::string req) {
 	return temp;
 }
 void crimson_tng_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
+	(void)pre;
+	(void)data;
 	// no eeprom settings on Crimson
 	return;
 }
 
 // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
 dboard_eeprom_t crimson_tng_impl::get_dboard_eeprom(std::string req) {
+	(void)req;
 	dboard_eeprom_t temp;
 	//temp.id       = dboard_id_t( boost::lexical_cast<boost::uint16_t>(get_string("product,get,serial")) );
 	temp.serial   = "";//get_string("product,get,serial");
@@ -157,37 +153,45 @@ dboard_eeprom_t crimson_tng_impl::get_dboard_eeprom(std::string req) {
 	return temp;
 }
 void crimson_tng_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
+	(void)pre;
+	(void)data;
 	// no eeprom settings on Crimson
 	return;
 }
 
 // wrapper for type <sensor_value_t> through the ASCII Crimson interface
 sensor_value_t crimson_tng_impl::get_sensor_value(std::string req) {
+	(void)req;
 	// no sensors on Crimson
 	return sensor_value_t("NA", "0", "NA");
 }
 void crimson_tng_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
+	(void)pre;
+	(void)data;
 	// no sensors on Crimson
 	return;
 }
 
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
 meta_range_t crimson_tng_impl::get_meta_range(std::string req) {
+	(void)req;
 	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
-	meta_range_t temp;
-	return temp;
 }
 void crimson_tng_impl::set_meta_range(const std::string pre, meta_range_t data) {
+	(void)pre;
+	(void)data;
 	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
-	return;
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
 std::complex<double>  crimson_tng_impl::get_complex_double(std::string req) {
+	(void)req;
 	std::complex<double> temp;
 	return temp;
 }
 void crimson_tng_impl::set_complex_double(const std::string pre, std::complex<double> data) {
+	(void)pre;
+	(void)data;
 	return;
 }
 
@@ -201,35 +205,8 @@ static size_t pre_to_ch( const std::string & pre ) {
 	return ch;
 }
 
-static std::ostream & operator<<( std::ostream & os, const stream_cmd_t & cmd ) {
-	os << "{ ";
-
-	os << "mode: ";
-	switch( cmd.stream_mode ) {
-	case stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-	case stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS:
-	case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE:
-	case stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE:
-		os << "'" << std::string( 1, (char) cmd.stream_mode ) << "'";
-		break;
-	default:
-		os << "unknown";
-		break;
-	}
-
-	os << ", ";
-
-	os << "when: ";
-	if ( cmd.stream_now ) {
-		os << "now";
-	} else {
-		os << std::setprecision( 6 ) << cmd.time_spec.get_real_secs();
-	}
-	os << " }";
-	return os;
-}
-
 stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
+	(void)req;
 	// XXX: @CF: 20180214: stream_cmd is basically a write-only property, but we have to return a dummy variable of some kind
 	stream_cmd_t::stream_mode_t mode = stream_cmd_t::STREAM_MODE_START_CONTINUOUS;
 	stream_cmd_t temp = stream_cmd_t(mode);
@@ -241,8 +218,6 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 	const uhd::time_spec_t now = get_time_now();
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
-
-	//UHD_MSG( status ) << "Received stream command " << stream_cmd << std::endl;
 
 	make_rx_stream_cmd_packet( stream_cmd, now, ch, rx_stream_cmd );
 	send_rx_stream_cmd_req( rx_stream_cmd );
@@ -307,13 +282,6 @@ void crimson_tng_impl::set_properties_from_addr() {
 			std::string key = prop.substr( crimson_prop_prefix.length() );
 			std::string expected_string = device_addr[ prop ];
 
-//			UHD_MSG( status )
-//				<< __func__ << "(): "
-//				<< "Setting Crimson property: "
-//				<< "key: '"<< key << "', "
-//				<< "val: '" << expected_string << "'"
-//				<< std::endl;
-
 			set_string( key, expected_string );
 
 			std::string actual_string = get_string( key );
@@ -342,8 +310,6 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
         hint["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
-
-	//UHD_MSG( status ) << "Probing crimson_tng at " << hint[ "addr" ] << std::endl;
 
 	then = uhd::time_spec_t::get_system_time();
 
@@ -577,54 +543,6 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 	}
 }
 
-static void print_bm_starting() {
-#ifdef DEBUG_BM
-		std::cout << "Starting Buffer Management Thread.." << std::endl;
-#endif
-}
-
-static void print_bm_started() {
-#ifdef DEBUG_BM
-		std::cout << "Buffer Management Thread started, waiting for convergence.." << std::endl;
-#endif
-}
-
-static void print_bm_converged() {
-#ifdef DEBUG_BM
-	std::cout << "Buffer Management Thread converged" << std::endl;
-#endif
-}
-
-static void print_bm_stopping() {
-#ifdef DEBUG_BM
-		std::cout << "Stopping Buffer Management Thread.." << std::endl;
-#endif
-}
-
-static void print_bm_stopped() {
-#ifdef DEBUG_BM
-		std::cout << "Buffer Management Thread stopped" << std::endl;
-#endif
-}
-
-static void print_bm_fifo_timeout() {
-#ifdef DEBUG_BM
-	std::cout << "timeout reading fifo levels" << std::endl;
-#endif
-}
-
-static void print_bm_fifo_max_timeout() {
-#ifdef DEBUG_BM
-	std::cout << "Maximum number of timeouts reached reading fifo levels" << std::endl;
-#endif
-}
-
-static void print_bm_exception() {
-#ifdef DEBUG_BM
-	std::cout << "Caught an exception in the Buffer Management Thread!" << std::endl;
-#endif
-}
-
 void crimson_tng_impl::start_bm() {
 
 	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
@@ -635,12 +553,8 @@ void crimson_tng_impl::start_bm() {
 
 	if ( ! _bm_thread_running ) {
 
-		print_bm_starting();
-
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
-
-		print_bm_started();
 
 		for(
 			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
@@ -658,8 +572,6 @@ void crimson_tng_impl::start_bm() {
 			}
 			usleep( 100000 );
 		}
-
-		print_bm_converged();
 	}
 }
 
@@ -667,12 +579,8 @@ void crimson_tng_impl::stop_bm() {
 
 	if ( _bm_thread_running ) {
 
-		print_bm_stopping();
-
 		_bm_thread_should_exit = true;
 		_bm_thread.join();
-
-		print_bm_stopped();
 
 	}
 }
@@ -795,11 +703,11 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 :
 	device_addr( _device_addr ),
+	_time_diff( 0 ),
+	_time_diff_converged( false ),
 	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
-	_bm_thread_should_exit( false ),
-	_time_diff_converged( false ),
-	_time_diff( 0 )
+	_bm_thread_should_exit( false )
 {
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
@@ -1239,14 +1147,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
 
 	this->io_init();
-
-	// use the slow path for the initial read of the uflow / oflow registers
-// XXX: @CF: 20170713: Not sure why these are not working, so disable for the time being.
-//	for( int j = 0; j < CRIMSON_TNG_TX_CHANNELS; j++ ) {
-//		std::string lc_num = std::to_string( (char)( 'a' + j ) );
-//		_uflow[ j ] = _tree->access<int>( tx_path / lc_num / "qa" / "uflow" ).set( 0 ).get();
-//		_oflow[ j ] = _tree->access<int>( tx_path / lc_num / "qa" / "oflow" ).set( 0 ).get();
-//	}
 
 	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
