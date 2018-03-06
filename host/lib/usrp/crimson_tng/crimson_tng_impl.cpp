@@ -1286,27 +1286,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
-	// TODO send commands to mute all radio chains, mute everything
-	// unlock the Crimson device to this process
 	stop_bm();
-
-	for( auto & k: _mbc.keys() ) {
-		mb_container_type mbc = _mbc[ k ];
-
-		for( size_t i = 0; i < mbc.rx_streamers.size(); i++ ) {
-			uhd::rx_streamer::sptr sptr = mbc.rx_streamers[ i ].lock();
-			sptr.reset();
-		}
-		mbc.rx_streamers.clear();
-
-		for( size_t i = 0; i < mbc.tx_streamers.size(); i++ ) {
-			uhd::tx_streamer::sptr sptr = mbc.tx_streamers[ i ].lock();
-			sptr.reset();
-		}
-		mbc.tx_streamers.clear();
-
-		_mbc.pop( k );
-	}
 }
 
 bool crimson_tng_impl::is_bm_thread_needed() {
