@@ -154,12 +154,6 @@ public:
     ){
         size_t r;
 
-        if ( metadata.end_of_burst && 0 == nsamps_per_buff ) {
-            // catch mini-eob
-            _blessbless = true;
-            return 0;
-        }
-
         uhd::time_spec_t now = get_time_now();
         if ( metadata.has_time_spec ) {
             now = metadata.time_spec;
@@ -170,6 +164,12 @@ public:
                 ep.flow_control->update( r, now );
             }
         }
+
+        if ( metadata.end_of_burst && 0 == nsamps_per_buff ) {
+            // catch mini-eob
+            _blessbless = true;
+        }
+
         return r;
     }
 
@@ -328,6 +328,10 @@ private:
 
 				get_fifo_level( level_pcnt, uflow, oflow, now );
 
+				if ( self->_blessbless ) {
+					break;
+				}
+
 				size_t level = level_pcnt * max_level;
 				fc->set_buffer_level_async( level );
 
@@ -342,9 +346,11 @@ private:
 					metadata.has_time_spec = true;
 					metadata.time_spec = now;
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
-					self->push_async_msg( metadata );
+					// assumes that underflow counter is monotonically increasing
+					for( ; ep.uflow < uflow; ep.uflow++ ) {
+						self->push_async_msg( metadata );
+					}
 				}
-				ep.uflow = uflow;
 
 				if ( false ) {
 				} else if ( (uint64_t)-1 == ep.oflow ) {
@@ -357,9 +363,11 @@ private:
 					metadata.has_time_spec = true;
 					metadata.time_spec = now;
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
-					self->push_async_msg( metadata );
+					// assumes that overflow counter is monotonically increasing
+					for( ; ep.oflow < oflow; ep.oflow++ ) {
+						self->push_async_msg( metadata );
+					}
 				}
-				ep.oflow = oflow;
 			}
 		}
 		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
@@ -603,7 +611,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 	size_t r;
 
-	for( ;; ) {
+	for( size_t tries = 0; tries < 10; tries++ ) {
 		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 		if ( sizeof( req ) != r ) {
 			continue;
@@ -620,6 +628,9 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 		break;
 	}
+	if ( 0 == r ) {
+		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
+	}
 
 	boost::endian::big_to_native_inplace( rsp.oflow );
 	boost::endian::big_to_native_inplace( rsp.uflow );
@@ -629,8 +640,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	uint16_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
-	uflow = rsp.uflow;
-	oflow = rsp.oflow;
+	uflow = rsp.uflow & uint64_t( 0x7fffffffffffffff );
+	oflow = rsp.oflow & uint64_t( 0x7fffffffffffffff );
 
 	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
