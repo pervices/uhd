@@ -335,10 +335,7 @@ private:
 				size_t level = level_pcnt * max_level;
 				fc->set_buffer_level_async( level );
 
-				if ( false ) {
-				} else if ( (uint64_t)-1 == ep.uflow ) {
-					ep.uflow = uflow;
-				} else if ( uflow != ep.uflow ) {
+				if ( (uint64_t)-1 == ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 		            // async_metadata_t metadata;
 		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -347,15 +344,11 @@ private:
 					metadata.time_spec = now;
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
 					// assumes that underflow counter is monotonically increasing
-					for( ; ep.uflow < uflow; ep.uflow++ ) {
-						self->push_async_msg( metadata );
-					}
+					self->push_async_msg( metadata );
 				}
+				ep.uflow = uflow;
 
-				if ( false ) {
-				} else if ( (uint64_t)-1 == ep.oflow ) {
-					ep.oflow = oflow;
-				} else if ( oflow != ep.oflow ) {
+				if ( (uint64_t)-1 == ep.oflow && oflow != ep.oflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 		            // async_metadata_t metadata;
 		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -364,12 +357,14 @@ private:
 					metadata.time_spec = now;
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
 					// assumes that overflow counter is monotonically increasing
-					for( ; ep.oflow < oflow; ep.oflow++ ) {
-						self->push_async_msg( metadata );
-					}
+					self->push_async_msg( metadata );
 				}
+				ep.oflow = oflow;
 			}
 		}
+        for( auto & ep: self->_eprops ) {
+            ep.on_fini();
+        }
 		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
 	}
 };
