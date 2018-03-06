@@ -16,6 +16,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <iomanip>
+
 #include "validate_subdev_spec.hpp"
 #include "async_packet_handler.hpp"
 #include "../../transport/super_recv_packet_handler.hpp"
@@ -39,6 +41,8 @@
 #include <thread>
 #include <vector>
 
+#include <boost/endian/buffers.hpp>
+
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
@@ -48,6 +52,18 @@ namespace pt = boost::posix_time;
 /***********************************************************************
  * helpers
  **********************************************************************/
+
+std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
+	std::stringstream ss;
+	ss
+		<< std::setw( 10 ) << (unsigned) ts.get_full_secs()
+		<< "."
+		<< std::setw( 6 ) << std::setfill( '0' ) << (unsigned) ( ts.get_frac_secs() * 1e6 )
+		;
+
+	os << ss.str();
+	return os;
+}
 
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
 class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer {
@@ -136,13 +152,23 @@ public:
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ){
-    	size_t r;
-        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
+        size_t r;
+
+        if ( metadata.end_of_burst && 0 == nsamps_per_buff ) {
+            // catch mini-eob
+            _blessbless = true;
+            return 0;
+        }
+
         uhd::time_spec_t now = get_time_now();
+        if ( metadata.has_time_spec ) {
+            now = metadata.time_spec;
+        }
+        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
         for( auto & ep: _eprops ) {
-        	if ( nullptr != ep.flow_control.get() ) {
-        		ep.flow_control->update( r, now );
-        	}
+            if ( nullptr != ep.flow_control.get() ) {
+                ep.flow_control->update( r, now );
+            }
         }
         return r;
     }
@@ -181,6 +207,7 @@ public:
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
+			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
     	sph::send_packet_handler::resize(size);
     }
@@ -230,9 +257,6 @@ private:
     }
 
     bool check_fc_condition( const size_t chan, const double & timeout ) {
-    	(void)chan;
-    	(void)timeout;
-/*
     	uhd::time_spec_t now, then, dt;
 
     	now = get_time_now();
@@ -263,7 +287,7 @@ private:
 			// nop
 			__asm__ __volatile__( "" );
 		}
-*/
+
     	return true;
     }
 
@@ -280,7 +304,7 @@ private:
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
 
 		for( ; ! self->_blessbless; ) {
-			::usleep( 100000 );
+			::usleep( 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6 );
 			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
 				eprops_type & ep = self->_eprops[ i ];
 
@@ -302,10 +326,10 @@ private:
 
 				size_t max_level = fc->get_buffer_size();
 
-				ep.xport_chan_fifo_lvl( level_pcnt, uflow, oflow, now );
+				get_fifo_level( level_pcnt, uflow, oflow, now );
 
 				size_t level = level_pcnt * max_level;
-				ep.flow_control->set_buffer_level_async( level );
+				fc->set_buffer_level_async( level );
 
 				if ( false ) {
 				} else if ( (uint64_t)-1 == ep.uflow ) {
@@ -549,12 +573,77 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
-static void get_fifo_lvl_udp( uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
-	(void) xport;
-	(void) pcnt;
-	(void) uflow;
-	(void) oflow;
-	(void) now;
+static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+
+	static constexpr double tick_period_ps = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE;
+
+	#pragma pack(push,1)
+	struct fifo_lvl_req {
+		uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
+	};
+	#pragma pack(pop)
+
+	#pragma pack(push,1)
+	struct fifo_lvl_rsp {
+		uint64_t header; // CCCC00000000FFFF (C := channel bits, F := fifo bits)
+		uint64_t oflow;
+		uint64_t uflow;
+		uint64_t tv_sec;
+		uint64_t tv_tick;
+	};
+	#pragma pack(pop)
+
+	fifo_lvl_req req;
+	fifo_lvl_rsp rsp;
+
+	req.header = (uint64_t)0x10001 << 16;
+	req.header |= (channel & 0xffff);
+
+	boost::endian::big_to_native_inplace( req.header );
+
+	size_t r;
+
+	for( ;; ) {
+		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
+		if ( sizeof( req ) != r ) {
+			continue;
+		}
+		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
+		if ( sizeof( rsp ) != r ) {
+			continue;
+		}
+
+		boost::endian::big_to_native_inplace( rsp.header );
+		if ( channel != ( ( rsp.header >> 48 ) & 0xffff ) ) {
+			continue;
+		}
+
+		break;
+	}
+
+	boost::endian::big_to_native_inplace( rsp.oflow );
+	boost::endian::big_to_native_inplace( rsp.uflow );
+	boost::endian::big_to_native_inplace( rsp.tv_sec );
+	boost::endian::big_to_native_inplace( rsp.tv_tick );
+
+	uint16_t lvl = rsp.header & 0xffff;
+	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
+
+	uflow = rsp.uflow;
+	oflow = rsp.oflow;
+
+	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
+
+#if 0
+	std::cout
+			<< now << ": "
+			<< (char)('A' + channel) << ": "
+			<< '%' << std::dec << std::setw( 2 ) << std::setfill( ' ' ) << (unsigned)( pcnt * 100 )  << " "
+			<< std::hex << std::setw( 4 ) << std::setfill( '0' ) << lvl << " "
+			<< std::hex << std::setw( 16 ) << std::setfill( '0' ) << uflow << " "
+			<< std::hex << std::setw( 16 ) << std::setfill( '0' ) << oflow << " "
+			<< std::endl << std::flush;
+#endif
 }
 
 static void pwr_off( uhd::property_tree::sptr tree, std::string path ) {
@@ -621,7 +710,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
-                    &get_fifo_lvl_udp, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
+                    &get_fifo_lvl_udp, chan_i, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
                 my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));

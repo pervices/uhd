@@ -479,7 +479,7 @@ static inline int64_t nsecs_to_ticks( int64_t tv_nsec ) {
 }
 
 static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
-	pkt.header = 1;
+	pkt.header = (uint64_t)0x20002 << 16;
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
 
@@ -557,12 +557,6 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	boost::endian::big_to_native_inplace( tdr.tv_sec );
 	boost::endian::big_to_native_inplace( tdr.tv_tick );
-
-	for( int i = 0; i < CRIMSON_TNG_TX_CHANNELS; i++ ) {
-		boost::endian::big_to_native_inplace( tdr.fifo[ i ] );
-		boost::endian::big_to_native_inplace( tdr.uoflow[ i ].uflow );
-		boost::endian::big_to_native_inplace( tdr.uoflow[ i ].oflow );
-	}
 
 	return true;
 }
@@ -807,7 +801,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_time_diff_converged( false ),
 	_time_diff( 0 )
 {
-    UHD_MSG(status) << "Opening a Crimson TNG device..." << std::endl;
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
 
