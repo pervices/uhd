@@ -45,18 +45,9 @@ struct time_diff_req {
 #pragma pack(pop)
 
 #pragma pack(push,1)
-struct time_diff_uoflow {
-	uint64_t uflow;
-	uint64_t oflow;
-};
-#pragma pack(pop)
-
-#pragma pack(push,1)
 struct time_diff_resp {
 	int64_t tv_sec;
 	int64_t tv_tick;
-	uint16_t fifo[ CRIMSON_TNG_TX_CHANNELS ];
-	struct time_diff_uoflow uoflow[ CRIMSON_TNG_TX_CHANNELS ];
 };
 #pragma pack(pop)
 
