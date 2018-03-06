@@ -228,7 +228,7 @@ public:
      ******************************************************************/
 
     static tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request );
-    static double choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree );
+    static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree );
 
 private:
     // Pointer to the Crimson device
