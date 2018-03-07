@@ -629,6 +629,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 		break;
 	}
 	if ( 0 == r ) {
+		UHD_MSG( error ) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
 		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
 	}
 
