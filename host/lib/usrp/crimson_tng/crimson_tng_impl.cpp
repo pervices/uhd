@@ -933,7 +933,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_CLOCK_RATE);
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2);
 
     TREE_CREATE_ST(time_path / "cmd", time_spec_t, time_spec_t(0.0));
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
