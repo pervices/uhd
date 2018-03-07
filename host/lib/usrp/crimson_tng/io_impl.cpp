@@ -517,6 +517,13 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     id.num_outputs = 1;
     my_streamer->set_converter(id);
 
+    if ( false ) {
+    } else if ( "fc32" == args.cpu_format ) {
+        my_streamer->set_scale_factor( 1.0 / (double)((1<<15)-1) );
+    } else if ( "sc16" == args.cpu_format ) {
+        my_streamer->set_scale_factor( 1.0 );
+    }
+
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
@@ -701,6 +708,13 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     id.output_format = args.otw_format + "_item32_be";
     id.num_outputs = 1;
     my_streamer->set_converter(id);
+
+    if ( false ) {
+    } else if ( "fc32" == args.cpu_format ) {
+        my_streamer->set_scale_factor( (double)((1<<15)-1) );
+    } else if ( "sc16" == args.cpu_format ) {
+        my_streamer->set_scale_factor( 1.0 );
+    }
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
