@@ -421,9 +421,6 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
 
     my_streamer->set_samp_rate(rate);
     my_streamer->set_tick_rate(rate);
-//    const double adj = _mbc[mb].rx_dsps[dsp]->get_scaling_adjustment();
-//    my_streamer->set_scale_factor(adj);
-    my_streamer->set_scale_factor(1.0);
 }
 
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -437,9 +434,6 @@ void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t d
 
     my_streamer->set_samp_rate(rate);
     my_streamer->set_tick_rate(rate);
-//    const double adj = _mbc[mb].tx_dsp->get_scaling_adjustment();
-//    my_streamer->set_scale_factor(adj);
-    my_streamer->set_scale_factor(1.0);
 }
 
 void crimson_tng_impl::update_rates(void){
