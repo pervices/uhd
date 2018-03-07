@@ -165,8 +165,17 @@ public:
             }
         }
 
-        if ( metadata.end_of_burst && 0 == nsamps_per_buff ) {
-            // catch mini-eob
+        if ( metadata.end_of_burst && ( 0 == nsamps_per_buff || nsamps_per_buff == r ) ) {
+
+            async_metadata_t am;
+            am.has_time_spec = true;
+            am.time_spec = get_time_now();
+            am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
+            for( size_t i = 0; i < _eprops.size(); i++ ) {
+				am.channel = i;
+				push_async_msg( am );
+            }
+
             _blessbless = true;
         }
 
