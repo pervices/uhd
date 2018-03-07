@@ -420,7 +420,7 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate(rate);
+    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
 }
 
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -433,7 +433,7 @@ void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t d
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate(rate);
+    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
 }
 
 void crimson_tng_impl::update_rates(void){
