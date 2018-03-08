@@ -116,6 +116,7 @@ public:
 		sph::send_packet_streamer( max_num_samps ),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
+		_samp_rate( 1.0 ),
 		_blessbless( false ) // icelandic (viking) for bye
 	{
 	}
@@ -157,10 +158,6 @@ public:
             metadata.start_of_burst = true;
             metadata.has_time_spec = true;
             metadata.time_spec = now + 0.01;
-            for( auto & ep: _eprops ) {
-                //std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
-                ep.flow_control->set_buffer_level( 0, now );
-            }
         }
 
         if ( metadata.start_of_burst ) {
@@ -233,7 +230,7 @@ public:
 
     void set_samp_rate(const double rate){
         sph::send_packet_handler::set_samp_rate( rate );
-
+        _samp_rate = rate;
         uhd::time_spec_t now = get_time_now();
         for( auto & ep: _eprops ) {
             if ( nullptr != ep.flow_control.get() ) {
@@ -252,6 +249,7 @@ private:
 	bool _first_call_to_send;
 	std::mutex _buffer_mutex;
     size_t _max_num_samps;
+    double _samp_rate;
     bool _blessbless;
     std::thread _pillage_thread;
     async_pusher_type async_pusher;
@@ -346,7 +344,7 @@ private:
 					continue;
 				}
 
-				uhd::time_spec_t now;
+				uhd::time_spec_t now, then;
 				double level_pcnt;
 				uint64_t uflow;
 				uint64_t oflow;
@@ -354,14 +352,19 @@ private:
 
 				size_t max_level = fc->get_buffer_size();
 
-				get_fifo_level( level_pcnt, uflow, oflow, now );
+				get_fifo_level( level_pcnt, uflow, oflow, then );
 
 				if ( self->_blessbless ) {
 					break;
 				}
 
+				now = self->get_time_now();
+
 				size_t level = level_pcnt * max_level;
-				fc->set_buffer_level( level, now );
+				level += ( now - then ).get_real_secs() / self->_samp_rate;
+				double fc_level = fc->get_buffer_level( now );
+				fc_level = 0.4 * fc_level + 0.6 * level;
+				fc->set_buffer_level( fc_level, now );
 
 				if ( (uint64_t)-1 == ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
@@ -369,7 +372,7 @@ private:
 		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
 					metadata.has_time_spec = true;
-					metadata.time_spec = now;
+					metadata.time_spec = then;
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
 					// assumes that underflow counter is monotonically increasing
 					self->push_async_msg( metadata );
@@ -382,7 +385,7 @@ private:
 		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
 					metadata.has_time_spec = true;
-					metadata.time_spec = now;
+					metadata.time_spec = then;
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
 					// assumes that overflow counter is monotonically increasing
 					self->push_async_msg( metadata );
