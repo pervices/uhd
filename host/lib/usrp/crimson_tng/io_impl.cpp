@@ -17,6 +17,7 @@
 //
 
 #include <iomanip>
+#include <mutex>
 
 #include "validate_subdev_spec.hpp"
 #include "async_packet_handler.hpp"
@@ -113,6 +114,7 @@ public:
 	crimson_tng_send_packet_streamer( const size_t max_num_samps )
 	:
 		sph::send_packet_streamer( max_num_samps ),
+		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
 		_blessbless( false ) // icelandic (viking) for bye
 	{
@@ -142,19 +144,35 @@ public:
     size_t send(
         const tx_streamer::buffs_type &buffs,
         const size_t nsamps_per_buff,
-        const uhd::tx_metadata_t &metadata,
+        const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
         size_t r;
 
-        if ( metadata.has_time_spec ) {
+        uhd::tx_metadata_t metadata = metadata_;
+
+        if ( _first_call_to_send && ! metadata.start_of_burst ) {
+            uhd::time_spec_t now = get_time_now();
+            //UHD_MSG( error ) << "Warning: first call to send but no start of burst!" << std::endl;
+            metadata.start_of_burst = true;
+            metadata.has_time_spec = true;
+            metadata.time_spec = now + 0.01;
             for( auto & ep: _eprops ) {
-                if ( nullptr != ep.flow_control.get() ) {
-                    //std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
-                    ep.flow_control->set_start_of_burst_time( metadata.time_spec );
-                }
+                //std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
+                ep.flow_control->set_buffer_level( 0, now );
             }
         }
+
+        if ( metadata.start_of_burst ) {
+            if ( ! metadata.has_time_spec ) {
+                UHD_MSG( error ) << "Warning: first call to send but no time spec supplied" << std::endl;
+            }
+            for( auto & ep: _eprops ) {
+				//std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
+				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
+            }
+        }
+        _first_call_to_send = false;
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         if ( metadata.end_of_burst && ( 0 == nsamps_per_buff || nsamps_per_buff == r ) ) {
@@ -214,15 +232,14 @@ public:
     }
 
     void set_samp_rate(const double rate){
-    	uhd::time_spec_t now = get_time_now();
-    	for( size_t i = 0; i < this->size(); i++ ) {
-    		for( auto & ep: _eprops ) {
-    			if ( nullptr != ep.flow_control.get() ) {
-    				ep.flow_control->set_sample_rate( now, rate );
-    			}
-    		}
-    	}
-    	sph::send_packet_handler::set_samp_rate( rate );
+        sph::send_packet_handler::set_samp_rate( rate );
+
+        uhd::time_spec_t now = get_time_now();
+        for( auto & ep: _eprops ) {
+            if ( nullptr != ep.flow_control.get() ) {
+                ep.flow_control->set_sample_rate( now, rate );
+            }
+        }
     }
 
     //create a new viking thread for each zc if (skryke!!)
@@ -232,11 +249,12 @@ public:
 	}
 
 private:
+	bool _first_call_to_send;
+	std::mutex _buffer_mutex;
     size_t _max_num_samps;
     bool _blessbless;
     std::thread _pillage_thread;
     async_pusher_type async_pusher;
-
     timenow_type _time_now;
 
     // extended per-channel properties, beyond what is available in sph::send_packet_handler::xport_chan_props_type
@@ -260,18 +278,25 @@ private:
     bool check_fc_condition( const size_t chan, const size_t samples, const double & timeout ) {
         uhd::time_spec_t now, then, dt;
 
+        _buffer_mutex.lock();
+
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( samples, now );
+        then = now + dt;
 
         if ( dt > timeout ) {
+            _buffer_mutex.unlock();
             return false;
         }
 
+        //std::cout << "Buffer Level: " << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl;
+        _eprops.at( chan ).flow_control->update( samples, now );
+
         if ( dt <= 0.0 ) {
-            goto out;
+            _buffer_mutex.unlock();
+            return true;
         }
 
-        then = now + dt;
 		// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
 		if ( dt.get_real_secs() > 100e-6 ) {
 			dt -= 30e-6;
@@ -287,11 +312,10 @@ private:
 		) {
 			// nop
 			__asm__ __volatile__( "" );
+			now += 1.0;
 		}
 
-out:
-        _eprops.at( chan ).flow_control->update( samples, now );
-        //std::cout << "Buffer Level: " << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl;
+		_buffer_mutex.unlock();
     	return true;
     }
 
