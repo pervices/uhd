@@ -54,14 +54,7 @@ namespace pt = boost::posix_time;
  **********************************************************************/
 
 std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
-	std::stringstream ss;
-	ss
-		<< std::setw( 10 ) << (unsigned) ts.get_full_secs()
-		<< "."
-		<< std::setw( 6 ) << std::setfill( '0' ) << (unsigned) ( ts.get_frac_secs() * 1e6 )
-		;
-
-	os << ss.str();
+	os << ts.get_real_secs();
 	return os;
 }
 
@@ -154,16 +147,15 @@ public:
     ){
         size_t r;
 
-        uhd::time_spec_t now = get_time_now();
         if ( metadata.has_time_spec ) {
-            now = metadata.time_spec;
-        }
-        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
-        for( auto & ep: _eprops ) {
-            if ( nullptr != ep.flow_control.get() ) {
-                ep.flow_control->update( r, now );
+            for( auto & ep: _eprops ) {
+                if ( nullptr != ep.flow_control.get() ) {
+                    //std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
+                    ep.flow_control->set_start_of_burst_time( metadata.time_spec );
+                }
             }
         }
+        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         if ( metadata.end_of_burst && ( 0 == nsamps_per_buff || nsamps_per_buff == r ) ) {
 
@@ -182,10 +174,10 @@ public:
         return r;
     }
 
-    managed_send_buffer::sptr get_send_buff(size_t chan, double timeout){
+    managed_send_buffer::sptr get_send_buff( const size_t chan, const size_t samples, double timeout ){
 
         //wait on flow control w/ timeout
-        if (not check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
+        if (not check_fc_condition( chan, samples, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = _eprops.at( chan ).xport_chan->get_send_buff( timeout );
@@ -265,21 +257,21 @@ private:
     	}
     }
 
-    bool check_fc_condition( const size_t chan, const double & timeout ) {
-    	uhd::time_spec_t now, then, dt;
+    bool check_fc_condition( const size_t chan, const size_t samples, const double & timeout ) {
+        uhd::time_spec_t now, then, dt;
 
-    	now = get_time_now();
-    	if ( _eprops.at( chan ).flow_control.get() != nullptr ) {
-    		dt = _eprops.at( chan ).flow_control->get_time_until_next_send( 0, now );
-    	} else {
-    		dt = 0.0;
-    	}
-    	then = now + dt;
+        now = get_time_now();
+        dt = _eprops.at( chan ).flow_control->get_time_until_next_send( samples, now );
 
-    	if ( dt > timeout ) {
-    		return false;
-    	}
+        if ( dt > timeout ) {
+            return false;
+        }
 
+        if ( dt <= 0.0 ) {
+            goto out;
+        }
+
+        then = now + dt;
 		// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
 		if ( dt.get_real_secs() > 100e-6 ) {
 			dt -= 30e-6;
@@ -297,6 +289,9 @@ private:
 			__asm__ __volatile__( "" );
 		}
 
+out:
+        _eprops.at( chan ).flow_control->update( samples, now );
+        //std::cout << "Buffer Level: " << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl;
     	return true;
     }
 
@@ -342,7 +337,7 @@ private:
 				}
 
 				size_t level = level_pcnt * max_level;
-				fc->set_buffer_level_async( level );
+				fc->set_buffer_level( level, now );
 
 				if ( (uint64_t)-1 == ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
@@ -729,7 +724,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
                 my_streamer->set_on_fini(chan_i, boost::bind( & pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/Channel_" + std::string( 1, 'A' + chan ) + "/pwr" ) ) );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                    &crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, _1
+                    &crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, spp, _1
                 ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
