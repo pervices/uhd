@@ -184,6 +184,9 @@ public:
             }
 
             _blessbless = true;
+            if ( _pillage_thread.joinable() ) {
+                _pillage_thread.join();
+            }
         }
 
         return r;
