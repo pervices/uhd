@@ -151,16 +151,13 @@ public:
 
         uhd::tx_metadata_t metadata = metadata_;
 
+        uhd::time_spec_t now = get_time_now();
+
         if ( _first_call_to_send && ! metadata.start_of_burst ) {
-            uhd::time_spec_t now = get_time_now();
             //UHD_MSG( error ) << "Warning: first call to send but no start of burst!" << std::endl;
             metadata.start_of_burst = true;
             metadata.has_time_spec = true;
             metadata.time_spec = now + 0.01;
-            for( auto & ep: _eprops ) {
-                //std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
-                ep.flow_control->set_buffer_level( 0, now );
-            }
         }
 
         if ( metadata.start_of_burst ) {
@@ -179,14 +176,19 @@ public:
 
             async_metadata_t am;
             am.has_time_spec = true;
-            am.time_spec = get_time_now();
+            am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
+
+            _blessbless = true;
+            if ( _pillage_thread.joinable() ) {
+                _pillage_thread.join();
+            }
+
             for( size_t i = 0; i < _eprops.size(); i++ ) {
 				am.channel = i;
 				push_async_msg( am );
+				_eprops.at( i ).on_fini;
             }
-
-            _blessbless = true;
         }
 
         return r;
@@ -401,9 +403,6 @@ out:
 				ep.oflow = oflow;
 			}
 		}
-        for( auto & ep: self->_eprops ) {
-            ep.on_fini();
-        }
 		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
 	}
 };
