@@ -250,7 +250,6 @@ public:
 
 private:
 	bool _first_call_to_send;
-	std::mutex _buffer_mutex;
     size_t _max_num_samps;
     double _samp_rate;
     bool _blessbless;
@@ -266,7 +265,16 @@ private:
     	uhd::flow_control::sptr flow_control;
     	uint64_t oflow;
     	uint64_t uflow;
+        std::mutex buffer_mutex;
     	eprops_type() : oflow( -1 ), uflow( -1 ) {}
+        eprops_type( const eprops_type & other )
+        :
+            xport_chan( other.xport_chan ),
+            xport_chan_fifo_lvl( other.xport_chan_fifo_lvl ),
+            flow_control( other.flow_control ),
+            oflow( other.oflow ),
+            uflow( other.uflow )
+        {}
     };
     std::vector<eprops_type> _eprops;
 
@@ -277,31 +285,34 @@ private:
     }
 
     bool check_fc_condition( const size_t chan, const size_t samples, const double & timeout ) {
-        uhd::time_spec_t now, then, dt;
+        bool r;
 
-        _buffer_mutex.lock();
+        uhd::time_spec_t now, then, dt;
+		struct timespec req, rem;
+
+        std::lock_guard<std::mutex> lock( _eprops.at( chan ).buffer_mutex );
 
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( samples, now );
         then = now + dt;
 
         if ( dt > timeout ) {
-            _buffer_mutex.unlock();
-            return false;
+            r = false;
+            goto out;
         }
+
+        r = true;
 
         //std::cout << "Buffer Level: " << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl;
         _eprops.at( chan ).flow_control->update( samples, now );
 
         if ( dt <= 0.0 ) {
-            _buffer_mutex.unlock();
-            return true;
+            goto out;
         }
 
 		// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
 		if ( dt.get_real_secs() > 100e-6 ) {
 			dt -= 30e-6;
-			struct timespec req, rem;
 			req.tv_sec = (time_t) dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs()*1e9;
 			nanosleep( &req, &rem );
@@ -316,8 +327,8 @@ private:
 			now += 1.0;
 		}
 
-		_buffer_mutex.unlock();
-    	return true;
+out:
+        return r;
     }
 
     /***********************************************************************
