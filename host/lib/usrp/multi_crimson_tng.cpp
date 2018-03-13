@@ -83,7 +83,7 @@ bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-double choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree ) {
+double multi_crimson_tng::choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
 
 	/*
 	 * Scenario 1) Channels A and B
@@ -125,6 +125,7 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 		freq_range_t( 26e6, 136e6 ), // F = B + C
 		freq_range_t( 3e6, 136e6 ), // G = A + B + C
 		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Catch All)
+		freq_range_t( -162.5e6, 162.5e6 ), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
@@ -150,6 +151,7 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 		freq_range_t( 3e6, 24e6 ), // A
 		freq_range_t( 26e6, 81.25e6 ), // B
 		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
+		freq_range_t( -81.25e6, 81.25e6 ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
@@ -208,7 +210,7 @@ double choose_dsp_nco_shift( double target_freq, double sign, property_tree::spt
 }
 
 // See multi_usrp.cpp::tune_xx_subdev_and_dsp()
-tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+tune_result_t multi_crimson_tng::tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 
 	enum {
 		LOW_BAND,
@@ -246,7 +248,7 @@ tune_result_t tune_lo_and_dsp( const double xx_sign, property_tree::sptr dsp_sub
 				target_rf_freq = 0;
 				break;
 			case HIGH_BAND:
-				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
+				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
