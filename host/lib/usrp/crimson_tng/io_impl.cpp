@@ -690,7 +690,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
-#if 1
+#if 0
 	std::cout
 			<< now << ": "
 			<< (char)('A' + channel) << ": "
