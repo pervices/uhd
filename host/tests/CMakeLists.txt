@@ -54,9 +54,11 @@ SET(test_sources
     xlate_test.cpp
 )
 
-# XXX: @CF: kb 3834: add this to the group above after
-# making modifications to host/CMakefiles.txt (i.e. requires -fvisibility=default)
-# tune_lo_and_dsp_test.cpp
+IF(ENABLE_CRIMSON_TNG)
+    LIST(APPEND test_sources
+        tune_lo_and_dsp_test.cpp
+    )
+ENDIF(ENABLE_CRIMSON_TNG)
 
 #turn each test cpp file into an executable with an int main() function
 ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK -DBOOST_TEST_MAIN)
