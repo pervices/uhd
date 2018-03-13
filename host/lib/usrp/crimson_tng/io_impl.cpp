@@ -153,17 +153,20 @@ public:
 
         uhd::time_spec_t now = get_time_now();
 
-        if ( _first_call_to_send && ! metadata.start_of_burst ) {
-            //UHD_MSG( error ) << "Warning: first call to send but no start of burst!" << std::endl;
-            metadata.start_of_burst = true;
-            metadata.has_time_spec = true;
-            metadata.time_spec = now + 0.01;
+        if ( _first_call_to_send ) {
+            if ( ! metadata.start_of_burst ) {
+                UHD_MSG( error ) << "Warning: first call to send but no start of burst!" << std::endl;
+                metadata.start_of_burst = true;
+            }
         }
-
-        if ( metadata.start_of_burst ) {
+        if ( _first_call_to_send ) {
             if ( ! metadata.has_time_spec ) {
                 UHD_MSG( error ) << "Warning: first call to send but no time spec supplied" << std::endl;
+                metadata.has_time_spec = true;
+                metadata.time_spec = now + 1.0;
             }
+        }
+        if ( metadata.start_of_burst ) {
             for( auto & ep: _eprops ) {
 				//std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
 				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
@@ -187,7 +190,7 @@ public:
             for( size_t i = 0; i < _eprops.size(); i++ ) {
 				am.channel = i;
 				push_async_msg( am );
-				_eprops.at( i ).on_fini;
+				_eprops.at( i ).on_fini();
             }
         }
 
@@ -680,7 +683,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
-#if 0
+#if 1
 	std::cout
 			<< now << ": "
 			<< (char)('A' + channel) << ": "
@@ -763,7 +766,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
-                    &get_fifo_lvl_udp, chan_i, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
+                    &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
                 my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));
