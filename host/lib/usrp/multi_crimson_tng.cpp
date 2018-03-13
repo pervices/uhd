@@ -57,7 +57,19 @@ static const std::string ALL_LOS = "all";
 static const double TX_SIGN = -1;
 static const double RX_SIGN = 1;
 
-static const double DSP_NCO_SHIFT_HZ = 25e6;
+UHD_INLINE std::string string_vector_to_string(std::vector<std::string> values, std::string delimiter = std::string(" "))
+{
+    std::string out = "";
+    for (std::vector<std::string>::iterator iter = values.begin(); iter != values.end(); iter++)
+    {
+        out += (iter != values.begin() ? delimiter : "") + *iter;
+    }
+    return out;
+}
+
+#define THROW_GAIN_NAME_ERROR(name,chan,dir) throw uhd::exception::runtime_error( \
+            (boost::format("%s: gain \"%s\" not found for channel %d.\nAvailable gains: %s\n") % \
+            __FUNCTION__ % name % chan % string_vector_to_string(get_##dir##_gain_names(chan))).str());
 
 /***********************************************************************
  * Helper Functions
@@ -888,10 +900,14 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
     }
 }
 
-void multi_crimson_tng::set_normalized_rx_gain(double gain, size_t chan) {
-	(void) gain;
-	(void) chan;
-	throw uhd::runtime_error("This device does not support normalized rx gain");
+void multi_crimson_tng::set_normalized_rx_gain(double gain, size_t chan )
+{
+  if (gain > 1.0 || gain < 0.0) {
+    throw uhd::runtime_error("Normalized gain out of range, must be in [0, 1].");
+  }
+  gain_range_t gain_range = get_rx_gain_range(ALL_GAINS, chan);
+  double abs_gain = (gain * (gain_range.stop() - gain_range.start())) + gain_range.start();
+  set_rx_gain(abs_gain, ALL_GAINS, chan);
 }
 void multi_crimson_tng::set_rx_agc(bool enable, size_t chan) {
 	(void) enable;
@@ -928,8 +944,14 @@ double multi_crimson_tng::get_normalized_rx_gain(size_t chan) {
 
 // get RX frontend gain range on specified channel
 gain_range_t multi_crimson_tng::get_rx_gain_range(const std::string &name, size_t chan){
-	(void)name;
-    return _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "gain" / "range").get();
+	try {
+		if ( ALL_GAINS != name ) {
+			throw uhd::key_error( "no gain for name '" + name + "'" );
+		}
+		return _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "gain" / "range").get();
+	} catch (uhd::key_error &) {
+		THROW_GAIN_NAME_ERROR(name,chan,rx);
+	}
 }
 
 // get RX frontend gain names/options. There is only one configurable gain on the RX rf chain.
