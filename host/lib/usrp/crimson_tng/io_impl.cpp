@@ -606,12 +606,13 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         const fs_path rx_path   = mb_path / "rx";
         const fs_path rx_link_path  = mb_path / "rx_link" / ch;
 
+		// vita enable
+		_tree->access<std::string>(rx_link_path / "vita_en").set("1");
+
 		// power on the channel
 		_tree->access<std::string>(rx_path / ch / "pwr").set("1");
 		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
 		//usleep( 500000 );
-		// vita enable
-		_tree->access<std::string>(rx_link_path / "vita_en").set("1");
 		// stream enable
 		_tree->access<std::string>(rx_link_path / "stream").set("1");
     }
@@ -746,6 +747,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
+    my_streamer->set_enable_trailer( false );
 
     my_streamer->set_time_now(boost::bind(&crimson_tng_impl::get_time_now,this));
 
