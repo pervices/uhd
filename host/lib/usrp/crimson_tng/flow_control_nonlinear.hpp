@@ -20,7 +20,7 @@ public:
 
 	const size_t buffer_size;
 	const size_t nominal_buffer_level;
-	const double nominal_sample_rate;
+	double nominal_sample_rate;
 
 	std::mutex lock;
 	ssize_t buffer_level;
@@ -41,6 +41,10 @@ public:
 	}
 	double get_nominal_sample_rate() {
 		return nominal_sample_rate;
+	}
+	void set_sample_rate( const uhd::time_spec_t & now, const double & rate ) {
+		boost::ignore_unused( now );
+		nominal_sample_rate = rate;
 	}
 
 	bool start_of_burst_pending( const uhd::time_spec_t & now ) {
@@ -97,6 +101,8 @@ public:
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
+
+		(void)nsamples_to_send;
 
 		uhd::time_spec_t dt;
 		double bl;
