@@ -366,7 +366,11 @@ out:
 
 				size_t max_level = fc->get_buffer_size();
 
-				get_fifo_level( level_pcnt, uflow, oflow, then );
+				try {
+					get_fifo_level( level_pcnt, uflow, oflow, then );
+				} catch( ... ) {
+					continue;
+				}
 
 				if ( self->_blessbless ) {
 					break;
@@ -375,10 +379,11 @@ out:
 				now = self->get_time_now();
 
 				size_t level = level_pcnt * max_level;
-				level += ( now - then ).get_real_secs() / self->_samp_rate;
-				double fc_level = fc->get_buffer_level( now );
-				fc_level = 0.4 * fc_level + 0.6 * level;
-				fc->set_buffer_level( fc_level, now );
+				level -= ( now - then ).get_real_secs() / self->_samp_rate;
+
+				if ( ! fc->start_of_burst_pending( now ) ) {
+					fc->set_buffer_level( level, now );
+				}
 
 				if ( (uint64_t)-1 == ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
@@ -670,7 +675,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 		break;
 	}
 	if ( 0 == r ) {
-		UHD_MSG( error ) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
+		//UHD_MSG( error ) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
 		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
 	}
 
