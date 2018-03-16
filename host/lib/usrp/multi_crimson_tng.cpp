@@ -649,7 +649,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 		if ( rate < range.start() || rate > range.stop() ) {
 			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
 		}
-		//double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate).get();
+		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 		return;
 	}
 	for (size_t c = 0; c < get_rx_num_channels(); c++){
