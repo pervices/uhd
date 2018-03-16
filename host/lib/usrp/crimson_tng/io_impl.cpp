@@ -185,7 +185,7 @@ public:
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            UHD_MSG( status ) << get_time_now() << ": Sending start of burst @ " << metadata.time_spec << std::endl;
+            UHD_MSG( status ) << get_time_now() << ": Setting start of burst @ " << metadata.time_spec << std::endl;
             #endif
             for( auto & ep: _eprops ) {
 				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
@@ -195,7 +195,7 @@ public:
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         #ifdef UHD_TXRX_DEBUG_PRINTS
-        //UHD_MSG( status ) << get_time_now() << ": Sent " << r << " samples" << std::endl;
+        UHD_MSG( status ) << get_time_now() << ": Sent " << r << " samples" << std::endl;
         #endif
 
         if ( metadata.end_of_burst && ( 0 == nsamps_per_buff || nsamps_per_buff == r ) ) {
