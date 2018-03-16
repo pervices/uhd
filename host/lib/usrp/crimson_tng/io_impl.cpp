@@ -161,6 +161,9 @@ public:
         uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now();
 
+        if ( ! metadata.start_of_burst ) {
+            metadata.has_time_spec = false;
+        }
         if ( _first_call_to_send ) {
             if ( ! metadata.start_of_burst ) {
                 #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -186,7 +189,7 @@ public:
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            UHD_MSG( status ) << get_time_now() << ": Setting start of burst @ " << metadata.time_spec << std::endl;
+            UHD_MSG( status ) << get_time_now() << ": Setting start of burst @ " << metadata.time_spec << " or " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
             #endif
             for( auto & ep: _eprops ) {
 				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
@@ -196,9 +199,14 @@ public:
         _first_call_to_send = false;
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
-        #ifdef UHD_TXRX_DEBUG_PRINTS
         now = get_time_now();
-        if ( now < sob_time ) {
+
+        #ifdef UHD_TXRX_DEBUG_PRINTS
+        if (
+            true
+            && r > 0
+	    && now < sob_time + 0.5
+        ) {
             UHD_MSG( status ) << now << ": Sent " << r << " samples" << std::endl;
         }
         #endif
