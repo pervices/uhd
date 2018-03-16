@@ -158,6 +158,7 @@ public:
 
         uhd::tx_metadata_t metadata = metadata_;
 
+        uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now();
 
         if ( _first_call_to_send ) {
@@ -190,12 +191,16 @@ public:
             for( auto & ep: _eprops ) {
 				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
+            sob_time = metadata.time_spec;
         }
         _first_call_to_send = false;
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         #ifdef UHD_TXRX_DEBUG_PRINTS
-        UHD_MSG( status ) << get_time_now() << ": Sent " << r << " samples" << std::endl;
+        now = get_time_now();
+        if ( now < sob_time ) {
+            UHD_MSG( status ) << now << ": Sent " << r << " samples" << std::endl;
+        }
         #endif
 
         if ( metadata.end_of_burst && ( 0 == nsamps_per_buff || nsamps_per_buff == r ) ) {
