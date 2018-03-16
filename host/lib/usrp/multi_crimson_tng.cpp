@@ -478,9 +478,7 @@ void multi_crimson_tng::set_time_next_pps(const time_spec_t &time_spec, size_t m
 }
 
 void multi_crimson_tng::set_time_unknown_pps(const time_spec_t &time_spec){
-	(void)time_spec;
-    // Not implemented
-    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+	set_time_now( time_spec );
 }
 
 bool multi_crimson_tng::get_time_synchronized(void){
@@ -649,7 +647,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 		if ( rate < range.start() || rate > range.stop() ) {
 			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
 		}
-		//double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate).get();
+		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 		return;
 	}
 	for (size_t c = 0; c < get_rx_num_channels(); c++){

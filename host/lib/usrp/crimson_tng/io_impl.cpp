@@ -44,6 +44,10 @@
 
 #include <boost/endian/buffers.hpp>
 
+#ifndef UHD_TXRX_DEBUG_PRINTS
+//#define UHD_TXRX_DEBUG_PRINTS
+#endif
+
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
@@ -148,6 +152,8 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        static const double default_sob = 1.0;
+
         size_t r;
 
         uhd::tx_metadata_t metadata = metadata_;
@@ -156,25 +162,41 @@ public:
 
         if ( _first_call_to_send ) {
             if ( ! metadata.start_of_burst ) {
-                UHD_MSG( error ) << "Warning: first call to send but no start of burst!" << std::endl;
+                #ifdef UHD_TXRX_DEBUG_PRINTS
+                UHD_MSG( status ) << "Warning: first call to send but no start of burst!" << std::endl;
+                #endif
                 metadata.start_of_burst = true;
             }
         }
         if ( _first_call_to_send ) {
             if ( ! metadata.has_time_spec ) {
-                UHD_MSG( error ) << "Warning: first call to send but no time spec supplied" << std::endl;
+                #ifdef UHD_TXRX_DEBUG_PRINTS
+                UHD_MSG( status ) << "Warning: first call to send but no time spec supplied" << std::endl;
+                #endif
                 metadata.has_time_spec = true;
-                metadata.time_spec = now + 1.0;
+                metadata.time_spec = now + default_sob;
             }
         }
         if ( metadata.start_of_burst ) {
+            if ( metadata.time_spec < now + default_sob ) {
+                metadata.time_spec = now + default_sob;
+                #ifdef UHD_TXRX_DEBUG_PRINTS
+                UHD_MSG( status ) << "Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
+                #endif
+            }
+            #ifdef UHD_TXRX_DEBUG_PRINTS
+            UHD_MSG( status ) << get_time_now() << ": Sending start of burst @ " << metadata.time_spec << std::endl;
+            #endif
             for( auto & ep: _eprops ) {
-				//std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
 				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
         }
         _first_call_to_send = false;
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
+
+        #ifdef UHD_TXRX_DEBUG_PRINTS
+        //UHD_MSG( status ) << get_time_now() << ": Sent " << r << " samples" << std::endl;
+        #endif
 
         if ( metadata.end_of_burst && ( 0 == nsamps_per_buff || nsamps_per_buff == r ) ) {
 
@@ -350,7 +372,11 @@ out:
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
 
 		for( ; ! self->_blessbless; ) {
+#ifdef UHD_TXRX_DEBUG_PRINTS
+			::usleep( 200000 );
+#else
 			::usleep( 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6 );
+#endif
 			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
 				eprops_type & ep = self->_eprops[ i ];
 
@@ -600,20 +626,38 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // XXX: @CF: 20170227: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
-        size_t chan = args.channels[ chan_i ];
-        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        const fs_path mb_path   = "/mboards/0";
-        const fs_path rx_path   = mb_path / "rx";
-        const fs_path rx_link_path  = mb_path / "rx_link" / ch;
+        const size_t chan = args.channels[chan_i];
+        size_t num_chan_so_far = 0;
+        BOOST_FOREACH(const std::string &mb, _mbc.keys()){
+            num_chan_so_far += _mbc[mb].rx_chan_occ;
+            if (chan < num_chan_so_far){
 
-		// power on the channel
-		_tree->access<std::string>(rx_path / ch / "pwr").set("1");
-		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-		//usleep( 500000 );
-		// vita enable
-		_tree->access<std::string>(rx_link_path / "vita_en").set("1");
-		// stream enable
-		_tree->access<std::string>(rx_link_path / "stream").set("1");
+                // XXX: @CF: this is so nasty..
+                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+                const fs_path mb_path   = "/mboards/" + mb;
+                const fs_path rx_path   = mb_path / "rx";
+                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
+                const fs_path rx_link_path  = mb_path / "rx_link" / ch;
+                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / ch;
+
+                // vita enable
+                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+
+                // power on the channel
+                _tree->access<std::string>(rx_path / ch / "pwr").set("1");
+                // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
+                //usleep( 500000 );
+                // stream enable
+                _tree->access<std::string>(rx_link_path / "stream").set("1");
+
+// FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
+#define _update( t, p ) \
+    _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
+
+                _update( int, rx_fe_path / "freq" / "band" );
+            }
+        }
     }
 
     //sets all tick and samp rates on this streamer
@@ -690,12 +734,12 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	uint16_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
-	uflow = rsp.uflow & uint64_t( 0x7fffffffffffffff );
-	oflow = rsp.oflow & uint64_t( 0x7fffffffffffffff );
+	uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
+	oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
 
 	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
-#if 0
+#ifdef UHD_TXRX_DEBUG_PRINTS
 	std::cout
 			<< now << ": "
 			<< (char)('A' + channel) << ": "
@@ -746,6 +790,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
+    my_streamer->set_enable_trailer( false );
 
     my_streamer->set_time_now(boost::bind(&crimson_tng_impl::get_time_now,this));
 
