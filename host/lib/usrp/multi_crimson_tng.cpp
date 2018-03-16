@@ -478,9 +478,7 @@ void multi_crimson_tng::set_time_next_pps(const time_spec_t &time_spec, size_t m
 }
 
 void multi_crimson_tng::set_time_unknown_pps(const time_spec_t &time_spec){
-	(void)time_spec;
-    // Not implemented
-    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+	set_time_now( time_spec );
 }
 
 bool multi_crimson_tng::get_time_synchronized(void){
