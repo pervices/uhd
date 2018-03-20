@@ -44,6 +44,7 @@ namespace uhd {
 			// initialize the control variable to be equal to the set point, so error is initially zero
 			cv( 0.0 ),
 			sp( sp ),
+			offset( 0.0 ),
 			last_time( 0 ),
 			last_status_time( 0 ),
 			converged( false ),
