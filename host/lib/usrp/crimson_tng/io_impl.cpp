@@ -120,6 +120,7 @@ public:
 		sph::send_packet_streamer( max_num_samps ),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
+		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
 		_blessbless( false ) // icelandic (viking) for bye
 	{
@@ -207,7 +208,7 @@ public:
 
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
         // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
-        _actual_num_samps = nsamps_per_buff % _max_num_samps;
+        _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         now = get_time_now();
