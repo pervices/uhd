@@ -252,12 +252,14 @@ time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
 		return temp;
 	}
 }
-void crimson_tng_impl::set_time_spec(const std::string pre, time_spec_t data) {
-	set_double(pre, (double)data.get_full_secs() + data.get_frac_secs());
-	if ( "time/clk/cur_time" == pre ) {
-		for( _time_diff_converged = false; ! _time_diff_converged; ) {
-			usleep( 100000 );
-		}
+void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value ) {
+	if ( "time/clk/cur_time" == key ) {
+		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
+		stop_bm();
+	}
+	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
+	if ( "time/clk/cur_time" == key ) {
+		start_bm();
 	}
 }
 
@@ -556,6 +558,7 @@ void crimson_tng_impl::start_bm() {
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
 
+		_time_diff_converged = false;
 		for(
 			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
 				time_now = time_then
