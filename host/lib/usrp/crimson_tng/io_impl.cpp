@@ -577,9 +577,13 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].rx_chan_occ - num_chan_so_far;
                 std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
-                stream_cmd_t scmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
-                scmd.stream_now = true;
-                set_stream_cmd( scmd_pre, scmd );
+                /* XXX: @CF: 20180321: This causes QA to issue 'd' and then 'o' and fail.
+                 * Shouldn't _really_ need it here, but it was originally here to shut down
+                 * the channel in case it was not previously shut down
+                 */
+                //stream_cmd_t scmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
+                //scmd.stream_now = true;
+                //set_stream_cmd( scmd_pre, scmd );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
                     &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], _1
                 ), true /*flush*/);
