@@ -670,6 +670,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                 // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
                 //usleep( 500000 );
                 // stream enable
+                _tree->access<std::string>(rx_link_path / "stream").set("0");
                 _tree->access<std::string>(rx_link_path / "stream").set("1");
 
 // FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
