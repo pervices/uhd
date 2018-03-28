@@ -154,6 +154,10 @@ public:
     void set_rx_dc_offset(const std::complex<double> &offset, size_t chan = 0);
     void set_rx_iq_balance(const bool enb, size_t chan);
     void set_rx_iq_balance(const std::complex<double> &offset, size_t chan = 0);
+    std::vector<std::string> get_rx_gain_profile_names(const size_t chan = 0);
+    void set_rx_gain_profile(const std::string& profile, const size_t chan = 0);
+    std::string get_rx_gain_profile(const size_t chan = 0);
+
 
     /*******************************************************************
      * TX methods
@@ -196,16 +200,57 @@ public:
     std::vector<std::string> get_tx_sensor_names(size_t chan = 0);
     void set_tx_dc_offset(const std::complex<double> &offset, size_t chan = 0);
     void set_tx_iq_balance(const std::complex<double> &offset, size_t chan = 0);
+    std::vector<std::string> get_tx_lo_names(size_t chan = 0);
+    void set_tx_lo_source(
+            const std::string &src,
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    );
+    const std::string get_tx_lo_source(
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    );
+    std::vector<std::string> get_tx_lo_sources(
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    );
+    void set_tx_lo_export_enabled(
+            const bool enabled,
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    );
+    bool get_tx_lo_export_enabled(
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    );
+    double set_tx_lo_freq(
+            const double freq,
+            const std::string &name,
+            const size_t chan=0
+    );
+    double get_tx_lo_freq(
+            const std::string &name,
+            const size_t chan=0
+    );
+    freq_range_t get_tx_lo_freq_range(
+            const std::string &name,
+            const size_t chan=0
+    );
+    std::vector<std::string> get_tx_gain_profile_names(const size_t chan = 0);
+    void set_tx_gain_profile(const std::string& profile, const size_t chan = 0);
+    std::string get_tx_gain_profile(const size_t chan = 0);
 
     /*******************************************************************
      * GPIO methods
      ******************************************************************/
+    void set_gpio_attr(const std::string &bank, const std::string &attr, const std::string &value, const uint32_t mask = 0xffffffff, const size_t mboard = 0);
+    uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0);
+    std::vector<std::string> get_gpio_string_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0);
     // not supported on Crimson
     std::vector<std::string> get_gpio_banks(const size_t mboard = 0);
     // not supported on Crimson
     void set_gpio_attr(const std::string &bank, const std::string &attr, const boost::uint32_t value, const boost::uint32_t mask = 0xffffffff, const size_t mboard = 0);
     // no supported on Crimson
-    boost::uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0);
 
     /*******************************************************************
      * Register IO methods

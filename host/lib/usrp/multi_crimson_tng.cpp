@@ -24,7 +24,6 @@
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/usrp/multi_crimson_tng.hpp>
-#include <uhd/utils/msg.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
@@ -844,7 +843,7 @@ void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t
             );
             rf_lo_message % gain % low_band_gain;
             std::string results_string = rf_lo_message.str();
-        	UHD_MSG(status) << results_string;
+            UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
 		}
 
 		// PMA is off (+0dB)
@@ -1019,7 +1018,7 @@ void multi_crimson_tng::set_rx_iq_balance(const bool enb, size_t chan) {
         if (_tree->exists(rx_rf_fe_root(chan) / "iq_balance" / "enable")) {
             _tree->access<bool>(rx_rf_fe_root(chan) / "iq_balance" / "enable").set(enb);
         } else {
-            UHD_MSG(warning) << "Setting IQ imbalance compensation is not possible on this device." << std::endl;
+            UHD_LOGGER_WARNING("MULTI_CRIMSON") << "Setting IQ imbalance compensation is not possible on this device." << std::endl;
         }
         return;
     }
@@ -1030,6 +1029,50 @@ void multi_crimson_tng::set_rx_iq_balance(const bool enb, size_t chan) {
 // set iq balance on specified channel
 void multi_crimson_tng::set_rx_iq_balance(const std::complex<double> &offset, size_t chan){
     _tree->access< std::complex<double> >(mb_root(0) / "rx_frontends" / chan_to_string(chan) / "iq_balance" / "value").set(offset);
+}
+
+void multi_crimson_tng::set_rx_gain_profile(const std::string& profile, const size_t chan){
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            _tree->access<std::string>(rx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+        }
+    } else {
+        for (size_t c = 0; c < get_rx_num_channels(); c++){
+            if (_tree->exists(rx_rf_fe_root(c) / "gains/all/profile/value")) {
+                _tree->access<std::string>(rx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+            }
+        }
+    }
+}
+
+std::string multi_crimson_tng::get_rx_gain_profile(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            return _tree->access<std::string>(
+                rx_rf_fe_root(chan) / "gains/all/profile/value"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get RX gain profile from "
+                                 "all channels at once!");
+    }
+    return "";
+}
+
+std::vector<std::string> multi_crimson_tng::get_rx_gain_profile_names(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/options")) {
+            return _tree->access<std::vector<std::string>>(
+                rx_rf_fe_root(chan) / "gains/all/profile/options"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get RX gain profile names from "
+                                 "all channels at once!");
+    }
+    return std::vector<std::string>();
 }
 
 /*******************************************************************
@@ -1149,6 +1192,51 @@ void multi_crimson_tng::set_tx_gain(double gain, const std::string &name, size_t
     	_tree->access<double>( cm_root() / "tx/gain/val").set(gain);
     }
 }
+
+void multi_crimson_tng::set_tx_gain_profile(const std::string& profile, const size_t chan){
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            _tree->access<std::string>(tx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+        }
+    } else {
+        for (size_t c = 0; c < get_tx_num_channels(); c++){
+            if (_tree->exists(tx_rf_fe_root(c) / "gains/all/profile/value")) {
+                _tree->access<std::string>(tx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+            }
+        }
+    }
+}
+
+std::string multi_crimson_tng::get_tx_gain_profile(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            return _tree->access<std::string>(
+                tx_rf_fe_root(chan) / "gains/all/profile/value"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get TX gain profile from "
+                                 "all channels at once!");
+    }
+    return "";
+}
+
+std::vector<std::string> multi_crimson_tng::get_tx_gain_profile_names(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/options")) {
+            return _tree->access<std::vector<std::string>>(
+                tx_rf_fe_root(chan) / "gains/all/profile/options"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get TX gain profile names from "
+                                 "all channels at once!");
+    }
+    return std::vector<std::string>();
+}
+
 void multi_crimson_tng::set_normalized_tx_gain(double gain, size_t chan) {
     if (gain > 1.0 || gain < 0.0) {
       throw uhd::runtime_error("Normalized gain out of range, must be in [0, 1].");
@@ -1249,6 +1337,220 @@ void multi_crimson_tng::set_tx_iq_balance(const std::complex<double> &offset, si
     _tree->access< std::complex<double> >(tx_rf_fe_root(chan) / "iq_balance" / "value").set(offset);
 }
 
+std::vector<std::string> multi_crimson_tng::get_tx_lo_names(const size_t chan){
+    std::vector<std::string> lo_names;
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        for (const std::string &name : _tree->list(tx_rf_fe_root(chan) / "los")) {
+            lo_names.push_back(name);
+        }
+    }
+    return lo_names;
+}
+
+void multi_crimson_tng::set_tx_lo_source(
+        const std::string &src,
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
+                // Special value ALL_LOS support atomically sets the source
+                // for all LOs
+                _tree->access<std::string>(
+                        tx_rf_fe_root(chan) / "los" / ALL_LOS /
+                        "source" / "value"
+                ).set(src);
+            } else {
+                for (const auto &n : _tree->list(tx_rf_fe_root(chan) / "los")) {
+                    this->set_tx_lo_source(src, n, chan);
+                }
+            }
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                _tree->access<std::string>(
+                    tx_rf_fe_root(chan) / "los" / name / "source" /
+                        "value"
+                ).set(src);
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        throw uhd::runtime_error("This device does not support manual "
+                                 "configuration of LOs");
+    }
+}
+
+const std::string multi_crimson_tng::get_tx_lo_source(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+            return _tree->access<std::string>(
+                tx_rf_fe_root(chan) / "los" / name / "source" / "value"
+            ).get();
+        } else {
+            throw uhd::runtime_error("Could not find LO stage " + name);
+        }
+    } else {
+        // If the daughterboard doesn't expose its LO(s) then it can only
+        // be internal
+        return "internal";
+    }
+}
+
+std::vector<std::string> multi_crimson_tng::get_tx_lo_sources(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
+                // Special value ALL_LOS support atomically sets the source
+                // for all LOs
+                return _tree->access<std::vector<std::string>>(
+                    tx_rf_fe_root(chan) / "los" / ALL_LOS /
+                        "source" / "options"
+                ).get();
+            } else {
+                return std::vector<std::string>();
+            }
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access< std::vector<std::string> >(tx_rf_fe_root(chan) / "los" / name / "source" / "options").get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        // If the daughterboard doesn't expose its LO(s) then it can only
+        // be internal
+        return std::vector<std::string>(1, "internal");
+    }
+}
+
+void multi_crimson_tng::set_tx_lo_export_enabled(
+        const bool enabled,
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
+                //Special value ALL_LOS support atomically sets the source for all LOs
+                _tree->access<bool>(tx_rf_fe_root(chan) / "los" / ALL_LOS / "export").set(enabled);
+            } else {
+                for(const std::string &n:  _tree->list(tx_rf_fe_root(chan) / "los")) {
+                    this->set_tx_lo_export_enabled(enabled, n, chan);
+                }
+            }
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                _tree->access<bool>(tx_rf_fe_root(chan) / "los" / name / "export").set(enabled);
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        throw uhd::runtime_error("This device does not support manual configuration of LOs");
+    }
+}
+
+bool multi_crimson_tng::get_tx_lo_export_enabled(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+            return _tree->access<bool>(
+                tx_rf_fe_root(chan) / "los" / name / "export"
+            ).get();
+        } else {
+            throw uhd::runtime_error("Could not find LO stage " + name);
+        }
+    } else {
+        // If the daughterboard doesn't expose its LO(s), assume it cannot
+        // export
+        return false;
+    }
+}
+
+double multi_crimson_tng::set_tx_lo_freq(
+        const double freq,
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            throw uhd::runtime_error("LO frequency must be set for each "
+                                     "stage individually");
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access<double>(
+                    tx_rf_fe_root(chan) / "los" / name / "freq" / "value"
+                ).set(freq).get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        throw uhd::runtime_error("This device does not support manual "
+                                 "configuration of LOs");
+    }
+}
+
+double multi_crimson_tng::get_tx_lo_freq(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            throw uhd::runtime_error("LO frequency must be retrieved for "
+                                     "each stage individually");
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access<double>(tx_rf_fe_root(chan) / "los" / name / "freq" / "value").get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        // Return actual RF frequency if the daughterboard doesn't expose
+        // its LO(s)
+        return _tree->access<double>(
+            tx_rf_fe_root(chan) / "freq" /" value"
+        ).get();
+    }
+}
+
+freq_range_t multi_crimson_tng::get_tx_lo_freq_range(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            throw uhd::runtime_error("LO frequency range must be retrieved "
+                                     "for each stage individually");
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access<freq_range_t>(
+                    tx_rf_fe_root(chan) / "los" / name / "freq" / "range"
+                ).get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        // Return the actual RF range if the daughterboard doesn't expose
+        // its LO(s)
+        return _tree->access<meta_range_t>(
+            tx_rf_fe_root(chan) / "freq" / "range"
+        ).get();
+    }
+}
+
 /*******************************************************************
  * GPIO methods
  ******************************************************************/
@@ -1268,13 +1570,32 @@ void multi_crimson_tng::set_gpio_attr(const std::string &bank, const std::string
     // Not supported
     throw uhd::runtime_error("multi_crimson_tng::set_gpio_attr - not supported on this device");
 }
-
-boost::uint32_t multi_crimson_tng::get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard){
+void multi_crimson_tng::set_gpio_attr(const std::string &bank, const std::string &attr, const std::string &str_value , const uint32_t mask, const size_t mboard)
+{
+	(void)bank;
+	(void)attr;
+	(void)str_value;
+	(void)mask;
+	(void)mboard;
     // Not supported
+    throw uhd::runtime_error("multi_crimson_tng::set_gpio_attr - not supported on this device");
+}
+
+uint32_t multi_crimson_tng::get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard)
+{
 	(void)bank;
 	(void)attr;
 	(void)mboard;
-    throw uhd::runtime_error("multi_crimson_tng::get_gpio_attr - not supported on this device");
+    // Not supported
+    throw uhd::runtime_error("multi_crimson_tng::set_gpio_attr - not supported on this device");
+}
+std::vector<std::string> multi_crimson_tng::get_gpio_string_attr(const std::string &bank, const std::string &attr, const size_t mboard)
+{
+	(void)bank;
+	(void)attr;
+	(void)mboard;
+    // Not supported
+	throw uhd::runtime_error(str(boost::format("The hardware has no support for given gpio bank name: %s:\n") % bank));
 }
 
 /*******************************************************************

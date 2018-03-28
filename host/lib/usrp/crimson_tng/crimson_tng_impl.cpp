@@ -27,7 +27,6 @@
 #include "uhd/transport/udp_stream_zero_copy.hpp"
 #include "uhd/transport/udp_simple.hpp"
 #include "uhd/types/stream_cmd.hpp"
-#include "uhd/utils/msg.hpp"
 #include "uhd/utils/static.hpp"
 
 #include "../../transport/super_recv_packet_handler.hpp"
@@ -288,7 +287,7 @@ void crimson_tng_impl::set_properties_from_addr() {
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_MSG( error )
+				UHD_LOGGER_ERROR("CRIMSON_IMPL")
 					<< __func__ << "(): "
 					<< "Setting Crimson property failed: "
 					<< "key: '"<< key << "', "
@@ -397,11 +396,11 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_MSG(error) << "CRIMSON_TNG Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_MSG(error) << "CRIMSON_TNG Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -568,7 +567,7 @@ void crimson_tng_impl::start_bm() {
 			time_now = uhd::time_spec_t::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_MSG( error )
+				UHD_LOGGER_ERROR("CRIMSON_IMPL")
 					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
 					<< std::endl;
 				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
@@ -751,8 +750,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 //        device_addr["recv_frame_size"] = boost::lexical_cast<std::string>(mtu.recv_mtu);
 //        device_addr["send_frame_size"] = boost::lexical_cast<std::string>(mtu.send_mtu);
 //
-//        UHD_MSG(status) << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
-//        UHD_MSG(status) << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
+//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
+//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
 //    }
 //    catch(const uhd::not_implemented_error &){
 //        //just ignore this error, makes older fw work...
@@ -990,9 +989,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		_mbc[mb].rx_dsp_xports.push_back(
 			udp_stream_zero_copy::make(
 				_tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-				_tree->access<std::string>( rx_link_path / "port" ).get(),
+				std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
 				"127.0.0.1",
-				"1",
+				1,
 				zcxp,
 				bp,
 				device_addr

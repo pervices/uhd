@@ -26,11 +26,10 @@
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
@@ -154,7 +153,7 @@ public:
 
         if ( _first_call_to_send && ! metadata.start_of_burst ) {
             uhd::time_spec_t now = get_time_now();
-            //UHD_MSG( error ) << "Warning: first call to send but no start of burst!" << std::endl;
+            //UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Warning: first call to send but no start of burst!" << std::endl;
             metadata.start_of_burst = true;
             metadata.has_time_spec = true;
             metadata.time_spec = now + 0.01;
@@ -162,7 +161,7 @@ public:
 
         if ( metadata.start_of_burst ) {
             if ( ! metadata.has_time_spec ) {
-                UHD_MSG( error ) << "Warning: first call to send but no time spec supplied" << std::endl;
+                UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Warning: first call to send but no time spec supplied" << std::endl;
             }
             for( auto & ep: _eprops ) {
 				//std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
@@ -680,7 +679,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 		break;
 	}
 	if ( 0 == r ) {
-		//UHD_MSG( error ) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
+		//UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
 		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
 	}
 
