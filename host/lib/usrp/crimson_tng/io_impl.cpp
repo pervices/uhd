@@ -19,8 +19,6 @@
 #include <iomanip>
 #include <mutex>
 
-#include "validate_subdev_spec.hpp"
-#include "async_packet_handler.hpp"
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 #include "crimson_tng_impl.hpp"
@@ -42,6 +40,8 @@
 #include <vector>
 
 #include <boost/endian/buffers.hpp>
+
+#include "system_time.hpp"
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -206,10 +206,10 @@ public:
     	_eprops.at(chan).on_fini = on_fini;
     }
     void set_time_now( timenow_type time_now ) {
-    	_time_now = time_now;
+        _time_now = time_now;
     }
     uhd::time_spec_t get_time_now() {
-    	return _time_now ? _time_now() : uhd::time_spec_t::get_system_time();
+        return _time_now ? _time_now() : uhd::get_system_time();
     }
     void set_xport_chan( size_t chan, uhd::transport::zero_copy_if::sptr xport ) {
     	_eprops.at(chan).xport_chan = xport;
