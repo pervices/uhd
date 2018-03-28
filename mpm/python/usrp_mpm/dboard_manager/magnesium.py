@@ -157,6 +157,7 @@ class Magnesium(DboardManagerBase):
     # is at 2^15 = 32768. However, the linearity of the DAC is best just below that
     # point, so we set it to the (carefully calculated) alternate value instead.
     INIT_PHASE_DAC_WORD = 31000 # Intentionally decimal
+    PHASE_DAC_SPI_ADDR = 0x0
     default_master_clock_rate = 125e6
     default_current_jesd_rate = 2500e6
 
@@ -316,7 +317,7 @@ class Magnesium(DboardManagerBase):
         Execute necessary init dance to bring up dboard
         """
         def _init_lmk(lmk_spi, ref_clk_freq, master_clk_rate,
-                      pdac_spi, init_phase_dac_word):
+                      pdac_spi, init_phase_dac_word, phase_dac_spi_addr):
             """
             Sets the phase DAC to initial value, and then brings up the LMK
             according to the selected ref clock frequency.
@@ -325,7 +326,7 @@ class Magnesium(DboardManagerBase):
             self.log.trace("Initializing Phase DAC to d{}.".format(
                 init_phase_dac_word
             ))
-            pdac_spi.poke16(0x0, init_phase_dac_word)
+            pdac_spi.poke16(phase_dac_spi_addr, init_phase_dac_word)
             return LMK04828Mg(
                 lmk_spi,
                 self.spi_lock,
@@ -333,33 +334,30 @@ class Magnesium(DboardManagerBase):
                 master_clk_rate,
                 self.log
             )
-        def _get_clock_synchronizer():
-            " Return a clock synchronizer object "
-            # Future Work: target_value needs to be tweaked to support
-            # heterogeneous rate sync.
-            target_value = {
-                122.88e6: 128e-9,
-                125e6: 128e-9,
-                153.6e6: 122e-9
-            }[self.master_clock_rate]
-            return ClockSynchronizer(
+        def _sync_db_clock():
+            " Synchronizes the DB clock to the common reference "
+            synchronizer = ClockSynchronizer(
                 dboard_ctrl_regs,
                 self.lmk,
                 self._spi_ifaces['phase_dac'],
-                0, # register offset value. future work.
+                0, # register offset value.
                 self.master_clock_rate,
                 self.ref_clock_freq,
                 860E-15, # fine phase shift. TODO don't hardcode. This should live in the EEPROM
                 self.INIT_PHASE_DAC_WORD,
-                [target_value,],   # target_values
-                0x0,         # spi_addr TODO: make this a constant and replace in _sync_db_clock as well
-                self.slot_idx
-            )
-        def _sync_db_clock(synchronizer):
-            " Synchronizes the DB clock to the common reference "
-            synchronizer.check_core()
-            synchronizer.run_sync(measurement_only=False)
-            offset_error = synchronizer.run_sync(measurement_only=True)
+                self.PHASE_DAC_SPI_ADDR,
+                5, # External PPS pipeline delay from the PPS captured at the FPGA to TDC input
+                self.slot_idx)
+            # The radio clock traces on the motherboard are 69 ps longer for Daughterboard B
+            # than Daughterboard A. We want both of these clocks to align at the converters
+            # on each board, so adjust the target value for DB B. This is an N3xx series
+            # peculiarity and will not apply to other motherboards.
+            trace_delay_offset = {0:  0.0e-0,
+                                  1: 69.0e-12}[self.slot_idx]
+            offset = synchronizer.run(
+                num_meas=[512, 128],
+                target_offset = trace_delay_offset)
+            offset_error = abs(offset)
             if offset_error > 100e-12:
                 self.log.error("Clock synchronizer measured an offset of {:.1f} ps!".format(
                     offset_error*1e12
@@ -368,13 +366,14 @@ class Magnesium(DboardManagerBase):
                     offset_error*1e12
                 ))
             else:
-                self.log.debug("Residual DAC offset error: {:.1f} ps.".format(
+                self.log.debug("Residual synchronization error: {:.1f} ps.".format(
                     offset_error*1e12
                 ))
-            self.log.info("Sample Clock Synchronization Complete!")
+            synchronizer = None
+            self.log.debug("Sample Clock Synchronization Complete!")
         ## Go, go, go!
         # Sanity checks and input validation:
-        self.log.info("init() called with args `{}'".format(
+        self.log.debug("init() called with args `{}'".format(
             ",".join(['{}={}'.format(x, args[x]) for x in args])
         ))
         if not self._periphs_initialized:
@@ -420,11 +419,12 @@ class Magnesium(DboardManagerBase):
                 self.master_clock_rate,
                 self._spi_ifaces['phase_dac'],
                 self.INIT_PHASE_DAC_WORD,
+                self.PHASE_DAC_SPI_ADDR,
             )
             db_clk_control.enable_mmcm()
-            self.log.info("Sample Clocks and Phase DAC Configured Successfully!")
             # Synchronize DB Clocks
-            _sync_db_clock(_get_clock_synchronizer())
+            _sync_db_clock()
+            self.log.debug("Sample Clocks and Phase DAC Configured Successfully!")
             # Clocks and PPS are now fully active!
             self.mykonos.set_master_clock_rate(self.master_clock_rate)
             self.init_jesd(jesdcore, args)
@@ -464,7 +464,7 @@ class Magnesium(DboardManagerBase):
 
     def init_rf_cal(self, args):
         " Setup RF CAL "
-        self.log.info("Setting up RF CAL...")
+        self.log.debug("Setting up RF CAL...")
         try:
             self._init_cals_mask = \
                     self._parse_and_convert_cal_args(
@@ -507,8 +507,7 @@ class Magnesium(DboardManagerBase):
         Arguments:
             args {string:string} -- device arguments.
         """
-
-        self.log.info("Setting up LO source..")
+        self.log.debug("Setting up LO source..")
         rx_lo_source = args.get("rx_lo_source", "internal")
         tx_lo_source = args.get("tx_lo_source", "internal")
         self.mykonos.set_lo_source("RX", rx_lo_source)
@@ -587,7 +586,7 @@ class Magnesium(DboardManagerBase):
             error_flag = True
         if error_flag:
             raise RuntimeError('JESD204B Link Initialization Failed. See MPM logs for details.')
-        self.log.info("JESD204B Link Initialization & Training Complete")
+        self.log.debug("JESD204B Link Initialization & Training Complete")
 
     def check_mykonos_framer_status(self):
         " Return True if Mykonos Framer is in good state "
@@ -934,8 +933,8 @@ class Magnesium(DboardManagerBase):
     def dump_jesd_core(self):
         " Debug method to dump all JESD core regs "
         with open_uio(
-                label="dboard-regs-{}".format(self.slot_idx),
-                read_only=False
+            label="dboard-regs-{}".format(self.slot_idx),
+            read_only=False
         ) as dboard_ctrl_regs:
             for i in range(0x2000, 0x2110, 0x10):
                 print(("0x%04X " % i), end=' ')
@@ -948,8 +947,8 @@ class Magnesium(DboardManagerBase):
         Debug for accessing the DB Core registers via the RPC shell.
         """
         with open_uio(
-                label="dboard-regs-{}".format(self.slot_idx),
-                read_only=False
+            label="dboard-regs-{}".format(self.slot_idx),
+            read_only=False
         ) as dboard_ctrl_regs:
             rd_data = dboard_ctrl_regs.peek32(addr)
             self.log.trace("DB Core Register 0x{:04X} response: 0x{:08X}".format(addr, rd_data))
@@ -960,8 +959,8 @@ class Magnesium(DboardManagerBase):
         Debug for accessing the DB Core registers via the RPC shell.
         """
         with open_uio(
-                label="dboard-regs-{}".format(self.slot_idx),
-                read_only=False
+            label="dboard-regs-{}".format(self.slot_idx),
+            read_only=False
         ) as dboard_ctrl_regs:
             self.log.trace("Writing DB Core Register 0x{:04X} with 0x{:08X}...".format(addr, data))
             dboard_ctrl_regs.poke32(addr, data)

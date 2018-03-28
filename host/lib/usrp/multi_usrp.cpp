@@ -18,7 +18,7 @@
 #include <uhd/convert.hpp>
 #include <uhd/utils/soft_register.hpp>
 #include <uhdlib/usrp/gpio_defs.hpp>
-#include "legacy_compat.hpp"
+#include <uhdlib/rfnoc/legacy_compat.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/thread.hpp>
 #include <boost/format.hpp>
@@ -1915,6 +1915,7 @@ public:
             if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_SRC)){
                 throw uhd::runtime_error("Setting gpio source does not supported in daughter board.");
             }
+            return;
         }
         throw uhd::runtime_error(str(boost::format(
             "The hardware has no gpio bank: %s:\n") % bank));
@@ -1952,7 +1953,6 @@ public:
                     }
                         break;
                 }
-
                 return;
             }else{
                 throw uhd::runtime_error(str(boost::format(
@@ -1975,6 +1975,7 @@ public:
             if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_SRC)){
                 throw uhd::runtime_error("Setting gpio source does not supported in daughter board.");
             }
+            return;
         }
         throw uhd::runtime_error(str(boost::format("The hardware has no gpio bank: %s:\n") % bank));
     }
@@ -2003,7 +2004,6 @@ public:
                         return uint32_t(_tree->access<uint64_t>(mb_root(mboard) / "gpio" / bank / attr).get());
                     }
                 }
-
                 return 0;
             }else{
                 throw uhd::runtime_error(str(boost::format("The hardware has no gpio attribute: %s:\n") % attr));

@@ -18,9 +18,9 @@ FIND_PACKAGE(Git QUIET)
 #  - set UHD_VERSION_DEVEL to true for master and development branches
 ########################################################################
 SET(UHD_VERSION_MAJOR   3)
-SET(UHD_VERSION_API    11)
+SET(UHD_VERSION_API    12)
 SET(UHD_VERSION_ABI     0)
-SET(UHD_VERSION_PATCH   0)
+SET(UHD_VERSION_PATCH git)
 SET(UHD_VERSION_DEVEL TRUE)
 
 ########################################################################
@@ -125,7 +125,9 @@ ENDIF()
 
 
 ########################################################################
-IF(TRIM_UHD_VERSION STREQUAL "True")
+IF(DEFINED UHD_VERSION)
+    SET(UHD_VERSION "${UHD_VERSION}" CACHE STRING "Set UHD_VERSION to a custom value")
+ELSEIF(TRIM_UHD_VERSION STREQUAL "True")
     SET(UHD_VERSION "${UHD_VERSION_MAJOR}.${UHD_VERSION_API}.${UHD_VERSION_ABI}.${UHD_VERSION_PATCH}-${UHD_GIT_HASH}")
 ELSE()
     SET(UHD_VERSION "${UHD_VERSION_MAJOR}.${UHD_VERSION_API}.${UHD_VERSION_ABI}.${UHD_VERSION_PATCH}-${UHD_GIT_COUNT}-${UHD_GIT_HASH}")

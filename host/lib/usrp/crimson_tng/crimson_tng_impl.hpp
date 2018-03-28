@@ -33,6 +33,8 @@
 #include "flow_control.hpp"
 #include "pidc.hpp"
 
+#include "system_time.hpp"
+
 namespace uhd {
 namespace usrp {
 
@@ -87,7 +89,7 @@ public:
 
     uhd::time_spec_t get_time_now() {
     	double diff = time_diff_get();
-    	return time_spec_t::get_system_time() + diff;
+        return uhd::get_system_time() + diff;
     }
     inline double time_diff_get() { return _time_diff; }
     inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }

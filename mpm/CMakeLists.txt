@@ -1,15 +1,24 @@
 #
-# Copyright 2017 Ettus Research, National Instruments Company
+# Copyright 2017-2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
-cmake_minimum_required(VERSION 3.1)
 
+CMAKE_MINIMUM_REQUIRED(VERSION 3.1)
+PROJECT(MPM C CXX) # Also has Python, but CMake can take care of that later
+# Set the default value for CMAKE_INSTALL_PREFIX to /usr
+IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    SET(CMAKE_INSTALL_PREFIX "/usr"
+        CACHE
+        PATH
+        "Default installation path for MPM"
+        FORCE
+    )
+ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 ########################################################################
-# useful macros 
+# useful macros
 ########################################################################
-
 MACRO(USRP_PERIPHS_APPEND_SOURCES)
     SET(usrp_periphs_sources ${usrp_periphs_sources} PARENT_SCOPE)
     LIST(APPEND usrp_periphs_sources ${ARGV})
@@ -106,8 +115,8 @@ SET(PKG_MAN_DIR share/man/man1)
 # Setup library configuration
 ########################################################################
 SET(CMAKE_CXX_STANDARD 11)
-SET(MPM_DEVICE "n310" CACHE STRING "Choose an MPM device to build")
-SET_PROPERTY(CACHE MPM_DEVICE PROPERTY STRINGS n310 tests)
+SET(MPM_DEVICE "n3xx" CACHE STRING "Choose an MPM device to build")
+SET_PROPERTY(CACHE MPM_DEVICE PROPERTY STRINGS n3xx tests)
 
 SET(UHD_HOST_ROOT ${CMAKE_SOURCE_DIR}/../host)
 

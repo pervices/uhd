@@ -9,19 +9,13 @@
 #include "x300_lvbitx.hpp"
 #include "x310_lvbitx.hpp"
 #include "x300_mb_eeprom_iface.hpp"
-#include "apply_corrections.hpp"
-#include <boost/algorithm/string.hpp>
-#include <boost/asio.hpp>
+#include <uhdlib/usrp/common/apply_corrections.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/usrp/subdev_spec.hpp>
 #include <uhd/transport/if_addrs.hpp>
-#include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/functional/hash.hpp>
-#include <boost/assign/list_of.hpp>
 #include <uhd/transport/udp_zero_copy.hpp>
 #include <uhd/transport/udp_constants.hpp>
 #include <uhd/transport/zero_copy_recv_offload.hpp>
@@ -29,6 +23,13 @@
 #include <uhd/transport/nirio/niusrprio_session.h>
 #include <uhd/utils/platform.hpp>
 #include <uhd/types/sid.hpp>
+
+#include <boost/algorithm/string.hpp>
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/functional/hash.hpp>
+#include <boost/assign/list_of.hpp>
 #include <fstream>
 
 #define NIUSRPRIO_DEFAULT_RPC_PORT "5444"
@@ -443,7 +444,7 @@ void x300_impl::mboard_members_t::discover_eth(
         if (std::find(mb_eeprom_addrs.begin(), mb_eeprom_addrs.end(), mb_eeprom[key]) != mb_eeprom_addrs.end()) {
             UHD_LOGGER_WARNING("X300") << str(boost::format(
                 "Duplicate IP address %s found in mboard EEPROM. "
-                "Device may not function properly.\nView and reprogram the values "
+                "Device may not function properly. View and reprogram the values "
                 "using the usrp_burn_mb_eeprom utility.") % mb_eeprom[key]);
         }
         mb_eeprom_addrs.push_back(mb_eeprom[key]);
@@ -473,8 +474,8 @@ void x300_impl::mboard_members_t::discover_eth(
         if (conn_iface.type == X300_IFACE_NONE) {
             UHD_LOGGER_WARNING("X300") << str(boost::format(
                 "Address %s not found in mboard EEPROM. Address may be wrong or "
-                "the EEPROM may be corrupt.\n Attempting to continue with default "
-                "IP addresses.\n") % conn_iface.addr
+                "the EEPROM may be corrupt. Attempting to continue with default "
+                "IP addresses.") % conn_iface.addr
             );
 
             if (addr == boost::asio::ip::address_v4(

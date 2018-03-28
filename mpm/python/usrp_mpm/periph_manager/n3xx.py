@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 """
-N310 implementation module
+N3xx implementation module
 """
 
 from __future__ import print_function
@@ -304,18 +304,18 @@ class MboardRegsControl(object):
         if time_source == 'internal':
             assert ref_clk_freq in (10e6, 25e6)
             if ref_clk_freq == 10e6:
-                self.log.trace("Setting time source to internal "
+                self.log.debug("Setting time source to internal "
                                "(10 MHz reference)...")
                 pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_INT_10
             elif ref_clk_freq == 25e6:
-                self.log.trace("Setting time source to internal "
+                self.log.debug("Setting time source to internal "
                                "(25 MHz reference)...")
                 pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_INT_25
         elif time_source == 'external':
-            self.log.trace("Setting time source to external...")
+            self.log.debug("Setting time source to external...")
             pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_EXT
         elif time_source == 'gpsdo':
-            self.log.trace("Setting time source to gpsdo...")
+            self.log.debug("Setting time source to gpsdo...")
             pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_GPSDO
         else:
             assert False
@@ -407,8 +407,8 @@ class MboardRegsControl(object):
 ###############################################################################
 # Transport managers
 ###############################################################################
-class N310XportMgrUDP(XportMgrUDP):
-    " N310-specific UDP configuration "
+class N3xxXportMgrUDP(XportMgrUDP):
+    " N3xx-specific UDP configuration "
     xbar_dev = "/dev/crossbar0"
     iface_config = {
         'sfp0': {
@@ -437,8 +437,8 @@ class N310XportMgrUDP(XportMgrUDP):
         },
     }
 
-class N310XportMgrLiberio(XportMgrLiberio):
-    " N310-specific Liberio configuration "
+class N3xxXportMgrLiberio(XportMgrLiberio):
+    " N3xx-specific Liberio configuration "
     max_chan = 10
     xbar_dev = "/dev/crossbar0"
     xbar_port = 2
@@ -446,21 +446,22 @@ class N310XportMgrLiberio(XportMgrLiberio):
 ###############################################################################
 # Main Class
 ###############################################################################
-class n310(PeriphManagerBase):
+class n3xx(PeriphManagerBase):
     """
-    Holds N310 specific attributes and methods
+    Holds N3xx specific attributes and methods
     """
     #########################################################################
     # Overridables
     #
     # See PeriphManagerBase for documentation on these fields
     #########################################################################
-    pids = [0x4242,]
     description = "N300-Series Device"
+    pids = {0x4242: 'n310', 0x4240: 'n300'}
     mboard_eeprom_addr = "e0005000.i2c"
+    mboard_eeprom_offset = 0
     mboard_eeprom_max_len = 256
     mboard_info = {"type": "n3xx",
-                   "product": "n310"
+                   "product": "unknown",
                   }
     mboard_max_rev = 4 # 4 == RevE
     mboard_sensor_callback_map = {
@@ -473,25 +474,26 @@ class n310(PeriphManagerBase):
         'fan': 'get_fan_sensor',
     }
     dboard_eeprom_addr = "e0004000.i2c"
+    dboard_eeprom_offset = 0
     dboard_eeprom_max_len = 64
 
     # We're on a Zynq target, so the following two come from the Zynq standard
     # device tree overlay (tree/arch/arm/boot/dts/zynq-7000.dtsi)
     dboard_spimaster_addrs = ["e0006000.spi", "e0007000.spi"]
-    # N310-specific settings
+    # N3xx-specific settings
     # Label for the mboard UIO
     mboard_regs_label = "mboard-regs"
     # Override the list of updateable components
     updateable_components = {
         'fpga': {
             'callback': "update_fpga",
-            'path': '/lib/firmware/n3xx.bin',
+            'path': '/lib/firmware/{}.bin',
             'reset': True,
         },
         'dts': {
             'callback': "update_dts",
-            'path': '/lib/firmware/n3xx.dts',
-            'output': '/lib/firmware/n3xx.dtbo',
+            'path': '/lib/firmware/{}.dts',
+            'output': '/lib/firmware/{}.dtbo',
             'reset': False,
         },
     }
@@ -506,7 +508,9 @@ class n310(PeriphManagerBase):
         eeprom_md -- Dictionary of info read out from the mboard EEPROM
         device_args -- Arbitrary dictionary of info, typically user-defined
         """
-        return ['n3xx']
+        # In the N3xx case, we name the dtbo file the same as the product.
+        # N310 -> n310.dtbo, N300 -> n300.dtbo and so on.
+        return [n3xx.pids[eeprom_md['pid']]]
 
     ###########################################################################
     # Ctor and device initialization tasks
@@ -519,7 +523,7 @@ class n310(PeriphManagerBase):
         self._time_source = None
         self._available_endpoints = list(range(256))
         self._bp_leds = None
-        super(n310, self).__init__(args)
+        super(n3xx, self).__init__(args)
         if not self._device_initialized:
             # Don't try and figure out what's going on. Just give up.
             return
@@ -588,15 +592,13 @@ class n310(PeriphManagerBase):
         - GPS lock (update back-panel GPS LED)
         - REF lock (update back-panel REF LED)
         """
-        self.log.trace("Launching monitor thread...")
+        self.log.trace("Launching monitor loop...")
         cond = threading.Condition()
         cond.acquire()
         while not self._tear_down:
             gps_locked = bool(self._gpios.get("GPS-LOCKOK"))
-            self.log.trace("Setting GPS LED to {}".format(gps_locked))
             self._bp_leds.set(self._bp_leds.LED_GPS, int(gps_locked))
             ref_locked = self.get_ref_lock_sensor()['value'] == 'true'
-            self.log.trace("Setting REF LED to {}".format(ref_locked))
             self._bp_leds.set(self._bp_leds.LED_REF, int(ref_locked))
             # Now wait
             if cond.wait_for(
@@ -604,7 +606,7 @@ class n310(PeriphManagerBase):
                     N3XX_MONITOR_THREAD_INTERVAL):
                 break
         cond.release()
-        self.log.trace("Terminating monitor thread.")
+        self.log.trace("Terminating monitor loop.")
 
     def _init_peripherals(self, args):
         """
@@ -614,10 +616,13 @@ class n310(PeriphManagerBase):
         Periphals are initialized in the order of least likely to fail, to most
         likely.
         """
+        # Sanity checks
+        assert self.mboard_info.get('product') in self.pids.values(), \
+                "Device product could not be determined!"
         # Init peripherals
         self.log.trace("Initializing TCA6424 port expander controls...")
         self._gpios = TCA6424(int(self.mboard_info['rev']))
-        self.log.trace("Initializing back panel led controls...")
+        self.log.trace("Initializing back panel LED controls...")
         self._bp_leds = BackpanelGPIO()
         self.log.trace("Enabling power of MGT156MHZ clk")
         self._gpios.set("PWREN-CLK-MGT156MHz")
@@ -649,8 +654,8 @@ class n310(PeriphManagerBase):
         self._init_meas_clock()
         # Init CHDR transports
         self._xport_mgrs = {
-            'udp': N310XportMgrUDP(self.log.getChild('UDP')),
-            'liberio': N310XportMgrLiberio(self.log.getChild('liberio')),
+            'udp': N3xxXportMgrUDP(self.log.getChild('UDP')),
+            'liberio': N3xxXportMgrLiberio(self.log.getChild('liberio')),
         }
         # Spawn status monitoring thread
         self.log.trace("Spawning status monitor thread...")
@@ -672,14 +677,24 @@ class n310(PeriphManagerBase):
         dispatchers accordingly.
         """
         if not self._device_initialized:
-            self.log.warning(
+            self.log.error(
                 "Cannot run init(), device was never fully initialized!")
             return False
         if "clock_source" in args:
             self.set_clock_source(args.get("clock_source"))
         if "clock_source" in args or "time_source" in args:
             self.set_time_source(args.get("time_source", self.get_time_source()))
-        result = super(n310, self).init(args)
+        # Uh oh, some hard coded product-related info: The N300 has no LO
+        # source connectors on the front panel, so we assume that if this was
+        # selected, it was an artifact from N310-related code. The user gets
+        # a warning and the setting is reset to internal.
+        if self.mboard_info.get('product') == 'n300':
+            for lo_source in ('rx_lo_source', 'tx_lo_source'):
+                if lo_source in args and args.get(lo_source) != 'internal':
+                    self.log.warning("The N300 variant does not support "
+                                     "external LOs! Setting to internal.")
+                    args[lo_source] = 'internal'
+        result = super(n3xx, self).init(args)
         for xport_mgr in itervalues(self._xport_mgrs):
             xport_mgr.init(args)
         return result
@@ -692,7 +707,7 @@ class n310(PeriphManagerBase):
             self.log.warning(
                 "Cannot run deinit(), device was never fully initialized!")
             return
-        super(n310, self).deinit()
+        super(n3xx, self).deinit()
         for xport_mgr in itervalues(self._xport_mgrs):
             xport_mgr.deinit()
         self.log.trace("Resetting SID pool...")
@@ -702,16 +717,17 @@ class n310(PeriphManagerBase):
         """
         Tear down all members that need to be specially handled before
         deconstruction.
-        For N310, this means the overlay.
+        For N3xx, this means the overlay.
         """
         self.log.trace("Tearing down N3xx device...")
         self._tear_down = True
         if self._device_initialized:
             self._status_monitor_thread.join(3 * N3XX_MONITOR_THREAD_INTERVAL)
             if self._status_monitor_thread.is_alive():
-                self.log.error("Could not terminate monitor thread!")
+                self.log.error("Could not terminate monitor thread! "
+                               "This could result in resource leaks.")
         active_overlays = self.list_active_overlays()
-        self.log.trace("N310 has active device tree overlays: {}".format(
+        self.log.trace("N3xx has active device tree overlays: {}".format(
             active_overlays
         ))
         for overlay in active_overlays:
@@ -739,7 +755,7 @@ class n310(PeriphManagerBase):
                 src_address = self._available_endpoints[0]
         sid = SID(src_address << 16 | dst_address)
         # Note: This SID may change its source address!
-        self.log.debug(
+        self.log.trace(
             "request_xport(dst=0x%04X, suggested_src_address=0x%04X, xport_type=%s): " \
             "operating on temporary SID: %s",
             dst_address, suggested_src_address, str(xport_type), str(sid))
@@ -783,8 +799,9 @@ class n310(PeriphManagerBase):
         """
         Append the device info with current IP addresses.
         """
-        device_info = self._xport_mgrs['udp'].get_xport_info() \
-                if self._device_initialized else {}
+        if not self._device_initialized:
+            return {}
+        device_info = self._xport_mgrs['udp'].get_xport_info()
         device_info.update({
             'fpga_version': "{}.{}".format(
                 *self.mboard_regs_control.get_compat_number())
@@ -811,7 +828,7 @@ class n310(PeriphManagerBase):
         """
         clock_source = args[0]
         assert clock_source in self.get_clock_sources()
-        self.log.trace("Setting clock source to `{}'".format(clock_source))
+        self.log.debug("Setting clock source to `{}'".format(clock_source))
         if clock_source == self.get_clock_source():
             self.log.trace("Nothing to do -- clock source already set.")
             return
@@ -830,7 +847,7 @@ class n310(PeriphManagerBase):
             self._gpios.set("CLK-MAINSEL-25MHz")
         self._clock_source = clock_source
         ref_clk_freq = self.get_ref_clock_freq()
-        self.log.info("Reference clock frequency is: {} MHz".format(
+        self.log.debug("Reference clock frequency is: {} MHz".format(
             ref_clk_freq/1e6
         ))
         for slot, dboard in enumerate(self.dboards):
@@ -979,7 +996,7 @@ class n310(PeriphManagerBase):
     ###########################################################################
     def get_ref_lock_sensor(self):
         """
-        The N310 has no ref lock sensor, but because the ref lock is
+        The N3xx has no ref lock sensor, but because the ref lock is
         historically considered a motherboard-level sensor, we will return the
         combined lock status of all daughterboards. If no dboard is connected,
         or none has a ref lock sensor, we simply return True.
@@ -1003,7 +1020,7 @@ class n310(PeriphManagerBase):
         """
         Get temperature sensor reading of the N3xx.
         """
-        self.log.trace("Reading fpga temperature.")
+        self.log.trace("Reading FPGA temperature.")
         return_val = '-1'
         try:
             raw_val = read_thermal_sensor_value('fpga-thermal-zone', 'temp')
@@ -1023,7 +1040,7 @@ class n310(PeriphManagerBase):
         """
         Get cooling device reading of N3xx. In this case the speed of fan 0.
         """
-        self.log.trace("Reading fpga cooling device.")
+        self.log.trace("Reading FPGA cooling device.")
         return_val = '-1'
         try:
             raw_val = read_thermal_sensor_value('ec-fan0', 'cur_state')
@@ -1213,20 +1230,19 @@ class n310(PeriphManagerBase):
         _, file_extension = os.path.splitext(filepath)
         # Cut off the period from the file extension
         file_extension = file_extension[1:].lower()
-        binfile_path = self.updateable_components['fpga']['path']
+        binfile_path = self.updateable_components['fpga']['path'].format(
+            self.mboard_info['product'])
         if file_extension == "bit":
             self.log.trace("Converting bit to bin file and writing to {}"
                            .format(binfile_path))
             from usrp_mpm.fpga_bit_to_bin import fpga_bit_to_bin
             fpga_bit_to_bin(filepath, binfile_path, flip=True)
         elif file_extension == "bin":
-            self.log.trace("Copying bin file to {}"
-                           .format(binfile_path))
+            self.log.trace("Copying bin file to %s", binfile_path)
             shutil.copy(filepath, binfile_path)
         else:
-            self.log.error("Invalid FPGA bitfile: {}"
-                           .format(filepath))
-            raise RuntimeError("Invalid N310 FPGA bitfile")
+            self.log.error("Invalid FPGA bitfile: %s", filepath)
+            raise RuntimeError("Invalid N3xx FPGA bitfile")
         # RPC server will reload the periph manager after this.
         return True
 
@@ -1244,11 +1260,13 @@ class n310(PeriphManagerBase):
         :param filepath: path to new DTS image
         :param metadata: Dictionary of strings containing metadata
         """
-        dtsfile_path = self.updateable_components['dts']['path']
+        dtsfile_path = self.updateable_components['dts']['path'].format(
+            self.mboard_info['product'])
         self.log.trace("Updating DTS with image at %s to %s (metadata: %s)",
                        filepath, dtsfile_path, str(metadata))
         shutil.copy(filepath, dtsfile_path)
-        dtbofile_path = self.updateable_components['dts']['output']
+        dtbofile_path = self.updateable_components['dts']['output'].format(
+            self.mboard_info['product'])
         self.log.trace("Compiling to %s...", dtbofile_path)
         dtc_command = [
             'dtc',
@@ -1263,6 +1281,8 @@ class n310(PeriphManagerBase):
         try:
             out = subprocess.check_output(dtc_command)
             if out.strip() != "":
+                # Keep this as debug because dtc is an external tool and
+                # something could go wrong with it that's outside of our control
                 self.log.debug("`dtc' command output: \n%s", out)
         except OSError as ex:
             self.log.error("Could not execute `dtc' command. Binary probably "\

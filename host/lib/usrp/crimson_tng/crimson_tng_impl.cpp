@@ -312,7 +312,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
     udp_simple::sptr comm = udp_simple::make_broadcast(
         hint["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
 
-	then = uhd::time_spec_t::get_system_time();
+    then = uhd::get_system_time();
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
@@ -326,7 +326,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
     	comm->recv(asio::buffer(buff), to);
     	to = 0.05
     ) {
-    	now = uhd::time_spec_t::get_system_time();
+        now = uhd::get_system_time();
 
         // parse the return buffer and store it in a vector
         std::vector<std::string> tokens;
@@ -347,7 +347,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
             (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
-        	//UHD_MSG( status ) << "Found crimson_tng at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
+            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found crimson_tng at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
             addrs.push_back(new_addr);
         }
     }
@@ -445,7 +445,7 @@ static inline int64_t nsecs_to_ticks( int64_t tv_nsec ) {
 	return (int64_t)( (double) tv_nsec / tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
 }
 
-static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = time_spec_t::get_system_time() ) {
+static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
 	pkt.header = (uint64_t)0x20002 << 16;
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
@@ -559,12 +559,12 @@ void crimson_tng_impl::start_bm() {
 
 		_time_diff_converged = false;
 		for(
-			time_spec_t time_then = uhd::time_spec_t::get_system_time(),
+			time_spec_t time_then = uhd::get_system_time(),
 				time_now = time_then
 				;
 			! time_diff_converged()
 				;
-			time_now = uhd::time_spec_t::get_system_time()
+			time_now = uhd::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				UHD_LOGGER_ERROR("CRIMSON_IMPL")
@@ -607,13 +607,13 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 	struct time_diff_resp tdr;
 
 	//Gett offset
-	now = uhd::time_spec_t::get_system_time();
+	now = uhd::get_system_time();
 	dev->time_diff_send( now );
 	dev->time_diff_recv( tdr );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
-		now = uhd::time_spec_t::get_system_time(),
+		now = uhd::get_system_time(),
 			then = now + T
 			;
 
@@ -621,7 +621,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			;
 
 		then += T,
-			now = uhd::time_spec_t::get_system_time()
+			now = uhd::get_system_time()
 	) {
 
 		dt = then - now;
@@ -632,9 +632,9 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			nanosleep( &req, &rem );
 		}
 		for(
-			now = uhd::time_spec_t::get_system_time();
+			now = uhd::get_system_time();
 			now < then;
-			now = uhd::time_spec_t::get_system_time()
+			now = uhd::get_system_time()
 		) {
 			// nop
 			asm __volatile__( "" );
@@ -652,10 +652,10 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 #if 0
 			// XXX: overruns - we need to fix this
-			now = uhd::time_spec_t::get_system_time();
+			now = uhd::get_system_time();
 
 			if ( now >= then + T ) {
-				UHD_MSG( warning )
+				UHD_LOGGER_INFO( "CRIMSON_IMPL" )
 					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
 					<< std::endl;
 			}
@@ -1161,7 +1161,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	if ( _bm_thread_needed ) {
 
 		//Initialize "Time Diff" mechanism before starting flow control thread
-		time_spec_t ts = time_spec_t::get_system_time();
+		time_spec_t ts = uhd::get_system_time();
 		_streamer_start_time = ts.get_real_secs();
 
 		// The problem is that this class does not hold a multi_crimson instance

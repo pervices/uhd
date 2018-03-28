@@ -5,13 +5,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "wb_iface_adapter.hpp"
 #include <boost/format.hpp>
 #include <uhd/convert.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/direction.hpp>
-#include "radio_ctrl_impl.hpp"
+#include <uhdlib/rfnoc/wb_iface_adapter.hpp>
+#include <uhdlib/rfnoc/radio_ctrl_impl.hpp>
 #include "../../transport/super_recv_packet_handler.hpp"
 #include <tuple>
 
@@ -45,40 +45,14 @@ radio_ctrl_impl::radio_ctrl_impl() :
     /////////////////////////////////////////////////////////////////////////
     for (size_t i = 0; i < _get_num_radios(); i++) {
         _register_loopback_self_test(i);
-        _perifs[i].ctrl = boost::make_shared<wb_iface_adapter>(
-            // poke32 functor
-            [this, i](const uint32_t addr, const uint32_t data){
-                this->sr_write(addr, data, i);
-            },
-            // peek32 functor
-            [this, i](const uint32_t addr){
-                return this->user_reg_read32(addr, i);
-            },
-            // peek64 functor
-            [this, i](const uint32_t addr){
-                return this->user_reg_read64(addr, i);
-            },
-            // get_time functor
-            [this, i](){
-                return this->get_command_time(i);
-            },
-            // set_time functor
-            [this, i](const time_spec_t& time_spec){
-                this->set_command_time(time_spec, i);
-            }
-        );
-
+        _perifs[i].ctrl = this->get_ctrl_iface(i);
         // FIXME there's currently no way to set the underflow policy
 
         if (i == 0) {
             time_core_3000::readback_bases_type time64_rb_bases;
-            time64_rb_bases.rb_now = regs::RB_TIME_NOW;
-            time64_rb_bases.rb_pps = regs::RB_TIME_PPS;
-            _time64 = time_core_3000::make(
-                _perifs[i].ctrl,
-                regs::sr_addr(regs::TIME),
-                time64_rb_bases
-            );
+            time64_rb_bases.rb_now = regs::rb_addr(regs::RB_TIME_NOW);
+            time64_rb_bases.rb_pps = regs::rb_addr(regs::RB_TIME_PPS);
+            _time64 = time_core_3000::make(_perifs[i].ctrl, regs::sr_addr(regs::TIME), time64_rb_bases);
             this->set_time_now(0.0);
         }
 

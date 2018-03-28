@@ -71,7 +71,7 @@ class ADS54J56(object):
         else:
             self.sync_line = "AB"
         assert self.sync_line in ('AB', 'CD')
-        self.log.debug(
+        self.log.trace(
             "The next setup() sequence will use sync pin: {}".format(
                 self.sync_line
             )
@@ -498,40 +498,61 @@ class EISCAT(DboardManagerBase):
             ))
             pdac_spi.poke16(0x3, init_phase_dac_word)
             return LMK04828EISCAT(lmk_spi, ref_clk_freq, slot_idx)
-        def _sync_db_clock(synchronizer):
+        def _sync_db_clock():
             " Synchronizes the DB clock to the common reference "
-            synchronizer.run_sync(measurement_only=False)
-            offset_error = synchronizer.run_sync(measurement_only=True)
+            synchronizer = ClockSynchronizer(
+                self.dboard_clk_control,
+                self.lmk,
+                self._spi_ifaces['phase_dac'],
+                0, # register offset value.
+                104e6, # TODO don't hardcode
+                self.ref_clock_freq,
+                1.9E-12, # fine phase shift. TODO don't hardcode. This should live in the EEPROM
+                self.INIT_PHASE_DAC_WORD,
+                0x3,
+                3, # External PPS pipeline delay from the PPS captured at the FPGA to TDC input
+                self.slot_idx)
+            # The radio clock traces on the motherboard are 69 ps longer for Daughterboard B
+            # than Daughterboard A. We want both of these clocks to align at the converters
+            # on each board, so adjust the target value for DB B. This is an N3xx series
+            # peculiarity and will not apply to other motherboards.
+            trace_delay_offset = {0:  0.0e-0,
+                                  1: 69.0e-12}[self.slot_idx]
+            offset = synchronizer.run(
+                num_meas=[512, 128],
+                target_offset = trace_delay_offset)
+            offset_error = abs(offset)
             if offset_error > 100e-12:
-                self.log.error("Clock synchronizer measured an offset of {} ps!".format(
+                self.log.error("Clock synchronizer measured an offset of {:.1f} ps!".format(
                     offset_error*1e12
                 ))
-                raise RuntimeError("Clock synchronizer measured an offset of {} ps!".format(
+                raise RuntimeError("Clock synchronizer measured an offset of {:.1f} ps!".format(
                     offset_error*1e12
                 ))
             else:
-                self.log.debug("Residual DAC offset error: {} ps.".format(
+                self.log.debug("Residual synchronization error: {:.1f} ps.".format(
                     offset_error*1e12
                 ))
-            self.log.info("Clock Synchronization Complete!")
+            synchronizer = None
+            self.log.debug("Clock Synchronization Complete!")
         # Go, go, go!
         if args.get("force_init", False):
             self.log.info("Forcing re-initialization of dboard.")
         self.initialized = args.get("force_init", self.initialized)
         if self.initialized:
-            self.log.info(
+            self.log.debug(
                 "Dboard was previously initialized; skipping init. " \
                 "Specify force_init=1 to force initialization."
             )
             return True
-        self.log.info("init() called with args `{}'".format(
+        self.log.debug("init() called with args `{}'".format(
             ",".join(['{}={}'.format(x, args[x]) for x in args])
         ))
         self.radio_regs = _init_dboard_regs()
         self.jesd_cores = _init_jesd_cores(self.radio_regs, self.slot_idx)
-        self.log.info("Radio-register UIO object successfully generated!")
+        self.log.debug("Radio-register UIO object successfully generated!")
         self._spi_ifaces = _init_spi_devices() # Chips don't have power yet!
-        self.log.info("Loaded SPI interfaces!")
+        self.log.debug("Loaded SPI interfaces!")
         self._init_power(self.radio_regs) # Now, we can talk to chips via SPI
         self.dboard_clk_control = _init_clock_control(self.radio_regs)
         self.lmk = _init_lmk(
@@ -546,7 +567,7 @@ class EISCAT(DboardManagerBase):
             for spi_iface in ('adc0', 'adc1')
         ]
         self.dboard_clk_control.enable_mmcm()
-        self.log.info("Clocking Configured Successfully!")
+        self.log.debug("Clocking Configured Successfully!")
         # Synchronize DB Clocks
         self.clock_synchronizer = ClockSynchronizer(
             self.radio_regs,
@@ -559,9 +580,8 @@ class EISCAT(DboardManagerBase):
             1.9E-12, # TODO don't hardcode. This should live in the EEPROM
             self.INIT_PHASE_DAC_WORD,
             2.496e9,     # lmk_vco_freq
-            [135e-9,],   # target_values
             0x3,         # spi_addr
-            self.log
+            self.slot_idx
         )
         _sync_db_clock(self.clock_synchronizer)
         # Clocks and PPS are now fully active!
@@ -618,7 +638,7 @@ class EISCAT(DboardManagerBase):
             return True
         for adc in self.adcs:
             adc.setup()
-        self.log.info("ADC Initialization Complete!")
+        self.log.debug("ADC Initialization Complete!")
         for jesd_core in self.jesd_cores:
             jesd_core.init_deframer()
         return True
@@ -649,7 +669,7 @@ class EISCAT(DboardManagerBase):
         if error:
             return False
 
-        self.log.info("JESD Core Initialized, link up! (woohoo!)")
+        self.log.debug("JESD Core Initialized, link up! (woohoo!)")
         self.initialized = True
         return self.initialized
 

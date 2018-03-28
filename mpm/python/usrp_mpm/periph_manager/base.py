@@ -13,7 +13,6 @@ from hashlib import md5
 from time import sleep
 from concurrent import futures
 from builtins import str
-from builtins import range
 from builtins import object
 from six import iteritems, itervalues
 from usrp_mpm.mpmlog import get_logger
@@ -52,9 +51,9 @@ class PeriphManagerBase(object):
     #
     # These values are meant to be overridden by the according subclasses
     #########################################################################
-    # Very important: A list of PIDs that apply to the current device. Must be
-    # list, even if there's only one entry.
-    pids = []
+    # Very important: A map of PIDs that apply to the current device. Format is
+    # pid -> product name.
+    pids = {}
     # A textual description of this device type
     description = "MPM Device"
     # Address of the motherboard EEPROM. This could be something like
@@ -63,6 +62,11 @@ class PeriphManagerBase(object):
     # If empty, this will be ignored and no EEPROM info for the device is read
     # out.
     mboard_eeprom_addr = ""
+    # Offset of the motherboard EEPROM. All accesses to this EEPROM will be
+    # offset by this amount. In many cases, this value will be 0. But in some
+    # situations, we may want to use the offset as a way of partitioning
+    # access to an EEPROM.
+    mboard_eeprom_offset = 0
     # The EEPROM code checks for this word to see if the readout was valid.
     # Typically, devices should not override this unless their EEPROM follows a
     # different standard.
@@ -97,6 +101,13 @@ class PeriphManagerBase(object):
     # out.
     # If this is a list of EEPROMs, paths will be concatenated.
     dboard_eeprom_addr = None
+    # Offset of the daughterboard EEPROM. All accesses to this EEPROM will be
+    # offset by this amount. In many cases, this value will be 0. But in some
+    # situations, we may want to use the offset as a way of partitioning
+    # access to an EEPROM.
+    # Assume that all dboard offsets are the same for a given device. That is,
+    # the offset of DBoard 0 == offset of DBoard 1
+    dboard_eeprom_offset = 0
     # The EEPROM code checks for this word to see if the readout was valid.
     # Typically, devices should not override this unless their EEPROM follows a
     # different standard.
@@ -176,6 +187,7 @@ class PeriphManagerBase(object):
                            .format(self.mboard_eeprom_addr))
             (self._eeprom_head, self._eeprom_rawdata) = eeprom.read_eeprom(
                 get_eeprom_paths(self.mboard_eeprom_addr)[0],
+                self.mboard_eeprom_offset,
                 eeprom.MboardEEPROM.eeprom_header_format,
                 eeprom.MboardEEPROM.eeprom_header_keys,
                 self.mboard_eeprom_magic,
@@ -195,16 +207,19 @@ class PeriphManagerBase(object):
                     )
                 except TypeError:
                     self.mboard_info[key] = str(self._eeprom_head.get(key, ''))
-            if 'pid' in self._eeprom_head \
-                    and self._eeprom_head['pid'] not in self.pids:
-                self.log.error(
-                    "Found invalid PID in EEPROM: 0x{:04X}. " \
-                    "Valid PIDs are: {}".format(
-                        self._eeprom_head['pid'],
-                        ", ".join(["0x{:04X}".format(x) for x in self.pids]),
+            if 'pid' in self._eeprom_head:
+                if self._eeprom_head['pid'] not in self.pids.keys():
+                    self.log.error(
+                        "Found invalid PID in EEPROM: 0x{:04X}. " \
+                        "Valid PIDs are: {}".format(
+                            self._eeprom_head['pid'],
+                            ", ".join(["0x{:04X}".format(x)
+                                       for x in self.pids.keys()]),
+                        )
                     )
-                )
-                raise RuntimeError("Invalid PID found in EEPROM.")
+                    raise RuntimeError("Invalid PID found in EEPROM.")
+                self.mboard_info['product'] = \
+                    self.pids[self._eeprom_head['pid']]
             if 'rev' in self._eeprom_head:
                 try:
                     rev_numeric = int(self._eeprom_head.get('rev'))
@@ -254,7 +269,7 @@ class PeriphManagerBase(object):
             eeprom_md,
             device_args,
         )
-        self.log.trace("Motherboard requires device tree overlays: {}".format(
+        self.log.trace("Motherboard requests device tree overlays: {}".format(
             requested_overlays
         ))
         for overlay in requested_overlays:
@@ -270,7 +285,7 @@ class PeriphManagerBase(object):
         # Go, go, go!
         override_dboard_pids = override_dboard_pids or []
         if override_dboard_pids:
-            self.log.warning("Overriding daughterboard PIDs! {}"
+            self.log.warning("Overriding daughterboard PIDs with: {}"
                              .format(override_dboard_pids))
         dboard_eeprom_addrs = self.dboard_eeprom_addr \
                               if isinstance(self.dboard_eeprom_addr, list) \
@@ -296,6 +311,7 @@ class PeriphManagerBase(object):
             self.log.debug("Initializing dboard %d...", dboard_idx)
             dboard_eeprom_md, dboard_eeprom_rawdata = eeprom.read_eeprom(
                 dboard_eeprom_path,
+                self.dboard_eeprom_offset,
                 eeprom.DboardEEPROM.eeprom_header_format,
                 eeprom.DboardEEPROM.eeprom_header_keys,
                 self.dboard_eeprom_magic,
@@ -312,7 +328,7 @@ class PeriphManagerBase(object):
             else:
                 db_pid = dboard_eeprom_md.get('pid')
                 if db_pid is None:
-                    self.log.warning("No dboard PID found!")
+                    self.log.warning("No dboard PID found in dboard EEPROM!")
                 else:
                     self.log.debug("Found dboard PID in EEPROM: 0x{:04X}"
                                    .format(db_pid))
@@ -324,7 +340,7 @@ class PeriphManagerBase(object):
             if len(self.dboard_spimaster_addrs) > dboard_idx:
                 spi_nodes = sorted(get_spidev_nodes(
                     self.dboard_spimaster_addrs[dboard_idx]))
-                self.log.debug("Found spidev nodes: {0}".format(spi_nodes))
+                self.log.trace("Found spidev nodes: {0}".format(spi_nodes))
             else:
                 spi_nodes = []
                 self.log.warning("No SPI nodes for dboard %d.", dboard_idx)
@@ -360,7 +376,7 @@ class PeriphManagerBase(object):
         args -- A dictionary of args for initialization. Similar to device args
                 in UHD.
         """
-        self.log.info("Mboard init() called with device args `{}'.".format(
+        self.log.info("init() called with device args `{}'.".format(
             ",".join(['{}={}'.format(x, args[x]) for x in args])
         ))
         if not self._device_initialized:
@@ -404,7 +420,7 @@ class PeriphManagerBase(object):
         Tear down all members that need to be specially handled before
         deconstruction.
         """
-        self.log.debug("Teardown called for Peripheral Manager base.")
+        self.log.trace("Teardown called for Peripheral Manager base.")
 
     ###########################################################################
     # Misc device status controls and indicators
@@ -550,6 +566,7 @@ class PeriphManagerBase(object):
                 f.write(data)
             update_func = \
                 getattr(self, self.updateable_components[id_str]['callback'])
+            self.log.info("Updating component `%s'", id_str)
             update_func(filepath, metadata)
         return True
 
@@ -811,7 +828,7 @@ class PeriphManagerBase(object):
         Consider this a "post claim hook", not a function to actually claim
         this device (which happens outside of this class).
         """
-        self.log.debug("Device was claimed. No actions defined.")
+        self.log.trace("Device was claimed. No actions defined.")
 
     def unclaim(self):
         """
