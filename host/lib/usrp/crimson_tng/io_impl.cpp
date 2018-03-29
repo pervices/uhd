@@ -161,7 +161,11 @@ public:
 
         if ( metadata.start_of_burst ) {
             if ( ! metadata.has_time_spec ) {
-                UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Warning: first call to send but no time spec supplied" << std::endl;
+                //UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Warning: first call to send but no time spec supplied" << std::endl;
+                uhd::time_spec_t now = get_time_now();
+                metadata.start_of_burst = true;
+                metadata.has_time_spec = true;
+                metadata.time_spec = now + 0.01;
             }
             for( auto & ep: _eprops ) {
 				//std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
