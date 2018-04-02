@@ -29,7 +29,6 @@
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/thread.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
-#include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
@@ -42,6 +41,10 @@
 #include <boost/endian/buffers.hpp>
 
 #include "system_time.hpp"
+
+#ifndef UHD_TXRX_DEBUG_PRINTS
+//#define UHD_TXRX_DEBUG_PRINTS
+#endif
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -115,6 +118,7 @@ public:
 		sph::send_packet_streamer( max_num_samps ),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
+		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
 		_blessbless( false ) // icelandic (viking) for bye
 	{
@@ -147,58 +151,95 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        static const double default_sob = 1.0;
+
         size_t r;
 
         uhd::tx_metadata_t metadata = metadata_;
 
-        if ( _first_call_to_send && ! metadata.start_of_burst ) {
-            uhd::time_spec_t now = get_time_now();
-            //UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Warning: first call to send but no start of burst!" << std::endl;
-            metadata.start_of_burst = true;
-            metadata.has_time_spec = true;
-            metadata.time_spec = now + 0.01;
-        }
+        uhd::time_spec_t sob_time;
+        uhd::time_spec_t now = get_time_now();
 
-        if ( metadata.start_of_burst ) {
-            if ( ! metadata.has_time_spec ) {
-                //UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Warning: first call to send but no time spec supplied" << std::endl;
-                uhd::time_spec_t now = get_time_now();
+        if ( ! metadata.start_of_burst ) {
+            //std::cout << "metadata.time_spec: " << metadata.time_spec << " crimson_now: " << now << std::endl << std::flush;
+            metadata.has_time_spec = false;
+            metadata.time_spec = 0.0;
+        }
+        if ( _first_call_to_send ) {
+            if ( ! metadata.start_of_burst ) {
+                #ifdef UHD_TXRX_DEBUG_PRINTS
+                std::cout << "Warning: first call to send but no start of burst!" << std::endl;
+                #endif
                 metadata.start_of_burst = true;
-                metadata.has_time_spec = true;
-                metadata.time_spec = now + 0.01;
             }
+        }
+        if ( _first_call_to_send ) {
+            if ( ! metadata.has_time_spec ) {
+                #ifdef UHD_TXRX_DEBUG_PRINTS
+                std::cout << "Warning: first call to send but no time spec supplied" << std::endl;
+                #endif
+                metadata.has_time_spec = true;
+                metadata.time_spec = now + default_sob;
+            }
+        }
+        if ( metadata.start_of_burst ) {
+            if ( metadata.time_spec < now + default_sob ) {
+                metadata.time_spec = now + default_sob;
+                #ifdef UHD_TXRX_DEBUG_PRINTS
+                std::cout << "Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
+                #endif
+            }
+            #ifdef UHD_TXRX_DEBUG_PRINTS
+            std::cout << get_time_now() << ": Setting start of burst @ " << metadata.time_spec << " or " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
+            #endif
             for( auto & ep: _eprops ) {
-				//std::cout << "Set SoB Time to " << metadata.time_spec << std::endl;
 				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
+            sob_time = metadata.time_spec;
+        }
+        if ( _first_call_to_send ) {
+            #ifdef UHD_TXRX_DEBUG_PRINTS
+            std::cout << "first call to send: nsamps_per_buff: " << nsamps_per_buff << std::endl;
+            #endif
         }
         _first_call_to_send = false;
+
+        // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
+        // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
+        _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
         r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
-        if ( metadata.end_of_burst && ( 0 == nsamps_per_buff || nsamps_per_buff == r ) ) {
+        now = get_time_now();
+
+        if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
+            #ifdef UHD_TXRX_DEBUG_PRINTS
+            std::cout << now << ": Sending end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
+            #endif
 
             async_metadata_t am;
             am.has_time_spec = true;
-            am.time_spec = get_time_now();
+            am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
-            for( size_t i = 0; i < _eprops.size(); i++ ) {
-				am.channel = i;
-				push_async_msg( am );
-            }
 
             _blessbless = true;
             if ( _pillage_thread.joinable() ) {
                 _pillage_thread.join();
+            }
+
+            for( size_t i = 0; i < _eprops.size(); i++ ) {
+				am.channel = i;
+				push_async_msg( am );
+				_eprops.at( i ).on_fini();
             }
         }
 
         return r;
     }
 
-    managed_send_buffer::sptr get_send_buff( const size_t chan, const size_t samples, double timeout ){
+    managed_send_buffer::sptr get_send_buff( const size_t chan, double timeout ){
 
         //wait on flow control w/ timeout
-        if (not check_fc_condition( chan, samples, timeout) ) return managed_send_buffer::sptr();
+        if (not check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = _eprops.at( chan ).xport_chan->get_send_buff( timeout );
@@ -213,7 +254,7 @@ public:
         _time_now = time_now;
     }
     uhd::time_spec_t get_time_now() {
-        return _time_now ? _time_now() : uhd::get_system_time();
+        return _time_now ? _time_now() : get_system_time();
     }
     void set_xport_chan( size_t chan, uhd::transport::zero_copy_if::sptr xport ) {
     	_eprops.at(chan).xport_chan = xport;
@@ -223,6 +264,9 @@ public:
     }
     void set_async_pusher( async_pusher_type pusher ) {
     	async_pusher = pusher;
+    }
+    void set_channel_name( size_t chan, std::string name ) {
+        _eprops.at(chan).name = name;
     }
 
     void resize(const size_t size){
@@ -254,6 +298,7 @@ public:
 private:
 	bool _first_call_to_send;
     size_t _max_num_samps;
+    size_t _actual_num_samps;
     double _samp_rate;
     bool _blessbless;
     std::thread _pillage_thread;
@@ -269,7 +314,8 @@ private:
     	uint64_t oflow;
     	uint64_t uflow;
         std::mutex buffer_mutex;
-    	eprops_type() : oflow( -1 ), uflow( -1 ) {}
+        std::string name;
+        eprops_type() : oflow( -1 ), uflow( -1 ) {}
         eprops_type( const eprops_type & other )
         :
             xport_chan( other.xport_chan ),
@@ -287,8 +333,11 @@ private:
     	}
     }
 
-    bool check_fc_condition( const size_t chan, const size_t samples, const double & timeout ) {
-        bool r;
+    bool check_fc_condition( const size_t chan, const double & timeout ) {
+
+        #ifdef UHD_TXRX_DEBUG_PRINTS
+        static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
+        #endif
 
         uhd::time_spec_t now, then, dt;
 		struct timespec req, rem;
@@ -296,42 +345,37 @@ private:
         std::lock_guard<std::mutex> lock( _eprops.at( chan ).buffer_mutex );
 
         now = get_time_now();
-        dt = _eprops.at( chan ).flow_control->get_time_until_next_send( samples, now );
+        dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
         then = now + dt;
 
         if ( dt > timeout ) {
-            r = false;
-            goto out;
+            return false;
         }
 
-        r = true;
+        _eprops.at( chan ).flow_control->update( _actual_num_samps, now );
 
-        //std::cout << "Buffer Level: " << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl;
-        _eprops.at( chan ).flow_control->update( samples, now );
+		#ifdef UHD_TXRX_DEBUG_PRINTS
+		if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
+			last_print_time = now;
+			next_print_time = last_print_time + 0.2;
+			std::stringstream ss;
+			ss << now << ": " << _eprops.at(chan).name << ": Queued " << std::dec << _actual_num_samps << " Buffer Level: " << std::dec << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl << std::flush;
+			std::cout << ss.str();
+		}
+		#endif
 
-        if ( dt <= 0.0 ) {
-            goto out;
-        }
-
-		// XXX: @CF: 20170717: Instead of hard-coding values here, calibrate the delay loop on init using a method similar to rt_tests/cyclictest
-		if ( dt.get_real_secs() > 100e-6 ) {
-			dt -= 30e-6;
+		for(
+			;
+			dt > 0.0;
+			now = get_time_now(),
+				dt = then - now
+		) {
 			req.tv_sec = (time_t) dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs()*1e9;
 			nanosleep( &req, &rem );
 		}
-		for(
-			now = get_time_now();
-			now < then;
-			now = get_time_now()
-		) {
-			// nop
-			__asm__ __volatile__( "" );
-			now += 1.0;
-		}
 
-out:
-        return r;
+		return true;
     }
 
     /***********************************************************************
@@ -347,7 +391,6 @@ out:
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
 
 		for( ; ! self->_blessbless; ) {
-			::usleep( 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6 );
 			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
 				eprops_type & ep = self->_eprops[ i ];
 
@@ -382,11 +425,12 @@ out:
 				now = self->get_time_now();
 
 				size_t level = level_pcnt * max_level;
-				level -= ( now - then ).get_real_secs() / self->_samp_rate;
 
-				if ( ! fc->start_of_burst_pending( now ) ) {
-					fc->set_buffer_level( level, now );
+				if ( ! fc->start_of_burst_pending( then ) ) {
+					level -= ( now - then ).get_real_secs() / self->_samp_rate;
 				}
+
+				fc->set_buffer_level( level, now );
 
 				if ( (uint64_t)-1 == ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
@@ -414,10 +458,12 @@ out:
 				}
 				ep.oflow = oflow;
 			}
+#ifdef UHD_TXRX_DEBUG_PRINTS
+			::usleep( 200000 );
+#else
+			::usleep( 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6 );
+#endif
 		}
-        for( auto & ep: self->_eprops ) {
-            ep.on_fini();
-        }
 		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
 	}
 };
@@ -604,21 +650,38 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // XXX: @CF: 20170227: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
-        size_t chan = args.channels[ chan_i ];
-        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        const fs_path mb_path   = "/mboards/0";
-        const fs_path rx_path   = mb_path / "rx";
-        const fs_path rx_link_path  = mb_path / "rx_link" / ch;
+        const size_t chan = args.channels[chan_i];
+        size_t num_chan_so_far = 0;
+        BOOST_FOREACH(const std::string &mb, _mbc.keys()){
+            num_chan_so_far += _mbc[mb].rx_chan_occ;
+            if (chan < num_chan_so_far){
 
-		// vita enable
-		_tree->access<std::string>(rx_link_path / "vita_en").set("1");
+                // XXX: @CF: this is so nasty..
+                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+                const fs_path mb_path   = "/mboards/" + mb;
+                const fs_path rx_path   = mb_path / "rx";
+                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
+                const fs_path rx_link_path  = mb_path / "rx_link" / ch;
+                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / ch;
 
-		// power on the channel
-		_tree->access<std::string>(rx_path / ch / "pwr").set("1");
-		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-		//usleep( 500000 );
-		// stream enable
-		_tree->access<std::string>(rx_link_path / "stream").set("1");
+                // vita enable
+                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+
+                // power on the channel
+                _tree->access<std::string>(rx_path / ch / "pwr").set("1");
+                // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
+                //usleep( 500000 );
+                // stream enable
+                _tree->access<std::string>(rx_link_path / "stream").set("1");
+
+// FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
+#define _update( t, p ) \
+    _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
+
+                _update( int, rx_fe_path / "freq" / "band" );
+            }
+        }
     }
 
     //sets all tick and samp rates on this streamer
@@ -642,6 +705,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
 		uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
+		//uint64_t cookie;
 	};
 	#pragma pack(pop)
 
@@ -652,6 +716,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 		uint64_t uflow;
 		uint64_t tv_sec;
 		uint64_t tv_tick;
+		//uint64_t cookie;
 	};
 	#pragma pack(pop)
 
@@ -665,7 +730,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 	size_t r;
 
-	for( size_t tries = 0; tries < 10; tries++ ) {
+	for( size_t tries = 0; tries < 1; tries++ ) {
 		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 		if ( sizeof( req ) != r ) {
 			continue;
@@ -677,13 +742,14 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 		boost::endian::big_to_native_inplace( rsp.header );
 		if ( channel != ( ( rsp.header >> 48 ) & 0xffff ) ) {
+			r = 0;
 			continue;
 		}
 
 		break;
 	}
 	if ( 0 == r ) {
-		//UHD_LOGGER_ERROR("CRIMSON_IO_IMPL") << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
+		//UHD_MSG( error ) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
 		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
 	}
 
@@ -695,13 +761,14 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	uint16_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
-	uflow = rsp.uflow & uint64_t( 0x7fffffffffffffff );
-	oflow = rsp.oflow & uint64_t( 0x7fffffffffffffff );
+	uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
+	oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
 
 	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
-#if 0
-	std::cout
+#ifdef UHD_TXRX_DEBUG_PRINTS
+	std::stringstream ss;
+	ss
 			<< now << ": "
 			<< (char)('A' + channel) << ": "
 			<< '%' << std::dec << std::setw( 2 ) << std::setfill( ' ' ) << (unsigned)( pcnt * 100 )  << " "
@@ -709,6 +776,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 			<< std::hex << std::setw( 16 ) << std::setfill( '0' ) << uflow << " "
 			<< std::hex << std::setw( 16 ) << std::setfill( '0' ) << oflow << " "
 			<< std::endl << std::flush;
+	std::cout << ss.str();
 #endif
 }
 
@@ -778,13 +846,14 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
+                my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
                 my_streamer->set_on_fini(chan_i, boost::bind( & pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/Channel_" + std::string( 1, 'A' + chan ) + "/pwr" ) ) );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                    &crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, spp, _1
+                    &crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, _1
                 ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
-                    &get_fifo_lvl_udp, chan_i, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
+                    &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
                 my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));
