@@ -432,7 +432,7 @@ private:
 
 				fc->set_buffer_level( level, now );
 
-				if ( (uint64_t)-1 == ep.uflow && uflow != ep.uflow ) {
+				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 		            // async_metadata_t metadata;
 		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -445,7 +445,7 @@ private:
 				}
 				ep.uflow = uflow;
 
-				if ( (uint64_t)-1 == ep.oflow && oflow != ep.oflow ) {
+				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 		            // async_metadata_t metadata;
 		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
