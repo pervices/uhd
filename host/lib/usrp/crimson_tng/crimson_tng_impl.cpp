@@ -218,6 +218,15 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
+	// XXX: @CF: 20180214: While I would have preferred to *not* put this in here, it seems to be the safest place.
+	// If GNURadio is using libuhd "/stream" is not set to 0 if this code is not here. Possibly improper reference counting.
+	if ( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS != stream_cmd.stream_mode ) {
+		const std::string stream_path = "/mboards/0/rx_link/Channel_" + std::string( 1, (char) 'A' + ch ) + "/stream";
+		const std::string pwr_path = "/mboards/0/rx/Channel_" + std::string( 1, (char) 'A' + ch ) + "/pwr";
+		_tree->access<std::string>( stream_path ).set( "1" );
+		_tree->access<std::string>( pwr_path ).set( "1" );
+	}
+
 	make_rx_stream_cmd_packet( stream_cmd, now, ch, rx_stream_cmd );
 	send_rx_stream_cmd_req( rx_stream_cmd );
 
@@ -465,8 +474,11 @@ void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd,
         (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(false, false, true,  false))
         (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(false, true,  true,  false))
     ;
+    static const uint8_t channel_bits = 16;
+    static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
 
-	pkt.header = 0x10000 + channel;
+    // XXX: @CF: 20180404: header should be 0x10001
+	pkt.header = ( 0x1 << channel_bits ) | ( channel & channel_mask );
 
     //setup the instruction flag values
     bool inst_reload, inst_chain, inst_samps, inst_stop;
