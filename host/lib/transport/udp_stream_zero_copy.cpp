@@ -185,7 +185,7 @@ public:
 		_local_addr( local_addr ), _local_port( local_port ),
 		_remote_addr( remote_addr ), _remote_port( remote_port ), _remote_sockaddr( to_sockaddr_in( remote_addr, remote_port ) )
     {
-        UHD_LOGGER_TRACE( "UDP" ) << boost::format("Creating udp transport for %s %s") % local_addr % local_port << std::endl;
+        //UHD_LOGGER_TRACE( "UDP" ) << boost::format("Creating udp transport for %s %s") % local_addr % local_port << std::endl;
 
         #ifdef CHECK_REG_SEND_THRESH
         check_registry_for_fast_send_threshold(this->get_send_frame_size());

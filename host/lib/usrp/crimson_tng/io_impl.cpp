@@ -665,6 +665,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                 const fs_path rx_link_path  = mb_path / "rx_link" / ch;
                 const fs_path rx_dsp_path   = mb_path / "rx_dsps" / ch;
 
+                _tree->access<std::string>(rx_link_path / "stream").set("0");
                 // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
 

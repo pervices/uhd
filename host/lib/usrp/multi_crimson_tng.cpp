@@ -666,23 +666,27 @@ meta_range_t multi_crimson_tng::get_rx_rates(size_t chan){
 
 // set the RX frequency on specified channel
 tune_result_t multi_crimson_tng::set_rx_freq( const tune_request_t &tune_request, size_t chan ) {
-
 	tune_result_t result;
+	if (chan != ALL_CHANS){
+		double gain = get_rx_gain( chan );
 
-	double gain = get_rx_gain( chan );
+		result =
+			tune_lo_and_dsp(
+				RX_SIGN,
+				_tree->subtree( rx_dsp_root( chan ) ),
+				_tree->subtree( rx_rf_fe_root( chan ) ),
+				tune_request
+			);
 
-	result =
-		tune_lo_and_dsp(
-			RX_SIGN,
-			_tree->subtree( rx_dsp_root( chan ) ),
-			_tree->subtree( rx_rf_fe_root( chan ) ),
-			tune_request
-		);
+		do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "RX" );
 
-	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "RX" );
+		set_rx_gain( gain, chan );
 
-	set_rx_gain( gain, chan );
-
+		return result;
+	}
+	for (size_t c = 0; c < get_tx_num_channels(); c++){
+		result = set_rx_freq( tune_request, c );
+	}
 	return result;
 }
 
@@ -821,79 +825,87 @@ freq_range_t multi_crimson_tng::get_rx_lo_freq_range(const std::string &name, si
 // set RX frontend gain on specified channel, name specifies which IC to configure the gain for
 void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
-	(void) name;
+	if ( ALL_CHANS != chan ) {
 
-	double atten_val = 0;
-	double gain_val = 0;
-	double lna_val = 0;
+		(void) name;
 
-	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
-	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
+		double atten_val = 0;
+		double gain_val = 0;
+		double lna_val = 0;
 
-	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
-		// Low-Band
+		gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
+		gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
-		double low_band_gain = gain > 31.5 ? 31.5 : gain;
+		if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+			// Low-Band
 
-		if ( low_band_gain != gain ) {
-            boost::format rf_lo_message(
-                "  The RF Low Band does not support the requested gain:\n"
-                "    Requested RF Low Band gain: %f dB\n"
-                "    Actual RF Low Band gain: %f dB\n"
-            );
-            rf_lo_message % gain % low_band_gain;
-            std::string results_string = rf_lo_message.str();
-            UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
-		}
+			double low_band_gain = gain > 31.5 ? 31.5 : gain;
 
-		// PMA is off (+0dB)
-		lna_val = 0;
-		// BFP is off (+0dB)
-		// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
-		atten_val = 31.75;
-		// LMH is adjusted from 0dB to 31.5dB
-		gain_val = low_band_gain;
+			if ( low_band_gain != gain ) {
+				boost::format rf_lo_message(
+					"  The RF Low Band does not support the requested gain:\n"
+					"    Requested RF Low Band gain: %f dB\n"
+					"    Actual RF Low Band gain: %f dB\n"
+				);
+				rf_lo_message % gain % low_band_gain;
+				std::string results_string = rf_lo_message.str();
+				UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
+			}
 
-	} else {
-		// High-Band
-
-		if ( false ) {
-		} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
 			// PMA is off (+0dB)
 			lna_val = 0;
-			// BFP is on (+20dB)
-			// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+			// BFP is off (+0dB)
+			// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
 			atten_val = 31.75;
 			// LMH is adjusted from 0dB to 31.5dB
-			gain_val = gain;
-		} else if ( 31.5 < gain && gain <= 63.25 ) {
-			// PMA is off (+0dB)
-			lna_val = 0;
-			// BFP is on (+20dB)
-			// PE437 is adjusted from -31.75 dB to 0dB
-			atten_val = 63.25 - gain;
-			// LMH is maxed (+31.5dB)
-			gain_val = 31.5;
-		} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
-			// PMA is on (+20dB)
-			lna_val = 20;
-			// BFP is on (+20dB)
-			// PE437 is adjusted from -20 dB to 0dB
-			atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
-			// LMH is maxed (+31.5dB)
-			gain_val = 31.5;
+			gain_val = low_band_gain;
+
+		} else {
+			// High-Band
+
+			if ( false ) {
+			} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
+				// PMA is off (+0dB)
+				lna_val = 0;
+				// BFP is on (+20dB)
+				// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+				atten_val = 31.75;
+				// LMH is adjusted from 0dB to 31.5dB
+				gain_val = gain;
+			} else if ( 31.5 < gain && gain <= 63.25 ) {
+				// PMA is off (+0dB)
+				lna_val = 0;
+				// BFP is on (+20dB)
+				// PE437 is adjusted from -31.75 dB to 0dB
+				atten_val = 63.25 - gain;
+				// LMH is maxed (+31.5dB)
+				gain_val = 31.5;
+			} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+				// PMA is on (+20dB)
+				lna_val = 20;
+				// BFP is on (+20dB)
+				// PE437 is adjusted from -20 dB to 0dB
+				atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
+				// LMH is maxed (+31.5dB)
+				gain_val = 31.5;
+			}
 		}
+
+		int lna_bypass_enable = 0 == lna_val ? 1 : 0;
+		_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
+
+		if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+			_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+			_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+		} else {
+			_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
+			_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+		}
+		return;
 	}
 
-	int lna_bypass_enable = 0 == lna_val ? 1 : 0;
-	_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
-
-    if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
-		_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-		_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
-    } else {
-		_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
-		_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+    for (size_t c = 0; c < get_rx_num_channels(); c++){
+        set_rx_gain( gain, name, c );
     }
 }
 
@@ -1132,23 +1144,27 @@ meta_range_t multi_crimson_tng::get_tx_rates(size_t chan){
 
 // set the TX frequency on specified channel
 tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t & tune_request, size_t chan) {
-
 	tune_result_t result;
+	if (chan != ALL_CHANS){
+		double gain = get_tx_gain( chan );
 
-	double gain = get_tx_gain( chan );
+		result =
+			tune_lo_and_dsp(
+				TX_SIGN,
+				_tree->subtree( tx_dsp_root( chan ) ),
+				_tree->subtree( tx_rf_fe_root( chan ) ),
+				tune_request
+			);
 
-	result =
-		tune_lo_and_dsp(
-			TX_SIGN,
-			_tree->subtree( tx_dsp_root( chan ) ),
-			_tree->subtree( tx_rf_fe_root( chan ) ),
-			tune_request
-		);
+		do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_tx_freq( chan ), "RX" );
 
-	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "TX" );
+		set_tx_gain( gain, chan );
 
-	set_tx_gain( gain, chan );
-
+		return result;
+	}
+	for (size_t c = 0; c < get_tx_num_channels(); c++){
+		result = set_tx_freq( tune_request, c );
+	}
 	return result;
 }
 
@@ -1176,20 +1192,26 @@ freq_range_t multi_crimson_tng::get_fe_tx_freq_range(size_t chan){
 // set TX frontend gain on specified channel, name specifies which IC to configure the gain for
 void multi_crimson_tng::set_tx_gain(double gain, const std::string &name, size_t chan){
 
-	(void)name;
+	if ( ALL_CHANS != chan ) {
+		(void)name;
 
-	double MAX_GAIN = 31.75;
-	double MIN_GAIN = 0;
+		double MAX_GAIN = 31.75;
+		double MIN_GAIN = 0;
 
-	if 		(gain > MAX_GAIN) gain = MAX_GAIN;
-	else if (gain < MIN_GAIN) gain = MIN_GAIN;
+		if 		(gain > MAX_GAIN) gain = MAX_GAIN;
+		else if (gain < MIN_GAIN) gain = MIN_GAIN;
 
-	gain = round(gain / 0.25);
+		gain = round(gain / 0.25);
 
-    if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-    	_tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
-    } else {
-    	_tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+		if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+			_tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+		} else {
+			_tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+		}
+		return;
+	}
+    for (size_t c = 0; c < get_rx_num_channels(); c++){
+        set_tx_gain(gain, name, c);
     }
 }
 
