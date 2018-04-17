@@ -64,6 +64,8 @@ std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
 class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
+	typedef boost::function<void(void)> onfini_type;
+
 	crimson_tng_recv_packet_streamer(const size_t max_num_samps)
 	: sph::recv_packet_streamer( max_num_samps )
 	{
@@ -71,8 +73,12 @@ public:
     }
 
 	virtual ~crimson_tng_recv_packet_streamer() {
-		static const stream_cmd_t cmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
-		issue_stream_cmd( cmd );
+		for( auto & ep: _eprops ) {
+			if ( ep.on_fini ) {
+				ep.on_fini();
+			}
+		}
+		_eprops.clear();
 	}
 
     size_t get_num_channels(void) const{
@@ -98,8 +104,17 @@ public:
         return recv_packet_handler::issue_stream_cmd(stream_cmd);
     }
 
+    void set_on_fini( size_t chan, onfini_type on_fini ) {
+        _eprops.at(chan).on_fini = on_fini;
+    }
+
 private:
     size_t _max_num_samps;
+
+    struct eprops_type{
+        onfini_type on_fini;
+    };
+    std::vector<eprops_type> _eprops;
 };
 
 // XXX: @CF: 20180227: We need this for several reasons
@@ -125,10 +140,12 @@ public:
 	}
 
 	virtual ~crimson_tng_send_packet_streamer() {
+		std::cout << __func__ << "(): " << std::endl;
 		_blessbless = true;
 		if ( _pillage_thread.joinable() ) {
 			_pillage_thread.join();
 		}
+		std::cout << __func__ << "(): shutting down channels" << std::endl;
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -212,25 +229,29 @@ public:
         now = get_time_now();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
-            #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << now << ": Sending end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
+            //#ifdef UHD_TXRX_DEBUG_PRINTS
+			#if 1
+            std::cout << now << __func__ << ": Received end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
             async_metadata_t am;
             am.has_time_spec = true;
             am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
-
+/*
             _blessbless = true;
             if ( _pillage_thread.joinable() ) {
                 _pillage_thread.join();
             }
 
+            std::cout << now << __func__ << ": Received end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
             for( size_t i = 0; i < _eprops.size(); i++ ) {
 				am.channel = i;
 				push_async_msg( am );
+				std::cout << now << __func__ << ": shutting down channel " << i  << std::endl;
 				_eprops.at( i ).on_fini();
             }
+*/
         }
 
         return r;
@@ -486,6 +507,7 @@ struct crimson_tng_impl::io_impl{
     }
 
     ~io_impl(void){
+        std::cout << __func__ << "(): " << std::endl;
     }
 
     //methods and variables for the viking scourge
@@ -558,6 +580,47 @@ void crimson_tng_impl::update_rates(void){
             }
         }
     }
+}
+
+void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
+    fs_path root = "/mboards/" + which_mb + "/dboards";
+
+    //sanity checking
+    //validate_subdev_spec(_tree, spec, "rx", which_mb);
+
+    //setup mux for this spec
+    //bool fe_swapped = false;
+    //for (size_t i = 0; i < spec.size(); i++){
+    //    const std::string conn = _tree->access<std::string>(root / spec[i].db_name / "rx_frontends" / spec[i].sd_name / "connection").get();
+    //    if (i == 0 and (conn == "QI" or conn == "Q")) fe_swapped = true;
+    //    _mbc[which_mb].rx_dsps[i]->set_mux(conn, fe_swapped);
+    //}
+    //_mbc[which_mb].rx_fe->set_mux(fe_swapped);
+
+    //compute the new occupancy and resize
+    _mbc[which_mb].rx_chan_occ = spec.size();
+    size_t nchan = 0;
+    for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].rx_chan_occ;
+}
+
+void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
+    fs_path root = "/mboards/" + which_mb + "/dboards";
+
+    //sanity checking
+    //validate_subdev_spec(_tree, spec, "tx", which_mb);
+
+    //set the mux for this spec
+    //const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
+    //_mbc[which_mb].tx_fe->set_mux(conn);
+
+    //compute the new occupancy and resize
+    _mbc[which_mb].tx_chan_occ = spec.size();
+    size_t nchan = 0;
+    for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].tx_chan_occ;
+}
+
+static void pwr_off( uhd::property_tree::sptr tree, std::string path ) {
+	tree->access<std::string>( path ).set( "0" );
 }
 
 /***********************************************************************
@@ -638,6 +701,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                 ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, boost::bind(
                     &crimson_tng_impl::set_stream_cmd, this, scmd_pre, _1));
+                my_streamer->set_on_fini(chan_i, boost::bind( & pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) + "/pwr" ) ) );
                 _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
@@ -662,15 +726,15 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                 const fs_path mb_path   = "/mboards/" + mb;
                 const fs_path rx_path   = mb_path / "rx";
                 const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
-                const fs_path rx_link_path  = mb_path / "rx_link" / ch;
-                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / ch;
+                const fs_path rx_link_path  = mb_path / "rx_link" / chan;
+                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
 
                 _tree->access<std::string>(rx_link_path / "stream").set("0");
                 // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
 
                 // power on the channel
-                _tree->access<std::string>(rx_path / ch / "pwr").set("1");
+                _tree->access<std::string>(rx_path / chan / "pwr").set("1");
                 // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
                 //usleep( 500000 );
                 // stream enable
@@ -781,11 +845,6 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 #endif
 }
 
-static void pwr_off( uhd::property_tree::sptr tree, std::string path ) {
-	//std::cout << __func__ << "(): Writing 0 to " << path << std::endl;
-	tree->access<std::string>( path ).set( "0" );
-}
-
 tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
@@ -848,7 +907,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
                 my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
-                my_streamer->set_on_fini(chan_i, boost::bind( & pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/Channel_" + std::string( 1, 'A' + chan ) + "/pwr" ) ) );
+                my_streamer->set_on_fini(chan_i, boost::bind( & pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::string( 1, '0' + chan ) + "/pwr" ) ) );
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::get_send_buff, my_streamer, chan_i, _1
                 ));
@@ -870,10 +929,11 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
         const fs_path mb_path   = "/mboards/0";
         const fs_path tx_path   = mb_path / "tx";
-        const fs_path tx_link_path  = mb_path / "tx_link" / ch;
+        const fs_path tx_link_path  = mb_path / "tx_link" / chan;
 
 		// power on the channel
-		_tree->access<std::string>(tx_path / ch / "pwr").set("1");
+        //_tree->access<std::string>(tx_path / ch / "pwr").set("0");
+		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
 		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
 		//usleep( 500000 );
 		// vita enable

@@ -111,7 +111,13 @@ public:
 
 		if ( BOOST_UNLIKELY( unlocked_start_of_burst_pending( now ) ) ) {
 
+			dt = sob_time - now;
+			if ( dt > 0.2 ) {
+				return dt.get_real_secs() - 0.2;
+			}
+
 			bl = unlocked_get_buffer_level( now );
+
 			if ( nominal_buffer_level > bl ) {
 				dt = 0.0;
 			} else {
