@@ -879,14 +879,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
 		_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
 
-		// Actual frequency values
-		TREE_CREATE_RW(rx_path / chan / "freq" / "value", "rx_"+lc_num+"/rf/freq/val", double, double);
-
 		// Power status
 		TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
 
 		// Channel Stream Status
-		TREE_CREATE_RW(rx_link_path / "stream", "rx_"+lc_num+"/stream", std::string, string);
+		TREE_CREATE_RW(rx_path / dspno / "stream", "rx_"+lc_num+"/stream", std::string, string);
 
 		// Codecs, phony properties for Crimson
 		TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
@@ -899,9 +896,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
 
-		TREE_CREATE_ST(rx_fe_path / "gains" / "LMH+PE" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
-
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
 			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 
@@ -911,7 +905,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
-		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, false);
+		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
+		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, 15e6 );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
@@ -919,6 +914,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 			meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
+		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
 		TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
 		TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
 
@@ -1035,9 +1031,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
 		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
 
-		TREE_CREATE_ST(tx_fe_path / "gains" / "PE" / "range",	meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
-
 		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
 			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 
@@ -1055,6 +1048,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 			meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
+		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
 		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
 
 		// RF band
@@ -1218,8 +1212,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
-	std::cout << __func__ << "(): " << std::endl;
-	stop_bm();
+       stop_bm();
 }
 
 bool crimson_tng_impl::is_bm_thread_needed() {
