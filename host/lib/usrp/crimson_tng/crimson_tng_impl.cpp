@@ -225,8 +225,11 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
 time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
-	if ( "time/clk/cur_time" == req ) {
+	if ( false ) {
+	} else if ( "time/clk/cur_time" == req ) {
 		return get_time_now();
+	} else if ( "time/clk/pps" == req ) {
+		return uhd::time_spec_t( get_time_now().get_full_secs() );
 	} else {
 		double fracpart, intpart;
 		fracpart = modf(get_double(req), &intpart);
