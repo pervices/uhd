@@ -73,6 +73,7 @@ public:
     }
 
 	virtual ~crimson_tng_recv_packet_streamer() {
+		std::cout << __func__ << "(): " << std::endl;
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
