@@ -658,6 +658,7 @@ static device::sptr crimson_tng_make(const device_addr_t &device_addr)
 // all the registered devices' find and make functions.
 UHD_STATIC_BLOCK(register_crimson_tng_device)
 {
+	set_log_level( uhd::log::severity_level::info );
     device::register_device(&crimson_tng_find, &crimson_tng_make, device::USRP);
 }
 
@@ -850,7 +851,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_ST(mb_path / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(mb_path / "time_source"  / "output", bool, true);
 
-    TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
+    TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t( "Reference", true, "unlocked", "locked" ) );
 
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
