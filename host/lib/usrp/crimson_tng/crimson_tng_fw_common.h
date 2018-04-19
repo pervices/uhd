@@ -25,9 +25,6 @@
  * This header is shared by the firmware and host code.
  * Therefore, this header may only contain valid C code.
  */
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define CMD_SUCCESS 	'0'
 #define CMD_ERROR	'1'
@@ -119,9 +116,5 @@ extern "C" {
 				( CRIMSON_TNG_VITA_TLR_IND    << 8) |\
 				( CRIMSON_TNG_VITA_TLR_E      << 7) |\
 				( CRIMSON_TNG_VITA_TLR_PCKCNT << 0) )
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* INCLUDED_CRIMSON_TNG_FW_COMMON_H */

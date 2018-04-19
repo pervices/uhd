@@ -195,6 +195,7 @@ private:
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
         std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
+        // radio control core sort of like magnesium (maybe plutonium? only if it's organic)
         size_t rx_chan_occ, tx_chan_occ;
         mb_container_type(void): rx_chan_occ(0), tx_chan_occ(0){}
     };
