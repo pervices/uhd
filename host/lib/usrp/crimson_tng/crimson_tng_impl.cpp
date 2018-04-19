@@ -614,19 +614,10 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 	) {
 
 		dt = then - now;
-		if ( dt > 1e-3 ) {
-			dt -= 30e-6;
+		if ( dt > 0.0 ) {
 			req.tv_sec = dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
-		}
-		for(
-			now = uhd::get_system_time();
-			now < then;
-			now = uhd::get_system_time()
-		) {
-			// nop
-			asm __volatile__( "" );
 		}
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();

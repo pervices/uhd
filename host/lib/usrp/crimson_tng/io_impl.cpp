@@ -162,6 +162,7 @@ public:
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
+		_pillaging( false ),
 		_blessbless( false ) // icelandic (viking) for bye
 	{
 	}
@@ -171,10 +172,7 @@ public:
 	}
 
 	void teardown() {
-		_blessbless = true;
-		if ( _pillage_thread.joinable() ) {
-			_pillage_thread.join();
-		}
+		retreat();
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -202,6 +200,8 @@ public:
         size_t r;
 
         uhd::tx_metadata_t metadata = metadata_;
+
+        pillage();
 
         uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now();
@@ -258,14 +258,16 @@ public:
         now = get_time_now();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
-            #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << now << __func__ << ": Received end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
+            #if 1
+            std::cout << now << ": " << __func__ << ": Received end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
             async_metadata_t am;
             am.has_time_spec = true;
             am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
+
+            retreat();
         }
 
         return r;
@@ -331,8 +333,26 @@ public:
 
     //create a new viking thread for each zc if (skryke!!)
 	void pillage() {
-		//spawn a new viking to raid the send hoardes
-		_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
+		// probably should also (re)start the "bm thread", which currently just manages time diff
+		std::lock_guard<std::mutex> lck( _mutex );
+		if ( ! _pillaging ) {
+			_blessbless = false;
+			//spawn a new viking to raid the send hoardes
+			_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
+			_pillaging = true;
+		}
+	}
+
+	void retreat() {
+		// probably should also stop the "bm thread", which currently just manages time diff
+		std::lock_guard<std::mutex> lock( _mutex );
+		if ( _pillaging ) {
+			_blessbless = true;
+			if ( _pillage_thread.joinable() ) {
+				_pillage_thread.join();
+				_pillaging = false;
+			}
+		}
 	}
 
 private:
@@ -340,10 +360,12 @@ private:
     size_t _max_num_samps;
     size_t _actual_num_samps;
     double _samp_rate;
+    bool _pillaging;
     bool _blessbless;
     std::thread _pillage_thread;
     async_pusher_type async_pusher;
     timenow_type _time_now;
+    std::mutex _mutex;
 
     // extended per-channel properties, beyond what is available in sph::send_packet_handler::xport_chan_props_type
     struct eprops_type{
