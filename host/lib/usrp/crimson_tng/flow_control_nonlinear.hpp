@@ -111,7 +111,9 @@ public:
 
 		if ( BOOST_UNLIKELY( unlocked_start_of_burst_pending( now ) ) ) {
 
+			dt = sob_time - now;
 			bl = unlocked_get_buffer_level( now );
+
 			if ( nominal_buffer_level > bl ) {
 				dt = 0.0;
 			} else {

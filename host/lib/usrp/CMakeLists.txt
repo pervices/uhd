@@ -17,7 +17,6 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/dboard_iface.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dboard_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gps_ctrl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/multi_crimson_tng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/multi_usrp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/subdev_spec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fe_connection.cpp
