@@ -258,7 +258,7 @@ public:
         now = get_time_now();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
-            #if 1
+            #ifdef UHD_TXRX_DEBUG_PRINTS
             std::cout << now << ": " << __func__ << ": Received end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
@@ -738,6 +738,31 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         my_streamer->set_scale_factor( 1.0 / (double)((1<<15)-1) );
     } else if ( "sc16" == args.cpu_format ) {
         my_streamer->set_scale_factor( 1.0 );
+    }
+
+    // XXX: @CF: 20180424: Also nasty.. if crimson did not shut down properly last time
+    // then the "/*flush*/" below will not work unless we turn it off ahead of time.
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+        size_t num_chan_so_far = 0;
+        BOOST_FOREACH(const std::string &mb, _mbc.keys()){
+            num_chan_so_far += _mbc[mb].rx_chan_occ;
+            if (chan < num_chan_so_far){
+
+                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+                const fs_path mb_path   = "/mboards/" + mb;
+                const fs_path rx_path   = mb_path / "rx";
+                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
+                const fs_path rx_link_path  = mb_path / "rx_link" / chan;
+                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
+
+                // stop streaming
+                _tree->access<std::string>(rx_path / chan / "stream").set("0");
+                // vita enable
+                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+            }
+        }
     }
 
     //bind callbacks for the handler
