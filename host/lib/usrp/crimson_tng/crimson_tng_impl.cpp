@@ -621,6 +621,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		}
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
+		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
 		dev->time_diff_send( crimson_now );
