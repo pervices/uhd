@@ -286,6 +286,8 @@ public:
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
+        //Last thing we do is update our buffer model with sent data
+        my_streamer->check_fc_update( chan);
         return buff;
     }
 
@@ -395,6 +397,11 @@ private:
     	}
     }
 
+    bool check_fc_update( const size_t chan) {
+        std::lock_guard<std::mutex> lock( _eprops.at( chan ).buffer_mutex );
+        _eprops.at( chan ).flow_control->update( _actual_num_samps, get_time_now() );
+    }
+
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -413,8 +420,6 @@ private:
         if ( dt > timeout ) {
             return false;
         }
-
-        _eprops.at( chan ).flow_control->update( _actual_num_samps, now );
 
 		#ifdef UHD_TXRX_DEBUG_PRINTS
 		if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
@@ -435,6 +440,10 @@ private:
 			req.tv_sec = (time_t) dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs()*1e9;
 			nanosleep( &req, &rem );
+		}
+		//Nop loop for finer accuracy
+		while (then-get_time_now() > 0.0){
+			static_cast<void> (0);
 		}
 
 		return true;
@@ -490,9 +499,9 @@ private:
 
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
+					fc->set_buffer_level( level, now );
 				}
 
-				fc->set_buffer_level( level, now );
 
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
