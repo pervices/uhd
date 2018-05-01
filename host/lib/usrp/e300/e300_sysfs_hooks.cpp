@@ -1,18 +1,8 @@
 //
 // Copyright 2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifdef E300_NATIVE
@@ -32,7 +22,7 @@
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/exception.hpp>
 
 static const std::string E300_AXI_FPGA_SYSFS = "40000000.axi-fpga";
@@ -65,6 +55,9 @@ std::string e300_get_sysfs_attr(const std::string &node, const std::string &attr
         dev = udev_device_new_from_syspath(udev, path);
 
        retstring = udev_device_get_sysattr_value(dev, attr.c_str());
+
+       udev_device_unref(dev);
+
        if (retstring.size())
            break;
     }
@@ -93,11 +86,11 @@ e300_fifo_config_t e300_read_sysfs(void)
 
     e300_fifo_config_t config;
 
-    config.buff_length  = boost::lexical_cast<unsigned long>(
+    config.buff_length  = std::stoul(
         e300_get_sysfs_attr(E300_AXI_FPGA_SYSFS, "buffer_length"));
-    config.ctrl_length = boost::lexical_cast<unsigned long>(
+    config.ctrl_length = std::stoul(
         e300_get_sysfs_attr(E300_AXI_FPGA_SYSFS, "control_length"));
-    config.phys_addr = boost::lexical_cast<unsigned long>(
+    config.phys_addr = std::stoul(
         e300_get_sysfs_attr(E300_AXI_FPGA_SYSFS, "phys_addr"));
 
     return config;

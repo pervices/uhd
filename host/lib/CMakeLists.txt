@@ -1,18 +1,8 @@
 #
-# Copyright 2010-2014 Ettus Research LLC
+# Copyright 2010-2015 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0
 #
 
 ########################################################################
@@ -65,15 +55,52 @@ MACRO(INCLUDE_SUBDIRECTORY subdir)
 ENDMACRO(INCLUDE_SUBDIRECTORY)
 
 ########################################################################
+# Register lower level components
+########################################################################
+MESSAGE(STATUS "")
+# Dependencies
+FIND_PACKAGE(USB1)
+FIND_PACKAGE(GPSD)
+FIND_PACKAGE(LIBERIO)
+LIBUHD_REGISTER_COMPONENT("LIBERIO" ENABLE_LIBERIO ON "ENABLE_LIBUHD;LIBERIO_FOUND" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("USB" ENABLE_USB ON "ENABLE_LIBUHD;LIBUSB_FOUND" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("GPSD" ENABLE_GPSD OFF "ENABLE_LIBUHD;ENABLE_GPSD;LIBGPS_FOUND" OFF OFF)
+# Devices
+LIBUHD_REGISTER_COMPONENT("B100" ENABLE_B100 ON "ENABLE_LIBUHD;ENABLE_USB" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("B200" ENABLE_B200 ON "ENABLE_LIBUHD;ENABLE_USB" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("CrimsontTNG" ENABLE_CRIMSON_TNG ON "ENABLE_LIBUHD" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("E300" ENABLE_E300 OFF "ENABLE_LIBUHD" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("USRP1" ENABLE_USRP1 ON "ENABLE_LIBUHD;ENABLE_USB" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("USRP2" ENABLE_USRP2 ON "ENABLE_LIBUHD" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("X300" ENABLE_X300 ON "ENABLE_LIBUHD" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("N230" ENABLE_N230 ON "ENABLE_LIBUHD" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("MPMD" ENABLE_MPMD ON "ENABLE_LIBUHD" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("OctoClock" ENABLE_OCTOCLOCK ON "ENABLE_LIBUHD" OFF OFF)
+
+########################################################################
 # Include subdirectories (different than add)
 ########################################################################
+INCLUDE_SUBDIRECTORY(include)
 INCLUDE_SUBDIRECTORY(ic_reg_maps)
 INCLUDE_SUBDIRECTORY(types)
 INCLUDE_SUBDIRECTORY(convert)
-INCLUDE_SUBDIRECTORY(transport)
+INCLUDE_SUBDIRECTORY(rfnoc)
+INCLUDE_SUBDIRECTORY(cal)
 INCLUDE_SUBDIRECTORY(usrp)
 INCLUDE_SUBDIRECTORY(usrp_clock)
 INCLUDE_SUBDIRECTORY(utils)
+INCLUDE_SUBDIRECTORY(experts)
+INCLUDE_SUBDIRECTORY(transport)
+
+########################################################################
+# Build info
+########################################################################
+INCLUDE(UHDBuildInfo)
+UHD_LOAD_BUILD_INFO()
+CONFIGURE_FILE(
+    ${CMAKE_CURRENT_SOURCE_DIR}/build_info.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp
+@ONLY)
 
 ########################################################################
 # Setup UHD_VERSION_STRING for version.cpp
@@ -87,20 +114,50 @@ CONFIGURE_FILE(
 # Append to the list of sources for lib uhd
 ########################################################################
 LIBUHD_APPEND_SOURCES(
+    ${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/deprecated.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/device.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/device3.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/image_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/stream.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/exception.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/property_tree.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
 )
 
+IF(ENABLE_C_API)
+    LIBUHD_APPEND_SOURCES(
+        ${CMAKE_CURRENT_SOURCE_DIR}/error_c.cpp
+    )
+ENDIF(ENABLE_C_API)
+
 ########################################################################
 # Add DLL resource file to Windows build
 ########################################################################
 IF(MSVC)
+    MATH(EXPR RC_VERSION_MAJOR_API "${UHD_VERSION_MAJOR} * 1000 + ${UHD_VERSION_API}")
+    SET(RC_VERSION_PATCH ${UHD_VERSION_PATCH})
+    IF(UHD_VERSION_DEVEL)
+        SET(RC_VERSION_PATCH "999")
+    ENDIF(UHD_VERSION_DEVEL)
+
+    # Allow a custom .rc template file to be used
+    IF(CUSTOM_RC_FILE)
+        IF(IS_ABSOLUTE "${CUSTOM_RC_FILE}")
+            SET(UHD_RC_IN "${CUSTOM_RC_FILE}")
+        ELSE()
+            SET(UHD_RC_IN "${CMAKE_BINARY_DIR}/${CUSTOM_RC_FILE}")
+        ENDIF(IS_ABSOLUTE "${CUSTOM_RC_FILE}")
+        MESSAGE(STATUS "")
+        MESSAGE(STATUS "Using custom RC template: ${UHD_RC_IN}")
+        MESSAGE(STATUS "")
+    ELSE()
+        SET(UHD_RC_IN "${CMAKE_CURRENT_SOURCE_DIR}/uhd.rc.in")
+    ENDIF(CUSTOM_RC_FILE)
+    SET(UHD_RC_IN ${UHD_RC_IN} CACHE STRING "uhd.rc template filepath")
+
     CONFIGURE_FILE(
-        ${CMAKE_CURRENT_SOURCE_DIR}/uhd.rc.in
+        ${UHD_RC_IN}
         ${CMAKE_CURRENT_BINARY_DIR}/uhd.rc
     @ONLY)
 
@@ -110,12 +167,17 @@ ENDIF(MSVC)
 ########################################################################
 # Setup libuhd library
 ########################################################################
+IF(ENABLE_MPMD)
+    INCLUDE_DIRECTORIES(deps/rpclib/include)
+    ADD_SUBDIRECTORY(deps)
+    LIST(APPEND libuhd_sources $<TARGET_OBJECTS:uhd_rpclib>)
+ENDIF()
 ADD_LIBRARY(uhd SHARED ${libuhd_sources})
 TARGET_LINK_LIBRARIES(uhd ${Boost_LIBRARIES} ${libuhd_libs})
 SET_TARGET_PROPERTIES(uhd PROPERTIES DEFINE_SYMBOL "UHD_DLL_EXPORTS")
 IF(NOT LIBUHDDEV_PKG)
     SET_TARGET_PROPERTIES(uhd PROPERTIES SOVERSION "${UHD_VERSION_MAJOR}")
-    SET_TARGET_PROPERTIES(uhd PROPERTIES VERSION "${UHD_VERSION_MAJOR}.${UHD_VERSION_MINOR}")
+    SET_TARGET_PROPERTIES(uhd PROPERTIES VERSION "${UHD_VERSION_MAJOR}.${UHD_VERSION_API}")
 ENDIF(NOT LIBUHDDEV_PKG)
 IF(DEFINED LIBUHD_OUTPUT_NAME)
     SET_TARGET_PROPERTIES(uhd PROPERTIES OUTPUT_NAME ${LIBUHD_OUTPUT_NAME})
@@ -128,3 +190,14 @@ IF(NOT UHDHOST_PKG) #Syntax makes it unusable by UHD_INSTALL
         RUNTIME DESTINATION ${RUNTIME_DIR} COMPONENT libraries # .dll file
     )
 ENDIF(NOT UHDHOST_PKG)
+
+#######################################################
+# Setup libuhd library (static)
+#######################################################
+IF(ENABLE_STATIC_LIBS)
+    ADD_LIBRARY(uhd_static STATIC ${libuhd_sources})
+    SET_TARGET_PROPERTIES(uhd_static PROPERTIES OUTPUT_NAME uhd)
+    INSTALL(TARGETS uhd_static
+        ARCHIVE DESTINATION lib${LIB_SUFFIX} # .lib or .a file
+    )
+ENDIF(ENABLE_STATIC_LIBS)

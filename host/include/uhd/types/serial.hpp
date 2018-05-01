@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_TYPES_SERIAL_HPP
@@ -20,7 +10,7 @@
 
 #include <uhd/config.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <vector>
 
 namespace uhd{
@@ -28,7 +18,7 @@ namespace uhd{
     /*!
      * Byte vector typedef for passing data in and out of I2C interfaces.
      */
-    typedef std::vector<boost::uint8_t> byte_vector_t;
+    typedef std::vector<uint8_t> byte_vector_t;
 
     /*!
      * The i2c interface class:
@@ -57,7 +47,7 @@ namespace uhd{
          * \param buf the vector of bytes
          */
         virtual void write_i2c(
-            boost::uint16_t addr,
+            uint16_t addr,
             const byte_vector_t &buf
         ) = 0;
 
@@ -68,7 +58,7 @@ namespace uhd{
          * \return a vector of bytes
          */
         virtual byte_vector_t read_i2c(
-            boost::uint16_t addr,
+            uint16_t addr,
             size_t num_bytes
         ) = 0;
 
@@ -79,8 +69,8 @@ namespace uhd{
          * \param buf the vector of bytes
          */
         virtual void write_eeprom(
-            boost::uint16_t addr,
-            boost::uint16_t offset,
+            uint16_t addr,
+            uint16_t offset,
             const byte_vector_t &buf
         );
 
@@ -92,8 +82,8 @@ namespace uhd{
          * \return a vector of bytes
          */
         virtual byte_vector_t read_eeprom(
-            boost::uint16_t addr,
-            boost::uint16_t offset,
+            uint16_t addr,
+            uint16_t offset,
             size_t num_bytes
         );
     };
@@ -118,13 +108,19 @@ namespace uhd{
         //! on what edge is the miso data valid?
         edge_t miso_edge;
 
+        //! Set the clock speed for this transaction
+        bool use_custom_divider;
+
+        //! Optionally set the SPI clock divider for this transaction
+        size_t divider;
+
         /*!
          * Create a new spi config.
          * \param edge the default edge for mosi and miso
          */
         spi_config_t(edge_t edge = EDGE_RISE);
     };
-    
+
     /*!
      * The SPI interface class.
      * Provides routines to transact SPI and do other useful things which haven't been defined yet.
@@ -144,29 +140,29 @@ namespace uhd{
         * \param readback true to readback a value
         * \return spi data if readback set
         */
-        virtual boost::uint32_t transact_spi(
+        virtual uint32_t transact_spi(
             int which_slave,
             const spi_config_t &config,
-            boost::uint32_t data,
+            uint32_t data,
             size_t num_bits,
             bool readback
         ) = 0;
-        
+
         /*!
         * Read from the SPI bus.
         * \param which_slave the slave device number
         * \param config spi config args
-        * \param data the bits to write out (be sure to set write bit) 
+        * \param data the bits to write out (be sure to set write bit)
         * \param num_bits how many bits in data
         * \return spi data
         */
-        virtual boost::uint32_t read_spi(
+        virtual uint32_t read_spi(
             int which_slave,
             const spi_config_t &config,
-            boost::uint32_t data,
+            uint32_t data,
             size_t num_bits
         );
-        
+
         /*!
         * Write to the SPI bus.
         * \param which_slave the slave device number
@@ -177,13 +173,13 @@ namespace uhd{
         virtual void write_spi(
             int which_slave,
             const spi_config_t &config,
-            boost::uint32_t data,
+            uint32_t data,
             size_t num_bits
         );
     };
 
     /*!
-     * UART interface to write and read bytes.
+     * UART interface to write and read strings.
      */
     class UHD_API uart_iface{
     public:
@@ -198,10 +194,9 @@ namespace uhd{
         virtual void write_uart(const std::string &buf) = 0;
 
         /*!
-         * Read from a serial port.
-         * Reads until complete line or timeout.
+         * Read a line from a serial port.
          * \param timeout the timeout in seconds
-         * \return the data read from the serial port
+         * \return the line or empty string upon timeout
          */
         virtual std::string read_uart(double timeout) = 0;
     };

@@ -1,24 +1,13 @@
 //
 // Copyright 2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "validate_subdev_spec.hpp"
+#include <uhdlib/usrp/common/validate_subdev_spec.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/assert_has.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 
 using namespace uhd;
@@ -52,19 +41,19 @@ void uhd::usrp::validate_subdev_spec(
 
     //make a list of all possible specs
     subdev_spec_t all_specs;
-    BOOST_FOREACH(const std::string &db, tree->list(str(boost::format("/mboards/%s/dboards") % mb))){
-        BOOST_FOREACH(const std::string &sd, tree->list(str(boost::format("/mboards/%s/dboards/%s/%s_frontends") % mb % db % type))){
+    for(const std::string &db:  tree->list(str(boost::format("/mboards/%s/dboards") % mb))){
+        for(const std::string &sd:  tree->list(str(boost::format("/mboards/%s/dboards/%s/%s_frontends") % mb % db % type))){
             all_specs.push_back(subdev_spec_pair_t(db, sd));
         }
     }
 
     //validate that the spec is possible
-    BOOST_FOREACH(const subdev_spec_pair_t &pair, spec){
+    for(const subdev_spec_pair_t &pair:  spec){
         uhd::assert_has(all_specs, pair, str(boost::format("%s subdevice specification on mboard %s") % type % mb));
     }
 
     //enable selected frontends, disable others
-    BOOST_FOREACH(const subdev_spec_pair_t &pair, all_specs){
+    for(const subdev_spec_pair_t &pair:  all_specs){
         const bool enb = uhd::has(spec, pair);
         tree->access<bool>(str(boost::format(
             "/mboards/%s/dboards/%s/%s_frontends/%s/enabled"

@@ -1,28 +1,18 @@
 //
 // Copyright 2011-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "tx_dsp_core_3000.hpp"
+#include <uhdlib/usrp/cores/tx_dsp_core_3000.hpp>
+#include <uhdlib/usrp/cores/dsp_core_utils.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/math.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/math/special_functions/sign.hpp>
 #include <boost/thread/thread.hpp> //sleep
 #include <algorithm>
 #include <cmath>
@@ -36,6 +26,10 @@ template <class T> T ceil_log2(T num){
 }
 
 using namespace uhd;
+
+const double tx_dsp_core_3000::DEFAULT_CORDIC_FREQ = 0.0;
+const double tx_dsp_core_3000::DEFAULT_DDS_FREQ = 0.0;
+const double tx_dsp_core_3000::DEFAULT_RATE = 1e6;
 
 tx_dsp_core_3000::~tx_dsp_core_3000(void){
     /* NOP */
@@ -63,8 +57,8 @@ public:
     }
 
     void set_link_rate(const double rate){
-        //_link_rate = rate/sizeof(boost::uint32_t); //in samps/s
-        _link_rate = rate/sizeof(boost::uint16_t); //in samps/s (allows for 8sc)
+        //_link_rate = rate/sizeof(uint32_t); //in samps/s
+        _link_rate = rate/sizeof(uint16_t); //in samps/s (allows for 8sc)
     }
 
     uhd::meta_range_t get_host_rates(void){
@@ -100,27 +94,31 @@ public:
 
         if (interp > 1 and hb0 == 0 and hb1 == 0)
         {
-            UHD_MSG(warning) << boost::format(
+            UHD_LOGGER_WARNING("CORES") << boost::format(
                 "The requested interpolation is odd; the user should expect CIC rolloff.\n"
                 "Select an even interpolation to ensure that a halfband filter is enabled.\n"
                 "interpolation = dsp_rate/samp_rate -> %d = (%f MHz)/(%f MHz)\n"
             ) % interp_rate % (_tick_rate/1e6) % (rate/1e6);
         }
 
-        // Calculate CIC interpolation (i.e., without halfband interpolators)
-        // Calculate closest multiplier constant to reverse gain absent scale multipliers
+        // Caclulate algorithmic gain of CIC for a given interpolation
+        // For Ettus CIC R=decim, M=1, N=3. Gain = (R * M) ^ N
         const double rate_pow = std::pow(double(interp & 0xff), 3);
-        _scaling_adjustment = std::pow(2, ceil_log2(rate_pow))/(1.65*rate_pow);
+        // Calculate compensation gain values for algorithmic gain of DDS and CIC taking into account
+        // gain compensation blocks already hardcoded in place in DDC (that provide simple 1/2^n gain compensation).
+        _scaling_adjustment = std::pow(2, ceil_log2(rate_pow))/(rate_pow);
         this->update_scalar();
 
         return _tick_rate/interp_rate;
     }
 
+  // Calculate compensation gain values for algorithmic gain of DDS and CIC taking into account
+  // gain compensation blocks already hardcoded in place in DDC (that provide simple 1/2^n gain compensation).
+  // Further more factor in OTW format which adds further gain factor to weight output samples correctly.
     void update_scalar(void){
-        const double factor = 1.0 + std::max(ceil_log2(_scaling_adjustment), 0.0);
-        const double target_scalar = (1 << 17)*_scaling_adjustment/_dsp_extra_scaling/factor;
-        const boost::int32_t actual_scalar = boost::math::iround(target_scalar);
-        _fxpt_scalar_correction = target_scalar/actual_scalar*factor; //should be small
+        const double target_scalar = (1 << 16)*_scaling_adjustment/_dsp_extra_scaling;
+        const int32_t actual_scalar = boost::math::iround(target_scalar);
+        _fxpt_scalar_correction = target_scalar/actual_scalar; //should be small
         _iface->poke32(REG_DSP_TX_SCALE_IQ, actual_scalar);
     }
 
@@ -128,42 +126,11 @@ public:
         return _fxpt_scalar_correction*_host_extra_scaling*32767.;
     }
 
-    double set_freq(const double freq_){
-        //correct for outside of rate (wrap around)
-        double freq = std::fmod(freq_, _tick_rate);
-        if (std::abs(freq) > _tick_rate/2.0)
-            freq -= boost::math::sign(freq)*_tick_rate;
-
-        //confirm that the target frequency is within range of the CORDIC
-        UHD_ASSERT_THROW(std::abs(freq) <= _tick_rate/2.0);
-
-        /* Now calculate the frequency word. It is possible for this calculation
-         * to cause an overflow. As the requested DSP frequency approaches the
-         * master clock rate, that ratio multiplied by the scaling factor (2^32)
-         * will generally overflow within the last few kHz of tunable range.
-         * Thus, we check to see if the operation will overflow before doing it,
-         * and if it will, we set it to the integer min or max of this system.
-         */
-        boost::int32_t freq_word = 0;
-
-        static const double scale_factor = std::pow(2.0, 32);
-        if((freq / _tick_rate) >= (uhd::math::BOOST_INT32_MAX / scale_factor)) {
-            /* Operation would have caused a positive overflow of int32. */
-            freq_word = uhd::math::BOOST_INT32_MAX;
-
-        } else if((freq / _tick_rate) <= (uhd::math::BOOST_INT32_MIN / scale_factor)) {
-            /* Operation would have caused a negative overflow of int32. */
-            freq_word = uhd::math::BOOST_INT32_MIN;
-
-        } else {
-            /* The operation is safe. Perform normally. */
-            freq_word = boost::int32_t(boost::math::round((freq / _tick_rate) * scale_factor));
-        }
-
-        //program the frequency word into the device DSP
-        const double actual_freq = (double(freq_word) / scale_factor) * _tick_rate;
-        _iface->poke32(REG_DSP_TX_FREQ, boost::uint32_t(freq_word));
-
+    double set_freq(const double requested_freq) {
+        double actual_freq;
+        int32_t freq_word;
+        get_freq_and_freq_word(requested_freq, _tick_rate, actual_freq, freq_word);
+        _iface->poke32(REG_DSP_TX_FREQ, uint32_t(freq_word));
         return actual_freq;
     }
 
@@ -198,6 +165,24 @@ public:
         _host_extra_scaling /= stream_args.args.cast<double>("fullscale", 1.0);
 
         this->update_scalar();
+    }
+
+    void populate_subtree(property_tree::sptr subtree)
+    {
+        subtree->create<meta_range_t>("rate/range")
+            .set_publisher(boost::bind(&tx_dsp_core_3000::get_host_rates, this))
+        ;
+        subtree->create<double>("rate/value")
+            .set(DEFAULT_RATE)
+            .set_coercer(boost::bind(&tx_dsp_core_3000::set_host_rate, this, _1))
+        ;
+        subtree->create<double>("freq/value")
+            .set(DEFAULT_DDS_FREQ)
+            .set_coercer(boost::bind(&tx_dsp_core_3000::set_freq, this, _1))
+        ;
+        subtree->create<meta_range_t>("freq/range")
+            .set_publisher(boost::bind(&tx_dsp_core_3000::get_freq_range, this))
+        ;
     }
 
 private:

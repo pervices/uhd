@@ -1,18 +1,8 @@
 //
-// Copyright 2010-2012,2014 Ettus Research LLC
+// Copyright 2010-2012,2014-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "usrp2_regs.hpp"
@@ -20,14 +10,13 @@
 #include "fw_common.h"
 #include "usrp2_iface.hpp"
 #include <uhd/exception.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/tasks.hpp>
-#include <uhd/utils/images.hpp>
+#include <uhd/utils/paths.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/types/dict.hpp>
 #include <boost/thread.hpp>
-#include <boost/foreach.hpp>
 #include <boost/asio.hpp> //used for htonl and ntohl
 #include <boost/assign/list_of.hpp>
 #include <boost/format.hpp>
@@ -57,12 +46,12 @@ struct timeout_error : uhd::runtime_error
     }
 };
 
-static const boost::uint32_t MIN_PROTO_COMPAT_SPI = 7;
-static const boost::uint32_t MIN_PROTO_COMPAT_I2C = 7;
+static const uint32_t MIN_PROTO_COMPAT_SPI = 7;
+static const uint32_t MIN_PROTO_COMPAT_I2C = 7;
 // The register compat number must reflect the protocol compatibility
 // and the compatibility of the register mapping (more likely to change).
-static const boost::uint32_t MIN_PROTO_COMPAT_REG = 10;
-static const boost::uint32_t MIN_PROTO_COMPAT_UART = 7;
+static const uint32_t MIN_PROTO_COMPAT_REG = 10;
+//static const uint32_t MIN_PROTO_COMPAT_UART = 7;
 
 class usrp2_iface_impl : public usrp2_iface{
 public:
@@ -84,7 +73,7 @@ public:
             throw uhd::runtime_error("firmware not responding");
         _protocol_compat = ntohl(ctrl_data.proto_ver);
 
-        mb_eeprom = mboard_eeprom_t(*this, USRP2_EEPROM_MAP_KEY);
+        mb_eeprom = usrp2_impl::get_mb_eeprom(*this);
     }
 
     ~usrp2_iface_impl(void){UHD_SAFE_CALL(
@@ -110,15 +99,15 @@ public:
         //never assume lock with fpga image mismatch
         if ((this->peek32(U2_REG_COMPAT_NUM_RB) >> 16) != USRP2_FPGA_COMPAT_NUM) return false;
 
-        boost::uint32_t lock_time = this->peekfw(U2_FW_REG_LOCK_TIME);
-        boost::uint32_t lock_gpid = this->peekfw(U2_FW_REG_LOCK_GPID);
+        uint32_t lock_time = this->peekfw(U2_FW_REG_LOCK_TIME);
+        uint32_t lock_gpid = this->peekfw(U2_FW_REG_LOCK_GPID);
 
         //may not be the right tick rate, but this is ok for locking purposes
-        const boost::uint32_t lock_timeout_time = boost::uint32_t(3*100e6);
+        const uint32_t lock_timeout_time = uint32_t(3*100e6);
 
         //if the difference is larger, assume not locked anymore
         if ((lock_time & 1) == 0) return false; //bit0 says unlocked
-        const boost::uint32_t time_diff = this->get_curr_time() - lock_time;
+        const uint32_t time_diff = this->get_curr_time() - lock_time;
         if (time_diff >= lock_timeout_time) return false;
 
         //otherwise only lock if the device hash is different that ours
@@ -132,37 +121,37 @@ public:
         boost::this_thread::sleep(boost::posix_time::milliseconds(1500));
     }
 
-    boost::uint32_t get_curr_time(void){
+    uint32_t get_curr_time(void){
         return this->peek32(U2_REG_TIME64_LO_RB_IMM) | 1; //bit 1 says locked
     }
 
 /***********************************************************************
  * Peek and Poke
  **********************************************************************/
-    void poke32(wb_addr_type addr, boost::uint32_t data){
-        this->get_reg<boost::uint32_t, USRP2_REG_ACTION_FPGA_POKE32>(addr, data);
+    void poke32(const wb_addr_type addr, const uint32_t data){
+        this->get_reg<uint32_t, USRP2_REG_ACTION_FPGA_POKE32>(addr, data);
     }
 
-    boost::uint32_t peek32(wb_addr_type addr){
-        return this->get_reg<boost::uint32_t, USRP2_REG_ACTION_FPGA_PEEK32>(addr);
+    uint32_t peek32(const wb_addr_type addr){
+        return this->get_reg<uint32_t, USRP2_REG_ACTION_FPGA_PEEK32>(addr);
     }
 
-    void poke16(wb_addr_type addr, boost::uint16_t data){
-        this->get_reg<boost::uint16_t, USRP2_REG_ACTION_FPGA_POKE16>(addr, data);
+    void poke16(const wb_addr_type addr, const uint16_t data){
+        this->get_reg<uint16_t, USRP2_REG_ACTION_FPGA_POKE16>(addr, data);
     }
 
-    boost::uint16_t peek16(wb_addr_type addr){
-        return this->get_reg<boost::uint16_t, USRP2_REG_ACTION_FPGA_PEEK16>(addr);
+    uint16_t peek16(const wb_addr_type addr){
+        return this->get_reg<uint16_t, USRP2_REG_ACTION_FPGA_PEEK16>(addr);
     }
 
-    void pokefw(wb_addr_type addr, boost::uint32_t data)
+    void pokefw(wb_addr_type addr, uint32_t data)
     {
-        this->get_reg<boost::uint32_t, USRP2_REG_ACTION_FW_POKE32>(addr, data);
+        this->get_reg<uint32_t, USRP2_REG_ACTION_FW_POKE32>(addr, data);
     }
 
-    boost::uint32_t peekfw(wb_addr_type addr)
+    uint32_t peekfw(wb_addr_type addr)
     {
-        return this->get_reg<boost::uint32_t, USRP2_REG_ACTION_FW_PEEK32>(addr);
+        return this->get_reg<uint32_t, USRP2_REG_ACTION_FW_PEEK32>(addr);
     }
 
     template <class T, usrp2_reg_action_t action>
@@ -171,7 +160,7 @@ public:
         usrp2_ctrl_data_t out_data = usrp2_ctrl_data_t();
         out_data.id = htonl(USRP2_CTRL_ID_GET_THIS_REGISTER_FOR_ME_BRO);
         out_data.data.reg_args.addr = htonl(addr);
-        out_data.data.reg_args.data = htonl(boost::uint32_t(data));
+        out_data.data.reg_args.data = htonl(uint32_t(data));
         out_data.data.reg_args.action = action;
 
         //send and recv
@@ -183,10 +172,10 @@ public:
 /***********************************************************************
  * SPI
  **********************************************************************/
-    boost::uint32_t transact_spi(
+    uint32_t transact_spi(
         int which_slave,
         const spi_config_t &config,
-        boost::uint32_t data,
+        uint32_t data,
         size_t num_bits,
         bool readback
     ){
@@ -215,11 +204,11 @@ public:
 /***********************************************************************
  * I2C
  **********************************************************************/
-    void write_i2c(boost::uint16_t addr, const byte_vector_t &buf){
+    void write_i2c(uint16_t addr, const byte_vector_t &buf){
         //setup the out data
         usrp2_ctrl_data_t out_data = usrp2_ctrl_data_t();
         out_data.id = htonl(USRP2_CTRL_ID_WRITE_THESE_I2C_VALUES_BRO);
-        out_data.data.i2c_args.addr = addr;
+        out_data.data.i2c_args.addr = uint8_t(addr);
         out_data.data.i2c_args.bytes = buf.size();
 
         //limitation of i2c transaction size
@@ -233,11 +222,11 @@ public:
         UHD_ASSERT_THROW(ntohl(in_data.id) == USRP2_CTRL_ID_COOL_IM_DONE_I2C_WRITE_DUDE);
     }
 
-    byte_vector_t read_i2c(boost::uint16_t addr, size_t num_bytes){
+    byte_vector_t read_i2c(uint16_t addr, size_t num_bytes){
         //setup the out data
         usrp2_ctrl_data_t out_data = usrp2_ctrl_data_t();
         out_data.id = htonl(USRP2_CTRL_ID_DO_AN_I2C_READ_FOR_ME_BRO);
-        out_data.data.i2c_args.addr = addr;
+        out_data.data.i2c_args.addr = uint8_t(addr);
         out_data.data.i2c_args.bytes = num_bytes;
 
         //limitation of i2c transaction size
@@ -259,8 +248,8 @@ public:
  **********************************************************************/
     usrp2_ctrl_data_t ctrl_send_and_recv(
         const usrp2_ctrl_data_t &out_data,
-        boost::uint32_t lo = USRP2_FW_COMPAT_NUM,
-        boost::uint32_t hi = USRP2_FW_COMPAT_NUM
+        uint32_t lo = USRP2_FW_COMPAT_NUM,
+        uint32_t hi = USRP2_FW_COMPAT_NUM
     ){
         boost::mutex::scoped_lock lock(_ctrl_mutex);
 
@@ -269,10 +258,10 @@ public:
                 return ctrl_send_and_recv_internal(out_data, lo, hi, CTRL_RECV_TIMEOUT/CTRL_RECV_RETRIES);
             }
             catch(const timeout_error &e){
-                UHD_MSG(error)
+                UHD_LOGGER_ERROR("USRP2")
                     << "Control packet attempt " << i
                     << ", sequence number " << _ctrl_seq_num
-                    << ":\n" << e.what() << std::endl;
+                    << ":\n" << e.what() ;
             }
         }
         throw uhd::runtime_error("link dead: timeout waiting for control packet ACK");
@@ -280,7 +269,7 @@ public:
 
     usrp2_ctrl_data_t ctrl_send_and_recv_internal(
         const usrp2_ctrl_data_t &out_data,
-        boost::uint32_t lo, boost::uint32_t hi,
+        uint32_t lo, uint32_t hi,
         const double timeout
     ){
         //fill in the seq number and send
@@ -290,12 +279,12 @@ public:
         _ctrl_transport->send(boost::asio::buffer(&out_copy, sizeof(usrp2_ctrl_data_t)));
 
         //loop until we get the packet or timeout
-        boost::uint8_t usrp2_ctrl_data_in_mem[udp_simple::mtu]; //allocate max bytes for recv
+        uint8_t usrp2_ctrl_data_in_mem[udp_simple::mtu]; //allocate max bytes for recv
         const usrp2_ctrl_data_t *ctrl_data_in = reinterpret_cast<const usrp2_ctrl_data_t *>(usrp2_ctrl_data_in_mem);
         while(true){
             size_t len = _ctrl_transport->recv(boost::asio::buffer(usrp2_ctrl_data_in_mem), timeout);
-            boost::uint32_t compat = ntohl(ctrl_data_in->proto_ver);
-            if(len >= sizeof(boost::uint32_t) and (hi < compat or lo > compat)){
+            uint32_t compat = ntohl(ctrl_data_in->proto_ver);
+            if(len >= sizeof(uint32_t) and (hi < compat or lo > compat)){
                 throw uhd::runtime_error(str(boost::format(
                     "\nPlease update the firmware and FPGA images for your device.\n"
                     "See the application notes for USRP2/N-Series for instructions.\n"
@@ -317,7 +306,7 @@ public:
     rev_type get_rev(void){
         std::string hw = mb_eeprom["hardware"];
         if (hw.empty()) return USRP_NXXX;
-        switch (boost::lexical_cast<boost::uint16_t>(hw)){
+        switch (boost::lexical_cast<uint16_t>(hw)){
         case 0x0300:
         case 0x0301: return USRP2_REV3;
         case 0x0400: return USRP2_REV4;
@@ -343,7 +332,7 @@ public:
     }
 
     const std::string get_fw_version_string(void){
-        boost::uint32_t minor = this->get_reg<boost::uint32_t, USRP2_REG_ACTION_FW_PEEK32>(U2_FW_REG_VER_MINOR);
+        uint32_t minor = this->get_reg<uint32_t, USRP2_REG_ACTION_FW_PEEK32>(U2_FW_REG_VER_MINOR);
         return str(boost::format("%u.%u") % _protocol_compat % minor);
     }
 
@@ -375,7 +364,7 @@ public:
             fpga_image_path = uhd::find_image_path(fpga_image);
         }
         catch(const std::exception &){
-            return str(boost::format("Could not find %s and %s in your images path!\n%s") % fw_image % fpga_image % print_images_error());
+            return str(boost::format("Could not find %s and %s in your images path!\n%s") % fw_image % fpga_image % print_utility_error("uhd_images_downloader.py"));
         }
 
         //escape char for multi-line cmd + newline + indent?
@@ -387,16 +376,26 @@ public:
 
         //create the burner commands
         if (this->get_rev() == USRP2_REV3 or this->get_rev() == USRP2_REV4){
-            const std::string card_burner = (fs::path(uhd::get_pkg_path()) / UHD_LIB_DIR / "uhd" / "utils" / "usrp2_card_burner.py").string();
-            const std::string card_burner_cmd = str(boost::format("\"%s%s\" %s--fpga=\"%s\" %s--fw=\"%s\"") % sudo % card_burner % ml % fpga_image_path % ml % fw_image_path);
-            return str(boost::format("%s\n%s") % print_images_error() % card_burner_cmd);
+            const std::string card_burner = uhd::find_utility("usrp2_card_burner_gui.py");
+            const std::string card_burner_cmd = str(boost::format(" %s\"%s\" %s--fpga=\"%s\" %s--fw=\"%s\"") % sudo % card_burner % ml % fpga_image_path % ml % fw_image_path);
+            return str(boost::format("%s\n%s") % print_utility_error("uhd_images_downloader.py") % card_burner_cmd);
         }
         else{
             const std::string addr = _ctrl_transport->get_recv_addr();
-            const std::string net_burner_path = (fs::path(uhd::get_pkg_path()) / UHD_LIB_DIR / "uhd" / "utils" / "usrp_n2xx_simple_net_burner").string();
-            const std::string net_burner_cmd = str(boost::format("\"%s\" %s--addr=\"%s\"") % net_burner_path % ml % addr);
-            return str(boost::format("%s\n%s") % print_images_error() % net_burner_cmd);
+            const std::string image_loader_path = (fs::path(uhd::get_pkg_path()) / "bin" / "uhd_image_loader").string();
+            const std::string image_loader_cmd = str(boost::format(" \"%s\" %s--args=\"type=usrp2,addr=%s\"") % image_loader_path % ml % addr);
+            return str(boost::format("%s\n%s") % print_utility_error("uhd_images_downloader.py") % image_loader_cmd);
         }
+    }
+
+    void set_time(const time_spec_t&)
+    {
+        throw uhd::not_implemented_error("Timed commands not supported");
+    }
+
+    time_spec_t get_time(void)
+    {
+        return (0.0);
     }
 
 private:
@@ -405,8 +404,8 @@ private:
 
     //used in send/recv
     boost::mutex _ctrl_mutex;
-    boost::uint32_t _ctrl_seq_num;
-    boost::uint32_t _protocol_compat;
+    uint32_t _ctrl_seq_num;
+    uint32_t _protocol_compat;
 
     //lock thread stuff
     task::sptr _lock_task;

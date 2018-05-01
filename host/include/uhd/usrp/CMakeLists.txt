@@ -1,24 +1,14 @@
 #
-# Copyright 2010-2011 Ettus Research LLC
+# Copyright 2010-2011,2014-2015 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# SPDX-License-Identifier: GPL-3.0
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-
 
 UHD_INSTALL(FILES
 
     #### dboard headers ###
+    fe_connection.hpp
     dboard_base.hpp
     dboard_eeprom.hpp
     dboard_id.hpp
@@ -27,6 +17,7 @@ UHD_INSTALL(FILES
 
     ### utilities ###
     gps_ctrl.hpp
+    gpio_defs.hpp
     mboard_eeprom.hpp
     subdev_spec.hpp
 
@@ -36,3 +27,14 @@ UHD_INSTALL(FILES
     DESTINATION ${INCLUDE_DIR}/uhd/usrp
     COMPONENT headers
 )
+
+IF(ENABLE_C_API)
+    UHD_INSTALL(FILES
+        dboard_eeprom.h
+        mboard_eeprom.h
+        subdev_spec.h
+        usrp.h
+        DESTINATION ${INCLUDE_DIR}/uhd/usrp
+        COMPONENT headers
+    )
+ENDIF(ENABLE_C_API)

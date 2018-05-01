@@ -1,37 +1,28 @@
 //
 // Copyright 2012-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "b200_iface.hpp"
 
 #include <uhd/config.hpp>
-#include <uhd/utils/msg.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/exception.hpp>
+#include <uhdlib/utils/ihex.hpp>
+
 #include <boost/functional/hash.hpp>
 #include <boost/thread/thread.hpp>
-#include <boost/cstdint.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/format.hpp>
+#include <libusb.h>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <cstring>
 #include <iomanip>
-#include <libusb.h>
+#include <stdint.h>
 
 //! libusb_error_name is only in newer API
 #ifndef HAVE_LIBUSB_ERROR_NAME
@@ -44,42 +35,42 @@ using namespace uhd::transport;
 
 static const bool load_img_msg = true;
 
-const static boost::uint8_t FX3_FIRMWARE_LOAD = 0xA0;
-const static boost::uint8_t VRT_VENDOR_OUT = (LIBUSB_REQUEST_TYPE_VENDOR
+const static uint8_t FX3_FIRMWARE_LOAD = 0xA0;
+const static uint8_t VRT_VENDOR_OUT = (LIBUSB_REQUEST_TYPE_VENDOR
                                               | LIBUSB_ENDPOINT_OUT);
-const static boost::uint8_t VRT_VENDOR_IN = (LIBUSB_REQUEST_TYPE_VENDOR
+const static uint8_t VRT_VENDOR_IN = (LIBUSB_REQUEST_TYPE_VENDOR
                                              | LIBUSB_ENDPOINT_IN);
-const static boost::uint8_t B200_VREQ_FPGA_START = 0x02;
-const static boost::uint8_t B200_VREQ_FPGA_DATA = 0x12;
-const static boost::uint8_t B200_VREQ_GET_COMPAT = 0x15;
-const static boost::uint8_t B200_VREQ_SET_FPGA_HASH = 0x1C;
-const static boost::uint8_t B200_VREQ_GET_FPGA_HASH = 0x1D;
-const static boost::uint8_t B200_VREQ_SET_FW_HASH = 0x1E;
-const static boost::uint8_t B200_VREQ_GET_FW_HASH = 0x1F;
-const static boost::uint8_t B200_VREQ_LOOP = 0x22;
-const static boost::uint8_t B200_VREQ_FPGA_CONFIG = 0x55;
-const static boost::uint8_t B200_VREQ_FPGA_RESET = 0x62;
-const static boost::uint8_t B200_VREQ_GPIF_RESET = 0x72;
-const static boost::uint8_t B200_VREQ_GET_USB = 0x80;
-const static boost::uint8_t B200_VREQ_GET_STATUS = 0x83;
-const static boost::uint8_t B200_VREQ_FX3_RESET = 0x99;
-const static boost::uint8_t B200_VREQ_EEPROM_WRITE = 0xBA;
-const static boost::uint8_t B200_VREQ_EEPROM_READ = 0xBB;
+const static uint8_t B200_VREQ_FPGA_START = 0x02;
+const static uint8_t B200_VREQ_FPGA_DATA = 0x12;
+const static uint8_t B200_VREQ_GET_COMPAT = 0x15;
+const static uint8_t B200_VREQ_SET_FPGA_HASH = 0x1C;
+const static uint8_t B200_VREQ_GET_FPGA_HASH = 0x1D;
+const static uint8_t B200_VREQ_SET_FW_HASH = 0x1E;
+const static uint8_t B200_VREQ_GET_FW_HASH = 0x1F;
+const static uint8_t B200_VREQ_LOOP = 0x22;
+const static uint8_t B200_VREQ_FPGA_CONFIG = 0x55;
+//const static uint8_t B200_VREQ_FPGA_RESET = 0x62;
+const static uint8_t B200_VREQ_GPIF_RESET = 0x72;
+const static uint8_t B200_VREQ_GET_USB = 0x80;
+const static uint8_t B200_VREQ_GET_STATUS = 0x83;
+const static uint8_t B200_VREQ_FX3_RESET = 0x99;
+const static uint8_t B200_VREQ_EEPROM_WRITE = 0xBA;
+const static uint8_t B200_VREQ_EEPROM_READ = 0xBB;
 
-const static boost::uint8_t FX3_STATE_UNDEFINED = 0x00;
-const static boost::uint8_t FX3_STATE_FPGA_READY = 0x01;
-const static boost::uint8_t FX3_STATE_CONFIGURING_FPGA = 0x02;
-const static boost::uint8_t FX3_STATE_BUSY = 0x03;
-const static boost::uint8_t FX3_STATE_RUNNING = 0x04;
-const static boost::uint8_t FX3_STATE_UNCONFIGURED = 0x05;
-const static boost::uint8_t FX3_STATE_ERROR = 0x06;
+const static uint8_t FX3_STATE_UNDEFINED = 0x00;
+const static uint8_t FX3_STATE_FPGA_READY = 0x01;
+const static uint8_t FX3_STATE_CONFIGURING_FPGA = 0x02;
+const static uint8_t FX3_STATE_BUSY = 0x03;
+const static uint8_t FX3_STATE_RUNNING = 0x04;
+const static uint8_t FX3_STATE_UNCONFIGURED = 0x05;
+const static uint8_t FX3_STATE_ERROR = 0x06;
 
 const static int VREQ_MAX_SIZE_USB2 = 64;
 const static int VREQ_MAX_SIZE_USB3 = 512;
 const static int VREQ_DEFAULT_SIZE  = VREQ_MAX_SIZE_USB2;
 const static int VREQ_MAX_SIZE      = VREQ_MAX_SIZE_USB3;
 
-typedef boost::uint32_t hash_type;
+typedef uint32_t hash_type;
 
 
 /***********************************************************************
@@ -87,9 +78,9 @@ typedef boost::uint32_t hash_type;
  **********************************************************************/
 /*!
  * Create a file hash
- * The hash will be used to identify the loaded firmware and fpga image
+ * The hash will be used to identify the loaded fpga image
  * \param filename file used to generate hash value
- * \return hash value in a size_t type
+ * \return hash value in a uint32_t type
  */
 static hash_type generate_hash(const char *filename)
 {
@@ -101,13 +92,15 @@ static hash_type generate_hash(const char *filename)
         throw uhd::io_error(std::string("cannot open input file ") + filename);
     }
 
-    size_t hash = 0;
+    hash_type hash = 0;
 
     char ch;
     long long count = 0;
     while (file.get(ch)) {
         count++;
-        boost::hash_combine(hash, ch);
+        //hash algorithm derived from boost hash_combine
+        //http://www.boost.org/doc/libs/1_35_0/doc/html/boost/hash_combine_id241013.html
+        hash ^= ch + 0x9e3779b9 + (hash<<6) + (hash>>2);
     }
 
     if (count == 0){
@@ -123,66 +116,6 @@ static hash_type generate_hash(const char *filename)
 }
 
 
-/*!
- * Verify checksum of a Intel HEX record
- * \param record a line from an Intel HEX file
- * \return true if record is valid, false otherwise
- */
-bool checksum(const std::string& record) {
-
-    size_t len = record.length();
-    unsigned int i;
-    unsigned char sum = 0;
-    unsigned int val;
-
-    for (i = 1; i < len; i += 2) {
-        std::istringstream(record.substr(i, 2)) >> std::hex >> val;
-        sum += val;
-    }
-
-    if (sum == 0)
-       return true;
-    else
-       return false;
-}
-
-
-/*!
- * Parse Intel HEX record
- *
- * \param record a line from an Intel HEX file
- * \param len output length of record
- * \param addr output address
- * \param type output type
- * \param data output data
- * \return true if record is sucessfully read, false on error
- */
-bool parse_record(const std::string& record, boost::uint16_t &len, \
-        boost::uint16_t &addr, boost::uint16_t &type, unsigned char* data) {
-
-    unsigned int i;
-    std::string _data;
-    unsigned int val;
-
-    if (record.substr(0, 1) != ":")
-        return false;
-
-    std::istringstream(record.substr(1, 2)) >> std::hex >> len;
-    std::istringstream(record.substr(3, 4)) >> std::hex >> addr;
-    std::istringstream(record.substr(7, 2)) >> std::hex >> type;
-
-    if (len > (2 * (record.length() - 9)))  // sanity check to prevent buffer overrun
-        return false;
-
-    for (i = 0; i < len; i++) {
-        std::istringstream(record.substr(9 + 2 * i, 2)) >> std::hex >> val;
-        data[i] = (unsigned char) val;
-    }
-
-    return true;
-}
-
-
 /***********************************************************************
  * The implementation class
  **********************************************************************/
@@ -194,12 +127,12 @@ public:
         //NOP
     }
 
-    int fx3_control_write(boost::uint8_t request,
-                           boost::uint16_t value,
-                           boost::uint16_t index,
+    int fx3_control_write(uint8_t request,
+                           uint16_t value,
+                           uint16_t index,
                            unsigned char *buff,
-                           boost::uint16_t length,
-                           boost::int32_t timeout = 0) {
+                           uint16_t length,
+                           uint32_t timeout = 0) {
         return _usb_ctrl->submit(VRT_VENDOR_OUT,        // bmReqeustType
                                    request,             // bRequest
                                    value,               // wValue
@@ -209,12 +142,12 @@ public:
                                    timeout);            // timeout
     }
 
-    int fx3_control_read(boost::uint8_t request,
-                           boost::uint16_t value,
-                           boost::uint16_t index,
+    int fx3_control_read(uint8_t request,
+                           uint16_t value,
+                           uint16_t index,
                            unsigned char *buff,
-                           boost::uint16_t length,
-                           boost::int32_t timeout = 0) {
+                           uint16_t length,
+                           uint32_t timeout = 0) {
         return _usb_ctrl->submit(VRT_VENDOR_IN,         // bmReqeustType
                                    request,             // bRequest
                                    value,               // wValue
@@ -224,21 +157,21 @@ public:
                                    timeout);            // timeout
     }
 
-    void write_i2c(UHD_UNUSED(boost::uint16_t addr), UHD_UNUSED(const byte_vector_t &bytes))
+    void write_i2c(UHD_UNUSED(uint16_t addr), UHD_UNUSED(const byte_vector_t &bytes))
     {
         throw uhd::not_implemented_error("b200 write i2c");
     }
 
 
-    byte_vector_t read_i2c(UHD_UNUSED(boost::uint16_t addr), UHD_UNUSED(size_t num_bytes))
+    byte_vector_t read_i2c(UHD_UNUSED(uint16_t addr), UHD_UNUSED(size_t num_bytes))
     {
         throw uhd::not_implemented_error("b200 read i2c");
     }
 
-    void write_eeprom(boost::uint16_t addr, boost::uint16_t offset,
+    void write_eeprom(uint16_t addr, uint16_t offset,
             const byte_vector_t &bytes) {
         int ret = fx3_control_write(B200_VREQ_EEPROM_WRITE,
-                          0, offset | (boost::uint16_t(addr) << 8),
+                          0, offset | (uint16_t(addr) << 8),
                           (unsigned char *) &bytes[0],
                           bytes.size());
 
@@ -249,12 +182,12 @@ public:
     }
 
     byte_vector_t read_eeprom(
-        boost::uint16_t addr,
-        boost::uint16_t offset,
+        uint16_t addr,
+        uint16_t offset,
         size_t num_bytes) {
         byte_vector_t recv_bytes(num_bytes);
         int bytes_read = fx3_control_read(B200_VREQ_EEPROM_READ,
-                         0, offset | (boost::uint16_t(addr) << 8),
+                         0, offset | (uint16_t(addr) << 8),
                          (unsigned char*) &recv_bytes[0],
                          num_bytes);
 
@@ -268,109 +201,31 @@ public:
 
     void load_firmware(const std::string filestring, UHD_UNUSED(bool force) = false)
     {
-        const char *filename = filestring.c_str();
-
-        /* Fields used in each USB control transfer. */
-        boost::uint16_t len = 0;
-        boost::uint16_t type = 0;
-        boost::uint16_t lower_address_bits = 0x0000;
-        unsigned char data[512];
-
-        /* Can be set by the Intel HEX record 0x04, used for all 0x00 records
-         * thereafter. Note this field takes the place of the 'index' parameter in
-         * libusb calls, and is necessary for FX3's 32-bit addressing. */
-        boost::uint16_t upper_address_bits = 0x0000;
-
-        std::ifstream file;
-        file.open(filename, std::ifstream::in);
-
-        if(!file.good()) {
-            throw uhd::io_error("fx3_load_firmware: cannot open firmware input file");
+        if (load_img_msg) {
+            UHD_LOGGER_INFO("B200") << "Loading firmware image: "
+                            << filestring << "...";
         }
 
-        if (load_img_msg) UHD_MSG(status) << "Loading firmware image: " \
-            << filestring << "..." << std::flush;
-
-        while (!file.eof()) {
-            boost::int32_t ret = 0;
-            std::string record;
-            file >> record;
-
-        if (!(record.length() > 0))
-            continue;
-
-            /* Check for valid Intel HEX record. */
-            if (!checksum(record) || !parse_record(record, len, \
-                        lower_address_bits, type, data)) {
-                throw uhd::io_error("fx3_load_firmware: bad intel hex record checksum");
-            }
-
-            /* Type 0x00: Data. */
-            if (type == 0x00) {
-                ret = fx3_control_write(FX3_FIRMWARE_LOAD, \
-                        lower_address_bits, upper_address_bits, data, len);
-
-                if (ret < 0) {
-                    throw uhd::io_error("usrp_load_firmware: usrp_control_write failed");
-                }
-            }
-
-            /* Type 0x01: EOF. */
-            else if (type == 0x01) {
-                if (lower_address_bits != 0x0000 || len != 0 ) {
-                    throw uhd::io_error("fx3_load_firmware: For EOF record, address must be 0, length must be 0.");
-                }
-
-                //TODO
-                //usrp_set_firmware_hash(hash); //set hash before reset
-
-                /* Successful termination! */
-                file.close();
-
-                /* Let the system settle. */
-                boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-                return;
-            }
-
-            /* Type 0x04: Extended Linear Address Record. */
-            else if (type == 0x04) {
-                if (lower_address_bits != 0x0000 || len != 2 ) {
-                    throw uhd::io_error("fx3_load_firmware: For ELA record, address must be 0, length must be 2.");
-                }
-
-                upper_address_bits = ((boost::uint16_t)((data[0] & 0x00FF) << 8))\
-                                     + ((boost::uint16_t)(data[1] & 0x00FF));
-            }
-
-            /* Type 0x05: Start Linear Address Record. */
-            else if (type == 0x05) {
-                if (lower_address_bits != 0x0000 || len != 4 ) {
-                    throw uhd::io_error("fx3_load_firmware: For SLA record, address must be 0, length must be 4.");
-                }
-
-                /* The firmware load is complete.  We now need to tell the CPU
-                 * to jump to an execution address start point, now contained within
-                 * the data field.  Parse these address bits out, and then push the
-                 * instruction. */
-                upper_address_bits = ((boost::uint16_t)((data[0] & 0x00FF) << 8))\
-                                     + ((boost::uint16_t)(data[1] & 0x00FF));
-                lower_address_bits = ((boost::uint16_t)((data[2] & 0x00FF) << 8))\
-                                     + ((boost::uint16_t)(data[3] & 0x00FF));
-
-                fx3_control_write(FX3_FIRMWARE_LOAD, lower_address_bits, \
-                        upper_address_bits, 0, 0);
-
-                if (load_img_msg) UHD_MSG(status) << " done" << std::endl;
-            }
-
-            /* If we receive an unknown record type, error out. */
-            else {
-                throw uhd::io_error("fx3_load_firmware: unsupported record type.");
-            }
+        ihex_reader file_reader(filestring);
+        try {
+            file_reader.read(
+                boost::bind(
+                    &b200_iface_impl::fx3_control_write, this,
+                    FX3_FIRMWARE_LOAD, _1, _2, _3, _4, 0
+                )
+            );
+        } catch (const uhd::io_error &e) {
+            throw uhd::io_error(str(boost::format("Could not load firmware: \n%s") % e.what()));
         }
 
-        /* There was no valid EOF. */
-        throw uhd::io_error("fx3_load_firmware: No EOF record found.");
+
+        //TODO
+        //usrp_set_firmware_hash(hash); //set hash before reset
+
+        /* Success! Let the system settle. */
+        // TODO: Replace this with a polling loop in the FX3, or find out
+        // what the actual, correct timeout value is.
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     }
 
     void reset_fx3(void) {
@@ -416,7 +271,7 @@ public:
         */
     }
 
-    boost::uint8_t get_usb_speed(void) {
+    uint8_t get_usb_speed(void) {
 
         unsigned char rx_data[1];
         memset(rx_data, 0x00, sizeof(rx_data));
@@ -428,10 +283,10 @@ public:
         else if (ret != bytes_to_recv)
             throw uhd::io_error((boost::format("Short read on get USB speed (expecting: %d, returned: %d)") % bytes_to_recv % ret).str());
 
-        return boost::lexical_cast<boost::uint8_t>(rx_data[0]);
+        return boost::lexical_cast<uint8_t>(rx_data[0]);
     }
 
-    boost::uint8_t get_fx3_status(void) {
+    uint8_t get_fx3_status(void) {
 
         unsigned char rx_data[1];
         memset(rx_data, 0x00, sizeof(rx_data));
@@ -443,10 +298,10 @@ public:
         else if (ret != bytes_to_recv)
             throw uhd::io_error((boost::format("Short read on get FX3 status (expecting: %d, returned: %d)") % bytes_to_recv % ret).str());
 
-        return boost::lexical_cast<boost::uint8_t>(rx_data[0]);
+        return boost::lexical_cast<uint8_t>(rx_data[0]);
     }
 
-    boost::uint16_t get_compat_num(void) {
+    uint16_t get_compat_num(void) {
 
         unsigned char rx_data[2];
         memset(rx_data, 0x00, sizeof(rx_data));
@@ -509,10 +364,10 @@ public:
             throw uhd::io_error((boost::format("Short write on set FPGA hash (expecting: %d, returned: %d)") % bytes_to_send % ret).str());
     }
 
-    boost::uint32_t load_fpga(const std::string filestring) {
+    uint32_t load_fpga(const std::string filestring, bool force) {
 
-        boost::uint8_t fx3_state = 0;
-        boost::uint32_t wait_count;
+        uint8_t fx3_state = 0;
+        uint32_t wait_count;
         int ret = 0;
         int bytes_to_xfer = 0;
 
@@ -520,7 +375,7 @@ public:
 
         hash_type hash = generate_hash(filename);
         hash_type loaded_hash; usrp_get_fpga_hash(loaded_hash);
-        if (hash == loaded_hash) return 0;
+        if (hash == loaded_hash and !force) return 0;
 
         // Establish default largest possible control request transfer size based on operating USB speed
         int transfer_size = VREQ_DEFAULT_SIZE;
@@ -547,7 +402,7 @@ public:
         size_t file_size = 0;
         {
             std::ifstream file(filename, std::ios::in | std::ios::binary | std::ios::ate);
-            file_size = file.tellg();
+            file_size = size_t(file.tellg());
         }
 
         std::ifstream file;
@@ -581,8 +436,10 @@ public:
             wait_count++;
         } while(fx3_state != FX3_STATE_FPGA_READY);
 
-        if (load_img_msg) UHD_MSG(status) << "Loading FPGA image: " \
-            << filestring << "..." << std::flush;
+        if (load_img_msg) {
+            UHD_LOGGER_INFO("B200") << "Loading FPGA image: "
+                                    << filestring << "...";
+        }
 
         bytes_to_xfer = 1;
         ret = fx3_control_write(B200_VREQ_FPGA_START, 0, 0, out_buff, bytes_to_xfer, 1000);
@@ -611,7 +468,7 @@ public:
             if(n == 0)
                 continue;
 
-            boost::uint16_t transfer_count = boost::uint16_t(n);
+            uint16_t transfer_count = uint16_t(n);
 
             /* Send the data to the device. */
             int nwritten = fx3_control_write(B200_VREQ_FPGA_DATA, 0, 0, out_buff, transfer_count, 5000);
@@ -620,15 +477,20 @@ public:
             else if (nwritten != transfer_count)
                 throw uhd::io_error((boost::format("load_fpga: short write while transferring bitstream to FX3  (expecting: %d, returned: %d)") % transfer_count % nwritten).str());
 
+            const size_t LOG_GRANULARITY = 10; // %. Keep this an integer divisor of 100.
             if (load_img_msg)
             {
-                if (bytes_sent == 0) UHD_MSG(status) << "  0%" << std::flush;
-                const size_t percent_before = size_t((bytes_sent*100)/file_size);
+                if (bytes_sent == 0) UHD_LOGGER_DEBUG("B200") << "  0%" << std::flush;
+                const size_t percent_before =
+                    size_t((bytes_sent*100)/file_size) -
+                    (size_t((bytes_sent*100)/file_size) % LOG_GRANULARITY);
                 bytes_sent += transfer_count;
-                const size_t percent_after = size_t((bytes_sent*100)/file_size);
+                const size_t percent_after =
+                    size_t((bytes_sent*100)/file_size) -
+                    (size_t((bytes_sent*100)/file_size) % LOG_GRANULARITY);
                 if (percent_before != percent_after)
                 {
-                    UHD_MSG(status) << "\b\b\b\b" << std::setw(3) << percent_after << "%" << std::flush;
+                    UHD_LOGGER_DEBUG("B200") << std::setw(3) << percent_after << "%";
                 }
             }
         }
@@ -650,8 +512,9 @@ public:
 
         usrp_set_fpga_hash(hash);
 
-        if (load_img_msg)
-            UHD_MSG(status) << "\b\b\b\b done" << std::endl;
+        if (load_img_msg) {
+            UHD_LOGGER_DEBUG("B200") << "FPGA image loaded!";
+        }
 
         return 0;
     }
@@ -661,7 +524,7 @@ private:
 };
 
 
-std::string b200_iface::fx3_state_string(boost::uint8_t state)
+std::string b200_iface::fx3_state_string(uint8_t state)
 {
     switch (state)
     {

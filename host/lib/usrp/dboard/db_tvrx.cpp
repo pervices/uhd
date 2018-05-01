@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 // No RX IO Pins Used
@@ -31,7 +21,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/algorithm.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/sensors.hpp>
 #include <uhd/types/dict.hpp>
@@ -107,7 +97,7 @@ static const boost::array<double, 17> tvrx_gains_volts =
 
 static uhd::dict<std::string, gain_range_t> get_tvrx_gain_ranges(void) {
     double rfmax = 0.0, rfmin = FLT_MAX;
-    BOOST_FOREACH(const std::string range, tvrx_rf_gains_db.keys()) {
+    for(const std::string range:  tvrx_rf_gains_db.keys()) {
         double my_max = tvrx_rf_gains_db[range].back(); //we're assuming it's monotonic
         double my_min = tvrx_rf_gains_db[range].front(); //if it's not this is wrong wrong wrong
         if(my_max > rfmax) rfmax = my_max;
@@ -125,7 +115,7 @@ static uhd::dict<std::string, gain_range_t> get_tvrx_gain_ranges(void) {
 
 static const double opamp_gain = 1.22; //onboard DAC opamp gain
 static const double tvrx_if_freq = 43.75e6; //IF freq of TVRX module
-static const boost::uint16_t reference_divider = 640; //clock reference divider to use
+static const uint16_t reference_divider = 640; //clock reference divider to use
 static const double reference_freq = 4.0e6;
 
 /***********************************************************************
@@ -134,13 +124,13 @@ static const double reference_freq = 4.0e6;
 class tvrx : public rx_dboard_base{
 public:
     tvrx(ctor_args_t args);
-    ~tvrx(void);
+    virtual ~tvrx(void);
 
 private:
     uhd::dict<std::string, double> _gains;
     double _lo_freq;
     tuner_4937di5_regs_t _tuner_4937di5_regs;
-    boost::uint8_t _tuner_4937di5_addr(void){
+    uint8_t _tuner_4937di5_addr(void){
         return (this->get_iface()->get_special_props().mangle_i2c_addrs)? 0x61 : 0x60; //ok really? we could rename that call
     };
 
@@ -153,9 +143,9 @@ private:
         //get the register data
         for(int i=0; i<4; i++){
             regs_vector[i] = _tuner_4937di5_regs.get_reg(i);
-            UHD_LOGV(often) << boost::format(
+            UHD_LOGGER_TRACE("TVRX") << boost::format(
                 "tvrx: send reg 0x%02x, value 0x%04x"
-            ) % int(i) % int(regs_vector[i]) << std::endl;
+            ) % int(i) % int(regs_vector[i]) ;
         }
 
         //send the data
@@ -188,14 +178,14 @@ tvrx::tvrx(ctor_args_t args) : rx_dboard_base(args){
     this->get_rx_subtree()->create<std::string>("name")
         .set("TVRX");
     this->get_rx_subtree()->create<int>("sensors"); //phony property so this dir exists
-    BOOST_FOREACH(const std::string &name, get_tvrx_gain_ranges().keys()){
+    for(const std::string &name:  get_tvrx_gain_ranges().keys()){
         this->get_rx_subtree()->create<double>("gains/"+name+"/value")
-            .coerce(boost::bind(&tvrx::set_gain, this, _1, name));
+            .set_coercer(boost::bind(&tvrx::set_gain, this, _1, name));
         this->get_rx_subtree()->create<meta_range_t>("gains/"+name+"/range")
             .set(get_tvrx_gain_ranges()[name]);
     }
     this->get_rx_subtree()->create<double>("freq/value")
-        .coerce(boost::bind(&tvrx::set_freq, this, _1));
+        .set_coercer(boost::bind(&tvrx::set_freq, this, _1));
     this->get_rx_subtree()->create<meta_range_t>("freq/range")
         .set(tvrx_freq_range);
     this->get_rx_subtree()->create<std::string>("antenna/value")
@@ -232,7 +222,7 @@ tvrx::tvrx(ctor_args_t args) : rx_dboard_base(args){
     this->get_rx_subtree()->access<double>("freq/value").set(tvrx_freq_range.start());
 
     //set default gains
-    BOOST_FOREACH(const std::string &name, get_tvrx_gain_ranges().keys()){
+    for(const std::string &name:  get_tvrx_gain_ranges().keys()){
         this->get_rx_subtree()->access<double>("gains/"+name+"/value")
             .set(get_tvrx_gain_ranges()[name].start());
     }
@@ -247,9 +237,9 @@ tvrx::~tvrx(void){
  */
 
 static std::string get_band(double freq) {
-    BOOST_FOREACH(const std::string &band, tvrx_freq_ranges.keys()) {
+    for(const std::string &band:  tvrx_freq_ranges.keys()) {
         if(freq >= tvrx_freq_ranges[band].start() && freq <= tvrx_freq_ranges[band].stop()){
-            UHD_LOGV(often) << "Band: " << band << std::endl;
+            UHD_LOGGER_TRACE("TVRX") << "Band: " << band ;
             return band;
         }
     }
@@ -271,7 +261,7 @@ static double gain_interp(double gain, const boost::array<double, 17>& db_vector
     double volts;
     gain = uhd::clip<double>(gain, db_vector.front(), db_vector.back()); //let's not get carried away here
 
-    boost::uint8_t gain_step = 0;
+    uint8_t gain_step = 0;
     //find which bin we're in
     for(size_t i = 0; i < db_vector.size()-1; i++) {
         if(gain >= db_vector[i] && gain <= db_vector[i+1]) gain_step = i;
@@ -291,7 +281,7 @@ static double gain_interp(double gain, const boost::array<double, 17>& db_vector
     //use the volts per dB slope to find the final interpolated voltage
     volts = volts_vector[gain_step] + (slope * (gain - db_vector[gain_step]));
 
-    UHD_LOGV(often) << "Gain interp: gain: " << gain << ", gain_step: " << int(gain_step) << ", slope: " << slope << ", volts: " << volts << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << "Gain interp: gain: " << gain << ", gain_step: " << int(gain_step) << ", slope: " << slope << ", volts: " << volts ;
 
     return volts;
 }
@@ -317,9 +307,9 @@ static double rf_gain_to_voltage(double gain, double lo_freq){
 
     dac_volts = uhd::clip<double>(dac_volts, 0.0, 3.3);
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "tvrx RF AGC gain: %f dB, dac_volts: %f V"
-    ) % gain % dac_volts << std::endl;
+    ) % gain % dac_volts ;
 
     return dac_volts;
 }
@@ -340,9 +330,9 @@ static double if_gain_to_voltage(double gain){
 
     dac_volts = uhd::clip<double>(dac_volts, 0.0, 3.3);
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "tvrx IF AGC gain: %f dB, dac_volts: %f V"
-    ) % gain % dac_volts << std::endl;
+    ) % gain % dac_volts ;
 
     return dac_volts;
 }
@@ -396,7 +386,7 @@ double tvrx::set_freq(double freq) {
     //not FAR off, but we do this to be consistent
     if(prev_band != new_band) set_gain(_gains["RF"], "RF");
 
-    UHD_LOGV(often) << boost::format("set_freq: target LO: %f f_ref: %f divisor: %i actual LO: %f") % target_lo_freq % f_ref % divisor % actual_lo_freq << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format("set_freq: target LO: %f f_ref: %f divisor: %i actual LO: %f") % target_lo_freq % f_ref % divisor % actual_lo_freq ;
 
     _lo_freq = actual_lo_freq; //for rx props
 

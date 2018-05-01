@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Ettus Research LLC
+// Copyright 2013-2017 Ettus Research
 
 #include "x300_init.h"
 #include "x300_defs.h"
@@ -6,14 +6,13 @@
 #include "xge_phy.h"
 #include "ethernet.h"
 #include "chinch.h"
-#include "mdelay.h"
 
 #include <wb_utils.h>
 #include <wb_uart.h>
 #include <udp_uart.h>
 #include <u3_net_stack.h>
 #include <link_state_route_proto.h>
-#include <printf.h>
+#include <trace.h>
 #include <string.h>
 #include <print_addrs.h>
 
@@ -33,7 +32,7 @@ void program_udp_framer(
     const eth_mac_addr_t *dst_mac = u3_net_stack_arp_cache_lookup(dst_ip);
     const size_t ethbase = (ethno == 0)? SR_ETHINT0 : SR_ETHINT1;
     const size_t vdest = (sid >> 16) & 0xff;
-    printf("handle_udp_prog_framer sid %u vdest %u\n", sid, vdest);
+    UHD_FW_TRACE_FSTR(INFO, "handle_udp_prog_framer sid %u vdest %u\n", sid, vdest);
 
     //setup source framer
     const eth_mac_addr_t *src_mac = u3_net_stack_get_mac_addr(ethno);
@@ -189,6 +188,44 @@ void handle_udp_fpga_prog(
 }
 
 /***********************************************************************
+ * Handler for FPGA image reading packets
+ **********************************************************************/
+void handle_udp_fpga_read(
+    const uint8_t ethno,
+    const struct ip_addr *src, const struct ip_addr *dst,
+    const uint16_t src_port, const uint16_t dst_port,
+    const void *buff, const size_t num_bytes
+)
+{
+    const x300_fpga_read_t *request = (const x300_fpga_read_t *) buff;
+    x300_fpga_read_reply_t reply = {0};
+    bool status = true;
+
+    if (buff == NULL) {
+        return;
+    } else if (num_bytes < offsetof(x300_fpga_read_t, size)) {
+        reply.flags |= X300_FPGA_READ_FLAGS_ERROR;
+    } else {
+        if (request->flags & X300_FPGA_READ_FLAGS_INIT) {
+            STATUS_MERGE(chinch_flash_init(), status);
+        } else if (request->flags & X300_FPGA_READ_FLAGS_CLEANUP) {
+            chinch_flash_cleanup();
+        } else {
+            reply.flags |= X300_FPGA_READ_FLAGS_ACK;
+            reply.sector = request->sector;
+            reply.index  = request->index;
+            reply.size   = request->size;
+
+            STATUS_MERGE(chinch_flash_select_sector(request->sector), status);
+            STATUS_MERGE(chinch_flash_read_buf(request->index*2, reply.data, request->size), status);
+        }
+    }
+
+    if (!status) reply.flags |= X300_FPGA_READ_FLAGS_ERROR;
+    u3_net_stack_send_udp_pkt(ethno, src, dst_port, src_port, &reply, sizeof(reply));
+}
+
+/***********************************************************************
  * Handler for MTU detection
  **********************************************************************/
 void handle_udp_mtu_detect(
@@ -204,7 +241,7 @@ void handle_udp_mtu_detect(
     if (buff == NULL) {
         return;
     } else if (!(request->flags & X300_MTU_DETECT_ECHO_REQUEST)) {
-        printf("DEBUG: MTU detect got unknown request\n");
+        UHD_FW_TRACE(WARN, "MTU detect got unknown request");
         reply.flags |= X300_MTU_DETECT_ERROR;
     }
 
@@ -218,47 +255,43 @@ void handle_udp_mtu_detect(
 /***********************************************************************
  * Deal with host claims and claim timeout
  **********************************************************************/
-static void handle_claim(void)
+static void handle_claim(uint32_t ticks_now)
 {
+    static const uint32_t CLAIM_TIMEOUT = 2*CPU_CLOCK;      // 2 seconds
+    static uint32_t ticks_last_claim = 0;
     static uint32_t last_time = 0;
-    static size_t timeout = 0;
 
-    //time is 0 if the claim was forfeit
-    if (shmem[X300_FW_SHMEM_CLAIM_TIME] == 0)
+    // Claim status can only change if the claim is active or the claim is renewed.
+    if (shmem[X300_FW_SHMEM_CLAIM_STATUS] != 0 &&
+            (shmem[X300_FW_SHMEM_CLAIM_TIME] == 0 ||
+            ticks_now - ticks_last_claim > CLAIM_TIMEOUT))
     {
-        shmem[X300_FW_SHMEM_CLAIM_STATUS] = 0;
+            // the claim was released or timed out
+            shmem[X300_FW_SHMEM_CLAIM_STATUS] = 0;
+            last_time = shmem[X300_FW_SHMEM_CLAIM_TIME];
     }
-    //if the time changes, reset timeout
     else if (last_time != shmem[X300_FW_SHMEM_CLAIM_TIME])
     {
+        // claim was renewed
         shmem[X300_FW_SHMEM_CLAIM_STATUS] = 1;
-        timeout = 0;
+        last_time = shmem[X300_FW_SHMEM_CLAIM_TIME];
+        ticks_last_claim = ticks_now;
     }
-    //otherwise increment for timeout
-    else timeout++;
-
-    //always stash the last seen time
-    last_time = shmem[X300_FW_SHMEM_CLAIM_TIME];
-
-    //the claim has timed out after 2 seconds
-    if (timeout > 2000) shmem[X300_FW_SHMEM_CLAIM_STATUS] = 0;
 }
 
 /***********************************************************************
  * LED blinky logic and support utilities
  **********************************************************************/
-static uint32_t get_xbar_total(const uint8_t port)
+static uint32_t get_xbar_total(const uint32_t port)
 {
-    #define get_xbar_stat(in_prt, out_prt) \
-        wb_peek32(RB0_BASE+256+(((in_prt)*8+(out_prt))*4))
+    static const uint32_t NUM_PORTS = 16;
     uint32_t total = 0;
-    for (size_t i = 0; i < 8; i++)
+    for (uint32_t i = 0; i < NUM_PORTS; i++)
     {
-        total += get_xbar_stat(port, i);
-    }
-    for (size_t i = 0; i < 8; i++)
-    {
-        total += get_xbar_stat(i, port);
+        wb_poke32(SET0_BASE + SR_RB_ADDR*4, (NUM_PORTS*port + i));
+        total += wb_peek32(RB0_BASE + RB_XBAR*4);
+        wb_poke32(SET0_BASE + SR_RB_ADDR*4, (NUM_PORTS*i + port));
+        total += wb_peek32(RB0_BASE + RB_XBAR*4);
     }
     if (port < 2) //also netstack if applicable
     {
@@ -267,36 +300,17 @@ static uint32_t get_xbar_total(const uint8_t port)
     return total;
 }
 
-static size_t popcntll(uint64_t num)
-{
-    size_t total = 0;
-    for (size_t i = 0; i < sizeof(num)*8; i++)
-    {
-        total += (num >> i) & 0x1;
-    }
-    return total;
-}
-
 static void update_leds(void)
 {
-    //update activity status for all ports
-    uint64_t activity_shreg[8];
-    for (size_t i = 0; i < 8; i++)
-    {
-        static uint32_t last_total[8];
-        const uint32_t total = get_xbar_total(i);
-        activity_shreg[i] <<= 1;
-        activity_shreg[i] |= (total == last_total[i])? 0 : 1;
-        last_total[i] = total;
-    }
+    static uint32_t last_total0 = 0;
+    static uint32_t last_total1 = 0;
+    const uint32_t total0 = get_xbar_total(0);
+    const uint32_t total1 = get_xbar_total(1);
+    const bool act0 = (total0 != last_total0);
+    const bool act1 = (total1 != last_total1);
+    last_total0 = total0;
+    last_total1 = total1;
 
-    static uint32_t counter = 0;
-    counter++;
-
-    const size_t cnt0 = popcntll(activity_shreg[0]);
-    const size_t cnt1 = popcntll(activity_shreg[1]);
-    const bool act0 = cnt0*8 > (counter % 64);
-    const bool act1 = cnt1*8 > (counter % 64);
     const bool link0 = ethernet_get_link_up(0);
     const bool link1 = ethernet_get_link_up(1);
     const bool claimed = shmem[X300_FW_SHMEM_CLAIM_STATUS];
@@ -317,12 +331,14 @@ static void update_leds(void)
 static void garp(void)
 {
     static size_t count = 0;
-    if (count++ < 60000) return; //60 seconds
+    if (count++ < 3000) return; //30 seconds
     count = 0;
     for (size_t e = 0; e < ethernet_ninterfaces(); e++)
     {
-        if (!ethernet_get_link_up(e)) continue;
-        u3_net_stack_send_arp_request(e, u3_net_stack_get_ip_addr(e));
+        if (wb_peek32(SR_ADDR(RB0_BASE, e == 0 ? RB_SFP0_TYPE : RB_SFP1_TYPE)) != RB_SFP_AURORA) {
+            if (!ethernet_get_link_up(e)) continue;
+            u3_net_stack_send_arp_request(e, u3_net_stack_get_ip_addr(e));
+        }
     }
 }
 
@@ -345,12 +361,12 @@ static void handle_uarts(void)
     static uint32_t rxoffset = 0;
     for (int rxch = wb_uart_getc(UART0_BASE); rxch != -1; rxch = wb_uart_getc(UART0_BASE))
     {
-        rxoffset++;
         const int shift = ((rxoffset%4) * 8);
         static uint32_t rxword32 = 0;
         if (shift == 0) rxword32 = 0;
         rxword32 |= ((uint32_t) rxch & 0xFF) << shift;
         rxpool[(rxoffset/4) % NUM_POOL_WORDS32] = rxword32;
+        rxoffset++;
         shmem[X300_FW_SHMEM_UART_RX_INDEX] = rxoffset;
     }
 
@@ -429,29 +445,35 @@ static void handle_link_state(void)
  **********************************************************************/
 int main(void)
 {
-    x300_init();
+    x300_init((x300_eeprom_map_t *)&shmem[X300_FW_SHMEM_IDENT]);
     u3_net_stack_register_udp_handler(X300_FW_COMMS_UDP_PORT, &handle_udp_fw_comms);
     u3_net_stack_register_udp_handler(X300_VITA_UDP_PORT, &handle_udp_prog_framer);
     u3_net_stack_register_udp_handler(X300_FPGA_PROG_UDP_PORT, &handle_udp_fpga_prog);
+    u3_net_stack_register_udp_handler(X300_FPGA_READ_UDP_PORT, &handle_udp_fpga_read);
     u3_net_stack_register_udp_handler(X300_MTU_DETECT_UDP_PORT, &handle_udp_mtu_detect);
 
     uint32_t last_cronjob = 0;
 
     while(true)
     {
-        //jobs that happen once every ms
         const uint32_t ticks_now = wb_peek32(SR_ADDR(RB0_BASE, RB_COUNTER));
+
+        // handle the claim every time because any packet processed could
+        // have claimed or released the device and we want the claim status
+        // to be updated immediately to make it atomic from the host perspective
+        handle_claim(ticks_now);
+
+        //jobs that happen once every 10ms
         const uint32_t ticks_passed = ticks_now - last_cronjob;
-        static const uint32_t tick_delta = CPU_CLOCK/1000;
+        static const uint32_t tick_delta = CPU_CLOCK/100;
         if (ticks_passed > tick_delta)
         {
-            handle_link_state(); //deal with router table update
-            handle_claim(); //deal with the host claim register
+            poll_sfpp_status(0); // Every so often poll XGE Phy to look for SFP+ hotplug events.
+            poll_sfpp_status(1); // Every so often poll XGE Phy to look for SFP+ hotplug events.
+            //handle_link_state(); //deal with router table update
             update_leds(); //run the link and activity leds
             garp(); //send periodic garps
-            xge_poll_sfpp_status(0); // Every so often poll XGE Phy to look for SFP+ hotplug events.
-            xge_poll_sfpp_status(1); // Every so often poll XGE Phy to look for SFP+ hotplug events.
-            last_cronjob = wb_peek32(SR_ADDR(RB0_BASE, RB_COUNTER));
+            last_cronjob = ticks_now;
         }
 
         //run the network stack - poll and handle

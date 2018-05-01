@@ -1,25 +1,15 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/types/dict.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/static.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/usrp/dboard_base.hpp>
 #include <uhd/usrp/dboard_manager.hpp>
 #include <boost/assign/list_of.hpp>
@@ -50,7 +40,7 @@ static const uhd::dict<std::string, double> subdev_bandwidth_scalar = map_list_o
 class basic_rx : public rx_dboard_base{
 public:
     basic_rx(ctor_args_t args, double max_freq);
-    ~basic_rx(void);
+    virtual ~basic_rx(void);
 
 private:
     double _max_freq;
@@ -59,7 +49,7 @@ private:
 class basic_tx : public tx_dboard_base{
 public:
     basic_tx(ctor_args_t args, double max_freq);
-    ~basic_tx(void);
+    virtual ~basic_tx(void);
 
 private:
     double _max_freq;
@@ -121,7 +111,7 @@ basic_rx::basic_rx(ctor_args_t args, double max_freq) : rx_dboard_base(args){
 
     this->get_rx_subtree()->create<int>("gains"); //phony property so this dir exists
     this->get_rx_subtree()->create<double>("freq/value")
-        .publish(&always_zero_freq);
+        .set_publisher(&always_zero_freq);
     this->get_rx_subtree()->create<meta_range_t>("freq/range")
         .set(freq_range_t(-_max_freq, +_max_freq));
     this->get_rx_subtree()->create<std::string>("antenna/value")
@@ -176,7 +166,7 @@ basic_tx::basic_tx(ctor_args_t args, double max_freq) : tx_dboard_base(args){
 
     this->get_tx_subtree()->create<int>("gains"); //phony property so this dir exists
     this->get_tx_subtree()->create<double>("freq/value")
-        .publish(&always_zero_freq);
+        .set_publisher(&always_zero_freq);
     this->get_tx_subtree()->create<meta_range_t>("freq/range")
         .set(freq_range_t(-_max_freq, +_max_freq));
     this->get_tx_subtree()->create<std::string>("antenna/value")

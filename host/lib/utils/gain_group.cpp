@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/utils/gain_group.hpp>
@@ -20,14 +10,11 @@
 #include <uhd/types/dict.hpp>
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/exception.hpp>
-#include <boost/foreach.hpp>
 #include <boost/bind.hpp>
 #include <algorithm>
 #include <vector>
 
 using namespace uhd;
-
-static const bool verbose = false;
 
 static bool compare_by_step_size(
     const size_t &rhs, const size_t &lhs, std::vector<gain_fcns_t> &fcns
@@ -41,7 +28,7 @@ static bool compare_by_step_size(
  *
  * Due to small doubleing-point inaccuracies:
  *     num = n*step + e, where e is a small inaccuracy.
- * When e is negative, floor would yeild (n-1)*step,
+ * When e is negative, floor would yield (n-1)*step,
  * despite that n*step is really the desired result.
  * This function is designed to mitigate that issue.
  *
@@ -51,7 +38,11 @@ static bool compare_by_step_size(
  * \return a multiple of step approximating num
  */
 template <typename T> static T floor_step(T num, T step, T e = T(0.001)){
-    return step*int(num/step + e);
+    if (num < T(0)) {
+        return step*int(num/step - e);
+    } else {
+        return step*int(num/step + e);
+    }
 }
 
 gain_group::~gain_group(void){
@@ -71,7 +62,7 @@ public:
         if (not name.empty()) return _name_to_fcns.get(name).get_range();
 
         double overall_min = 0, overall_max = 0, overall_step = 0;
-        BOOST_FOREACH(const gain_fcns_t &fcns, get_all_fcns()){
+        for(const gain_fcns_t &fcns:  get_all_fcns()){
             const gain_range_t range = fcns.get_range();
             overall_min += range.start();
             overall_max += range.stop();
@@ -86,7 +77,7 @@ public:
         if (not name.empty()) return _name_to_fcns.get(name).get_value();
 
         double overall_gain = 0;
-        BOOST_FOREACH(const gain_fcns_t &fcns, get_all_fcns()){
+        for(const gain_fcns_t &fcns:  get_all_fcns()){
             overall_gain += fcns.get_value();
         }
         return overall_gain;
@@ -100,7 +91,7 @@ public:
 
         //get the max step size among the gains
         double max_step = 0;
-        BOOST_FOREACH(const gain_fcns_t &fcns, all_fcns){
+        for(const gain_fcns_t &fcns:  all_fcns){
             max_step = std::max(max_step, fcns.get_range().step());
         }
 
@@ -109,7 +100,7 @@ public:
 
         //distribute power according to priority (round to max step)
         double gain_left_to_distribute = gain;
-        BOOST_FOREACH(const gain_fcns_t &fcns, all_fcns){
+        for(const gain_fcns_t &fcns:  all_fcns){
             const gain_range_t range = fcns.get_range();
             gain_bucket.push_back(floor_step(uhd::clip(
                 gain_left_to_distribute, range.start(), range.stop()
@@ -133,7 +124,7 @@ public:
 
         //distribute the remainder (less than max step)
         //fill in the largest step sizes first that are less than the remainder
-        BOOST_FOREACH(size_t i, indexes_step_size_dec){
+        for(size_t i:  indexes_step_size_dec){
             const gain_range_t range = all_fcns.at(i).get_range();
             double additional_gain = floor_step(uhd::clip(
                 gain_bucket.at(i) + gain_left_to_distribute, range.start(), range.stop()
@@ -141,11 +132,11 @@ public:
             gain_bucket.at(i) += additional_gain;
             gain_left_to_distribute -= additional_gain;
         }
-        UHD_LOGV(often) << "gain_left_to_distribute " << gain_left_to_distribute << std::endl;
+        UHD_LOGGER_DEBUG("UHD") << "gain_left_to_distribute " << gain_left_to_distribute ;
 
         //now write the bucket out to the individual gain values
         for (size_t i = 0; i < gain_bucket.size(); i++){
-            UHD_LOGV(often) << i << ": " << gain_bucket.at(i) << std::endl;
+            UHD_LOGGER_DEBUG("UHD") << i << ": " << gain_bucket.at(i) ;
             all_fcns.at(i).set_value(gain_bucket.at(i));
         }
     }
@@ -171,7 +162,7 @@ private:
     //! get the gain function sets in order (highest priority first)
     std::vector<gain_fcns_t> get_all_fcns(void){
         std::vector<gain_fcns_t> all_fcns;
-        BOOST_FOREACH(size_t key, uhd::sorted(_registry.keys())){
+        for(size_t key:  uhd::sorted(_registry.keys())){
             const std::vector<gain_fcns_t> &fcns = _registry[key];
             all_fcns.insert(all_fcns.begin(), fcns.begin(), fcns.end());
         }

@@ -1,25 +1,17 @@
 //
 // Copyright 2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "rx_vita_core_3000.hpp"
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_call.hpp>
+#include <uhdlib/usrp/cores/rx_vita_core_3000.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/date_time.hpp>
+#include <boost/thread.hpp>
 
 #define REG_FRAMER_MAXLEN    _base + 4*4 + 0
 #define REG_FRAMER_SID       _base + 4*4 + 4
@@ -63,13 +55,26 @@ struct rx_vita_core_3000_impl : rx_vita_core_3000
 
     void configure_flow_control(const size_t window_size)
     {
+        // The window needs to be disabled in the case where this object is
+        // uncleanly destroyed and the FC window is left enabled
+        _iface->poke32(REG_FC_ENABLE, 0);
+
+        // Sleep for a large amount of time to allow the source flow control
+        // module in the FPGA to flush all the packets buffered upstream.
+        // At 1 ms * 200 MHz = 200k cycles, 8 bytes * 200k cycles = 1.6 MB
+        // of flushed data, when the typical amount of data buffered
+        // is on the order of kilobytes
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1.0));
+
         _iface->poke32(REG_FC_WINDOW, window_size-1);
         _iface->poke32(REG_FC_ENABLE, window_size?1:0);
     }
 
     void clear(void)
     {
-        this->configure_flow_control(0); //disable fc
+        // FC should never be disabled, this will actually become
+        // impossible in the future
+        //this->configure_flow_control(0); //disable fc
     }
 
     void set_nsamps_per_packet(const size_t nsamps)
@@ -81,7 +86,7 @@ struct rx_vita_core_3000_impl : rx_vita_core_3000
     {
         if (not _is_setup)
         {
-            //UHD_MSG(warning) << "rx vita core 3000 issue stream command - not setup yet!";
+            //UHD_LOGGER_WARNING("CORES") << "rx vita core 3000 issue stream command - not setup yet!";
             return;
         }
         UHD_ASSERT_THROW(stream_cmd.num_samps <= 0x0fffffff);
@@ -102,18 +107,18 @@ struct rx_vita_core_3000_impl : rx_vita_core_3000
         boost::tie(inst_reload, inst_chain, inst_samps, inst_stop) = mode_to_inst[stream_cmd.stream_mode];
 
         //calculate the word from flags and length
-        boost::uint32_t cmd_word = 0;
-        cmd_word |= boost::uint32_t((stream_cmd.stream_now)? 1 : 0) << 31;
-        cmd_word |= boost::uint32_t((inst_chain)?            1 : 0) << 30;
-        cmd_word |= boost::uint32_t((inst_reload)?           1 : 0) << 29;
-        cmd_word |= boost::uint32_t((inst_stop)?             1 : 0) << 28;
+        uint32_t cmd_word = 0;
+        cmd_word |= uint32_t((stream_cmd.stream_now)? 1 : 0) << 31;
+        cmd_word |= uint32_t((inst_chain)?            1 : 0) << 30;
+        cmd_word |= uint32_t((inst_reload)?           1 : 0) << 29;
+        cmd_word |= uint32_t((inst_stop)?             1 : 0) << 28;
         cmd_word |= (inst_samps)? stream_cmd.num_samps : ((inst_stop)? 0 : 1);
 
         //issue the stream command
         _iface->poke32(REG_CTRL_CMD, cmd_word);
-        const boost::uint64_t ticks = (stream_cmd.stream_now)? 0 : stream_cmd.time_spec.to_ticks(_tick_rate);
-        _iface->poke32(REG_CTRL_TIME_HI, boost::uint32_t(ticks >> 32));
-        _iface->poke32(REG_CTRL_TIME_LO, boost::uint32_t(ticks >> 0)); //latches the command
+        const uint64_t ticks = (stream_cmd.stream_now)? 0 : stream_cmd.time_spec.to_ticks(_tick_rate);
+        _iface->poke32(REG_CTRL_TIME_HI, uint32_t(ticks >> 32));
+        _iface->poke32(REG_CTRL_TIME_LO, uint32_t(ticks >> 0)); //latches the command
     }
 
     void set_tick_rate(const double rate)
@@ -121,7 +126,7 @@ struct rx_vita_core_3000_impl : rx_vita_core_3000
         _tick_rate = rate;
     }
 
-    void set_sid(const boost::uint32_t sid)
+    void set_sid(const uint32_t sid)
     {
         _iface->poke32(REG_FRAMER_SID, sid);
     }

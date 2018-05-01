@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_USRP2_FW_COMMON_H
@@ -31,6 +21,7 @@ extern "C" {
 
 //fpga and firmware compatibility numbers
 #define USRP2_FPGA_COMPAT_NUM 10
+#define N200_FPGA_COMPAT_NUM 11
 #define USRP2_FW_COMPAT_NUM 12
 #define USRP2_FW_VER_MINOR 4
 

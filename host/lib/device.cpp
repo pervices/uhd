@@ -1,28 +1,20 @@
 //
-// Copyright 2010-2011,2014 Ettus Research LLC
+// Copyright 2010-2011,2014-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/device.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/algorithm.hpp>
-#include <boost/foreach.hpp>
+#include <uhdlib/utils/prefs.hpp>
+
+
 #include <boost/format.hpp>
 #include <boost/weak_ptr.hpp>
 #include <boost/functional/hash.hpp>
@@ -48,14 +40,27 @@ static size_t hash_device_addr(
     //combine the hashes of sorted keys/value pairs
     size_t hash = 0;
 
+    // The device addr can contain all sorts of stuff, which sometimes gets in
+    // the way of hashing reliably. TODO: Make this a whitelist
+    const std::vector<std::string> hash_key_blacklist = {
+        "claimed",
+        "skip_dram",
+        "skip_ddc",
+        "skip_duc"
+    };
+
     if(dev_addr.has_key("resource")) {
         boost::hash_combine(hash, "resource");
-        boost::hash_combine(hash, dev_addr["resource"]);   
+        boost::hash_combine(hash, dev_addr["resource"]);
     }
     else {
-        BOOST_FOREACH(const std::string &key, uhd::sorted(dev_addr.keys())){
-            boost::hash_combine(hash, key);
-            boost::hash_combine(hash, dev_addr[key]);
+        for (const std::string &key: uhd::sorted(dev_addr.keys())) {
+            if (std::find(hash_key_blacklist.begin(),
+                          hash_key_blacklist.end(),
+                          key) == hash_key_blacklist.end()) {
+                boost::hash_combine(hash, key);
+                boost::hash_combine(hash, dev_addr[key]);
+            }
         }
     }
     return hash;
@@ -74,7 +79,7 @@ void device::register_device(
     const make_t &make,
     const device_filter_t filter
 ){
-    UHD_LOGV(always) << "registering device" << std::endl;
+    // UHD_LOGGER_TRACE("UHD") << "registering device";
     get_dev_fcn_regs().push_back(dev_fcn_reg_t(find, make, filter));
 }
 
@@ -90,9 +95,9 @@ device_addrs_t device::find(const device_addr_t &hint, device_filter_t filter){
 
     device_addrs_t device_addrs;
 
-    BOOST_FOREACH(const dev_fcn_reg_t &fcn, get_dev_fcn_regs()){
-        try{
-            if(filter == ANY or fcn.get<2>() == filter){
+    for(const dev_fcn_reg_t &fcn:  get_dev_fcn_regs()) {
+        try {
+            if (filter == ANY or fcn.get<2>() == filter) {
                 device_addrs_t discovered_addrs = fcn.get<0>()(hint);
                 device_addrs.insert(
                     device_addrs.begin(),
@@ -101,8 +106,8 @@ device_addrs_t device::find(const device_addr_t &hint, device_filter_t filter){
                 );
             }
         }
-        catch(const std::exception &e){
-            UHD_MSG(error) << "Device discovery error: " << e.what() << std::endl;
+        catch (const std::exception &e) {
+            UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what();
         }
     }
 
@@ -118,12 +123,17 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
     typedef boost::tuple<device_addr_t, make_t> dev_addr_make_t;
     std::vector<dev_addr_make_t> dev_addr_makers;
 
-    BOOST_FOREACH(const dev_fcn_reg_t &fcn, get_dev_fcn_regs()){
-        if(filter == ANY or fcn.get<2>() == filter){
-            BOOST_FOREACH(device_addr_t dev_addr, fcn.get<0>()(hint)){
-                //append the discovered address and its factory function
-                dev_addr_makers.push_back(dev_addr_make_t(dev_addr, fcn.get<1>()));
+    for(const dev_fcn_reg_t &fcn:  get_dev_fcn_regs()){
+        try{
+            if(filter == ANY or fcn.get<2>() == filter){
+                for(device_addr_t dev_addr:  fcn.get<0>()(hint)){
+                    //append the discovered address and its factory function
+                    dev_addr_makers.push_back(dev_addr_make_t(dev_addr, fcn.get<1>()));
+                }
             }
+        }
+        catch(const std::exception &e){
+            UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what() ;
         }
     }
 
@@ -145,11 +155,11 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
     device_addr_t dev_addr; make_t maker;
     boost::tie(dev_addr, maker) = dev_addr_makers.at(which);
     size_t dev_hash = hash_device_addr(dev_addr);
-    UHD_LOG << boost::format("Device hash: %u") % dev_hash << std::endl;
+    UHD_LOGGER_TRACE("UHD") << boost::format("Device hash: %u") % dev_hash ;
 
     //copy keys that were in hint but not in dev_addr
     //this way, we can pass additional transport arguments
-    BOOST_FOREACH(const std::string &key, hint.keys()){
+    for(const std::string &key:  hint.keys()){
         if (not dev_addr.has_key(key)) dev_addr[key] = hint[key];
     }
 
@@ -157,14 +167,14 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
     static uhd::dict<size_t, boost::weak_ptr<device> > hash_to_device;
 
     //try to find an existing device
-    try{
-        UHD_ASSERT_THROW(hash_to_device.has_key(dev_hash));
-        UHD_ASSERT_THROW(not hash_to_device[dev_hash].expired());
+    if (hash_to_device.has_key(dev_hash) and not hash_to_device[dev_hash].expired()){
         return hash_to_device[dev_hash].lock();
     }
-    //create and register a new device
-    catch(const uhd::assertion_error &){
-        device::sptr dev = maker(dev_addr);
+    else {
+        // Add keys from the config files (note: the user-defined keys will
+        // always be applied, see also get_usrp_args()
+        // Then, create and register a new device.
+        device::sptr dev = maker(prefs::get_usrp_args(dev_addr));
         hash_to_device[dev_hash] = dev;
         return dev;
     }

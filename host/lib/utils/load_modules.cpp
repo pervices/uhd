@@ -1,24 +1,14 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include <uhd/utils/paths.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhd/exception.hpp>
 #include <boost/format.hpp>
-#include <boost/foreach.hpp>
 #include <boost/filesystem.hpp>
 #include <iostream>
 #include <string>
@@ -97,13 +87,11 @@ static void load_module_path(const fs::path &path){
     }
 }
 
-std::vector<fs::path> get_module_paths(void); //defined in paths.cpp
-
 /*!
  * Load all the modules given in the module paths.
  */
 UHD_STATIC_BLOCK(load_modules){
-    BOOST_FOREACH(const fs::path &path, get_module_paths()){
+    for(const fs::path &path:  uhd::get_module_paths()){
         load_module_path(path);
     }
 }

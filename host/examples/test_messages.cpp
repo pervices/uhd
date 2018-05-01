@@ -1,29 +1,18 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/config.hpp>
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/program_options.hpp>
-#include <boost/foreach.hpp>
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <cstdlib>
@@ -74,8 +63,8 @@ bool test_late_command_message(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streame
     default:
         std::cout << boost::format(
             "failed:\n"
-            "    Got unexpected error code 0x%x, nsamps %u.\n"
-        ) % md.error_code % nsamps << std::endl;
+            "    Got unexpected error code 0x%x (%s), nsamps %u.\n"
+        ) % md.error_code % md.strerror() % nsamps << std::endl;
         return false;
     }
 }
@@ -122,8 +111,8 @@ bool test_broken_chain_message(UHD_UNUSED(uhd::usrp::multi_usrp::sptr usrp), uhd
     default:
         std::cout << boost::format(
             "failed:\n"
-            "    Got unexpected error code 0x%x.\n"
-        ) % md.error_code << std::endl;
+            "    Got unexpected error code 0x%x (%s).\n"
+        ) % md.error_code % md.strerror() << std::endl;
         return false;
     }
 }
@@ -143,10 +132,7 @@ bool test_burst_ack_message(uhd::usrp::multi_usrp::sptr, uhd::rx_streamer::sptr,
 
     //3 times max-sps guarantees a SOB, no burst, and EOB packet
     std::vector<std::complex<float> > buff(tx_stream->get_max_num_samps()*3);
-
-    tx_stream->send(
-        &buff.front(), buff.size(), md
-    );
+    tx_stream->send(&buff.front(), buff.size(), md);
 
     uhd::async_metadata_t async_md;
     if (not tx_stream->recv_async_msg(async_md)){
@@ -187,7 +173,8 @@ bool test_underflow_message(uhd::usrp::multi_usrp::sptr, uhd::rx_streamer::sptr,
     md.end_of_burst   = false;
     md.has_time_spec  = false;
 
-    tx_stream->send("", 0, md);
+    std::vector< std::complex<float> > buff(tx_stream->get_max_num_samps());
+    tx_stream->send(&buff.front(), buff.size(), md);
 
     uhd::async_metadata_t async_md;
     if (not tx_stream->recv_async_msg(async_md, 1)){
@@ -231,7 +218,8 @@ bool test_time_error_message(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streamer:
 
     usrp->set_time_now(uhd::time_spec_t(200.0)); //time at 200s
 
-    tx_stream->send("", 0, md);
+    std::vector< std::complex<float> > buff(tx_stream->get_max_num_samps());
+    tx_stream->send(&buff.front(), buff.size(), md);
 
     uhd::async_metadata_t async_md;
     if (not tx_stream->recv_async_msg(async_md)){
@@ -265,7 +253,12 @@ void flush_async(uhd::tx_streamer::sptr tx_stream){
 }
 
 void flush_recv(uhd::rx_streamer::sptr rx_stream){
-    std::vector<std::complex<float> > buff(rx_stream->get_max_num_samps());
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
+    stream_cmd.num_samps = rx_stream->get_max_num_samps()*3;
+    stream_cmd.stream_now = true;
+    rx_stream->issue_stream_cmd(stream_cmd);
+
+    std::vector<std::complex<float> > buff(stream_cmd.num_samps);
     uhd::rx_metadata_t md;
 
     do{
@@ -286,6 +279,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args",   po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
         ("ntests", po::value<size_t>(&ntests)->default_value(50),    "number of tests to run")
+        ("test-chain", "Run broken chain tests")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -311,18 +305,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //------------------------------------------------------------------
     // begin messages test
     //------------------------------------------------------------------
-    static const uhd::dict<std::string, boost::function<bool(uhd::usrp::multi_usrp::sptr, uhd::rx_streamer::sptr, uhd::tx_streamer::sptr)> >
+    static uhd::dict<std::string, boost::function<bool(uhd::usrp::multi_usrp::sptr, uhd::rx_streamer::sptr, uhd::tx_streamer::sptr)> >
         tests = boost::assign::map_list_of
         ("Test Burst ACK ", &test_burst_ack_message)
         ("Test Underflow ", &test_underflow_message)
         ("Test Time Error", &test_time_error_message)
         ("Test Late Command", &test_late_command_message)
-        ("Test Broken Chain", &test_broken_chain_message)
     ;
+
+    if (vm.count("test-chain")) {
+        tests["Test Broken Chain"] = &test_broken_chain_message;
+    }
 
     //init result counts
     uhd::dict<std::string, size_t> failures, successes;
-    BOOST_FOREACH(const std::string &key, tests.keys()){
+    for(const std::string &key:  tests.keys()){
         failures[key] = 0;
         successes[key] = 0;
     }
@@ -332,8 +329,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for (size_t n = 0; n < ntests; n++){
         std::string key = tests.keys()[std::rand() % tests.size()];
         bool pass = tests[key](usrp, rx_stream, tx_stream);
-        flush_async(tx_stream);
+
         flush_recv(rx_stream);
+        flush_async(tx_stream);
 
         //store result
         if (pass) successes[key]++;
@@ -341,15 +339,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //print the result summary
+    bool any_failure = false;
     std::cout << std::endl << "Summary:" << std::endl << std::endl;
-    BOOST_FOREACH(const std::string &key, tests.keys()){
+    for(const std::string &key:  tests.keys()){
         std::cout << boost::format(
             "%s   ->   %3u successes, %3u failures"
         ) % key % successes[key] % failures[key] << std::endl;
+        any_failure = any_failure or (failures[key] > 0);
     }
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 
-    return EXIT_SUCCESS;
+    return any_failure ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -1,21 +1,11 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/program_options.hpp>
 #include <boost/thread/condition_variable.hpp>
@@ -100,9 +90,9 @@ public:
 
         std::cout << "spawning relay threads... " << _port << std::endl;
         boost::unique_lock<boost::mutex> lock(spawn_mutex);     // lock in preparation to wait for threads to spawn
-        _thread_group.create_thread(boost::bind(&udp_relay_type::server_thread, this));
+        (void)_thread_group.create_thread(boost::bind(&udp_relay_type::server_thread, this));
         wait_for_thread.wait(lock);      // wait for thread to spin up
-        _thread_group.create_thread(boost::bind(&udp_relay_type::client_thread, this));
+        (void)_thread_group.create_thread(boost::bind(&udp_relay_type::client_thread, this));
         wait_for_thread.wait(lock);      // wait for thread to spin up
         std::cout << "    done!" << std::endl << std::endl;
     }
@@ -127,7 +117,7 @@ private:
         wait_for_thread.notify_one();    // notify constructor that this thread has started
         std::vector<char> buff(insane_mtu);
         while (not boost::this_thread::interruption_requested()){
-            if (wait_for_recv_ready(_server_socket->native())){
+            if (wait_for_recv_ready(_server_socket->native_handle())){
                 boost::mutex::scoped_lock lock(_endpoint_mutex);
                 const size_t len = _server_socket->receive_from(asio::buffer(&buff.front(), buff.size()), _endpoint);
                 lock.unlock();
@@ -136,8 +126,8 @@ private:
                 //perform sequence error detection on tx dsp data (can detect bad network cards)
                 /*
                 if (_port[4] == '7'){
-                    static boost::uint32_t next_seq;
-                    const boost::uint32_t this_seq = ntohl(reinterpret_cast<const boost::uint32_t *>(&buff.front())[0]);
+                    static uint32_t next_seq;
+                    const uint32_t this_seq = ntohl(reinterpret_cast<const uint32_t *>(&buff.front())[0]);
                     if (next_seq != this_seq and this_seq != 0) std::cout << "S" << std::flush;
                     next_seq = this_seq + 1;
                 }
@@ -153,7 +143,7 @@ private:
         wait_for_thread.notify_one();    // notify constructor that this thread has started
         std::vector<char> buff(insane_mtu);
         while (not boost::this_thread::interruption_requested()){
-            if (wait_for_recv_ready(_client_socket->native())){
+            if (wait_for_recv_ready(_client_socket->native_handle())){
                 const size_t len = _client_socket->receive(asio::buffer(&buff.front(), buff.size()));
                 boost::mutex::scoped_lock lock(_endpoint_mutex);
                 _server_socket->send_to(asio::buffer(&buff.front(), len), _endpoint);

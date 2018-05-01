@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "usrp1_iface.hpp"
@@ -45,58 +35,58 @@ public:
     /*******************************************************************
      * Peek and Poke
      ******************************************************************/
-    void poke32(boost::uint32_t addr, boost::uint32_t value)
+    void poke32(const uint32_t addr, const uint32_t value)
     {
-        boost::uint32_t swapped = uhd::htonx(value);
+        uint32_t swapped = uhd::htonx(value);
 
-        UHD_LOGV(always)
+        UHD_LOGGER_TRACE("USRP1")
             << "poke32("
             << std::dec << std::setw(2) << addr << ", 0x"
-            << std::hex << std::setw(8) << value << ")" << std::endl
+            << std::hex << std::setw(8) << value << ")"
         ;
 
-        boost::uint8_t w_index_h = SPI_ENABLE_FPGA & 0xff;
-        boost::uint8_t w_index_l = (SPI_FMT_MSB | SPI_FMT_HDR_1) & 0xff;
+        uint8_t w_index_h = SPI_ENABLE_FPGA & 0xff;
+        uint8_t w_index_l = (SPI_FMT_MSB | SPI_FMT_HDR_1) & 0xff;
 
         int ret =_ctrl_transport->usrp_control_write(
                                           VRQ_SPI_WRITE,
                                           addr & 0x7f,
                                           (w_index_h << 8) | (w_index_l << 0),
                                           (unsigned char*) &swapped,
-                                          sizeof(boost::uint32_t));
+                                          sizeof(uint32_t));
 
         if (ret < 0) throw uhd::io_error("USRP1: failed control write");
     }
 
-    boost::uint32_t peek32(boost::uint32_t addr)
+    uint32_t peek32(const uint32_t addr)
     {
-        UHD_LOGV(always)
+        UHD_LOGGER_TRACE("USRP1")
             << "peek32("
-            << std::dec << std::setw(2) << addr << ")" << std::endl
+            << std::dec << std::setw(2) << addr << ")"
         ;
 
-        boost::uint32_t value_out;
+        uint32_t value_out;
 
-        boost::uint8_t w_index_h = SPI_ENABLE_FPGA & 0xff;
-        boost::uint8_t w_index_l = (SPI_FMT_MSB | SPI_FMT_HDR_1) & 0xff;
+        uint8_t w_index_h = SPI_ENABLE_FPGA & 0xff;
+        uint8_t w_index_l = (SPI_FMT_MSB | SPI_FMT_HDR_1) & 0xff;
 
         int ret = _ctrl_transport->usrp_control_read(
                                           VRQ_SPI_READ,
                                           0x80 | (addr & 0x7f),
                                           (w_index_h << 8) | (w_index_l << 0),
                                           (unsigned char*) &value_out,
-                                          sizeof(boost::uint32_t));
+                                          sizeof(uint32_t));
 
         if (ret < 0) throw uhd::io_error("USRP1: failed control read");
 
         return uhd::ntohx(value_out);
     }
 
-    void poke16(boost::uint32_t, boost::uint16_t) {
+    void poke16(const uint32_t, const uint16_t) {
         throw uhd::not_implemented_error("Unhandled command poke16()");
     }
 
-    boost::uint16_t peek16(boost::uint32_t) {
+    uint16_t peek16(const uint32_t) {
         throw uhd::not_implemented_error("Unhandled command peek16()");
         return 0;
     }
@@ -104,11 +94,11 @@ public:
     /*******************************************************************
      * I2C
      ******************************************************************/
-    void write_i2c(boost::uint16_t addr, const byte_vector_t &bytes){
+    void write_i2c(uint16_t addr, const byte_vector_t &bytes){
         return _ctrl_transport->write_i2c(addr, bytes);
     }
 
-    byte_vector_t read_i2c(boost::uint16_t addr, size_t num_bytes){
+    byte_vector_t read_i2c(uint16_t addr, size_t num_bytes){
         return _ctrl_transport->read_i2c(addr, num_bytes);
     }
 
@@ -123,18 +113,18 @@ public:
      * 4 bytes of OUT data in the device request fields and uses the
      * control buffer for IN data.
      ******************************************************************/
-    boost::uint32_t transact_spi(int which_slave,
+    uint32_t transact_spi(int which_slave,
                                  const spi_config_t &,
-                                 boost::uint32_t bits,
+                                 uint32_t bits,
                                  size_t num_bits,
                                  bool readback)
     {
-        UHD_LOGV(always)
-            << "transact_spi: " << std::endl
-            << "  slave: " << which_slave << std::endl
-            << "  bits: " << bits << std::endl
-            << "  num_bits: " << num_bits << std::endl
-            << "  readback: " << readback << std::endl
+        UHD_LOGGER_TRACE("USRP1")
+            << "transact_spi: "
+            << "  slave: " << which_slave
+            << "  bits: " << bits
+            << "  num_bits: " << num_bits
+            << "  readback: " << readback
         ;
         UHD_ASSERT_THROW((num_bits <= 32) && !(num_bits % 8));
         size_t num_bytes = num_bits / 8;
@@ -166,10 +156,10 @@ public:
             else{
                 throw uhd::io_error("USRP1: invalid input data for SPI readback");
             }
-            boost::uint32_t val = (((boost::uint32_t)buff[0]) <<  0) |
-                                  (((boost::uint32_t)buff[1]) <<  8) |
-                                  (((boost::uint32_t)buff[2]) << 16) |
-                                  (((boost::uint32_t)buff[3]) << 24);
+            uint32_t val = (((uint32_t)buff[0]) <<  0) |
+                                  (((uint32_t)buff[1]) <<  8) |
+                                  (((uint32_t)buff[2]) << 16) |
+                                  (((uint32_t)buff[3]) << 24);
             return val;
         }
         else {
@@ -178,8 +168,8 @@ public:
             for (size_t i = 1; i <= num_bytes; i++)
                 buff[num_bytes - i] = (bits >> ((i - 1) * 8)) & 0xff;
 
-            boost::uint8_t w_index_h = which_slave & 0xff;
-            boost::uint8_t w_index_l = (SPI_FMT_MSB | SPI_FMT_HDR_0) & 0xff;
+            uint8_t w_index_h = which_slave & 0xff;
+            uint8_t w_index_l = (SPI_FMT_MSB | SPI_FMT_HDR_0) & 0xff;
 
             int ret =_ctrl_transport->usrp_control_write(
                                           VRQ_SPI_WRITE,

@@ -1,18 +1,8 @@
 //
 // Copyright 2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_RPC_CLIENT_HPP
@@ -30,14 +20,14 @@ namespace uhd { namespace usrprio_rpc {
 class rpc_client : private boost::noncopyable
 {
 public:
-    static const boost::uint32_t CURRENT_VERSION = 1;
-    static const boost::uint32_t OLDEST_COMPATIBLE_VERSION = 1;
+    static const uint32_t CURRENT_VERSION = 1;
+    static const uint32_t OLDEST_COMPATIBLE_VERSION = 1;
 
     rpc_client(
         const std::string& server,
         const std::string& port,
-        boost::uint32_t process_id,
-        boost::uint32_t host_id);
+        uint32_t process_id,
+        uint32_t host_id);
     ~rpc_client();
 
     const boost::system::error_code& call(
@@ -65,11 +55,11 @@ private:
 
     inline void _stop_io_service() {
         if (_io_service_thread.get()) {
-            UHD_LOG << "rpc_client stopping..." << std::endl;
+            UHD_LOGGER_INFO("NIRIO") << "rpc_client stopping...";
             _io_service.stop();
             _io_service_thread->join();
             _io_service_thread.reset();
-            UHD_LOG << "rpc_client stopped." << std::endl;
+            UHD_LOGGER_INFO("NIRIO") << "rpc_client stopped.";
         }
     }
 

@@ -1,28 +1,17 @@
 //
-// Copyright 2011 Ettus Research LLC
+// Copyright 2011-2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "apply_corrections.hpp"
+#include <uhdlib/usrp/common/apply_corrections.hpp>
 #include <uhd/usrp/dboard_eeprom.hpp>
 #include <uhd/utils/paths.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/csv.hpp>
 #include <uhd/types/dict.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/foreach.hpp>
 #include <boost/thread/mutex.hpp>
 #include <cstdio>
 #include <complex>
@@ -114,7 +103,7 @@ static void apply_fe_corrections(
 
         bool read_data = false, skip_next = false;;
         std::vector<fe_cal_t> datas;
-        BOOST_FOREACH(const uhd::csv::row_type &row, rows){
+        for(const uhd::csv::row_type &row:  rows){
             if (not read_data and not row.empty() and row[0] == "DATA STARTS HERE"){
                 read_data = true;
                 skip_next = true;
@@ -133,7 +122,7 @@ static void apply_fe_corrections(
         }
         std::sort(datas.begin(), datas.end(), fe_cal_comp);
         fe_cal_cache[cal_data_path.string()] = datas;
-        UHD_MSG(status) << "Loaded " << cal_data_path.string() << std::endl;
+        UHD_LOGGER_INFO("CAL") << "Calibration data loaded: " << cal_data_path.string();
 
     }
 
@@ -144,6 +133,34 @@ static void apply_fe_corrections(
 /***********************************************************************
  * Wrapper routines with nice try/catch + print
  **********************************************************************/
+void uhd::usrp::apply_tx_fe_corrections( //overloading to work according to rfnoc tree struct
+    property_tree::sptr sub_tree, //starts at mboards/x
+    const uhd::fs_path db_path,
+    const uhd::fs_path tx_fe_corr_path,
+    const double lo_freq //actual lo freq
+){
+    boost::mutex::scoped_lock l(corrections_mutex);
+    try{
+        apply_fe_corrections(
+            sub_tree,
+            db_path + "/tx_eeprom",
+            tx_fe_corr_path + "/iq_balance/value",
+            "tx_iq_cal_v0.2_",
+            lo_freq
+        );
+        apply_fe_corrections(
+            sub_tree,
+            db_path + "/tx_eeprom",
+            tx_fe_corr_path + "/dc_offset/value",
+            "tx_dc_cal_v0.2_",
+            lo_freq
+        );
+    }
+    catch(const std::exception &e){
+        UHD_LOGGER_ERROR("CAL") << "Failure in apply_tx_fe_corrections: " << e.what();
+    }
+}
+
 void uhd::usrp::apply_tx_fe_corrections(
     property_tree::sptr sub_tree, //starts at mboards/x
     const std::string &slot, //name of dboard slot
@@ -167,7 +184,28 @@ void uhd::usrp::apply_tx_fe_corrections(
         );
     }
     catch(const std::exception &e){
-        UHD_MSG(error) << "Failure in apply_tx_fe_corrections: " << e.what() << std::endl;
+        UHD_LOGGER_ERROR("CAL") << "Failure in apply_tx_fe_corrections: " << e.what();
+    }
+}
+
+void uhd::usrp::apply_rx_fe_corrections( //overloading to work according to rfnoc tree struct
+    property_tree::sptr sub_tree, //starts at mboards/x
+    const uhd::fs_path db_path,
+    const uhd::fs_path rx_fe_corr_path,
+    const double lo_freq //actual lo freq
+){
+    boost::mutex::scoped_lock l(corrections_mutex);
+    try{
+        apply_fe_corrections(
+            sub_tree,
+            db_path + "/rx_eeprom",
+            rx_fe_corr_path + "/iq_balance/value",
+            "rx_iq_cal_v0.2_",
+            lo_freq
+        );
+    }
+    catch(const std::exception &e){
+        UHD_LOGGER_ERROR("CAL") << "Failure in apply_tx_fe_corrections: " << e.what();
     }
 }
 
@@ -187,6 +225,6 @@ void uhd::usrp::apply_rx_fe_corrections(
         );
     }
     catch(const std::exception &e){
-        UHD_MSG(error) << "Failure in apply_rx_fe_corrections: " << e.what() << std::endl;
+        UHD_LOGGER_ERROR("CAL") << "Failure in apply_rx_fe_corrections: " << e.what();
     }
 }

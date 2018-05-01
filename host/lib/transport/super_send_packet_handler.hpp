@@ -1,18 +1,8 @@
 //
 // Copyright 2011-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_LIBUHD_TRANSPORT_SUPER_SEND_PACKET_HANDLER_HPP
@@ -22,15 +12,16 @@
 #include <uhd/exception.hpp>
 #include <uhd/convert.hpp>
 #include <uhd/stream.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
-#include <uhd/utils/atomic.hpp>
 #include <uhd/utils/byteswap.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/types/metadata.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/transport/zero_copy.hpp>
+#include <uhdlib/rfnoc/tx_stream_terminator.hpp>
+#include <boost/thread/thread.hpp>
 #include <boost/thread/thread_time.hpp>
-#include <boost/foreach.hpp>
 #include <boost/function.hpp>
 #include <iostream>
 #include <vector>
@@ -59,8 +50,8 @@ class send_packet_handler{
 public:
     typedef boost::function<managed_send_buffer::sptr(double)> get_buff_type;
     typedef boost::function<bool(uhd::async_metadata_t &, const double)> async_receiver_type;
-    typedef void(*vrt_packer_type)(boost::uint32_t *, vrt::if_packet_info_t &);
-    //typedef boost::function<void(boost::uint32_t *, vrt::if_packet_info_t &)> vrt_packer_type;
+    typedef void(*vrt_packer_type)(uint32_t *, vrt::if_packet_info_t &);
+    //typedef boost::function<void(uint32_t *, vrt::if_packet_info_t &)> vrt_packer_type;
 
     /*!
      * Make a new packet handler for send
@@ -74,22 +65,15 @@ public:
     }
 
     ~send_packet_handler(void){
-        _task_barrier.interrupt();
-        _task_handlers.clear();
+        /* NOP */
     }
 
     //! Resize the number of transport channels
     void resize(const size_t size){
         if (this->size() == size) return;
-        _task_handlers.clear();
         _props.resize(size);
-        static const boost::uint64_t zero = 0;
+        static const uint64_t zero = 0;
         _zero_buffs.resize(size, &zero);
-        _task_barrier.resize(size);
-        _task_handlers.resize(size);
-        for (size_t i = 1/*skip 0*/; i < size; i++){
-            _task_handlers[i] = task::make(boost::bind(&send_packet_handler::converter_thread_task, this, i));
-        };
     }
 
     //! Get the channel width of this handler
@@ -104,10 +88,31 @@ public:
     }
 
     //! Set the stream ID for a specific channel (or no SID)
-    void set_xport_chan_sid(const size_t xport_chan, const bool has_sid, const boost::uint32_t sid = 0){
+    void set_xport_chan_sid(const size_t xport_chan, const bool has_sid, const uint32_t sid = 0){
         _props.at(xport_chan).has_sid = has_sid;
         _props.at(xport_chan).sid = sid;
     }
+
+    ///////// RFNOC ///////////////////
+    //! Get the stream ID for a specific channel (or zero if no SID)
+    uint32_t get_xport_chan_sid(const size_t xport_chan) const {
+        if (_props.at(xport_chan).has_sid) {
+            return _props.at(xport_chan).sid;
+        } else {
+            return 0;
+        }
+    }
+
+    void set_terminator(uhd::rfnoc::tx_stream_terminator::sptr terminator)
+    {
+        _terminator = terminator;
+    }
+
+    uhd::rfnoc::tx_stream_terminator::sptr get_terminator()
+    {
+        return _terminator;
+    }
+    ///////// RFNOC ///////////////////
 
     void set_enable_trailer(const bool enable)
     {
@@ -215,7 +220,7 @@ public:
 
             //TODO remove this code when sample counts of zero are supported by hardware
             #ifndef SSPH_DONT_PAD_TO_ONE
-                static const boost::uint64_t zero = 0;
+                static const uint64_t zero = 0;
                 _zero_buffs.resize(buffs.size(), &zero);
 
                 if (nsamps_per_buff == 0)
@@ -287,7 +292,7 @@ private:
         xport_chan_props_type(void):has_sid(false),sid(0){}
         get_buff_type get_buff;
         bool has_sid;
-        boost::uint32_t sid;
+        uint32_t sid;
         managed_send_buffer::sptr buff;
     };
     std::vector<xport_chan_props_type> _props;
@@ -302,6 +307,8 @@ private:
     async_receiver_type _async_receiver;
     bool _cached_metadata;
     uhd::tx_metadata_t _metadata_cache;
+
+    uhd::rfnoc::tx_stream_terminator::sptr _terminator;
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
     struct dbg_send_stat_t {
@@ -361,7 +368,7 @@ private:
 
         //load the rest of the if_packet_info in here
         if_packet_info.num_payload_bytes = nsamps_per_buff*_num_inputs*_bytes_per_otw_item;
-        if_packet_info.num_payload_words32 = (if_packet_info.num_payload_bytes + 3/*round up*/)/sizeof(boost::uint32_t);
+        if_packet_info.num_payload_words32 = (if_packet_info.num_payload_bytes + 3/*round up*/)/sizeof(uint32_t);
         if_packet_info.packet_count = _next_packet_seq;
 
         //get a buffer for each channel or timeout
@@ -377,21 +384,23 @@ private:
         _convert_if_packet_info = &if_packet_info;
 
         //perform N channels of conversion
-        converter_thread_task(0);
+        for (size_t i = 0; i < this->size(); i++) {
+            convert_to_in_buff(i);
+        }
 
         _next_packet_seq++; //increment sequence after commits
         return nsamps_per_buff;
     }
 
-    /*******************************************************************
-     * Perform one thread's work of the conversion task.
-     * The entry and exit use a dual synchronization barrier,
-     * to wait for data to become ready and block until completion.
-     ******************************************************************/
-    UHD_INLINE void converter_thread_task(const size_t index)
+    /*! Run the conversion from the internal buffers to the user's input
+     *  buffer.
+     *
+     * - Calls the converter
+     * - Releases internal data buffers
+     * - Updates read/write pointers
+     */
+    UHD_INLINE void convert_to_in_buff(const size_t index)
     {
-        _task_barrier.wait();
-
         //shortcut references to local data structures
         managed_send_buffer::sptr &buff = _props[index].buff;
         vrt::if_packet_info_t if_packet_info = *_convert_if_packet_info;
@@ -406,7 +415,7 @@ private:
         const ref_vector<const void *> in_buffs(io_buffs, _num_inputs);
 
         //pack metadata into a vrt header
-        boost::uint32_t *otw_mem = buff->cast<boost::uint32_t *>() + _header_offset_words32;
+        uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
         if_packet_info.has_sid = _props[index].has_sid;
         if_packet_info.sid = _props[index].sid;
         _vrt_packer(otw_mem, if_packet_info);
@@ -417,15 +426,11 @@ private:
 
         //commit the samples to the zero-copy interface
         const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
-        buff->commit(num_vita_words32*sizeof(boost::uint32_t));
+        buff->commit(num_vita_words32*sizeof(uint32_t));
         buff.reset(); //effectively a release
-
-        if (index == 0) _task_barrier.wait_others();
     }
 
     //! Shared variables for the worker threads
-    reusable_barrier _task_barrier;
-    std::vector<task::sptr> _task_handlers;
     size_t _convert_nsamps;
     const tx_streamer::buffs_type *_convert_buffs;
     size_t _convert_buffer_offset_bytes;

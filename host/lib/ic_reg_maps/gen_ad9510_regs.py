@@ -1,19 +1,9 @@
 #!/usr/bin/env python
 #
 # Copyright 2010-2012 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -54,25 +44,25 @@ lock_detect_disable            0xD[6]        0      enb, dis
 ########################################################################
 ## fine delay adjust
 ########################################################################
-#for $i, $o in ((5, 0), (6, 4))
-delay_control_out$i            $hex(0x34+$o)[0]    0
-ramp_current_out$i             $hex(0x35+$o)[0:2]  0   200ua, 400ua, 600ua, 800ua, 1000ua, 1200ua, 1400ua, 1600ua
-ramp_capacitor_out$i           $hex(0x35+$o)[3:5]  0   4caps=0, 3caps=1, 2caps=3, 1cap=7
-delay_fine_adjust_out$i        $hex(0x36+$o)[1:5]  0
-#end for
+% for i, o in ((5, 0), (6, 4)):
+delay_control_out${i}            ${hex(0x34+o)}[0]    0
+ramp_current_out${i}             ${hex(0x35+o)}[0:2]  0   200ua, 400ua, 600ua, 800ua, 1000ua, 1200ua, 1400ua, 1600ua
+ramp_capacitor_out${i}           ${hex(0x35+o)}[3:5]  0   4caps=0, 3caps=1, 2caps=3, 1cap=7
+delay_fine_adjust_out${i}        ${hex(0x36+o)}[1:5]  0
+% endfor
 ########################################################################
 ## outputs
 ########################################################################
-#for $i, $o in ((0, 0), (1, 1), (2, 2), (3, 3))
-power_down_lvpecl_out$i        $hex(0x3C+$o)[0:1]  0   normal, test, safe_pd, total_pd
-output_level_lvpecl_out$i      $hex(0x3C+$o)[2:3]  2   500mv, 340mv, 810mv, 660mv
-#end for
-#for $i, $o in ((4, 0), (5, 1), (6, 2), (7, 3))
-power_down_lvds_cmos_out$i     $hex(0x40+$o)[0]    0
-output_level_lvds_out$i        $hex(0x40+$o)[1:2]  1   1_75ma, 3_5ma, 5_25ma, 7ma
-lvds_cmos_select_out$i         $hex(0x40+$o)[3]    1   lvds, cmos
-inverted_cmos_driver_out$i     $hex(0x40+$o)[4]    0   dis, enb
-#end for
+% for i, o in ((0, 0), (1, 1), (2, 2), (3, 3)):
+power_down_lvpecl_out${i}        ${hex(0x3C+o)}[0:1]  0   normal, test, safe_pd, total_pd
+output_level_lvpecl_out${i}      ${hex(0x3C+o)}[2:3]  2   500mv, 340mv, 810mv, 660mv
+% endfor
+% for i, o in ((4, 0), (5, 1), (6, 2), (7, 3)):
+power_down_lvds_cmos_out${i}     ${hex(0x40+o)}[0]    0
+output_level_lvds_out${i}        ${hex(0x40+o)}[1:2]  1   1_75ma, 3_5ma, 5_25ma, 7ma
+lvds_cmos_select_out${i}         ${hex(0x40+o)}[3]    1   lvds, cmos
+inverted_cmos_driver_out${i}     ${hex(0x40+o)}[4]    0   dis, enb
+% endfor
 clock_select                 0x45[0]               1   clk2_drives, clk1_drives
 clk1_power_down              0x45[1]               0
 clk2_power_down              0x45[2]               0
@@ -82,15 +72,15 @@ all_clock_inputs_pd          0x45[5]               0
 ########################################################################
 ## dividers
 ########################################################################
-#for $i, $o in ((0, 0), (1, 2), (2, 4), (3, 6), (4, 8), (5, 10), (6, 12), (7, 14))
-divider_high_cycles_out$i      $hex(0x48+$o)[0:3]  0
-divider_low_cycles_out$i       $hex(0x48+$o)[4:7]  0
-phase_offset_out$i             $hex(0x49+$o)[0:3]  0
-start_out$i                    $hex(0x49+$o)[4]    0
-force_out$i                    $hex(0x49+$o)[5]    0
-nosync_out$i                   $hex(0x49+$o)[6]    0
-bypass_divider_out$i           $hex(0x49+$o)[7]    0
-#end for
+% for i, o in ((0, 0), (1, 2), (2, 4), (3, 6), (4, 8), (5, 10), (6, 12), (7, 14)):
+divider_high_cycles_out${i}      ${hex(0x48+o)}[0:3]  0
+divider_low_cycles_out${i}       ${hex(0x48+o)}[4:7]  0
+phase_offset_out${i}             ${hex(0x49+o)}[0:3]  0
+start_out${i}                    ${hex(0x49+o)}[4]    0
+force_out${i}                    ${hex(0x49+o)}[5]    0
+nosync_out${i}                   ${hex(0x49+o)}[6]    0
+bypass_divider_out${i}           ${hex(0x49+o)}[7]    0
+% endfor
 ########################################################################
 ## function
 ########################################################################
@@ -107,26 +97,26 @@ update_registers               0x5A[0]             0
 # Template for methods in the body of the struct
 ########################################################################
 BODY_TMPL="""\
-boost::uint8_t get_reg(boost::uint16_t addr){
-    boost::uint8_t reg = 0;
+uint8_t get_reg(uint16_t addr){
+    uint8_t reg = 0;
     switch(addr){
-    #for $addr in sorted(set(map(lambda r: r.get_addr(), $regs)))
-    case $addr:
-        #for $reg in filter(lambda r: r.get_addr() == addr, $regs)
-        reg |= (boost::uint32_t($reg.get_name()) & $reg.get_mask()) << $reg.get_shift();
-        #end for
+    % for addr in sorted(set(map(lambda r: r.get_addr(), regs))):
+    case ${addr}:
+        % for reg in filter(lambda r: r.get_addr() == addr, regs):
+        reg |= (uint32_t(${reg.get_name()}) & ${reg.get_mask()}) << ${reg.get_shift()};
+        % endfor
         break;
-    #end for
+    % endfor
     }
     return reg;
 }
 
-boost::uint32_t get_write_reg(boost::uint16_t addr){
-    return (boost::uint32_t(addr) << 8) | get_reg(addr);
+uint32_t get_write_reg(uint16_t addr){
+    return (uint32_t(addr) << 8) | get_reg(addr);
 }
 
-boost::uint32_t get_read_reg(boost::uint16_t addr){
-    return (boost::uint32_t(addr) << 8) | (1 << 23);
+uint32_t get_read_reg(uint16_t addr){
+    return (uint32_t(addr) << 8) | (1 << 23);
 }
 """
 

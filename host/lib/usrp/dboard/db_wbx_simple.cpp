@@ -1,18 +1,8 @@
 //
 // Copyright 2011-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 // Antenna constants
@@ -46,7 +36,7 @@ static const std::vector<std::string> wbx_rx_antennas = list_of("TX/RX")("RX2")(
 class wbx_simple : public wbx_base{
 public:
     wbx_simple(ctor_args_t args);
-    ~wbx_simple(void);
+    virtual ~wbx_simple(void);
 
 private:
     void set_rx_ant(const std::string &ant);
@@ -88,7 +78,7 @@ wbx_simple::wbx_simple(ctor_args_t args) : wbx_base(args){
         std::string(str(boost::format("%s+GDB") % this->get_rx_subtree()->access<std::string>("name").get()
     )));
     this->get_rx_subtree()->create<std::string>("antenna/value")
-        .subscribe(boost::bind(&wbx_simple::set_rx_ant, this, _1))
+        .add_coerced_subscriber(boost::bind(&wbx_simple::set_rx_ant, this, _1))
         .set("RX2");
     this->get_rx_subtree()->create<std::vector<std::string> >("antenna/options")
         .set(wbx_rx_antennas);
@@ -100,7 +90,7 @@ wbx_simple::wbx_simple(ctor_args_t args) : wbx_base(args){
         std::string(str(boost::format("%s+GDB") % this->get_tx_subtree()->access<std::string>("name").get()
     )));
     this->get_tx_subtree()->create<std::string>("antenna/value")
-        .subscribe(boost::bind(&wbx_simple::set_tx_ant, this, _1))
+        .add_coerced_subscriber(boost::bind(&wbx_simple::set_tx_ant, this, _1))
         .set(wbx_tx_antennas.at(0));
     this->get_tx_subtree()->create<std::vector<std::string> >("antenna/options")
         .set(wbx_tx_antennas);
@@ -112,14 +102,14 @@ wbx_simple::wbx_simple(ctor_args_t args) : wbx_base(args){
     this->get_iface()->set_gpio_ddr(dboard_iface::UNIT_RX, ANTSW_IO, ANTSW_IO);
 
     //setup ATR for the antenna switches (constant)
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_IDLE,        ANT_RX, ANTSW_IO);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_RX_ONLY,     ANT_RX, ANTSW_IO);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_TX_ONLY,     ANT_TX, ANTSW_IO);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_FULL_DUPLEX, ANT_TX, ANTSW_IO);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_IDLE,        ANT_RX, ANTSW_IO);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_RX_ONLY,     ANT_RX, ANTSW_IO);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_TX_ONLY,     ANT_TX, ANTSW_IO);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_FULL_DUPLEX, ANT_TX, ANTSW_IO);
 
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_IDLE,        ANT_TXRX, ANTSW_IO);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_TX_ONLY,     ANT_RX2, ANTSW_IO);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_FULL_DUPLEX, ANT_RX2, ANTSW_IO);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_IDLE,        ANT_TXRX, ANTSW_IO);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_TX_ONLY,     ANT_RX2, ANTSW_IO);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_FULL_DUPLEX, ANT_RX2, ANTSW_IO);
 }
 
 wbx_simple::~wbx_simple(void){
@@ -138,14 +128,14 @@ void wbx_simple::set_rx_ant(const std::string &ant){
 
     //write the new antenna setting to atr regs
     if (_rx_ant == "CAL") {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_TX_ONLY,     ANT_TXRX, ANTSW_IO);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_FULL_DUPLEX, ANT_TXRX, ANTSW_IO);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_RX_ONLY,     ANT_TXRX, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_TX_ONLY,     ANT_TXRX, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_FULL_DUPLEX, ANT_TXRX, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_RX_ONLY,     ANT_TXRX, ANTSW_IO);
     } 
     else {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_TX_ONLY,     ANT_RX2, ANTSW_IO);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_FULL_DUPLEX, ANT_RX2, ANTSW_IO);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_RX_ONLY, ((_rx_ant == "TX/RX")? ANT_TXRX : ANT_RX2), ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_TX_ONLY,     ANT_RX2, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_FULL_DUPLEX, ANT_RX2, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_RX_ONLY, ((_rx_ant == "TX/RX")? ANT_TXRX : ANT_RX2), ANTSW_IO);
     }
 }
 
@@ -154,11 +144,11 @@ void wbx_simple::set_tx_ant(const std::string &ant){
 
     //write the new antenna setting to atr regs
     if (ant == "CAL") {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_TX_ONLY,     ANT_RX, ANTSW_IO);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_FULL_DUPLEX, ANT_RX, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_TX_ONLY,     ANT_RX, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_FULL_DUPLEX, ANT_RX, ANTSW_IO);
     } 
     else {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_TX_ONLY,     ANT_TX, ANTSW_IO);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_FULL_DUPLEX, ANT_TX, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_TX_ONLY,     ANT_TX, ANTSW_IO);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_FULL_DUPLEX, ANT_TX, ANTSW_IO);
     }
 }

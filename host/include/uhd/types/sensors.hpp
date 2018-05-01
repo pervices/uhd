@@ -1,24 +1,15 @@
 //
 // Copyright 2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_TYPES_SENSORS_HPP
 #define INCLUDED_UHD_TYPES_SENSORS_HPP
 
 #include <uhd/config.hpp>
+#include <map>
 #include <string>
 
 namespace uhd{
@@ -36,6 +27,7 @@ namespace uhd{
      * //prints Temperature: 38.5 C
      */
     struct UHD_API sensor_value_t{
+        typedef std::map<std::string, std::string> sensor_map_t;
 
         /*!
          * Create a sensor value from a boolean.
@@ -91,6 +83,24 @@ namespace uhd{
             const std::string &unit
         );
 
+        /*!
+         * Create a sensor value from a map.
+         *
+         * The map must have the following keys: name, type, value, and unit.
+         *
+         * type must one of the following strings: BOOLEAN, INTEGER, REALNUM,
+         * or STRING (see data_type_t).
+         */
+        sensor_value_t(
+            const std::map<std::string, std::string> &sensor_dict
+        );
+
+        /*!
+         * Create a sensor value from another sensor value.
+         * \param source the source sensor value to copy
+         */
+        sensor_value_t(const sensor_value_t& source);
+
         //! convert the sensor value to a boolean
         bool to_bool(void) const;
 
@@ -101,21 +111,21 @@ namespace uhd{
         double to_real(void) const;
 
         //! The name of the sensor value
-        const std::string name;
+        std::string name;
 
         /*!
          * The sensor value as a string.
          * For integer and real number types, this will be the output of the formatter.
          * For boolean types, the value will be the string literal "true" or "false".
          */
-        const std::string value;
+        std::string value;
 
         /*!
          * The sensor value's unit type.
          * For boolean types, this will be the one of the two units
          * depending upon the value of the boolean true or false.
          */
-        const std::string unit;
+        std::string unit;
 
         //! Enumeration of possible data types in a sensor
         enum data_type_t {
@@ -126,10 +136,13 @@ namespace uhd{
         };
 
         //! The data type of the value
-        const data_type_t type;
+        data_type_t type;
 
         //! Convert this sensor value into a printable string
         std::string to_pp_string(void) const;
+
+        //! Assignment operator for sensor value
+        sensor_value_t& operator=(const sensor_value_t& value);
     };
 
 } //namespace uhd

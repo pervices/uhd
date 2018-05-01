@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "codec_ctrl.hpp"
@@ -22,8 +12,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/exception.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/foreach.hpp>
+#include <stdint.h>
 
 using namespace uhd;
 
@@ -58,7 +47,7 @@ public:
         _ad9777_regs.qdac_offset_adjust_lsb = 0;
         _ad9777_regs.qdac_offset_adjust_msb = 0;
         //write all regs
-        for(boost::uint8_t addr = 0; addr <= 0xC; addr++){
+        for(uint8_t addr = 0; addr <= 0xC; addr++){
             this->send_ad9777_reg(addr);
         }
         set_tx_mod_mode(0);
@@ -196,17 +185,17 @@ private:
     usrp2_iface::sptr _iface;
     uhd::spi_iface::sptr _spiface;
 
-    void send_ad9777_reg(boost::uint8_t addr){
-        boost::uint16_t reg = _ad9777_regs.get_write_reg(addr);
-        UHD_LOGV(always) << "send_ad9777_reg: " << std::hex << reg << std::endl;
+    void send_ad9777_reg(uint8_t addr){
+        uint16_t reg = _ad9777_regs.get_write_reg(addr);
+        UHD_LOGGER_TRACE("USRP2") << "send_ad9777_reg: " << std::hex << reg;
         _spiface->write_spi(
             SPI_SS_AD9777, spi_config_t::EDGE_RISE,
             reg, 16
         );
     }
 
-    void send_ads62p44_reg(boost::uint8_t addr) {
-        boost::uint16_t reg = _ads62p44_regs.get_write_reg(addr);
+    void send_ads62p44_reg(uint8_t addr) {
+        uint16_t reg = _ads62p44_regs.get_write_reg(addr);
         _spiface->write_spi(
             SPI_SS_ADS62P44, spi_config_t::EDGE_FALL,
             reg, 16

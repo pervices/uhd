@@ -1,18 +1,8 @@
 /*
- * Copyright 2014 Ettus Research LLC
+ * Copyright 2014-2016 Ettus Research LLC
+ * Copyright 2018 Ettus Research, a National Instruments Company
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef _OCTOCLOCK_COMMON_H_
@@ -25,14 +15,16 @@
  */
 #ifdef __cplusplus
 
-#define UHD_OCTOCLOCK_SEND_AND_RECV(xport, pkt_code, pkt_out, len, data) pkt_out.proto_ver = OCTOCLOCK_FW_COMPAT_NUM; \
-                                                                         pkt_out.code = pkt_code; \
-                                                                         xport->send(boost::asio::buffer(&pkt_out, sizeof(octoclock_packet_t))); \
-                                                                         len = xport->recv(boost::asio::buffer(data), 2);
+#define UHD_OCTOCLOCK_SEND_AND_RECV(xport, fw_version, pkt_code, pkt_out, len, data) do {\
+                                                                            pkt_out.proto_ver = fw_version; \
+                                                                            pkt_out.code = pkt_code; \
+                                                                            xport->send(boost::asio::buffer(&pkt_out, sizeof(octoclock_packet_t))); \
+                                                                            len = xport->recv(boost::asio::buffer(data), 2);\
+                                                                         } while(0)
 
-#define UHD_OCTOCLOCK_PACKET_MATCHES(pkt_code, pkt_out, pkt_in, len) (len > offsetof(octoclock_packet_t, data) and \
-                                                                      pkt_in->sequence == pkt_out.sequence and \
-                                                                      pkt_in->code == pkt_code)
+#define UHD_OCTOCLOCK_PACKET_MATCHES(pkt_code, pkt_out, pkt_in, len)    (len > offsetof(octoclock_packet_t, data) and \
+                                                                            pkt_in->sequence == pkt_out.sequence and \
+                                                                            pkt_in->code == pkt_code)
 
 extern "C" {
 #endif
@@ -42,11 +34,12 @@ extern "C" {
  * only valid C code should go in this section.
  */
 
-//These values are placed in the octoclock_packet_t.proto_ver field
+// These values are placed in the octoclock_packet_t.proto_ver field
 #define OCTOCLOCK_BOOTLOADER_PROTO_VER 1234
-#define OCTOCLOCK_FW_COMPAT_NUM 2
+#define OCTOCLOCK_FW_MIN_COMPAT_NUM       2
+#define OCTOCLOCK_FW_COMPAT_NUM           4
 
-//UDP ports assigned for different tasks
+// UDP ports assigned for different tasks
 #define OCTOCLOCK_UDP_CTRL_PORT   50000
 #define OCTOCLOCK_UDP_GPSDO_PORT  50001
 #define OCTOCLOCK_UDP_FW_PORT     50002
@@ -98,11 +91,21 @@ typedef enum {
 } ref_t;
 
 typedef enum {
-    UP,
-    DOWN
+    PREFER_INTERNAL,
+    PREFER_EXTERNAL
 } switch_pos_t;
 
+/*
+ * Some versions of AVR-GCC ignore #pragma pack, so
+ * if AVR-GCC is being used, use __attribute__
+ * instead.
+ */
+#ifdef AVR
+#define __AVR_ALIGNED__ __attribute__((aligned(1)))
+#else
+#define __AVR_ALIGNED__
 #pragma pack(push,1)
+#endif
 
 // Structure of values in EEPROM, starting in location 0
 typedef struct {
@@ -113,34 +116,37 @@ typedef struct {
     uint8_t serial[10];
     uint8_t name[10];
     uint8_t revision;
-} octoclock_fw_eeprom_t;
+} octoclock_fw_eeprom_t __AVR_ALIGNED__;
 
 typedef struct {
     uint8_t external_detected;
     uint8_t gps_detected;
     uint8_t which_ref;
     uint8_t switch_pos;
-} octoclock_state_t;
+} octoclock_state_t __AVR_ALIGNED__;
 
 typedef struct {
     uint8_t num_wraps;
     uint8_t pos;
-} gpsdo_cache_state_t;
+} gpsdo_cache_state_t __AVR_ALIGNED__;
 
 typedef struct {
     uint32_t proto_ver;
     uint32_t sequence;
     uint8_t code;
     union {
-        uint16_t len;
+        uint16_t crc;
         gpsdo_cache_state_t state;
         uint16_t poolsize;
         uint16_t addr;
     };
     uint8_t data[256];
-} octoclock_packet_t;
+    uint16_t len;
+} octoclock_packet_t __AVR_ALIGNED__;
 
+#ifndef AVR
 #pragma pack(pop)
+#endif
 
 #ifdef __cplusplus
 }

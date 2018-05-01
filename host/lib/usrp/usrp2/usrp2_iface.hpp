@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_USRP2_IFACE_HPP
@@ -33,7 +23,7 @@
  * Provides a set of functions to implementation layer.
  * Including spi, peek, poke, control...
  */
-class usrp2_iface : public uhd::wb_iface, public uhd::spi_iface, public uhd::i2c_iface
+class usrp2_iface : public uhd::timed_wb_iface, public uhd::spi_iface, public uhd::i2c_iface
 {
 public:
     typedef boost::shared_ptr<usrp2_iface> sptr;
@@ -45,10 +35,10 @@ public:
     static sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
     //! poke a register in the virtual fw table
-    virtual void pokefw(wb_addr_type addr, boost::uint32_t data) = 0;
+    virtual void pokefw(wb_addr_type addr, uint32_t data) = 0;
 
     //! peek a register in the virtual fw table
-    virtual boost::uint32_t peekfw(wb_addr_type addr) = 0;
+    virtual uint32_t peekfw(wb_addr_type addr) = 0;
 
     //! The list of possible revision types
     enum rev_type {

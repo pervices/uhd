@@ -1,28 +1,20 @@
 //
-// Copyright 2012-2013 Ettus Research LLC
+// Copyright 2012-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "b200_regs.hpp"
 #include "b200_impl.hpp"
-#include "validate_subdev_spec.hpp"
+#include <uhdlib/usrp/common/validate_subdev_spec.hpp>
+#include <uhdlib/usrp/common/async_packet_handler.hpp>
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
-#include "async_packet_handler.hpp"
+#include <uhd/utils/math.hpp>
 #include <boost/bind.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/math/common_factor.hpp>
 #include <set>
 
 using namespace uhd;
@@ -34,30 +26,32 @@ using namespace uhd::transport;
  **********************************************************************/
 void b200_impl::check_tick_rate_with_current_streamers(double rate)
 {
-    size_t max_tx_chan_count = 0, max_rx_chan_count = 0;
-    BOOST_FOREACH(radio_perifs_t &perif, _radio_perifs)
-    {
-        {
-            boost::shared_ptr<sph::recv_packet_streamer> rx_streamer =
-                boost::dynamic_pointer_cast<sph::recv_packet_streamer>(perif.rx_streamer.lock());
-            if (rx_streamer)
-                max_rx_chan_count = std::max(max_rx_chan_count, rx_streamer->get_num_channels());
-        }
-
-        {
-            boost::shared_ptr<sph::send_packet_streamer> tx_streamer =
-                boost::dynamic_pointer_cast<sph::send_packet_streamer>(perif.tx_streamer.lock());
-            if (tx_streamer)
-                max_tx_chan_count = std::max(max_tx_chan_count, tx_streamer->get_num_channels());
-        }
-    }
-
     // Defined in b200_impl.cpp
-    enforce_tick_rate_limits(max_rx_chan_count, rate, "RX");
-    enforce_tick_rate_limits(max_tx_chan_count, rate, "TX");
+    enforce_tick_rate_limits(max_chan_count("RX"), rate, "RX");
+    enforce_tick_rate_limits(max_chan_count("TX"), rate, "TX");
 }
 
-void b200_impl::check_streamer_args(const uhd::stream_args_t &args, double tick_rate, const char* direction /*= NULL*/)
+// direction can either be "TX", "RX", or empty (default)
+size_t b200_impl::max_chan_count(const std::string &direction /* = "" */)
+{
+    size_t max_count = 0;
+    for(radio_perifs_t &perif:  _radio_perifs)
+    {
+        if ((direction == "RX" or direction.empty()) and not perif.rx_streamer.expired()) {
+            boost::shared_ptr<sph::recv_packet_streamer> rx_streamer =
+                boost::dynamic_pointer_cast<sph::recv_packet_streamer>(perif.rx_streamer.lock());
+            max_count = std::max(max_count, rx_streamer->get_num_channels());
+        }
+        if ((direction == "TX" or direction.empty()) and not perif.tx_streamer.expired()) {
+            boost::shared_ptr<sph::send_packet_streamer> tx_streamer =
+                boost::dynamic_pointer_cast<sph::send_packet_streamer>(perif.tx_streamer.lock());
+            max_count = std::max(max_count, tx_streamer->get_num_channels());
+        }
+    }
+    return max_count;
+}
+
+void b200_impl::check_streamer_args(const uhd::stream_args_t &args, double tick_rate, const std::string &direction /*= ""*/)
 {
     std::set<size_t> chans_set;
     for (size_t stream_i = 0; stream_i < args.channels.size(); stream_i++)
@@ -69,24 +63,128 @@ void b200_impl::check_streamer_args(const uhd::stream_args_t &args, double tick_
     enforce_tick_rate_limits(chans_set.size(), tick_rate, direction);   // Defined in b200_impl.cpp
 }
 
-void b200_impl::update_tick_rate(const double rate)
-{
-    check_tick_rate_with_current_streamers(rate);
+void b200_impl::set_auto_tick_rate(
+        const double rate,
+        const fs_path &tree_dsp_path,
+        size_t num_chans
+) {
+    if (num_chans == 0) { // Divine them
+        num_chans = std::max(size_t(1), max_chan_count());
+    }
+    const double max_tick_rate = ad9361_device_t::AD9361_MAX_CLOCK_RATE/num_chans;
+    using namespace uhd::math;
+    if (rate != 0.0 and
+        (fp_compare::fp_compare_delta<double>(rate, FREQ_COMPARISON_DELTA_HZ) > max_tick_rate)) {
+        throw uhd::value_error(str(
+                boost::format("Requested sampling rate (%.2f Msps) exceeds maximum tick rate of %.2f MHz.")
+                % (rate / 1e6) % (max_tick_rate / 1e6)
+        ));
+    }
 
-    BOOST_FOREACH(radio_perifs_t &perif, _radio_perifs)
+    // See also the doxygen documentation for these steps in b200_impl.hpp
+    // Step 1: Obtain LCM and max rate from all relevant dsps
+    uint32_t lcm_rate = (rate == 0) ? 1 : static_cast<uint32_t>(floor(rate + 0.5));
+    for (int i = 0; i < 2; i++) { // Loop through rx and tx
+        std::string dir = (i == 0) ? "tx" : "rx";
+        // We assume all 'set' DSPs are being used.
+        for(const std::string &dsp_no:  _tree->list(str(boost::format("/mboards/0/%s_dsps") % dir))) {
+            fs_path dsp_path = str(boost::format("/mboards/0/%s_dsps/%s") % dir % dsp_no);
+            if (dsp_path == tree_dsp_path) {
+                continue;
+            }
+            if (not _tree->access<bool>(dsp_path / "rate/set").get()) {
+                continue;
+            }
+            double this_dsp_rate = _tree->access<double>(dsp_path / "rate/value").get();
+            // Check if the user selected something completely unreasonable:
+            if (fp_compare::fp_compare_delta<double>(this_dsp_rate, FREQ_COMPARISON_DELTA_HZ) > max_tick_rate) {
+                throw uhd::value_error(str(
+                        boost::format("Requested sampling rate (%.2f Msps) exceeds maximum tick rate of %.2f MHz.")
+                        % (this_dsp_rate / 1e6) % (max_tick_rate / 1e6)
+                ));
+            }
+            // Clean up floating point rounding errors if they crept in
+            this_dsp_rate = std::min(max_tick_rate, this_dsp_rate);
+            lcm_rate = boost::math::lcm<uint32_t>(
+                    lcm_rate,
+                    static_cast<uint32_t>(floor(this_dsp_rate + 0.5))
+            );
+        }
+    }
+    if (lcm_rate == 1) {
+        // In this case, no one has ever set a sampling rate.
+        return;
+    }
+
+    double base_rate = static_cast<double>(lcm_rate);
+    try {
+        // Step 2: Get a good tick rate value
+        const double new_rate = _codec_mgr->get_auto_tick_rate(base_rate, num_chans);
+        // Step 3: Set the new tick rate value (if any change)
+        if (!uhd::math::frequencies_are_equal(_tree->access<double>("/mboards/0/tick_rate").get(), new_rate)) {
+            _tree->access<double>("/mboards/0/tick_rate").set(new_rate);
+        }
+    } catch (const uhd::value_error &) {
+        UHD_LOGGER_WARNING("B200")
+            << "Cannot automatically determine an appropriate tick rate for these sampling rates." 
+            << "Consider using different sampling rates, or manually specify a suitable master clock rate." ;
+        return; // Let the others handle this
+    }
+}
+
+void b200_impl::update_tick_rate(const double new_tick_rate)
+{
+    check_tick_rate_with_current_streamers(new_tick_rate);
+
+    for(radio_perifs_t &perif:  _radio_perifs)
     {
         boost::shared_ptr<sph::recv_packet_streamer> my_streamer =
             boost::dynamic_pointer_cast<sph::recv_packet_streamer>(perif.rx_streamer.lock());
-        if (my_streamer) my_streamer->set_tick_rate(rate);
-        perif.framer->set_tick_rate(_tick_rate);
+        if (my_streamer) my_streamer->set_tick_rate(new_tick_rate);
+        perif.framer->set_tick_rate(new_tick_rate);
     }
-    BOOST_FOREACH(radio_perifs_t &perif, _radio_perifs)
+    for(radio_perifs_t &perif:  _radio_perifs)
     {
         boost::shared_ptr<sph::send_packet_streamer> my_streamer =
             boost::dynamic_pointer_cast<sph::send_packet_streamer>(perif.tx_streamer.lock());
-        if (my_streamer) my_streamer->set_tick_rate(rate);
-        perif.deframer->set_tick_rate(_tick_rate);
+        if (my_streamer) my_streamer->set_tick_rate(new_tick_rate);
     }
+}
+
+void b200_impl::update_rx_dsp_tick_rate(const double tick_rate, rx_dsp_core_3000::sptr ddc, uhd::fs_path rx_dsp_path)
+{
+    ddc->set_tick_rate(tick_rate);
+    if (_tree->access<bool>(rx_dsp_path / "rate" / "set").get()) {
+        ddc->set_host_rate(_tree->access<double>(rx_dsp_path / "rate" / "value").get());
+    }
+}
+
+void b200_impl::update_tx_dsp_tick_rate(const double tick_rate, tx_dsp_core_3000::sptr duc, uhd::fs_path tx_dsp_path)
+{
+    duc->set_tick_rate(tick_rate);
+    if (_tree->access<bool>(tx_dsp_path / "rate" / "set").get()) {
+        duc->set_host_rate(_tree->access<double>(tx_dsp_path / "rate" / "value").get());
+    }
+}
+
+#define CHECK_RATE_AND_THROW(rate)  \
+        if (uhd::math::fp_compare::fp_compare_delta<double>(rate, uhd::math::FREQ_COMPARISON_DELTA_HZ) > \
+            uhd::math::fp_compare::fp_compare_delta<double>(ad9361_device_t::AD9361_MAX_CLOCK_RATE, uhd::math::FREQ_COMPARISON_DELTA_HZ)) { \
+            throw uhd::value_error(str( \
+                    boost::format("Requested sampling rate (%.2f Msps) exceeds maximum tick rate.") \
+                    % (rate / 1e6) \
+            )); \
+        }
+
+double b200_impl::coerce_rx_samp_rate(rx_dsp_core_3000::sptr ddc, size_t dspno, const double rx_rate)
+{
+    // Have to set tick rate first, or the ddc will change the requested rate based on default tick rate
+    if (_tree->access<bool>("/mboards/0/auto_tick_rate").get()) {
+        CHECK_RATE_AND_THROW(rx_rate);
+        const std::string dsp_path = (boost::format("/mboards/0/rx_dsps/%s") % dspno).str();
+        set_auto_tick_rate(rx_rate, dsp_path);
+    }
+    return ddc->set_host_rate(rx_rate);
 }
 
 void b200_impl::update_rx_samp_rate(const size_t dspno, const double rate)
@@ -97,6 +195,18 @@ void b200_impl::update_rx_samp_rate(const size_t dspno, const double rate)
     my_streamer->set_samp_rate(rate);
     const double adj = _radio_perifs[dspno].ddc->get_scaling_adjustment();
     my_streamer->set_scale_factor(adj);
+    _codec_mgr->check_bandwidth(rate, "Rx");
+}
+
+double b200_impl::coerce_tx_samp_rate(tx_dsp_core_3000::sptr duc, size_t dspno, const double tx_rate)
+{
+    // Have to set tick rate first, or the duc will change the requested rate based on default tick rate
+    if (_tree->access<bool>("/mboards/0/auto_tick_rate").get()) {
+        CHECK_RATE_AND_THROW(tx_rate);
+        const std::string dsp_path = (boost::format("/mboards/0/tx_dsps/%s") % dspno).str();
+        set_auto_tick_rate(tx_rate, dsp_path);
+    }
+    return duc->set_host_rate(tx_rate);
 }
 
 void b200_impl::update_tx_samp_rate(const size_t dspno, const double rate)
@@ -107,34 +217,38 @@ void b200_impl::update_tx_samp_rate(const size_t dspno, const double rate)
     my_streamer->set_samp_rate(rate);
     const double adj = _radio_perifs[dspno].duc->get_scaling_adjustment();
     my_streamer->set_scale_factor(adj);
+    _codec_mgr->check_bandwidth(rate, "Tx");
 }
 
 /***********************************************************************
  * frontend selection
  **********************************************************************/
+uhd::usrp::subdev_spec_t b200_impl::coerce_subdev_spec(const uhd::usrp::subdev_spec_t &spec_)
+{
+    uhd::usrp::subdev_spec_t spec = spec_;
+    // Because of the confusing nature of the subdevs on B200
+    // with different revs, we provide a convenience override,
+    // where both A:A and A:B are mapped to A:A.
+    //
+    // Any other spec is probably illegal and will be caught by
+    // validate_subdev_spec().
+    if (spec.size() and (_product == B200 or _product == B200MINI or _product == B205MINI) and spec[0].sd_name == "B")
+    {
+        spec[0].sd_name = "A";
+    }
+    return spec;
+}
+
 void b200_impl::update_subdev_spec(const std::string &tx_rx, const uhd::usrp::subdev_spec_t &spec)
 {
     //sanity checking
-    if (spec.size()) validate_subdev_spec(_tree, spec, tx_rx);
-    UHD_ASSERT_THROW(spec.size() <= _radio_perifs.size());
-
-    if (spec.size() >= 1)
-    {
-        UHD_ASSERT_THROW(spec[0].db_name == "A");
-        UHD_ASSERT_THROW(spec[0].sd_name == "A" or spec[0].sd_name == "B");
-    }
-    if (spec.size() == 2)
-    {
-        UHD_ASSERT_THROW(spec[1].db_name == "A");
-        UHD_ASSERT_THROW(
-            (spec[0].sd_name == "A" and spec[1].sd_name == "B") or
-            (spec[0].sd_name == "B" and spec[1].sd_name == "A")
-        );
+    if (spec.size()) {
+        validate_subdev_spec(_tree, spec, tx_rx);
     }
 
     std::vector<size_t> chan_to_dsp_map(spec.size(), 0);
     for (size_t i = 0; i < spec.size(); i++) {
-	chan_to_dsp_map[i] = (spec[i].sd_name == "A") ? 0 : 1;
+        chan_to_dsp_map[i] = (spec[i].sd_name == "A") ? 0 : 1;
     }
     _tree->access<std::vector<size_t> >("/mboards/0" / (tx_rx + "_chan_dsp_mapping")).set(chan_to_dsp_map);
 
@@ -142,7 +256,7 @@ void b200_impl::update_subdev_spec(const std::string &tx_rx, const uhd::usrp::su
 }
 
 static void b200_if_hdr_unpack_le(
-    const boost::uint32_t *packet_buff,
+    const uint32_t *packet_buff,
     vrt::if_packet_info_t &if_packet_info
 ){
     if_packet_info.link_type = vrt::if_packet_info_t::LINK_TYPE_CHDR;
@@ -150,7 +264,7 @@ static void b200_if_hdr_unpack_le(
 }
 
 static void b200_if_hdr_pack_le(
-    boost::uint32_t *packet_buff,
+    uint32_t *packet_buff,
     vrt::if_packet_info_t &if_packet_info
 ){
     if_packet_info.link_type = vrt::if_packet_info_t::LINK_TYPE_CHDR;
@@ -184,9 +298,9 @@ boost::optional<uhd::msg_task::msg_type_t> b200_impl::handle_async_task(
 {
     managed_recv_buffer::sptr buff = xport->get_recv_buff();
     if (not buff or buff->size() < 8)
-        return NULL;
+        return boost::none;
 
-    const boost::uint32_t sid = uhd::wtohx(buff->cast<const boost::uint32_t *>()[1]);
+    const uint32_t sid = uhd::wtohx(buff->cast<const uint32_t *>()[1]);
     switch (sid) {
 
     //if the packet is a control response
@@ -199,10 +313,10 @@ boost::optional<uhd::msg_task::msg_type_t> b200_impl::handle_async_task(
         if (sid == B200_RESP1_MSG_SID) ctrl = data->radio_ctrl[1].lock();
         if (sid == B200_LOCAL_RESP_SID) ctrl = data->local_ctrl.lock();
         if (ctrl){
-        	ctrl->push_response(buff->cast<const boost::uint32_t *>());
+        	ctrl->push_response(buff->cast<const uint32_t *>());
         }
         else{
-            return std::make_pair(sid, uhd::msg_task::buff_to_vector(buff->cast<boost::uint8_t *>(), buff->size() ) );
+            return std::make_pair(sid, uhd::msg_task::buff_to_vector(buff->cast<uint8_t *>(), buff->size() ) );
         }
         break;
     }
@@ -222,8 +336,8 @@ boost::optional<uhd::msg_task::msg_type_t> b200_impl::handle_async_task(
 
         //extract packet info
         vrt::if_packet_info_t if_packet_info;
-        if_packet_info.num_packet_words32 = buff->size()/sizeof(boost::uint32_t);
-        const boost::uint32_t *packet_buff = buff->cast<const boost::uint32_t *>();
+        if_packet_info.num_packet_words32 = buff->size()/sizeof(uint32_t);
+        const uint32_t *packet_buff = buff->cast<const uint32_t *>();
 
         //unpacking can fail
         try
@@ -232,13 +346,13 @@ boost::optional<uhd::msg_task::msg_type_t> b200_impl::handle_async_task(
         }
         catch(const std::exception &ex)
         {
-            UHD_MSG(error) << "Error parsing ctrl packet: " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("B200") << "Error parsing ctrl packet: " << ex.what();
             break;
         }
 
         //fill in the async metadata
         async_metadata_t metadata;
-        load_metadata_from_buff(uhd::wtohx<boost::uint32_t>, metadata, if_packet_info, packet_buff, _tick_rate, i);
+        load_metadata_from_buff(uhd::wtohx<uint32_t>, metadata, if_packet_info, packet_buff, _tick_rate, i);
         data->async_md->push_with_pop_on_full(metadata);
         standard_async_msg_prints(metadata);
         break;
@@ -246,9 +360,9 @@ boost::optional<uhd::msg_task::msg_type_t> b200_impl::handle_async_task(
 
     //doh!
     default:
-        UHD_MSG(error) << "Got a ctrl packet with unknown SID " << sid << std::endl;
+        UHD_LOGGER_ERROR("B200") << "Got a ctrl packet with unknown SID " << sid;
     }
-    return NULL;
+    return boost::none;
 }
 
 /***********************************************************************
@@ -256,12 +370,17 @@ boost::optional<uhd::msg_task::msg_type_t> b200_impl::handle_async_task(
  **********************************************************************/
 rx_streamer::sptr b200_impl::get_rx_stream(const uhd::stream_args_t &args_)
 {
+    boost::mutex::scoped_lock lock(_transport_setup_mutex);
+
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
     if (args.otw_format.empty()) args.otw_format = "sc16";
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
+    if (_tree->access<bool>("/mboards/0/auto_tick_rate").get()) {
+        set_auto_tick_rate(0, "", args.channels.size());
+    }
     check_streamer_args(args, this->get_tick_rate(), "RX");
 
     boost::shared_ptr<sph::recv_packet_streamer> my_streamer;
@@ -274,11 +393,11 @@ rx_streamer::sptr b200_impl::get_rx_stream(const uhd::stream_args_t &args_)
         if (args.otw_format == "sc12") perif.ctrl->poke32(TOREG(SR_RX_FMT), 1);
         if (args.otw_format == "fc32") perif.ctrl->poke32(TOREG(SR_RX_FMT), 2);
         if (args.otw_format == "sc8") perif.ctrl->poke32(TOREG(SR_RX_FMT), 3);
-        const boost::uint32_t sid = radio_index ? B200_RX_DATA1_SID : B200_RX_DATA0_SID;
+        const uint32_t sid = radio_index ? B200_RX_DATA1_SID : B200_RX_DATA0_SID;
 
         //calculate packet size
         static const size_t hdr_size = 0
-            + vrt::max_if_hdr_words32*sizeof(boost::uint32_t)
+            + vrt::max_if_hdr_words32*sizeof(uint32_t)
             //+ sizeof(vrt::if_packet_info_t().tlr) //no longer using trailer
             - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
             - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
@@ -361,12 +480,17 @@ void b200_impl::handle_overflow(const size_t radio_index)
  **********************************************************************/
 tx_streamer::sptr b200_impl::get_tx_stream(const uhd::stream_args_t &args_)
 {
+    boost::mutex::scoped_lock lock(_transport_setup_mutex);
+
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
     if (args.otw_format.empty()) args.otw_format = "sc16";
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
+    if (_tree->access<bool>("/mboards/0/auto_tick_rate").get()) {
+        set_auto_tick_rate(0, "", args.channels.size());
+    }
     check_streamer_args(args, this->get_tick_rate(), "TX");
 
     boost::shared_ptr<sph::send_packet_streamer> my_streamer;
@@ -382,7 +506,7 @@ tx_streamer::sptr b200_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
         //calculate packet size
         static const size_t hdr_size = 0
-            + vrt::max_if_hdr_words32*sizeof(boost::uint32_t)
+            + vrt::max_if_hdr_words32*sizeof(uint32_t)
             //+ sizeof(vrt::if_packet_info_t().tlr) //forced to have trailer
             - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
             - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used

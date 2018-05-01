@@ -1,29 +1,18 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp_clock/multi_usrp_clock.hpp>
 #include <uhd/usrp_clock/octoclock_eeprom.hpp>
 
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <boost/assign/list_of.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 
 using namespace uhd;
@@ -61,10 +50,10 @@ public:
         return _tree->list("/mboards").size();
     }
 
-    boost::uint32_t get_time(size_t board){
+    uint32_t get_time(size_t board){
         std::string board_str = str(boost::format("/mboards/%d") % board);
 
-        return _tree->access<boost::uint32_t>(board_str / "time").get();
+        return _tree->access<uint32_t>(board_str / "time").get();
     }
 
     sensor_value_t get_sensor(const std::string &name, size_t board){
@@ -84,10 +73,14 @@ private:
     property_tree::sptr _tree;
 };
 
+multi_usrp_clock::~multi_usrp_clock(void){
+    /* NOP */
+}
+
 /***********************************************************************
  * Multi USRP Clock factory function
  **********************************************************************/
 multi_usrp_clock::sptr multi_usrp_clock::make(const device_addr_t &dev_addr){
-    UHD_LOG << "multi_usrp_clock::make with args " << dev_addr.to_pp_string() << std::endl;
+    UHD_LOGGER_TRACE("OCTOCLOCK") << "multi_usrp_clock::make with args " << dev_addr.to_pp_string() ;
     return sptr(new multi_usrp_clock_impl(dev_addr));
 }

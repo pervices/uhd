@@ -1,18 +1,8 @@
 //
 // Copyright 2011-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_LIBUHD_TRANSPORT_SUPER_RECV_PACKET_HANDLER_HPP
@@ -22,20 +12,18 @@
 #include <uhd/exception.hpp>
 #include <uhd/convert.hpp>
 #include <uhd/stream.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
-#include <uhd/utils/atomic.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/types/metadata.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/transport/zero_copy.hpp>
+#include <uhdlib/rfnoc/rx_stream_terminator.hpp>
 #include <boost/dynamic_bitset.hpp>
-#include <boost/foreach.hpp>
 #include <boost/function.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/thread/barrier.hpp>
 #include <iostream>
 #include <vector>
 
@@ -48,11 +36,11 @@
 
 namespace uhd{ namespace transport{ namespace sph{
 
-UHD_INLINE boost::uint32_t get_context_code(
-    const boost::uint32_t *vrt_hdr, const vrt::if_packet_info_t &if_packet_info
+UHD_INLINE uint32_t get_context_code(
+    const uint32_t *vrt_hdr, const vrt::if_packet_info_t &if_packet_info
 ){
     //extract the context word (we dont know the endianness so mirror the bytes)
-    boost::uint32_t word0 = vrt_hdr[if_packet_info.num_header_words32] |
+    uint32_t word0 = vrt_hdr[if_packet_info.num_header_words32] |
               uhd::byteswap(vrt_hdr[if_packet_info.num_header_words32]);
     return word0 & 0xff;
 }
@@ -72,8 +60,8 @@ public:
     typedef boost::function<managed_recv_buffer::sptr(double)> get_buff_type;
     typedef boost::function<void(const size_t)> handle_flowctrl_type;
     typedef boost::function<void(const stream_cmd_t&)> issue_stream_cmd_type;
-    typedef void(*vrt_unpacker_type)(const boost::uint32_t *, vrt::if_packet_info_t &);
-    //typedef boost::function<void(const boost::uint32_t *, vrt::if_packet_info_t &)> vrt_unpacker_type;
+    typedef void(*vrt_unpacker_type)(const uint32_t *, vrt::if_packet_info_t &);
+    //typedef boost::function<void(const uint32_t *, vrt::if_packet_info_t &)> vrt_unpacker_type;
 
     /*!
      * Make a new packet handler for receive
@@ -92,22 +80,15 @@ public:
     }
 
     ~recv_packet_handler(void){
-        _task_barrier.interrupt();
-        _task_handlers.clear();
+        /* NOP */
     }
 
     //! Resize the number of transport channels
     void resize(const size_t size){
         if (this->size() == size) return;
-        _task_handlers.clear();
         _props.resize(size);
         //re-initialize all buffers infos by re-creating the vector
         _buffers_infos = std::vector<buffers_info_type>(4, buffers_info_type(size));
-        _task_barrier.resize(size);
-        _task_handlers.resize(size);
-        for (size_t i = 1/*skip 0*/; i < size; i++){
-            _task_handlers[i] = task::make(boost::bind(&recv_packet_handler::converter_thread_task, this, i));
-        };
     }
 
     //! Get the channel width of this handler
@@ -121,13 +102,40 @@ public:
         _header_offset_words32 = header_offset_words32;
     }
 
+    ////////////////// RFNOC ///////////////////////////
+    //! Set the stream ID for a specific channel (or no SID)
+    void set_xport_chan_sid(const size_t xport_chan, const bool has_sid, const uint32_t sid = 0){
+        _props.at(xport_chan).has_sid = has_sid;
+        _props.at(xport_chan).sid = sid;
+    }
+
+    //! Get the stream ID for a specific channel (or zero if no SID)
+    uint32_t get_xport_chan_sid(const size_t xport_chan) const {
+        if (_props.at(xport_chan).has_sid) {
+            return _props.at(xport_chan).sid;
+        } else {
+            return 0;
+        }
+    }
+
+    void set_terminator(uhd::rfnoc::rx_stream_terminator::sptr terminator)
+    {
+        _terminator = terminator;
+    }
+
+    uhd::rfnoc::rx_stream_terminator::sptr get_terminator()
+    {
+        return _terminator;
+    }
+    ////////////////// RFNOC ///////////////////////////
+
     /*!
      * Set the threshold for alignment failure.
      * How many packets throw out before giving up?
      * \param threshold number of packets per channel
      */
     void set_alignment_failure_threshold(const size_t threshold){
-        _alignment_faulure_threshold = threshold*this->size();
+        _alignment_failure_threshold = threshold*this->size();
     }
 
     //! Set the rate of ticks per second
@@ -147,7 +155,7 @@ public:
      */
     void set_xport_chan_get_buff(const size_t xport_chan, const get_buff_type &get_buff, const bool flush = false){
         if (flush){
-            while (get_buff(0.0));
+            while (get_buff(0.0)) {};
         }
         _props.at(xport_chan).get_buff = get_buff;
     }
@@ -203,6 +211,13 @@ public:
     //! Overload call to issue stream commands
     void issue_stream_cmd(const stream_cmd_t &stream_cmd)
     {
+        // RFNoC: This needs to be checked by the radio block, once it's done. TODO remove this.
+        //if (stream_cmd.stream_now
+                //and stream_cmd.stream_mode != stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS
+                //and _props.size() > 1) {
+            //throw uhd::runtime_error("Attempting to do multi-channel receive with stream_now == true will result in misaligned channels. Aborting.");
+        //}
+
         for (size_t i = 0; i < _props.size(); i++)
         {
             if (_props[i].issue_stream_cmd) _props[i].issue_stream_cmd(stream_cmd);
@@ -234,7 +249,7 @@ public:
             buffs, nsamps_per_buff, metadata, timeout
         );
 
-        if (one_packet){
+        if (one_packet or metadata.end_of_burst){
 #ifdef UHD_TXRX_DEBUG_PRINTS
             dbg_gather_data(nsamps_per_buff, accum_num_samps, metadata, timeout, one_packet);
 #endif
@@ -242,7 +257,9 @@ public:
         }
 
         //first recv had an error code set, return immediately
-        if (metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) return accum_num_samps;
+        if (metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) {
+            return accum_num_samps;
+        }
 
         //loop until buffer is filled or error code
         while(accum_num_samps < nsamps_per_buff){
@@ -256,10 +273,16 @@ public:
                 _queue_error_for_next_call = true;
                 break;
             }
+
             accum_num_samps += num_samps;
+
+            //return immediately if end of burst
+            if (_queue_metadata.end_of_burst) {
+                break;
+            }
         }
 #ifdef UHD_TXRX_DEBUG_PRINTS
-		dbg_gather_data(nsamps_per_buff, accum_num_samps, metadata, timeout, one_packet);
+        dbg_gather_data(nsamps_per_buff, accum_num_samps, metadata, timeout, one_packet);
 #endif
         return accum_num_samps;
     }
@@ -269,7 +292,7 @@ private:
     size_t _header_offset_words32;
     double _tick_rate, _samp_rate;
     bool _queue_error_for_next_call;
-    size_t _alignment_faulure_threshold;
+    size_t _alignment_failure_threshold;
     rx_metadata_t _queue_metadata;
     struct xport_chan_props_type{
         xport_chan_props_type(void):
@@ -283,6 +306,10 @@ private:
         handle_overflow_type handle_overflow;
         handle_flowctrl_type handle_flowctrl;
         size_t fc_update_window;
+	/////// RFNOC ///////////
+        bool has_sid;
+        uint32_t sid;
+	/////// RFNOC ///////////
     };
     std::vector<xport_chan_props_type> _props;
     size_t _num_outputs;
@@ -295,12 +322,12 @@ private:
         void reset()
         {
             buff.reset();
-            vrt_hdr = NULL;
+            vrt_hdr = nullptr;
             time = time_spec_t(0.0);
-            copy_buff = NULL;
+            copy_buff = nullptr;
         }
         managed_recv_buffer::sptr buff;
-        const boost::uint32_t *vrt_hdr;
+        const uint32_t *vrt_hdr;
         vrt::if_packet_info_t ifpi;
         time_spec_t time;
         const char *copy_buff;
@@ -355,6 +382,8 @@ private:
     int recvd_packets;
     #endif
 
+    uhd::rfnoc::rx_stream_terminator::sptr _terminator;
+
     /*******************************************************************
      * Get and process a single packet from the transport:
      * Receive a single packet at the given index.
@@ -370,7 +399,7 @@ private:
         //get a single packet from the transport layer
         managed_recv_buffer::sptr &buff = curr_buffer_info.buff;
         buff = _props[index].get_buff(timeout);
-        if (buff.get() == NULL) return PACKET_TIMEOUT_ERROR;
+        if (buff.get() == nullptr) return PACKET_TIMEOUT_ERROR;
 
         #ifdef  ERROR_INJECT_DROPPED_PACKETS
         if (++recvd_packets > 1000)
@@ -378,12 +407,12 @@ private:
             recvd_packets = 0;
             buff.reset();
             buff = _props[index].get_buff(timeout);
-            if (buff.get() == NULL) return PACKET_TIMEOUT_ERROR;
+            if (buff.get() == nullptr) return PACKET_TIMEOUT_ERROR;
         }
         #endif
 
         //bounds check before extract
-        size_t num_packet_words32 = buff->size()/sizeof(boost::uint32_t);
+        size_t num_packet_words32 = buff->size()/sizeof(uint32_t);
         if (num_packet_words32 <= _header_offset_words32){
             throw std::runtime_error("recv buffer smaller than vrt packet offset");
         }
@@ -391,7 +420,7 @@ private:
         //extract packet info
         per_buffer_info_type &info = curr_buffer_info;
         info.ifpi.num_packet_words32 = num_packet_words32 - _header_offset_words32;
-        info.vrt_hdr = buff->cast<const boost::uint32_t *>() + _header_offset_words32;
+        info.vrt_hdr = buff->cast<const uint32_t *>() + _header_offset_words32;
         _vrt_unpacker(info.vrt_hdr, info.ifpi);
         info.time = time_spec_t::from_ticks(info.ifpi.tsf, _tick_rate); //assumes has_tsf is true
         info.copy_buff = reinterpret_cast<const char *>(info.vrt_hdr + info.ifpi.num_header_words32);
@@ -421,6 +450,13 @@ private:
         const size_t expected_packet_count = _props[index].packet_count;
         _props[index].packet_count = (info.ifpi.packet_count + 1) & seq_mask;
         if (expected_packet_count != info.ifpi.packet_count){
+            //UHD_LOGGER_INFO("STREAMER") << "expected: " << expected_packet_count << " got: " << info.ifpi.packet_count;
+            if (_props[index].handle_flowctrl) {
+                // Always update flow control in this case, because we don't
+                // know which packet was dropped and what state the upstream
+                // flow control is in.
+                _props[index].handle_flowctrl(info.ifpi.packet_count);
+            }
             return PACKET_SEQUENCE_ERROR;
         }
         #endif
@@ -436,6 +472,10 @@ private:
 
     void _flush_all(double timeout)
     {
+        get_prev_buffer_info().reset();
+        get_curr_buffer_info().reset();
+        get_next_buffer_info().reset();
+
         for (size_t i = 0; i < _props.size(); i++)
         {
             per_buffer_info_type prev_buffer_info, curr_buffer_info;
@@ -456,9 +496,6 @@ private:
                 curr_buffer_info.reset();
             }
         }
-        get_prev_buffer_info().reset();
-        get_curr_buffer_info().reset();
-        get_next_buffer_info().reset();
     }
 
     /*******************************************************************
@@ -524,11 +561,11 @@ private:
                 );
             }
 
-            //handle the case when the get packet throws
-            catch(const std::exception &e){
-                UHD_MSG(error) << boost::format(
-                    "The receive packet handler caught an exception.\n%s"
-                ) % e.what() << std::endl;
+            //handle the case where a bad header exists
+            catch(const uhd::value_error &e){
+                UHD_LOGGER_ERROR("STREAMER") << boost::format(
+                    "The receive packet handler caught a value exception.\n%s"
+                    ) % e.what();
                 std::swap(curr_info, next_info); //save progress from curr -> next
                 curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_BAD_PACKET;
                 return;
@@ -556,15 +593,27 @@ private:
                 curr_info.metadata.time_spec = next_info[index].time;
                 curr_info.metadata.error_code = rx_metadata_t::error_code_t(get_context_code(next_info[index].vrt_hdr, next_info[index].ifpi));
                 if (curr_info.metadata.error_code == rx_metadata_t::ERROR_CODE_OVERFLOW){
+                    // Not sending flow control would cause timeouts due to source flow control locking up.
+                    // Send first as the overrun handler may flush the receive buffers which could contain
+                    // packets with sequence numbers after this packet's sequence number!
+                    if(_props[index].handle_flowctrl) {
+                        _props[index].handle_flowctrl(next_info[index].ifpi.packet_count);
+                    }
+
                     rx_metadata_t metadata = curr_info.metadata;
                     _props[index].handle_overflow();
                     curr_info.metadata = metadata;
-                    UHD_MSG(fastpath) << "O";
+                    UHD_LOG_FASTPATH("O")
                 }
+                curr_info[index].buff.reset();
+                curr_info[index].copy_buff = nullptr;
                 return;
 
             case PACKET_TIMEOUT_ERROR:
                 std::swap(curr_info, next_info); //save progress from curr -> next
+                if(_props[index].handle_flowctrl) {
+                    _props[index].handle_flowctrl(next_info[index].ifpi.packet_count);
+                }
                 curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
                 return;
 
@@ -573,21 +622,21 @@ private:
                 std::swap(curr_info, next_info); //save progress from curr -> next
                 curr_info.metadata.has_time_spec = prev_info.metadata.has_time_spec;
                 curr_info.metadata.time_spec = prev_info.metadata.time_spec + time_spec_t::from_ticks(
-                    prev_info[index].ifpi.num_payload_words32*sizeof(boost::uint32_t)/_bytes_per_otw_item, _samp_rate);
+                    prev_info[index].ifpi.num_payload_words32*sizeof(uint32_t)/_bytes_per_otw_item, _samp_rate);
                 curr_info.metadata.out_of_sequence = true;
                 curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-                UHD_MSG(fastpath) << "D";
+                UHD_LOG_FASTPATH("D")
                 return;
 
             }
 
             //too many iterations: detect alignment failure
-            if (iterations++ > _alignment_faulure_threshold){
-                UHD_MSG(error) << boost::format(
-                    "The receive packet handler failed to time-align packets.\n"
-                    "%u received packets were processed by the handler.\n"
-                    "However, a timestamp match could not be determined.\n"
-                ) % iterations << std::endl;
+            if (iterations++ > _alignment_failure_threshold){
+                UHD_LOGGER_ERROR("STREAMER") << boost::format(
+                    "The receive packet handler failed to time-align packets. "
+                    "%u received packets were processed by the handler. "
+                    "However, a timestamp match could not be determined."
+                    ) % iterations;
                 std::swap(curr_info, next_info); //save progress from curr -> next
                 curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
                 _props[index].handle_overflow();
@@ -646,7 +695,9 @@ private:
         _convert_bytes_to_copy = bytes_to_copy;
 
         //perform N channels of conversion
-        converter_thread_task(0);
+        for (size_t i = 0; i < this->size(); i++) {
+            convert_to_out_buff(i);
+        }
 
         //update the copy buffer's availability
         info.data_bytes_to_copy -= bytes_to_copy;
@@ -659,15 +710,15 @@ private:
         return nsamps_to_copy_per_io_buff;
     }
 
-    /*******************************************************************
-     * Perform one thread's work of the conversion task.
-     * The entry and exit use a dual synchronization barrier,
-     * to wait for data to become ready and block until completion.
-     ******************************************************************/
-    UHD_INLINE void converter_thread_task(const size_t index)
+    /*! Run the conversion from the internal buffers to the user's output
+     *  buffer.
+     *
+     * - Calls the converter
+     * - Releases internal data buffers
+     * - Updates read/write pointers
+     */
+    inline void convert_to_out_buff(const size_t index)
     {
-        _task_barrier.wait();
-
         //shortcut references to local data structures
         buffers_info_type &buff_info = get_curr_buffer_info();
         per_buffer_info_type &info = buff_info[index];
@@ -691,13 +742,9 @@ private:
         if (buff_info.data_bytes_to_copy == _convert_bytes_to_copy){
             info.buff.reset(); //effectively a release
         }
-
-        if (index == 0) _task_barrier.wait_others();
     }
 
     //! Shared variables for the worker threads
-    reusable_barrier _task_barrier;
-    std::vector<task::sptr> _task_handlers;
     size_t _convert_nsamps;
     const rx_streamer::buffs_type *_convert_buffs;
     size_t _convert_buffer_offset_bytes;

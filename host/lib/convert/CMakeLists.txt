@@ -1,18 +1,8 @@
 #
 # Copyright 2011-2013 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0
 #
 
 ########################################################################
@@ -22,44 +12,11 @@ INCLUDE(CheckIncludeFileCXX)
 MESSAGE(STATUS "")
 
 ########################################################################
-# Look for Orc support
-########################################################################
-FIND_PACKAGE(ORC)
-
-IF(NOT ORCC_EXECUTABLE)
-    FIND_PROGRAM(ORCC_EXECUTABLE orcc)
-ENDIF()
-
-LIBUHD_REGISTER_COMPONENT("ORC" ENABLE_ORC ON "ENABLE_LIBUHD;ORC_FOUND;ORCC_EXECUTABLE" OFF)
-
-IF(ENABLE_ORC)
-    INCLUDE_DIRECTORIES(${ORC_INCLUDE_DIRS})
-    LINK_DIRECTORIES(${ORC_LIBRARY_DIRS})
-    ENABLE_LANGUAGE(C)
-
-    SET(orcc_src ${CMAKE_CURRENT_SOURCE_DIR}/convert_orc.orc)
-
-    GET_FILENAME_COMPONENT(orc_file_name_we ${orcc_src} NAME_WE)
-    SET(orcc_gen ${CMAKE_CURRENT_BINARY_DIR}/${orc_file_name_we}.c)
-    MESSAGE(STATUS "Orc found, enabling Orc support.")
-    ADD_CUSTOM_COMMAND(
-        COMMAND ${ORCC_EXECUTABLE} --implementation -o ${orcc_gen} ${orcc_src}
-        DEPENDS ${orcc_src} OUTPUT ${orcc_gen}
-    )
-    LIBUHD_APPEND_SOURCES(${orcc_gen})
-    LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/convert_with_orc.cpp
-    )
-    LIBUHD_APPEND_LIBS(${ORC_LIBRARIES})
-ELSE(ENABLE_ORC)
-    MESSAGE(STATUS "Orc not found, disabling orc support.")
-ENDIF(ENABLE_ORC)
-
-########################################################################
 # Check for SSE2 SIMD headers
 ########################################################################
 IF(CMAKE_COMPILER_IS_GNUCXX)
     SET(EMMINTRIN_FLAGS -msse2)
+    SET(TMMINTRIN_FLAGS -mssse3)
 ELSEIF(MSVC)
     SET(EMMINTRIN_FLAGS /arch:SSE2)
 ENDIF()
@@ -68,8 +25,15 @@ SET(CMAKE_REQUIRED_FLAGS ${EMMINTRIN_FLAGS})
 CHECK_INCLUDE_FILE_CXX(emmintrin.h HAVE_EMMINTRIN_H)
 SET(CMAKE_REQUIRED_FLAGS)
 
+IF(ENABLE_SSSE3)
+SET(CMAKE_REQUIRED_FLAGS ${TMMINTRIN_FLAGS})
+CHECK_INCLUDE_FILE_CXX(tmmintrin.h HAVE_TMMINTRIN_H)
+SET(CMAKE_REQUIRED_FLAGS)
+ENDIF(ENABLE_SSSE3)
+
 IF(HAVE_EMMINTRIN_H)
     SET(convert_with_sse2_sources
+        ${CMAKE_CURRENT_SOURCE_DIR}/sse2_sc16_to_sc16.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sse2_sc16_to_fc64.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sse2_sc16_to_fc32.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sse2_sc8_to_fc64.cpp
@@ -86,6 +50,18 @@ IF(HAVE_EMMINTRIN_H)
     LIBUHD_APPEND_SOURCES(${convert_with_sse2_sources})
 ENDIF(HAVE_EMMINTRIN_H)
 
+IF(HAVE_TMMINTRIN_H)
+    SET(convert_with_ssse3_sources
+        ${CMAKE_CURRENT_SOURCE_DIR}/ssse3_pack_sc12.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ssse3_unpack_sc12.cpp
+    )
+    SET_SOURCE_FILES_PROPERTIES(
+        ${convert_with_ssse3_sources}
+        PROPERTIES COMPILE_FLAGS "${TMMINTRIN_FLAGS}"
+    )
+    LIBUHD_APPEND_SOURCES(${convert_with_ssse3_sources})
+ENDIF(HAVE_TMMINTRIN_H)
+
 ########################################################################
 # Check for NEON SIMD headers
 ########################################################################
@@ -93,7 +69,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
     CHECK_INCLUDE_FILE_CXX(arm_neon.h HAVE_ARM_NEON_H)
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
-IF(HAVE_ARM_NEON_H)
+IF(HAVE_ARM_NEON_H AND (${CMAKE_SIZEOF_VOID_P} EQUAL 4))
     ENABLE_LANGUAGE(ASM)
 
     LIBUHD_APPEND_SOURCES(

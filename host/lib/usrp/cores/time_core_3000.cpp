@@ -1,31 +1,22 @@
 //
 // Copyright 2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "time_core_3000.hpp"
 #include <uhd/utils/safe_call.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
+#include <uhdlib/usrp/cores/time_core_3000.hpp>
 #include <boost/thread/thread.hpp>
 
 #define REG_TIME_HI       _base + 0
 #define REG_TIME_LO       _base + 4
 #define REG_TIME_CTRL     _base + 8
 
-#define CTRL_LATCH_TIME_PPS (1 << 1)
-#define CTRL_LATCH_TIME_NOW (1 << 0)
+#define CTRL_LATCH_TIME_NOW     (1 << 0)
+#define CTRL_LATCH_TIME_PPS     (1 << 1)
+#define CTRL_LATCH_TIME_SYNC    (1 << 2)
 
 using namespace uhd;
 
@@ -50,7 +41,7 @@ struct time_core_3000_impl : time_core_3000
     {
         UHD_SAFE_CALL
         (
-            //NOP
+            ;//NOP
         )
     }
 
@@ -62,48 +53,56 @@ struct time_core_3000_impl : time_core_3000
     void self_test(void)
     {
         const size_t sleep_millis = 100;
-        UHD_MSG(status) << "Performing timer loopback test... " << std::flush;
+        UHD_LOGGER_INFO("CORES") << "Performing timer loopback test... ";
         const time_spec_t time0 = this->get_time_now();
         boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_millis));
         const time_spec_t time1 = this->get_time_now();
         const double approx_secs = (time1 - time0).get_real_secs();
         const bool test_fail = (approx_secs > 0.15) or (approx_secs < 0.05);
-        UHD_MSG(status) << ((test_fail)? " fail" : "pass") << std::endl;
+        UHD_LOGGER_INFO("CORES") << "Timer loopback test " << ((test_fail)? "failed" : "passed");
 
         //useful warning for debugging actual rate
-        const size_t ticks_elapsed = _tick_rate*approx_secs;
-        const size_t appox_rate = ticks_elapsed/(sleep_millis/1e3);
-        if (test_fail) UHD_MSG(warning)
+        const size_t ticks_elapsed = size_t(_tick_rate*approx_secs);
+        const size_t approx_rate = size_t(ticks_elapsed/(sleep_millis/1e3));
+        if (test_fail) UHD_LOGGER_WARNING("CORES")
             << "Expecting clock rate: " << (_tick_rate/1e6) << " MHz\n"
-            << "Appoximate clock rate: " << (appox_rate/1e6) << " MHz\n"
-        << std::endl;
+            << "Approximate clock rate: " << (approx_rate/1e6) << " MHz\n"
+        ;
     }
 
     uhd::time_spec_t get_time_now(void)
     {
-        const boost::uint64_t ticks = _iface->peek64(_readback_bases.rb_now);
+        const uint64_t ticks = _iface->peek64(_readback_bases.rb_now);
         return time_spec_t::from_ticks(ticks, _tick_rate);
     }
 
     uhd::time_spec_t get_time_last_pps(void)
     {
-        const boost::uint64_t ticks = _iface->peek64(_readback_bases.rb_pps);
+        const uint64_t ticks = _iface->peek64(_readback_bases.rb_pps);
         return time_spec_t::from_ticks(ticks, _tick_rate);
     }
 
     void set_time_now(const uhd::time_spec_t &time)
     {
-        const boost::uint64_t ticks = time.to_ticks(_tick_rate);
-        _iface->poke32(REG_TIME_HI, boost::uint32_t(ticks >> 32));
-        _iface->poke32(REG_TIME_LO, boost::uint32_t(ticks >> 0));
+        const uint64_t ticks = time.to_ticks(_tick_rate);
+        _iface->poke32(REG_TIME_HI, uint32_t(ticks >> 32));
+        _iface->poke32(REG_TIME_LO, uint32_t(ticks >> 0));
         _iface->poke32(REG_TIME_CTRL, CTRL_LATCH_TIME_NOW);
+    }
+
+    void set_time_sync(const uhd::time_spec_t &time)
+    {
+        const uint64_t ticks = time.to_ticks(_tick_rate);
+        _iface->poke32(REG_TIME_HI, uint32_t(ticks >> 32));
+        _iface->poke32(REG_TIME_LO, uint32_t(ticks >> 0));
+        _iface->poke32(REG_TIME_CTRL, CTRL_LATCH_TIME_SYNC);
     }
 
     void set_time_next_pps(const uhd::time_spec_t &time)
     {
-        const boost::uint64_t ticks = time.to_ticks(_tick_rate);
-        _iface->poke32(REG_TIME_HI, boost::uint32_t(ticks >> 32));
-        _iface->poke32(REG_TIME_LO, boost::uint32_t(ticks >> 0));
+        const uint64_t ticks = time.to_ticks(_tick_rate);
+        _iface->poke32(REG_TIME_HI, uint32_t(ticks >> 32));
+        _iface->poke32(REG_TIME_LO, uint32_t(ticks >> 0));
         _iface->poke32(REG_TIME_CTRL, CTRL_LATCH_TIME_PPS);
     }
 

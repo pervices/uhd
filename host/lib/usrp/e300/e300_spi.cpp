@@ -1,18 +1,8 @@
 //
 // Copyright 2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/config.hpp>
@@ -75,8 +65,8 @@ public:
         close(_fd);
     }
 
-    boost::uint32_t transact_spi(int, const uhd::spi_config_t &,
-                                 boost::uint32_t data, size_t num_bits,
+    uint32_t transact_spi(int, const uhd::spi_config_t &,
+                                 uint32_t data, size_t num_bits,
                                  bool)
     {
         int ret(0);
@@ -93,6 +83,8 @@ public:
         tr.rx_buf = (unsigned long) &rx[0];
         tr.len = num_bits >> 3;
         tr.bits_per_word = _bits;
+        tr.tx_nbits = 1;
+        tr.rx_nbits = 1;
         tr.speed_hz = _speed;
         tr.delay_usecs = _delay;
 
@@ -105,10 +97,10 @@ public:
 
 private:
     int _fd;
-    boost::uint8_t _mode;
-    boost::uint32_t _speed;
-    boost::uint8_t _bits;
-    boost::uint16_t _delay;
+    uint8_t _mode;
+    uint32_t _speed;
+    uint8_t _bits;
+    uint16_t _delay;
 };
 
 spi::sptr spi::make(const std::string &device)

@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 // IO Pin functions
@@ -40,7 +30,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/algorithm.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/usrp/dboard_id.hpp>
 #include <uhd/usrp/dboard_base.hpp>
 #include <uhd/usrp/dboard_manager.hpp>
@@ -78,7 +68,7 @@ public:
         const freq_range_t &freq_range,
         bool rx_div2, bool tx_div2
     );
-    ~rfx_xcvr(void);
+    virtual ~rfx_xcvr(void);
 
 private:
     const freq_range_t _freq_range;
@@ -86,7 +76,7 @@ private:
     const uhd::dict<dboard_iface::unit_t, bool> _div2;
     std::string  _rx_ant;
     uhd::dict<std::string, double> _rx_gains;
-    boost::uint16_t _power_up;
+    uint16_t _power_up;
 
     void set_rx_ant(const std::string &ant);
     void set_tx_ant(const std::string &ant);
@@ -183,20 +173,20 @@ rfx_xcvr::rfx_xcvr(
     else this->get_rx_subtree()->create<std::string>("name").set("RFX RX");
 
     this->get_rx_subtree()->create<sensor_value_t>("sensors/lo_locked")
-        .publish(boost::bind(&rfx_xcvr::get_locked, this, dboard_iface::UNIT_RX));
-    BOOST_FOREACH(const std::string &name, _rx_gain_ranges.keys()){
+        .set_publisher(boost::bind(&rfx_xcvr::get_locked, this, dboard_iface::UNIT_RX));
+    for(const std::string &name:  _rx_gain_ranges.keys()){
         this->get_rx_subtree()->create<double>("gains/"+name+"/value")
-            .coerce(boost::bind(&rfx_xcvr::set_rx_gain, this, _1, name))
+            .set_coercer(boost::bind(&rfx_xcvr::set_rx_gain, this, _1, name))
             .set(_rx_gain_ranges[name].start());
         this->get_rx_subtree()->create<meta_range_t>("gains/"+name+"/range")
             .set(_rx_gain_ranges[name]);
     }
     this->get_rx_subtree()->create<double>("freq/value")
-        .coerce(boost::bind(&rfx_xcvr::set_lo_freq, this, dboard_iface::UNIT_RX, _1))
+        .set_coercer(boost::bind(&rfx_xcvr::set_lo_freq, this, dboard_iface::UNIT_RX, _1))
         .set((_freq_range.start() + _freq_range.stop())/2.0);
     this->get_rx_subtree()->create<meta_range_t>("freq/range").set(_freq_range);
     this->get_rx_subtree()->create<std::string>("antenna/value")
-        .subscribe(boost::bind(&rfx_xcvr::set_rx_ant, this, _1))
+        .add_coerced_subscriber(boost::bind(&rfx_xcvr::set_rx_ant, this, _1))
         .set("RX2");
     this->get_rx_subtree()->create<std::vector<std::string> >("antenna/options")
         .set(rfx_rx_antennas);
@@ -219,14 +209,14 @@ rfx_xcvr::rfx_xcvr(
     else this->get_tx_subtree()->create<std::string>("name").set("RFX TX");
 
     this->get_tx_subtree()->create<sensor_value_t>("sensors/lo_locked")
-        .publish(boost::bind(&rfx_xcvr::get_locked, this, dboard_iface::UNIT_TX));
+        .set_publisher(boost::bind(&rfx_xcvr::get_locked, this, dboard_iface::UNIT_TX));
     this->get_tx_subtree()->create<int>("gains"); //phony property so this dir exists
     this->get_tx_subtree()->create<double>("freq/value")
-        .coerce(boost::bind(&rfx_xcvr::set_lo_freq, this, dboard_iface::UNIT_TX, _1))
+        .set_coercer(boost::bind(&rfx_xcvr::set_lo_freq, this, dboard_iface::UNIT_TX, _1))
         .set((_freq_range.start() + _freq_range.stop())/2.0);
     this->get_tx_subtree()->create<meta_range_t>("freq/range").set(_freq_range);
     this->get_tx_subtree()->create<std::string>("antenna/value")
-        .subscribe(boost::bind(&rfx_xcvr::set_tx_ant, this, _1)).set(rfx_tx_antennas.at(0));
+        .add_coerced_subscriber(boost::bind(&rfx_xcvr::set_tx_ant, this, _1)).set(rfx_tx_antennas.at(0));
     this->get_tx_subtree()->create<std::vector<std::string> >("antenna/options")
         .set(rfx_tx_antennas);
     this->get_tx_subtree()->create<std::string>("connection").set("IQ");
@@ -241,22 +231,22 @@ rfx_xcvr::rfx_xcvr(
     this->get_iface()->set_clock_enabled(dboard_iface::UNIT_RX, true);
 
     //set the gpio directions and atr controls (identically)
-    boost::uint16_t output_enables = POWER_IO | ANTSW_IO | MIXER_IO;
+    uint16_t output_enables = POWER_IO | ANTSW_IO | MIXER_IO;
     this->get_iface()->set_pin_ctrl(dboard_iface::UNIT_TX, output_enables);
     this->get_iface()->set_pin_ctrl(dboard_iface::UNIT_RX, output_enables);
     this->get_iface()->set_gpio_ddr(dboard_iface::UNIT_TX, output_enables);
     this->get_iface()->set_gpio_ddr(dboard_iface::UNIT_RX, output_enables);
 
     //setup the tx atr (this does not change with antenna)
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_IDLE,        _power_up | ANT_XX | MIXER_DIS);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_RX_ONLY,     _power_up | ANT_RX | MIXER_DIS);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_TX_ONLY,     _power_up | ANT_TX | MIXER_ENB);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_FULL_DUPLEX, _power_up | ANT_TX | MIXER_ENB);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_IDLE,        _power_up | ANT_XX | MIXER_DIS);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_RX_ONLY,     _power_up | ANT_RX | MIXER_DIS);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_TX_ONLY,     _power_up | ANT_TX | MIXER_ENB);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_FULL_DUPLEX, _power_up | ANT_TX | MIXER_ENB);
 
     //setup the rx atr (this does not change with antenna)
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_IDLE,        _power_up | ANT_XX | MIXER_DIS);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_TX_ONLY,     _power_up | ANT_XX | MIXER_DIS);
-    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_FULL_DUPLEX, _power_up | ANT_RX2| MIXER_ENB);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_IDLE,        _power_up | ANT_XX | MIXER_DIS);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_TX_ONLY,     _power_up | ANT_XX | MIXER_DIS);
+    this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_FULL_DUPLEX, _power_up | ANT_RX2| MIXER_ENB);
 }
 
 rfx_xcvr::~rfx_xcvr(void){
@@ -272,14 +262,14 @@ void rfx_xcvr::set_rx_ant(const std::string &ant){
 
     //set the rx atr regs that change with antenna setting
     if (ant == "CAL") {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_TX_ONLY,     _power_up | ANT_TXRX  | MIXER_ENB);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_FULL_DUPLEX, _power_up | ANT_TXRX  | MIXER_ENB);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_RX_ONLY,     _power_up | MIXER_ENB | ANT_TXRX );
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_TX_ONLY,     _power_up | ANT_TXRX  | MIXER_ENB);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_FULL_DUPLEX, _power_up | ANT_TXRX  | MIXER_ENB);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_RX_ONLY,     _power_up | MIXER_ENB | ANT_TXRX );
     } 
     else {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_TX_ONLY,     _power_up | ANT_XX | MIXER_DIS);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_FULL_DUPLEX, _power_up | ANT_RX2| MIXER_ENB);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, dboard_iface::ATR_REG_RX_ONLY,     _power_up | MIXER_ENB |
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_TX_ONLY,     _power_up | ANT_XX | MIXER_DIS);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_FULL_DUPLEX, _power_up | ANT_RX2| MIXER_ENB);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_RX, gpio_atr::ATR_REG_RX_ONLY,     _power_up | MIXER_ENB |
             ((ant == "TX/RX")? ANT_TXRX : ANT_RX2));
     }
 
@@ -292,12 +282,12 @@ void rfx_xcvr::set_tx_ant(const std::string &ant){
 
     //set the tx atr regs that change with antenna setting
     if (ant == "CAL") {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_TX_ONLY,     _power_up | ANT_RX | MIXER_ENB);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_FULL_DUPLEX, _power_up | ANT_RX | MIXER_ENB);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_TX_ONLY,     _power_up | ANT_RX | MIXER_ENB);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_FULL_DUPLEX, _power_up | ANT_RX | MIXER_ENB);
     } 
     else {
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_TX_ONLY,     _power_up | ANT_TX | MIXER_ENB);
-        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, dboard_iface::ATR_REG_FULL_DUPLEX, _power_up | ANT_TX | MIXER_ENB);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_TX_ONLY,     _power_up | ANT_TX | MIXER_ENB);
+        this->get_iface()->set_atr_reg(dboard_iface::UNIT_TX, gpio_atr::ATR_REG_FULL_DUPLEX, _power_up | ANT_TX | MIXER_ENB);
     }
 }
 
@@ -339,9 +329,9 @@ double rfx_xcvr::set_lo_freq(
     dboard_iface::unit_t unit,
     double target_freq
 ){
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("RFX") << boost::format(
         "RFX tune: target frequency %f MHz"
-    ) % (target_freq/1e6) << std::endl;
+    ) % (target_freq/1e6) ;
 
     //clip the input
     target_freq = _freq_range.clip(target_freq);
@@ -379,9 +369,9 @@ double rfx_xcvr::set_lo_freq(
      * fvco*R/fref = P*B + A = N
      */
     for(R = 2; R <= 32; R+=2){
-        BOOST_FOREACH(BS, bandsel_to_enum.keys()){
+        for(auto BS:  bandsel_to_enum.keys()){
             if (ref_freq/R/BS > 1e6) continue; //constraint on band select clock
-            BOOST_FOREACH(P, prescaler_to_enum.keys()){
+            for(auto P:  prescaler_to_enum.keys()){
                 //calculate B and A from N
                 double N = target_freq*R/ref_freq;
                 B = int(std::floor(N/P));
@@ -396,9 +386,9 @@ double rfx_xcvr::set_lo_freq(
         }
     } done_loop:
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("RFX") << boost::format(
         "RFX tune: R=%d, BS=%d, P=%d, B=%d, A=%d, DIV2=%d"
-    ) % R % BS % P % B % A % int(_div2[unit] && (!is_rx_rfx400)) << std::endl;
+    ) % R % BS % P % B % A % int(_div2[unit] && (!is_rx_rfx400)) ;
 
     //load the register values
     adf4360_regs_t regs;
@@ -433,7 +423,7 @@ double rfx_xcvr::set_lo_freq(
         (adf4360_regs_t::ADDR_CONTROL)
         (adf4360_regs_t::ADDR_NCOUNTER)
     ;
-    BOOST_FOREACH(adf4360_regs_t::addr_t addr, addrs){
+    for(adf4360_regs_t::addr_t addr:  addrs){
         this->get_iface()->write_spi(
             unit, spi_config_t::EDGE_RISE,
             regs.get_reg(addr), 24
@@ -442,8 +432,8 @@ double rfx_xcvr::set_lo_freq(
 
     //return the actual frequency
     if (_div2[unit]) actual_freq /= 2;
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("RFX") << boost::format(
         "RFX tune: actual frequency %f MHz"
-    ) % (actual_freq/1e6) << std::endl;
+    ) % (actual_freq/1e6) ;
     return actual_freq;
 }

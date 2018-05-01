@@ -1,24 +1,13 @@
 //
 // Copyright 2011-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/types/ranges.hpp>
 #include <uhd/exception.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/foreach.hpp>
 #include <algorithm>
 #include <sstream>
 
@@ -64,6 +53,18 @@ const std::string range_t::to_pp_string(void) const{
     return ss.str();
 }
 
+bool range_t::operator==(const range_t &other) const{
+    return (other._start == _start and
+            other._step  == _step  and
+            other._stop  == _stop);
+}
+
+bool range_t::operator!=(const range_t &other) const{
+    return (other._start != _start or
+            other._step  != _step  or
+            other._stop  != _stop);
+}
+
 /***********************************************************************
  * meta_range_t implementation code
  **********************************************************************/
@@ -93,7 +94,7 @@ meta_range_t::meta_range_t(
 double meta_range_t::start(void) const{
     check_meta_range_monotonic(*this);
     double min_start = this->front().start();
-    BOOST_FOREACH(const range_t &r, (*this)){
+    for(const range_t &r:  (*this)){
         min_start = std::min(min_start, r.start());
     }
     return min_start;
@@ -102,7 +103,7 @@ double meta_range_t::start(void) const{
 double meta_range_t::stop(void) const{
     check_meta_range_monotonic(*this);
     double max_stop = this->front().stop();
-    BOOST_FOREACH(const range_t &r, (*this)){
+    for(const range_t &r:  (*this)){
         max_stop = std::max(max_stop, r.stop());
     }
     return max_stop;
@@ -112,7 +113,7 @@ double meta_range_t::step(void) const{
     check_meta_range_monotonic(*this);
     std::vector<double> non_zero_steps;
     range_t last = this->front();
-    BOOST_FOREACH(const range_t &r, (*this)){
+    for(const range_t &r:  (*this)){
         //steps at each range
         if (r.step() > 0) non_zero_steps.push_back(r.step());
         //and steps in-between ranges
@@ -128,7 +129,7 @@ double meta_range_t::step(void) const{
 double meta_range_t::clip(double value, bool clip_step) const{
     check_meta_range_monotonic(*this);
     double last_stop = this->front().stop();
-    BOOST_FOREACH(const range_t &r, (*this)){
+    for(const range_t &r:  (*this)){
         //in-between ranges, clip to nearest
         if (value < r.start()){
             return (std::abs(value - r.start()) < std::abs(value - last_stop))?
@@ -147,7 +148,7 @@ double meta_range_t::clip(double value, bool clip_step) const{
 
 const std::string meta_range_t::to_pp_string(void) const{
     std::stringstream ss;
-    BOOST_FOREACH(const range_t &r, (*this)){
+    for(const range_t &r:  (*this)){
         ss << r.to_pp_string() << std::endl;
     }
     return ss.str();

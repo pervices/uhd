@@ -1,18 +1,8 @@
 //
-// Copyright 2011 Ettus Research LLC
+// Copyright 2011,2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/convert.hpp>
@@ -20,9 +10,8 @@
 #include <uhd/utils/static.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/exception.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <boost/format.hpp>
-#include <boost/foreach.hpp>
 #include <complex>
 
 using namespace uhd;
@@ -43,11 +32,20 @@ bool convert::operator==(const convert::id_type &lhs, const convert::id_type &rh
 std::string convert::id_type::to_pp_string(void) const{
     return str(boost::format(
         "conversion ID\n"
-        "  Input format: %s\n"
-        "  Num inputs: %d\n"
+        "  Input format:  %s\n"
+        "  Num inputs:    %d\n"
         "  Output format: %s\n"
-        "  Num outputs: %d\n"
+        "  Num outputs:   %d\n"
     )
+        % this->input_format
+        % this->num_inputs
+        % this->output_format
+        % this->num_outputs
+    );
+}
+
+std::string convert::id_type::to_string(void) const{
+    return str(boost::format("%s (%d) -> %s (%d)")
         % this->input_format
         % this->num_inputs
         % this->output_format
@@ -72,10 +70,7 @@ void uhd::convert::register_converter(
     get_table()[id][prio] = fcn;
 
     //----------------------------------------------------------------//
-    UHD_LOGV(always) << "register_converter: " << id.to_pp_string() << std::endl
-        << "    prio: " << prio << std::endl
-        << std::endl
-    ;
+    //UHD_LOG_TRACE("CONVERT", boost::format("register_converter: %s prio: %s") % id.to_string() % prio)
     //----------------------------------------------------------------//
 }
 
@@ -91,14 +86,26 @@ convert::function_type convert::get_converter(
 
     //find a matching priority
     priority_type best_prio = -1;
-    BOOST_FOREACH(priority_type prio_i, get_table()[id].keys()){
-        if (prio_i == prio) return get_table()[id][prio];
+    for(priority_type prio_i:  get_table()[id].keys()){
+        if (prio_i == prio) {
+            //----------------------------------------------------------------//
+            UHD_LOGGER_DEBUG("CONVERT") << "get_converter: For converter ID: " << id.to_pp_string()
+                                        << " Using prio: " << prio;
+            ;
+            //----------------------------------------------------------------//
+            return get_table()[id][prio];
+        }
         best_prio = std::max(best_prio, prio_i);
     }
 
     //wanted a specific prio, didnt find
     if (prio != -1) throw uhd::key_error(
         "Cannot find a conversion routine [with prio] for " + id.to_pp_string());
+
+    //----------------------------------------------------------------//
+    UHD_LOGGER_DEBUG("CONVERT") << "get_converter: For converter ID: " << id.to_pp_string()
+                                << " Using prio: " << best_prio;
+    //----------------------------------------------------------------//
 
     //otherwise, return best prio
     return get_table()[id][best_prio];
@@ -135,20 +142,20 @@ UHD_STATIC_BLOCK(convert_register_item_sizes){
     //register standard complex types
     convert::register_bytes_per_item("fc64", sizeof(std::complex<double>));
     convert::register_bytes_per_item("fc32", sizeof(std::complex<float>));
-    convert::register_bytes_per_item("sc64", sizeof(std::complex<boost::int64_t>));
-    convert::register_bytes_per_item("sc32", sizeof(std::complex<boost::int32_t>));
-    convert::register_bytes_per_item("sc16", sizeof(std::complex<boost::int16_t>));
-    convert::register_bytes_per_item("sc12", 3 * sizeof(std::complex<boost::int8_t>));
-    convert::register_bytes_per_item("sc8", sizeof(std::complex<boost::int8_t>));
+    convert::register_bytes_per_item("sc64", sizeof(std::complex<int64_t>));
+    convert::register_bytes_per_item("sc32", sizeof(std::complex<int32_t>));
+    convert::register_bytes_per_item("sc16", sizeof(std::complex<int16_t>));
+    convert::register_bytes_per_item("sc8", sizeof(std::complex<int8_t>));
 
     //register standard real types
     convert::register_bytes_per_item("f64", sizeof(double));
     convert::register_bytes_per_item("f32", sizeof(float));
-    convert::register_bytes_per_item("s64", sizeof(boost::int64_t));
-    convert::register_bytes_per_item("s32", sizeof(boost::int32_t));
-    convert::register_bytes_per_item("s16", sizeof(boost::int16_t));
-    convert::register_bytes_per_item("s8", sizeof(boost::int8_t));
+    convert::register_bytes_per_item("s64", sizeof(int64_t));
+    convert::register_bytes_per_item("s32", sizeof(int32_t));
+    convert::register_bytes_per_item("s16", sizeof(int16_t));
+    convert::register_bytes_per_item("s8", sizeof(int8_t));
+    convert::register_bytes_per_item("u8", sizeof(uint8_t));
 
     //register VITA types
-    convert::register_bytes_per_item("item32", sizeof(boost::int32_t));
+    convert::register_bytes_per_item("item32", sizeof(int32_t));
 }

@@ -1,24 +1,15 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/config.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/utils/algorithm.hpp>
+#include <uhd/utils/log.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/format.hpp>
 #include <utility>
@@ -47,7 +38,7 @@ static int calc_rx_mux_pair(int adc_for_i, int adc_for_q){
  * |      must be zero     | Q3| I3| Q2| I2| Q1| I1| Q0| I0|Z| NCH |
  * +-----------------------+-------+-------+-------+-------+-+-----+
  */
-static boost::uint32_t calc_rx_mux(const std::vector<mapping_pair_t> &mapping){
+static uint32_t calc_rx_mux(const std::vector<mapping_pair_t> &mapping){
     //create look-up-table for mapping dboard name and connection type to ADC flags
     static const int ADC0 = 0, ADC1 = 1, ADC2 = 2, ADC3 = 3;
     static const uhd::dict<std::string, uhd::dict<std::string, int> > name_to_conn_to_flag = boost::assign::map_list_of
@@ -71,7 +62,7 @@ static boost::uint32_t calc_rx_mux(const std::vector<mapping_pair_t> &mapping){
     //calculate the channel flags
     int channel_flags = 0;
     size_t num_reals = 0, num_quads = 0;
-    BOOST_FOREACH(const mapping_pair_t &pair, uhd::reversed(mapping)){
+    for(const mapping_pair_t &pair:  uhd::reversed(mapping)){
         const std::string name = pair.first, conn = pair.second;
         if (conn == "IQ" or conn == "QI") num_quads++;
         if (conn == "I" or conn == "Q") num_reals++;
@@ -83,7 +74,7 @@ static boost::uint32_t calc_rx_mux(const std::vector<mapping_pair_t> &mapping){
     //    for all quadrature sources: Z = 0
     //    for mixed sources: warning + Z = 0
     int Z = (num_quads > 0)? 0 : 1;
-    if (num_quads != 0 and num_reals != 0) UHD_MSG(warning) << boost::format(
+    if (num_quads != 0 and num_reals != 0) UHD_LOGGER_WARNING("USRP1") << boost::format(
         "Mixing real and quadrature rx subdevices is not supported.\n"
         "The Q input to the real source(s) will be non-zero.\n"
     );
@@ -108,7 +99,7 @@ static int calc_tx_mux_pair(int chn_for_i, int chn_for_q){
  * |                       | DAC1Q | DAC1I | DAC0Q | DAC0I |0| NCH |
  * +-----------------------------------------------+-------+-+-----+
  */
-static boost::uint32_t calc_tx_mux(const std::vector<mapping_pair_t> &mapping){
+static uint32_t calc_tx_mux(const std::vector<mapping_pair_t> &mapping){
     //create look-up-table for mapping channel number and connection type to flags
     static const int ENB = 1 << 3, CHAN_I0 = 0, CHAN_Q0 = 1, CHAN_I1 = 2, CHAN_Q1 = 3;
     static const uhd::dict<size_t, uhd::dict<std::string, int> > chan_to_conn_to_flag = boost::assign::map_list_of
@@ -132,7 +123,7 @@ static boost::uint32_t calc_tx_mux(const std::vector<mapping_pair_t> &mapping){
     //calculate the channel flags
     int channel_flags = 0, chan = 0;
     uhd::dict<std::string, int> slot_to_chan_count = boost::assign::map_list_of("A", 0)("B", 0);
-    BOOST_FOREACH(const mapping_pair_t &pair, mapping){
+    for(const mapping_pair_t &pair:  mapping){
         const std::string name = pair.first, conn = pair.second;
 
         //combine the channel flags: shift for slot A vs B

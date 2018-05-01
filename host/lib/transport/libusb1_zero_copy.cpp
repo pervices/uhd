@@ -1,27 +1,16 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "libusb1_base.hpp"
 #include <uhd/transport/usb_zero_copy.hpp>
 #include <uhd/transport/buffer_pool.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/exception.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
@@ -42,23 +31,6 @@ using namespace uhd::transport;
 
 static const size_t DEFAULT_NUM_XFERS = 16;     //num xfers
 static const size_t DEFAULT_XFER_SIZE = 32*512; //bytes
-
-//! Define LIBUSB_CALL when its missing (non-windows)
-#ifndef LIBUSB_CALL
-    #define LIBUSB_CALL
-#endif /*LIBUSB_CALL*/
-
-//! libusb_handle_events_timeout_completed is only in newer API
-#ifndef HAVE_LIBUSB_HANDLE_EVENTS_TIMEOUT_COMPLETED
-    #define libusb_handle_events_timeout_completed(ctx, tx, completed) \
-        libusb_handle_events_timeout(ctx, tx)
-#endif
-
-//! libusb_error_name is only in newer API
-#ifndef HAVE_LIBUSB_ERROR_NAME
-    #define libusb_error_name(code) \
-        str(boost::format("LIBUSB_ERROR_CODE %d") % code)
-#endif
 
 //! type for sharing the release queue with managed buffers
 class libusb_zero_copy_mb;
@@ -142,20 +114,23 @@ public:
         _ctx(libusb::session::get_global_session()->get_context()),
         _lut(lut), _frame_size(frame_size) { /* NOP */ }
 
+    virtual ~libusb_zero_copy_mb(void);
+
     void release(void){
     	_release_cb(this);
     }
 
     UHD_INLINE void submit(void)
     {
-    	_lut->length = (_is_recv)? _frame_size : size(); //always set length
+        _lut->length = int((_is_recv)? _frame_size : size()); //always set length
 #ifdef UHD_TXRX_DEBUG_PRINTS
         result.start_time = boost::get_system_time().time_of_day().total_microseconds();
         result.buff_num = num();
         result.is_recv = _is_recv;
 #endif
-        const int ret = libusb_submit_transfer(_lut);
-        if (ret != 0) throw uhd::runtime_error(str(boost::format(
+	int ret = libusb_submit_transfer(_lut);
+        if (ret != LIBUSB_SUCCESS)
+	  throw uhd::usb_error(ret, str(boost::format(
             "usb %s submit failed: %s") % _name % libusb_error_name(ret)));
     }
 
@@ -164,10 +139,11 @@ public:
     {
         if (wait_for_completion(timeout))
         {
-            if (result.status != LIBUSB_TRANSFER_COMPLETED) throw uhd::runtime_error(str(boost::format(
-                "usb %s transfer status: %d") % _name % int(result.status)));
+            if (result.status != LIBUSB_TRANSFER_COMPLETED)
+                throw uhd::io_error(str(boost::format("usb %s transfer status: %d")
+                                        % _name % libusb_error_name(result.status)));
             result.completed = 0;
-            return make(reinterpret_cast<buffer_type *>(this), _lut->buffer, (_is_recv)? result.actual_length : _frame_size);
+            return make(reinterpret_cast<buffer_type *>(this), _lut->buffer, (_is_recv)? size_t(result.actual_length) : _frame_size);
         }
         return typename buffer_type::sptr();
     }
@@ -192,7 +168,7 @@ public:
                 result.usb_transfer_complete.timed_wait(lock, timeout_time, lut_result_completed(result));
             }
         }
-        return result.completed;
+        return (result.completed > 0);
     }
 
 private:
@@ -204,6 +180,10 @@ private:
     const size_t _frame_size;
 };
 
+libusb_zero_copy_mb::~libusb_zero_copy_mb(void) {
+    /* NOP */
+}
+
 /***********************************************************************
  * USB zero_copy device class
  **********************************************************************/
@@ -212,14 +192,15 @@ class libusb_zero_copy_single
 public:
     libusb_zero_copy_single(
         libusb::device_handle::sptr handle,
-        const size_t interface, const size_t endpoint,
+        const int interface, const unsigned char endpoint,
         const size_t num_frames, const size_t frame_size
     ):
         _handle(handle),
         _num_frames(num_frames),
         _frame_size(frame_size),
         _buffer_pool(buffer_pool::make(_num_frames, _frame_size)),
-        _enqueued(_num_frames), _released(_num_frames)
+        _enqueued(_num_frames), _released(_num_frames),
+        _status(STATUS_RUNNING)
     {
         const bool is_recv = (endpoint & 0x80) != 0;
         const std::string name = str(boost::format("%s%d") % ((is_recv)? "rx" : "tx") % int(endpoint & 0x7f));
@@ -235,7 +216,7 @@ public:
                 _handle->get(), // dev_handle
                 endpoint, // endpoint
                 static_cast<unsigned char *>(buff),
-                sizeof(buff),
+                int(sizeof(buff)),
                 &transfered, //bytes xfered
                 10 //timeout ms
             );
@@ -257,7 +238,7 @@ public:
                 _handle->get(),                                         // dev_handle
                 endpoint,                                               // endpoint
                 static_cast<unsigned char *>(_buffer_pool->at(i)),      // buffer
-                this->get_frame_size(),                                 // length
+                int(this->get_frame_size()),                            // length
                 libusb_transfer_cb_fn(&libusb_async_cb),                // callback
                 static_cast<void *>(&_mb_pool.back()->result),          // user_data
                 0                                                       // timeout (ms)
@@ -282,19 +263,19 @@ public:
     ~libusb_zero_copy_single(void)
     {
         //cancel all transfers
-        BOOST_FOREACH(libusb_transfer *lut, _all_luts)
+        for(libusb_transfer *lut:  _all_luts)
         {
             libusb_cancel_transfer(lut);
         }
 
         //process all transfers until timeout occurs
-        BOOST_FOREACH(libusb_zero_copy_mb *mb, _enqueued)
+        for(libusb_zero_copy_mb *mb:  _enqueued)
         {
             mb->wait_for_completion(0.01);
         }
 
         //free all transfers
-        BOOST_FOREACH(libusb_transfer *lut, _all_luts)
+        for(libusb_transfer *lut:  _all_luts)
         {
             libusb_free_transfer(lut);
         }
@@ -304,18 +285,24 @@ public:
     UHD_INLINE typename buffer_type::sptr get_buff(double timeout)
     {
         typename buffer_type::sptr buff;
-        libusb_zero_copy_mb *front = NULL;
-        boost::mutex::scoped_lock lock(_mutex);
+
+        if (_status == STATUS_ERROR)
+            return buff;
+
+        // Serialize access to buffers
+        boost::mutex::scoped_lock get_buff_lock(_get_buff_mutex);
+
+        boost::mutex::scoped_lock queue_lock(_queue_mutex);
         if (_enqueued.empty())
         {
-            _cond.timed_wait(lock, boost::posix_time::microseconds(long(timeout*1e6)));
+            _buff_ready_cond.timed_wait(queue_lock, boost::posix_time::microseconds(long(timeout*1e6)));
         }
         if (_enqueued.empty()) return buff;
-        front = _enqueued.front();
+        libusb_zero_copy_mb *front = _enqueued.front();
 
-        lock.unlock();
+        queue_lock.unlock();
         buff = front->get_new<buffer_type>(timeout);
-        lock.lock();
+        queue_lock.lock();
 
         if (buff) _enqueued.pop_front();
         this->submit_what_we_can();
@@ -333,28 +320,39 @@ private:
     buffer_pool::sptr _buffer_pool;
     std::vector<boost::shared_ptr<libusb_zero_copy_mb> > _mb_pool;
 
-    boost::mutex _mutex;
-    boost::condition_variable _cond;
+    boost::mutex _queue_mutex;
+    boost::condition_variable _buff_ready_cond;
+    boost::mutex _get_buff_mutex;
 
     //! why 2 queues? there is room in the future to have > N buffers but only N in flight
     boost::circular_buffer<libusb_zero_copy_mb *> _enqueued, _released;
 
+    enum {STATUS_RUNNING, STATUS_ERROR} _status;
+
     void enqueue_buffer(libusb_zero_copy_mb *mb)
     {
-        boost::mutex::scoped_lock l(_mutex);
+        boost::mutex::scoped_lock l(_queue_mutex);
         _released.push_back(mb);
         this->submit_what_we_can();
-        l.unlock();
-        _cond.notify_one();
+        _buff_ready_cond.notify_one();
     }
 
     void submit_what_we_can(void)
     {
+        if (_status == STATUS_ERROR)
+            return;
         while (not _released.empty() and not _enqueued.full())
         {
-            _released.front()->submit();
-            _enqueued.push_back(_released.front());
-            _released.pop_front();
+            try {
+                _released.front()->submit();
+                _enqueued.push_back(_released.front());
+                _released.pop_front();
+            }
+            catch (uhd::usb_error& e)
+            {
+                _status = STATUS_ERROR;
+                throw e;
+            }
         }
     }
 
@@ -369,10 +367,10 @@ struct libusb_zero_copy_impl : usb_zero_copy
 {
     libusb_zero_copy_impl(
         libusb::device_handle::sptr handle,
-        const size_t recv_interface,
-        const size_t recv_endpoint,
-        const size_t send_interface,
-        const size_t send_endpoint,
+        const int recv_interface,
+        const unsigned char recv_endpoint,
+        const int send_interface,
+        const unsigned char send_endpoint,
         const device_addr_t &hints
     ){
         _recv_impl.reset(new libusb_zero_copy_single(
@@ -384,6 +382,8 @@ struct libusb_zero_copy_impl : usb_zero_copy
             size_t(hints.cast<double>("num_send_frames", DEFAULT_NUM_XFERS)),
             size_t(hints.cast<double>("send_frame_size", DEFAULT_XFER_SIZE))));
     }
+
+    virtual ~libusb_zero_copy_impl(void);
 
     managed_recv_buffer::sptr get_recv_buff(double timeout)
     {
@@ -407,15 +407,26 @@ struct libusb_zero_copy_impl : usb_zero_copy
     boost::mutex _recv_mutex, _send_mutex;
 };
 
+libusb_zero_copy_impl::~libusb_zero_copy_impl(void) {
+    /* NOP */
+}
+
+/***********************************************************************
+ * USB zero_copy destructor
+ **********************************************************************/
+usb_zero_copy::~usb_zero_copy(void) {
+    /* NOP */
+}
+
 /***********************************************************************
  * USB zero_copy make functions
  **********************************************************************/
 usb_zero_copy::sptr usb_zero_copy::make(
     usb_device_handle::sptr handle,
-    const size_t recv_interface,
-    const size_t recv_endpoint,
-    const size_t send_interface,
-    const size_t send_endpoint,
+    const int recv_interface,
+    const unsigned char recv_endpoint,
+    const int send_interface,
+    const unsigned char send_endpoint,
     const device_addr_t &hints
 ){
     libusb::device_handle::sptr dev_handle(libusb::device_handle::get_cached_handle(

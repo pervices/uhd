@@ -1,18 +1,8 @@
 //
-// Copyright 2013 Ettus Research LLC
+// Copyright 2013,2015-2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/transport/nirio/nirio_driver_iface.h>
@@ -60,14 +50,13 @@ nirio_status rio_ioctl(
     * DeviceIoControl, even when doing synchronous IO. */
     OVERLAPPED zeroedOverlapped = {0};
     DWORD outLen = 0;
-    int_fast32_t lastError = 0;
 
     if (!(DeviceIoControl(device_handle, ioctl_code,
             const_cast<void*>(write_buf), static_cast<DWORD>(write_buf_len),
             read_buf, static_cast<DWORD>(read_buf_len),
             &outLen, &zeroedOverlapped )))
     {
-        lastError = GetLastError();
+        UHD_UNUSED(int_fast32_t lastError) = GetLastError();
         return NiRio_Status_SoftwareFault;
     }
 

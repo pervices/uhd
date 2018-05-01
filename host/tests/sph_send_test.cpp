@@ -1,18 +1,8 @@
 //
-// Copyright 2011-2012 Ettus Research LLC
+// Copyright 2011-2012,2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <boost/test/unit_test.hpp>
@@ -56,12 +46,12 @@ public:
     void pop_front_packet(
         uhd::transport::vrt::if_packet_info_t &ifpi
     ){
-        ifpi.num_packet_words32 = _lens.front()/sizeof(boost::uint32_t);
+        ifpi.num_packet_words32 = _lens.front()/sizeof(uint32_t);
         if (_end == "big"){
-            uhd::transport::vrt::if_hdr_unpack_be(reinterpret_cast<boost::uint32_t *>(_mems.front().get()), ifpi);
+            uhd::transport::vrt::if_hdr_unpack_be(reinterpret_cast<uint32_t *>(_mems.front().get()), ifpi);
         }
         if (_end == "little"){
-            uhd::transport::vrt::if_hdr_unpack_le(reinterpret_cast<boost::uint32_t *>(_mems.front().get()), ifpi);
+            uhd::transport::vrt::if_hdr_unpack_le(reinterpret_cast<uint32_t *>(_mems.front().get()), ifpi);
         }
         _mems.pop_front();
         _lens.pop_front();
@@ -182,7 +172,7 @@ BOOST_AUTO_TEST_CASE(test_sph_send_one_channel_full_buffer_mode){
     for (size_t i = 0; i < NUM_PKTS_TO_TEST; i++){
         std::cout << "data check " << i << std::endl;
         dummy_send_xport.pop_front_packet(ifpi);
-        BOOST_CHECK_EQUAL(ifpi.num_payload_words32, 20);
+        BOOST_CHECK_EQUAL(ifpi.num_payload_words32, 20UL);
         BOOST_CHECK(ifpi.has_tsf);
         BOOST_CHECK_EQUAL(ifpi.tsf, num_accum_samps*TICK_RATE/SAMP_RATE);
         BOOST_CHECK_EQUAL(ifpi.sob, i == 0);

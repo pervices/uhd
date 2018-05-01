@@ -1,24 +1,13 @@
 //
-// Copyright 2011 Ettus Research LLC
+// Copyright 2011,2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/types/device_addr.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/tokenizer.hpp>
-#include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/regex.hpp>
 #include <stdexcept>
@@ -26,8 +15,8 @@
 
 using namespace uhd;
 
-static const std::string arg_delim = ",";
-static const std::string pair_delim = "=";
+static const char* arg_delim = ",";
+static const char* pair_delim = "=";
 
 static std::string trim(const std::string &in){
     return boost::algorithm::trim_copy(in);
@@ -35,13 +24,13 @@ static std::string trim(const std::string &in){
 
 #define tokenizer(inp, sep) \
     boost::tokenizer<boost::char_separator<char> > \
-    (inp, boost::char_separator<char>(sep.c_str()))
+    (inp, boost::char_separator<char>(sep))
 
 device_addr_t::device_addr_t(const std::string &args){
-    BOOST_FOREACH(const std::string &pair, tokenizer(args, arg_delim)){
+  for(const std::string &pair: tokenizer(args,  arg_delim)){
         if (trim(pair) == "") continue;
         std::vector<std::string> toks;
-        BOOST_FOREACH(const std::string &tok, tokenizer(pair, pair_delim)){
+        for(const std::string &tok: tokenizer(pair,  pair_delim)){
             toks.push_back(tok);
         }
         if (toks.size() == 1) toks.push_back(""); //pad empty value
@@ -57,7 +46,7 @@ std::string device_addr_t::to_pp_string(void) const{
 
     std::stringstream ss;
     ss << "Device Address:" << std::endl;
-    BOOST_FOREACH(std::string key, this->keys()){
+    for(std::string key:  this->keys()){
         ss << boost::format("    %s: %s") % key % this->get(key) << std::endl;
     }
     return ss.str();
@@ -66,13 +55,13 @@ std::string device_addr_t::to_pp_string(void) const{
 std::string device_addr_t::to_string(void) const{
     std::string args_str;
     size_t count = 0;
-    BOOST_FOREACH(const std::string &key, this->keys()){
+    for(const std::string &key:  this->keys()){
         args_str += ((count++)? arg_delim : "") + key + pair_delim + this->get(key);
     }
     return args_str;
 }
 
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 
 device_addrs_t uhd::separate_device_addr(const device_addr_t &dev_addr){
     //------------ support old deprecated way and print warning --------
@@ -84,7 +73,7 @@ device_addrs_t uhd::separate_device_addr(const device_addr_t &dev_addr){
             for (size_t i = 0; i < addrs.size(); i++){
                 fixed_dev_addr[str(boost::format("addr%d") % i)] = addrs[i];
             }
-            UHD_MSG(warning) <<
+            UHD_LOGGER_WARNING("UHD") <<
                 "addr = <space separated list of ip addresses> is deprecated.\n"
                 "To address a multi-device, use multiple <key><index> = <val>.\n"
                 "See the USRP-NXXX application notes. Two device example:\n"
@@ -97,7 +86,7 @@ device_addrs_t uhd::separate_device_addr(const device_addr_t &dev_addr){
     //------------------------------------------------------------------
     device_addrs_t dev_addrs(1); //must be at least one (obviously)
     std::vector<std::string> global_keys; //keys that apply to all (no numerical suffix)
-    BOOST_FOREACH(const std::string &key, dev_addr.keys()){
+    for(const std::string &key:  dev_addr.keys()){
         boost::cmatch matches;
         if (not boost::regex_match(key.c_str(), matches, boost::regex("^(\\D+)(\\d*)$"))){
             throw std::runtime_error("unknown key format: " + key);
@@ -114,8 +103,8 @@ device_addrs_t uhd::separate_device_addr(const device_addr_t &dev_addr){
     }
 
     //copy the global settings across all device addresses
-    BOOST_FOREACH(device_addr_t &my_dev_addr, dev_addrs){
-        BOOST_FOREACH(const std::string &global_key, global_keys){
+    for(device_addr_t &my_dev_addr:  dev_addrs){
+        for(const std::string &global_key:  global_keys){
             my_dev_addr[global_key] = dev_addr[global_key];
         }
     }
@@ -125,7 +114,7 @@ device_addrs_t uhd::separate_device_addr(const device_addr_t &dev_addr){
 device_addr_t uhd::combine_device_addrs(const device_addrs_t &dev_addrs){
     device_addr_t dev_addr;
     for (size_t i = 0; i < dev_addrs.size(); i++){
-        BOOST_FOREACH(const std::string &key, dev_addrs[i].keys()){
+        for(const std::string &key:  dev_addrs[i].keys()){
             dev_addr[str(boost::format("%s%d") % key % i)] = dev_addrs[i][key];
         }
     }

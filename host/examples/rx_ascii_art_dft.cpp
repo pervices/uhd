@@ -1,21 +1,11 @@
 //
 // Copyright 2010-2011,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include "ascii_art_dft.hpp" //implementation
@@ -47,9 +37,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rate", po::value<double>(&rate), "rate of incoming samples (sps)")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
-        ("ant", po::value<std::string>(&ant), "daughterboard antenna selection")
-        ("subdev", po::value<std::string>(&subdev), "daughterboard subdevice specification")
-        ("bw", po::value<double>(&bw), "daughterboard IF filter bandwidth in Hz")
+        ("ant", po::value<std::string>(&ant), "antenna selection")
+        ("subdev", po::value<std::string>(&subdev), "subdevice specification")
+        ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         // display parameters
         ("num-bins", po::value<size_t>(&num_bins)->default_value(512), "the number of bins in the DFT")
         ("frame-rate", po::value<double>(&frame_rate)->default_value(5), "frame rate of the display (fps)")
@@ -108,11 +98,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain() << std::endl << std::endl;
     }
 
-    //set the IF filter bandwidth
+    //set the analog frontend filter bandwidth
     if (vm.count("bw")){
-        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % bw << std::endl;
+        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw/1e6) << std::endl;
         usrp->set_rx_bandwidth(bw);
-        std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % usrp->get_rx_bandwidth() << std::endl << std::endl;
+        std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (usrp->get_rx_bandwidth()/1e6) << std::endl << std::endl;
     }
 
     //set the antenna
@@ -169,10 +159,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         next_refresh = boost::get_system_time() + boost::posix_time::microseconds(long(1e6/frame_rate));
 
         //calculate the dft and create the ascii art frame
-        acsii_art_dft::log_pwr_dft_type lpdft(
-            acsii_art_dft::log_pwr_dft(&buff.front(), num_rx_samps)
+        ascii_art_dft::log_pwr_dft_type lpdft(
+            ascii_art_dft::log_pwr_dft(&buff.front(), num_rx_samps)
         );
-        std::string frame = acsii_art_dft::dft_to_plot(
+        std::string frame = ascii_art_dft::dft_to_plot(
             lpdft, COLS, LINES,
             usrp->get_rx_rate(),
             usrp->get_rx_freq(),

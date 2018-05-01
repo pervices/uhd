@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "x300_adc_ctrl.hpp"
@@ -21,7 +11,6 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/exception.hpp>
-#include <boost/foreach.hpp>
 
 using namespace uhd;
 
@@ -55,8 +44,8 @@ public:
         _ads62p48_regs.lvds_cmos = ads62p48_regs_t::LVDS_CMOS_DDR_LVDS;
         _ads62p48_regs.channel_control = ads62p48_regs_t::CHANNEL_CONTROL_INDEPENDENT;
         _ads62p48_regs.data_format = ads62p48_regs_t::DATA_FORMAT_2S_COMPLIMENT;
-        _ads62p48_regs.clk_out_pos_edge = ads62p48_regs_t::CLK_OUT_POS_EDGE_MINUS7_26;
-        _ads62p48_regs.clk_out_neg_edge = ads62p48_regs_t::CLK_OUT_NEG_EDGE_MINUS7_26;
+        _ads62p48_regs.clk_out_pos_edge = ads62p48_regs_t::CLK_OUT_POS_EDGE_MINUS4_26;
+        _ads62p48_regs.clk_out_neg_edge = ads62p48_regs_t::CLK_OUT_NEG_EDGE_MINUS4_26;
 
 
         this->send_ads62p48_reg(0);
@@ -97,7 +86,7 @@ public:
         return gain_bits/2;
     }
 
-    void set_test_word(const std::string &patterna, const std::string &patternb, const boost::uint32_t num)
+    void set_test_word(const std::string &patterna, const std::string &patternb, const uint32_t num)
     {
         _ads62p48_regs.custom_pattern_low = num & 0xff;
         _ads62p48_regs.custom_pattern_high = num >> 8;
@@ -131,9 +120,9 @@ private:
     uhd::spi_iface::sptr _iface;
     const size_t _slaveno;
 
-    void send_ads62p48_reg(boost::uint8_t addr)
+    void send_ads62p48_reg(uint8_t addr)
     {
-        boost::uint16_t reg = _ads62p48_regs.get_write_reg(addr);
+        uint16_t reg = _ads62p48_regs.get_write_reg(addr);
         _iface->write_spi(_slaveno, spi_config_t::EDGE_FALL, reg, 16);
     }
 };

@@ -18,7 +18,12 @@
 ########################################################################
 # Setup Project
 ########################################################################
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+#OPTION(UHD_PATCH_OVERRIDE "Use this string to force a patch level version string." OFF)
+MESSAGE(STATUS ${UHD_PATCH_OVERRIDE})
+IF(DEFINED UHD_PATCH_OVERRIDE)
+    SET(UHD_VERSION_PATCH_OVERRIDE ${UHD_PATCH_OVERRIDE})
+ENDIF(DEFINED UHD_PATCH_OVERRIDE)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(UHD-images NONE)
 LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/../host/cmake/Modules)
 INCLUDE(UHDVersion) #sets version variables (used below)
@@ -41,6 +46,7 @@ MESSAGE(STATUS "Version: ${UHD_VERSION}")
 ########################################################################
 
 #tag the images with a version number (something identifiable)
-FILE(WRITE ${CMAKE_SOURCE_DIR}/images/${UHD_VERSION_MAJOR}.${UHD_VERSION_MINOR}.${UHD_VERSION_PATCH}.tag "${UHD_VERSION}\n${DATETIME_NOW}\n")
+FILE(WRITE ${CMAKE_SOURCE_DIR}/images/${UHD_VERSION_MAJOR}.${UHD_VERSION_API}.${UHD_VERSION_ABI}.${UHD_VERSION_PATCH}.tag "${UHD_VERSION}\n${DATETIME_NOW}\n")
 INSTALL(DIRECTORY ${CMAKE_SOURCE_DIR}/images DESTINATION share/uhd)
 INSTALL(FILES ${CMAKE_SOURCE_DIR}/../host/LICENSE DESTINATION share/uhd/images)
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/manifest.txt DESTINATION share/uhd/images)

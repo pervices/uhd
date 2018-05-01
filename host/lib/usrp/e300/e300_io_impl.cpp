@@ -1,31 +1,21 @@
 //
 // Copyright 2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "e300_regs.hpp"
 #include "e300_impl.hpp"
 #include "e300_fpga_defs.hpp"
-#include "validate_subdev_spec.hpp"
+#include <uhdlib/usrp/common/validate_subdev_spec.hpp>
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
-#include "async_packet_handler.hpp"
+#include <uhdlib/usrp/common/async_packet_handler.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <boost/bind.hpp>
 #include <uhd/utils/tasks.hpp>
-#include <boost/foreach.hpp>
+#include <uhd/utils/log.hpp>
 #include <boost/make_shared.hpp>
 
 using namespace uhd;
@@ -34,7 +24,7 @@ using namespace uhd::transport;
 
 namespace uhd { namespace usrp { namespace e300 {
 
-static const boost::uint32_t HW_SEQ_NUM_MASK = 0xfff;
+static const uint32_t HW_SEQ_NUM_MASK = 0xfff;
 
 /***********************************************************************
  * update streamer rates
@@ -42,7 +32,7 @@ static const boost::uint32_t HW_SEQ_NUM_MASK = 0xfff;
 void e300_impl::_check_tick_rate_with_current_streamers(const double rate)
 {
     size_t max_tx_chan_count = 0, max_rx_chan_count = 0;
-    BOOST_FOREACH(radio_perifs_t &perif, _radio_perifs)
+    for(radio_perifs_t &perif:  _radio_perifs)
     {
         {
             boost::shared_ptr<sph::recv_packet_streamer> rx_streamer =
@@ -72,7 +62,7 @@ void e300_impl::_update_tick_rate(const double rate)
 {
     _check_tick_rate_with_current_streamers(rate);
 
-    BOOST_FOREACH(radio_perifs_t &perif, _radio_perifs)
+    for(radio_perifs_t &perif:  _radio_perifs)
     {
         boost::shared_ptr<sph::recv_packet_streamer> my_streamer =
             boost::dynamic_pointer_cast<sph::recv_packet_streamer>(perif.rx_streamer.lock());
@@ -80,13 +70,12 @@ void e300_impl::_update_tick_rate(const double rate)
             my_streamer->set_tick_rate(rate);
         perif.framer->set_tick_rate(_tick_rate);
     }
-    BOOST_FOREACH(radio_perifs_t &perif, _radio_perifs)
+    for(radio_perifs_t &perif:  _radio_perifs)
     {
         boost::shared_ptr<sph::send_packet_streamer> my_streamer =
             boost::dynamic_pointer_cast<sph::send_packet_streamer>(perif.tx_streamer.lock());
         if (my_streamer)
             my_streamer->set_tick_rate(rate);
-        perif.deframer->set_tick_rate(_tick_rate);
     }
 }
 
@@ -96,6 +85,7 @@ void e300_impl::_update_rx_samp_rate(const size_t dspno, const double rate)
         boost::dynamic_pointer_cast<sph::recv_packet_streamer>(_radio_perifs[dspno].rx_streamer.lock());
     if (my_streamer)
         my_streamer->set_samp_rate(rate);
+    _codec_mgr->check_bandwidth(rate, "Rx");
 }
 
 void e300_impl::_update_tx_samp_rate(const size_t dspno, const double rate)
@@ -104,6 +94,7 @@ void e300_impl::_update_tx_samp_rate(const size_t dspno, const double rate)
         boost::dynamic_pointer_cast<sph::send_packet_streamer>(_radio_perifs[dspno].tx_streamer.lock());
     if (my_streamer)
         my_streamer->set_samp_rate(rate);
+    _codec_mgr->check_bandwidth(rate, "Tx");
 }
 
 /***********************************************************************
@@ -155,10 +146,8 @@ void e300_impl::_update_subdev_spec(
             const std::string conn = _tree->access<std::string>(
                 mb_path / "dboards" / spec[i].db_name /
                 ("rx_frontends") / spec[i].sd_name / "connection").get();
-
-            const bool fe_swapped = (conn == "QI" or conn == "Q");
-            _radio_perifs[i].ddc->set_mux(conn, fe_swapped);
-            _radio_perifs[i].rx_fe->set_mux(fe_swapped);
+            _radio_perifs[i].ddc->set_mux(usrp::fe_connection_t(conn));
+            _radio_perifs[i].rx_fe->set_mux(false);
         }
     }
 
@@ -169,7 +158,7 @@ void e300_impl::_update_subdev_spec(
  * VITA stuff
  **********************************************************************/
 static void e300_if_hdr_unpack_le(
-    const boost::uint32_t *packet_buff,
+    const uint32_t *packet_buff,
     vrt::if_packet_info_t &if_packet_info
 ){
     if_packet_info.link_type = vrt::if_packet_info_t::LINK_TYPE_CHDR;
@@ -177,7 +166,7 @@ static void e300_if_hdr_unpack_le(
 }
 
 static void e300_if_hdr_pack_le(
-    boost::uint32_t *packet_buff,
+    uint32_t *packet_buff,
     vrt::if_packet_info_t &if_packet_info
 ){
     if_packet_info.link_type = vrt::if_packet_info_t::LINK_TYPE_CHDR;
@@ -226,9 +215,21 @@ void e300_impl::_handle_overflow(
     }
 }
 
+static size_t get_rx_flow_control_window(size_t frame_size, size_t sw_buff_size, double fullness_factor)
+{
+    if (fullness_factor < 0.01 || fullness_factor > 1) {
+        throw uhd::value_error("recv_buff_fullness must be between 0.01 and 1 inclusive (1% to 100%)");
+    }
+
+    size_t window_in_pkts = (static_cast<size_t>(sw_buff_size * fullness_factor) / frame_size);
+    if (window_in_pkts == 0) {
+        throw uhd::value_error("recv_buff_size must be larger than the recv_frame_size.");
+    }
+    return window_in_pkts;
+}
 
 static void handle_rx_flowctrl(
-    const boost::uint32_t sid,
+    const uint32_t sid,
     zero_copy_if::sptr xport,
     boost::shared_ptr<e300_rx_fc_cache_t> fc_cache,
     const size_t last_seq)
@@ -242,7 +243,7 @@ static void handle_rx_flowctrl(
     {
         throw uhd::runtime_error("handle_rx_flowctrl timed out getting a send buffer");
     }
-    boost::uint32_t *pkt = buff->cast<boost::uint32_t *>();
+    uint32_t *pkt = buff->cast<uint32_t *>();
 
     //recover seq32
     size_t& seq_sw = fc_cache->last_seq_in;
@@ -256,7 +257,7 @@ static void handle_rx_flowctrl(
     vrt::if_packet_info_t packet_info;
     packet_info.packet_type = vrt::if_packet_info_t::PACKET_TYPE_CONTEXT;
     packet_info.num_payload_words32 = RXFC_PACKET_LEN_IN_WORDS;
-    packet_info.num_payload_bytes = packet_info.num_payload_words32*sizeof(boost::uint32_t);
+    packet_info.num_payload_bytes = packet_info.num_payload_words32*sizeof(uint32_t);
     packet_info.packet_count = seq_sw;
     packet_info.sob = false;
     packet_info.eob = false;
@@ -271,11 +272,11 @@ static void handle_rx_flowctrl(
     e300_if_hdr_pack_le(pkt, packet_info);
 
     //load payload
-    pkt[packet_info.num_header_words32+RXFC_CMD_CODE_OFFSET] = uhd::htowx<boost::uint32_t>(0);
-    pkt[packet_info.num_header_words32+RXFC_SEQ_NUM_OFFSET] = uhd::htowx<boost::uint32_t>(seq_sw);
+    pkt[packet_info.num_header_words32+RXFC_CMD_CODE_OFFSET] = uhd::htowx<uint32_t>(0);
+    pkt[packet_info.num_header_words32+RXFC_SEQ_NUM_OFFSET] = uhd::htowx<uint32_t>(seq_sw);
 
     //send the buffer over the interface
-    buff->commit(sizeof(boost::uint32_t)*(packet_info.num_packet_words32));
+    buff->commit(sizeof(uint32_t)*(packet_info.num_packet_words32));
 }
 
 
@@ -314,8 +315,8 @@ static void handle_tx_async_msgs(boost::shared_ptr<e300_tx_fc_cache_t> fc_cache,
 
     //extract packet info
     vrt::if_packet_info_t if_packet_info;
-    if_packet_info.num_packet_words32 = buff->size()/sizeof(boost::uint32_t);
-    const boost::uint32_t *packet_buff = buff->cast<const boost::uint32_t *>();
+    if_packet_info.num_packet_words32 = buff->size()/sizeof(uint32_t);
+    const uint32_t *packet_buff = buff->cast<const uint32_t *>();
 
     //unpacking can fail
     try
@@ -324,7 +325,7 @@ static void handle_tx_async_msgs(boost::shared_ptr<e300_tx_fc_cache_t> fc_cache,
     }
     catch(const std::exception &ex)
     {
-        UHD_MSG(error) << "Error parsing async message packet: " << ex.what() << std::endl;
+        UHD_LOGGER_ERROR("E300") << "Error parsing async message packet: " << ex.what() ;
         return;
     }
 
@@ -338,7 +339,7 @@ static void handle_tx_async_msgs(boost::shared_ptr<e300_tx_fc_cache_t> fc_cache,
 
     //fill in the async metadata
     async_metadata_t metadata;
-    load_metadata_from_buff(uhd::wtohx<boost::uint32_t>,
+    load_metadata_from_buff(uhd::wtohx<uint32_t>,
                             metadata, if_packet_info, packet_buff,
                             get_tick_rate(), fc_cache->stream_channel);
 
@@ -422,7 +423,7 @@ rx_streamer::sptr e300_impl::get_rx_stream(const uhd::stream_args_t &args_)
         radio_perifs_t &perif = _radio_perifs[radio_index];
 
         // make a transport, grab a sid
-        boost::uint32_t data_sid;
+        uint32_t data_sid;
         both_xports_t data_xports = _make_transport(
            radio_index ? E300_XB_DST_R1 : E300_XB_DST_R0,
            E300_RADIO_DEST_PREFIX_RX,
@@ -431,8 +432,8 @@ rx_streamer::sptr e300_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
         //calculate packet size
         static const size_t hdr_size = 0
-            + vrt::num_vrl_words32*sizeof(boost::uint32_t)
-            + vrt::max_if_hdr_words32*sizeof(boost::uint32_t)
+            + vrt::num_vrl_words32*sizeof(uint32_t)
+            + vrt::max_if_hdr_words32*sizeof(uint32_t)
             + sizeof(vrt::if_packet_info_t().tlr) //forced to have trailer
             - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
             - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
@@ -457,25 +458,38 @@ rx_streamer::sptr e300_impl::get_rx_stream(const uhd::stream_args_t &args_)
         id.num_outputs = 1;
         my_streamer->set_converter(id);
 
+        perif.framer->clear();
         perif.framer->set_nsamps_per_packet(spp); //seems to be a good place to set this
         perif.framer->set_sid((data_sid << 16) | (data_sid >> 16));
         perif.framer->setup(args);
         perif.ddc->setup(args);
+
+        // flow control setup
+        const size_t frame_size = data_xports.recv->get_recv_frame_size();
+        const size_t num_frames = data_xports.recv->get_num_recv_frames();
+        const size_t fc_window = get_rx_flow_control_window(
+            frame_size,num_frames * frame_size,
+            E300_RX_SW_BUFF_FULLNESS);
+        const size_t fc_handle_window = std::max<size_t>(1, fc_window / E300_RX_FC_REQUEST_FREQ);
+
+        UHD_LOGGER_DEBUG("E300") << "RX Flow Control Window = " << fc_window
+                << ", RX Flow Control Handler Window = "
+                << fc_handle_window ;
+
+        perif.framer->configure_flow_control(fc_window);
+        boost::shared_ptr<e300_rx_fc_cache_t> fc_cache(new e300_rx_fc_cache_t());
+
         my_streamer->set_xport_chan_get_buff(stream_i, boost::bind(
             &zero_copy_if::get_recv_buff, data_xports.recv, _1
         ), true /*flush*/);
         my_streamer->set_overflow_handler(stream_i,
-            boost::bind(&rx_vita_core_3000::handle_overflow, perif.framer)
+            boost::bind(&e300_impl::_handle_overflow, this, boost::ref(perif),
+            boost::weak_ptr<uhd::rx_streamer>(my_streamer))
         );
 
-        //setup flow control
-        const size_t fc_window = data_xports.recv->get_num_recv_frames();
-        perif.framer->configure_flow_control(fc_window);
-        boost::shared_ptr<e300_rx_fc_cache_t> fc_cache(new e300_rx_fc_cache_t());
         my_streamer->set_xport_handle_flowctrl(stream_i,
             boost::bind(&handle_rx_flowctrl, data_sid, data_xports.send, fc_cache, _1),
-            static_cast<size_t>(static_cast<double>(fc_window) * E300_RX_SW_BUFF_FULLNESS),
-            true/*init*/);
+            fc_handle_window, true/*init*/);
 
         my_streamer->set_issue_stream_cmd(stream_i,
             boost::bind(&rx_vita_core_3000::issue_stream_command, perif.framer, _1)
@@ -523,7 +537,7 @@ tx_streamer::sptr e300_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
 
         // make a transport, grab a sid
-        boost::uint32_t data_sid;
+        uint32_t data_sid;
         both_xports_t data_xports = _make_transport(
            radio_index ? E300_XB_DST_R1 : E300_XB_DST_R0,
            E300_RADIO_DEST_PREFIX_TX,
@@ -532,8 +546,8 @@ tx_streamer::sptr e300_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
         //calculate packet size
         static const size_t hdr_size = 0
-            + vrt::num_vrl_words32*sizeof(boost::uint32_t)
-            + vrt::max_if_hdr_words32*sizeof(boost::uint32_t)
+            + vrt::num_vrl_words32*sizeof(uint32_t)
+            + vrt::max_if_hdr_words32*sizeof(uint32_t)
             + sizeof(vrt::if_packet_info_t().tlr) //forced to have trailer
             - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
             - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
@@ -564,7 +578,13 @@ tx_streamer::sptr e300_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
         //flow control setup
         const size_t fc_window = data_xports.send->get_num_send_frames();
-        perif.deframer->configure_flow_control(0/*cycs off*/, fc_window/8/*pkts*/);
+        const size_t fc_handle_window = std::max<size_t>(1, fc_window/E300_TX_FC_RESPONSE_FREQ);
+
+        UHD_LOGGER_DEBUG("E300") << "TX Flow Control Window = " << fc_window
+                << ", TX Flow Control Handler Window = "
+                << fc_handle_window ;
+
+        perif.deframer->configure_flow_control(0/*cycs off*/, fc_handle_window/*pkts*/);
         boost::shared_ptr<e300_tx_fc_cache_t> fc_cache(new e300_tx_fc_cache_t());
         fc_cache->stream_channel = stream_i;
         fc_cache->device_channel = args.channels[stream_i];

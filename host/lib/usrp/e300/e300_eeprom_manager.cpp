@@ -1,18 +1,8 @@
 //
 // Copyright 2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "e300_eeprom_manager.hpp"
@@ -38,7 +28,7 @@ static void _string_to_bytes(const std::string &string, size_t max_len, uint8_t*
     for (size_t i = 0; i < len; i++){
         buffer[i] = string[i];
     }
-    if (len < max_len - 1)
+    if (len < max_len)
         buffer[len] = '\0';
 }
 
@@ -56,7 +46,7 @@ const mboard_eeprom_t& e300_eeprom_manager::read_mb_eeprom(void)
 {
     boost::mutex::scoped_lock(_mutex);
 
-    std::vector<boost::uint8_t> bytes;
+    std::vector<uint8_t> bytes;
     bytes.resize(sizeof(mb_eeprom_map_t));
     mb_eeprom_map_t *map_ptr = reinterpret_cast<mb_eeprom_map_t*>(&bytes[0]);
     memset(map_ptr, 0xff, sizeof(mb_eeprom_map_t));
@@ -67,10 +57,10 @@ const mboard_eeprom_t& e300_eeprom_manager::read_mb_eeprom(void)
 
     mb_eeprom_map_t &map = *map_ptr;
 
-    _mb_eeprom["product"] = boost::lexical_cast<std::string>(
-        uhd::ntohx<boost::uint16_t>(map.hw_product));
-    _mb_eeprom["revision"] = boost::lexical_cast<std::string>(
-        uhd::ntohx<boost::uint16_t>(map.hw_revision));
+    _mb_eeprom["product"] = std::to_string(
+        uhd::ntohx<uint16_t>(map.hw_product));
+    _mb_eeprom["revision"] = std::to_string(
+        uhd::ntohx<uint16_t>(map.hw_revision));
     _mb_eeprom["serial"] = _bytes_to_string(
         map.serial, MB_SERIAL_LEN);
 
@@ -87,7 +77,7 @@ const dboard_eeprom_t& e300_eeprom_manager::read_db_eeprom(void)
 {
     boost::mutex::scoped_lock(_mutex);
 
-    std::vector<boost::uint8_t> bytes;
+    std::vector<uint8_t> bytes;
     bytes.resize(sizeof(db_eeprom_map_t));
     db_eeprom_map_t *map_ptr = reinterpret_cast<db_eeprom_map_t*>(&bytes[0]);
     memset(map_ptr, 0xff, sizeof(db_eeprom_map_t));
@@ -99,10 +89,10 @@ const dboard_eeprom_t& e300_eeprom_manager::read_db_eeprom(void)
     db_eeprom_map_t &map = *map_ptr;
 
     _db_eeprom.id = uhd::usrp::dboard_id_t::from_uint16(
-        uhd::ntohx<boost::uint16_t>(map.hw_product));
+        uhd::ntohx<uint16_t>(map.hw_product));
 
-    _db_eeprom.revision = boost::lexical_cast<std::string>(
-        uhd::ntohx<boost::uint16_t>(map.hw_revision));
+    _db_eeprom.revision = std::to_string(
+        uhd::ntohx<uint16_t>(map.hw_revision));
     _db_eeprom.serial = _bytes_to_string(
         map.serial, DB_SERIAL_LEN);
 
@@ -113,7 +103,7 @@ void e300_eeprom_manager::write_db_eeprom(const dboard_eeprom_t& eeprom)
 {
     boost::mutex::scoped_lock(_mutex);
     _db_eeprom = eeprom;
-    std::vector<boost::uint8_t> bytes;
+    std::vector<uint8_t> bytes;
     bytes.resize(sizeof(db_eeprom_map_t));
 
 
@@ -126,14 +116,18 @@ void e300_eeprom_manager::write_db_eeprom(const dboard_eeprom_t& eeprom)
 
     db_eeprom_map_t &map = *map_ptr;
 
+    // set the data version, that can be used to distinguish eeprom layouts
+    map.data_version_major = E310_DB_MAP_MAJOR;
+    map.data_version_minor = E310_DB_MAP_MINOR;
+
     if (_db_eeprom.id != dboard_id_t::none()) {
-        map.hw_product = uhd::htonx<boost::uint16_t>(
+        map.hw_product = uhd::htonx<uint16_t>(
             _db_eeprom.id.to_uint16());
     }
 
     if (not _db_eeprom.revision.empty()) {
-        map.hw_revision = uhd::htonx<boost::uint16_t>(
-            boost::lexical_cast<boost::uint16_t>(_db_eeprom.revision));
+        map.hw_revision = uhd::htonx<uint16_t>(
+            boost::lexical_cast<uint16_t>(_db_eeprom.revision));
     }
 
     if (not _db_eeprom.serial.empty()) {
@@ -147,7 +141,7 @@ void e300_eeprom_manager::write_mb_eeprom(const mboard_eeprom_t& eeprom)
 {
     boost::mutex::scoped_lock(_mutex);
     _mb_eeprom = eeprom;
-    std::vector<boost::uint8_t> bytes;
+    std::vector<uint8_t> bytes;
     bytes.resize(sizeof(mb_eeprom_map_t));
 
 
@@ -160,13 +154,18 @@ void e300_eeprom_manager::write_mb_eeprom(const mboard_eeprom_t& eeprom)
 
     mb_eeprom_map_t &map = *map_ptr;
 
+    // set the data version, that can be used to distinguish eeprom layouts
+    map.data_version_major = E310_MB_MAP_MAJOR;
+    map.data_version_minor = E310_MB_MAP_MINOR;
+
+
     if (_mb_eeprom.has_key("product")) {
-        map.hw_product = uhd::htonx<boost::uint16_t>(
-            boost::lexical_cast<boost::uint16_t>(_mb_eeprom["product"]));
+        map.hw_product = uhd::htonx<uint16_t>(
+            boost::lexical_cast<uint16_t>(_mb_eeprom["product"]));
     }
     if (_mb_eeprom.has_key("revision")) {
-        map.hw_revision = uhd::htonx<boost::uint16_t>(
-            boost::lexical_cast<boost::uint16_t>(_mb_eeprom["revision"]));
+        map.hw_revision = uhd::htonx<uint16_t>(
+            boost::lexical_cast<uint16_t>(_mb_eeprom["revision"]));
     }
     if (_mb_eeprom.has_key("serial")) {
         _string_to_bytes(_mb_eeprom["serial"], MB_SERIAL_LEN, map.serial);
@@ -189,20 +188,23 @@ void e300_eeprom_manager::write_mb_eeprom(const mboard_eeprom_t& eeprom)
 e300_eeprom_manager::mboard_t e300_eeprom_manager::get_mb_type(void) const
 {
     boost::mutex::scoped_lock(_mutex);
-    boost::uint16_t pid = boost::lexical_cast<boost::uint16_t>(
+    uint16_t pid = boost::lexical_cast<uint16_t>(
         _mb_eeprom["product"]);
     return get_mb_type(pid);
 }
 
 e300_eeprom_manager::mboard_t e300_eeprom_manager::get_mb_type(
-    boost::uint16_t pid)
+    uint16_t pid)
 {
     switch (pid) {
     case E300_MB_PID:
         return USRP_E300_MB;
 
-    case E310_MB_PID:
-        return USRP_E310_MB;
+    case E310_SG1_MB_PID:
+        return USRP_E310_SG1_MB;
+
+    case E310_SG3_MB_PID:
+        return USRP_E310_SG3_MB;
 
     default:
         return UNKNOWN;
@@ -213,14 +215,17 @@ e300_eeprom_manager::mboard_t e300_eeprom_manager::get_mb_type(
 std::string e300_eeprom_manager::get_mb_type_string(void) const
 {
     boost::mutex::scoped_lock(_mutex);
-    boost::uint16_t product = boost::lexical_cast<boost::uint16_t>(
+    uint16_t product = boost::lexical_cast<uint16_t>(
         _mb_eeprom["product"]);
     switch (product) {
     case E300_MB_PID:
-        return "E300";
+        return "E3XX";
 
-    case E310_MB_PID:
-        return "E310";
+    case E310_SG1_MB_PID:
+        return "E3XX SG1";
+
+    case E310_SG3_MB_PID:
+        return "E3XX SG3";
 
     default:
         return "UNKNOWN";

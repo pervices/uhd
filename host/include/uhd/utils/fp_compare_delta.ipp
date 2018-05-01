@@ -1,21 +1,11 @@
 //
 // Copyright 2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhd/utils/msg.hpp>
+
 #include <cmath>
 #include <typeinfo>
 
@@ -27,7 +17,7 @@ namespace uhd { namespace math { namespace fp_compare {
 
     template<typename float_t> UHD_INLINE
     float_t fp_compare_select_delta(float_t lhs_delta, float_t rhs_delta) {
-        return ((lhs_delta < rhs_delta) ? lhs_delta : rhs_delta);
+        return ((lhs_delta > rhs_delta) ? lhs_delta : rhs_delta);
     }
 
     template<> UHD_INLINE
@@ -100,8 +90,8 @@ namespace uhd { namespace math { namespace fp_compare {
 
     template<typename float_t> UHD_INLINE
     bool operator==(fp_compare_delta<float_t> lhs, double rhs) {
-        float_t delta = fp_compare_select_delta(double(lhs._delta),
-                DOUBLE_PRECISION_DELTA);
+        float_t delta = float_t(fp_compare_select_delta(double(lhs._delta),
+                DOUBLE_PRECISION_DELTA));
         return (std::fabs(lhs._value - rhs) < delta);
     }
 
@@ -112,8 +102,8 @@ namespace uhd { namespace math { namespace fp_compare {
 
     template<typename float_t> UHD_INLINE
     bool operator<(fp_compare_delta<float_t> lhs, double rhs) {
-        float_t delta = fp_compare_select_delta(double(lhs._delta),
-                DOUBLE_PRECISION_DELTA);
+        float_t delta = float_t(fp_compare_select_delta(double(lhs._delta),
+                DOUBLE_PRECISION_DELTA));
         return ((rhs - lhs._value) > delta);
     }
 
@@ -124,8 +114,8 @@ namespace uhd { namespace math { namespace fp_compare {
 
     template<typename float_t> UHD_INLINE
     bool operator>(fp_compare_delta<float_t> lhs, double rhs) {
-        float_t delta = fp_compare_select_delta(double(lhs._delta),
-                DOUBLE_PRECISION_DELTA);
+        float_t delta = float_t(fp_compare_select_delta(double(lhs._delta),
+                DOUBLE_PRECISION_DELTA));
         return ((lhs._value - rhs) > delta);
     }
 
@@ -148,8 +138,8 @@ namespace uhd { namespace math { namespace fp_compare {
 
     template<typename float_t> UHD_INLINE
     bool operator<(double lhs, fp_compare_delta<float_t> rhs) {
-        float_t delta = fp_compare_select_delta(DOUBLE_PRECISION_DELTA,
-                double(rhs._delta));
+        float_t delta = float_t(fp_compare_select_delta(DOUBLE_PRECISION_DELTA,
+                double(rhs._delta)));
         return ((rhs._value - lhs) > delta);
     }
 
@@ -160,8 +150,8 @@ namespace uhd { namespace math { namespace fp_compare {
 
     template<typename float_t> UHD_INLINE
     bool operator>(double lhs, fp_compare_delta<float_t> rhs) {
-        float_t delta = fp_compare_select_delta(DOUBLE_PRECISION_DELTA,
-                double(rhs._delta));
+        float_t delta = float_t(fp_compare_select_delta(DOUBLE_PRECISION_DELTA,
+                double(rhs._delta)));
         return ((lhs - rhs._value) > delta);
     }
 

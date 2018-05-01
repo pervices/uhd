@@ -1,18 +1,7 @@
 //
-// Copyright 2010 Ettus Research LLC
+// Copyright 2010,2017 Ettus Research, A National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_USRP_DBOARD_BASE_HPP
@@ -25,6 +14,7 @@
 #include <boost/shared_ptr.hpp>
 #include <uhd/usrp/dboard_id.hpp>
 #include <uhd/usrp/dboard_iface.hpp>
+#include <uhd/usrp/dboard_eeprom.hpp>
 
 namespace uhd{ namespace usrp{
 
@@ -44,12 +34,18 @@ public:
 
     //structors
     dboard_base(ctor_args_t);
+    virtual ~dboard_base() {}
+
+    //post-construction initializer
+    virtual void initialize() {}
 
 protected:
     std::string get_subdev_name(void);
     dboard_iface::sptr get_iface(void);
     dboard_id_t get_rx_id(void);
     dboard_id_t get_tx_id(void);
+    dboard_eeprom_t get_rx_eeprom(void);
+    dboard_eeprom_t get_tx_eeprom(void);
     property_tree::sptr get_rx_subtree(void);
     property_tree::sptr get_tx_subtree(void);
 
@@ -67,6 +63,7 @@ public:
      * Create a new xcvr dboard object, override in subclasses.
      */
     xcvr_dboard_base(ctor_args_t);
+    virtual ~xcvr_dboard_base() {}
 };
 
 /*!
@@ -79,6 +76,7 @@ public:
      * Create a new rx dboard object, override in subclasses.
      */
     rx_dboard_base(ctor_args_t);
+    virtual ~rx_dboard_base() {}
 };
 
 /*!
@@ -91,6 +89,7 @@ public:
      * Create a new rx dboard object, override in subclasses.
      */
     tx_dboard_base(ctor_args_t);
+    virtual ~tx_dboard_base() {}
 };
 
 }} //namespace

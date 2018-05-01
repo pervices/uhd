@@ -1,25 +1,15 @@
 //
-// Copyright 2010-2014 Ettus Research LLC
+// Copyright 2010-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_UTILS_ALGORITHM_HPP
 #define INCLUDED_UHD_UTILS_ALGORITHM_HPP
 
 #include <algorithm>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <boost/range/begin.hpp>
 #include <boost/range/end.hpp>
 
@@ -39,7 +29,7 @@ namespace uhd{
      * \param range the range of elements to be sorted
      * \return a new range with the elements sorted
      */
-    template<typename Range> inline Range sorted(const Range &range){
+    template<typename Range> UHD_INLINE Range sorted(const Range &range){
         Range r(range); std::sort(boost::begin(r), boost::end(r)); return r;
     }
 
@@ -53,7 +43,7 @@ namespace uhd{
      * \param range the range of elements to be reversed
      * \return a new range with the elements reversed
      */
-    template<typename Range> inline Range reversed(const Range &range){
+    template<typename Range> UHD_INLINE Range reversed(const Range &range){
         Range r(range); std::reverse(boost::begin(r), boost::end(r)); return r;
     }
 
@@ -66,7 +56,7 @@ namespace uhd{
      * \param value the match to look for in the range
      * \return true when the value is found in the range
      */
-    template<typename Range, typename T> inline
+    template<typename Range, typename T> UHD_INLINE
     bool has(const Range &range, const T &value){
         return boost::end(range) != std::find(boost::begin(range), boost::end(range), value);
     }
@@ -78,7 +68,7 @@ namespace uhd{
      * \param bound2 the upper or lower bound
      * \return the value clipped at the bounds
      */
-    template<typename T> inline T clip(const T &val, const T &bound1, const T &bound2){
+    template<typename T> UHD_INLINE T clip(const T &val, const T &bound1, const T &bound2){
         const T minimum = std::min(bound1, bound2);
         if (val < minimum) return minimum;
         const T maximum = std::max(bound1, bound2);

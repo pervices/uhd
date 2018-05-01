@@ -7,7 +7,7 @@
 \subsection coding_api_hilevel High-Level: The Multi-USRP
 
 The Multi-USRP class provides a high-level interface to a single USRP device
-with one or more channels, or multiple USRP devicess in a homogeneous
+with one or more channels, or multiple USRP devices in a homogeneous
 setup. See the documentation for uhd::usrp::multi_usrp.
 
 \subsection coding_api_hilevelclock High-Level: The Multi-USRP-Clock
@@ -15,6 +15,11 @@ setup. See the documentation for uhd::usrp::multi_usrp.
 The Multi-USRP-Clock class provides a high-level interface to a single clock
 device or set of clock devices, from which the time can be queried. See the
 documentation for uhd::usrp_clock::multi_usrp_clock.
+
+\subsection coding_api_hilevelc High-Level: The C API
+
+Both USRP and clock devices can be interacted with using a C API wrapper included
+by default in all UHD builds. More information can be found \subpage page_c_api "here".
 
 \subsection coding_api_lowlevel Low-Level: The device API
 

@@ -1,19 +1,9 @@
 #!/usr/bin/env python
 #
 # Copyright 2010 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -32,9 +22,9 @@ charge_pump_output       0[9]       0          normal, 3state
 cp_gain_0                0[10]      0          set1, set2
 mute_till_ld             0[11]      0          dis, enb
 output_power_level       0[12:13]   0          3_5ma, 5_0ma, 7_5ma, 11_0ma
-#set $current_setting_enums = ', '.join(map(lambda x: x+"ma", "0_31 0_62 0_93 1_25 1_56 1_87 2_18 2_50".split()))
-current_setting1         0[14:16]   0          $current_setting_enums
-current_setting2         0[17:19]   0          $current_setting_enums
+<% current_setting_enums = ', '.join(map(lambda x: x+"ma", "0_31 0_62 0_93 1_25 1_56 1_87 2_18 2_50".split())) %>\
+current_setting1         0[14:16]   0          ${current_setting_enums}
+current_setting2         0[17:19]   0          ${current_setting_enums}
 power_down               0[20:21]   0          normal_op=0, async_pd=1, sync_pd=3
 prescaler_value          0[22:23]   0          8_9, 16_17, 32_33
 ########################################################################
@@ -65,16 +55,16 @@ enum addr_t{
     ADDR_RCOUNTER = 1
 };
 
-boost::uint32_t get_reg(addr_t addr){
-    boost::uint32_t reg = addr & 0x3;
+uint32_t get_reg(addr_t addr){
+    uint32_t reg = addr & 0x3;
     switch(addr){
-    #for $addr in sorted(set(map(lambda r: r.get_addr(), $regs)))
-    case $addr:
-        #for $reg in filter(lambda r: r.get_addr() == addr, $regs)
-        reg |= (boost::uint32_t($reg.get_name()) & $reg.get_mask()) << $reg.get_shift();
-        #end for
+    % for addr in sorted(set(map(lambda r: r.get_addr(), regs))):
+    case ${addr}:
+        % for reg in filter(lambda r: r.get_addr() == addr, regs):
+        reg |= (uint32_t(${reg.get_name()}) & ${reg.get_mask()}) << ${reg.get_shift()};
+        % endfor
         break;
-    #end for
+    % endfor
     }
     return reg;
 }

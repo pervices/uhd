@@ -1,18 +1,8 @@
 //
-// Copyright 2014 Ettus Research LLC
+// Copyright 2014,2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_OCTOCLOCK_IMPL_HPP
@@ -30,6 +20,8 @@
 #include <uhd/types/sensors.hpp>
 
 #include "common.h"
+
+uhd::device_addrs_t octoclock_find(const uhd::device_addr_t &hint);
 
 /*!
  * OctoClock implementation guts
@@ -54,11 +46,12 @@ private:
         uhd::gps_ctrl::sptr gps;
     };
     uhd::dict<std::string, oc_container_type> _oc_dict;
-    boost::uint32_t _sequence;
+    uint32_t _sequence;
+	uint32_t _proto_ver;
 
     void _set_eeprom(const std::string &oc, const uhd::usrp_clock::octoclock_eeprom_t &oc_eeprom);
 
-    boost::uint32_t _get_fw_version(const std::string &oc);
+    uint32_t _get_fw_version(const std::string &oc);
 
     void _get_state(const std::string &oc);
 
@@ -70,7 +63,7 @@ private:
 
     uhd::sensor_value_t _switch_pos(const std::string &oc);
 
-    boost::uint32_t _get_time(const std::string &oc);
+    uint32_t _get_time(const std::string &oc);
 
     std::string _get_images_help_message(const std::string &addr);
 

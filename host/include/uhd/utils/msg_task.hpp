@@ -1,18 +1,8 @@
 //
-// Copyright 2011-2014 Ettus Research LLC
+// Copyright 2011-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_UTILS_MSG_TASK_HPP
@@ -24,15 +14,15 @@
 #include <boost/function.hpp>
 #include <boost/utility.hpp>
 #include <boost/optional/optional.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <vector>
 
 namespace uhd{
 	class UHD_API msg_task : boost::noncopyable{
         public:
             typedef boost::shared_ptr<msg_task> sptr;
-            typedef std::vector<boost::uint8_t> msg_payload_t;
-            typedef std::pair<boost::uint32_t, msg_payload_t > msg_type_t;
+            typedef std::vector<uint8_t> msg_payload_t;
+            typedef std::pair<uint32_t, msg_payload_t > msg_type_t;
             typedef boost::function<boost::optional<msg_type_t>(void)> task_fcn_type;
 
             /*
@@ -40,15 +30,15 @@ namespace uhd{
              * Such stranded messages get pushed into a dump queue.
              * With this function radio_ctrl_core can check if one of the messages meant for it got stranded.
              */
-            virtual msg_payload_t get_msg_from_dump_queue(boost::uint32_t sid) = 0;
+            virtual msg_payload_t get_msg_from_dump_queue(uint32_t sid) = 0;
 
-            inline static std::vector<boost::uint8_t> buff_to_vector(boost::uint8_t* p, size_t n) {
+            UHD_INLINE static std::vector<uint8_t> buff_to_vector(uint8_t* p, size_t n) {
                 if(p and n > 0){
-                    std::vector<boost::uint8_t> v(n);
+                    std::vector<uint8_t> v(n);
                     memcpy(&v.front(), p, n);
                     return v;
                 }
-                return std::vector<boost::uint8_t>();
+                return std::vector<uint8_t>();
             }
 
             virtual ~msg_task(void) = 0;
