@@ -433,10 +433,11 @@ private:
 
 		for(
 			;
-			dt > 0.0;
+			dt > 0.0001;
 			now = get_time_now(),
 				dt = then - now
 		) {
+			dt = dt - 0.0001;
 			req.tv_sec = (time_t) dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs()*1e9;
 			nanosleep( &req, &rem );
