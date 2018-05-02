@@ -161,6 +161,12 @@ public:
         _converter->set_scalar(scale_factor);
     }
 
+    //xxx:DMCL Function for getting number of samples to send
+    // Used for predictive modeling in Per Vices
+    size_t get_nsamps(){
+        return _convert_nsamps;
+    }
+
     //! Set the callback to get async messages
     void set_async_receiver(const async_receiver_type &async_receiver)
     {
@@ -371,8 +377,14 @@ private:
         if_packet_info.num_payload_words32 = (if_packet_info.num_payload_bytes + 3/*round up*/)/sizeof(uint32_t);
         if_packet_info.packet_count = _next_packet_seq;
 
+        //xxx:DMCL Update class member here so that the get_buffs routine knows
+        // how many samples we are sending.
+        // Used for predictive modeling in Per Vices
+        _convert_nsamps = nsamps_per_buff;
+
         //get a buffer for each channel or timeout
         BOOST_FOREACH(xport_chan_props_type &props, _props){
+            //We need to get nsamps_per_buff into crimson. How how how how
             if (not props.buff) props.buff = props.get_buff(timeout);
             if (not props.buff) return 0; //timeout
         }
