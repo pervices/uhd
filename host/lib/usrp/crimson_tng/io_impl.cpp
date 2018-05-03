@@ -47,6 +47,9 @@
 #ifndef UHD_TXRX_DEBUG_PRINTS
 //#define UHD_TXRX_DEBUG_PRINTS
 #endif
+#ifndef UHD_TXRX_SEND_DEBUG_PRINTS
+//#define UHD_TXRX_SEND_DEBUG_PRINTS
+#endif
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -269,7 +272,6 @@ public:
 			//if (ep._remaining_num_samps <=0) ep._remaining_num_samps = nsamps_per_buff;
 	       // ep.buffer_mutex.unlock();
       //  }
-        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         now = get_time_now();
 
@@ -284,7 +286,7 @@ public:
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
             retreat();
-        }
+        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         return r;
     }
@@ -423,7 +425,7 @@ private:
 
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
-        #ifdef UHD_TXRX_DEBUG_PRINTS
+        #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
         static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
         #endif
 
@@ -438,7 +440,7 @@ private:
             return false;
         }
 
-		#ifdef UHD_TXRX_DEBUG_PRINTS
+		#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
 		if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
 			last_print_time = now;
 			next_print_time = last_print_time + 0.2;
