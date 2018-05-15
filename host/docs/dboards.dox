@@ -80,7 +80,9 @@ Sensors:
 \subsection dboards_dbsrx2 DBSRX2
 
 The DBSRX2 board has 1 quadrature frontend. It defaults to direct
-conversion, but can use a low IF through lo_offset in uhd::tune_request_t.
+conversion, but can use a low IF through `lo_offset` in uhd::tune_request_t.
+
+Frequency Range: 800 MHz to 2.3 GHz
 
 Receive Antennas: **J3**
 
@@ -93,11 +95,14 @@ Receive Gains:
 -   **GC1**, Range: 0-73dB
 -   **BBG**, Range: 0-15dB
 
-Bandwidth (Hz): 8 MHz -80 MHz
+Bandwidth (Hz): 8 MHz-80 MHz
 
 Sensors:
 
 -   **lo_locked**: boolean for LO lock state
+
+Notes:
+- When used in the X3x0, set the daughterboard clock rate to 100 MHz (see \ref config_devaddr)
 
 \subsection dboards_rfx RFX Series
 
@@ -131,6 +136,8 @@ Sensors:
 -   **lo_locked**: boolean for LO lock state
 
 \subsection dboards_xcvr XCVR 2450
+
+\b Note: The XCVR2450 is not compatible with the X3x0-Series.
 
 The XCVR2450 has 2 quadrature frontends, one transmit, one receive.
 Transmit and Receive default to direct conversion but can be used in low
@@ -179,10 +186,12 @@ Features:
 -   2 quadrature frontends (1 transmit, 1 receive)
     -   Defaults to direct conversion
     -   Can be used in low IF mode through lo_offset with uhd::tune_request_t
--   Independent recieve and transmit LO's and synthesizers
+-   Independent receive and transmit LO's and synthesizers
     -   Allows for full-duplex operation on different transmit and receive frequencies
     -   Can be set to use Integer-N tuning for better spur performance
         with uhd::tune_request_t
+
+Frequency Range: 50 MHz to 2.2 GHz
 
 Transmit Antennas: **TX/RX**
 
@@ -214,10 +223,12 @@ Features:
 -   2 quadrature frontends (1 transmit, 1 receive)
     -   Defaults to direct conversion
     -   Can be used in low IF mode through lo_offset with uhd::tune_request_t
--   Independent recieve and transmit LO's and synthesizers
+-   Independent receive and transmit LO's and synthesizers
     -   Allows for full-duplex operation on different transmit and
         receive frequencies
     -   Can be set to use Integer-N tuning for better spur performance with uhd::tune_request_t
+
+Frequency Range: 400 MHz to 4.4 GHz
 
 Transmit Antennas: **TX/RX**
 
@@ -256,10 +267,12 @@ Features:
 -   2 quadrature frontends (1 transmit, 1 receive)
     -   Defaults to direct conversion
     -   Can be used in low IF mode through lo_offset with uhd::tune_request_t
--   Independent recieve and transmit LO's and synthesizers
+-   Independent receive and transmit LO's and synthesizers
     -   Allows for full-duplex operation on different transmit and
         receive frequencies
     -   Can be set to use Integer-N tuning for better spur performance with uhd::tune_request_t
+
+Frequency Range: 1.2 GHz to 6 GHz
 
 Transmit Antennas: **TX/RX**
 
@@ -292,6 +305,55 @@ LEDs:
 -   **RX LD**: Receive Synthesizer Lock Detect
 -   **RX1/RX2**: Receiver on RX2 antenna port
 
+\subsection dboards_ubx UBX Series
+
+Features:
+-   2 quadrature frontends (1 transmit, 1 receive)
+    -   Defaults to direct conversion
+    -   Can be used in low IF mode through lo_offset with uhd::tune_request_t
+-   Independent receive and transmit LO's and synthesizers
+    -   Allows for full-duplex operation on different transmit and
+        receive frequencies
+    -   Can be set to use Integer-N tuning for better spur performance with uhd::tune_request_t
+
+Frequency Range: 10 MHz to 6 GHz
+
+Transmit Antennas: **TX/RX**
+
+Receive Antennas: **TX/RX** or **RX2**
+
+-   **Frontend 0:** Complex baseband signal for selected antenna
+
+-   **Note:** The user may set the receive antenna to be TX/RX or RX2.
+    However, when using a UBX board in full-duplex mode, the receive
+    antenna will always be set to RX2, regardless of the settings.
+
+Transmit Gains: **PGA0**, Range: 0-31.5dB
+
+Receive Gains: **PGA0**, Range: 0-31.5dB
+
+Bandwidths:
+
+-   **UBX**: 40 MHz, RX & TX
+-   **UBX-160**: 160 MHz, RX & TX
+
+Sensors:
+
+-   **lo_locked**: boolean for LO lock state
+
+LEDs:
+
+-   **LOCK**: Synthesizer Lock Detect
+-   **TX/RX TXD**: Transmitting on TX/RX antenna port
+-   **TX/RX RXD**: Receiving on TX/RX antenna port
+-   **RX2 RXD**: Receiving on RX2 antenna port
+
+
+Notes:
+- When used in the X300/X310 at frequencies below 1 GHz, it is necessary to
+  reduce the daughterboard clock rate to 20 MHz to achieve phase
+  synchronization and best RF performance (see \ref config_devaddr).
+
 \subsection dboards_tvrx TVRX
 
 The TVRX board has 1 real-mode frontend. It is operated at a low IF.
@@ -310,6 +372,8 @@ Bandwidth: 6 MHz
 \subsection dboards_tvrx2 TVRX2
 
 The TVRX2 board has 2 real-mode frontends. It is operated at a low IF.
+
+Frequency Range: 50 MHz to 860 MHz
 
 Receive Frontends:
 
@@ -331,6 +395,32 @@ Sensors:
 -   **rssi**: float for measured RSSI in dBm
 -   **temperature**: float for measured temperature in degC
 
+Notes:
+
+- The TVRX2 requires a 64 MHz, 100 MHz or 200 MHz reference clock. On the X3x0,
+  set the daughterboard clock rate accordingly (see \ref config_devaddr), typically
+  to 100 MHz.
+
+\subsection dboards_e300 E310 MIMO XCVR board
+
+Please refer to \ref e3x0_dboard_e310.
+
+\subsection dboards_n310 N310 XCVR board
+
+Please refer to \ref n3xx_mg.
+
+\subsection dboards_clock_rate Daughterboard reference clock
+
+The USRP motherboard provides a reference clock to the daughterboards, which
+the daughterboards will use to generate LO signals or anything else that
+requires a reference clock.
+
+The X3x0 has a programmable reference clock, which might have to be changed
+depending on various applications (see the daughterboard sections above).
+However, it can provide only one daughterboard clock per device, which can
+lead to conflicts. It might not be possible to use a specific daughterboard
+together with all others.
+
 \subsection dboards_dbsrxmod DBSRX - Modifying for other boards that USRP1
 
 Due to different clocking capabilities, the DBSRX will require
@@ -342,24 +432,25 @@ the standard daughterboard clock lines.
 
 \subsubsection dboards_dbsrxmod_1 Step 1: Move the clock configuration resistor
 
-Remove **R193** (which is 10 Ohms, 0603 size), and put it on **R194**,
-which is empty. This is made somewhat more complicated by the fact that
-the silkscreen is not clear in that area. **R193** is on the back,
-immediately below the large beige connector, **J2**. **R194** is just
-below, and to the left of **R193**. The silkscreen for **R193** is ok,
-but for **R194**, it is upside down, and partially cut off. If you lose
-**R193**, you can use anything from 0 to 10 Ohms there.
+Remove **R193** (which is 10 Ohms, 0603 size), and put it on **R194**, which is
+empty. This is made somewhat more complicated by the fact that the silkscreen
+is not clear in that area. **R193** is on the back, immediately below the large
+beige connector, **J2**. **R194** is just below, and to the left of **R193**.
 
-\subsubsection dboards_dbsrxmod_1 Step 2: Burn a new daughterboard id into the EEPROM
+The silkscreen for **R193** is ok, but for **R194**, it is upside down, and
+partially cut off. If you lose **R193**, you can use anything from 0 to 10 Ohms
+there.
+
+\subsubsection dboards_dbsrxmod_2 Step 2: Burn a new daughterboard id into the EEPROM
 
 With the daughterboard plugged-in, run the following commands:
 
     cd <install-path>/lib/uhd/utils
     ./usrp_burn_db_eeprom --id=0x000d --unit=RX --args=<args> --slot=<slot>
 
--   **\<args\>** are device address arguments (optional if only one USRP
+-   `<args>` are device address arguments (optional if only one USRP
     device is on your machine)
--   **\<slot\>** is the name of the daughterboard slot (optional if the
+-   `<slot>` is the name of the daughterboard slot (optional if the
     USRP device has only one slot)
 
 \subsection dboards_rfxmod RFX - Modify to use motherboard oscillator

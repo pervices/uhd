@@ -1,18 +1,8 @@
 //
 // Copyright 2011-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_STREAM_HPP
@@ -33,8 +23,25 @@ namespace uhd{
 /*!
  * A struct of parameters to construct a streamer.
  *
- * Note:
- * Not all combinations of CPU and OTW format have conversion support.
+ * Here is an example of how a stream args object could be used in conjunction
+ * with uhd::device::get_rx_stream():
+ *
+ * \code{.cpp}
+ * // 1. Create the stream args object and initialize the data formats to fc32 and sc16:
+ * uhd::stream_args_t stream_args("fc32", "sc16");
+ * // 2. Set the channel list, we want 3 streamers coming from channels
+ * //    0, 1 and 2, in that order:
+ * stream_args.channels = boost::assign::list_of(0)(1)(2);
+ * // 3. Set optional args:
+ * stream_args.args["spp"] = "200"; // 200 samples per packet
+ * // Now use these args to create an rx streamer:
+ * // (We assume that usrp is a valid uhd::usrp::multi_usrp)
+ * uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
+ * // Now, any calls to rx_stream must provide a vector of 3 buffers,
+ * // one per channel.
+ * \endcode
+ *
+ * \b Note: Not all combinations of CPU and OTW format have conversion support.
  * You may however write and register your own conversion routines.
  */
 struct UHD_API stream_args_t{
@@ -61,6 +68,8 @@ struct UHD_API stream_args_t{
      *  - f64 - double
      *  - s16 - int16_t
      *  - s8 - int8_t
+     *
+     * The CPU format can be chosen depending on what the application requires.
      */
     std::string cpu_format;
 
@@ -69,10 +78,18 @@ struct UHD_API stream_args_t{
      * The following over-the-wire formats have been implemented:
      *  - sc16 - Q16 I16
      *  - sc8 - Q8_1 I8_1 Q8_0 I8_0
+     *  - sc12 (Only some devices)
      *
      * The following are not implemented, but are listed to demonstrate naming convention:
      *  - s16 - R16_1 R16_0
      *  - s8 - R8_3 R8_2 R8_1 R8_0
+     *
+     * Setting the OTW ("over-the-wire") format is, in theory, transparent to the application,
+     * but changing this can have some side effects. Using less bits for example (e.g. when going
+     * from `otw_format` `sc16` to `sc8`) will reduce the dynamic range, and increases quantization
+     * noise. On the other hand, it reduces the load on the data link and thus allows more bandwidth
+     * (a USRP N210 can work with 25 MHz bandwidth for 16-Bit complex samples, and 50 MHz for 8-Bit
+     * complex samples).
      */
     std::string otw_format;
 
@@ -101,17 +118,35 @@ struct UHD_API stream_args_t{
      * Users should specify this option to request smaller than default
      * packets, probably with the intention of reducing packet latency.
      *
+     * - noclear: Used by tx_dsp_core_200 and rx_dsp_core_200
+     *
      * The following are not implemented, but are listed for conceptual purposes:
      * - function: magnitude or phase/magnitude
      * - units: numeric units like counts or dBm
+     *
+     * Other options are device-specific:
+     * - port, addr: Alternative receiver streamer destination.
      */
     device_addr_t args;
 
     /*!
      * The channels is a list of channel numbers.
-     * Leave this blank to default to channel 0.
+     * Leave this blank to default to channel 0 (single-channel application).
      * Set channels for a multi-channel application.
-     * Channel mapping depends on the front-end selection.
+     * Channel mapping depends on the front-end selection (see also \ref config_subdev).
+     *
+     * A very simple example is an X300 with two daughterboards and a subdev spec
+     * of `A:0 B:0`. This means the device has two channels available.
+     *
+     * Setting `stream_args.channels = (0, 1)` therefore configures MIMO streaming
+     * from both channels. By switching the channel indexes, `stream_args.channels = (1, 0)`,
+     * the channels are switched and the first channel of the USRP is mapped to
+     * the second channel in the application.
+     *
+     * If only a single channel is used for streaming, `stream_args.channels = (1,)` would
+     * only select a single channel (in this case, the second one). When streaming
+     * a single channel from the B-side radio of a USRP, this is a more versatile solution
+     * than setting the subdev globally to "B:0".
      */
     std::vector<size_t> channels;
 };
@@ -146,7 +181,7 @@ public:
      * will hold a pointer into the remaining portion of the packet.
      * Subsequent calls will load from the remainder of the packet,
      * and will flag the metadata to show that this is a fragment.
-     * The next call to receive, after the remainder becomes exahausted,
+     * The next call to receive, after the remainder becomes exhausted,
      * will perform an over-the-wire receive as usual.
      * See the rx metadata fragment flags and offset fields for details.
      *
@@ -158,6 +193,10 @@ public:
      * The one_packet option allows the user to guarantee that
      * the call will return after a single packet has been processed.
      * This may be useful to maintain packet boundaries in some cases.
+     *
+     * Note on threading: recv() is *not* thread-safe, to avoid locking
+     * overhead. The application calling recv() is responsible for making
+     * sure that not more than one thread can call recv() at the same time.
      *
      * \param buffs a vector of writable memory to fill with samples
      * \param nsamps_per_buff the size of each buffer in number of samples

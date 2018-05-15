@@ -1,27 +1,16 @@
 //
 // Copyright 2011-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/transport/usb_zero_copy.hpp>
 #include <uhd/transport/buffer_pool.hpp>
 #include <uhd/utils/byteswap.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/utils/atomic.hpp>
-#include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
@@ -60,9 +49,9 @@ public:
 
         //extract this packet's memory address and length in bytes
         char *mem = mrb->cast<char *>() + offset_bytes;
-        const boost::uint32_t *mem32 = reinterpret_cast<const boost::uint32_t *>(mem);
+        const uint32_t *mem32 = reinterpret_cast<const uint32_t *>(mem);
         const size_t words32 = (uhd::wtohx(mem32[0]) & 0xffff); //length in words32 (from VRT header)
-        const size_t len = words32*sizeof(boost::uint32_t); //length in bytes
+        const size_t len = words32*sizeof(uint32_t); //length in bytes
 
         //check if this receive buffer has been exhausted
         offset_bytes += len;
@@ -100,7 +89,7 @@ public:
         _ok_to_auto_flush = true;
 
         //get a reference to the VITA header before incrementing
-        const boost::uint32_t vita_header = reinterpret_cast<const boost::uint32_t *>(_mem_buffer_tip)[0];
+        const uint32_t vita_header = reinterpret_cast<const uint32_t *>(_mem_buffer_tip)[0];
 
         _bytes_in_buffer += size();
         _mem_buffer_tip += size();

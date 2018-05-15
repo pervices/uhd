@@ -8,7 +8,7 @@ A transport is the layer between the packet interface and a device IO
 interface. The advanced user can pass optional parameters into the
 underlying transport layer through the device address. These optional
 parameters control how the transport object allocates memory, resizes
-kernel buffers, spawns threads, etc. When not spcified, the transport
+kernel buffers, spawns threads, etc. When not specified, the transport
 layer will use values for these parameters that are known to perform
 well on a variety of systems. The transport parameters are defined below
 for the various transports in the UHD software:
@@ -16,17 +16,21 @@ for the various transports in the UHD software:
 \section transport_udp UDP Transport (Sockets)
 
 The UDP transport is implemented with user-space sockets. This means
-standard Berkeley sockets API using send()/recv().
+standard Berkeley sockets API using `send()`/`recv()`.
 
 \subsection transport_udp_params Transport parameters
 
 The following parameters can be used to alter the transport's default
-behavior:
+behavior (these options can be passed to a USRP device as arguments
+at initialization time, see also \ref config_devaddr):
 
 -   `recv_frame_size:` The size of a single receive buffer in bytes
 -   `num_recv_frames:` The number of receive buffers to allocate
 -   `send_frame_size:` The size of a single send buffer in bytes
 -   `num_send_frames:` The number of send buffers to allocate
+-   `recv_buff_fullness:` The targeted fullness factor of the the buffer (typically around 90%)
+-   `ups_per_sec`: USRP2 only. Flow control ACKs per second on TX.
+-   `ups_per_fifo`: USRP2 only. Flow control ACKs per total buffer size (in packets) on TX.
 
 <b>Notes:</b>
 - `num_recv_frames` does not affect performance.
@@ -75,11 +79,11 @@ proportional to the sample rate. Therefore, to improve receive latency,
 configure the transport for a smaller frame size.
 
 <b>Note2:</b> For overall latency improvements, look for "Interrupt
-Coalescing" settings for your OS and ethernet chipset. It seems the
-Intel ethernet chipsets offer fine-grained control in Linux. Also,
+Coalescing" settings for your OS and Ethernet chipset. It seems the
+Intel Ethernet chipsets offer fine-grained control in Linux. Also,
 consult:
 
--   <http://publib.boulder.ibm.com/infocenter/pseries/v5r3/index.jsp?topic=/com.ibm.aix.prftungd/doc/prftungd/interrupt_coal.htm>
+-   <http://www.ibm.com/support/knowledgecenter/SSQPD3_2.6.0/com.ibm.wllm.doc/batchingnic.html>
 
 \subsection transport_udp_linux Linux specific notes
 
@@ -92,14 +96,26 @@ values, run the following commands: :
 
 Set the values permanently by editing `/etc/sysctl.conf`.
 
+It is also possible to tune the network interface controller (NIC)
+by using ethtool. Increasing the number of descriptors for TX or RX can
+dramatically boost performance on some hosts.
+
+To change the number of TX/RX descriptors, run the following command:
+
+    sudo ethtool -G <interface> tx <N> rx <N>
+
+One can query the maximums and current settings with the following command:
+
+    ethtool -g <interface>
+
 \subsection transport_udp_windows Windows specific notes
 
-**UDP send fast-path:** It is important to change the default UDP
+<b>UDP send fast-path:</b> It is important to change the default UDP
 behavior such that 1500 byte packets still travel through the fast path
 of the sockets stack. This can be adjusted with the
-FastSendDatagramThreshold registry key:
+`FastSendDatagramThreshold` registry key:
 
--   FastSendDatagramThreshold registry key documented here:
+-   `FastSendDatagramThreshold` registry key documented here:
 
     -   <http://www.microsoft.com/windows/windowsmedia/howto/articles/optimize_web.aspx#appendix_e>
 

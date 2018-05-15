@@ -1,24 +1,16 @@
 //
-// Copyright 2013-2014 Ettus Research LLC
+// Copyright 2013-2017 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifdef E300_NATIVE
 
-#include <boost/cstdint.hpp>
+#include <uhd/utils/system_time.hpp>
 #include <uhd/config.hpp>
+#include <stdint.h>
+#include <atomic>
 
 // constants coded into the fpga parameters
 static const size_t ZF_CONFIG_BASE    = 0x40000000;
@@ -81,7 +73,7 @@ static UHD_INLINE size_t ZF_STREAM_OFF(const size_t which)
 #include <fcntl.h> //open, close
 #include <poll.h> //poll
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <boost/format.hpp>
 #include <boost/thread/thread.hpp> //sleep
 #include <uhd/types/time_spec.hpp> //timeout
@@ -95,36 +87,48 @@ static UHD_INLINE size_t ZF_STREAM_OFF(const size_t which)
 struct e300_fifo_poll_waiter
 {
     e300_fifo_poll_waiter(const int fd):
-        fd(fd)
+        _fd(fd),
+        _poll_claimed(false)
     {
         //NOP
     }
 
+    /*!
+     * Waits until the file descriptor fd has data to read.
+     * Access to the file descriptor is thread safe.
+     */
     void wait(const double timeout)
     {
-        if (_poll_claimed.cas(1, 0))
+        if (timeout == 0) {
+            return;
+        }
+
+        boost::mutex::scoped_lock l(_mutex);
+        if (_poll_claimed)
         {
-            boost::mutex::scoped_lock l(mutex);
-            cond.wait(l);
+            _cond.timed_wait(l, boost::posix_time::microseconds(timeout*1000000));
         }
         else
         {
+            _poll_claimed = true;
+            l.unlock();
             struct pollfd fds[1];
-            fds[0].fd = fd;
+            fds[0].fd = _fd;
             fds[0].events = POLLIN;
             ::poll(fds, 1, long(timeout*1000));
             if (fds[0].revents & POLLIN)
-                ::read(fd, NULL, 0);
+                ::read(_fd, NULL, 0);
 
-            _poll_claimed.write(0);
-            cond.notify_all();
+            l.lock();
+            _poll_claimed = 0;
+            _cond.notify_all();
         }
     }
 
-    uhd::atomic_uint32_t _poll_claimed;
-    boost::condition_variable cond;
-    boost::mutex mutex;
-    int fd;
+    boost::condition_variable _cond;
+    boost::mutex _mutex;
+    int _fd;
+    bool _poll_claimed;
 };
 
 static const size_t DEFAULT_FRAME_SIZE = 2048;
@@ -141,15 +145,15 @@ struct __mem_addrz_t
 /***********************************************************************
  * peek n' poke mmapped space
  **********************************************************************/
-UHD_INLINE void zf_poke32(const boost::uint32_t addr, const boost::uint32_t data)
+UHD_INLINE void zf_poke32(const uint32_t addr, const uint32_t data)
 {
-    volatile boost::uint32_t *p = reinterpret_cast<boost::uint32_t *>(addr);
+    volatile uint32_t *p = reinterpret_cast<uint32_t *>(addr);
     *p = data;
 }
 
-UHD_INLINE boost::uint32_t zf_peek32(const boost::uint32_t addr)
+UHD_INLINE uint32_t zf_peek32(const uint32_t addr)
 {
-    volatile const boost::uint32_t *p = reinterpret_cast<const boost::uint32_t *>(addr);
+    volatile const uint32_t *p = reinterpret_cast<const uint32_t *>(addr);
     return *p;
 }
 
@@ -202,11 +206,11 @@ public:
         _index(0),
         _waiter(waiter)
     {
-        //UHD_MSG(status) << boost::format("phys 0x%x") % addrs.phys << std::endl;
-        //UHD_MSG(status) << boost::format("data 0x%x") % addrs.data << std::endl;
-        //UHD_MSG(status) << boost::format("ctrl 0x%x") % addrs.ctrl << std::endl;
+        //UHD_LOGGER_INFO("E300") << boost::format("phys 0x%x") % addrs.phys ;
+        //UHD_LOGGER_INFO("E300") << boost::format("data 0x%x") % addrs.data ;
+        //UHD_LOGGER_INFO("E300") << boost::format("ctrl 0x%x") % addrs.ctrl ;
 
-        const boost::uint32_t sig = zf_peek32(_addrs.ctrl + ARBITER_RD_SIG);
+        const uint32_t sig = zf_peek32(_addrs.ctrl + ARBITER_RD_SIG);
         UHD_ASSERT_THROW((sig >> 16) == 0xACE0);
 
         zf_poke32(_addrs.ctrl + ARBITER_WR_CLEAR, 1);
@@ -235,12 +239,12 @@ public:
     template <typename T>
     UHD_INLINE typename T::sptr get_buff(const double timeout)
     {
-        const time_spec_t exit_time = time_spec_t::get_system_time() + time_spec_t(timeout);
-        do
+        const time_spec_t exit_time = uhd::get_system_time() + time_spec_t(timeout);
+        while (1)
         {
             if (zf_peek32(_addrs.ctrl + ARBITER_RB_STATUS_OCC))
             {
-                const boost::uint32_t sts = zf_peek32(_addrs.ctrl + ARBITER_RB_STATUS);
+                const uint32_t sts = zf_peek32(_addrs.ctrl + ARBITER_RB_STATUS);
                 UHD_ASSERT_THROW((sts >> 7) & 0x1); //assert OK
                 UHD_ASSERT_THROW((sts & 0xf) == _addrs.which); //expected tag
                 zf_poke32(_addrs.ctrl + ARBITER_WR_STS_RDY, 1); //pop from sts fifo
@@ -248,10 +252,12 @@ public:
                     _index = 0;
                 return _buffs[_index++]->get_new<T>();
             }
+            if (uhd::get_system_time() > exit_time) {
+                break;
+            }
             _waiter->wait(timeout);
             //boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         }
-        while (time_spec_t::get_system_time() < exit_time);
 
         return typename T::sptr();
     }
@@ -341,7 +347,7 @@ public:
     virtual ~e300_fifo_interface_impl(void)
     {
         delete _waiter;
-        UHD_LOG << "cleanup: munmap" << std::endl;
+        UHD_LOGGER_TRACE("E300")<< "cleanup: munmap" ;
         ::munmap(_buff, _config.ctrl_length + _config.buff_length);
         ::close(_fd);
     }

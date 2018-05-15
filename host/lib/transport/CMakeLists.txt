@@ -1,18 +1,8 @@
 #
-# Copyright 2010-2013 Ettus Research LLC
+# Copyright 2010-2013,2015 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0
 #
 
 ########################################################################
@@ -22,17 +12,15 @@
 ########################################################################
 # Include subdirectories (different than add)
 ########################################################################
-INCLUDE_SUBDIRECTORY(nirio)
+IF(ENABLE_X300)
+    INCLUDE_SUBDIRECTORY(nirio)
+ENDIF(ENABLE_X300)
 
 ########################################################################
 # Setup libusb
 ########################################################################
-MESSAGE(STATUS "")
-FIND_PACKAGE(USB1)
-
-LIBUHD_REGISTER_COMPONENT("USB" ENABLE_USB ON "ENABLE_LIBUHD;LIBUSB_FOUND" OFF)
-
 IF(ENABLE_USB)
+    MESSAGE(STATUS "")
     MESSAGE(STATUS "USB support enabled via libusb.")
     INCLUDE_DIRECTORIES(${LIBUSB_INCLUDE_DIRS})
     LIBUHD_APPEND_LIBS(${LIBUSB_LIBRARIES})
@@ -95,6 +83,7 @@ IF(WIN32)
     LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_wsa_zero_copy.cpp)
 ELSE()
     LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_zero_copy.cpp)
+    LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_stream_zero_copy.cpp)
 ENDIF()
 
 #On windows, the boost asio implementation uses the winsock2 library.
@@ -124,12 +113,31 @@ LIBUHD_PYTHON_GEN_SOURCE(
 )
 
 LIBUHD_APPEND_SOURCES(
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_copy_recv_offload.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tcp_zero_copy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer_pool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/if_addrs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/udp_simple.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nirio_zero_copy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/chdr.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/muxed_zero_copy_if.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/zero_copy_flow_ctrl.cpp
 )
+
+IF(ENABLE_X300)
+    LIBUHD_APPEND_SOURCES(
+        ${CMAKE_CURRENT_SOURCE_DIR}/nirio_zero_copy.cpp
+    )
+ENDIF(ENABLE_X300)
+
+IF(ENABLE_LIBERIO)
+    MESSAGE(STATUS "")
+    MESSAGE(STATUS "liberio support enabled.")
+    INCLUDE_DIRECTORIES(${LIBERIO_INCLUDE_DIRS})
+    LIBUHD_APPEND_LIBS(${LIBERIO_LIBRARIES})
+    LIBUHD_APPEND_SOURCES(
+        ${CMAKE_CURRENT_SOURCE_DIR}/liberio_zero_copy.cpp
+    )
+ENDIF(ENABLE_LIBERIO)
 
 # Verbose Debug output for send/recv
 SET( UHD_TXRX_DEBUG_PRINTS OFF CACHE BOOL "Use verbose debug output for send/recv" )

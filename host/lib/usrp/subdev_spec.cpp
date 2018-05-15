@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/usrp/subdev_spec.hpp>
@@ -20,7 +10,6 @@
 #include <boost/algorithm/string.hpp> //for split
 #include <boost/tokenizer.hpp>
 #include <boost/format.hpp>
-#include <boost/foreach.hpp>
 #include <sstream>
 #include <vector>
 
@@ -44,8 +33,16 @@ bool usrp::operator==(const subdev_spec_pair_t &lhs, const subdev_spec_pair_t &r
     return (lhs.db_name == rhs.db_name) and (lhs.sd_name == rhs.sd_name);
 }
 
+bool subdev_spec_pair_t::operator==(const subdev_spec_pair_t &other){
+    return (other.db_name == db_name) and (other.sd_name == sd_name);
+}
+
+bool subdev_spec_pair_t::operator!=(const subdev_spec_pair_t &other){
+    return (other.db_name != db_name) or (other.sd_name != sd_name);
+}
+
 subdev_spec_t::subdev_spec_t(const std::string &markup){
-    BOOST_FOREACH(const std::string &pair, pair_tokenizer(markup)){
+    for(const std::string &pair:  pair_tokenizer(markup)){
         if (pair.empty()) continue;
         std::vector<std::string> db_sd; boost::split(db_sd, pair, boost::is_any_of(":"));
         switch(db_sd.size()){
@@ -62,7 +59,7 @@ std::string subdev_spec_t::to_pp_string(void) const{
     std::stringstream ss;
     size_t count = 0;
     ss << "Subdevice Specification:" << std::endl;
-    BOOST_FOREACH(const subdev_spec_pair_t &pair, *this){
+    for(const subdev_spec_pair_t &pair:  *this){
         ss << boost::format(
             "    Channel %d: Daughterboard %s, Subdevice %s"
         ) % (count++) % pair.db_name % pair.sd_name << std::endl;
@@ -73,7 +70,7 @@ std::string subdev_spec_t::to_pp_string(void) const{
 std::string subdev_spec_t::to_string(void) const{
     std::string markup;
     size_t count = 0;
-    BOOST_FOREACH(const subdev_spec_pair_t &pair, *this){
+    for(const subdev_spec_pair_t &pair:  *this){
         markup += ((count++)? " " : "") + pair.db_name + ":" + pair.sd_name;
     }
     return markup;

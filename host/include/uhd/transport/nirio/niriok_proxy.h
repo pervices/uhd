@@ -1,18 +1,8 @@
 //
 // Copyright 2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_TRANSPORT_NIRIO_NIRIO_INTERFACE_H
@@ -145,29 +135,9 @@ namespace uhd { namespace niusrprio
 
     class UHD_API niriok_proxy : public boost::noncopyable {
     public:
-        struct nirio_ioctl_packet_t {
-             nirio_ioctl_packet_t(
-                 void* const _outBuf,
-                 const uint32_t _outSize,
-                 const int32_t _statusCode)
-             {
-                 outBuf._64BitField = 0;
-                 outBuf.pointer = _outBuf;
-                 outSize    = _outSize;
-                 statusCode = _statusCode;
-             };
+        typedef boost::shared_ptr<niriok_proxy> sptr;
 
-             union {
-                 void* pointer;
-                 uint64_t _64BitField;
-             } outBuf;
-
-             uint32_t outSize;
-             int32_t statusCode;
-         };
-      typedef boost::shared_ptr<niriok_proxy> sptr;
-
-      static sptr make_and_open(const std::string& interface_path);
+        static sptr make_and_open(const std::string& interface_path);
 
         niriok_proxy();
         virtual ~niriok_proxy();
@@ -179,9 +149,6 @@ namespace uhd { namespace niusrprio
         virtual nirio_status reset() = 0;
 
         uint32_t get_interface_num() { return _interface_num; }
-
-        virtual nirio_status get_cached_session(
-            uint32_t& session) = 0;
 
         virtual nirio_status get_version(
             nirio_version_t type,

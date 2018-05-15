@@ -1,19 +1,9 @@
 #!/usr/bin/env python
 #
 # Copyright 2010 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -30,18 +20,18 @@ chn              0[13]          0
 # Template for methods in the body of the struct
 ########################################################################
 BODY_TMPL="""\
-boost::uint16_t get_reg(void){
-    boost::uint16_t reg = 0;
-    #for $reg in filter(lambda r: r.get_addr() == 0, $regs)
-    reg |= (boost::uint32_t($reg.get_name()) & $reg.get_mask()) << $reg.get_shift();
-    #end for
+uint16_t get_reg(void){
+    uint16_t reg = 0;
+    % for reg in filter(lambda r: r.get_addr() == 0, regs):
+    reg |= (uint32_t(${reg.get_name()}) & ${reg.get_mask()}) << ${reg.get_shift()};
+    % endfor
     return reg;
 }
 
-void set_reg(boost::uint16_t reg){
-    #for $reg in filter(lambda r: r.get_addr() == 0, $regs)
-    $reg.get_name() = $(reg.get_type())((reg >> $reg.get_shift()) & $reg.get_mask());
-    #end for
+void set_reg(uint16_t reg){
+    % for reg in filter(lambda r: r.get_addr() == 0, regs):
+    ${reg.get_name()} = ${reg.get_type()}((reg >> ${reg.get_shift()}) & ${reg.get_mask()});
+    % endfor
 }
 """
 

@@ -1,18 +1,8 @@
 //
 // Copyright 2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_RPC_COMMON_HPP
@@ -31,25 +21,26 @@
     #include <boost/archive/text_oarchive.hpp>
     #include <boost/archive/text_iarchive.hpp>
 #endif
+#include <stdint.h>
 
 namespace uhd { namespace usrprio_rpc {
 
 //[Over-the-wire] IDs
-typedef boost::int32_t  func_id_t;
-typedef boost::uint64_t client_id_t;
+typedef int32_t  func_id_t;
+typedef uint64_t client_id_t;
 
 #define build_client_id(host_id, process_id) \
-    ((static_cast<boost::uint64_t>(host_id) << 32) | static_cast<boost::uint64_t>(process_id))
+    ((static_cast<uint64_t>(host_id) << 32) | static_cast<uint64_t>(process_id))
 #define get_process_id_from_client_id(client_id) \
-    (static_cast<boost::int32_t>(client_id))
+    (static_cast<int32_t>(client_id))
 #define get_host_id_from_client_id(client_id) \
-    (static_cast<boost::uint32_t>(client_id >> 32))
+    (static_cast<uint32_t>(client_id >> 32))
 
 //[Over-the-wire] Handshake format
 struct hshake_args_t {
-    boost::uint32_t version;
-    boost::uint32_t oldest_comp_version;
-    boost::int32_t  boost_archive_version;
+    uint32_t version;
+    uint32_t oldest_comp_version;
+    int32_t  boost_archive_version;
     client_id_t     client_id;
 };
 
@@ -58,7 +49,7 @@ class func_args_header_t {
 public:
     func_id_t       func_id;
     client_id_t     client_id;
-    boost::uint32_t func_args_size;
+    uint32_t func_args_size;
 
     static bool match_function(const func_args_header_t& a, const func_args_header_t& b) {
         return ((a.func_id == b.func_id) && (a.client_id == b.client_id));
@@ -139,7 +130,7 @@ private:
 
 class boost_serialization_archive_utils {
 public:
-    static boost::int32_t get_version() {
+    static int32_t get_version() {
     #if (USE_BINARY_ARCHIVE)
         typedef boost::archive::binary_oarchive archive_t;
     #else
@@ -147,7 +138,7 @@ public:
     #endif
         std::ostringstream stream;
         archive_t dummy_archive(stream, boost::archive::no_header);
-        return static_cast<boost::int32_t>(dummy_archive.get_library_version());
+        return static_cast<int32_t>(dummy_archive.get_library_version());
     }
 };
 

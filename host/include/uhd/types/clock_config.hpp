@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_TYPES_CLOCK_CONFIG_HPP
@@ -47,12 +37,12 @@ namespace uhd{
             REF_AUTO = int('a'), //automatic (device specific)
             REF_INT  = int('i'), //internal reference
             REF_SMA  = int('s'), //external sma port
-            REF_MIMO = int('m'), //reference from mimo cable
+            REF_MIMO = int('m')  //reference from mimo cable
         } ref_source;
         enum pps_source_t {
             PPS_INT  = int('i'), //there is no internal
             PPS_SMA  = int('s'), //external sma port
-            PPS_MIMO = int('m'), //time sync from mimo cable
+            PPS_MIMO = int('m')  //time sync from mimo cable
         } pps_source;
         enum pps_polarity_t {
             PPS_NEG = int('n'), //negative edge

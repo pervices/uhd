@@ -10,13 +10,14 @@ daughterboards, and the combinations thereof.
 
 ## Documentation
 
-The [UHD Homepage](http://code.ettus.com/redmine/ettus/projects/uhd/wiki),
-through which you can find installation instructions, documentation, and further
-information, is the primary source of UHD documentation and "Getting
-Started"-type guides.
-
 For technical documentation related to USRP™ hardware or UHD system
 design, check out the [UHD and USRP Manual](http://files.ettus.com/manual/).
+That is where you can find
+[Installation Instructions](http://files.ettus.com/manual/page_install.html),
+help on how to
+[build UHD from source](http://files.ettus.com/manual/page_build_guide.html) on
+different platforms, development guidelines and reference documentation as well
+as device usage guidance.
 
 Additionally, be sure to check out the Ettus Research
 [FAQ](http://www.ettus.com/kb/detail/frequently-asked-questions), and the
@@ -29,7 +30,7 @@ UHD is primarily developed on Linux, but we also test and support the following
 operating systems.
 
 * Linux (Fedora and Ubuntu)
-* Mac OS X (PPC and Intel)
+* Mac OS X (Intel)
 * Windows 7
 
 Other operating systems will most likely work, too, but are not officially
@@ -40,13 +41,14 @@ supported.
 UHD can be used to build stand-alone applications with USRP™ hardware, or with
 third-party applications. Some common toolkits / frameworks are:
 
-* [GNURadio](http://code.ettus.com/redmine/ettus/projects/uhd/wiki/GNU_Radio_UHD)
-* [LabVIEW](http://www.ni.com/download/ni-usrp-1.3/4711/en/)
-* [Simulink](http://www.mathworks.com/discovery/sdr/usrp.html)
-* [OpenBTS](http://wush.net/trac/rangepublic/wiki/BuildInstallRun)
-* [Iris](http://www.softwareradiosystems.com/redmine/projects/iris/wiki)
-* [Redhawk](https://github.com/redhawksdr)
-* [Amarisoft LTE eNodeB](http://www.amarisoft.com/?p=amarilte)
+* [GNU Radio](http://gnuradio.org/)
+* [NI LabVIEW](http://www.ni.com/download/ni-usrp-1.3/4711/en/)
+* [MathWorks Simulink](http://www.mathworks.com/discovery/sdr/usrp.html)
+* [REDHAWK](http://redhawksdr.github.io/Documentation/)
+* [OpenBTS GSM](http://openbts.org)
+* [Osmocom GSM](http://osmocom.org)
+* [Amarisoft LTE](http://www.amarisoft.com/products-lte-ue-ots-sdr-pcie)
+* [Software Radio Systems LTE](http://www.softwareradiosystems.com/products)
 
 ## Directories
 
@@ -73,7 +75,7 @@ building applications that link against UHD.
 __images/__
 
 This contains the package builder for FPGA and firmware images.
-We provide other tools to downloade image packages, the scripts in here
+We provide other tools to download image packages, the scripts in here
 are mainly relevant for UHD maintainers and -developers.
 
 __tools/__

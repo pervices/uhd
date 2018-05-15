@@ -1,18 +1,8 @@
 //
 // Copyright 2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/utils/math.hpp>
@@ -101,8 +91,8 @@ BOOST_AUTO_TEST_CASE(double_equality_operators) {
 
 BOOST_AUTO_TEST_CASE(float_inequality_operators) {
     // Test inequality operator, which is based on equality operator
-    fp_compare_delta<float> alpha = fp_compare_delta<float>(127.0);
-    fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value + 1.19e-3);
+    fp_compare_delta<float> alpha = fp_compare_delta<float>(127.0f);
+    fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value + 1.19e-3f);
 
     BOOST_CHECK(alpha != beta);
     BOOST_CHECK(alpha != float(alpha._value + 1.19e-3));
@@ -119,17 +109,17 @@ BOOST_AUTO_TEST_CASE(double_inequality_operators) {
 
 BOOST_AUTO_TEST_CASE(float_lessthan_operators) {
     // Test less-than operator
-    fp_compare_delta<float> alpha = fp_compare_delta<float>(274192.7);
-    fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value - 0.2);
+    fp_compare_delta<float> alpha = fp_compare_delta<float>(274192.7f);
+    fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value - 0.2f);
 
     BOOST_CHECK(beta < alpha);
     BOOST_CHECK(float(alpha._value - 0.2) < alpha);
 
     // Confirm false less-than case
-    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value - 1.2);
+    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value - 1.2f);
 
     BOOST_CHECK(not (alpha < charlie));
-    BOOST_CHECK(not (alpha < float(alpha._value - 1.2)));
+    BOOST_CHECK(not (alpha < float(alpha._value - 1.2f)));
 }
 
 BOOST_AUTO_TEST_CASE(double_lessthan_operators) {
@@ -149,14 +139,14 @@ BOOST_AUTO_TEST_CASE(double_lessthan_operators) {
 
 BOOST_AUTO_TEST_CASE(float_lessthanequals_operators) {
     // Test that <= correctly reports for equal values
-    fp_compare_delta<float> alpha = fp_compare_delta<float>(827.3);
+    fp_compare_delta<float> alpha = fp_compare_delta<float>(827.3f);
     fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value);
 
     BOOST_CHECK(alpha <= beta);
     BOOST_CHECK(alpha <= float(alpha._value));
 
     // Test that <= correctly reports for less-than values
-    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value - 1.2);
+    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value - 1.2f);
 
     BOOST_CHECK(charlie <= alpha);
     BOOST_CHECK(float(alpha._value - 1.2) <= alpha);
@@ -179,14 +169,14 @@ BOOST_AUTO_TEST_CASE(double_lessthanequals_operators) {
 
 BOOST_AUTO_TEST_CASE(float_greaterthan_operators) {
     // Test basic greater-than functionality
-    fp_compare_delta<float> alpha = fp_compare_delta<float>(98325.4);
-    fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value + 0.15);
+    fp_compare_delta<float> alpha = fp_compare_delta<float>(98325.4f);
+    fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value + 0.15f);
 
     BOOST_CHECK(beta > alpha);
     BOOST_CHECK(float(alpha._value + 0.15) > alpha);
 
     // Test false greater-than case
-    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value + 1.2);
+    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value + 1.2f);
 
     BOOST_CHECK(not (alpha > charlie));
     BOOST_CHECK(not (alpha > float(alpha._value + 1.2)));
@@ -209,14 +199,14 @@ BOOST_AUTO_TEST_CASE(double_greaterthan_operators) {
 
 BOOST_AUTO_TEST_CASE(float_greaterthanequals_operators) {
     // Test that >= correctly reports for equal values
-    fp_compare_delta<float> alpha = fp_compare_delta<float>(7834.89);
+    fp_compare_delta<float> alpha = fp_compare_delta<float>(7834.89f);
     fp_compare_delta<float> beta = fp_compare_delta<float>(alpha._value);
 
     BOOST_CHECK(alpha >= beta);
     BOOST_CHECK(alpha >= float(alpha._value));
 
     // Test that >= correctly reports for greater-than values
-    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value + 4.8);
+    fp_compare_delta<float> charlie = fp_compare_delta<float>(alpha._value + 4.8f);
 
     BOOST_CHECK(charlie >= alpha);
     BOOST_CHECK(float(alpha._value + 4.8) >= alpha);
@@ -237,14 +227,22 @@ BOOST_AUTO_TEST_CASE(double_greaterthanequals_operators) {
     BOOST_CHECK(double(alpha._value + 3.0008) >= alpha);
 }
 
+BOOST_AUTO_TEST_CASE(fp_compare_large_delta) {
+    BOOST_CHECK(fp_compare_delta<double>(61440000.047870710492, 0.1) == 61440000.000000000000);
+    BOOST_CHECK(fp_compare_delta<double>(61440000.047870710492, 0.1) <= 61440000.000000000000);
+    BOOST_CHECK(fp_compare_delta<double>(61440000.047870710492, 0.1) >= 61440000.000000000000);
+
+    BOOST_CHECK(fp_compare_delta<double>(1.0, 10.0) == 2.0);
+}
+
 BOOST_AUTO_TEST_CASE(frequency_compare_function) {
 
-    BOOST_CHECK(uhd::math::frequencies_are_equal(6817333232, 6817333232));
-    BOOST_CHECK(!uhd::math::frequencies_are_equal(6817333233, 6817333232));
+    BOOST_CHECK(uhd::math::frequencies_are_equal(6817333232.0, 6817333232.0));
+    BOOST_CHECK(!uhd::math::frequencies_are_equal(6817333233.0, 6817333232.0));
     BOOST_CHECK(uhd::math::frequencies_are_equal(6817333232.1, 6817333232.1));
     BOOST_CHECK(!uhd::math::frequencies_are_equal(6817333232.5, 6817333232.6));
     BOOST_CHECK(uhd::math::frequencies_are_equal(16.8173332321e9, 16.8173332321e9));
     BOOST_CHECK(!uhd::math::frequencies_are_equal(16.8173332322e9, 16.8173332321e9));
     BOOST_CHECK(!uhd::math::frequencies_are_equal(5.0, 4.0));
-    BOOST_CHECK(uhd::math::frequencies_are_equal(48750000, 48749999.9946));
+    BOOST_CHECK(uhd::math::frequencies_are_equal(48750000.0, 48749999.9946));
 }

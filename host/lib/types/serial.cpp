@@ -1,18 +1,8 @@
 //
 // Copyright 2011-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/types/serial.hpp>
@@ -40,12 +30,13 @@ spi_config_t::spi_config_t(edge_t edge):
     mosi_edge(edge),
     miso_edge(edge)
 {
-    /* NOP */
+    // By default don't use a custom clock speed for the transaction
+    use_custom_divider = false;
 }
 
 void i2c_iface::write_eeprom(
-    boost::uint16_t addr,
-    boost::uint16_t offset,
+    uint16_t addr,
+    uint16_t offset,
     const byte_vector_t &bytes
 ){
     for (size_t i = 0; i < bytes.size(); i++){
@@ -57,8 +48,8 @@ void i2c_iface::write_eeprom(
 }
 
 byte_vector_t i2c_iface::read_eeprom(
-    boost::uint16_t addr,
-    boost::uint16_t offset,
+    uint16_t addr,
+    uint16_t offset,
     size_t num_bytes
 ){
     byte_vector_t bytes;
@@ -79,22 +70,22 @@ struct eeprom16_impl : i2c_iface
     i2c_iface* _internal;
 
     byte_vector_t read_i2c(
-        boost::uint16_t addr,
+        uint16_t addr,
         size_t num_bytes
     ){
         return _internal->read_i2c(addr, num_bytes);
     }
 
     void write_i2c(
-        boost::uint16_t addr,
+        uint16_t addr,
         const byte_vector_t &bytes
     ){
         return _internal->write_i2c(addr, bytes);
     }
 
     byte_vector_t read_eeprom(
-        boost::uint16_t addr,
-        boost::uint16_t offset,
+        uint16_t addr,
+        uint16_t offset,
         size_t num_bytes
     ){
         byte_vector_t cmd = boost::assign::list_of(offset >> 8)(offset & 0xff);
@@ -103,14 +94,14 @@ struct eeprom16_impl : i2c_iface
     }
 
     void write_eeprom(
-        boost::uint16_t addr,
-        boost::uint16_t offset,
+        uint16_t addr,
+        uint16_t offset,
         const byte_vector_t &bytes
     ){
         for (size_t i = 0; i < bytes.size(); i++)
         {
             //write a byte at a time, its easy that way
-            boost::uint16_t offset_i = offset+i;
+            uint16_t offset_i = offset+i;
             byte_vector_t cmd = boost::assign::list_of(offset_i >> 8)(offset_i & 0xff)(bytes[i]);
             this->write_i2c(addr, cmd);
             boost::this_thread::sleep(boost::posix_time::milliseconds(10)); //worst case write
@@ -123,10 +114,10 @@ i2c_iface::sptr i2c_iface::eeprom16(void)
     return i2c_iface::sptr(new eeprom16_impl(this));
 }
 
-boost::uint32_t spi_iface::read_spi(
+uint32_t spi_iface::read_spi(
     int which_slave,
     const spi_config_t &config,
-    boost::uint32_t data,
+    uint32_t data,
     size_t num_bits
 ){
     return transact_spi(
@@ -137,7 +128,7 @@ boost::uint32_t spi_iface::read_spi(
 void spi_iface::write_spi(
     int which_slave,
     const spi_config_t &config,
-    boost::uint32_t data,
+    uint32_t data,
     size_t num_bits
 ){
     transact_spi(

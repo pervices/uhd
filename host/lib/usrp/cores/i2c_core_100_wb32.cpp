@@ -1,23 +1,13 @@
 //
 // Copyright 2011-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "i2c_core_100_wb32.hpp"
 #include <uhd/exception.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
+#include <uhdlib/usrp/cores/i2c_core_100_wb32.hpp>
 #include <boost/thread/thread.hpp> //sleep
 
 #define REG_I2C_PRESCALER_LO _base + 0
@@ -69,14 +59,14 @@ public:
 
     void set_clock_rate(const double rate)
     {
-        static const boost::uint32_t i2c_datarate = 400000;
-        boost::uint16_t prescaler = rate / (i2c_datarate*5) - 1;
+        static const uint32_t i2c_datarate = 400000;
+        uint16_t prescaler = uint16_t(rate / (i2c_datarate*5) - 1);
         _iface->poke32(REG_I2C_PRESCALER_LO, prescaler & 0xFF);
         _iface->poke32(REG_I2C_PRESCALER_HI, (prescaler >> 8) & 0xFF);
     }
 
     void write_i2c(
-        boost::uint16_t addr,
+        uint16_t addr,
         const byte_vector_t &bytes
     ){
         _iface->poke32(REG_I2C_DATA, (addr << 1) | 0); //addr and read bit (0)
@@ -99,7 +89,7 @@ public:
     }
 
     byte_vector_t read_i2c(
-        boost::uint16_t addr,
+        uint16_t addr,
         size_t num_bytes
     ){
         byte_vector_t bytes;
@@ -118,16 +108,16 @@ public:
         for (size_t i = 0; i < num_bytes; i++) {
             _iface->poke32(REG_I2C_CMD_STATUS, I2C_CMD_RD | ((num_bytes == i+1) ? (I2C_CMD_STOP | I2C_CMD_NACK) : 0));
             i2c_wait();
-            bytes.push_back(boost::uint8_t(_iface->peek32(REG_I2C_DATA)));
+            bytes.push_back(uint8_t(_iface->peek32(REG_I2C_DATA)));
         }
         return bytes;
     }
 
     //override read_eeprom so we can write once, read all N bytes
     //the default implementation calls read i2c once per byte
-    byte_vector_t read_eeprom(boost::uint16_t addr, boost::uint16_t offset, size_t num_bytes)
+    byte_vector_t read_eeprom(uint16_t addr, uint16_t offset, size_t num_bytes)
     {
-        this->write_i2c(addr, byte_vector_t(1, offset));
+        this->write_i2c(addr, byte_vector_t(1, uint8_t(offset)));
         return this->read_i2c(addr, num_bytes);
     }
 
@@ -138,7 +128,7 @@ private:
             if ((_iface->peek32(REG_I2C_CMD_STATUS) & I2C_ST_TIP) == 0) return;
             boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         }
-        UHD_MSG(error) << "i2c_core_100_wb32: i2c_wait timeout" << std::endl;
+        UHD_LOGGER_ERROR("CORES") << "i2c_core_100_wb32: i2c_wait timeout" ;
     }
 
     bool wait_chk_ack(void){

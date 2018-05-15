@@ -1,25 +1,14 @@
 //
 // Copyright 2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "../lib/usrp/e300/e300_network.hpp"
 #include <uhd/device.hpp>
 #include <uhd/exception.hpp>
 
-#include <uhd/utils/msg.hpp>
 #include <uhd/transport/if_addrs.hpp>
 
 #include <boost/program_options.hpp>
@@ -69,11 +58,11 @@ int main(int argc, char *argv[])
         uhd::usrp::e300::network_server::sptr server = uhd::usrp::e300::network_server::make(args);
         server->run();
     } catch (uhd::assertion_error &e) {
-        UHD_MSG(error) << "This executable is supposed to run on the device, not on the host." << std::endl
+        std::cout << "This executable is supposed to run on the device, not on the host." << std::endl
                        << "Please refer to the manual section on operating your e3x0 device in network mode." << std::endl;
         return EXIT_FAILURE;
     } catch (uhd::runtime_error &e) {
-        UHD_MSG(error) << e.what() << std::endl;
+        std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_EXCEPTION_HPP
@@ -91,10 +81,25 @@ namespace uhd{
         virtual void dynamic_throw(void) const;
     };
 
+    struct UHD_API narrowing_error : value_error{
+        narrowing_error(const std::string &what);
+        virtual unsigned code(void) const;
+        virtual narrowing_error *dynamic_clone(void) const;
+        virtual void dynamic_throw(void) const;
+    };
+
     struct UHD_API runtime_error : exception{
         runtime_error(const std::string &what);
         virtual unsigned code(void) const;
         virtual runtime_error *dynamic_clone(void) const;
+        virtual void dynamic_throw(void) const;
+    };
+
+    struct UHD_API usb_error : runtime_error{
+        int _code;
+        usb_error(int code, const std::string &what);
+        virtual unsigned code(void) const { return _code; };
+        virtual usb_error *dynamic_clone(void) const;
         virtual void dynamic_throw(void) const;
     };
 
@@ -133,10 +138,17 @@ namespace uhd{
         virtual void dynamic_throw(void) const;
     };
 
+    struct UHD_API syntax_error : exception{
+        syntax_error(const std::string &what);
+        virtual unsigned code(void) const;
+        virtual syntax_error *dynamic_clone(void) const;
+        virtual void dynamic_throw(void) const;
+    };
+
     /*!
-     * Create a formated string with throw-site information.
+     * Create a formatted string with throw-site information.
      * Fills in the function name, file name, and line number.
-     * \param what the std::exeption message
+     * \param what the std::exception message
      * \return the formatted exception message
      */
     #define UHD_THROW_SITE_INFO(what) std::string( \

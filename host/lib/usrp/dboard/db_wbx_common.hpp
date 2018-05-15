@@ -1,26 +1,21 @@
 //
 // Copyright 2011,2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_LIBUHD_USRP_DBOARD_DB_WBX_COMMON_HPP
 #define INCLUDED_LIBUHD_USRP_DBOARD_DB_WBX_COMMON_HPP
 
 #include <uhd/types/device_addr.hpp>
+#include <uhdlib/usrp/common/adf435x.hpp>
 
-#include "../common/adf435x_common.hpp"
+// LO Related
+#define ADF435X_CE      (1 << 3)
+#define ADF435X_PDBRF   (1 << 2)
+#define ADF435X_MUXOUT  (1 << 1) // INPUT!!!
+#define LOCKDET_MASK    (1 << 0) // INPUT!!!
 
 // TX IO Pins
 #define TX_PUP_5V       (1 << 7)                // enables 5.0V power supply
@@ -39,6 +34,9 @@
 #define TX_ATTN_2       (1 << 3)
 #define TX_ATTN_1       (1 << 1)
 #define TX_ATTN_MASK    (TX_ATTN_16|TX_ATTN_8|TX_ATTN_4|TX_ATTN_2|TX_ATTN_1)      // valid bits of TX Attenuator Control
+
+#define RX_ATTN_SHIFT 8 //lsb of RX Attenuator Control
+#define RX_ATTN_MASK (63 << RX_ATTN_SHIFT) //valid bits of RX Attenuator Control
 
 // Mixer functions
 #define TX_MIXER_ENB    (TXMOD_EN|ADF435X_PDBRF)    // for v3, TXMOD_EN tied to ADF435X_PDBRF rather than separate
@@ -142,6 +140,10 @@ protected:
         property_tree::sptr get_tx_subtree(void){
             return self_base->get_tx_subtree();
         }
+
+        adf435x_iface::sptr _txlo;
+        adf435x_iface::sptr _rxlo;
+        void write_lo_regs(dboard_iface::unit_t unit, const std::vector<uint32_t> &regs);
     };
 
 
@@ -153,7 +155,7 @@ protected:
     class wbx_version2 : public wbx_versionx {
     public:
         wbx_version2(wbx_base *_self_wbx_base);
-        ~wbx_version2(void);
+        virtual ~wbx_version2(void);
 
         double set_tx_gain(double gain, const std::string &name);
         void set_tx_enabled(bool enb);
@@ -168,7 +170,7 @@ protected:
     class wbx_version3 : public wbx_versionx {
     public:
         wbx_version3(wbx_base *_self_wbx_base);
-        ~wbx_version3(void);
+        virtual ~wbx_version3(void);
 
         double set_tx_gain(double gain, const std::string &name);
         void set_tx_enabled(bool enb);
@@ -183,7 +185,7 @@ protected:
     class wbx_version4 : public wbx_versionx {
     public:
         wbx_version4(wbx_base *_self_wbx_base);
-        ~wbx_version4(void);
+        virtual ~wbx_version4(void);
 
         double set_tx_gain(double gain, const std::string &name);
         void set_tx_enabled(bool enb);

@@ -131,6 +131,22 @@ use with a USRP X3xx:
 
 The above file was generated and modified on a Fedora 20 system.
 
+\subsection x3x0cfg_hostpc_pcie PCI Express Configuration
+
+\ref page_ni_rio_kernel
+
+\b Note: These instructions are \b only relevant for using a
+USRP X3xx device over a cabled PCIe transport (PCIe over MXIe cable).
+If you are using your USRP X3xx device over 1 Gigabit Ethernet or
+10 Gigabit Ethernet, these instructions do <em>not apply to you.</em>
+
+In order to use the USRP X300/X310 with PCI Express on Linux,
+NI USRP RIO kernel modules needs to be installed. In order to use
+the PCIe kernel module, and thus PCIe-over-cable with the X3xx,
+your operating and kernel must be supported by the drivers. Please look
+at the page above for a list of supported OS/kernel versions.
+
+
 \subsection x3x0cfg_hostpc_pwr Power Management
 
 Power management on the host system attempts to save power by reducing
@@ -151,20 +167,22 @@ issues, set the governor to "performance".
 
 1. Install cpufrequtils:
 
-    sudo apt-get install cpufrequtils
+    `sudo apt-get install cpufrequtils`
 
 2.  Edit `/etc/init.d/cpufrequtils` and set `GOVERNOR="performance"` on the
     appropriate line (run as root):
 
-    sed s/^GOVERNOR=.*$/GOVERNOR=\"performance\"/g /etc/init.d/cpufrequtils > /etc/init.d/cpufrequtils
+    `sed s/^GOVERNOR=.*$/GOVERNOR=\"performance\"/g /etc/init.d/cpufrequtils > /etc/init.d/cpufrequtils`
 
 3.  Restart cpufrequtils:
 
-    sudo /etc/init.d/cpufrequtils restart
+    `sudo /etc/init.d/cpufrequtils restart`
 
 \b Fedora:
 
-    sudo cpupower frequency-set -g performance
+1. Change the CPU governor:
+
+    `sudo cpupower frequency-set -g performance`
 
 \subsection x3x0cfg_hostpc_rtprio Real-Time & Priority Scheduling
 
@@ -189,38 +207,12 @@ Real-time scheduling is enabled via different methods depending on your
 application and operating system. In GNU Radio Companion, it can be
 turned on in each individual flowgraph.
 
-\subsection x3x0cfg_hostpc_volk Building with ORC & Volk
+\subsection x3x0cfg_hostpc_volk SIMD Acceleration
 
 Especially when running high-performance applications, processing
-performance can be dramatically improved by SIMD instructions. UHD uses
-ORC to provide SIMD capability, and GNU Radio includes a SIMD library
-called "Volk". These should both be used to guarantee optimum
-performance.
-
-\subsubsection x3x0cfg_hostpc_volk_orc Compiling UHD with ORC
-
-ORC, the <a href="http://code.entropywave.com/orc/">Oil Runtime Compiler</a>,
-is a third-party compiler that UHD uses to create efficient SIMD code for
-your particular computer. ORC is generally easily installed from your
-OS's package manager.
-
-On Fedora:
-
-    $ sudo yum update; sudo yum install orc-compiler orc-devel
-
-On Ubuntu:
-
-    $ sudo apt-get update; sudo apt-get install liborc-<version> liborc-<version>-dev
-
-After installing ORC, when building UHD from source, you should see
-"ORC" as one of the configured UHD components.
-
-    -- ######################################################
-    -- # UHD enabled components
-    -- ######################################################
-    --   * LibUHD
-         <cut for brevity>
-    --   * ORC
+performance can be dramatically improved by SIMD instructions.
+GNU Radio includes a SIMD library
+called "Volk", which should be used to guarantee optimum performance.
 
 \subsubsection x3x0cfg_hostpc_volk_volk Compiling GNURadio with Volk
 

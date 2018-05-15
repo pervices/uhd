@@ -1,24 +1,17 @@
 //
-// Copyright 2010-2012 Ettus Research LLC
+// Copyright 2010-2012,2015,2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "gpio_core_200.hpp"
-#include <uhd/types/serial.hpp>
 #include "clock_ctrl.hpp"
 #include "usrp2_regs.hpp" //wishbone address constants
+#include "usrp2_fifo_ctrl.hpp"
+#include "ad7922_regs.hpp" //aux adc
+#include "ad5623_regs.hpp" //aux dac
+#include <uhdlib/usrp/cores/gpio_core_200.hpp>
+#include <uhd/types/serial.hpp>
 #include <uhd/usrp/dboard_iface.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/exception.hpp>
@@ -26,8 +19,6 @@
 #include <boost/assign/list_of.hpp>
 #include <boost/asio.hpp> //htonl and ntohl
 #include <boost/math/special_functions/round.hpp>
-#include "ad7922_regs.hpp" //aux adc
-#include "ad5623_regs.hpp" //aux dac
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -36,7 +27,7 @@ using namespace boost::assign;
 class usrp2_dboard_iface : public dboard_iface{
 public:
     usrp2_dboard_iface(
-        wb_iface::sptr wb_iface,
+        timed_wb_iface::sptr wb_iface,
         uhd::i2c_iface::sptr i2c_iface,
         uhd::spi_iface::sptr spi_iface,
         usrp2_clock_ctrl::sptr clock_ctrl
@@ -53,37 +44,45 @@ public:
     void write_aux_dac(unit_t, aux_dac_t, double);
     double read_aux_adc(unit_t, aux_adc_t);
 
-    void _set_pin_ctrl(unit_t, boost::uint16_t);
-    void _set_atr_reg(unit_t, atr_reg_t, boost::uint16_t);
-    void _set_gpio_ddr(unit_t, boost::uint16_t);
-    void _set_gpio_out(unit_t, boost::uint16_t);
-    void set_gpio_debug(unit_t, int);
-    boost::uint16_t read_gpio(unit_t);
+    void set_pin_ctrl(unit_t unit, uint32_t value, uint32_t mask = 0xffffffff);
+    uint32_t get_pin_ctrl(unit_t unit);
+    void set_atr_reg(unit_t unit, atr_reg_t reg, uint32_t value, uint32_t mask = 0xffffffff);
+    uint32_t get_atr_reg(unit_t unit, atr_reg_t reg);
+    void set_gpio_ddr(unit_t unit, uint32_t value, uint32_t mask = 0xffffffff);
+    uint32_t get_gpio_ddr(unit_t unit);
+    void set_gpio_out(unit_t unit, uint32_t value, uint32_t mask = 0xffffffff);
+    uint32_t get_gpio_out(unit_t unit);
+    uint32_t read_gpio(unit_t unit);
 
-    void write_i2c(boost::uint16_t, const byte_vector_t &);
-    byte_vector_t read_i2c(boost::uint16_t, size_t);
+    void set_command_time(const uhd::time_spec_t& t);
+    uhd::time_spec_t get_command_time(void);
+
+    void write_i2c(uint16_t, const byte_vector_t &);
+    byte_vector_t read_i2c(uint16_t, size_t);
 
     void set_clock_rate(unit_t, double);
     double get_clock_rate(unit_t);
     std::vector<double> get_clock_rates(unit_t);
     void set_clock_enabled(unit_t, bool);
     double get_codec_rate(unit_t);
+    void set_fe_connection(unit_t unit, const std::string&, const fe_connection_t& fe_conn);
 
     void write_spi(
         unit_t unit,
         const spi_config_t &config,
-        boost::uint32_t data,
+        uint32_t data,
         size_t num_bits
     );
 
-    boost::uint32_t read_write_spi(
+    uint32_t read_write_spi(
         unit_t unit,
         const spi_config_t &config,
-        boost::uint32_t data,
+        uint32_t data,
         size_t num_bits
     );
 
 private:
+    timed_wb_iface::sptr _wb_iface;
     uhd::i2c_iface::sptr _i2c_iface;
     uhd::spi_iface::sptr _spi_iface;
     usrp2_clock_ctrl::sptr _clock_ctrl;
@@ -98,7 +97,7 @@ private:
  * Make Function
  **********************************************************************/
 dboard_iface::sptr make_usrp2_dboard_iface(
-    wb_iface::sptr wb_iface,
+    timed_wb_iface::sptr wb_iface,
     uhd::i2c_iface::sptr i2c_iface,
     uhd::spi_iface::sptr spi_iface,
     usrp2_clock_ctrl::sptr clock_ctrl
@@ -110,11 +109,12 @@ dboard_iface::sptr make_usrp2_dboard_iface(
  * Structors
  **********************************************************************/
 usrp2_dboard_iface::usrp2_dboard_iface(
-    wb_iface::sptr wb_iface,
+    timed_wb_iface::sptr wb_iface,
     uhd::i2c_iface::sptr i2c_iface,
     uhd::spi_iface::sptr spi_iface,
     usrp2_clock_ctrl::sptr clock_ctrl
 ):
+    _wb_iface(wb_iface),
     _i2c_iface(i2c_iface),
     _spi_iface(spi_iface),
     _clock_ctrl(clock_ctrl)
@@ -124,7 +124,7 @@ usrp2_dboard_iface::usrp2_dboard_iface(
     //reset the aux dacs
     _dac_regs[UNIT_RX] = ad5623_regs_t();
     _dac_regs[UNIT_TX] = ad5623_regs_t();
-    BOOST_FOREACH(unit_t unit, _dac_regs.keys()){
+    for(unit_t unit:  _dac_regs.keys()){
         _dac_regs[unit].data = 1;
         _dac_regs[unit].addr = ad5623_regs_t::ADDR_ALL;
         _dac_regs[unit].cmd  = ad5623_regs_t::CMD_RESET;
@@ -144,18 +144,22 @@ usrp2_dboard_iface::~usrp2_dboard_iface(void){
  * Clocks
  **********************************************************************/
 void usrp2_dboard_iface::set_clock_rate(unit_t unit, double rate){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     _clock_rates[unit] = rate; //set to shadow
     switch(unit){
     case UNIT_RX: _clock_ctrl->set_rate_rx_dboard_clock(rate); return;
     case UNIT_TX: _clock_ctrl->set_rate_tx_dboard_clock(rate); return;
+    default: UHD_THROW_INVALID_CODE_PATH();
     }
 }
 
 double usrp2_dboard_iface::get_clock_rate(unit_t unit){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     return _clock_rates[unit]; //get from shadow
 }
 
 std::vector<double> usrp2_dboard_iface::get_clock_rates(unit_t unit){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     switch(unit){
     case UNIT_RX: return _clock_ctrl->get_rates_rx_dboard_clock();
     case UNIT_TX: return _clock_ctrl->get_rates_tx_dboard_clock();
@@ -164,40 +168,56 @@ std::vector<double> usrp2_dboard_iface::get_clock_rates(unit_t unit){
 }
 
 void usrp2_dboard_iface::set_clock_enabled(unit_t unit, bool enb){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     switch(unit){
-    case UNIT_RX: _clock_ctrl->enable_rx_dboard_clock(enb); return;
-    case UNIT_TX: _clock_ctrl->enable_tx_dboard_clock(enb); return;
+    case UNIT_RX:   _clock_ctrl->enable_rx_dboard_clock(enb); return;
+    case UNIT_TX:   _clock_ctrl->enable_tx_dboard_clock(enb); return;
+    default: UHD_THROW_INVALID_CODE_PATH();
     }
 }
 
-double usrp2_dboard_iface::get_codec_rate(unit_t){
+double usrp2_dboard_iface::get_codec_rate(unit_t unit){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     return _clock_ctrl->get_master_clock_rate();
 }
+
 /***********************************************************************
  * GPIO
  **********************************************************************/
-void usrp2_dboard_iface::_set_pin_ctrl(unit_t unit, boost::uint16_t value){
-    return _gpio->set_pin_ctrl(unit, value);
+void usrp2_dboard_iface::set_pin_ctrl(unit_t unit, uint32_t value, uint32_t mask){
+    _gpio->set_pin_ctrl(unit, static_cast<uint16_t>(value), static_cast<uint16_t>(mask));
 }
 
-void usrp2_dboard_iface::_set_gpio_ddr(unit_t unit, boost::uint16_t value){
-    return _gpio->set_gpio_ddr(unit, value);
+uint32_t usrp2_dboard_iface::get_pin_ctrl(unit_t unit){
+    return static_cast<uint32_t>(_gpio->get_pin_ctrl(unit));
 }
 
-void usrp2_dboard_iface::_set_gpio_out(unit_t unit, boost::uint16_t value){
-    return _gpio->set_gpio_out(unit, value);
+void usrp2_dboard_iface::set_atr_reg(unit_t unit, atr_reg_t reg, uint32_t value, uint32_t mask){
+    _gpio->set_atr_reg(unit, reg, static_cast<uint16_t>(value), static_cast<uint16_t>(mask));
 }
 
-boost::uint16_t usrp2_dboard_iface::read_gpio(unit_t unit){
+uint32_t usrp2_dboard_iface::get_atr_reg(unit_t unit, atr_reg_t reg){
+    return static_cast<uint32_t>(_gpio->get_atr_reg(unit, reg));
+}
+
+void usrp2_dboard_iface::set_gpio_ddr(unit_t unit, uint32_t value, uint32_t mask){
+    _gpio->set_gpio_ddr(unit, static_cast<uint16_t>(value), static_cast<uint16_t>(mask));
+}
+
+uint32_t usrp2_dboard_iface::get_gpio_ddr(unit_t unit){
+    return static_cast<uint32_t>(_gpio->get_gpio_ddr(unit));
+}
+
+void usrp2_dboard_iface::set_gpio_out(unit_t unit, uint32_t value, uint32_t mask){
+    _gpio->set_gpio_out(unit, static_cast<uint16_t>(value), static_cast<uint16_t>(mask));
+}
+
+uint32_t usrp2_dboard_iface::get_gpio_out(unit_t unit){
+    return static_cast<uint32_t>(_gpio->get_gpio_out(unit));
+}
+
+uint32_t usrp2_dboard_iface::read_gpio(unit_t unit){
     return _gpio->read_gpio(unit);
-}
-
-void usrp2_dboard_iface::_set_atr_reg(unit_t unit, atr_reg_t atr, boost::uint16_t value){
-    return _gpio->set_atr_reg(unit, atr, value);
-}
-
-void usrp2_dboard_iface::set_gpio_debug(unit_t, int){
-    throw uhd::not_implemented_error("no set_gpio_debug implemented");
 }
 
 /***********************************************************************
@@ -211,29 +231,31 @@ static const uhd::dict<dboard_iface::unit_t, int> unit_to_spi_dev = map_list_of
 void usrp2_dboard_iface::write_spi(
     unit_t unit,
     const spi_config_t &config,
-    boost::uint32_t data,
+    uint32_t data,
     size_t num_bits
 ){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     _spi_iface->write_spi(unit_to_spi_dev[unit], config, data, num_bits);
 }
 
-boost::uint32_t usrp2_dboard_iface::read_write_spi(
+uint32_t usrp2_dboard_iface::read_write_spi(
     unit_t unit,
     const spi_config_t &config,
-    boost::uint32_t data,
+    uint32_t data,
     size_t num_bits
 ){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     return _spi_iface->read_spi(unit_to_spi_dev[unit], config, data, num_bits);
 }
 
 /***********************************************************************
  * I2C
  **********************************************************************/
-void usrp2_dboard_iface::write_i2c(boost::uint16_t addr, const byte_vector_t &bytes){
+void usrp2_dboard_iface::write_i2c(uint16_t addr, const byte_vector_t &bytes){
     return _i2c_iface->write_i2c(addr, bytes);
 }
 
-byte_vector_t usrp2_dboard_iface::read_i2c(boost::uint16_t addr, size_t num_bytes){
+byte_vector_t usrp2_dboard_iface::read_i2c(uint16_t addr, size_t num_bytes){
     return _i2c_iface->read_i2c(addr, num_bytes);
 }
 
@@ -245,13 +267,16 @@ void usrp2_dboard_iface::_write_aux_dac(unit_t unit){
         (UNIT_RX, SPI_SS_RX_DAC)
         (UNIT_TX, SPI_SS_TX_DAC)
     ;
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
     _spi_iface->write_spi(
-        unit_to_spi_dac[unit], spi_config_t::EDGE_FALL, 
+        unit_to_spi_dac[unit], spi_config_t::EDGE_FALL,
         _dac_regs[unit].get_reg(), 24
     );
 }
 
 void usrp2_dboard_iface::write_aux_dac(unit_t unit, aux_dac_t which, double value){
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
+
     _dac_regs[unit].data = boost::math::iround(4095*value/3.3);
     _dac_regs[unit].cmd = ad5623_regs_t::CMD_WR_UP_DAC_CHAN_N;
 
@@ -280,6 +305,8 @@ double usrp2_dboard_iface::read_aux_adc(unit_t unit, aux_adc_t which){
         (UNIT_TX, SPI_SS_TX_ADC)
     ;
 
+    if (unit == UNIT_BOTH) throw uhd::runtime_error("UNIT_BOTH not supported.");
+
     //setup spi config args
     spi_config_t config;
     config.mosi_edge = spi_config_t::EDGE_FALL;
@@ -297,11 +324,26 @@ double usrp2_dboard_iface::read_aux_adc(unit_t unit, aux_adc_t which){
         unit_to_spi_adc[unit], config,
         ad7922_regs.get_reg(), 16
     );
-    ad7922_regs.set_reg(boost::uint16_t(_spi_iface->read_spi(
+    ad7922_regs.set_reg(uint16_t(_spi_iface->read_spi(
         unit_to_spi_adc[unit], config,
         ad7922_regs.get_reg(), 16
     )));
 
     //convert to voltage and return
     return 3.3*ad7922_regs.result/4095;
+}
+
+uhd::time_spec_t usrp2_dboard_iface::get_command_time()
+{
+    return _wb_iface->get_time();
+}
+
+void usrp2_dboard_iface::set_command_time(const uhd::time_spec_t& t)
+{
+    _wb_iface->set_time(t);
+}
+
+void usrp2_dboard_iface::set_fe_connection(unit_t, const std::string&, const fe_connection_t&)
+{
+    throw uhd::not_implemented_error("fe connection configuration support not implemented");
 }

@@ -1,30 +1,20 @@
 //
 // Copyright 2011-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "validate_subdev_spec.hpp"
+#include "b100_impl.hpp"
+#include <uhd/utils/log.hpp>
+#include <uhdlib/usrp/common/validate_subdev_spec.hpp>
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
-#include "b100_impl.hpp"
+
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
-#include <uhd/utils/msg.hpp>
-#include <uhd/utils/log.hpp>
 #include <boost/make_shared.hpp>
 
 using namespace uhd;
@@ -36,10 +26,10 @@ void b100_impl::update_rates(void){
     _tree->access<double>(mb_path / "tick_rate").update();
 
     //and now that the tick rate is set, init the host rates to something
-    BOOST_FOREACH(const std::string &name, _tree->list(mb_path / "rx_dsps")){
+    for(const std::string &name:  _tree->list(mb_path / "rx_dsps")){
         _tree->access<double>(mb_path / "rx_dsps" / name / "rate" / "value").update();
     }
-    BOOST_FOREACH(const std::string &name, _tree->list(mb_path / "tx_dsps")){
+    for(const std::string &name:  _tree->list(mb_path / "tx_dsps")){
         _tree->access<double>(mb_path / "tx_dsps" / name / "rate" / "value").update();
     }
 }
@@ -129,7 +119,7 @@ rx_streamer::sptr b100_impl::get_rx_stream(const uhd::stream_args_t &args_){
 
     //calculate packet size
     static const size_t hdr_size = 0
-        + vrt::max_if_hdr_words32*sizeof(boost::uint32_t)
+        + vrt::max_if_hdr_words32*sizeof(uint32_t)
         + sizeof(vrt::if_packet_info_t().tlr) //forced to have trailer
         - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
@@ -188,7 +178,7 @@ tx_streamer::sptr b100_impl::get_tx_stream(const uhd::stream_args_t &args_){
 
     //calculate packet size
     static const size_t hdr_size = 0
-        + vrt::max_if_hdr_words32*sizeof(boost::uint32_t)
+        + vrt::max_if_hdr_words32*sizeof(uint32_t)
         + sizeof(vrt::if_packet_info_t().tlr) //forced to have trailer
         - sizeof(vrt::if_packet_info_t().sid) //no stream id ever used
         - sizeof(vrt::if_packet_info_t().cid) //no class id ever used

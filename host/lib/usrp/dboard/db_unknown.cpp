@@ -1,29 +1,18 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/types/ranges.hpp>
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/static.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/usrp/dboard_base.hpp>
 #include <uhd/usrp/dboard_manager.hpp>
 #include <boost/assign/list_of.hpp>
 #include <boost/format.hpp>
-#include <boost/foreach.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <vector>
 
@@ -43,13 +32,13 @@ static void warn_if_old_rfx(const dboard_id_t &dboard_id, const std::string &xx)
         (old_ids_t("Flex 1800 Classic", 0x0030, 0x0031))
         (old_ids_t("Flex 2400 Classic", 0x0007, 0x000b))
     ;
-    BOOST_FOREACH(const old_ids_t &old_id, old_rfx_ids){
+    for(const old_ids_t &old_id:  old_rfx_ids){
         std::string name; dboard_id_t rx_id, tx_id;
         boost::tie(name, rx_id, tx_id) = old_id;
         if (
             (xx == "RX" and rx_id == dboard_id) or
             (xx == "TX" and tx_id == dboard_id)
-        ) UHD_MSG(warning) << boost::format(
+        ) UHD_LOGGER_WARNING("unknown_db") << boost::format(
             "Detected %s daughterboard %s\n"
             "This board requires modification to use.\n"
             "See the daughterboard application notes.\n"

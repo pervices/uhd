@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <boost/test/unit_test.hpp>
@@ -20,7 +10,6 @@
 #include <uhd/types/device_addr.hpp>
 #include <uhd/usrp/dboard_id.hpp>
 #include <boost/assign/list_of.hpp>
-#include <boost/foreach.hpp>
 #include <algorithm>
 #include <iostream>
 
@@ -66,6 +55,13 @@ BOOST_AUTO_TEST_CASE(test_device_addr){
         old_dev_addr_vals.begin(), old_dev_addr_vals.end(),
         new_dev_addr_vals.begin(), new_dev_addr_vals.end()
     );
+
+    uhd::device_addr_t dev_addr_lhs1("key1=val1,key2=val2");
+    dev_addr_lhs1.update(uhd::device_addr_t("key2=val2x,key3=val3"), false);
+    BOOST_CHECK_EQUAL(dev_addr_lhs1["key1"], "val1");
+    BOOST_CHECK_EQUAL(dev_addr_lhs1["key2"], "val2x");
+    BOOST_CHECK_EQUAL(dev_addr_lhs1["key3"], "val3");
+    std::cout << "Merged: " << dev_addr_lhs1.to_string() << std::endl;
 }
 
 BOOST_AUTO_TEST_CASE(test_dboard_id){

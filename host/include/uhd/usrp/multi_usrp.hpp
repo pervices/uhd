@@ -1,18 +1,8 @@
 //
-// Copyright 2010-2012,2014 Ettus Research LLC
+// Copyright 2010-2012,2014-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_USRP_MULTI_USRP_HPP
@@ -22,10 +12,16 @@
 #define UHD_USRP_MULTI_USRP_REF_SOURCES_API
 #define UHD_USRP_MULTI_USRP_GET_RATES_API
 #define UHD_USRP_MULTI_USRP_FRONTEND_CAL_API
+#define UHD_USRP_MULTI_USRP_FRONTEND_IQ_AUTO_API
 #define UHD_USRP_MULTI_USRP_COMMAND_TIME_API
 #define UHD_USRP_MULTI_USRP_BW_RANGE_API
 #define UHD_USRP_MULTI_USRP_USER_REGS_API
 #define UHD_USRP_MULTI_USRP_GET_USRP_INFO_API
+#define UHD_USRP_MULTI_USRP_NORMALIZED_GAIN
+#define UHD_USRP_MULTI_USRP_GPIO_API
+#define UHD_USRP_MULTI_USRP_REGISTER_API
+#define UHD_USRP_MULTI_USRP_FILTER_API
+#define UHD_USRP_MULTI_USRP_LO_CONFIG_API
 
 #include <uhd/config.hpp>
 #include <uhd/device.hpp>
@@ -35,6 +31,7 @@
 #include <uhd/types/tune_request.hpp>
 #include <uhd/types/tune_result.hpp>
 #include <uhd/types/sensors.hpp>
+#include <uhd/types/filters.hpp>
 #include <uhd/usrp/subdev_spec.hpp>
 #include <uhd/usrp/dboard_iface.hpp>
 #include <boost/shared_ptr.hpp>
@@ -106,17 +103,22 @@ public:
     //! A wildcard gain element name
     static const std::string ALL_GAINS;
 
+    //! A wildcard LO stage name
+    static const std::string ALL_LOS;
+
     /*!
      * Make a new multi usrp from the device address.
      * \param dev_addr the device address
      * \return a new single usrp object
+     * \throws uhd::key_error no device found
+     * \throws uhd::index_error fewer devices found than expected
      */
     static sptr make(const device_addr_t &dev_addr);
 
     /*!
      * Get the underlying device object.
      * This is needed to get access to the streaming API and properties.
-     * \return the device object within this single usrp
+     * \return the device object within this USRP
      */
     virtual device::sptr get_device(void) = 0;
 
@@ -150,11 +152,23 @@ public:
 
     /*!
      * Set the master clock rate.
-     * This controls the rate of the clock that feeds the FPGA DSP.
-     * On some devices, this re-tunes the clock to the specified rate.
-     * If the specified rate is not available, this method will throw.
-     * On other devices, this method notifies the software of the rate,
-     * but requires the the user has made the necessary hardware change.
+     *
+     * What exactly this changes is device-dependent, but it will always
+     * affect the rate at which the ADC/DAC is running.
+     *
+     * Like tuning receive or transmit frequencies, this call will do a best
+     * effort to change the master clock rate. The device will coerce to the
+     * closest clock rate available, and on many devices won't actually change
+     * anything at all. Call get_master_clock_rate() to see which rate was
+     * actually applied.
+     *
+     * Note that changing this value during streaming is not recommended and
+     * can have random side effects.
+     *
+     * If the device has an 'auto clock rate' setting (e.g. B200, see also
+     * \ref b200_auto_mcr), calling this function will disable the automatic
+     * clock rate selection, and the clock rate will be fixed to \p rate.
+     *
      * \param rate the new master clock rate in Hz
      * \param mboard the motherboard index 0 to M-1
      */
@@ -188,7 +202,7 @@ public:
     virtual time_spec_t get_time_now(size_t mboard = 0) = 0;
 
     /*!
-     * Get the time when the last pps pulse occured.
+     * Get the time when the last pps pulse occurred.
      * \param mboard which motherboard to query
      * \return a timespec representing the last pps
      */
@@ -383,7 +397,7 @@ public:
      * \param data 32-bit register value
      * \param mboard which motherboard to set the user register
      */
-    virtual void set_user_register(const boost::uint8_t addr, const boost::uint32_t data, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_user_register(const uint8_t addr, const uint32_t data, size_t mboard = ALL_MBOARDS) = 0;
 
     /*******************************************************************
      * RX methods
@@ -475,6 +489,300 @@ public:
      */
     virtual freq_range_t get_fe_rx_freq_range(size_t chan = 0) = 0;
 
+    /**************************************************************************
+     * LO controls
+     *************************************************************************/
+    /*! Get a list of possible LO stage names
+     *
+     * Example: On the TwinRX, this will return "LO1", "LO2". These names can
+     * are used in other LO-related API calls, so this function can be used for
+     * automatically enumerating LO stages.
+     * An empty return value doesn't mean there are no LOs, it means that this
+     * radio does not have an LO API implemented, and typically means the LOs
+     * have no direct way of being controlled other than setting the frequency.
+     *
+     * \param chan the channel index 0 to N-1
+     * \return a vector of strings for possible LO names, or an empty list of
+     *         this doesn't apply (i.e. there are no controllable LO stages)
+     */
+    virtual std::vector<std::string> get_rx_lo_names(size_t chan = 0) = 0;
+
+    /*! Set the LO source for the USRP device.
+     *
+     * For USRPs that support selectable LO sources, this function allows
+     * switching between them. Typical options for source: internal, external.
+     *
+     * \param src a string representing the LO source
+     * \param name the name of the LO stage to update. If the wildcard value
+     *             ALL_LOS is used, the setting will be applied to all LOs on
+     *             this channel.
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_rx_lo_source(
+            const std::string &src,
+            const std::string &name = ALL_LOS,
+            size_t chan = 0
+    ) = 0;
+
+    /*! Get the currently selected LO source.
+     *
+     * Channels without controllable LO sources will always return "internal".
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return the configured LO source
+     */
+    virtual const std::string get_rx_lo_source(
+            const std::string &name = ALL_LOS,
+            size_t chan = 0
+    ) = 0;
+
+    /*!  Get a list of possible LO sources.
+     *
+     * Channels which do not have controllable LO sources will return
+     * "internal". Typical values are "internal" and "external", although the
+     * TwinRX has more options, such as "companion". These options are device-
+     * specific.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return a vector of strings for possible settings
+     */
+    virtual std::vector<std::string> get_rx_lo_sources(
+            const std::string &name = ALL_LOS,
+            size_t chan = 0
+    ) = 0;
+
+    /*! Set whether the LO used by the device is exported
+     *
+     * For USRPs that support exportable LOs, this function
+     * configures if the LO used by chan is exported or not.
+     *
+     * \param enabled if true then export the LO
+     * \param name the name of the LO stage to update
+     * \param chan the channel index 0 to N-1 for the source channel
+     * \throws uhd::runtime_error if LO exporting is not enabled
+     */
+    virtual void set_rx_lo_export_enabled(
+            bool enabled,
+            const std::string &name = ALL_LOS,
+            size_t chan = 0
+    ) = 0;
+
+    /*!  Returns true if the currently selected LO is being exported.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     */
+    virtual bool get_rx_lo_export_enabled(
+            const std::string &name = ALL_LOS,
+            size_t chan = 0
+    ) = 0;
+
+    /*! Set the RX LO frequency (Advanced).
+     *
+     * The actual behaviour is device-specific. However, as a rule of thumb,
+     * this will coerce the underlying driver into some state. Typical
+     * situations include:
+     * - LOs are internal, and this function is called to pin an LO to a
+     *   certain value. This can force the driver to pick different IFs for
+     *   different stages, and there may be situations where this behaviour
+     *   can be used to reduce spurs in specific bands.
+     * - LOs are external. In this case, this function is used to notify UHD
+     *   what the actual value of an externally provided LO is. The only time
+     *   when calling this function is necessary is when the LO source is set
+     *   to external, but the external LO can't be tuned to the exact value
+     *   required by UHD to achieve a certain center frequency. In this case,
+     *   calling set_rx_lo_freq() will let UHD know that the LO is not the
+     *   expected value, and it's possible that UHD will find other ways to
+     *   compensate for the LO offset.
+     *
+     * \param freq the frequency to set the LO to
+     * \param name the name of the LO stage to update
+     * \param chan the channel index 0 to N-1
+     * \return a coerced LO frequency
+     */
+    virtual double set_rx_lo_freq(
+            double freq,
+            const std::string &name,
+            size_t chan = 0
+    ) = 0;
+
+    /*!  Get the current RX LO frequency (Advanced).
+     *
+     * If the channel does not have independently configurable LOs
+     * the current rf frequency will be returned. See also set_rx_lo_freq() for
+     * more information.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return the configured LO frequency
+     */
+    virtual double get_rx_lo_freq(
+            const std::string &name,
+            size_t chan = 0
+    ) = 0;
+
+    /*!  Get the LO frequency range of the RX LO.
+     *
+     * If the channel does not have independently configurable LOs
+     * the rf frequency range will be returned.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return a frequency range object
+     */
+    virtual freq_range_t get_rx_lo_freq_range(
+            const std::string &name,
+            size_t chan = 0
+    ) = 0;
+
+    /*! Get a list of possible TX LO stage names
+     *
+     * See also get_rx_lo_names().
+     *
+     * An empty return value doesn't mean there are no LOs, it means that this
+     * radio does not have an LO API implemented, and typically means the LOs
+     * have no direct way of being controlled other than setting the frequency.
+     *
+     * \param chan the channel index 0 to N-1
+     * \return a vector of strings for possible LO names, or an empty list of
+     *         this doesn't apply (i.e. there are no controllable LO stages)
+     */
+    virtual std::vector<std::string> get_tx_lo_names(size_t chan = 0) = 0;
+
+    /*! Set the TX LO source for the USRP device.
+     *
+     * For USRPs that support selectable LO sources, this function allows
+     * switching between them. Typical options for source: internal, external.
+     *
+     * \param src a string representing the LO source
+     * \param name the name of the LO stage to update. If the wildcard value
+     *             ALL_LOS is used, the setting will be applied to all LOs on
+     *             this channel.
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_tx_lo_source(
+            const std::string &src,
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    ) = 0;
+
+    /*! Get the currently selected TX LO source.
+     *
+     * Channels without controllable LO sources will always return "internal".
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return the configured LO source
+     */
+    virtual const std::string get_tx_lo_source(
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    ) = 0;
+
+    /*! Get a list of possible LO sources.
+     *
+     * Channels which do not have controllable LO sources will return
+     * "internal". Typical values are "internal" and "external".
+     * These options are device-specific.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return a vector of strings for possible settings
+     */
+    virtual std::vector<std::string> get_tx_lo_sources(
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    ) = 0;
+
+    /*! Set whether the TX LO used by the device is exported
+     *
+     * For USRPs that support exportable LOs, this function
+     * configures if the LO used by chan is exported or not.
+     *
+     * \param enabled if true then export the LO
+     * \param name the name of the LO stage to update
+     * \param chan the channel index 0 to N-1 for the source channel
+     * \throws uhd::runtime_error if LO exporting is not enabled
+     */
+    virtual void set_tx_lo_export_enabled(
+            const bool enabled,
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    ) = 0;
+
+    /*!  Returns true if the currently selected LO is being exported.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     */
+    virtual bool get_tx_lo_export_enabled(
+            const std::string &name = ALL_LOS,
+            const size_t chan = 0
+    ) = 0;
+
+    /*! Set the TX LO frequency (Advanced).
+     *
+     * The actual behaviour is device-specific. However, as a rule of thumb,
+     * this will coerce the underlying driver into some state. Typical
+     * situations include:
+     * - LOs are internal, and this function is called to pin an LO to a
+     *   certain value. This can force the driver to pick different IFs for
+     *   different stages, and there may be situations where this behaviour
+     *   can be used to reduce spurs in specific bands.
+     * - LOs are external. In this case, this function is used to notify UHD
+     *   what the actual value of an externally provided LO is. The only time
+     *   when calling this function is necessary is when the LO source is set
+     *   to external, but the external LO can't be tuned to the exact value
+     *   required by UHD to achieve a certain center frequency. In this case,
+     *   calling set_tx_lo_freq() will let UHD know that the LO is not the
+     *   expected value, and it's possible that UHD will find other ways to
+     *   compensate for the LO offset.
+     *
+     * \param freq the frequency to set the LO to
+     * \param name the name of the LO stage to update
+     * \param chan the channel index 0 to N-1
+     * \return a coerced LO frequency
+     */
+    virtual double set_tx_lo_freq(
+            const double freq,
+            const std::string &name,
+            const size_t chan=0
+    ) = 0;
+
+    /*!  Get the current TX LO frequency (Advanced).
+     *
+     * If the channel does not have independently configurable LOs
+     * the current rf frequency will be returned. See also set_tx_lo_freq() for
+     * more information.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return the configured LO frequency
+     */
+    virtual double get_tx_lo_freq(
+            const std::string &name,
+            const size_t chan=0
+    ) = 0;
+
+    /*!  Get the LO frequency range of the TX LO.
+     *
+     * If the channel does not have independently configurable LOs
+     * the rf frequency range will be returned.
+     *
+     * \param name the name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return a frequency range object
+     */
+    virtual freq_range_t get_tx_lo_freq_range(
+            const std::string &name,
+            const size_t chan=0
+    ) = 0;
+
+    /**************************************************************************
+     * Gain controls
+     *************************************************************************/
     /*!
      * Set the RX gain value for the specified gain element.
      * For an empty name, distribute across all gain elements.
@@ -484,10 +792,66 @@ public:
      */
     virtual void set_rx_gain(double gain, const std::string &name, size_t chan = 0) = 0;
 
+    /*! Get a list of possible RX gain profile options
+     *
+     * Example: On the TwinRX, this will return "low-noise", "low-distortion" or "default".
+     * These names can be used in gain-profile related API called.
+     * An empty return value doesn't mean there are no profile options, it means that
+     * this radio does not have any gain profiles implemented, and typically means
+     * there is only one default profile of set gain
+     *
+     * \param chan the channel index 0 to N-1
+     * \return a vector of strings for possible gain profile options, or an empty list of
+     *         this doesn't apply.
+     */
+    virtual std::vector<std::string> get_rx_gain_profile_names(const size_t chan = 0) = 0;
+
+    /*!
+     * Set the RX gain profile.
+     * \param profile the profile string option
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_rx_gain_profile(const std::string& profile, const size_t chan = 0) = 0;
+
+    /*!
+     * Get the RX gain profile.
+     * \param chan the channel index 0 to N-1
+     * \return a string of current RX gain profile of corresponding channel.
+     */
+    virtual std::string get_rx_gain_profile(const size_t chan = 0) = 0;
+
     //! A convenience wrapper for setting overall RX gain
     void set_rx_gain(double gain, size_t chan = 0){
         return this->set_rx_gain(gain, ALL_GAINS, chan);
     }
+
+    /*!
+     * Set the normalized RX gain value.
+     *
+     * The normalized gain is a value in [0, 1], where 0 is the
+     * smallest gain value available, and 1 is the largest, independent
+     * of the device. In between, gains are linearly interpolated.
+     *
+     * Check the individual device manual for notes on the gain range.
+     *
+     * Note that it is not possible to specify a gain name for
+     * this function, it will always set the overall gain.
+     *
+     * \param gain the normalized gain value
+     * \param chan the channel index 0 to N-1
+     * \throws A uhd::runtime_error if the gain value is outside [0, 1].
+     */
+    virtual void set_normalized_rx_gain(double gain, size_t chan = 0) = 0;
+
+    /*!
+     * Enable or disable the RX AGC module.
+     * Once this module is enabled manual gain settings will be ignored.
+     * The AGC will start in a default configuration which should be good for most use cases.
+     * Device specific configuration parameters can be found in the property tree.
+     * \param enable Enable or Disable the AGC
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_rx_agc(bool enable, size_t chan = 0) = 0;
 
     /*!
      * Get the RX gain value for the specified gain element.
@@ -502,6 +866,18 @@ public:
     double get_rx_gain(size_t chan = 0){
         return this->get_rx_gain(ALL_GAINS, chan);
     }
+
+    /*!
+     * Return the normalized RX gain value.
+     *
+     * See set_normalized_rx_gain() for a discussion of normalized
+     * gains.
+     *
+     * \param chan the channel index 0 to N-1
+     * \returns The normalized gain (in [0, 1])
+     * \throws A uhd::runtime_error if the gain value is outside [0, 1].
+     */
+    virtual double get_normalized_rx_gain(size_t chan = 0) = 0;
 
     /*!
      * Get the RX gain range for the specified gain element.
@@ -615,6 +991,14 @@ public:
     virtual void set_rx_dc_offset(const std::complex<double> &offset, size_t chan = ALL_CHANS) = 0;
 
     /*!
+     * Enable/disable the automatic IQ imbalance correction.
+     *
+     * \param enb true to enable automatic IQ balance correction
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_rx_iq_balance(const bool enb, size_t chan) = 0;
+
+    /*!
      * Set the RX frontend IQ imbalance correction.
      * Use this to adjust the magnitude and phase of I and Q.
      *
@@ -722,10 +1106,50 @@ public:
      */
     virtual void set_tx_gain(double gain, const std::string &name, size_t chan = 0) = 0;
 
+    /*! Get a list of possible TX gain profile options
+     *
+     * Example: On the N310, this will return "manual" or "default".
+     * These names can be used in gain related API called.
+     * An empty return value doesn't mean there are no profile options, it means that
+     * this radio does not have any gain profiles implemented, and typically means
+     * there is only one default profile of set gain
+     *
+     * \param chan the channel index 0 to N-1
+     * \return a vector of strings for possible gain profile options, or an empty list of
+     *         this doesn't apply.
+     */
+    virtual std::vector<std::string> get_tx_gain_profile_names(const size_t chan = 0) = 0;
+
+    /*!
+     * Set the TX gain profile.
+     * \param profile the profile string option
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_tx_gain_profile(const std::string& profile, const size_t chan = 0) = 0;
+
+    /*!
+     * Get the TX gain profile.
+     * \param chan the channel index 0 to N-1
+     * \return a string of current TX gain profile of corresponding channel.
+     */
+    virtual std::string get_tx_gain_profile(const size_t chan = 0) = 0;
+
     //! A convenience wrapper for setting overall TX gain
     void set_tx_gain(double gain, size_t chan = 0){
         return this->set_tx_gain(gain, ALL_GAINS, chan);
     }
+
+    /*!
+     * Set the normalized TX gain value.
+     *
+     * See set_normalized_rx_gain() for a discussion on normalized
+     * gains.
+     *
+     * \param gain the normalized gain value
+     * \param chan the channel index 0 to N-1
+     * \throws A uhd::runtime_error if the gain value is outside [0, 1].
+     */
+    virtual void set_normalized_tx_gain(double gain, size_t chan = 0) = 0;
 
     /*!
      * Get the TX gain value for the specified gain element.
@@ -740,6 +1164,18 @@ public:
     double get_tx_gain(size_t chan = 0){
         return this->get_tx_gain(ALL_GAINS, chan);
     }
+
+    /*!
+     * Return the normalized TX gain value.
+     *
+     * See set_normalized_rx_gain() for a discussion of normalized
+     * gains.
+     *
+     * \param chan the channel index 0 to N-1
+     * \returns The normalized gain (in [0, 1])
+     * \throws A uhd::runtime_error if the gain value is outside [0, 1].
+     */
+    virtual double get_normalized_tx_gain(size_t chan = 0) = 0;
 
     /*!
      * Get the TX gain range for the specified gain element.
@@ -873,7 +1309,34 @@ public:
      * \param mask the bit mask to effect which pins are changed
      * \param mboard the motherboard index 0 to M-1
      */
-    virtual void set_gpio_attr(const std::string &bank, const std::string &attr, const boost::uint32_t value, const boost::uint32_t mask = 0xffffffff, const size_t mboard = 0) = 0;
+    virtual void set_gpio_attr(const std::string &bank, const std::string &attr, const uint32_t value, const uint32_t mask = 0xffffffff, const size_t mboard = 0) = 0;
+
+    /*!
+     * Set a GPIO attribute on a particular GPIO bank.
+     * Possible attribute names:
+     *  - SRC  - "PS" for handling by processing system
+     *         - "RADIO_N/M" for handling by radio block with N is in [0..Number of Radio]; M is in [0..Number of port per Radio]
+     *  - CTRL - "ATR"  for ATR mode
+     *         - "GPIO" for GPIO mode
+     *  - DDR  - "OUT" for output
+     *         - "IN"  for input
+     *  - OUT -  a string of numbers representing GPIO output level (not ATR mode)
+     *        - "HIGH"or "LOW" as GPIO output level that apply for each bit mask that is 1
+     *  - ATR_0X - a string of numbers representing a value of the ATR idle state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR idle state register
+     *  - ATR_RX - a string of numbers representing a value of a ATR receive only state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR receive only state register
+     *  - ATR_TX - a string of numbers representing a value of the ATR transmit only state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR transmit only state register
+     *  - ATR_XX - a string of numbers representing a value of the ATR full duplex state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR full duplex state register
+     * \param bank the name of a GPIO bank
+     * \param attr the name of a GPIO attribute
+     * \param value the new value for this GPIO bank
+     * \param mask the bit mask to effect which pins are changed
+     * \param mboard the motherboard index 0 to M-1
+     */
+    virtual void set_gpio_attr(const std::string &bank, const std::string &attr, const std::string &value, const uint32_t mask = 0xffffffff, const size_t mboard = 0) = 0;
 
     /*!
      * Get a GPIO attribute on a particular GPIO bank.
@@ -891,7 +1354,108 @@ public:
      * \param mboard the motherboard index 0 to M-1
      * \return the value set for this attribute
      */
-    virtual boost::uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0) = 0;
+    virtual uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0) = 0;
+
+    /*!
+     * Get a GPIO attribute on a particular GPIO bank.
+     * Possible attribute names:
+     *  - SRC  - "PS" for handling by processing system
+     *         - "RADIO_N/M" for handling by radio block with N is in [0..Number of Radio]; M is in [0..Number of port per Radio]
+     *  - CTRL - "ATR"  for ATR mode
+     *         - "GPIO" for GPIO mode
+     *  - DDR  - "OUT" for output
+     *         - "IN"  for input
+     *  - OUT -  a string of numbers representing GPIO output level (not ATR mode)
+     *        - "HIGH"or "LOW" as GPIO output level that apply for each bit mask that is 1
+     *  - ATR_0X - a string of numbers representing a value of the ATR idle state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR idle state register
+     *  - ATR_RX - a string of numbers representing a value of a ATR receive only state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR receive only state register
+     *  - ATR_TX - a string of numbers representing a value of the ATR transmit only state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR transmit only state register
+     *  - ATR_XX - a string of numbers representing a value of the ATR full duplex state register
+     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR full duplex state register
+     *  - READBACK - readback input GPIOs
+     * \param bank the name of a GPIO bank
+     * \param attr the name of a GPIO attribute
+     * \param mboard the motherboard index 0 to M-1
+     * \return the value set for this attribute in vector of strings
+     */
+    virtual std::vector<std::string> get_gpio_string_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0) = 0;
+
+    /*******************************************************************
+     * Register IO methods
+     ******************************************************************/
+    struct register_info_t {
+        size_t bitwidth;
+        bool readable;
+        bool writable;
+    };
+
+    /*!
+     * Enumerate the full paths of all low-level USRP registers accessible to read/write
+     * \param mboard the motherboard index 0 to M-1
+     * \return a vector of register paths
+     */
+    virtual std::vector<std::string> enumerate_registers(const size_t mboard = 0) = 0;
+
+    /*!
+     * Get more information about a low-level device register
+     * \param path the full path to the register
+     * \param mboard the motherboard index 0 to M-1
+     * \return the info struct which contains the bitwidth and read-write access information
+     */
+    virtual register_info_t get_register_info(const std::string &path, const size_t mboard = 0) = 0;
+
+    /*!
+     * Write a low-level register field for a register in the USRP hardware
+     * \param path the full path to the register
+     * \param field the identifier of bitfield to be written (all other bits remain unchanged)
+     * \param value the value to write to the register field
+     * \param mboard the motherboard index 0 to M-1
+     */
+    virtual void write_register(const std::string &path, const uint32_t field, const uint64_t value, const size_t mboard = 0) = 0;
+
+    /*!
+     * Read a low-level register field from a register in the USRP hardware
+     * \param path the full path to the register
+     * \param field the identifier of bitfield to be read
+     * \param mboard the motherboard index 0 to M-1
+     * \return the value of the register field
+     */
+    virtual uint64_t read_register(const std::string &path, const uint32_t field, const size_t mboard = 0) = 0;
+
+    /*******************************************************************
+     * Filter API methods
+     ******************************************************************/
+
+    /*!
+     * Enumerate the available filters in the signal path.
+     * \param search_mask
+     * \parblock
+     * Select only certain filter names by specifying this search mask.
+     *
+     * E.g. if search mask is set to "rx_frontends/A" only filter names including that string will be returned.
+     * \endparblock
+     * \return a vector of strings representing the selected filter names.
+     */
+    virtual std::vector<std::string> get_filter_names(const std::string &search_mask = "") = 0;
+
+    /*!
+     * Return the filter object for the given name.
+     * \param path the name of the filter as returned from get_filter_names().
+     * \return a filter_info_base::sptr.
+     */
+    virtual filter_info_base::sptr get_filter(const std::string &path) = 0;
+
+    /*!
+     * Write back a filter obtained by get_filter() to the signal path.
+     * This filter can be a modified version of the originally returned one.
+     * The information about Rx or Tx is contained in the path parameter.
+     * \param path the name of the filter as returned from get_filter_names().
+     * \param filter the filter_info_base::sptr of the filter object to be written
+     */
+    virtual void set_filter(const std::string &path, filter_info_base::sptr filter) = 0;
 
 };
 

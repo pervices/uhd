@@ -1,30 +1,19 @@
 //
-// Copyright 2010-2014 Ettus Research LLC
+// Copyright 2010-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "libusb1_base.hpp"
 #include <uhd/exception.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/types/serial.hpp>
 #include <boost/weak_ptr.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/foreach.hpp>
 #include <boost/bind.hpp>
 #include <cstdlib>
 #include <iostream>
@@ -47,10 +36,7 @@ public:
         task_handler = task::make(boost::bind(&libusb_session_impl::libusb_event_handler_task, this, _context));
     }
 
-    ~libusb_session_impl(void){
-        task_handler.reset();
-        libusb_exit(_context);
-    }
+    virtual ~libusb_session_impl(void);
 
     libusb_context *get_context(void) const{
         return _context;
@@ -71,9 +57,25 @@ private:
         timeval tv;
         tv.tv_sec = 0;
         tv.tv_usec = 100000;
-        libusb_handle_events_timeout(context, &tv);
+        int ret = libusb_handle_events_timeout(context, &tv);
+        switch (ret)
+        {
+        case LIBUSB_SUCCESS:
+        case LIBUSB_ERROR_TIMEOUT:
+            break;
+        case LIBUSB_ERROR_NO_DEVICE:
+            throw uhd::io_error(libusb_strerror(LIBUSB_ERROR_NO_DEVICE));
+        default:
+            UHD_LOGGER_ERROR("USB") << __FUNCTION__ << ": " << libusb_strerror((libusb_error)ret) ;
+            break;
+        }
     }
 };
+
+libusb_session_impl::~libusb_session_impl(void){
+    task_handler.reset();
+    libusb_exit(_context);
+}
 
 libusb::session::sptr libusb::session::get_global_session(void){
     static boost::weak_ptr<session> global_session;
@@ -110,9 +112,7 @@ public:
         _dev = dev;
     }
 
-    ~libusb_device_impl(void){
-        libusb_unref_device(this->get());
-    }
+    virtual ~libusb_device_impl(void);
 
     libusb_device *get(void) const{
         return _dev;
@@ -122,6 +122,10 @@ private:
     libusb::session::sptr _session; //always keep a reference to session
     libusb_device *_dev;
 };
+
+libusb_device_impl::~libusb_device_impl(void){
+    libusb_unref_device(this->get());
+}
 
 /***********************************************************************
  * libusb device list
@@ -149,6 +153,8 @@ public:
         libusb_free_device_list(dev_list, false/*dont unref*/);
     }
 
+    virtual ~libusb_device_list_impl(void);
+
     size_t size(void) const{
         return _devs.size();
     }
@@ -160,6 +166,10 @@ public:
 private:
     std::vector<libusb::device::sptr> _devs;
 };
+
+libusb_device_list_impl::~libusb_device_list_impl(void){
+    /* NOP */
+}
 
 libusb::device_list::sptr libusb::device_list::make(void){
     return sptr(new libusb_device_list_impl());
@@ -179,13 +189,15 @@ public:
         UHD_ASSERT_THROW(libusb_get_device_descriptor(_dev->get(), &_desc) == 0);
     }
 
+    virtual ~libusb_device_descriptor_impl(void);
+
     const libusb_device_descriptor &get(void) const{
         return _desc;
     }
 
     std::string get_ascii_property(const std::string &what) const
     {
-        boost::uint8_t off = 0;
+        uint8_t off = 0;
         if (what == "serial") off = this->get().iSerialNumber;
         if (what == "product") off = this->get().iProduct;
         if (what == "manufacturer") off = this->get().iManufacturer;
@@ -196,15 +208,15 @@ public:
         );
 
         unsigned char buff[512];
-        ssize_t ret = libusb_get_string_descriptor_ascii(
-            handle->get(), off, buff, sizeof(buff)
+        int ret = libusb_get_string_descriptor_ascii(
+            handle->get(), off, buff, int(sizeof(buff))
         );
         if (ret < 0) return ""; //on error, just return empty string
 
-        std::string string_descriptor((char *)buff, ret);
+        std::string string_descriptor((char *)buff, size_t(ret));
         byte_vector_t string_vec(string_descriptor.begin(), string_descriptor.end());
         std::string out;
-        BOOST_FOREACH(boost::uint8_t byte, string_vec){
+        for(uint8_t byte:  string_vec){
             if (byte < 32 or byte > 127) return out;
             out += byte;
         }
@@ -215,6 +227,10 @@ private:
     libusb::device::sptr _dev; //always keep a reference to device
     libusb_device_descriptor _desc;
 };
+
+libusb_device_descriptor_impl::~libusb_device_descriptor_impl(void){
+    /* NOP */
+}
 
 libusb::device_descriptor::sptr libusb::device_descriptor::make(device::sptr dev){
     return sptr(new libusb_device_descriptor_impl(dev));
@@ -234,13 +250,7 @@ public:
         UHD_ASSERT_THROW(libusb_open(_dev->get(), &_handle) == 0);
     }
 
-    ~libusb_device_handle_impl(void){
-        //release all claimed interfaces
-        for (size_t i = 0; i < _claimed.size(); i++){
-            libusb_release_interface(this->get(), _claimed[i]);
-        }
-        libusb_close(_handle);
-    }
+    virtual ~libusb_device_handle_impl(void);
 
     libusb_device_handle *get(void) const{
         return _handle;
@@ -251,11 +261,34 @@ public:
         _claimed.push_back(interface);
     }
 
+    void clear_endpoints(unsigned char recv_endpoint, unsigned char send_endpoint)
+    {
+        int ret;
+        ret = libusb_clear_halt(this->get(), recv_endpoint  | 0x80);
+        UHD_LOGGER_TRACE("USB") << "usb device handle: recv endpoint clear: " << libusb_error_name(ret) ;
+        ret = libusb_clear_halt(this->get(), send_endpoint | 0x00);
+        UHD_LOGGER_TRACE("USB") << "usb device handle: send endpoint clear: " << libusb_error_name(ret) ;
+    }
+
+    void reset_device(void)
+    {
+        int ret = libusb_reset_device(this->get());
+        UHD_LOGGER_TRACE("USB") << "usb device handle: dev Reset: " << libusb_error_name(ret) ;
+    }
+
 private:
     libusb::device::sptr _dev; //always keep a reference to device
     libusb_device_handle *_handle;
     std::vector<int> _claimed;
 };
+
+libusb_device_handle_impl::~libusb_device_handle_impl(void){
+    //release all claimed interfaces
+    for (size_t i = 0; i < _claimed.size(); i++){
+        libusb_release_interface(this->get(), _claimed[i]);
+    }
+    libusb_close(_handle);
+}
 
 libusb::device_handle::sptr libusb::device_handle::get_cached_handle(device::sptr dev){
     static uhd::dict<libusb_device *, boost::weak_ptr<device_handle> > handles;
@@ -277,12 +310,12 @@ libusb::device_handle::sptr libusb::device_handle::get_cached_handle(device::spt
     }
     catch(const uhd::exception &){
         #ifdef UHD_PLATFORM_LINUX
-        UHD_MSG(error) <<
+        UHD_LOGGER_ERROR("USB") <<
             "USB open failed: insufficient permissions.\n"
             "See the application notes for your device.\n"
-        << std::endl;
+        ;
         #else
-        UHD_LOG << "USB open failed: device already claimed." << std::endl;
+        UHD_LOGGER_DEBUG("USB") << "USB open failed: device already claimed." ;
         #endif
         throw;
     }
@@ -301,6 +334,8 @@ public:
         _dev = dev;
     }
 
+    virtual ~libusb_special_handle_impl(void);
+
     libusb::device::sptr get_device(void) const{
         return _dev;
     }
@@ -317,21 +352,27 @@ public:
         return libusb::device_descriptor::make(this->get_device())->get_ascii_property("product");
     }
 
-    boost::uint16_t get_vendor_id(void) const{
+    uint16_t get_vendor_id(void) const{
         return libusb::device_descriptor::make(this->get_device())->get().idVendor;
     }
 
-    boost::uint16_t get_product_id(void) const{
+    uint16_t get_product_id(void) const{
         return libusb::device_descriptor::make(this->get_device())->get().idProduct;
     }
 
     bool firmware_loaded() {
-        return (get_manufacturer() == "Ettus Research LLC");
+        return (get_manufacturer() == "Ettus Research LLC") or
+               (get_manufacturer() == "National Instruments Corp.") or
+               (get_manufacturer() == "Free Software Folks");
     }
 
 private:
     libusb::device::sptr _dev; //always keep a reference to device
 };
+
+libusb_special_handle_impl::~libusb_special_handle_impl(void){
+    /* NOP */
+}
 
 libusb::special_handle::sptr libusb::special_handle::make(device::sptr dev){
     return sptr(new libusb_special_handle_impl(dev));
@@ -340,18 +381,28 @@ libusb::special_handle::sptr libusb::special_handle::make(device::sptr dev){
 /***********************************************************************
  * list device handles implementations
  **********************************************************************/
+usb_device_handle::~usb_device_handle(void) {
+    /* NOP */
+}
+
 std::vector<usb_device_handle::sptr> usb_device_handle::get_device_list(
-    boost::uint16_t vid, boost::uint16_t pid
+    uint16_t vid, uint16_t pid
 ){
+    return usb_device_handle::get_device_list(std::vector<usb_device_handle::vid_pid_pair_t>(1,usb_device_handle::vid_pid_pair_t(vid,pid)));
+}
+
+std::vector<usb_device_handle::sptr> usb_device_handle::get_device_list(const std::vector<usb_device_handle::vid_pid_pair_t>& vid_pid_pair_list)
+{
     std::vector<usb_device_handle::sptr> handles;
-
     libusb::device_list::sptr dev_list = libusb::device_list::make();
-    for (size_t i = 0; i < dev_list->size(); i++){
-        usb_device_handle::sptr handle = libusb::special_handle::make(dev_list->at(i));
-        if (handle->get_vendor_id() == vid and handle->get_product_id() == pid){
-            handles.push_back(handle);
-        }
+    for(size_t iter = 0; iter < vid_pid_pair_list.size(); ++iter)
+    {
+       for (size_t i = 0; i < dev_list->size(); i++){
+           usb_device_handle::sptr handle = libusb::special_handle::make(dev_list->at(i));
+           if (handle->get_vendor_id() == vid_pid_pair_list[iter].first and handle->get_product_id() == vid_pid_pair_list[iter].second){
+               handles.push_back(handle);
+           }
+       }
     }
-
     return handles;
 }

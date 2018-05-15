@@ -1,18 +1,8 @@
 //
 // Copyright 2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_LIBUHD_TRANSPORT_VRT_PACKET_HANDLER_HPP
@@ -23,6 +13,9 @@
 
 namespace uhd{ namespace transport{
 
+    // Jumbo frames are limited to 9000;
+    static const size_t MAX_ETHERNET_MTU = 9000;
+
     typedef boost::shared_ptr<boost::asio::ip::udp::socket> socket_sptr;
 
     /*!
@@ -32,6 +25,7 @@ namespace uhd{ namespace transport{
      * \return true when the socket is ready for receive
      */
     UHD_INLINE bool wait_for_recv_ready(int sock_fd, double timeout){
+#ifdef UHD_PLATFORM_WIN32 // select is more portable than poll unfortunately
         //setup timeval for timeout
         timeval tv;
         //If the tv_usec > 1 second on some platforms, select will
@@ -53,6 +47,17 @@ namespace uhd{ namespace transport{
 
         //call select with timeout on receive socket
         return TEMP_FAILURE_RETRY(::select(sock_fd+1, &rset, NULL, NULL, &tv)) > 0;
+#else
+        //calculate the total timeout in milliseconds (from seconds)
+        int total_timeout = int(timeout*1000);
+
+        pollfd pfd_read;
+        pfd_read.fd = sock_fd;
+        pfd_read.events = POLLIN;
+
+        //call poll with timeout on receive socket
+        return ::poll(&pfd_read, 1, total_timeout) > 0;
+#endif
     }
 
 }} //namespace uhd::transport

@@ -25,6 +25,10 @@ SET(CMAKE_SYSTEM_NAME Generic)
 CMAKE_FORCE_C_COMPILER(zpu-elf-gcc GNU)
 PROJECT(USRP3_FW C)
 
+SET(UHD_VERSION_HASH 0 CACHE INTEGER "UHD Version Hash")
+EXECUTE_PROCESS(COMMAND ${CMAKE_SOURCE_DIR}/utils/git-hash.sh OUTPUT_VARIABLE UHD_VERSION_HASH)
+ADD_DEFINITIONS(-DUHD_VERSION_HASH=0x${UHD_VERSION_HASH})
+
 INCLUDE_DIRECTORIES(include)
 
 find_package(PythonInterp)
@@ -66,6 +70,20 @@ FIND_PROGRAM(LINKER zpu-elf-ld)
 FIND_PROGRAM(OBJCOPY zpu-elf-objcopy)
 FIND_PROGRAM(OBJDUMP zpu-elf-objdump)
 FIND_PROGRAM(HEXDUMP hexdump)
+
+########################################################################
+# Firmware tracing support
+########################################################################
+# Look at include/trace.h to see what the different trace levels map to.
+SET(TRACE_LEVEL "0" CACHE STRING "Firmware Trace Level") #0 by default
+OPTION(TRACE_LEVEL "Firmware Trace Level" "") 
+IF(TRACE_LEVEL)
+    #If TRACE_LEVEL == 0, don't define UHD_FW_TRACE_LEVEL so that the C
+    #code can easily detect if tracing is requested
+    IF(${TRACE_LEVEL} GREATER 0)
+        ADD_DEFINITIONS(-DUHD_FW_TRACE_LEVEL=${TRACE_LEVEL})
+    ENDIF(${TRACE_LEVEL} GREATER 0)
+ENDIF(TRACE_LEVEL)
 
 ########################################################################
 # helper functions to build output formats
@@ -116,3 +134,4 @@ ENDMACRO(GEN_OUTPUTS)
 ########################################################################
 ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(x300)
+ADD_SUBDIRECTORY(n230)

@@ -1,18 +1,8 @@
 //
 // Copyright 2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_USRPRIO_RPC_COMMON_HPP
@@ -37,7 +27,7 @@ static const func_id_t NIUSRPRIO_DOWNLOAD_FPGA_TO_FLASH     = NIUSRPRIO_FUNC_BAS
 //Function Args
 
 struct usrprio_device_info {
-    boost::uint32_t interface_num;
+    uint32_t interface_num;
     std::string     resource_name;
     std::string     pcie_serial_num;
     std::string     interface_path;
@@ -62,7 +52,7 @@ typedef std::vector<usrprio_device_info> usrprio_device_info_vtr;
     const std::string& resource,            \
     const std::string& path,                \
     const std::string& signature,           \
-    const boost::uint16_t& download_fpga
+    const uint16_t& download_fpga
 
 #define NIUSRPRIO_CLOSE_SESSION_ARGS    \
     const std::string& resource

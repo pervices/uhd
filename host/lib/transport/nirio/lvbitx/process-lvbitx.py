@@ -1,19 +1,9 @@
 #!/usr/bin/python
 #
-# Copyright 2013-2014 Ettus Research LLC
+# Copyright 2013-2015 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 from xml.etree import ElementTree
@@ -35,25 +25,25 @@ parser.add_option("--output-src-path", type="string", dest="output_src_path", he
 
 # Args
 if (len(args) < 1):
-    print 'ERROR: Please specify the input LVBITX file name'
+    print('ERROR: Please specify the input LVBITX file name')
     sys.exit(1)
 
 lvbitx_filename = args[0]
-input_filename = os.path.abspath(lvbitx_filename)
-autogen_src_path = os.path.abspath(options.output_src_path) if (options.output_src_path is not None) else os.path.dirname(input_filename)
+input_filename = os.path.relpath(lvbitx_filename)
+autogen_src_path = os.path.relpath(options.output_src_path) if (options.output_src_path is not None) else os.path.dirname(input_filename)
 class_name = os.path.splitext(os.path.basename(input_filename))[0]
 
 if (not os.path.isfile(input_filename)):
-    print 'ERROR: FPGA File ' + input_filename + ' could not be accessed or is not a file.'
+    print('ERROR: FPGA File ' + input_filename + ' could not be accessed or is not a file.')
     sys.exit(1)
-if (options.merge_bin is not None and not os.path.isfile(os.path.abspath(options.merge_bin))):
-    print 'ERROR: FPGA Bin File ' + options.merge_bin + ' could not be accessed or is not a file.'
+if (options.merge_bin is not None and not os.path.isfile(os.path.relpath(options.merge_bin))):
+    print('ERROR: FPGA Bin File ' + options.merge_bin + ' could not be accessed or is not a file.')
     sys.exit(1)
 if (not os.path.exists(autogen_src_path)):
-    print 'ERROR: Output path ' + autogen_src_path + ' could not be accessed.'
+    print('ERROR: Output path ' + autogen_src_path + ' could not be accessed.')
     sys.exit(1)
 if (options.output_lvbitx_path is not None and input_filename == os.path.join(autogen_src_path, class_name + '.lvbitx')):
-    print 'ERROR: Input and output LVBITX files were the same. Choose a difference input file or output path.'
+    print('ERROR: Input and output LVBITX files were the same. Choose a difference input file or output path.')
     sys.exit(1)
 
 # Get XML Tree Node
@@ -122,7 +112,7 @@ def map_SubType_to_ScalarType(SubType):
     elif SubType == 'U64':
         ScalarType = 'RIO_SCALAR_TYPE_UQ'
     else:
-        print 'ERROR: No corresponding nirio_scalar_type_t value for SubType ' + SubType + ' .'
+        print('ERROR: No corresponding nirio_scalar_type_t value for SubType ' + SubType + ' .')
         sys.exit(1)
     return ScalarType;
 
@@ -171,7 +161,7 @@ codegen_transform['in_fifo_list'] = in_fifo_list
 
 # Merge bitstream into LVBITX
 if (options.merge_bin is not None):
-    with open(os.path.abspath(options.merge_bin), 'rb') as bin_file:
+    with open(os.path.relpath(options.merge_bin), 'rb') as bin_file:
         bitstream = bin_file.read()
         bitstream_md5 = hashlib.md5(bitstream).hexdigest()
         bitstream_b64 = base64.b64encode(bitstream)
@@ -187,7 +177,7 @@ codegen_transform['lvbitx_signature'] = str.upper(root.find('SignatureRegister')
 # Write BIN file
 bitstream = base64.b64decode(root.find('Bitstream').text)
 if (options.output_lvbitx_path is not None and hashlib.md5(bitstream).hexdigest() != root.find('BitstreamMD5').text):
-    print 'ERROR: The MD5 sum for the output LVBITX was incorrect. Make sure that the bitstream in the input LVBITX or BIN file is valid.'
+    print('ERROR: The MD5 sum for the output LVBITX was incorrect. Make sure that the bitstream in the input LVBITX or BIN file is valid.')
     sys.exit(1)
 if (options.output_bin):
     fpga_bin_file = open(os.path.join(options.output_lvbitx_path, class_name + '.bin'), 'w')
@@ -199,12 +189,12 @@ if (options.output_lvbitx_path is not None):
     tree.write(os.path.join(options.output_lvbitx_path, class_name + '_fpga.lvbitx'), encoding="utf-8", xml_declaration=True, default_namespace=None, method="xml")
 
 # Save HPP and CPP
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template_lvbitx.hpp'), 'r') as template_file:
+with open(os.path.join(os.path.dirname(os.path.relpath(__file__)), 'template_lvbitx.hpp'), 'r') as template_file:
     template_string = template_file.read()
 with open(os.path.join(autogen_src_path, class_name + '_lvbitx.hpp'), 'w') as source_file:
     source_file.write(template_string.format(**codegen_transform))
 
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template_lvbitx.cpp'), 'r') as template_file:
+with open(os.path.join(os.path.dirname(os.path.relpath(__file__)), 'template_lvbitx.cpp'), 'r') as template_file:
     template_string = template_file.read()
 with open(os.path.join(autogen_src_path, class_name + '_lvbitx.cpp'), 'w') as source_file:
     source_file.write(template_string.format(**codegen_transform))

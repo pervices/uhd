@@ -19,11 +19,11 @@ re-apply the desired setting every time the LO is re-tuned.
 
 UHD software comes with the following calibration utilities:
 
--   **uhd_cal_rx_iq_balance:** - mimimizes RX IQ imbalance vs. LO
+-   **uhd_cal_rx_iq_balance:** - minimizes RX IQ imbalance vs. LO
     frequency
--   **uhd_cal_tx_dc_offset:** - mimimizes TX DC offset vs. LO
+-   **uhd_cal_tx_dc_offset:** - minimizes TX DC offset vs. LO
     frequency
--   **uhd_cal_tx_iq_balance:** - mimimizes TX IQ imbalance vs. LO
+-   **uhd_cal_tx_iq_balance:** - minimizes TX IQ imbalance vs. LO
     frequency
 
 The following RF frontends are supported by the self-calibration
@@ -33,42 +33,53 @@ utilities:
 -   WBX Series transceiver boards
 -   SBX Series transceiver boards
 -   CBX Series transceiver boards
+-   UBX Series transceiver boards
 
 \subsection calibration_self_utils Calibration Utilities
 
 UHD software installs the calibration utilities into
 `<install-path>/bin`. **Disconnect** any external hardware from the
 RF antenna ports, and run the following from the command line. Each
-utility will take several minutes to complete. :
+utility will take several minutes to complete:
 
     uhd_cal_rx_iq_balance --verbose --args=<optional device args>
     uhd_cal_tx_iq_balance --verbose --args=<optional device args>
     uhd_cal_tx_dc_offset --verbose --args=<optional device args>
 
-See the output given by --help for more advanced options, such as:
+See the output given by `--help` for more advanced options, such as
 manually choosing the frequency range and step size for the sweeps.
 
 <b>Note:</b> Your daughterboard needs a serial number to run a calibration
 utility. Some older daughterboards may not have a serial number. If this
 is the case, run the following command to burn a serial number into the
-daughterboard's EEPROM: :
+daughterboard's EEPROM:
 
     <install dir>/lib/uhd/utils/usrp_burn_db_eeprom --ser=<desired serial> --args=<optional device args>
 
 \subsection calibration_data Calibration Data
 
-Calibration files are stored in the user's home/application directory.
-They can easily be moved from machine to another by copying the "cal"
-directory. Re-running a calibration utility will replace the existing
-calibration file. The old calibration file will be renamed so it may be
-recovered by the user.
+By default, calibration files are stored in the user's home/application
+directory:
 
 -   **Linux:** `${HOME}/.uhd/cal/`
 -   **Windows:** `%APPDATA%\.uhd\cal\`
 
+If you would like to specify a custom directory, you can do so with the
+`$UHD_CONFIG_DIR` environment variable:
+
+-   **Custom (any OS):** `${UHD_CONFIG_DIR}/.uhd/cal/`
+
+Calibration files can easily be moved from one machine to another by copying the
+"cal" directory. Re-running a calibration utility will replace the existing
+calibration file. The old calibration file will be renamed so it may be
+recovered by the user.
+
+
 \subsection ignore_cal_file Ignoring Calibration Files
 
-At runtime, the user can choose to ignore a daughterboard's calibration file by adding "ignore-cal-file" to the arguments. With the UHD API, it can be done as follows:
+At runtime, the user can choose to ignore a daughterboard's calibration file by
+adding "ignore-cal-file" to the arguments. With the UHD API, it can be done as
+follows:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
     uhd::device_addr_t hint;

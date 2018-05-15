@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_DEVICE_HPP
@@ -46,7 +36,8 @@ public:
     enum device_filter_t {
         ANY,
         USRP,
-        CLOCK
+        CLOCK,
+		CRIMSON_TNG
     };
     virtual ~device(void) = 0;
 
@@ -55,6 +46,7 @@ public:
      *
      * \param find a function that discovers devices
      * \param make a factory function that makes a device
+     * \param filter include only USRP devices, clock devices, or both
      */
     static void register_device(
         const find_t &find,
@@ -77,7 +69,9 @@ public:
     /*!
      * \brief Create a new device from the device address hint.
      *
-     * The make routine will call find and pick one of the results.
+     * The method will go through the registered device types and pick one of
+     * the discovered devices.
+     *
      * By default, the first result will be used to create a new device.
      * Use the which parameter as an index into the list of results.
      *
@@ -102,13 +96,21 @@ public:
      */
     virtual tx_streamer::sptr get_tx_stream(const stream_args_t &args) = 0;
 
+    /*!
+     * Receive and asynchronous message from the device.
+     * \param async_metadata the metadata to be filled in
+     * \param timeout the timeout in seconds to wait for a message
+     * \return true when the async_metadata is valid, false for timeout
+     */
+    virtual bool recv_async_msg(
+        async_metadata_t &async_metadata, double timeout = 0.1
+    ) = 0;
+
     //! Get access to the underlying property structure
     uhd::property_tree::sptr get_tree(void) const;
 
     //! Get device type
     device_filter_t get_device_type() const;
-
-    #include <uhd/device_deprecated.ipp>
 
 protected:
     uhd::property_tree::sptr _tree;

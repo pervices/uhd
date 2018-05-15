@@ -1,19 +1,9 @@
 #!/usr/bin/env python
 #
 # Copyright 2010 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -44,8 +34,8 @@ power_down              2[5]        0       disabled, enabled
 pd_polarity             2[6]        1       negative, positive
 ldp                     2[7]        0       10ns, 6ns
 ldf                     2[8]        0       frac_n, int_n
-#set $current_setting_enums = ', '.join(map(lambda x: '_'.join(("%0.2fma"%(round(x*31.27 + 31.27)/100)).split('.')), range(0,16)))
-charge_pump_current     2[9:12]     5       $current_setting_enums
+<% current_setting_enums = ', '.join(map(lambda x: '_'.join(("%0.2fma"%(round(x*31.27 + 31.27)/100)).split('.')), range(0,16))) %>\
+charge_pump_current     2[9:12]     5       ${current_setting_enums}
 double_buffer           2[13]       0       disabled, enabled
 r_counter_10_bit        2[14:23]    0
 reference_divide_by_2   2[24]       1       disabled, enabled
@@ -72,7 +62,7 @@ output_power            4[3:4]      3       m4dbm, m1dbm, 2dbm, 5dbm
 rf_output_enable        4[5]        1       disabled, enabled
 aux_output_power        4[6:7]      0       m4dbm, m1dbm, 2dbm, 5dbm
 aux_output_enable       4[8]        0       disabled, enabled
-aux_output_select       4[9]        1       divided, fundamental
+aux_output_select       4[9]        0       divided, fundamental
 mute_till_lock_detect   4[10]       0       mute_disabled, mute_enabled
 vco_power_down          4[11]       0       vco_powered_up, vco_powered_down
 band_select_clock_div   4[12:19]    0
@@ -102,16 +92,16 @@ enum addr_t{
     ADDR_R5 = 5
 };
 
-boost::uint32_t get_reg(boost::uint8_t addr){
-    boost::uint32_t reg = addr & 0x7;
+uint32_t get_reg(uint8_t addr){
+    uint32_t reg = addr & 0x7;
     switch(addr){
-    #for $addr in range(5+1)
-    case $addr:
-        #for $reg in filter(lambda r: r.get_addr() == addr, $regs)
-        reg |= (boost::uint32_t($reg.get_name()) & $reg.get_mask()) << $reg.get_shift();
-        #end for
+    % for addr in range(5+1):
+    case ${addr}:
+        % for reg in filter(lambda r: r.get_addr() == addr, regs):
+        reg |= (uint32_t(${reg.get_name()}) & ${reg.get_mask()}) << ${reg.get_shift()};
+        % endfor
         break;
-    #end for
+    % endfor
     }
     return reg;
 }

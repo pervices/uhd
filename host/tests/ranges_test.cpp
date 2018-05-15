@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <boost/test/unit_test.hpp>
@@ -67,4 +57,13 @@ BOOST_AUTO_TEST_CASE(test_ranges_clip2){
     BOOST_CHECK_CLOSE(mr.clip(1.2, true), 1., tolerance);
     BOOST_CHECK_CLOSE(mr.clip(3.1, true), 3., tolerance);
     BOOST_CHECK_CLOSE(mr.clip(4., true), 3., tolerance);
+}
+
+BOOST_AUTO_TEST_CASE(test_ranges_compare){
+    range_t range(1);
+    range_t n_range(1);
+    range_t d_range(2);
+
+    BOOST_CHECK(range == n_range);
+    BOOST_CHECK(range != d_range);
 }

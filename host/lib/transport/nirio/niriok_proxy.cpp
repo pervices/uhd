@@ -1,18 +1,8 @@
 //
 // Copyright 2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/transport/nirio/niriok_proxy.h>
@@ -20,9 +10,11 @@
 #include <uhd/transport/nirio/niriok_proxy_impl_v2.h>
 #include <cstring>
 
-#ifdef __clang__
-    #pragma GCC diagnostic push ignored "-Wmissing-field-initializers"
-#elif defined(__GNUC__)
+// "push" and "pop" introduced in GCC 4.6; works with all clang
+#if defined(__clang__) || defined(__GNUC__) && (__GNUC__ > 3) && (__GNUC_MINOR__ > 5)
+    #pragma GCC diagnostic push
+#endif
+#if defined(__clang__) || defined(__GNUC__)
     #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
 
@@ -73,6 +65,6 @@ namespace uhd { namespace niusrprio
    }
 }}
 
-#ifdef __GNUC__
+#if defined(__clang__) || defined(__GNUC__) && (__GNUC__ > 3) && (__GNUC_MINOR__ > 5)
     #pragma GCC diagnostic pop
 #endif

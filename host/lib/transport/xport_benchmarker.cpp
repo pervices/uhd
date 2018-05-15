@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "xport_benchmarker.hpp"
@@ -23,9 +13,9 @@ const device_addr_t& xport_benchmarker::benchmark_throughput_chdr
 (
     zero_copy_if::sptr tx_transport,
     zero_copy_if::sptr rx_transport,
-    boost::uint32_t sid,
+    uint32_t sid,
     bool big_endian,
-    boost::uint32_t duration_ms)
+    uint32_t duration_ms)
 {
     vrt::if_packet_info_t pkt_info;
     _initialize_chdr(tx_transport, rx_transport, sid, pkt_info);
@@ -45,8 +35,8 @@ const device_addr_t& xport_benchmarker::benchmark_throughput_chdr
     boost::posix_time::ptime stop_time(boost::posix_time::microsec_clock::local_time());
     double duration_s = ((double)(stop_time-start_time).total_microseconds())/1e6;
 
-    boost::uint64_t tx_bytes = pkt_info.num_payload_words32*sizeof(uint32_t)*_num_tx_packets;
-    boost::uint64_t rx_bytes = pkt_info.num_payload_words32*sizeof(uint32_t)*_num_rx_packets;
+    uint64_t tx_bytes = pkt_info.num_payload_words32*sizeof(uint32_t)*_num_tx_packets;
+    uint64_t rx_bytes = pkt_info.num_payload_words32*sizeof(uint32_t)*_num_rx_packets;
     double tx_rate = (((double)tx_bytes)/duration_s);
     double rx_rate = (((double)rx_bytes)/duration_s);
 
@@ -54,9 +44,9 @@ const device_addr_t& xport_benchmarker::benchmark_throughput_chdr
     _results["RX-Bytes"] = (boost::format("%.2fMB") % (rx_bytes/(1024*1024))).str();
     _results["TX-Throughput"] = (boost::format("%.2fMB/s") % (tx_rate/(1024*1024))).str();
     _results["RX-Throughput"] = (boost::format("%.2fMB/s") % (rx_rate/(1024*1024))).str();
-    _results["TX-Timeouts"] = boost::lexical_cast<std::string>(_num_tx_timeouts);
-    _results["RX-Timeouts"] = boost::lexical_cast<std::string>(_num_rx_timeouts);
-    _results["Data-Errors"] = boost::lexical_cast<std::string>(_num_data_errors);
+    _results["TX-Timeouts"] = std::to_string(_num_tx_timeouts);
+    _results["RX-Timeouts"] = std::to_string(_num_rx_timeouts);
+    _results["Data-Errors"] = std::to_string(_num_data_errors);
 
     return _results;
 }
@@ -66,7 +56,7 @@ void xport_benchmarker::_stream_tx(zero_copy_if* transport, vrt::if_packet_info_
     while (not boost::this_thread::interruption_requested()) {
         managed_send_buffer::sptr buff = transport->get_send_buff(_tx_timeout);
         if (buff) {
-            boost::uint32_t *packet_buff = buff->cast<boost::uint32_t *>();
+            uint32_t *packet_buff = buff->cast<uint32_t *>();
             //Populate packet
             if (big_endian) {
                 vrt::if_hdr_pack_be(packet_buff, *pkt_info);
@@ -74,7 +64,7 @@ void xport_benchmarker::_stream_tx(zero_copy_if* transport, vrt::if_packet_info_
                 vrt::if_hdr_pack_le(packet_buff, *pkt_info);
             }
             //send the buffer over the interface
-            buff->commit(sizeof(boost::uint32_t)*(pkt_info->num_packet_words32));
+            buff->commit(sizeof(uint32_t)*(pkt_info->num_packet_words32));
             _num_tx_packets++;
         } else {
             _num_tx_timeouts++;
@@ -90,8 +80,8 @@ void xport_benchmarker::_stream_rx(zero_copy_if* transport, const vrt::if_packet
             //Extract packet info
             vrt::if_packet_info_t pkt_info;
             pkt_info.link_type = exp_pkt_info->link_type;
-            pkt_info.num_packet_words32 = buff->size()/sizeof(boost::uint32_t);
-            const boost::uint32_t *packet_buff = buff->cast<const boost::uint32_t *>();
+            pkt_info.num_packet_words32 = buff->size()/sizeof(uint32_t);
+            const uint32_t *packet_buff = buff->cast<const uint32_t *>();
 
             _num_rx_packets++;
 
@@ -128,7 +118,7 @@ void xport_benchmarker::_reset_counters(void)
 void xport_benchmarker::_initialize_chdr(
     zero_copy_if::sptr tx_transport,
     zero_copy_if::sptr rx_transport,
-    boost::uint32_t sid,
+    uint32_t sid,
     vrt::if_packet_info_t& pkt_info)
 {
     _tx_timeout = 0.5;
@@ -138,9 +128,9 @@ void xport_benchmarker::_initialize_chdr(
 
     pkt_info.link_type = vrt::if_packet_info_t::LINK_TYPE_CHDR;
     pkt_info.packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
-    pkt_info.num_packet_words32 = (frame_size/sizeof(boost::uint32_t));
+    pkt_info.num_packet_words32 = (frame_size/sizeof(uint32_t));
     pkt_info.num_payload_words32 = pkt_info.num_packet_words32 - 2;
-    pkt_info.num_payload_bytes = pkt_info.num_payload_words32*sizeof(boost::uint32_t);
+    pkt_info.num_payload_bytes = pkt_info.num_payload_words32*sizeof(uint32_t);
     pkt_info.packet_count = 0;
     pkt_info.sob = false;
     pkt_info.eob = false;

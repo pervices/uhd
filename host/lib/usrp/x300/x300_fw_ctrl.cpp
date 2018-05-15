@@ -1,25 +1,15 @@
 //
 // Copyright 2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/types/wb_iface.hpp>
 #include "x300_fw_common.h"
 #include <uhd/transport/udp_simple.hpp>
 #include <uhd/utils/byteswap.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/exception.hpp>
 #include <boost/format.hpp>
 #include <boost/thread/mutex.hpp>
@@ -37,13 +27,18 @@ class x300_ctrl_iface : public wb_iface
 public:
     enum {num_retries = 3};
 
+    x300_ctrl_iface(bool enable_errors = true) : errors(enable_errors)
+    {
+        /* NOP */
+    }
+
     void flush(void)
     {
         boost::mutex::scoped_lock lock(reg_access);
         __flush();
     }
 
-    void poke32(const wb_addr_type addr, const boost::uint32_t data)
+    void poke32(const wb_addr_type addr, const uint32_t data)
     {
         for (size_t i = 1; i <= num_retries; i++)
         {
@@ -52,31 +47,31 @@ public:
             {
                 return this->__poke32(addr, data);
             }
-            catch(const std::exception &ex)
+            catch(const uhd::io_error &ex)
             {
-                const std::string error_msg = str(boost::format(
-                    "x300 fw communication failure #%u\n%s") % i % ex.what());
-                UHD_MSG(error) << error_msg << std::endl;
+                std::string error_msg = str(boost::format(
+                    "%s: x300 fw communication failure #%u\n%s") % __loc_info() % i % ex.what());
+                if (errors) UHD_LOGGER_ERROR("X300") << error_msg ;
                 if (i == num_retries) throw uhd::io_error(error_msg);
             }
         }
     }
 
-    boost::uint32_t peek32(const wb_addr_type addr)
+    uint32_t peek32(const wb_addr_type addr)
     {
         for (size_t i = 1; i <= num_retries; i++)
         {
             boost::mutex::scoped_lock lock(reg_access);
             try
             {
-                boost::uint32_t data = this->__peek32(addr);
+                uint32_t data = this->__peek32(addr);
                 return data;
             }
-            catch(const std::exception &ex)
+            catch(const uhd::io_error &ex)
             {
-                const std::string error_msg = str(boost::format(
-                    "x300 fw communication failure #%u\n%s") % i % ex.what());
-                UHD_MSG(error) << error_msg << std::endl;
+                std::string error_msg = str(boost::format(
+                    "%s: x300 fw communication failure #%u\n%s") % __loc_info() % i % ex.what());
+                if (errors) UHD_LOGGER_ERROR("X300") << error_msg ;
                 if (i == num_retries) throw uhd::io_error(error_msg);
             }
         }
@@ -84,9 +79,12 @@ public:
     }
 
 protected:
-    virtual void __poke32(const wb_addr_type addr, const boost::uint32_t data) = 0;
-    virtual boost::uint32_t __peek32(const wb_addr_type addr) = 0;
+    bool errors;
+
+    virtual void __poke32(const wb_addr_type addr, const uint32_t data) = 0;
+    virtual uint32_t __peek32(const wb_addr_type addr) = 0;
     virtual void __flush() = 0;
+    virtual std::string __loc_info() = 0;
 
     boost::mutex reg_access;
 };
@@ -98,8 +96,8 @@ protected:
 class x300_ctrl_iface_enet : public x300_ctrl_iface
 {
 public:
-    x300_ctrl_iface_enet(uhd::transport::udp_simple::sptr udp):
-        udp(udp), seq(0)
+    x300_ctrl_iface_enet(uhd::transport::udp_simple::sptr udp, bool enable_errors = true):
+        x300_ctrl_iface(enable_errors), udp(udp), seq(0)
     {
         try
         {
@@ -109,12 +107,12 @@ public:
     }
 
 protected:
-    virtual void __poke32(const wb_addr_type addr, const boost::uint32_t data)
+    virtual void __poke32(const wb_addr_type addr, const uint32_t data)
     {
         //load request struct
         x300_fw_comms_t request = x300_fw_comms_t();
-        request.flags = uhd::htonx<boost::uint32_t>(X300_FW_COMMS_FLAGS_ACK | X300_FW_COMMS_FLAGS_POKE32);
-        request.sequence = uhd::htonx<boost::uint32_t>(seq++);
+        request.flags = uhd::htonx<uint32_t>(X300_FW_COMMS_FLAGS_ACK | X300_FW_COMMS_FLAGS_POKE32);
+        request.sequence = uhd::htonx<uint32_t>(seq++);
         request.addr = uhd::htonx(addr);
         request.data = uhd::htonx(data);
 
@@ -128,7 +126,7 @@ protected:
         if (nbytes == 0) throw uhd::io_error("x300 fw poke32 - reply timed out");
 
         //sanity checks
-        const size_t flags = uhd::ntohx<boost::uint32_t>(reply.flags);
+        const size_t flags = uhd::ntohx<uint32_t>(reply.flags);
         UHD_ASSERT_THROW(nbytes == sizeof(reply));
         UHD_ASSERT_THROW(not (flags & X300_FW_COMMS_FLAGS_ERROR));
         UHD_ASSERT_THROW(flags & X300_FW_COMMS_FLAGS_POKE32);
@@ -138,12 +136,12 @@ protected:
         UHD_ASSERT_THROW(reply.data == request.data);
     }
 
-    virtual boost::uint32_t __peek32(const wb_addr_type addr)
+    virtual uint32_t __peek32(const wb_addr_type addr)
     {
         //load request struct
         x300_fw_comms_t request = x300_fw_comms_t();
-        request.flags = uhd::htonx<boost::uint32_t>(X300_FW_COMMS_FLAGS_ACK | X300_FW_COMMS_FLAGS_PEEK32);
-        request.sequence = uhd::htonx<boost::uint32_t>(seq++);
+        request.flags = uhd::htonx<uint32_t>(X300_FW_COMMS_FLAGS_ACK | X300_FW_COMMS_FLAGS_PEEK32);
+        request.sequence = uhd::htonx<uint32_t>(seq++);
         request.addr = uhd::htonx(addr);
         request.data = 0;
 
@@ -157,7 +155,7 @@ protected:
         if (nbytes == 0) throw uhd::io_error("x300 fw peek32 - reply timed out");
 
         //sanity checks
-        const size_t flags = uhd::ntohx<boost::uint32_t>(reply.flags);
+        const size_t flags = uhd::ntohx<uint32_t>(reply.flags);
         UHD_ASSERT_THROW(nbytes == sizeof(reply));
         UHD_ASSERT_THROW(not (flags & X300_FW_COMMS_FLAGS_ERROR));
         UHD_ASSERT_THROW(flags & X300_FW_COMMS_FLAGS_PEEK32);
@@ -166,13 +164,18 @@ protected:
         UHD_ASSERT_THROW(reply.addr == request.addr);
 
         //return result!
-        return uhd::ntohx<boost::uint32_t>(reply.data);
+        return uhd::ntohx<uint32_t>(reply.data);
     }
 
     virtual void __flush(void)
     {
         char buff[X300_FW_COMMS_MTU] = {};
         while (udp->recv(boost::asio::buffer(buff), 0.0)){} //flush
+    }
+
+    virtual std::string __loc_info(void)
+    {
+        return udp->get_send_addr();
     }
 
 private:
@@ -187,22 +190,22 @@ private:
 class x300_ctrl_iface_pcie : public x300_ctrl_iface
 {
 public:
-    x300_ctrl_iface_pcie(niriok_proxy::sptr drv_proxy):
-        _drv_proxy(drv_proxy)
+    x300_ctrl_iface_pcie(niriok_proxy::sptr drv_proxy, bool enable_errors = true):
+        x300_ctrl_iface(enable_errors), _drv_proxy(drv_proxy)
     {
         nirio_status status = 0;
         nirio_status_chain(_drv_proxy->set_attribute(RIO_ADDRESS_SPACE, BUS_INTERFACE), status);
 
         //Verify that the Ettus FPGA loaded in the device. This may not be true if the
         //user is switching to UHD after using LabVIEW FPGA.
-        boost::uint32_t pcie_fpga_signature = 0;
+        uint32_t pcie_fpga_signature = 0;
         _drv_proxy->peek(FPGA_PCIE_SIG_REG, pcie_fpga_signature);
         if (pcie_fpga_signature != FPGA_X3xx_SIG_VALUE)
             throw uhd::io_error("cannot create x300_ctrl_iface_pcie. incorrect/no fpga image");
 
         //Also, poll on the ZPU_STATUS bit to ensure all the state machines in the FPGA are
         //ready to accept register transaction requests.
-        boost::uint32_t reg_data = 0xffffffff;
+        uint32_t reg_data = 0xffffffff;
         boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
         boost::posix_time::time_duration elapsed;
 
@@ -225,10 +228,10 @@ public:
     }
 
 protected:
-    virtual void __poke32(const wb_addr_type addr, const boost::uint32_t data)
+    virtual void __poke32(const wb_addr_type addr, const uint32_t data)
     {
         nirio_status status = 0;
-        boost::uint32_t reg_data = 0xffffffff;
+        uint32_t reg_data = 0xffffffff;
         boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
         boost::posix_time::time_duration elapsed;
 
@@ -250,10 +253,10 @@ protected:
             throw uhd::io_error("x300 fw poke32 - operation timed out");
     }
 
-    virtual boost::uint32_t __peek32(const wb_addr_type addr)
+    virtual uint32_t __peek32(const wb_addr_type addr)
     {
         nirio_status status = 0;
-        boost::uint32_t reg_data = 0xffffffff;
+        uint32_t reg_data = 0xffffffff;
         boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::local_time();
         boost::posix_time::time_duration elapsed;
 
@@ -283,18 +286,23 @@ protected:
         __peek32(0);
     }
 
+    virtual std::string __loc_info(void)
+    {
+        return std::to_string(_drv_proxy->get_interface_num());
+    }
+
 private:
     niriok_proxy::sptr _drv_proxy;
-    static const boost::uint32_t READ_TIMEOUT_IN_MS = 10;
-    static const boost::uint32_t INIT_TIMEOUT_IN_MS = 5000;
+    static const uint32_t READ_TIMEOUT_IN_MS = 100;
+    static const uint32_t INIT_TIMEOUT_IN_MS = 5000;
 };
 
-wb_iface::sptr x300_make_ctrl_iface_enet(uhd::transport::udp_simple::sptr udp)
+wb_iface::sptr x300_make_ctrl_iface_enet(uhd::transport::udp_simple::sptr udp, bool enable_errors = true)
 {
-    return wb_iface::sptr(new x300_ctrl_iface_enet(udp));
+    return wb_iface::sptr(new x300_ctrl_iface_enet(udp, enable_errors));
 }
 
-wb_iface::sptr x300_make_ctrl_iface_pcie(niriok_proxy::sptr drv_proxy)
+wb_iface::sptr x300_make_ctrl_iface_pcie(niriok_proxy::sptr drv_proxy, bool enable_errors = true)
 {
-    return wb_iface::sptr(new x300_ctrl_iface_pcie(drv_proxy));
+    return wb_iface::sptr(new x300_ctrl_iface_pcie(drv_proxy, enable_errors));
 }

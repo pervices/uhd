@@ -1,25 +1,15 @@
 //
 // Copyright 2010 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_USRP_DBOARD_ID_HPP
 #define INCLUDED_UHD_USRP_DBOARD_ID_HPP
 
 #include <uhd/config.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <boost/operators.hpp>
 #include <string>
 
@@ -31,7 +21,7 @@ namespace uhd{ namespace usrp{
          * Create a dboard id from an integer.
          * \param id the integer representation
          */
-        dboard_id_t(boost::uint16_t id = 0xffff);
+        dboard_id_t(uint16_t id = 0xffff);
 
         /*!
          * Obtain a dboard id that represents no dboard.
@@ -44,13 +34,13 @@ namespace uhd{ namespace usrp{
          * \param uint16 an unsigned 16 bit integer
          * \return a new dboard id containing the integer
          */
-        static dboard_id_t from_uint16(boost::uint16_t uint16);
+        static dboard_id_t from_uint16(uint16_t uint16);
 
         /*!
          * Get the dboard id represented as an integer.
          * \return an unsigned 16 bit integer representation
          */
-        boost::uint16_t to_uint16(void) const;
+        uint16_t to_uint16(void) const;
 
         /*!
          * Create a new dboard id from a string representation.
@@ -79,7 +69,7 @@ namespace uhd{ namespace usrp{
         std::string to_pp_string(void) const;
 
     private:
-        boost::uint16_t _id; //internal representation
+        uint16_t _id; //internal representation
     };
 
     /*!

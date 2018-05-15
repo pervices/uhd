@@ -1,27 +1,16 @@
 //
 // Copyright 2010-2011,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 #include <csignal>
 #include <iostream>
@@ -86,11 +75,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<size_t> channel_nums;
     boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
     for(size_t ch = 0; ch < channel_strings.size(); ch++){
-        size_t chan = boost::lexical_cast<int>(channel_strings[ch]);
+        size_t chan = std::stoi(channel_strings[ch]);
         if(chan >= usrp->get_tx_num_channels()){
             throw std::runtime_error("Invalid channel(s) specified.");
         }
-        else channel_nums.push_back(boost::lexical_cast<int>(channel_strings[ch]));
+        else channel_nums.push_back(std::stoi(channel_strings[ch]));
     }
 
     //set the tx sample rate
@@ -142,36 +131,53 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         size_t num_acc_samps = 0; //number of accumulated samples
         while(num_acc_samps < total_num_samps){
-            size_t samps_to_send = std::min(total_num_samps - num_acc_samps, spb);
+            size_t samps_to_send = total_num_samps - num_acc_samps;
+            if (samps_to_send > spb)
+            {
+                samps_to_send = spb;
+            } else {
+                md.end_of_burst = true;
+            }
 
             //send a single packet
             size_t num_tx_samps = tx_stream->send(
                 buffs, samps_to_send, md, timeout
             );
-                
             //do not use time spec for subsequent packets
             md.has_time_spec = false;
             md.start_of_burst = false;
 
-            if (num_tx_samps < samps_to_send) std::cerr << "Send timeout..." << std::endl;
-            if(verbose) std::cout << boost::format("Sent packet: %u samples") % num_tx_samps << std::endl;
+            if (num_tx_samps < samps_to_send)
+            {
+                std::cerr << "Send timeout..." << std::endl;
+                if (stop_signal_called)
+                {
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            if(verbose)
+            {
+                std::cout << boost::format("Sent packet: %u samples") % num_tx_samps << std::endl;
+            }
 
             num_acc_samps += num_tx_samps;
         }
-
-        md.end_of_burst = true;
-        tx_stream->send(buffs, 0, md, timeout);
 
         time_to_send += rep_rate;
 
         std::cout << std::endl << "Waiting for async burst ACK... " << std::flush;
         uhd::async_metadata_t async_md;
-        bool got_async_burst_ack = false;
-        //loop through all messages for the ACK packet (may have underflow messages in queue)
-        while (not got_async_burst_ack and tx_stream->recv_async_msg(async_md, seconds_in_future)){
-            got_async_burst_ack = (async_md.event_code == uhd::async_metadata_t::EVENT_CODE_BURST_ACK);
+        size_t acks = 0;
+        //loop through all messages for the ACK packets (may have underflow messages in queue)
+        while (acks < channel_nums.size() and tx_stream->recv_async_msg(async_md, seconds_in_future))
+        {
+            if (async_md.event_code == uhd::async_metadata_t::EVENT_CODE_BURST_ACK)
+            {
+                acks++;
+            }
         }
-        std::cout << (got_async_burst_ack? "success" : "fail") << std::endl;
+        std::cout << (acks == channel_nums.size() ? "success" : "fail") << std::endl;
     } while (not stop_signal_called and repeat);
 
     //finished

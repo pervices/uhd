@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "clock_ctrl.hpp"
@@ -21,8 +11,7 @@
 #include "usrp2_clk_regs.hpp"
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/assert_has.hpp>
-#include <boost/cstdint.hpp>
-#include <boost/lexical_cast.hpp>
+#include <stdint.h>
 #include <boost/math/special_functions/round.hpp>
 #include <iostream>
 
@@ -334,8 +323,8 @@ private:
      * Write a single register to the spi regs.
      * \param addr the address to write
      */
-    void write_reg(boost::uint8_t addr){
-        boost::uint32_t data = _ad9510_regs.get_write_reg(addr);
+    void write_reg(uint8_t addr){
+        uint32_t data = _ad9510_regs.get_write_reg(addr);
         _spiface->write_spi(SPI_SS_AD9510, spi_config_t::EDGE_RISE, data, 24);
     }
 

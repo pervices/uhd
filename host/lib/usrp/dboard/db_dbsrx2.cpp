@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 // No RX IO Pins Used
@@ -60,7 +50,7 @@ static const uhd::dict<std::string, gain_range_t> dbsrx2_gain_ranges = map_list_
 class dbsrx2 : public rx_dboard_base{
 public:
     dbsrx2(ctor_args_t args);
-    ~dbsrx2(void);
+    virtual ~dbsrx2(void);
 
 private:
     double _lo_freq;
@@ -68,7 +58,7 @@ private:
     uhd::dict<std::string, double> _gains;
     max2112_write_regs_t _max2112_write_regs;
     max2112_read_regs_t _max2112_read_regs;
-    boost::uint8_t _max2112_addr(){ //0x60 or 0x61 depending on which side
+    uint8_t _max2112_addr(){ //0x60 or 0x61 depending on which side
         return (this->get_iface()->get_special_props().mangle_i2c_addrs)? 0x60 : 0x61;
     }
 
@@ -76,12 +66,12 @@ private:
     double set_gain(double gain, const std::string &name);
     double set_bandwidth(double bandwidth);
 
-    void send_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
-        start_reg = boost::uint8_t(uhd::clip(int(start_reg), 0x0, 0xB));
-        stop_reg = boost::uint8_t(uhd::clip(int(stop_reg), 0x0, 0xB));
+    void send_reg(uint8_t start_reg, uint8_t stop_reg){
+        start_reg = uint8_t(uhd::clip(int(start_reg), 0x0, 0xB));
+        stop_reg = uint8_t(uhd::clip(int(stop_reg), 0x0, 0xB));
 
-        for(boost::uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(boost::uint32_t) - 1){
-            int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(boost::uint32_t)) - 1 ? sizeof(boost::uint32_t) - 1 : stop_reg - start_addr + 1;
+        for(uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(uint32_t) - 1){
+            int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(uint32_t)) - 1 ? sizeof(uint32_t) - 1 : stop_reg - start_addr + 1;
 
             //create buffer for register data (+1 for start address)
             byte_vector_t regs_vector(num_bytes + 1);
@@ -92,9 +82,9 @@ private:
             //get the register data
             for(int i=0; i<num_bytes; i++){
                 regs_vector[1+i] = _max2112_write_regs.get_reg(start_addr+i);
-                UHD_LOGV(often) << boost::format(
+                UHD_LOGGER_TRACE("DBSRX") << boost::format(
                     "DBSRX2: send reg 0x%02x, value 0x%04x, start_addr = 0x%04x, num_bytes %d"
-                ) % int(start_addr+i) % int(regs_vector[1+i]) % int(start_addr) % num_bytes << std::endl;
+                ) % int(start_addr+i) % int(regs_vector[1+i]) % int(start_addr) % num_bytes ;
             }
 
             //send the data
@@ -104,13 +94,13 @@ private:
         }
     }
 
-    void read_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
-        static const boost::uint8_t status_addr = 0xC;
-        start_reg = boost::uint8_t(uhd::clip(int(start_reg), 0x0, 0xD));
-        stop_reg = boost::uint8_t(uhd::clip(int(stop_reg), 0x0, 0xD));
+    void read_reg(uint8_t start_reg, uint8_t stop_reg){
+        static const uint8_t status_addr = 0xC;
+        start_reg = uint8_t(uhd::clip(int(start_reg), 0x0, 0xD));
+        stop_reg = uint8_t(uhd::clip(int(stop_reg), 0x0, 0xD));
 
-        for(boost::uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(boost::uint32_t)){
-            int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(boost::uint32_t)) ? sizeof(boost::uint32_t) : stop_reg - start_addr + 1;
+        for(uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(uint32_t)){
+            int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(uint32_t)) ? sizeof(uint32_t) : stop_reg - start_addr + 1;
 
             //create address to start reading register data
             byte_vector_t address_vector(1);
@@ -129,18 +119,13 @@ private:
                 _max2112_addr(), num_bytes
             );
 
-            for(boost::uint8_t i=0; i < num_bytes; i++){
+            for(uint8_t i=0; i < num_bytes; i++){
                 if (i + start_addr >= status_addr){
                     _max2112_read_regs.set_reg(i + start_addr, regs_vector[i]);
-                    /*
-                    UHD_LOGV(always) << boost::format(
-                        "DBSRX2: set reg 0x%02x, value 0x%04x"
-                    ) % int(i + start_addr) % int(_max2112_read_regs.get_reg(i + start_addr)) << std::endl;
-                    */
                 }
-                UHD_LOGV(often) << boost::format(
+                UHD_LOGGER_TRACE("DBSRX") << boost::format(
                     "DBSRX2: read reg 0x%02x, value 0x%04x, start_addr = 0x%04x, num_bytes %d"
-                ) % int(start_addr+i) % int(regs_vector[i]) % int(start_addr) % num_bytes << std::endl;
+                ) % int(start_addr+i) % int(regs_vector[i]) % int(start_addr) % num_bytes ;
             }
         }
     }
@@ -155,9 +140,9 @@ private:
         //mask and return lock detect
         bool locked = (_max2112_read_regs.ld & _max2112_read_regs.vasa & _max2112_read_regs.vase) != 0;
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("DBSRX") << boost::format(
             "DBSRX2 locked: %d"
-        ) % locked << std::endl;
+        ) % locked ;
 
         return sensor_value_t("LO", locked, "locked", "unlocked");
     }
@@ -183,24 +168,24 @@ UHD_STATIC_BLOCK(reg_dbsrx2_dboard){
 dbsrx2::dbsrx2(ctor_args_t args) : rx_dboard_base(args){
     //send initial register settings
     send_reg(0x0, 0xB);
-    //for (boost::uint8_t addr=0; addr<=12; addr++) this->send_reg(addr, addr);
+    //for (uint8_t addr=0; addr<=12; addr++) this->send_reg(addr, addr);
 
     ////////////////////////////////////////////////////////////////////
     // Register properties
     ////////////////////////////////////////////////////////////////////
     this->get_rx_subtree()->create<std::string>("name")
-        .set("DBSRX2");
+        .set("DBSRX");
     this->get_rx_subtree()->create<sensor_value_t>("sensors/lo_locked")
-        .publish(boost::bind(&dbsrx2::get_locked, this));
-    BOOST_FOREACH(const std::string &name, dbsrx2_gain_ranges.keys()){
+        .set_publisher(boost::bind(&dbsrx2::get_locked, this));
+    for(const std::string &name:  dbsrx2_gain_ranges.keys()){
         this->get_rx_subtree()->create<double>("gains/"+name+"/value")
-            .coerce(boost::bind(&dbsrx2::set_gain, this, _1, name))
+            .set_coercer(boost::bind(&dbsrx2::set_gain, this, _1, name))
             .set(dbsrx2_gain_ranges[name].start());
         this->get_rx_subtree()->create<meta_range_t>("gains/"+name+"/range")
             .set(dbsrx2_gain_ranges[name]);
     }
     this->get_rx_subtree()->create<double>("freq/value")
-        .coerce(boost::bind(&dbsrx2::set_lo_freq, this, _1))
+        .set_coercer(boost::bind(&dbsrx2::set_lo_freq, this, _1))
         .set(dbsrx2_freq_range.start());
     this->get_rx_subtree()->create<meta_range_t>("freq/range")
         .set(dbsrx2_freq_range);
@@ -218,7 +203,7 @@ dbsrx2::dbsrx2(ctor_args_t args) : rx_dboard_base(args){
     double codec_rate = this->get_iface()->get_codec_rate(dboard_iface::UNIT_RX);
 
     this->get_rx_subtree()->create<double>("bandwidth/value")
-        .coerce(boost::bind(&dbsrx2::set_bandwidth, this, _1))
+        .set_coercer(boost::bind(&dbsrx2::set_bandwidth, this, _1))
         .set(2.0*(0.8*codec_rate/2.0)); //bandwidth in lowpass, convert to complex bandpass
                                         //default to anti-alias at different codec_rate
     this->get_rx_subtree()->create<meta_range_t>("bandwidth/range")
@@ -270,14 +255,14 @@ double dbsrx2::set_lo_freq(double target_freq){
     _max2112_write_regs.d24 = scaler == 4 ? max2112_write_regs_t::D24_DIV4 : max2112_write_regs_t::D24_DIV2;
 
     //debug output of calculated variables
-    UHD_LOGV(often)
+    UHD_LOGGER_TRACE("DBSRX")
         << boost::format("DBSRX2 tune:\n")
         << boost::format("    R=%d, N=%f, scaler=%d, ext_div=%d\n") % R % N % scaler % ext_div
         << boost::format("    int=%d, frac=%d, d24=%d\n") % intdiv % fracdiv % int(_max2112_write_regs.d24)
         << boost::format("    Ref    Freq=%fMHz\n") % (ref_freq/1e6)
         << boost::format("    Target Freq=%fMHz\n") % (target_freq/1e6)
         << boost::format("    Actual Freq=%fMHz\n") % (_lo_freq/1e6)
-        << std::endl;
+        ;
 
     //send the registers 0x0 through 0x7
     //writing register 0x4 (F divider LSB) starts the VCO auto seletion so it must be written last
@@ -304,10 +289,10 @@ static int gain_to_bbg_vga_reg(double &gain){
 
     gain = double(reg);
 
-    UHD_LOGV(often)
+    UHD_LOGGER_TRACE("DBSRX")
         << boost::format("DBSRX2 BBG Gain:\n")
         << boost::format("    %f dB, bbg: %d") % gain % reg
-        << std::endl;
+    ;
 
     return reg;
 }
@@ -329,10 +314,10 @@ static double gain_to_gc1_rfvga_dac(double &gain){
     //calculate the voltage for the aux dac
     double dac_volts = gain*slope + min_volts;
 
-    UHD_LOGV(often)
+    UHD_LOGGER_TRACE("DBSRX")
         << boost::format("DBSRX2 GC1 Gain:\n")
         << boost::format("    %f dB, dac_volts: %f V") % gain % dac_volts
-        << std::endl;
+        ;
 
     //the actual gain setting
     gain = (dac_volts - min_volts)/slope;
@@ -369,10 +354,10 @@ double dbsrx2::set_bandwidth(double bandwidth){
     _max2112_write_regs.lp = int((bandwidth/1e6 - 4)/0.29 + 12);
     _bandwidth = double(4 + (_max2112_write_regs.lp - 12) * 0.29)*1e6;
 
-    UHD_LOGV(often)
+    UHD_LOGGER_TRACE("DBSRX")
         << boost::format("DBSRX2 Bandwidth:\n")
         << boost::format("    %f MHz, lp: %f V") % (_bandwidth/1e6) % int(_max2112_write_regs.lp)
-        << std::endl;
+    ;
 
     this->send_reg(0x8, 0x8);
 

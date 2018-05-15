@@ -1,21 +1,11 @@
 //
-// Copyright 2012,2014 Ettus Research LLC
+// Copyright 2012,2014,20160 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/program_options.hpp>
@@ -27,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#define SAMP_RATE 1e6
+static const double SAMP_RATE = 1e6;
 
 namespace po = boost::program_options;
 
@@ -39,8 +29,7 @@ typedef std::vector<std::pair<double, double> > pair_vector;
 ************************************************************************/
 
 std::string MHz_str(double freq){
-    std::string nice_string = std::string(str(boost::format("%5.2f MHz") % (freq / 1e6)));
-    return nice_string;
+    return std::string(str(boost::format("%5.2f MHz") % (freq / 1e6)));
 }
 
 std::string return_usrp_config_string(uhd::usrp::multi_usrp::sptr usrp, int chan, bool test_tx, bool test_rx, bool is_b2xx){
@@ -103,7 +92,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
 
     std::cout << boost::format("\nTesting %s coercion...") % type << std::endl;
 
-    BOOST_FOREACH(const uhd::range_t &range, freq_ranges){
+    for(const uhd::range_t &range:  freq_ranges){
         double freq_begin = range.start();
         double freq_end = range.stop();
 
@@ -153,7 +142,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
 
     bool has_sensor = (std::find(dboard_sensor_names.begin(), dboard_sensor_names.end(), "lo_locked")) != dboard_sensor_names.end();
 
-    BOOST_FOREACH(double freq, freqs){
+    for(double freq:  freqs){
 
         //Testing for successful frequency tune
         if(type == "TX") usrp->set_tx_freq(freq,chan);
@@ -187,15 +176,16 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
         }
 
         //Testing for successful lock
-
-        if(has_sensor){
+        if (has_sensor) {
             bool is_locked = false;
             for(int i = 0; i < 1000; i++){
-                boost::this_thread::sleep(boost::posix_time::microseconds(1000));
-                if(usrp->get_tx_sensor("lo_locked",0).to_bool()){
-                    is_locked = true;
+                is_locked = (type == "TX") ?
+                    usrp->get_tx_sensor("lo_locked", 0).to_bool() :
+                    usrp->get_rx_sensor("lo_locked", 0).to_bool();
+                if (is_locked) {
                     break;
                 }
+                boost::this_thread::sleep(boost::posix_time::microseconds(1000));
             }
             if(is_locked){
                 if(verbose) std::cout << boost::format("LO successfully locked at %s frequency %s.")
@@ -212,7 +202,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
 
             //Testing for successful gain tune
 
-            BOOST_FOREACH(double gain, gains){
+            for(double gain:  gains){
                 if(type == "TX") usrp->set_tx_gain(gain,chan);
                 else usrp->set_rx_gain(gain,chan);
 
@@ -266,7 +256,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
     }
     else{
         results += "USRP did not successfully tune to the following frequencies: ";
-        BOOST_FOREACH(double bad_freq, bad_tune_freqs){
+        for(double bad_freq:  bad_tune_freqs){
             if(bad_freq != *bad_tune_freqs.begin()) results += ", ";
             results += MHz_str(bad_freq);
         }
@@ -282,7 +272,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
         }
         else{
             results += "LO did not lock at the following frequencies: ";
-            BOOST_FOREACH(double bad_freq, no_lock_freqs){
+            for(double bad_freq:  no_lock_freqs){
                 if(bad_freq != *no_lock_freqs.begin()) results += ", ";
                 results += MHz_str(bad_freq);
             }
@@ -298,7 +288,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp, std::string type, in
         }
         else{
             results += "USRP did not successfully set gain under the following circumstances:";
-            BOOST_FOREACH(double_pair bad_pair, bad_gain_vals){
+            for(double_pair bad_pair:  bad_gain_vals){
                 double bad_freq = bad_pair.first;
                 double bad_gain = bad_pair.second;
                 results += str(boost::format("\nFrequency: %s, Gain: %5.2f") % MHz_str(bad_freq) % bad_gain);

@@ -1,6 +1,325 @@
 Change Log for Releases
 ==============================
 
+## 003.011.000.000
+* N310: Added driver
+* UBX: Add support for CAL antenna for Rev E
+* Added the module peripheral manager (MPM) with all subcomponents (N310
+  drivers, mpm_shell, RPC server, BIST, etc.)
+* UHD: Added rpclib as a internally tracked dependency
+* UHD: Reduced the usage of Boost
+* UHD: Updated uhd_images_downloader: Now uses more elaborate manifest to
+  optimize downloads
+* UHD: Introduced uhdlib internal include paths
+* UHD: Add support for configuration files. USRP settings can now be set using
+  a uhd.conf file in addition to device args
+* UHD: Add narrow and narrow_cast
+* gr-usrptest: Various bugfixes
+* Updated required Vivado version to 2017.4
+* Updated all license headers to use SPDX identifiers and correctly identify
+  Ettus Research as part of National Instruments
+* This release includes all bugfixes and features from previous releases, in
+  particular, the 3.10.* release cycle
+
+
+## 003.010.003.000
+
+* X300
+** Fix max rate calculation for 1 GbE
+** Fix for DAC synchronization errors (unexpected FIFO depth)
+** Reduced CPU usage during TX
+* N230
+** Properly initialize request structure before discovery
+* B200
+** FX3 firmware performance opitimizations
+** Fixed sequence error on second TX burst
+* TwinRX
+** Added ADF5356 synth and Rev C support
+* UBX
+** Add implementation of TDD xcvr_mode and for TX PA on in TDD mode (to reduce transient on older revs)
+** Add support for UBX-TDD
+* C API
+** Fixed dboard EEPROM revision error handling
+** Make uhd_rx_streamer_last_error use SAFE_C
+** Better error handling in uhd_usrp_get_[t/r]x_stream
+* RFNoC
+** Fix ctrl_iface to pop sequence numbers only after success
+** Fix sequence number error message in ctrl_iface
+** FPGA fix for sr_read() failure to ack errors
+** FPGA fix for repeated sequence number for RX packets with 1 sample
+** FPGA fix for axi_serializer edge case
+* Docs
+** Fixed B200 power LED description
+** Update README application links
+* UHD
+** Utilize poll() instead of select() for UDP transports where possible to avoid descirptor limits
+** Fix build with Boost 1.66
+** Add EEPROM info to dboard_base class so daughterboard code can access all EEPROM info
+
+
+## 003.010.002.000
+
+* multi_usrp: Fixed get_normalized_tx_gain.
+* E300: Fix for streamer recreation issue. Reduced minimum timeout, fixed
+        potential race condition.
+* X300: Fix for network discovery, will now return early when correct serial is
+        found. Fixed issue with DAC sync. All async messages now go through
+        single DMA channel on PCIe. Improved TX performance. Fixed page size
+        acquisition for PCIe. Fixed some FW communication errors. Improved flow
+        control. Removed MTU throttling. Legacy compat falls back to min spp
+        for mixed transport types.
+* CBX: Fixed LO LPF behaviour in 1.5-2 GHz range.
+* UBX: Fixed dtor SIGABRT issue. Better error handling for various dboard clock
+       rates.
+* TwinRX: Added LO reimport feature.
+* GPSDO: Improved detection. Improved query_gpsdo sensor.
+* RFNoC: Fixed issue with DDC and DUC command tick rate.
+* UHD: Fixed potential memory leak in tasks. Fixed get_normalized_tx_gain().
+       Fixed default socket buffer size to honor MTU.
+* Examples: Added channel param to samps to/from file. sync_to_gps exits
+            instead of uncaught throw. latency_test improved output. Use
+            next_pps in test_clock_synch. Added TwinRX FHSS example.
+* Utils: Modified behaviour of uhd_images_downloader so it won't delete dirs
+         when using -i
+* Tools: Updates to CHDR dissector. Added set_time_source_out(). Fixed LO API.
+* C API: Fixed some missing fields in USRP info.
+* Docs: Many minor fixes. Fixed Doxygen warnings related to /* in files.
+* CMake: Fixed GCC 4.4 compilation issue. Added ability to specify package
+         names.
+
+## 003.010.001.001
+
+- Docs: The protocol for Gen-3 devices is now consistently referred to as CHDR.
+- X300: Fixed EEPROM corruption bug (happened when two processes would access
+  find routines on the same device at the same time). Improved initialization
+  time. CE clock is now 214 MHz. Fixed channel list generation. Find routines
+  now more lenient in case one devices fails (others can still be found then).
+  Improve PCIe behaviour. Fix timed commands for non-TwinRX dboards. Improve
+  AXI Interconnect (faster, improved build timing).
+- N230: Use second_addr (like X300).
+- C API: Added UHD_VERSION macro. Fixed online rate change.
+- Utils: Minor fixes to uhd_images_downloader.
+- Build/CMake: Fixed some Py3k build issues. Fixed many compiler warnings. Allow
+  to specify package names. 
+- RFNoC: Fixed sampling rate mismatch error. Noc-Shell uses a non-cascaded 2-clk
+  FIFO. Increase default FIFO sizes on DUC and DDC blocks.
+- UBX: Force on RX driver to eliminate transient. 
+- Transport code: Fixed memory leak.
+- FPGA repository: Merged usrp3_rfnoc and usrp3 directories again. Cleaned up
+  superfluous files. Clean separation between Gen-3 and other devices in usrp3.
+
+
+## 003.010.001.000
+
+- Fixed multiple compiler warnings
+- Multiple documentation fixes
+- X300: RX strobe lines are always in sync on device initialization. DB EEPROM
+  now properly written. ignore-cal-file no longer ignored. Fixed case where too
+  large recv_frame_size settings could break things. Reduced ZPU clock speed
+  (helps FPGA timing). Added area constraints for AXI interconnect. Improved
+  halfband scaling in rx_frontend. Improved PCIe streaming reliability
+- B2xx: Clear sequence numbers in idle state.
+- RFNoC: Nodes disconnect on destruction. Fixed setting of correct bits on
+  sr_error_policy. DDC does no longer clear timed commands on EOB. DUC fixed
+  timed CORDIC tuning. Enable Noc-Shell response FIFOs (fixes simultaneous
+  commands on multiple channels).
+- UBX: Changed default performance parameters
+- TwinRX: LEDs properly light up depending on channels. Fixed issue of multiple
+  (redundant) writes. Simplified API steps for phase synchronization
+- XCVR: Query dboard clock instead of DAC clock. Helps in X3x0s.
+- GPS: Fixed message for case when no GPS is present. Fixed multiple GPS-related
+  issues.
+- Converters: Fixed floating point rounding error in tests.
+- Utils: uhd_usrp_probe can now query vectors
+- Fixed issue that prevented soft_regs working on 32-bit systems
+- Tools: Merged dissectors into common directory.
+- CMake: -Og is the default now for gcc-based Debug builds.
+
+## 003.010.000.000
+- Changed version string to quadruplets (Major.API.ABI.Patch)
+- Minimum dependencies bumped for gcc, Boost, CMake, clang and Python.
+- TwinRX: Added support. Includes LO API for multi_usrp.
+- N230: Added support
+- Added expert framework
+- X300: Completely restructured to use RFNoC
+- X300: FPGA builds include git hash, dual 10GigE receive is now supported
+  (allows 2x200 Msps receive over 2x10GigE connections), DMA FIFO (over DRAM)
+  now part of builds, added Aurora support
+- WBX: Fixed bug that prevented LO locking with 50 MHz ref clock
+- pkg-config: Added boost_system
+- Utils: uhd_usrp_probe can query sensors, query_gpsdo_sensors: minor fixes,
+  and cleanup
+- Examples: Bugfixes in tx_waveforms, benchmark_rate measures timeouts,
+- USB subsystem: Cleanups and minor bugfixes
+- Added devtest infrastructure
+- Converters: Added s8 and s16 data types
+- Added more aggressive optimization strategies for FPGA builds
+- Xilinx IP tool upgrade scripts cleaned up
+
+## 003.009.005
+- B200: Update DSPs after changing tick rate
+- X300: Added option to disable ADC self test, prevent DAC from
+  underrunning
+- UBX: Fixed noise issues, reduced power consumption/heat, added codes for
+  upcoming board revisions, force RX LNAs on (reduces rx settling time)
+- WBX: Fixed rev2 and rev3 boards on X300
+- Utils/Examples: Cleaned up query_gpsdo_sensors, test_dboard_coercion,
+- Manual: Minor fixes and updates
+- CMake: Fix lib64 detection, better platform detection, Doxygen may use shorter
+  filenames
+- Octoclock: GPSDO-related fixes, sequence number consistency fixes, UART
+  fixes (off-by-one errors). uhd_usrp_probe will pick up an OC now,
+  added Wireshark dissector for OC packets
+
+## 003.009.004
+- GPIO control: Fix address mismatch for RX and full duplex.
+  This fixes full-duplex mode for most devices.
+- B200: Fixed auto rate selection (can now select 61.44 Msps)
+- UBX: Fix member declaration order which could cause
+  segfaults for debug builds
+- Manual/Docs: Numerous fixes, use dot for graphs in manual
+- Utils: multiple fixes for query_gpsdo_sensors, fixed floating point
+  comparison
+- Windows: Include registry file in installation
+- Converters: Improve NEON converters
+
+## 003.009.003
+* UBX: Fixed a phase synchronization issue on the sub-1GHz band
+* USB: Fixed transport issue that crashed when multiple USB devices were
+  connected on a Windows machine, more graceful handling of USB disconnects,,
+  provided .cdf file for installing on Windows
+* B200: Fixed memory growth/increasing tune times issue
+* E300: Fixed memory leak with udev, fixed issue with autoboot value, fixes
+  to button behaviour
+* usrp2, usrp3: Fixed IQ imbalance and DC bias in DDC chain
+* CMake: Windows registry fixes
+* Fixed several compiler warnings and minor bugs
+* Examples: Updated benchmark_rate for improved thread safety
+
+## 003.009.002
+* E310: Added support for Speedgrade 3
+* B205mini: Added support
+* E310: Fixed reference counting bug
+* B210: Fixed external clock reference bug for devices using ADF4002 PLLs
+* B210: Fixed codec loopback test
+* OctoClock: Fixed firmware burning on Windows
+* B2XX, E3XX, X3XX: Easier time-syncing features. Fixes bug where B210s would
+  only run after issuing set_time_unknown_pps().
+* X3XX: Fixed bug for IQ imbalance correction
+* E310: DRAM testbenching
+* Docs/Manual: Many updates and fixes
+
+## 003.009.001
+* B200mini: Updated udev rules, removed DCM
+* B200: Better USB error messages
+* Cores: Fixed CORDIC scaling issue on all devices that use
+  dsp_core_3000
+* X300: Fixed GPIO issue
+* Examples: Added PPS source option
+* Docs: Multiple manual updates
+
+## 003.009.000
+* X300: Updated DAC ctrl, FPGA toolchain is now entirely Vivado,
+  improved master clock controls, added ADC self-cal capability,
+  prepared for revisions 7 and 8, fixed flow control issue which
+  could cause device to hang when receiving too many overruns
+* B2XX: Auto clock rate setting, added PID/VID pairs to support
+  all B2XX- and derivatives, added temperature sensor, improved
+  DC offset and IQ imbalance correction, added AGC support,
+  support for FPGPIO connector on Rev6+ boards, full clock range support,
+  updated FX3 firmware (side-channel logging capabilities, updated
+  tx voltage swing, better configurability), default tick rate now
+  16 MHz, added B200mini support
+* E3XX: Added temperature sensor, FPGA toolchain is now entirely Vivado,
+  improved DC offset and IQ imbalance correction, added AGC support,
+  improved FPGA capture interface robustness for RFIC, make frame
+  sizes configurable, replaced GPS control code with gpsd interfacing
+  capabilities
+* Octoclock: Fixed bootloader + ethernet capabilities
+* Compilers: Supported MSVC versions are now 2012, 2013, 2015
+  (dropped 2010 support), added MinGW capabilities
+* Documentation: Many minor fixes and updates, merged all the
+  info from code.ettus.com
+* UHD: Added sid_t, CHDR-specific transports now get their own
+  (un)packer codes, fixed a lot of compiler warnings, added
+  filter API (currently available for AD9361 frontend), added
+  soft-register API, replaced Cheetah with Mako, full Py3k
+  compliance, updated images downloader tool (now is one tool
+  for all devices), CMake minimum version is now 2.8, refactored
+  general AD9361 peripheral management, refactored most core
+  control management, added usb_error type (used by B2xx devices),
+  better exception handling at runtime, added C wrapper API,
+  new dependency: python-requests
+* C API: Added to UHD (wraps C++ calls in C)
+* multi_usrp: Added normalized gain setters/getters, IQ imbalance
+  + DC offset correction API, filter API
+* Converters: Converter symbols now exported, better logging,
+  removed ORC dependency, added u8 converters
+* Examples: Whitespace- and other cleanup, multi-channel fixes for
+  some examples
+* Utils: Read more property tree types from the command line
+* Tools: kitchen sink updated, added mega_fft
+
+## 003.008.005
+* E3xx: Added support for battery-based E3xx device (E312),
+  get_freq() for network mode, fixed GPS time initialization bug
+* AD9361-based devices: Fixed frequency readback bug
+* B200: Fixed DCM issues, better loopback failure handling,
+  fix erroneous warning for custom clock rates
+* X3x0: Better warnings for clock reate / ref freq
+* multi_usrp: Added define for GPIO capabilities (enables
+  exposure in GNU Radio)
+* UHD: sc16->sc16 SSE converter
+* Manual: Multiple minor updates, FPGA manual improvements,
+* Build System: Fixed builds on some Windows platforms, removed
+  stray prints
+
+## 003.008.004
+* B200: Fixed EEPROM writing bug, updated images for B200 Rev5/6
+* E300: GPS antenna power defaults to staying on, GPS time used as
+  default if available
+* UBX: PDF frequency fix on X300
+* USRP2: Bugfix that allows latest UHD to work with USRP2
+* Documentation: Many fixes for E300 section, added FPGA manual
+
+## 003.008.003
+* UBX: Fixed phase synchronization issues
+  (Related changes: Change X300 daughterboard frequency, increase
+   N210 FIFO depth)
+* Fixed many compiler warnings
+* B200: Fixed timing issues, fixed tick rate issue, stabilized
+  operations at high clock rates
+* X300: Improved phase alignment across devices
+* CMake: Build fixes
+* E300: Flow control fix
+
+
+## 003.008.002
+* CMake: Introducing named versions for dev branches, enable static libs,
+* E300: Docs updates, compat number bump, VCTCXO updates,
+  more status bits for ref locking, fixed serial number length fix,
+  RSSI Sensor
+* B200: RSSI sensor
+* AD9361: Better handling of different interpolation rates in FIR,
+  fix for gain value truncation, removed gain value offset
+* UBX: Added drivers
+* Manual/Docs: Numerous updates, minimum compiler versions now specified,
+* Converters: Multiple fixes for sc12
+* Examples: Fixes to txrx_loopback_to_file
+* Path handling vastly improved, made more consistent
+* Minor UHD fixes
+
+## 003.008.001
+* B2x0: Fixed PLL settings, Fixed external ref selection, serialized
+  streamer setup (thread-safety)
+* X3x0: Fixed flow control issue, improved DAC ctrl + init logic,
+  Fixed I/Q alignment issue
+* Generation-3 devices: Fixed LED registers
+* UHD: Improved tuning logic for manual tunes
+* Tools: Multiple kitchen sink fixes, coloured output
+* Examples: Multiple bugfixes (multi-channel ops)
+* Docs/Manual: Multiple fixes, E310 panel images
+
 ## 003.008.000
 * Added E310 support
 * B200/B210: Moved AD9361 controls from firmware to host

@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "usrp1_iface.hpp"
@@ -31,9 +21,9 @@
 #include <uhd/usrp/dboard_eeprom.hpp>
 #include <uhd/usrp/dboard_manager.hpp>
 #include <uhd/transport/usb_zero_copy.hpp>
-#include <boost/foreach.hpp>
 #include <boost/weak_ptr.hpp>
 #include <complex>
+#include <atomic>
 
 #ifndef INCLUDED_USRP1_IMPL_HPP
 #define INCLUDED_USRP1_IMPL_HPP
@@ -84,6 +74,8 @@ public:
     uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
     bool recv_async_msg(uhd::async_metadata_t &, double);
 
+    static uhd::usrp::mboard_eeprom_t get_mb_eeprom(uhd::i2c_iface::sptr);
+
 private:
     //controllers
     uhd::usrp::fx2_ctrl::sptr _fx2_ctrl;
@@ -92,7 +84,6 @@ private:
     uhd::transport::usb_zero_copy::sptr _data_transport;
     struct db_container_type{
         usrp1_codec_ctrl::sptr codec;
-        uhd::usrp::dboard_iface::sptr dboard_iface;
         uhd::usrp::dboard_manager::sptr dboard_manager;
     };
     uhd::dict<std::string, db_container_type> _dbc;
@@ -146,9 +137,9 @@ private:
     bool has_rx_halfband(void);
     bool has_tx_halfband(void);
 
-    void vandal_conquest_loop(void);
+    void vandal_conquest_loop(std::atomic<bool> &);
 
-    void set_reg(const std::pair<boost::uint8_t, boost::uint32_t> &reg);
+    void set_reg(const std::pair<uint8_t, uint32_t> &reg);
 
     //handle the enables
     bool _rx_enabled, _tx_enabled;
@@ -159,7 +150,7 @@ private:
     void enable_tx(bool enb){
         _tx_enabled = enb;
         _fx2_ctrl->usrp_tx_enable(enb);
-        BOOST_FOREACH(const std::string &key, _dbc.keys())
+        for(const std::string &key:  _dbc.keys())
         {
             _dbc[key].codec->enable_tx_digital(enb);
         }

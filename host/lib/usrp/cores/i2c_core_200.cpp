@@ -1,23 +1,13 @@
 //
 // Copyright 2011-2012,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "i2c_core_200.hpp"
 #include <uhd/exception.hpp>
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
+#include <uhdlib/usrp/cores/i2c_core_200.hpp>
 #include <boost/thread/thread.hpp> //sleep
 #include <boost/thread/mutex.hpp>
 
@@ -68,16 +58,16 @@ public:
         //init I2C FPGA interface.
         this->poke(REG_I2C_WR_CTRL, 0x0000);
         //set prescalers to operate at 400kHz: WB_CLK is 64MHz...
-        static const boost::uint32_t i2c_datarate = 400000;
-        static const boost::uint32_t wishbone_clk = 64000000; //FIXME should go somewhere else
-        boost::uint16_t prescaler = wishbone_clk / (i2c_datarate*5) - 1;
+        static const uint32_t i2c_datarate = 400000;
+        static const uint32_t wishbone_clk = 64000000; //FIXME should go somewhere else
+        uint16_t prescaler = wishbone_clk / (i2c_datarate*5) - 1;
         this->poke(REG_I2C_WR_PRESCALER_LO, prescaler & 0xFF);
         this->poke(REG_I2C_WR_PRESCALER_HI, (prescaler >> 8) & 0xFF);
         this->poke(REG_I2C_WR_CTRL, I2C_CTRL_EN); //enable I2C core
     }
 
     void write_i2c(
-        boost::uint16_t addr,
+        uint16_t addr,
         const byte_vector_t &bytes
     ){
         this->poke(REG_I2C_WR_DATA, (addr << 1) | 0); //addr and read bit (0)
@@ -100,7 +90,7 @@ public:
     }
 
     byte_vector_t read_i2c(
-        boost::uint16_t addr,
+        uint16_t addr,
         size_t num_bytes
     ){
         byte_vector_t bytes;
@@ -130,7 +120,7 @@ private:
             if ((this->peek(REG_I2C_RD_ST) & I2C_ST_TIP) == 0) return;
             boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         }
-        UHD_MSG(error) << "i2c_core_200: i2c_wait timeout" << std::endl;
+        UHD_LOGGER_ERROR("CORES") << "i2c_core_200: i2c_wait timeout" ;
     }
 
     bool wait_chk_ack(void){
@@ -138,17 +128,17 @@ private:
         return (this->peek(REG_I2C_RD_ST) & I2C_ST_RXACK) == 0;
     }
 
-    void poke(const size_t what, const boost::uint8_t cmd)
+    void poke(const size_t what, const uint8_t cmd)
     {
         boost::mutex::scoped_lock lock(_mutex);
         _iface->poke32(_base, (what << 8) | cmd);
     }
 
-    boost::uint8_t peek(const size_t what)
+    uint8_t peek(const size_t what)
     {
         boost::mutex::scoped_lock lock(_mutex);
         _iface->poke32(_base, what << 8);
-        return boost::uint8_t(_iface->peek32(_readback));
+        return uint8_t(_iface->peek32(_readback));
     }
 
     wb_iface::sptr _iface;

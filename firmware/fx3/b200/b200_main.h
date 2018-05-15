@@ -10,7 +10,7 @@
 #include "cyu3types.h"
 #include "cyu3usbconst.h"
 
-#define FX3_COMPAT_MAJOR            (uint8_t)(7)
+#define FX3_COMPAT_MAJOR            (uint8_t)(8)
 #define FX3_COMPAT_MINOR            (uint8_t)(0)
 
 /* GPIO Pins */
@@ -41,7 +41,7 @@
 #define MASK_GPIO_FPGA_SB_SCL       (uint32_t)(1 << (GPIO_FPGA_SB_SCL - 0))
 #define MASK_GPIO_FPGA_SB_SDA       (uint32_t)(1 << (GPIO_FPGA_SB_SDA - 0))
 
-#define USB3_PACKETS_PER_BURST          (16)
+#define USB3_PACKETS_PER_BURST          (8) // Optimized value from Cypress AN86947
 #define USB2_PACKETS_PER_BURST          (1)
 #define DMA_SIZE_INFINITE               (0)
 
@@ -128,6 +128,10 @@ extern const uint8_t b200_usb_ss_config_desc[];
 extern const uint8_t b200_string_lang_id_desc[];
 extern const uint8_t b200_usb_manufacture_desc[];
 extern const uint8_t b200_usb_product_desc[];
+extern const uint8_t niusrp_usb_manufacture_desc[];
+extern const uint8_t niusrp_2900_usb_product_desc[];
+extern const uint8_t niusrp_2901_usb_product_desc[];
+extern const uint8_t unknown_desc[];
 extern uint8_t dev_serial[];
 
 

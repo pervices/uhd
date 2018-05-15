@@ -1,23 +1,12 @@
 //
-// Copyright 2011,2014 Ettus Research LLC
+// Copyright 2011,2014-2016 Ettus Research
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/property_tree.hpp>
 #include <uhd/types/dict.hpp>
-#include <boost/foreach.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/make_shared.hpp>
 #include <iostream>
@@ -67,7 +56,7 @@ fs_path uhd::operator/(const fs_path &lhs, const fs_path &rhs){
 
 fs_path uhd::operator/(const fs_path &lhs, size_t rhs)
 {
-    fs_path rhs_str = boost::lexical_cast<std::string>(rhs);
+    fs_path rhs_str = std::to_string(rhs);
     return lhs / rhs_str;
 }
 
@@ -98,7 +87,7 @@ public:
 
         node_type *parent = NULL;
         node_type *node = &_guts->root;
-        BOOST_FOREACH(const std::string &name, path_tokenizer(path)){
+        for(const std::string &name:  path_tokenizer(path)){
             if (not node->has_key(name)) throw_path_not_found(path);
             parent = node;
             node = &(*node)[name];
@@ -112,7 +101,7 @@ public:
         boost::mutex::scoped_lock lock(_guts->mutex);
 
         node_type *node = &_guts->root;
-        BOOST_FOREACH(const std::string &name, path_tokenizer(path)){
+        for(const std::string &name:  path_tokenizer(path)){
             if (not node->has_key(name)) return false;
             node = &(*node)[name];
         }
@@ -124,7 +113,7 @@ public:
         boost::mutex::scoped_lock lock(_guts->mutex);
 
         node_type *node = &_guts->root;
-        BOOST_FOREACH(const std::string &name, path_tokenizer(path)){
+        for(const std::string &name:  path_tokenizer(path)){
             if (not node->has_key(name)) throw_path_not_found(path);
             node = &(*node)[name];
         }
@@ -137,7 +126,7 @@ public:
         boost::mutex::scoped_lock lock(_guts->mutex);
 
         node_type *node = &_guts->root;
-        BOOST_FOREACH(const std::string &name, path_tokenizer(path)){
+        for(const std::string &name:  path_tokenizer(path)){
             if (not node->has_key(name)) (*node)[name] = node_type();
             node = &(*node)[name];
         }
@@ -150,7 +139,7 @@ public:
         boost::mutex::scoped_lock lock(_guts->mutex);
 
         node_type *node = &_guts->root;
-        BOOST_FOREACH(const std::string &name, path_tokenizer(path)){
+        for(const std::string &name:  path_tokenizer(path)){
             if (not node->has_key(name)) throw_path_not_found(path);
             node = &(*node)[name];
         }

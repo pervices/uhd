@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2011,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "udp_common.hpp"
@@ -31,7 +21,7 @@ public:
     udp_simple_impl(
         const std::string &addr, const std::string &port, bool bcast, bool connect
     ):_connected(connect){
-        UHD_LOG << boost::format("Creating udp transport for %s %s") % addr % port << std::endl;
+        UHD_LOGGER_TRACE("UDP") << boost::format("Creating udp transport for %s %s") % addr % port ;
 
         //resolve the address
         asio::ip::udp::resolver resolver(_io_service);
@@ -56,12 +46,16 @@ public:
     }
 
     size_t recv(const asio::mutable_buffer &buff, double timeout){
-        if (not wait_for_recv_ready(_socket->native(), timeout)) return 0;
+        if (not wait_for_recv_ready(_socket->native_handle(), timeout)) return 0;
         return _socket->receive_from(asio::buffer(buff), _recv_endpoint);
     }
 
     std::string get_recv_addr(void){
         return _recv_endpoint.address().to_string();
+    }
+
+    std::string get_send_addr(void){
+        return _send_endpoint.address().to_string();
     }
 
 private:
@@ -114,9 +108,13 @@ public:
         do{
             //drain anything in current buffer
             while (_off < _len){
-                const char ch = _buf[_off]; _off++;
-                line += std::string(1, ch);
-                if (ch == '\n' or ch == '\r') return line;
+                const char ch = _buf[_off++];
+                _line += ch;
+                if (ch == '\n')
+                {
+                    line.swap(_line);
+                    return line;
+                }
             }
 
             //recv a new packet into the buffer
@@ -130,7 +128,8 @@ public:
 private:
     udp_simple::sptr _udp;
     size_t _len, _off;
-    boost::uint8_t _buf[udp_simple::mtu];
+    uint8_t _buf[udp_simple::mtu];
+    std::string _line;
 };
 
 uhd::uart_iface::sptr udp_simple::make_uart(sptr udp){

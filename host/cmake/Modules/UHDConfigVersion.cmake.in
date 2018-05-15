@@ -1,18 +1,8 @@
 #
 # Copyright 2014 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -29,11 +19,13 @@ set(ENV{UHD_CONFIG_VERSION_USED} TRUE)
 # version values as set in cmake/Modules/UHDVersion.cmake, placed
 # statically in here to avoid using Python all over again.
 
-SET(MAJOR_VERSION @TRIMMED_VERSION_MAJOR@)
-SET(MINOR_VERSION @TRIMMED_VERSION_MINOR@)
-SET(PATCH_VERSION @TRIMMED_VERSION_PATCH@)
+SET(MAJOR_VERSION @UHD_VERSION_MAJOR@)
+SET(API_VERSION @UHD_VERSION_API@)
+SET(ABI_VERSION @UHD_VERSION_ABI@)
+SET(PATCH_VERSION @UHD_VERSION_PATCH@)
+SET(DEVEL_VERSION @UHD_VERSION_DEVEL@)
 
-SET(PACKAGE_VERSION @TRIMMED_UHD_VERSION@)
+SET(PACKAGE_VERSION @UHD_VERSION@)
 SET(ENV{UHD_PACKAGE_VERSION} ${PACKAGE_VERSION})
 
 # There is a bug in CMake whereby calling "find_package(FOO)" within
@@ -47,6 +39,13 @@ IF(NOT PACKAGE_FIND_VERSION)
   SET(PACKAGE_VERSION_EXACT TRUE)
   RETURN()
 ENDIF(NOT PACKAGE_FIND_VERSION)
+
+# Development branches of UHD don't have a patch version. This is a hack
+# to add a fake patch version that should be higher than anything the user
+# requests.
+IF(DEVEL_VERSION)
+    SET(PACKAGE_VERSION "${MAJOR_VERSION}.${API_VERSION}.${ABI_VERSION}.999")
+ENDIF(DEVEL_VERSION)
 
 # assume incorrect versioning by default
 SET(PACKAGE_VERSION_COMPATIBLE FALSE)
@@ -164,3 +163,6 @@ ENDIF(UHD_USE_ABI)
 IF(${PACKAGE_FIND_VERSION} VERSION_EQUAL ${PACKAGE_VERSION})
   SET(PACKAGE_VERSION_EXACT TRUE)
 ENDIF()
+
+# Undo our patch-version-number hack
+SET(PACKAGE_VERSION @UHD_VERSION@)

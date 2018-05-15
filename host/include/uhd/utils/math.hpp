@@ -1,27 +1,17 @@
 //
-// Copyright 2014 Ettus Research LLC
+// Copyright 2014-2015 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_UTILS_MATH_HPP
 #define INCLUDED_UHD_UTILS_MATH_HPP
 
+#include <cmath>
 #include <uhd/config.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <boost/numeric/conversion/bounds.hpp>
-
 
 namespace uhd {
 
@@ -30,19 +20,6 @@ namespace uhd {
  * be used in UHD when portable / `std` options are not available.
  */
 namespace math {
-
-    /*!
-     * Numeric limits of certain types.
-     *
-     * There are many sources for getting these, including std::numeric_limts,
-     * <cstdint>, <climits>, and Boost. The <cstdint> option is preferable as it
-     * gives us fixed-width constants, but unfortunately is new as of C++11.
-     * Since this isn't available on many systems, we need to use one of the
-     * other options. We will use the Boost option, here, since we use Boost
-     * data types for portability across UHD.
-     */
-    static const boost::int32_t BOOST_INT32_MAX = boost::numeric::bounds<boost::int32_t>::highest();
-    static const boost::int32_t BOOST_INT32_MIN = boost::numeric::bounds<boost::int32_t>::lowest();
 
     /*!
      * Define epsilon values for floating point comparisons.
@@ -60,7 +37,7 @@ namespace math {
      * values, a custom epsilon should be defined for those computations. This
      * use-case is provided for in the `fp_compare_epsilon` class constructor.
      */
-    static const float SINGLE_PRECISION_EPSILON = 1.19e-7;
+    static const float SINGLE_PRECISION_EPSILON = 1.19e-7f;
     static const double DOUBLE_PRECISION_EPSILON = 2.22e-16;
 
 namespace fp_compare {
@@ -155,7 +132,7 @@ namespace fp_compare {
      * These are the default deltas used by the 'fp_compare_delta' class for
      * single and double-precision floating point comparisons.
      */
-    static const float SINGLE_PRECISION_DELTA = 1e-3;
+    static const float SINGLE_PRECISION_DELTA = 1e-3f;
     static const double DOUBLE_PRECISION_DELTA = 1e-5;
 
     /*! Floating-point delta to use for frequency comparisons. */
@@ -237,10 +214,20 @@ namespace fp_compare {
                 == fp_compare::fp_compare_delta<double>(rhs, FREQ_COMPARISON_DELTA_HZ));
     }
 
+    //! Portable log2()
+    template <typename float_t> UHD_INLINE
+    float_t log2(float_t x)
+    {
+        // C++11 defines std::log2(), when that's universally supported
+        // we can switch over.
+        return std::log(x) / std::log(float_t(2));
+    }
+
+
 } // namespace math
 } // namespace uhd
 
-#include "fp_compare_epsilon.ipp"
-#include "fp_compare_delta.ipp"
+#include <uhd/utils/fp_compare_epsilon.ipp>
+#include <uhd/utils/fp_compare_delta.ipp>
 
 #endif /* INCLUDED_UHD_UTILS_MATH_HPP */

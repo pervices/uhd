@@ -1,18 +1,8 @@
 //
-// Copyright 2013 Ettus Research LLC
+// Copyright 2013-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 
@@ -23,6 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string>
+#include <uhd/config.hpp>
 #include <uhd/exception.hpp>
 
 #define ENABLE_EXTENDED_ERROR_INFO false
@@ -40,9 +31,9 @@ struct nirio_err_info {
     static const size_t NIRIO_ERROR_TABLE_SIZE;
 };
 
-const std::string lookup_err_msg(nirio_status code);
+UHD_API const std::string lookup_err_msg(nirio_status code);
 
-void nirio_status_to_exception(const nirio_status& status, const std::string& message);
+UHD_API void nirio_status_to_exception(const nirio_status& status, const std::string& message);
 }}
 
 #define nirio_status_fatal(status) ((status) < 0)

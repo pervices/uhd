@@ -1,24 +1,14 @@
 //
 // Copyright 2010-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "udp_common.hpp"
 #include <uhd/transport/tcp_zero_copy.hpp>
 #include <uhd/transport/buffer_pool.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/atomic.hpp>
 #include <boost/format.hpp>
@@ -144,7 +134,7 @@ public:
         _send_buffer_pool(buffer_pool::make(_num_send_frames, _send_frame_size)),
         _next_recv_buff_index(0), _next_send_buff_index(0)
     {
-        UHD_LOG << boost::format("Creating tcp transport for %s %s") % addr % port << std::endl;
+        UHD_LOGGER_TRACE("TCP") << boost::format("Creating tcp transport for %s %s") % addr % port ;
 
         //resolve the address
         asio::ip::tcp::resolver resolver(_io_service);
@@ -154,7 +144,7 @@ public:
         //create, open, and connect the socket
         _socket.reset(new asio::ip::tcp::socket(_io_service));
         _socket->connect(receiver_endpoint);
-        _sock_fd = _socket->native();
+        _sock_fd = _socket->native_handle();
 
         //packets go out ASAP
         asio::ip::tcp::no_delay option(true);

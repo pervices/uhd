@@ -64,10 +64,10 @@ synchronize multiple pairs of devices.
 \section sync_time Synchronizing the Device Time
 
 The purpose of the PPS signal is to synchronously latch a time into the
-device. You can use the `set_time_next_pps(...)` function to either
+device. You can use the uhd::usrp::multi_usrp::set_time_next_pps() function to either
 initialize the sample time to 0 or an absolute time, such as GPS time or
 UTC time. For the purposes of synchronizing devices, it doesn't matter
-what time you initialize to when using `set_time_next_pps(...)`.
+what time you initialize to when using uhd::usrp::multi_usrp::set_time_next_pps().
 
 \subsection sync_time_reg Method 1 - poll the USRP time registers
 
@@ -80,6 +80,7 @@ determine that a PPS has occurred:
     while (last_pps_time == usrp->get_time_last_pps()){
         //sleep 100 milliseconds (give or take)
     }
+    // This command will be processed fairly soon after the last PPS edge:
     usrp->set_time_next_pps(uhd::time_spec_t(0.0));
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -97,18 +98,21 @@ PPS edge, and the user can also parse this string to determine GPS time:
 
     //call user's function to wait for NMEA message...
     //call user's function to parse the NMEA message...
+    gps_time = VALUE_IN_NMEA_MESSAGE;
+    // At the next PPS edge, set the device time to the GPS time:
     usrp->set_time_next_pps(uhd::time_spec_t(gps_time+1));
+    // Now the device time should be in sync with the GPS time.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-\subsection sync_time_internalgps Method 3 - internal GPSDO
+Take a look at the `sync_to_gps` example for more detail.
 
-USRP devices with internal GPSDOs properly configured will automatically
-configure themselves to set the VITA time to current UTC time. See \ref page_gpsdo
-for more details.
+\subsection sync_time_mimocable Method 3 - MIMO cable
 
-\subsection sync_time_mimocable Method 4 - MIMO cable
+Note: This only applies to USRP2 and N200/N210. This method does *not*
+require a separate PPS input to the devices, but it is limited to
+a total of 2 USRPs.
 
-A USRP device can synchronize its time to another USRP device via the
+A USRP2 device can synchronize its time to another USRP device via the
 MIMO cable. Unlike the other methods, this does not use a real "pulse
 per second". Rather, the USRP device sends an encoded time message over
 the MIMO cable. The slave device will automatically synchronize to the
@@ -152,20 +156,21 @@ metadata should have a time spec set: :
     size_t num_tx_samps = tx_streamer->send(buffs, samps_to_send, md);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-\subsection sync_phase_lo Align LOs in the front-end (SBX, WBX, CBX)
+\subsection sync_phase_lo Align LOs in the front-end (SBX, UBX)
 
 Using timed commands, multiple frontends can be tuned at a specific
 time. This timed-tuning ensures that the phase offsets between VCO/PLL
 chains will remain constant after each re-tune. See notes below:
 
+-   Phase synchronization with the UBX is only supported on the X3x0 Series
+-   Phase synchronization with the SBX works on both N2x0 and X3x0 Series
 -   There is a random phase offset between any two frontends
 -   This phase offset is different for different LO frequencies
 -   This phase offset remains constant after retuning
-    -   Due to a divider, WBX phase offset will be randomly +/- 180 deg after re-tune
 -   This phase offset will drift over time due to thermal and other characteristics
 -   Periodic calibration will be necessary for phase-coherent applications
 
-Code snippet example, tuning with timed commands: :
+Code snippet example, tuning with timed commands:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.cpp}
     //we will tune the frontends in 100ms from now

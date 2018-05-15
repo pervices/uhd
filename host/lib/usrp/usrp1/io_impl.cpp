@@ -1,28 +1,18 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "validate_subdev_spec.hpp"
+#include "usrp1_calc_mux.hpp"
+#include "usrp1_impl.hpp"
+#include <uhdlib/usrp/common/validate_subdev_spec.hpp>
 #define SRPH_DONT_CHECK_SEQUENCE
 #include "../../transport/super_recv_packet_handler.hpp"
 #define SSPH_DONT_PAD_TO_ONE
 #include "../../transport/super_send_packet_handler.hpp"
-#include "usrp1_calc_mux.hpp"
-#include "usrp1_impl.hpp"
-#include <uhd/utils/msg.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
@@ -32,6 +22,7 @@
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <boost/make_shared.hpp>
+#include <atomic>
 
 #define bmFR_RX_FORMAT_SHIFT_SHIFT 0
 #define bmFR_RX_FORMAT_WIDTH_SHIFT 4
@@ -115,7 +106,7 @@ private:
  * BS VRT packer/unpacker functions (since samples don't have headers)
  **********************************************************************/
 static void usrp1_bs_vrt_packer(
-    boost::uint32_t *,
+    uint32_t *,
     vrt::if_packet_info_t &if_packet_info
 ){
     if_packet_info.num_header_words32 = 0;
@@ -123,12 +114,12 @@ static void usrp1_bs_vrt_packer(
 }
 
 static void usrp1_bs_vrt_unpacker(
-    const boost::uint32_t *,
+    const uint32_t *,
     vrt::if_packet_info_t &if_packet_info
 ){
     if_packet_info.packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
     if_packet_info.num_payload_words32 = if_packet_info.num_packet_words32;
-    if_packet_info.num_payload_bytes = if_packet_info.num_packet_words32*sizeof(boost::uint32_t);
+    if_packet_info.num_payload_bytes = if_packet_info.num_packet_words32*sizeof(uint32_t);
     if_packet_info.num_header_words32 = 0;
     if_packet_info.packet_count = 0;
     if_packet_info.sob = false;
@@ -147,12 +138,14 @@ struct usrp1_impl::io_impl{
     io_impl(zero_copy_if::sptr data_transport):
         data_transport(data_transport),
         curr_buff(offset_send_buffer(data_transport->get_send_buff())),
-        omsb(boost::bind(&usrp1_impl::io_impl::commit_send_buff, this, _1, _2, _3))
+        omsb(boost::bind(&usrp1_impl::io_impl::commit_send_buff, this, _1, _2, _3)),
+        vandal_loop_exit(false)
     {
         /* NOP */
     }
 
     ~io_impl(void){
+        vandal_loop_exit = true;
         UHD_SAFE_CALL(flush_send_buff();)
     }
 
@@ -175,6 +168,7 @@ struct usrp1_impl::io_impl{
         return omsb.get_new(curr_buff, next_buff);
     }
 
+    std::atomic<bool> vandal_loop_exit;
     task::sptr vandal_task;
     boost::system_time last_send_time;
 };
@@ -247,7 +241,7 @@ void usrp1_impl::io_init(void){
 
     //create a new vandal thread to poll xerflow conditions
     _io_impl->vandal_task = task::make(boost::bind(
-        &usrp1_impl::vandal_conquest_loop, this
+        &usrp1_impl::vandal_conquest_loop, this, std::ref(_io_impl->vandal_loop_exit)
     ));
 }
 
@@ -271,7 +265,7 @@ void usrp1_impl::tx_stream_on_off(bool enb){
  * On an overflow, interleave an inline message into recv and print.
  * This procedure creates "soft" inline and async user messages.
  */
-void usrp1_impl::vandal_conquest_loop(void){
+void usrp1_impl::vandal_conquest_loop(std::atomic<bool> &exit_loop){
 
     //initialize the async metadata
     async_metadata_t async_metadata;
@@ -285,8 +279,8 @@ void usrp1_impl::vandal_conquest_loop(void){
     inline_metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
 
     //start the polling loop...
-    try{ while (not boost::this_thread::interruption_requested()){
-        boost::uint8_t underflow = 0, overflow = 0;
+    try{ while (not exit_loop){
+        uint8_t underflow = 0, overflow = 0;
 
         //shutoff transmit if it has been too long since send() was called
         if (_tx_enabled and (boost::get_system_time() - _io_impl->last_send_time) > boost::posix_time::milliseconds(100)){
@@ -305,19 +299,18 @@ void usrp1_impl::vandal_conquest_loop(void){
         if (_tx_enabled and underflow){
             async_metadata.time_spec = _soft_time_ctrl->get_time();
             _soft_time_ctrl->get_async_queue().push_with_pop_on_full(async_metadata);
-            UHD_MSG(fastpath) << "U";
+            UHD_LOG_FASTPATH("U")
         }
         if (_rx_enabled and overflow){
             inline_metadata.time_spec = _soft_time_ctrl->get_time();
             _soft_time_ctrl->get_inline_queue().push_with_pop_on_full(inline_metadata);
-            UHD_MSG(fastpath) << "O";
+            UHD_LOG_FASTPATH("O")
         }
 
         boost::this_thread::sleep(boost::posix_time::milliseconds(50));
     }}
-    catch(const boost::thread_interrupted &){} //normal exit condition
     catch(const std::exception &e){
-        UHD_MSG(error) << "The vandal caught an unexpected exception " << e.what() << std::endl;
+        UHD_LOGGER_ERROR("USRP1") << "The vandal caught an unexpected exception " << e.what() ;
     }
 }
 
@@ -439,7 +432,7 @@ void usrp1_impl::update_rx_subdev_spec(const uhd::usrp::subdev_spec_t &spec){
 
     //set the mux and set the number of rx channels
     std::vector<mapping_pair_t> mapping;
-    BOOST_FOREACH(const subdev_spec_pair_t &pair, spec){
+    for(const subdev_spec_pair_t &pair:  spec){
         const std::string conn = _tree->access<std::string>(str(boost::format(
             "/mboards/0/dboards/%s/rx_frontends/%s/connection"
         ) % pair.db_name % pair.sd_name)).get();
@@ -459,7 +452,7 @@ void usrp1_impl::update_tx_subdev_spec(const uhd::usrp::subdev_spec_t &spec){
 
     //set the mux and set the number of tx channels
     std::vector<mapping_pair_t> mapping;
-    BOOST_FOREACH(const subdev_spec_pair_t &pair, spec){
+    for(const subdev_spec_pair_t &pair:  spec){
         const std::string conn = _tree->access<std::string>(str(boost::format(
             "/mboards/0/dboards/%s/tx_frontends/%s/connection"
         ) % pair.db_name % pair.sd_name)).get();
@@ -500,11 +493,11 @@ double usrp1_impl::update_rx_samp_rate(size_t dspno, const double samp_rate){
     const size_t div = this->has_rx_halfband()? 2 : 1;
     const size_t rate = boost::math::iround(_master_clock_rate/this->get_rx_dsp_host_rates().clip(samp_rate, true));
 
-    if (rate < 8 and this->has_rx_halfband()) UHD_MSG(warning) <<
+    if (rate < 8 and this->has_rx_halfband()) UHD_LOGGER_WARNING("USRP1") <<
         "USRP1 cannot achieve decimations below 8 when the half-band filter is present.\n"
         "The usrp1_fpga_4rx.rbf file is a special FPGA image without RX half-band filters.\n"
         "To load this image, set the device address key/value pair: fpga=usrp1_fpga_4rx.rbf\n"
-    << std::endl;
+    ;
 
     if (dspno == 0){ //only care if dsp0 is set since its homogeneous
         bool s = this->disable_rx();
@@ -548,10 +541,10 @@ double usrp1_impl::update_tx_samp_rate(size_t dspno, const double samp_rate){
 void usrp1_impl::update_rates(void){
     const fs_path mb_path = "/mboards/0";
     this->update_tick_rate(_master_clock_rate);
-    BOOST_FOREACH(const std::string &name, _tree->list(mb_path / "rx_dsps")){
+    for(const std::string &name:  _tree->list(mb_path / "rx_dsps")){
         _tree->access<double>(mb_path / "rx_dsps" / name / "rate" / "value").update();
     }
-    BOOST_FOREACH(const std::string &name, _tree->list(mb_path / "tx_dsps")){
+    for(const std::string &name:  _tree->list(mb_path / "tx_dsps")){
         _tree->access<double>(mb_path / "tx_dsps" / name / "rate" / "value").update();
     }
 }
@@ -566,9 +559,9 @@ double usrp1_impl::update_rx_dsp_freq(const size_t dspno, const double freq_){
     //calculate the freq register word (signed)
     UHD_ASSERT_THROW(std::abs(freq) <= _master_clock_rate/2.0);
     static const double scale_factor = std::pow(2.0, 32);
-    const boost::int32_t freq_word = boost::int32_t(boost::math::round((freq / _master_clock_rate) * scale_factor));
+    const int32_t freq_word = int32_t(boost::math::round((freq / _master_clock_rate) * scale_factor));
 
-    static const boost::uint32_t dsp_index_to_reg_val[4] = {
+    static const uint32_t dsp_index_to_reg_val[4] = {
         FR_RX_FREQ_0, FR_RX_FREQ_1, FR_RX_FREQ_2, FR_RX_FREQ_3
     };
     _iface->poke32(dsp_index_to_reg_val[dspno], freq_word);

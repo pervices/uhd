@@ -1,22 +1,13 @@
 //
 // Copyright 2011-2012,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "rx_frontend_core_200.hpp"
+#include <uhdlib/usrp/cores/rx_frontend_core_200.hpp>
 #include <boost/math/special_functions/round.hpp>
+#include <boost/bind.hpp>
 
 using namespace uhd;
 
@@ -30,13 +21,17 @@ using namespace uhd;
 #define OFFSET_SET   (1ul << 30)
 #define FLAG_MASK (OFFSET_FIXED | OFFSET_SET)
 
-static boost::uint32_t fs_to_bits(const double num, const size_t bits){
-    return boost::int32_t(boost::math::round(num * (1 << (bits-1))));
+static uint32_t fs_to_bits(const double num, const size_t bits){
+    return int32_t(boost::math::round(num * (1 << (bits-1))));
 }
 
 rx_frontend_core_200::~rx_frontend_core_200(void){
     /* NOP */
 }
+
+const std::complex<double> rx_frontend_core_200::DEFAULT_DC_OFFSET_VALUE = std::complex<double>(0.0, 0.0);
+const bool rx_frontend_core_200::DEFAULT_DC_OFFSET_ENABLE = true;
+const std::complex<double> rx_frontend_core_200::DEFAULT_IQ_BALANCE_VALUE = std::complex<double>(0.0, 0.0);
 
 class rx_frontend_core_200_impl : public rx_frontend_core_200{
 public:
@@ -64,7 +59,7 @@ public:
         return std::complex<double>(_i_dc_off/scaler, _q_dc_off/scaler);
     }
 
-    void set_dc_offset(const boost::uint32_t flags){
+    void set_dc_offset(const uint32_t flags){
         _iface->poke32(REG_RX_FE_OFFSET_I, flags | (_i_dc_off & ~FLAG_MASK));
         _iface->poke32(REG_RX_FE_OFFSET_Q, flags | (_q_dc_off & ~FLAG_MASK));
     }
@@ -74,8 +69,24 @@ public:
         _iface->poke32(REG_RX_FE_PHASE_CORRECTION, fs_to_bits(cor.imag(), 18));
     }
 
+    void populate_subtree(uhd::property_tree::sptr subtree)
+    {
+        subtree->create<std::complex<double> >("dc_offset/value")
+            .set(DEFAULT_DC_OFFSET_VALUE)
+            .set_coercer(boost::bind(&rx_frontend_core_200::set_dc_offset, this, _1))
+        ;
+        subtree->create<bool>("dc_offset/enable")
+            .set(DEFAULT_DC_OFFSET_ENABLE)
+            .add_coerced_subscriber(boost::bind(&rx_frontend_core_200::set_dc_offset_auto, this, _1))
+        ;
+        subtree->create<std::complex<double> >("iq_balance/value")
+            .set(DEFAULT_IQ_BALANCE_VALUE)
+            .add_coerced_subscriber(boost::bind(&rx_frontend_core_200::set_iq_balance, this, _1))
+        ;
+    }
+
 private:
-    boost::int32_t _i_dc_off, _q_dc_off;
+    int32_t _i_dc_off, _q_dc_off;
     wb_iface::sptr _iface;
     const size_t _base;
 };

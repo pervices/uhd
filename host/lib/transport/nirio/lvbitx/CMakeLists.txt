@@ -1,18 +1,8 @@
 #
-# Copyright 2013 Ettus Research LLC
+# Copyright 2013,2015 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0
 #
 
 MACRO(LIBUHD_LVBITX_GEN_SOURCE_AND_BITSTREAM lvbitx binfile)
@@ -27,11 +17,11 @@ MACRO(LIBUHD_LVBITX_GEN_SOURCE_AND_BITSTREAM lvbitx binfile)
     ENDIF( ${binfile} STREQUAL "OFF" )
 
     SET(OUTPUT_PATH_OPT --output-src-path=${CMAKE_CURRENT_BINARY_DIR})
-    SET(IMAGES_PATH_OPT --uhd-images-path=${FPGA_IMAGES_DIR})
+    SET(IMAGES_PATH_OPT --uhd-images-path=${UHD_IMAGES_DIR})
 
     ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${lvbitxprefix}_lvbitx.hpp 
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${lvbitxprefix}_lvbitx.cpp
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${lvbitxprefix}_lvbitx.hpp
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/process-lvbitx.py
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/template_lvbitx.hpp
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/template_lvbitx.cpp
@@ -41,6 +31,7 @@ MACRO(LIBUHD_LVBITX_GEN_SOURCE_AND_BITSTREAM lvbitx binfile)
     )
 
     #make libuhd depend on the output file
+    LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_BINARY_DIR}/${lvbitxprefix}_lvbitx.hpp)
     LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_BINARY_DIR}/${lvbitxprefix}_lvbitx.cpp)
 ENDMACRO(LIBUHD_LVBITX_GEN_SOURCE_AND_BITSTREAM)
 
@@ -52,11 +43,6 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 MESSAGE(STATUS "")
 MESSAGE(STATUS "Processing NI-RIO FPGA LVBITX Bitstreams...")
-
-FILE(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/share/uhd/images default_images_dir)
-SET( FPGA_IMAGES_DIR ${default_images_dir} CACHE STRING "Path to installed FPGA image files." )
-OPTION( FPGA_IMAGES_DIR "Path to installed FPGA image files." "" )
-MESSAGE( STATUS "  LVBITX install directory: ${FPGA_IMAGES_DIR}" )
 
 # X300 Stuff
 LIBUHD_LVBITX_GEN_SOURCE_AND_BITSTREAM(x300.lvbitx_base OFF)

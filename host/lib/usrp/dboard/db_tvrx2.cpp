@@ -1,18 +1,8 @@
 //
-// Copyright 2010,2012-2014 Ettus Research LLC
+// Copyright 2010,2012-2014,2016 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 // Common IO Pins
@@ -52,7 +42,7 @@
 #include "tda18272hnm_regs.hpp"
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/algorithm.hpp>
@@ -77,32 +67,32 @@ using namespace boost::assign;
  * The TVRX2 types
  **********************************************************************/
 struct tvrx2_tda18272_rfcal_result_t {
-    boost::int8_t    delta_c;
-    boost::int8_t    c_offset;
+    int8_t    delta_c;
+    int8_t    c_offset;
     tvrx2_tda18272_rfcal_result_t(void): delta_c(0), c_offset(0){}
 };
 
 struct tvrx2_tda18272_rfcal_coeffs_t  {
-    boost::uint8_t   cal_number;
-    boost::int32_t   RF_A1;
-    boost::int32_t   RF_B1;
+    uint8_t   cal_number;
+    int32_t   RF_A1;
+    int32_t   RF_B1;
     tvrx2_tda18272_rfcal_coeffs_t(void): cal_number(0), RF_A1(0), RF_B1(0) {}
-    tvrx2_tda18272_rfcal_coeffs_t(boost::uint32_t num): RF_A1(0), RF_B1(0) { cal_number = num; }
+    tvrx2_tda18272_rfcal_coeffs_t(uint32_t num): RF_A1(0), RF_B1(0) { cal_number = num; }
 };
 
 struct tvrx2_tda18272_cal_map_t {
-    boost::array<boost::uint32_t, 4>  cal_freq;
-    boost::array<boost::uint8_t, 4>   c_offset;
-    tvrx2_tda18272_cal_map_t(boost::array<boost::uint32_t, 4> freqs, boost::array<boost::uint8_t, 4> offsets)
+    boost::array<uint32_t, 4>  cal_freq;
+    boost::array<uint8_t, 4>   c_offset;
+    tvrx2_tda18272_cal_map_t(boost::array<uint32_t, 4> freqs, boost::array<uint8_t, 4> offsets)
         { cal_freq = freqs; c_offset = offsets; }
 };
 
 struct tvrx2_tda18272_freq_map_t {
-    boost::uint32_t  rf_max;
-    boost::uint8_t   c_prog;
-    boost::uint8_t   gain_taper;
-    boost::uint8_t   rf_band;
-    tvrx2_tda18272_freq_map_t( boost::uint32_t max, boost::uint8_t c, boost::uint8_t taper, boost::uint8_t band)
+    uint32_t  rf_max;
+    uint8_t   c_prog;
+    uint8_t   gain_taper;
+    uint8_t   rf_band;
+    tvrx2_tda18272_freq_map_t( uint32_t max, uint8_t c, uint8_t taper, uint8_t band)
         { rf_max = max; c_prog = c; gain_taper = taper; rf_band = band; }
 };
 
@@ -119,7 +109,7 @@ static const boost::array<freq_range_t, 4> tvrx2_tda18272_rf_bands = list_of
 
 #define TVRX2_TDA18272_FREQ_MAP_ENTRIES (565)
 
-static const uhd::dict<boost::uint32_t, tvrx2_tda18272_cal_map_t> tvrx2_tda18272_cal_map = map_list_of
+static const uhd::dict<uint32_t, tvrx2_tda18272_cal_map_t> tvrx2_tda18272_cal_map = map_list_of
     (  0, tvrx2_tda18272_cal_map_t( list_of( 44032000)( 48128000)( 52224000)( 56320000), list_of(15)( 0)(10)(17) ) )
     (  1, tvrx2_tda18272_cal_map_t( list_of( 84992000)( 89088000)( 93184000)( 97280000), list_of( 1)( 0)(-2)( 3) ) )
     (  2, tvrx2_tda18272_cal_map_t( list_of(106496000)(111616000)(115712000)(123904000), list_of( 0)(-1)( 1)( 2) ) )
@@ -722,12 +712,12 @@ static const uhd::dict<std::string, std::string> tvrx2_sd_name_to_conn = map_lis
     ("RX2",  "I")
 ;
 
-static const uhd::dict<std::string, boost::uint8_t> tvrx2_sd_name_to_i2c_addr = map_list_of
+static const uhd::dict<std::string, uint8_t> tvrx2_sd_name_to_i2c_addr = map_list_of
     ("RX1", 0x63)
     ("RX2", 0x60)
 ;
 
-static const uhd::dict<std::string, boost::uint8_t> tvrx2_sd_name_to_irq_io = map_list_of
+static const uhd::dict<std::string, uint8_t> tvrx2_sd_name_to_irq_io = map_list_of
     ("RX1", (RX1_IRQ))
     ("RX2", (RX2_IRQ))
 ;
@@ -751,7 +741,7 @@ static const uhd::dict<std::string, gain_range_t> tvrx2_gain_ranges = map_list_o
 class tvrx2 : public rx_dboard_base{
 public:
     tvrx2(ctor_args_t args);
-    ~tvrx2(void);
+    virtual ~tvrx2(void);
 
 private:
     double _freq_scalar;
@@ -760,8 +750,8 @@ private:
     double _bandwidth;
     uhd::dict<std::string, double> _gains;
     tda18272hnm_regs_t _tda18272hnm_regs;
-    uhd::dict<boost::uint32_t, tvrx2_tda18272_rfcal_result_t> _rfcal_results;
-    uhd::dict<boost::uint32_t, tvrx2_tda18272_rfcal_coeffs_t> _rfcal_coeffs;
+    uhd::dict<uint32_t, tvrx2_tda18272_rfcal_result_t> _rfcal_results;
+    uhd::dict<uint32_t, tvrx2_tda18272_rfcal_coeffs_t> _rfcal_coeffs;
 
     bool _enabled;
 
@@ -775,12 +765,12 @@ private:
     double get_scaled_rf_freq(void);
     void set_scaled_if_freq(double if_freq);
     double get_scaled_if_freq(void);
-    void send_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg);
-    void read_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg);
+    void send_reg(uint8_t start_reg, uint8_t stop_reg);
+    void read_reg(uint8_t start_reg, uint8_t stop_reg);
 
-    freq_range_t get_tda18272_rfcal_result_freq_range(boost::uint32_t result);
+    freq_range_t get_tda18272_rfcal_result_freq_range(uint32_t result);
     void tvrx2_tda18272_init_rfcal(void);
-    void tvrx2_tda18272_tune_rf_filter(boost::uint32_t uRF);
+    void tvrx2_tda18272_tune_rf_filter(uint32_t uRF);
     void soft_calibration(void);
     void transition_0(void);
     void transition_1(void);
@@ -803,9 +793,9 @@ private:
         //return irq status
         bool irq = _tda18272hnm_regs.irq_status == tda18272hnm_regs_t::IRQ_STATUS_SET;
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("TVRX") << boost::format(
             "TVRX2 (%s): IRQ %d"
-        ) % (get_subdev_name()) % irq << std::endl;
+        ) % (get_subdev_name()) % irq ;
 
         return irq;
     }
@@ -821,9 +811,9 @@ private:
         //return POR state
         bool por = _tda18272hnm_regs.por == tda18272hnm_regs_t::POR_RESET;
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("TVRX") << boost::format(
             "TVRX2 (%s): POR %d"
-        ) % (get_subdev_name()) % int(_tda18272hnm_regs.por) << std::endl;
+        ) % (get_subdev_name()) % int(_tda18272hnm_regs.por) ;
 
         return por;
     }
@@ -838,9 +828,9 @@ private:
         //return lock detect
         bool locked = _tda18272hnm_regs.lo_lock == tda18272hnm_regs_t::LO_LOCK_LOCKED;
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("TVRX") << boost::format(
             "TVRX2 (%s): locked %d"
-        ) % (get_subdev_name()) % locked << std::endl;
+        ) % (get_subdev_name()) % locked ;
 
         return sensor_value_t("LO", locked, "locked", "unlocked");
     }
@@ -881,9 +871,9 @@ private:
         //read temp in degC
         read_reg(0x3, 0x3);
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("TVRX") << boost::format(
             "TVRX2 (%s): Temperature %f C"
-        ) % (get_subdev_name()) % (double(_tda18272hnm_regs.tm_d)) << std::endl;
+        ) % (get_subdev_name()) % (double(_tda18272hnm_regs.tm_d)) ;
 
         //Disable Temperature reading
         _tda18272hnm_regs.tm_on = tda18272hnm_regs_t::TM_ON_SENSOR_OFF;
@@ -957,19 +947,19 @@ tvrx2::tvrx2(ctor_args_t args) : rx_dboard_base(args){
     this->get_rx_subtree()->create<std::string>("name")
         .set("TVRX2");
     this->get_rx_subtree()->create<sensor_value_t>("sensors/lo_locked")
-        .publish(boost::bind(&tvrx2::get_locked, this));
+        .set_publisher(boost::bind(&tvrx2::get_locked, this));
     this->get_rx_subtree()->create<sensor_value_t>("sensors/rssi")
-        .publish(boost::bind(&tvrx2::get_rssi, this));
+        .set_publisher(boost::bind(&tvrx2::get_rssi, this));
     this->get_rx_subtree()->create<sensor_value_t>("sensors/temperature")
-        .publish(boost::bind(&tvrx2::get_temp, this));
-    BOOST_FOREACH(const std::string &name, tvrx2_gain_ranges.keys()){
+        .set_publisher(boost::bind(&tvrx2::get_temp, this));
+    for(const std::string &name:  tvrx2_gain_ranges.keys()){
         this->get_rx_subtree()->create<double>("gains/"+name+"/value")
-            .coerce(boost::bind(&tvrx2::set_gain, this, _1, name));
+            .set_coercer(boost::bind(&tvrx2::set_gain, this, _1, name));
         this->get_rx_subtree()->create<meta_range_t>("gains/"+name+"/range")
             .set(tvrx2_gain_ranges[name]);
     }
     this->get_rx_subtree()->create<double>("freq/value")
-        .coerce(boost::bind(&tvrx2::set_lo_freq, this, _1));
+        .set_coercer(boost::bind(&tvrx2::set_lo_freq, this, _1));
     this->get_rx_subtree()->create<meta_range_t>("freq/range")
         .set(tvrx2_freq_range);
     this->get_rx_subtree()->create<std::string>("antenna/value")
@@ -979,12 +969,12 @@ tvrx2::tvrx2(ctor_args_t args) : rx_dboard_base(args){
     this->get_rx_subtree()->create<std::string>("connection")
         .set(tvrx2_sd_name_to_conn[get_subdev_name()]);
     this->get_rx_subtree()->create<bool>("enabled")
-        .coerce(boost::bind(&tvrx2::set_enabled, this, _1))
+        .set_coercer(boost::bind(&tvrx2::set_enabled, this, _1))
         .set(_enabled);
     this->get_rx_subtree()->create<bool>("use_lo_offset")
         .set(false);
     this->get_rx_subtree()->create<double>("bandwidth/value")
-        .coerce(boost::bind(&tvrx2::set_bandwidth, this, _1))
+        .set_coercer(boost::bind(&tvrx2::set_bandwidth, this, _1))
         .set(_bandwidth);
     this->get_rx_subtree()->create<meta_range_t>("bandwidth/range")
         .set(tvrx2_bandwidth_range);
@@ -999,42 +989,42 @@ tvrx2::tvrx2(ctor_args_t args) : rx_dboard_base(args){
     if (ref_clock == 64.0e6) {
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV4);
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("TVRX") << boost::format(
             "TVRX2 (%s): Dividing Refclock by 4"
-        ) % (get_subdev_name()) << std::endl;
+        ) % (get_subdev_name()) ;
 
         _freq_scalar = (4*16.0e6)/(this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX));
     } else if (ref_clock == 100e6) {
 
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV6);
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("TVRX") << boost::format(
             "TVRX2 (%s): Dividing Refclock by 6"
-        ) % (get_subdev_name()) << std::endl;
+        ) % (get_subdev_name()) ;
 
         _freq_scalar = (6*16.0e6)/this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX);
     } else if (ref_clock == 200e6)  {
-        UHD_MSG(warning) << boost::format("ref_clock was 200e6, setting ref_clock divider for 100e6.") % ref_clock << std::endl;
+        UHD_LOGGER_WARNING("TVRX") << boost::format("ref_clock was 200e6, setting ref_clock divider for 100e6.") ;
         this->get_iface()->set_clock_rate(dboard_iface::UNIT_RX, 100e6);
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV6);
 
-        UHD_LOGV(often) << boost::format(
+        UHD_LOGGER_TRACE("TVRX") << boost::format(
             "TVRX2 (%s): Dividing Refclock by 6"
-        ) % (get_subdev_name()) << std::endl;
+        ) % (get_subdev_name()) ;
 
         _freq_scalar = (6*16.0e6)/this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX);
     } else {
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV6);
-        UHD_MSG(warning) << boost::format("Unsupported ref_clock %0.2f, valid options 64e6, 100e6, 200e6") % ref_clock << std::endl;
+        UHD_LOGGER_WARNING("TVRX") << boost::format("Unsupported ref_clock %0.2f, valid options 64e6, 100e6, 200e6") % ref_clock ;
         _freq_scalar = 1.0;
     }
 
     //enable only the clocks we need
     this->get_iface()->set_clock_enabled(dboard_iface::UNIT_RX, true);
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "TVRX2 (%s): Refclock %f Hz, scalar = %f"
-    ) % (get_subdev_name()) % (this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX)) % _freq_scalar << std::endl;
+    ) % (get_subdev_name()) % (this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX)) % _freq_scalar ;
 
     _tda18272hnm_regs.irq_polarity = tda18272hnm_regs_t::IRQ_POLARITY_RAISED_VCC;
     _tda18272hnm_regs.irq_clear = tda18272hnm_regs_t::IRQ_CLEAR_TRUE;
@@ -1066,7 +1056,7 @@ bool tvrx2::set_enabled(bool enable){
 
         test_rf_filter_robustness();
 
-        BOOST_FOREACH(const std::string &name, tvrx2_gain_ranges.keys()){
+        for(const std::string &name:  tvrx2_gain_ranges.keys()){
             this->get_rx_subtree()->access<double>("gains/"+name+"/value")
                 .set(tvrx2_gain_ranges[name].start());
         }
@@ -1092,9 +1082,9 @@ bool tvrx2::set_enabled(bool enable){
 }
 
 tvrx2::~tvrx2(void){
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "TVRX2 (%s): Called Destructor"
-    ) % (get_subdev_name()) << std::endl;
+    ) % (get_subdev_name()) ;
     UHD_SAFE_CALL(if (_enabled) set_enabled(false);)
 }
 
@@ -1103,7 +1093,7 @@ tvrx2::~tvrx2(void){
  * TDA18272 Register IO Functions
  **********************************************************************/
 void tvrx2::set_scaled_rf_freq(double rf_freq){
-    _tda18272hnm_regs.set_rf_freq(_freq_scalar*rf_freq/1e3);
+    _tda18272hnm_regs.set_rf_freq(uint32_t(_freq_scalar*rf_freq/1e3));
 }
 
 double tvrx2::get_scaled_rf_freq(void){
@@ -1118,12 +1108,12 @@ double tvrx2::get_scaled_if_freq(void){
     return _tda18272hnm_regs.if_freq*50e3/_freq_scalar;
 }
 
-void tvrx2::send_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
-    start_reg = boost::uint8_t(uhd::clip(int(start_reg), 0x0, 0x43));
-    stop_reg = boost::uint8_t(uhd::clip(int(stop_reg), 0x0, 0x43));
+void tvrx2::send_reg(uint8_t start_reg, uint8_t stop_reg){
+    start_reg = uint8_t(uhd::clip(int(start_reg), 0x0, 0x43));
+    stop_reg = uint8_t(uhd::clip(int(stop_reg), 0x0, 0x43));
 
-    for(boost::uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(boost::uint32_t) - 1){
-        int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(boost::uint32_t)) - 1 ? sizeof(boost::uint32_t) - 1 : stop_reg - start_addr + 1;
+    for(uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(uint32_t) - 1){
+        int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(uint32_t)) - 1 ? sizeof(uint32_t) - 1 : stop_reg - start_addr + 1;
 
         //create buffer for register data (+1 for start address)
         byte_vector_t regs_vector(num_bytes + 1);
@@ -1134,9 +1124,9 @@ void tvrx2::send_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
         //get the register data
         for(int i=0; i<num_bytes; i++){
             regs_vector[1+i] = _tda18272hnm_regs.get_reg(start_addr+i);
-            UHD_LOGV(often) << boost::format(
+            UHD_LOGGER_TRACE("TVRX") << boost::format(
                 "TVRX2 (%s, 0x%02x): send reg 0x%02x, value 0x%04x, start_addr = 0x%04x, num_bytes %d"
-            ) % (get_subdev_name()) % int(tvrx2_sd_name_to_i2c_addr[get_subdev_name()]) % int(start_addr+i) % int(regs_vector[1+i]) % int(start_addr) % num_bytes << std::endl;
+            ) % (get_subdev_name()) % int(tvrx2_sd_name_to_i2c_addr[get_subdev_name()]) % int(start_addr+i) % int(regs_vector[1+i]) % int(start_addr) % num_bytes ;
         }
 
         //send the data
@@ -1146,13 +1136,13 @@ void tvrx2::send_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
     }
 }
 
-void tvrx2::read_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
-    static const boost::uint8_t status_addr = 0x0;
-    start_reg = boost::uint8_t(uhd::clip(int(start_reg), 0x0, 0x43));
-    stop_reg = boost::uint8_t(uhd::clip(int(stop_reg), 0x0, 0x43));
+void tvrx2::read_reg(uint8_t start_reg, uint8_t stop_reg){
+    static const uint8_t status_addr = 0x0;
+    start_reg = uint8_t(uhd::clip(int(start_reg), 0x0, 0x43));
+    stop_reg = uint8_t(uhd::clip(int(stop_reg), 0x0, 0x43));
 
-    for(boost::uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(boost::uint32_t)){
-        int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(boost::uint32_t)) ? sizeof(boost::uint32_t) : stop_reg - start_addr + 1;
+    for(uint8_t start_addr=start_reg; start_addr <= stop_reg; start_addr += sizeof(uint32_t)){
+        int num_bytes = int(stop_reg - start_addr + 1) > int(sizeof(uint32_t)) ? sizeof(uint32_t) : stop_reg - start_addr + 1;
 
         //create buffer for starting address
         byte_vector_t start_address_vector(1);
@@ -1173,13 +1163,13 @@ void tvrx2::read_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
             tvrx2_sd_name_to_i2c_addr[get_subdev_name()], num_bytes
         );
 
-        for(boost::uint8_t i=0; i < num_bytes; i++){
+        for(uint8_t i=0; i < num_bytes; i++){
             if (i + start_addr >= status_addr){
                 _tda18272hnm_regs.set_reg(i + start_addr, regs_vector[i]);
             }
-            UHD_LOGV(often) << boost::format(
+            UHD_LOGGER_TRACE("TVRX") << boost::format(
                 "TVRX2 (%s, 0x%02x): read reg 0x%02x, value 0x%04x, start_addr = 0x%04x, num_bytes %d"
-            ) % (get_subdev_name()) % int(tvrx2_sd_name_to_i2c_addr[get_subdev_name()]) % int(start_addr+i) % int(regs_vector[i]) % int(start_addr) % num_bytes << std::endl;
+            ) % (get_subdev_name()) % int(tvrx2_sd_name_to_i2c_addr[get_subdev_name()]) % int(start_addr+i) % int(regs_vector[i]) % int(start_addr) % num_bytes ;
         }
     }
 }
@@ -1188,10 +1178,10 @@ void tvrx2::read_reg(boost::uint8_t start_reg, boost::uint8_t stop_reg){
 /***********************************************************************
  * TDA18272 Calibration Functions
  **********************************************************************/
-freq_range_t tvrx2::get_tda18272_rfcal_result_freq_range(boost::uint32_t result)
+freq_range_t tvrx2::get_tda18272_rfcal_result_freq_range(uint32_t result)
 {
 
-    uhd::dict<boost::uint32_t, freq_range_t> result_to_cal_freq_ranges_map = map_list_of
+    uhd::dict<uint32_t, freq_range_t> result_to_cal_freq_ranges_map = map_list_of
         ( 0, freq_range_t(
                  (double) tvrx2_tda18272_cal_map[0].cal_freq[_tda18272hnm_regs.rfcal_freq0] * _freq_scalar,
                  (double) tvrx2_tda18272_cal_map[1].cal_freq[_tda18272hnm_regs.rfcal_freq1] * _freq_scalar
@@ -1254,7 +1244,7 @@ void tvrx2::tvrx2_tda18272_init_rfcal(void)
     /* read byte 0x38-0x43 */
     read_reg(0x38, 0x43);
 
-    uhd::dict<boost::uint32_t, boost::uint8_t> result_to_cal_regs = map_list_of
+    uhd::dict<uint32_t, uint8_t> result_to_cal_regs = map_list_of
         ( 0, _tda18272hnm_regs.rfcal_log_1)
         ( 1, _tda18272hnm_regs.rfcal_log_2)
         ( 2, _tda18272hnm_regs.rfcal_log_3)
@@ -1271,27 +1261,27 @@ void tvrx2::tvrx2_tda18272_init_rfcal(void)
 
 
     // Loop through rfcal_log_* registers, initialize _rfcal_results
-    BOOST_FOREACH(const boost::uint32_t &result, result_to_cal_regs.keys())
+    for(const uint32_t &result:  result_to_cal_regs.keys())
         _rfcal_results[result].delta_c = result_to_cal_regs[result] > 63 ? result_to_cal_regs[result] - 128 : result_to_cal_regs[result];
 
     /* read byte 0x26-0x2B */
     read_reg(0x26, 0x2B);
 
     // Loop through rfcal_byte_* registers, initialize _rfcal_coeffs
-    BOOST_FOREACH(const boost::uint32_t &subband, _rfcal_coeffs.keys())
+    for(const uint32_t &subband:  _rfcal_coeffs.keys())
     {
         freq_range_t subband_freqs;
 
-        boost::uint32_t result = _rfcal_coeffs[subband].cal_number;
+        uint32_t result = _rfcal_coeffs[subband].cal_number;
 
         subband_freqs = get_tda18272_rfcal_result_freq_range(result);
 
         _rfcal_coeffs[subband].RF_B1 = _rfcal_results[result].delta_c + tvrx2_tda18272_cal_map[result].c_offset[_rfcal_results[result].c_offset];
 
-        boost::uint32_t quotient = (((_rfcal_results[result+1].delta_c + tvrx2_tda18272_cal_map[result+1].c_offset[_rfcal_results[result].c_offset])
+        uint32_t quotient = (((_rfcal_results[result+1].delta_c + tvrx2_tda18272_cal_map[result+1].c_offset[_rfcal_results[result].c_offset])
                                         - (_rfcal_results[result].delta_c + tvrx2_tda18272_cal_map[result].c_offset[_rfcal_results[result].c_offset])) * 1000000);
 
-        boost::uint32_t divisor = ((boost::int32_t)(subband_freqs.stop() - subband_freqs.start())/1000);
+        uint32_t divisor = ((int32_t)(subband_freqs.stop() - subband_freqs.start())/1000);
 
         _rfcal_coeffs[subband].RF_A1 = quotient / divisor;
 
@@ -1302,27 +1292,27 @@ void tvrx2::tvrx2_tda18272_init_rfcal(void)
 /*
  * Apply calibration coefficients to RF Filter tuning
  */
-void tvrx2::tvrx2_tda18272_tune_rf_filter(boost::uint32_t uRF)
+void tvrx2::tvrx2_tda18272_tune_rf_filter(uint32_t uRF)
 {
-    boost::uint32_t                  uCounter = 0;
-    boost::uint8_t                   cal_result = 0;
-    boost::uint32_t                  uRFCal0 = 0;
-    boost::uint32_t                  uRFCal1 = 0;
-    boost::uint8_t                   subband = 0;
-    boost::int32_t                   cProg = 0;
-    boost::uint8_t                   gain_taper = 0;
-    boost::uint8_t                   RFBand = 0;
-    boost::int32_t                   RF_A1 = 0;
-    boost::int32_t                   RF_B1 = 0;
+    uint32_t                  uCounter = 0;
+    uint8_t                   cal_result = 0;
+    uint32_t                  uRFCal0 = 0;
+    uint32_t                  uRFCal1 = 0;
+    uint8_t                   subband = 0;
+    int32_t                   cProg = 0;
+    uint8_t                   gain_taper = 0;
+    uint8_t                   RFBand = 0;
+    int32_t                   RF_A1 = 0;
+    int32_t                   RF_B1 = 0;
     freq_range_t                     subband_freqs;
 
     /* read byte 0x26-0x2B */
     read_reg(0x26, 0x2B);
 
     subband_freqs = get_tda18272_rfcal_result_freq_range(1);
-    uRFCal0 = subband_freqs.start();
+    uRFCal0 = uint32_t(subband_freqs.start());
     subband_freqs = get_tda18272_rfcal_result_freq_range(4);
-    uRFCal1 = subband_freqs.start();
+    uRFCal1 = uint32_t(subband_freqs.start());
 
     if(uRF < uRFCal0)
         subband = 0;
@@ -1335,9 +1325,9 @@ void tvrx2::tvrx2_tda18272_tune_rf_filter(boost::uint32_t uRF)
     else
     {
         subband_freqs = get_tda18272_rfcal_result_freq_range(7);
-        uRFCal0 = subband_freqs.start();
+        uRFCal0 = uint32_t(subband_freqs.start());
         subband_freqs = get_tda18272_rfcal_result_freq_range(10);
-        uRFCal1 = subband_freqs.start();
+        uRFCal1 = uint32_t(subband_freqs.start());
 
         if(uRF < uRFCal0)
             subband = 4;
@@ -1351,7 +1341,7 @@ void tvrx2::tvrx2_tda18272_tune_rf_filter(boost::uint32_t uRF)
 
     cal_result = _rfcal_coeffs[subband].cal_number;
     subband_freqs = get_tda18272_rfcal_result_freq_range(cal_result);
-    uRFCal0 = subband_freqs.start();
+    uRFCal0 = uint32_t(subband_freqs.start());
 
     RF_A1 = _rfcal_coeffs[subband].RF_A1;
     RF_B1 = _rfcal_coeffs[subband].RF_B1;
@@ -1364,17 +1354,17 @@ void tvrx2::tvrx2_tda18272_tune_rf_filter(boost::uint32_t uRF)
     gain_taper = tvrx2_tda18272_freq_map[uCounter - 1].gain_taper;
     RFBand = tvrx2_tda18272_freq_map[uCounter - 1].rf_band;
 
-    cProg = (boost::int32_t)(cProg + RF_B1 + (RF_A1*((boost::int32_t)(uRF - uRFCal0)/1000))/1000000);
+    cProg = (int32_t)(cProg + RF_B1 + (RF_A1*((int32_t)(uRF - uRFCal0)/1000))/1000000);
 
     if(cProg>255)   cProg = 255;
     if(cProg<0)     cProg = 0;
 
     _tda18272hnm_regs.rf_filter_bypass = 1;
-    _tda18272hnm_regs.rf_filter_cap = (boost::uint8_t) cProg;
+    _tda18272hnm_regs.rf_filter_cap = (uint8_t) cProg;
     _tda18272hnm_regs.gain_taper = gain_taper;
     _tda18272hnm_regs.rf_filter_band = RFBand;
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "\nTVRX2 (%s): Software Calibration:\n"
         "\tRF Filter Bypass = %d\n"
         "\tRF Filter Cap    = %d\n"
@@ -1385,14 +1375,14 @@ void tvrx2::tvrx2_tda18272_tune_rf_filter(boost::uint32_t uRF)
         % int(_tda18272hnm_regs.rf_filter_cap)
         % int(_tda18272hnm_regs.rf_filter_band) 
         % int(_tda18272hnm_regs.gain_taper)
-        << std::endl;
+        ;
 
     send_reg(0x2c, 0x2f);
 }
 
 void tvrx2::soft_calibration(void){
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Software Calibration: Initialize Tuner, Calibrate and Standby\n") % (get_subdev_name()) << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Software Calibration: Initialize Tuner, Calibrate and Standby\n") % (get_subdev_name()) ;
 
     _tda18272hnm_regs.sm = tda18272hnm_regs_t::SM_NORMAL;
     _tda18272hnm_regs.sm_lna = tda18272hnm_regs_t::SM_LNA_ON;
@@ -1462,7 +1452,7 @@ void tvrx2::test_rf_filter_robustness(void){
 
     read_reg(0x38, 0x43);
 
-    uhd::dict<std::string, boost::uint8_t> filter_cal_regs = map_list_of
+    uhd::dict<std::string, uint8_t> filter_cal_regs = map_list_of
         ("VHFLow_0", 0x38)
         ("VHFLow_1", 0x3a)
         ("VHFHigh_0", 0x3b)
@@ -1473,8 +1463,8 @@ void tvrx2::test_rf_filter_robustness(void){
         ("UHFHigh_1", 0x43)
     ;
 
-    BOOST_FOREACH(const std::string &name, filter_cal_regs.keys()){
-        boost::uint8_t cal_result = _tda18272hnm_regs.get_reg(filter_cal_regs[name]);
+    for(const std::string &name:  filter_cal_regs.keys()){
+        uint8_t cal_result = _tda18272hnm_regs.get_reg(filter_cal_regs[name]);
         if (cal_result & 0x80) {
             _filter_ratings.set(name, "E");
             _filter_margins.set(name, 0.0);
@@ -1515,12 +1505,12 @@ void tvrx2::test_rf_filter_robustness(void){
     }
 
     std::stringstream robustness_message;
-    robustness_message << boost::format("TVRX2 (%s): RF Filter Robustness Results:") % (get_subdev_name()) << std::endl;
-    BOOST_FOREACH(const std::string &name, uhd::sorted(_filter_ratings.keys())){
-        robustness_message << boost::format("\t%s:\tMargin = %0.2f,\tRobustness = %c") % name % (_filter_margins[name]) % (_filter_ratings[name]) << std::endl;
+    robustness_message << boost::format("TVRX2 (%s): RF Filter Robustness Results:") % (get_subdev_name());
+    for(const std::string &name:  uhd::sorted(_filter_ratings.keys())){
+        robustness_message << boost::format("\t%s:\tMargin = %0.2f,\tRobustness = %c") % name % (_filter_margins[name]) % (_filter_ratings[name]);
     }
 
-    UHD_LOGV(often) << robustness_message.str();
+    UHD_LOGGER_DEBUG("TVRX") << robustness_message.str();
 }
 
 /***********************************************************************
@@ -1528,8 +1518,8 @@ void tvrx2::test_rf_filter_robustness(void){
  **********************************************************************/
 void tvrx2::transition_0(void){
     //Transition 0: Initialize Tuner and place in standby
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Transistion 0: Initialize Tuner, Calibrate and Standby\n") % (get_subdev_name()) << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Transition 0: Initialize Tuner, Calibrate and Standby\n") % (get_subdev_name()) ;
 
     //Check for Power-On Reset, if reset, initialze tuner
     if (get_power_reset()) {
@@ -1582,8 +1572,8 @@ void tvrx2::transition_0(void){
 
 void tvrx2::transition_1(void){
     //Transition 1: Select TV Standard
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Transistion 1: Select TV Standard\n") % (get_subdev_name()) << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Transition 1: Select TV Standard\n") % (get_subdev_name()) ;
 
     //send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1613,8 +1603,8 @@ void tvrx2::transition_1(void){
 
 void tvrx2::transition_2(int rf_freq){
     //Transition 2: Select RF Frequency after changing TV Standard
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Transistion 2: Select RF Frequency after changing TV Standard\n") % (get_subdev_name()) << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Transition 2: Select RF Frequency after changing TV Standard\n") % (get_subdev_name()) ;
 
     //send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1651,8 +1641,8 @@ void tvrx2::transition_2(int rf_freq){
 
 void tvrx2::transition_3(void){
     //Transition 3: Standby Mode
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Transistion 3: Standby Mode\n") % (get_subdev_name()) << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Transition 3: Standby Mode\n") % (get_subdev_name()) ;
 
     //send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1670,8 +1660,8 @@ void tvrx2::transition_3(void){
 
 void tvrx2::transition_4(int rf_freq){
     //Transition 4: Change RF Frequency without changing TV Standard
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Transistion 4: Change RF Frequency without changing TV Standard\n") % (get_subdev_name()) << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Transition 4: Change RF Frequency without changing TV Standard\n") % (get_subdev_name()) ;
 
     //send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1699,8 +1689,8 @@ void tvrx2::wait_irq(void){
     int timeout = 20; //irq waiting timeout in milliseconds
     //int irq = (this->get_iface()->read_gpio(dboard_iface::UNIT_RX) & int(tvrx2_sd_name_to_irq_io[get_subdev_name()]));
     bool irq = get_irq();
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Waiting on IRQ, subdev = %d, mask = 0x%x, Status: 0x%x\n") % (get_subdev_name()) % get_subdev_name() % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Waiting on IRQ, subdev = %d, mask = 0x%x, Status: 0x%x\n") % (get_subdev_name()) % get_subdev_name() % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq ;
 
     while (not irq and timeout > 0) {
         //irq = (this->get_iface()->read_gpio(dboard_iface::UNIT_RX) & tvrx2_sd_name_to_irq_io[get_subdev_name()]);
@@ -1709,22 +1699,22 @@ void tvrx2::wait_irq(void){
         timeout -= 1;
     }
 
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): IRQ Raised, subdev = %d, mask = 0x%x, Status: 0x%x, Timeout: %d\n") % (get_subdev_name()) % get_subdev_name() % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq % timeout << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): IRQ Raised, subdev = %d, mask = 0x%x, Status: 0x%x, Timeout: %d\n") % (get_subdev_name()) % get_subdev_name() % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq % timeout ;
 
     read_reg(0xA, 0xB);
     //UHD_ASSERT_THROW(timeout > 0);
-    if(timeout <= 0) UHD_MSG(warning) << boost::format(
-        "\nTVRX2 (%s): Timeout waiting on IRQ\n") % (get_subdev_name()) << std::endl;
+    if(timeout <= 0) UHD_LOGGER_WARNING("TVRX") << boost::format(
+        "\nTVRX2 (%s): Timeout waiting on IRQ\n") % (get_subdev_name()) ;
 
     _tda18272hnm_regs.irq_clear = tda18272hnm_regs_t::IRQ_CLEAR_TRUE;
     send_reg(0xA, 0xA);
     read_reg(0xA, 0xB);
 
-    irq = (this->get_iface()->read_gpio(dboard_iface::UNIT_RX) & tvrx2_sd_name_to_irq_io[get_subdev_name()]);
+    irq = (this->get_iface()->read_gpio(dboard_iface::UNIT_RX) & tvrx2_sd_name_to_irq_io[get_subdev_name()]) > 0;
 
-    UHD_LOGV(often) << boost::format(
-        "\nTVRX2 (%s): Cleared IRQ, subdev = %d, mask = 0x%x, Status: 0x%x\n") % (get_subdev_name()) % get_subdev_name() % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq << std::endl;
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
+        "\nTVRX2 (%s): Cleared IRQ, subdev = %d, mask = 0x%x, Status: 0x%x\n") % (get_subdev_name()) % get_subdev_name() % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq ;
 }
 
 
@@ -1748,20 +1738,20 @@ double tvrx2::set_lo_freq(double target_freq){
     _lo_freq = get_scaled_rf_freq() + get_scaled_if_freq(); // - _bandwidth/2;
 
     //debug output of calculated variables
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "\nTVRX2 (%s): LO Frequency\n"
         "\tRequested: \t%f\n"
         "\tComputed: \t%f\n"
         "\tReadback: \t%f\n"
-        "\tIF Frequency: \t%f\n") % (get_subdev_name()) % target_freq % double(int(target_freq/1e3)*1e3) % get_scaled_rf_freq() % get_scaled_if_freq() << std::endl;
+        "\tIF Frequency: \t%f\n") % (get_subdev_name()) % target_freq % double(int(target_freq/1e3)*1e3) % get_scaled_rf_freq() % get_scaled_if_freq() ;
 
     get_locked();
 
     test_rf_filter_robustness();
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "\nTVRX2 (%s): RSSI = %f dBm\n"
-    ) % (get_subdev_name()) % (get_rssi().to_real()) << std::endl;
+    ) % (get_subdev_name()) % (get_rssi().to_real()) ;
 
     return _lo_freq;
 }
@@ -1783,9 +1773,9 @@ static double gain_to_if_gain_dac(double &gain){
     //calculate the voltage for the aux dac
     double dac_volts = gain*slope + min_volts;
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "TVRX2 IF Gain: %f dB, dac_volts: %f V"
-    ) % gain % dac_volts << std::endl;
+    ) % gain % dac_volts ;
 
     //the actual gain setting
     gain = (dac_volts - min_volts)/slope;
@@ -1847,9 +1837,9 @@ double tvrx2::set_bandwidth(double bandwidth){
     //update register
     send_reg(0x13, 0x13);
 
-    UHD_LOGV(often) << boost::format(
+    UHD_LOGGER_TRACE("TVRX") << boost::format(
         "TVRX2 (%s) Bandwidth (lp_fc): %f Hz, reg: %d"
-    ) % (get_subdev_name()) % _bandwidth % (int(_tda18272hnm_regs.lp_fc)) << std::endl;
+    ) % (get_subdev_name()) % _bandwidth % (int(_tda18272hnm_regs.lp_fc)) ;
 
     return _bandwidth;
 }

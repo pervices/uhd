@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_UHD_TYPES_TUNE_REQUEST_HPP
@@ -94,7 +84,7 @@ namespace uhd{
          * Possible keys used by args (depends on implementation):
          *
          * - mode_n: Allows the user to tell the daughterboard tune code
-         * to choose between an integer N diviver or fractional N divider.
+         * to choose between an integer N divider or fractional N divider.
          * Default is fractional N on boards that support fractional N tuning.
          * Fractional N provides greater tuning accuracy at the expense of spurs.
          * Possible options for this key: "integer" or "fractional".

@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2012,2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "codec_ctrl.hpp"
@@ -23,7 +13,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/utils/byteswap.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 #include <boost/format.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/math/special_functions/round.hpp>
@@ -70,8 +60,8 @@ private:
     spi_iface::sptr _iface;
     int _spi_slave;
     ad9862_regs_t _ad9862_regs;
-    void send_reg(boost::uint8_t addr);
-    void recv_reg(boost::uint8_t addr);
+    void send_reg(uint8_t addr);
+    void recv_reg(uint8_t addr);
 
     double coarse_tune(double codec_rate, double freq);
     double fine_tune(double codec_rate, double freq);
@@ -124,7 +114,7 @@ usrp1_codec_ctrl_impl::usrp1_codec_ctrl_impl(spi_iface::sptr iface, int spi_slav
     _ad9862_regs.clkout2_div_factor = ad9862_regs_t::CLKOUT2_DIV_FACTOR_2;
 
     //write the register settings to the codec
-    for (boost::uint8_t addr = 0; addr <= 25; addr++) {
+    for (uint8_t addr = 0; addr <= 25; addr++) {
         this->send_reg(addr);
     }
 
@@ -198,9 +188,9 @@ double usrp1_codec_ctrl_impl::get_rx_pga_gain(char which){
 /***********************************************************************
  * Codec Control AUX ADC Methods
  **********************************************************************/
-static double aux_adc_to_volts(boost::uint8_t high, boost::uint8_t low)
+static double aux_adc_to_volts(uint8_t high, uint8_t low)
 {
-    return double(((boost::uint16_t(high) << 2) | low)*3.3)/0x3ff;
+    return double(((uint16_t(high) << 2) | low)*3.3)/0x3ff;
 }
 
 double usrp1_codec_ctrl_impl::read_aux_adc(aux_adc_t which){
@@ -243,19 +233,19 @@ void usrp1_codec_ctrl_impl::write_aux_dac(aux_dac_t which, double volts)
 {
     //special case for aux dac d (aka sigma delta word)
     if (which == AUX_DAC_D) {
-        boost::uint16_t dac_word = uhd::clip(boost::math::iround(volts*0xfff/3.3), 0, 0xfff);
-        _ad9862_regs.sig_delt_11_4 = boost::uint8_t(dac_word >> 4);
-        _ad9862_regs.sig_delt_3_0 = boost::uint8_t(dac_word & 0xf);
+        uint16_t dac_word = uhd::clip(boost::math::iround(volts*0xfff/3.3), 0, 0xfff);
+        _ad9862_regs.sig_delt_11_4 = uint8_t(dac_word >> 4);
+        _ad9862_regs.sig_delt_3_0 = uint8_t(dac_word & 0xf);
         this->send_reg(42);
         this->send_reg(43);
         return;
     }
 
     //calculate the dac word for aux dac a, b, c
-    boost::uint8_t dac_word = uhd::clip(boost::math::iround(volts*0xff/3.3), 0, 0xff);
+    uint8_t dac_word = uhd::clip(boost::math::iround(volts*0xff/3.3), 0, 0xff);
 
     //setup a lookup table for the aux dac params (reg ref, reg addr)
-    typedef boost::tuple<boost::uint8_t*, boost::uint8_t> dac_params_t;
+    typedef boost::tuple<uint8_t*, uint8_t> dac_params_t;
     uhd::dict<aux_dac_t, dac_params_t> aux_dac_to_params = boost::assign::map_list_of
         (AUX_DAC_A, dac_params_t(&_ad9862_regs.aux_dac_a, 36))
         (AUX_DAC_B, dac_params_t(&_ad9862_regs.aux_dac_b, 37))
@@ -264,7 +254,7 @@ void usrp1_codec_ctrl_impl::write_aux_dac(aux_dac_t which, double volts)
 
     //set the aux dac register
     UHD_ASSERT_THROW(aux_dac_to_params.has_key(which));
-    boost::uint8_t *reg_ref, reg_addr;
+    uint8_t *reg_ref, reg_addr;
     boost::tie(reg_ref, reg_addr) = aux_dac_to_params[which];
     *reg_ref = dac_word;
     this->send_reg(reg_addr);
@@ -273,36 +263,36 @@ void usrp1_codec_ctrl_impl::write_aux_dac(aux_dac_t which, double volts)
 /***********************************************************************
  * Codec Control SPI Methods
  **********************************************************************/
-void usrp1_codec_ctrl_impl::send_reg(boost::uint8_t addr)
+void usrp1_codec_ctrl_impl::send_reg(uint8_t addr)
 {
-    boost::uint32_t reg = _ad9862_regs.get_write_reg(addr);
+    uint32_t reg = _ad9862_regs.get_write_reg(addr);
 
-    UHD_LOGV(often)
+    UHD_LOGGER_TRACE("USRP1")
         << "codec control write reg: 0x"
-        << std::setw(8) << std::hex << reg << std::endl
+        << std::setw(8) << std::hex << reg 
     ;
     _iface->write_spi(_spi_slave,
                          spi_config_t::EDGE_RISE, reg, 16);
 }
 
-void usrp1_codec_ctrl_impl::recv_reg(boost::uint8_t addr)
+void usrp1_codec_ctrl_impl::recv_reg(uint8_t addr)
 {
-    boost::uint32_t reg = _ad9862_regs.get_read_reg(addr);
+    uint32_t reg = _ad9862_regs.get_read_reg(addr);
 
-    UHD_LOGV(often)
+    UHD_LOGGER_TRACE("USRP1")
         << "codec control read reg: 0x"
-        << std::setw(8) << std::hex << reg << std::endl
+        << std::setw(8) << std::hex << reg 
     ;
 
-    boost::uint32_t ret = _iface->read_spi(_spi_slave,
+    uint32_t ret = _iface->read_spi(_spi_slave,
                                         spi_config_t::EDGE_RISE, reg, 16);
 
-    UHD_LOGV(often)
+    UHD_LOGGER_TRACE("USRP1")
         << "codec control read ret: 0x"
-        << std::setw(8) << std::hex << ret << std::endl
+        << std::setw(8) << std::hex << ret 
     ;
 
-    _ad9862_regs.set_reg(addr, boost::uint16_t(ret));
+    _ad9862_regs.set_reg(addr, uint16_t(ret));
 }
 
 /***********************************************************************
@@ -356,8 +346,8 @@ double usrp1_codec_ctrl_impl::fine_tune(double codec_rate, double target_freq)
 {
     static const double scale_factor = std::pow(2.0, 24);
 
-    boost::uint32_t freq_word = boost::uint32_t(
-        boost::math::round(abs((target_freq / codec_rate) * scale_factor)));
+    uint32_t freq_word = uint32_t(
+        boost::math::round(std::abs((target_freq / codec_rate) * scale_factor)));
 
     double actual_freq = freq_word * codec_rate / scale_factor;
 
@@ -389,13 +379,13 @@ void usrp1_codec_ctrl_impl::set_duc_freq(double freq, double rate)
     double coarse_freq = coarse_tune(codec_rate, freq);
     double fine_freq = fine_tune(codec_rate / 4, freq - coarse_freq);
 
-    UHD_LOG
-        << "ad9862 tuning result:" << std::endl
-        << "   requested:   " << freq << std::endl
-        << "   actual:      " << coarse_freq + fine_freq << std::endl
-        << "   coarse freq: " << coarse_freq << std::endl
-        << "   fine freq:   " << fine_freq << std::endl
-        << "   codec rate:  " << codec_rate << std::endl
+    UHD_LOGGER_DEBUG("USRP1")
+        << "ad9862 tuning result:" 
+        << "   requested:   " << freq 
+        << "   actual:      " << coarse_freq + fine_freq 
+        << "   coarse freq: " << coarse_freq 
+        << "   fine freq:   " << fine_freq 
+        << "   codec rate:  " << codec_rate 
     ;
 
     this->send_reg(20);

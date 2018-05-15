@@ -1,18 +1,8 @@
 //
 // Copyright 2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <iostream>
@@ -27,36 +17,15 @@
 #include <uhd/types/time_spec.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 
 namespace po = boost::program_options;
 
 using namespace uhd::usrp_clock;
 using namespace uhd::usrp;
 
-void wait_for_pps(multi_usrp::sptr usrp, size_t chan, double timeout){
-    boost::uint32_t last_pps_time = usrp->get_time_last_pps(chan).get_full_secs();
-    boost::uint32_t system_time = uhd::time_spec_t::get_system_time().get_full_secs();
-    boost::uint32_t exit_time = system_time + timeout;
-    bool detected_pps = false;
-
-    //Otherwise, this would hang if the USRP doesn't detect any PPS
-    while(uhd::time_spec_t::get_system_time().get_full_secs() < exit_time){
-        boost::uint32_t time_now = usrp->get_time_last_pps(chan).get_full_secs();
-        if(last_pps_time < time_now){
-            detected_pps = true;
-            break;
-        }
-        else last_pps_time = time_now;
-    }
-    if(not detected_pps) throw uhd::runtime_error(str(boost::format("%s did not detect a PPS signal.")
-                                                      % usrp->get_usrp_tx_info()["mboard_serial"]));
-
-}
-
-void get_usrp_time(multi_usrp::sptr usrp, size_t chan, std::vector<boost::uint32_t> *times){
-    wait_for_pps(usrp, chan, 2);
-    (*times)[chan] = usrp->get_time_now(chan).get_full_secs();
+void get_usrp_time(multi_usrp::sptr usrp, size_t mboard, std::vector<time_t> *times){
+    (*times)[mboard] = usrp->get_time_now(mboard).get_full_secs();
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
@@ -64,7 +33,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //Variables to be set by command line options
     std::string clock_args, usrp_args;
-    boost::uint32_t max_interval, num_tests;
+    uint32_t max_interval, num_tests;
 
     //Set up program options
     po::options_description desc("Allowed options");
@@ -72,8 +41,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "Display this help message")
         ("clock-args", po::value<std::string>(&clock_args), "Clock device arguments")
         ("usrp-args", po::value<std::string>(&usrp_args), "USRP device arguments")
-        ("max-interval", po::value<boost::uint32_t>(&max_interval)->default_value(10000), "Maximum interval between comparisons (in ms)")
-        ("num-tests", po::value<boost::uint32_t>(&num_tests)->default_value(10), "Number of times to compare device times")
+        ("max-interval", po::value<uint32_t>(&max_interval)->default_value(10000), "Maximum interval between comparisons (in ms)")
+        ("num-tests", po::value<uint32_t>(&num_tests)->default_value(10), "Number of times to compare device times")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -124,23 +93,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //Get GPS time to initially set USRP devices
     std::cout << std::endl << "Querying Clock for time and setting USRP times..." << std::endl << std::endl;
-    boost::uint32_t clock_time = clock->get_time();
-    usrp->set_time_unknown_pps(uhd::time_spec_t(double(clock_time+2)));
+    time_t clock_time = clock->get_time();
+    usrp->set_time_next_pps(uhd::time_spec_t(double(clock_time+1)));
+    srand((unsigned int)time(NULL));
 
-    //Wait for next PPS to start polling
-    wait_for_pps(usrp, 0, 2);
-
-    srand(time(NULL));
-
-    std::cout << boost::format("\nRunning %d comparisons at random intervals.") % num_tests << std::endl << std::endl;
-    boost::uint32_t num_matches = 0;
+    std::cout << boost::format("Running %d comparisons at random intervals.") % num_tests << std::endl;
+    uint32_t num_matches = 0;
     for(size_t i = 0; i < num_tests; i++){
         //Wait random time before querying
-        boost::uint16_t wait_time = rand() % max_interval;
+        uint16_t wait_time = rand() % max_interval;
         boost::this_thread::sleep(boost::posix_time::milliseconds(wait_time));
 
         //Get all times before output
-        std::vector<boost::uint32_t> usrp_times(usrp->get_num_mboards());
+        std::vector<time_t> usrp_times(usrp->get_num_mboards());
         boost::thread_group thread_group;
         clock_time = clock->get_time();
         for(size_t j = 0; j < usrp->get_num_mboards(); j++){

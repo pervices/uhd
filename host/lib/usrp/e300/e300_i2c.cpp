@@ -1,18 +1,8 @@
 //
 // Copyright 2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include <uhd/exception.hpp>
@@ -37,14 +27,14 @@ public:
     }
 
     void set_i2c_reg8(
-        const boost::uint8_t addr,
-        const boost::uint8_t reg,
-        const boost::uint8_t value)
+        const uint8_t addr,
+        const uint8_t reg,
+        const uint8_t value)
     {
         i2c_transaction_t transaction;
         transaction.type = WRITE | ONEBYTE;
         transaction.addr = addr;
-        transaction.reg  = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg  = uhd::htonx<uint16_t>(reg);
         transaction.data = value;
         {
             uhd::transport::managed_send_buffer::sptr buff = _xport->get_send_buff(10.0);
@@ -55,14 +45,14 @@ public:
         }
     }
 
-    boost::uint8_t get_i2c_reg8(
-        const boost::uint8_t addr,
-        const boost::uint8_t reg)
+    uint8_t get_i2c_reg8(
+        const uint8_t addr,
+        const uint8_t reg)
     {
         i2c_transaction_t transaction;
         transaction.type = READ | ONEBYTE;
         transaction.addr = addr;
-        transaction.reg = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg = uhd::htonx<uint16_t>(reg);
         {
             uhd::transport::managed_send_buffer::sptr buff = _xport->get_send_buff(10.0);
             if (not buff or buff->size() < sizeof(transaction))
@@ -80,14 +70,14 @@ public:
     }
 
     void set_i2c_reg16(
-        const boost::uint8_t addr,
-        const boost::uint16_t reg,
-        const boost::uint8_t value)
+        const uint8_t addr,
+        const uint16_t reg,
+        const uint8_t value)
     {
         i2c_transaction_t transaction;
         transaction.type = WRITE | TWOBYTE;
         transaction.addr = addr;
-        transaction.reg  = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg  = uhd::htonx<uint16_t>(reg);
         transaction.data = value;
         {
             uhd::transport::managed_send_buffer::sptr buff = _xport->get_send_buff(10.0);
@@ -98,14 +88,14 @@ public:
         }
     }
 
-    boost::uint8_t get_i2c_reg16(
-        const boost::uint8_t addr,
-        const boost::uint16_t reg)
+    uint8_t get_i2c_reg16(
+        const uint8_t addr,
+        const uint16_t reg)
     {
         i2c_transaction_t transaction;
         transaction.type = READ | TWOBYTE;
         transaction.addr = addr;
-        transaction.reg  = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg  = uhd::htonx<uint16_t>(reg);
         {
             uhd::transport::managed_send_buffer::sptr buff = _xport->get_send_buff(10.0);
             if (not buff or buff->size() < sizeof(transaction))
@@ -145,14 +135,14 @@ public:
     }
 
     void set_i2c_reg8(
-        const boost::uint8_t addr,
-        const boost::uint8_t reg,
-        const boost::uint8_t value)
+        const uint8_t addr,
+        const uint8_t reg,
+        const uint8_t value)
     {
         i2c_transaction_t transaction;
         transaction.type = i2c::WRITE | ONEBYTE;
         transaction.addr = addr;
-        transaction.reg  = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg  = uhd::htonx<uint16_t>(reg);
         transaction.data = value;
 
         _xport->send(
@@ -161,14 +151,14 @@ public:
                 sizeof(transaction)));
     }
 
-    boost::uint8_t get_i2c_reg8(
-        const boost::uint8_t addr,
-        const boost::uint8_t reg)
+    uint8_t get_i2c_reg8(
+        const uint8_t addr,
+        const uint8_t reg)
     {
         i2c_transaction_t transaction;
         transaction.type = i2c::READ | ONEBYTE;
         transaction.addr = addr;
-        transaction.reg  = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg  = uhd::htonx<uint16_t>(reg);
         transaction.data = 0;
 
         _xport->send(
@@ -176,7 +166,7 @@ public:
                 &transaction,
                 sizeof(transaction)));
 
-        boost::uint8_t buff[sizeof(i2c_transaction_t)] = {};
+        uint8_t buff[sizeof(i2c_transaction_t)] = {};
         const size_t nbytes = _xport->recv(
             boost::asio::buffer(buff), 0.100);
         if (not (nbytes == sizeof(transaction)))
@@ -186,14 +176,14 @@ public:
     }
 
     void set_i2c_reg16(
-        const boost::uint8_t addr,
-        const boost::uint16_t reg,
-        const boost::uint8_t value)
+        const uint8_t addr,
+        const uint16_t reg,
+        const uint8_t value)
     {
         i2c_transaction_t transaction;
         transaction.type = i2c::WRITE | TWOBYTE;
         transaction.addr = addr;
-        transaction.reg = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg = uhd::htonx<uint16_t>(reg);
         transaction.data = value;
 
         _xport->send(
@@ -202,14 +192,14 @@ public:
                 sizeof(transaction)));
     }
 
-    boost::uint8_t get_i2c_reg16(
-        const boost::uint8_t addr,
-        const boost::uint16_t reg)
+    uint8_t get_i2c_reg16(
+        const uint8_t addr,
+        const uint16_t reg)
     {
         i2c_transaction_t transaction;
         transaction.type = i2c::READ | TWOBYTE;
         transaction.addr = addr;
-        transaction.reg = uhd::htonx<boost::uint16_t>(reg);
+        transaction.reg = uhd::htonx<uint16_t>(reg);
         transaction.data = 0;
 
         _xport->send(
@@ -217,7 +207,7 @@ public:
                 &transaction,
                 sizeof(transaction)));
 
-        boost::uint8_t buff[sizeof(i2c_transaction_t)] = {};
+        uint8_t buff[sizeof(i2c_transaction_t)] = {};
         const size_t nbytes = _xport->recv(
             boost::asio::buffer(buff), 0.100);
         if (not (nbytes == sizeof(transaction)))
@@ -248,7 +238,7 @@ i2c::sptr i2c::make_simple_udp(
 #include <sys/ioctl.h>
 
 #include <boost/thread.hpp>
-#include <boost/cstdint.hpp>
+#include <stdint.h>
 
 namespace uhd { namespace usrp { namespace e300 {
 
@@ -268,11 +258,11 @@ public:
     }
 
     void set_i2c_reg8(
-        const boost::uint8_t addr,
-        const boost::uint8_t reg,
-        const boost::uint8_t value)
+        const uint8_t addr,
+        const uint8_t reg,
+        const uint8_t value)
     {
-        boost::uint8_t outbuf[2];
+        uint8_t outbuf[2];
         i2c_rdwr_ioctl_data packets;
         i2c_msg messages[1];
 
@@ -294,20 +284,20 @@ public:
         boost::this_thread::sleep(boost::posix_time::milliseconds(5));
     }
 
-    boost::uint8_t get_i2c_reg8(
-        const boost::uint8_t addr,
-        const boost::uint8_t reg)
+    uint8_t get_i2c_reg8(
+        const uint8_t addr,
+        const uint8_t reg)
     {
         i2c_rdwr_ioctl_data packets;
         i2c_msg messages[2];
 
-        boost::uint8_t outbuf = reg;
+        uint8_t outbuf = reg;
         messages[0].addr = addr;
         messages[0].flags = 0;
         messages[0].len = sizeof(outbuf);
         messages[0].buf = &outbuf;
 
-        boost::uint8_t inbuf;
+        uint8_t inbuf;
         messages[1].addr = addr;
         messages[1].flags = I2C_M_RD;
         messages[1].len = sizeof(inbuf);
@@ -325,11 +315,11 @@ public:
 
     // the daughterboard uses 16 bit addresses
     void set_i2c_reg16(
-        const boost::uint8_t addr,
-        const boost::uint16_t reg,
-        const boost::uint8_t value)
+        const uint8_t addr,
+        const uint16_t reg,
+        const uint8_t value)
     {
-        boost::uint8_t outbuf[3];
+        uint8_t outbuf[3];
         i2c_rdwr_ioctl_data packets;
         i2c_msg messages[1];
 
@@ -354,15 +344,15 @@ public:
 
 
     // the daughterboard eeprom uses 16 bit addresses
-    boost::uint8_t get_i2c_reg16(
-        const boost::uint8_t addr,
-        const boost::uint16_t reg)
+    uint8_t get_i2c_reg16(
+        const uint8_t addr,
+        const uint16_t reg)
     {
         i2c_rdwr_ioctl_data packets;
         i2c_msg messages[2];
 
         // always little endian
-        boost::uint8_t outbuf[2];
+        uint8_t outbuf[2];
         outbuf[0] = (reg >> 8) & 0xff;
         outbuf[1] = reg & 0xff;
 
@@ -371,7 +361,7 @@ public:
         messages[0].len = sizeof(outbuf);
         messages[0].buf = outbuf;
 
-        boost::uint8_t inbuf;
+        uint8_t inbuf;
         messages[1].addr = addr;
         messages[1].flags = I2C_M_RD;
         messages[1].len = sizeof(inbuf);

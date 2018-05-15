@@ -1,25 +1,15 @@
 //
 // Copyright 2010-2013 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #include "udp_common.hpp"
 #include <uhd/transport/udp_zero_copy.hpp>
 #include <uhd/transport/udp_simple.hpp> //mtu
 #include <uhd/transport/buffer_pool.hpp>
-#include <uhd/utils/msg.hpp>
+
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/atomic.hpp>
 #include <boost/format.hpp>
@@ -32,7 +22,7 @@ using namespace uhd::transport;
 namespace asio = boost::asio;
 
 //A reasonable number of frames for send/recv and async/sync
-static const size_t DEFAULT_NUM_FRAMES = 32;
+//static const size_t DEFAULT_NUM_FRAMES = 32;
 
 /***********************************************************************
  * Check registry for correct fast-path setting (windows only)
@@ -50,11 +40,11 @@ static void check_registry_for_fast_send_threshold(const size_t mtu){
         reg_key.Open(HKEY_LOCAL_MACHINE, "System\\CurrentControlSet\\Services\\AFD\\Parameters", KEY_READ) != ERROR_SUCCESS or
         reg_key.QueryDWORDValue("FastSendDatagramThreshold", threshold) != ERROR_SUCCESS or threshold < mtu
     ){
-        UHD_MSG(warning) << boost::format(
+        UHD_LOGGER_WARNING("UDP") << boost::format(
             "The MTU (%d) is larger than the FastSendDatagramThreshold (%d)!\n"
             "This will negatively affect the transmit performance.\n"
             "See the transport application notes for more detail.\n"
-        ) % mtu % threshold << std::endl;
+        ) % mtu % threshold ;
         warned = true;
     }
     reg_key.Close();
@@ -87,7 +77,10 @@ public:
 
         if (wait_for_recv_ready(_sock_fd, timeout)){
             _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
-            UHD_ASSERT_THROW(_len > 0); // TODO: Handle case of recv error
+            if (_len == 0)
+                throw uhd::io_error("socket closed");
+            if (_len < 0)
+                throw uhd::io_error(str(boost::format("recv error on socket: %s") % strerror(errno)));
             index++; //advances the caller's buffer
             return make(this, _mem, size_t(_len));
         }
@@ -125,6 +118,10 @@ public:
             {
                 boost::this_thread::sleep(boost::posix_time::microseconds(1));
                 continue; //try to send again
+            }
+            if (ret == -1)
+            {
+                throw uhd::io_error(str(boost::format("send error on socket: %s") % strerror(errno)));
             }
             UHD_ASSERT_THROW(ret == ssize_t(size()));
         }
@@ -168,7 +165,8 @@ public:
         _send_buffer_pool(buffer_pool::make(xport_params.num_send_frames, xport_params.send_frame_size)),
         _next_recv_buff_index(0), _next_send_buff_index(0)
     {
-        UHD_LOG << boost::format("Creating udp transport for %s %s") % addr % port << std::endl;
+        UHD_LOGGER_TRACE("UDP")
+            << boost::format("Creating UDP transport to %s:%s") % addr % port;
 
         #ifdef CHECK_REG_SEND_THRESH
         check_registry_for_fast_send_threshold(this->get_send_frame_size());
@@ -183,7 +181,11 @@ public:
         _socket = socket_sptr(new asio::ip::udp::socket(_io_service));
         _socket->open(asio::ip::udp::v4());
         _socket->connect(receiver_endpoint);
-        _sock_fd = _socket->native();
+        _sock_fd = _socket->native_handle();
+
+        UHD_LOGGER_TRACE("UDP")
+            << boost::format("Local UDP socket endpoint: %s:%s")
+            % get_local_addr() % get_local_port();
 
         //allocate re-usable managed receive buffers
         for (size_t i = 0; i < get_num_recv_frames(); i++){
@@ -238,6 +240,16 @@ public:
     size_t get_num_send_frames(void) const {return _num_send_frames;}
     size_t get_send_frame_size(void) const {return _send_frame_size;}
 
+    uint16_t get_local_port(void) const
+    {
+        return _socket->local_endpoint().port();
+    }
+
+    std::string get_local_addr(void) const
+    {
+        return _socket->local_endpoint().address().to_string();
+    }
+
 private:
     //memory management -> buffers and fifos
     const size_t _recv_frame_size, _num_recv_frames;
@@ -265,18 +277,20 @@ template<typename Opt> static size_t resize_buff_helper(
     std::string help_message;
     #if defined(UHD_PLATFORM_LINUX)
         help_message = str(boost::format(
-            "Please run: sudo sysctl -w net.core.%smem_max=%d\n"
+            "Please run: sudo sysctl -w net.core.%smem_max=%d"
         ) % ((name == "recv")?"r":"w") % target_size);
     #endif /*defined(UHD_PLATFORM_LINUX)*/
 
     //resize the buffer if size was provided
     if (target_size > 0){
         actual_size = udp_trans->resize_buff<Opt>(target_size);
-        UHD_LOG << boost::format(
-            "Target %s sock buff size: %d bytes\n"
-            "Actual %s sock buff size: %d bytes"
-        ) % name % target_size % name % actual_size << std::endl;
-        if (actual_size < target_size) UHD_MSG(warning) << boost::format(
+        UHD_LOGGER_DEBUG("UDP")
+            << boost::format("Target/actual %s sock buff size: %d/%d bytes")
+               % name
+               % target_size
+               % actual_size
+        ;
+        if (actual_size < target_size) UHD_LOGGER_WARNING("UDP") << boost::format(
             "The %s buffer could not be resized sufficiently.\n"
             "Target sock buff size: %d bytes.\n"
             "Actual sock buff size: %d bytes.\n"
@@ -303,22 +317,22 @@ udp_zero_copy::sptr udp_zero_copy::make(
     xport_params.num_send_frames = size_t(hints.cast<double>("num_send_frames", default_buff_args.num_send_frames));
 
     //extract buffer size hints from the device addr
-    size_t usr_recv_buff_size = size_t(hints.cast<double>("recv_buff_size", 0.0));
-    size_t usr_send_buff_size = size_t(hints.cast<double>("send_buff_size", 0.0));
+    size_t usr_recv_buff_size = size_t(hints.cast<double>("recv_buff_size", xport_params.num_recv_frames * MAX_ETHERNET_MTU));
+    size_t usr_send_buff_size = size_t(hints.cast<double>("send_buff_size", xport_params.num_send_frames * MAX_ETHERNET_MTU));
 
     if (hints.has_key("recv_buff_size")) {
-        if (usr_recv_buff_size < xport_params.recv_frame_size * xport_params.num_recv_frames) {
+        if (usr_recv_buff_size < xport_params.num_recv_frames * MAX_ETHERNET_MTU) {
             throw uhd::value_error((boost::format(
-                "recv_buff_size must be equal to or greater than (num_recv_frames * recv_frame_size) where num_recv_frames=%d, recv_frame_size=%d")
-                % xport_params.num_recv_frames % xport_params.recv_frame_size).str());
+                "recv_buff_size must be equal to or greater than %d")
+                % (xport_params.num_recv_frames * MAX_ETHERNET_MTU)).str());
         }
     }
 
     if (hints.has_key("send_buff_size")) {
-        if (usr_send_buff_size < xport_params.send_frame_size * xport_params.num_send_frames) {
+        if (usr_send_buff_size < xport_params.num_send_frames * MAX_ETHERNET_MTU) {
             throw uhd::value_error((boost::format(
-                "send_buff_size must be equal to or greater than (num_send_frames * send_frame_size) where num_send_frames=%d, send_frame_size=%d")
-                % xport_params.num_send_frames % xport_params.send_frame_size).str());
+                "send_buff_size must be equal to or greater than %d")
+                % (xport_params.num_send_frames * MAX_ETHERNET_MTU)).str());
         }
     }
 

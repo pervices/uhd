@@ -1,18 +1,8 @@
 #
-# Copyright 2010-2014 Ettus Research LLC
+# Copyright 2010-2016 Ettus Research LLC
+# Copyright 2018 Ettus Research, a National Instruments Company
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -27,11 +17,11 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     SET(LINUX TRUE)
 ENDIF()
 
-IF(LINUX AND EXISTS "/etc/debian_version")
+IF(NOT CMAKE_CROSSCOMPILING AND LINUX AND EXISTS "/etc/debian_version")
     SET(DEBIAN TRUE)
 ENDIF()
 
-IF(LINUX AND EXISTS "/etc/redhat-release")
+IF(NOT CMAKE_CROSSCOMPILING AND LINUX AND EXISTS "/etc/redhat-release")
     SET(REDHAT TRUE)
 ENDIF()
 
@@ -55,13 +45,12 @@ ENDIF()
 ########################################################################
 # Setup package file name
 ########################################################################
-
 IF(DEBIAN AND LIBUHD_PKG)
-    SET(CPACK_PACKAGE_FILE_NAME "libuhd${UHD_VERSION_MAJOR}_${TRIMMED_UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
+    SET(CPACK_PACKAGE_FILE_NAME "libuhd${UHD_VERSION_MAJOR}_${UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
 ELSEIF(DEBIAN AND LIBUHDDEV_PKG)
-    SET(CPACK_PACKAGE_FILE_NAME "libuhd-dev_${TRIMMED_UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
+    SET(CPACK_PACKAGE_FILE_NAME "libuhd-dev_${UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
 ELSEIF(DEBIAN AND UHDHOST_PKG)
-    SET(CPACK_PACKAGE_FILE_NAME "uhd-host_${TRIMMED_UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
+    SET(CPACK_PACKAGE_FILE_NAME "uhd-host_${UHD_VERSION}_${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
 ELSE()
     IF(DEBIAN OR REDHAT)
         FIND_PROGRAM(LSB_RELEASE_EXECUTABLE lsb_release)
@@ -78,7 +67,7 @@ ELSE()
             )
 
             #set a more sensible package name for this system
-            SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_${LSB_ID}-${LSB_RELEASE}-${CMAKE_SYSTEM_PROCESSOR}")
+            SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_${LSB_ID}-${LSB_RELEASE}-${CMAKE_SYSTEM_PROCESSOR}" CACHE INTERNAL "")
         ENDIF(LSB_RELEASE_EXECUTABLE)
     ENDIF(DEBIAN OR REDHAT)
 ENDIF(DEBIAN AND LIBUHD_PKG)
@@ -99,10 +88,12 @@ IF(${CPACK_GENERATOR} STREQUAL NSIS)
             SET(MSVC_VERSION "VS2012")
         ELSEIF(MSVC12) # Visual Studio 2013 (12.0)
             SET(MSVC_VERSION "VS2013")
+        ELSEIF(MSVC14) # Visual Studio 2015 (14.0)
+            SET(MSVC_VERSION "VS2015")
         ENDIF()
-        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}_${MSVC_VERSION}")
+        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}_${MSVC_VERSION}" CACHE INTERNAL "")
     ELSE()
-        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}")
+        SET(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}" CACHE INTERNAL "")
     ENDIF(SPECIFY_MSVC_VERSION)
 
     SET(CPACK_PACKAGE_INSTALL_DIRECTORY "${CMAKE_PROJECT_NAME}")
@@ -112,7 +103,7 @@ ENDIF()
 # Setup CPack General
 ########################################################################
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ettus Research - USRP Hardware Driver")
-SET(CPACK_PACKAGE_VENDOR              "Ettus Research LLC")
+SET(CPACK_PACKAGE_VENDOR              "Ettus Research (National Instruments)")
 SET(CPACK_PACKAGE_CONTACT             "Ettus Research <support@ettus.com>")
 SET(CPACK_PACKAGE_VERSION "${UHD_VERSION}")
 SET(CPACK_RESOURCE_FILE_WELCOME ${CMAKE_SOURCE_DIR}/README.md)
@@ -122,7 +113,7 @@ SET(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 # Setup CPack Source
 ########################################################################
 
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "uhd-${TRIMMED_UHD_VERSION}")
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "uhd-${UHD_VERSION}" CACHE INTERNAL "")
 SET(CPACK_SOURCE_IGNORE_FILES "\\\\.git*;\\\\.swp$")
 
 ########################################################################
@@ -165,7 +156,7 @@ SET(CPACK_COMPONENTS_ALL libraries headers utilities examples manual doxygen rea
 ########################################################################
 # Setup CPack Debian
 ########################################################################
-SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libboost-all-dev")
+SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libboost-all-dev, python-requests")
 SET(CPACK_DEBIAN_PACKAGE_RECOMMENDS "python, python-tk")
 FOREACH(filename preinst postinst prerm postrm)
     LIST(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_BINARY_DIR}/debian/${filename})
@@ -183,7 +174,7 @@ CONFIGURE_FILE(
 ########################################################################
 # Setup CPack RPM
 ########################################################################
-SET(CPACK_RPM_PACKAGE_REQUIRES "boost-devel")
+SET(CPACK_RPM_PACKAGE_REQUIRES "boost-devel, python-requests")
 
 FOREACH(filename post_install post_uninstall pre_install pre_uninstall)
     STRING(TOUPPER ${filename} filename_upper)
@@ -210,13 +201,10 @@ SET(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
     DeleteRegValue HKLM ${HLKM_ENV} \\\"UHD_PKG_PATH\\\"
 ")
 
-IF(MSVC)
-    #Install necessary MSVC runtime DLL's
+IF(WIN32)
+    #Install necessary runtime DLL's
     INCLUDE(InstallRequiredSystemLibraries)
-ENDIF(MSVC)
+ENDIF(WIN32)
 
 ########################################################################
-IF(NOT ${CPACK_GENERATOR} STREQUAL NSIS)
-    SET(CPACK_SET_DESTDIR "ON")
-ENDIF(NOT ${CPACK_GENERATOR} STREQUAL NSIS)
 INCLUDE(CPack) #include after setting vars

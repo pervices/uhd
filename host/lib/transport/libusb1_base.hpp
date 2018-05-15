@@ -1,18 +1,8 @@
 //
 // Copyright 2010-2014 Ettus Research LLC
+// Copyright 2018 Ettus Research, a National Instruments Company
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
 #ifndef INCLUDED_LIBUHD_TRANSPORT_LIBUSB_HPP
@@ -23,6 +13,29 @@
 #include <boost/shared_ptr.hpp>
 #include <uhd/transport/usb_device_handle.hpp>
 #include <libusb.h>
+
+//! Define LIBUSB_CALL when its missing (non-windows)
+#ifndef LIBUSB_CALL
+    #define LIBUSB_CALL
+#endif /*LIBUSB_CALL*/
+
+//! libusb_handle_events_timeout_completed is only in newer API
+#ifndef HAVE_LIBUSB_HANDLE_EVENTS_TIMEOUT_COMPLETED
+    #define libusb_handle_events_timeout_completed(ctx, tx, completed) \
+        libusb_handle_events_timeout(ctx, tx)
+#endif /* HAVE_LIBUSB_HANDLE_EVENTS_TIMEOUT_COMPLETED */
+
+//! libusb_error_name is only in newer API
+#ifndef HAVE_LIBUSB_ERROR_NAME
+    #define libusb_error_name(code) \
+        str(boost::format("LIBUSB_ERROR_CODE %d") % code)
+#endif /* HAVE_LIBUSB_ERROR_NAME */
+
+//! libusb_strerror is only in newer API
+#ifndef HAVE_LIBUSB_STRERROR
+    #define libusb_strerror(code) \
+        libusb_error_name(code)
+#endif /* HAVE_LIBUSB_STRERROR */
 
 /***********************************************************************
  * Libusb object oriented smart pointer wrappers:
@@ -44,7 +57,7 @@ namespace libusb {
     public:
         typedef boost::shared_ptr<session> sptr;
 
-        virtual ~session(void) = 0;
+        virtual ~session(void);
 
         /*!
          *   Level 0: no messages ever printed by the library (default)
@@ -69,7 +82,7 @@ namespace libusb {
     public:
         typedef boost::shared_ptr<device> sptr;
 
-        virtual ~device(void) = 0;
+        virtual ~device(void);
 
         //! get the underlying device pointer
         virtual libusb_device *get(void) const = 0;
@@ -83,7 +96,7 @@ namespace libusb {
     public:
         typedef boost::shared_ptr<device_list> sptr;
 
-        virtual ~device_list(void) = 0;
+        virtual ~device_list(void);
 
         //! make a new device list
         static sptr make(void);
@@ -102,7 +115,7 @@ namespace libusb {
     public:
         typedef boost::shared_ptr<device_descriptor> sptr;
 
-        virtual ~device_descriptor(void) = 0;
+        virtual ~device_descriptor(void);
 
         //! make a new descriptor from a device reference
         static sptr make(device::sptr);
@@ -120,7 +133,7 @@ namespace libusb {
     public:
         typedef boost::shared_ptr<device_handle> sptr;
 
-        virtual ~device_handle(void) = 0;
+        virtual ~device_handle(void);
 
         //! get a cached handle or make a new one given the device
         static sptr get_cached_handle(device::sptr);
@@ -135,6 +148,10 @@ namespace libusb {
          * Control interface: 0
          */
         virtual void claim_interface(int) = 0;
+
+        virtual void clear_endpoints(unsigned char recv_endpoint, unsigned char send_endpoint) = 0;
+
+        virtual void reset_device(void) = 0;
     };
 
     /*!
@@ -145,7 +162,7 @@ namespace libusb {
     public:
         typedef boost::shared_ptr<special_handle> sptr;
 
-        virtual ~special_handle(void) = 0;
+        virtual ~special_handle(void);
 
         //! make a new special handle from device
         static sptr make(device::sptr);
