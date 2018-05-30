@@ -303,7 +303,7 @@ tune_result_t multi_crimson_tng::tune_lo_and_dsp( const double xx_sign, property
 	tune_result.clipped_rf_freq = clipped_requested_freq;
 	tune_result.target_rf_freq = target_rf_freq;
 	tune_result.actual_rf_freq = actual_rf_freq;
-	tune_result.target_dsp_freq = target_dsp_freq;
+	tune_result.target_dsp_freq = (tune_request.target_freq == 0)? 0 : target_dsp_freq;
 	tune_result.actual_dsp_freq = actual_dsp_freq;
 	return tune_result;
 }
