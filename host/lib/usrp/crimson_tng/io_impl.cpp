@@ -436,7 +436,7 @@ private:
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
         then = now + dt;
 
-        if ( dt > timeout ) {
+        if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
             return false;
         }
 
