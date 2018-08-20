@@ -45,17 +45,13 @@ public:
      */
     static sptr make(
         const std::string &local_addr,
-        const std::string &local_port,
+        const uint16_t local_port,
         const std::string &remote_addr,
-        const std::string &remote_port,
+        const uint16_t remote_port,
         const zero_copy_xport_params &default_buff_args,
         udp_zero_copy::buff_params& buff_params_out,
         const device_addr_t &hints = device_addr_t()
     );
-
-private:
-    std::string _remote_addr;
-    std::string _remote_port;
 };
 
 }} //namespace

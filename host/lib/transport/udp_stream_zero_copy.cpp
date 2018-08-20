@@ -19,7 +19,6 @@
 #include <uhd/transport/udp_stream_zero_copy.hpp>
 #include <uhd/transport/udp_simple.hpp> //mtu
 #include <uhd/transport/buffer_pool.hpp>
-#include <uhd/utils/msg.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/atomic.hpp>
 #include <boost/format.hpp>
@@ -145,11 +144,11 @@ private:
     simple_claimer _claimer;
 };
 
-static sockaddr_in to_sockaddr_in( const std::string & addr, const std::string & port ) {
+static sockaddr_in to_sockaddr_in( const std::string & addr, const uint16_t port ) {
 	struct sockaddr_in sa = {};
 
 	sa.sin_family = AF_INET;
-	sa.sin_port = htons( in_port_t( std::stoi( port, 0, 10 ) ) );
+	sa.sin_port = htons( port );
 	if ( ! inet_pton( AF_INET, addr.c_str(), & sa.sin_addr.s_addr ) ) {
 		throw uhd::value_error( "invalid IPv4 address '" + addr + "'" );
 	}
@@ -171,9 +170,9 @@ public:
 
     udp_stream_zero_copy_asio_impl(
         const std::string & local_addr,
-        const std::string & local_port,
+        const uint16_t local_port,
         const std::string & remote_addr,
-        const std::string & remote_port,
+        const uint16_t remote_port,
         const zero_copy_xport_params& xport_params
     ):
         _recv_frame_size(xport_params.recv_frame_size),
@@ -183,9 +182,10 @@ public:
         _recv_buffer_pool(buffer_pool::make(xport_params.num_recv_frames, xport_params.recv_frame_size)),
         _send_buffer_pool(buffer_pool::make(xport_params.num_send_frames, xport_params.send_frame_size)),
         _next_recv_buff_index(0), _next_send_buff_index(0),
+		_local_addr( local_addr ), _local_port( local_port ),
 		_remote_addr( remote_addr ), _remote_port( remote_port ), _remote_sockaddr( to_sockaddr_in( remote_addr, remote_port ) )
     {
-        UHD_LOG << boost::format("Creating udp transport for %s %s") % local_addr % local_port << std::endl;
+        //UHD_LOGGER_TRACE( "UDP" ) << boost::format("Creating udp transport for %s %s") % local_addr % local_port << std::endl;
 
         #ifdef CHECK_REG_SEND_THRESH
         check_registry_for_fast_send_threshold(this->get_send_frame_size());
@@ -194,18 +194,18 @@ public:
         asio::ip::udp::resolver resolver(_io_service);
 
         //resolve the local address
-        asio::ip::udp::resolver::query local_query(asio::ip::udp::v4(), local_addr, local_port);
+        asio::ip::udp::resolver::query local_query(asio::ip::udp::v4(), local_addr, std::to_string( local_port ) );
         asio::ip::udp::endpoint local_endpoint = *resolver.resolve(local_query);
 
         //resolve the remote address
-        asio::ip::udp::resolver::query remote_query(asio::ip::udp::v4(), remote_addr, remote_port);
-        asio::ip::udp::endpoint remote_endpoint = *resolver.resolve(remote_query);
+        asio::ip::udp::resolver::query remote_query(asio::ip::udp::v4(), remote_addr, std::to_string( remote_port ) );
+        //asio::ip::udp::endpoint remote_endpoint = *resolver.resolve(remote_query);
 
         //create, open, and connect the socket
         _socket = socket_sptr(new asio::ip::udp::socket(_io_service));
         _socket->open(asio::ip::udp::v4());
         _socket->bind(local_endpoint);
-        _sock_fd = _socket->native();
+        _sock_fd = _socket->native_handle();
 
         //allocate re-usable managed receive buffers
         for (size_t i = 0; i < get_num_recv_frames(); i++){
@@ -220,6 +220,13 @@ public:
                 _send_buffer_pool->at(i), _sock_fd, _remote_sockaddr, get_send_frame_size()
             ));
         }
+    }
+
+    uint16_t get_local_port() const {
+        return _local_port;
+    }
+    std::string get_local_addr() const {
+        return _local_addr;
     }
 
     //get size for internal socket buffer
@@ -274,8 +281,11 @@ private:
     socket_sptr             _socket;
     int                     _sock_fd;
 
+    const std::string _local_addr;
+    const uint16_t _local_port;
+
     const std::string _remote_addr;
-    const std::string _remote_port;
+    const uint16_t _remote_port;
     sockaddr_in 	  _remote_sockaddr;
 };
 
@@ -298,11 +308,11 @@ template<typename Opt> static size_t resize_buff_helper(
     //resize the buffer if size was provided
     if (target_size > 0){
         actual_size = udp_trans->resize_buff<Opt>(target_size);
-        UHD_LOG << boost::format(
+        UHD_LOGGER_TRACE( "UDP" ) << boost::format(
             "Target %s sock buff size: %d bytes\n"
             "Actual %s sock buff size: %d bytes"
         ) % name % target_size % name % actual_size << std::endl;
-        if (actual_size < target_size) UHD_MSG(warning) << boost::format(
+        if (actual_size < target_size) UHD_LOGGER_WARNING("UDP") << boost::format(
             "The %s buffer could not be resized sufficiently.\n"
             "Target sock buff size: %d bytes.\n"
             "Actual sock buff size: %d bytes.\n"
@@ -315,9 +325,9 @@ template<typename Opt> static size_t resize_buff_helper(
 
 udp_stream_zero_copy::sptr udp_stream_zero_copy::make(
     const std::string &local_addr,
-    const std::string &local_port,
+    const uint16_t local_port,
     const std::string &remote_addr,
-    const std::string &remote_port,
+	const uint16_t remote_port,
     const zero_copy_xport_params &default_buff_args,
     udp_stream_zero_copy::buff_params& buff_params_out,
     const device_addr_t &hints
@@ -331,7 +341,7 @@ udp_stream_zero_copy::sptr udp_stream_zero_copy::make(
     xport_params.num_send_frames = size_t(hints.cast<double>("num_send_frames", default_buff_args.num_send_frames));
 
     //extract buffer size hints from the device addr
-    size_t usr_recv_buff_size = size_t(hints.cast<double>("recv_buff_size", 0.0));
+    size_t usr_recv_buff_size = size_t(hints.cast<double>("recv_buff_size", 4 * 80e6 * 2));
     size_t usr_send_buff_size = size_t(hints.cast<double>("send_buff_size", 0.0));
 
     if (hints.has_key("recv_buff_size")) {

@@ -24,7 +24,6 @@
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/usrp/multi_crimson_tng.hpp>
-#include <uhd/utils/msg.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
@@ -57,30 +56,26 @@ static const std::string ALL_LOS = "all";
 static const double TX_SIGN = -1;
 static const double RX_SIGN = 1;
 
-static const double DSP_NCO_SHIFT_HZ = 25e6;
+UHD_INLINE std::string string_vector_to_string(std::vector<std::string> values, std::string delimiter = std::string(" "))
+{
+    std::string out = "";
+    for (std::vector<std::string>::iterator iter = values.begin(); iter != values.end(); iter++)
+    {
+        out += (iter != values.begin() ? delimiter : "") + *iter;
+    }
+    return out;
+}
+
+#define THROW_GAIN_NAME_ERROR(name,chan,dir) throw uhd::exception::runtime_error( \
+            (boost::format("%s: gain \"%s\" not found for channel %d.\nAvailable gains: %s\n") % \
+            __FUNCTION__ % name % chan % string_vector_to_string(get_##dir##_gain_names(chan))).str());
 
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-// TODO Need to check if: the sample rate, channels enabled, and bytes per I/Q sample,
-// will overflow, or under flow the data stream
-bool _check_tng_link_rate(const stream_args_t &args) {
-	// insert logic to calculate bytes_per_sample
-
-	// insert logic to compare link_max_rate > 0 && sample_rate * bytes_per_sample
-	// <> link_max_rate
-
-	// assume no under/overflow
-	return true;
-}
 
 bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
 	return freq + bw / 2.0 >= dsp_range.stop();
-}
-
-// no longer used. at one point was used for deciding whether or not to use DSP for frequency shift
-static bool is_low_sample_rate( const double dsp_rate ) {
-	return dsp_rate < ( CRIMSON_MASTER_CLOCK_RATE / 9 );
 }
 
 // return true if b is a (not necessarily strict) subset of a
@@ -88,7 +83,7 @@ bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-double multi_crimson_tng::choose_dsp_nco_shift( double target_freq, double sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree ) {
+double multi_crimson_tng::choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
 
 	/*
 	 * Scenario 1) Channels A and B
@@ -253,7 +248,7 @@ tune_result_t multi_crimson_tng::tune_lo_and_dsp( const double xx_sign, property
 				target_rf_freq = 0;
 				break;
 			case HIGH_BAND:
-				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, xx_sign, dsp_subtree, rf_fe_subtree );
+				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
@@ -315,7 +310,7 @@ tune_result_t multi_crimson_tng::tune_lo_and_dsp( const double xx_sign, property
 
 //do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
 static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &res, double freq, std::string rx_or_tx ) {
-/*
+#if 0
 	std::string results_string;
 
 	// XXX: @CF: We should really change these messages..
@@ -354,7 +349,12 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
 		results_string += dsp_message.str();
 	}
 	UHD_MSG( status ) << results_string;
-*/
+#else
+	(void)req;
+	(void)res;
+	(void)freq;
+	(void)rx_or_tx;
+#endif
 }
 
 /***********************************************************************
@@ -382,6 +382,8 @@ device::sptr multi_crimson_tng::get_device(void){
 // SW VERSION = software version
 
 dict<std::string, std::string> multi_crimson_tng::get_usrp_rx_info(size_t chan) {
+	(void)chan;
+
     dict<std::string, std::string> crimson_info;
 
     crimson_info["mboard_id"]       = _tree->access<std::string>(mb_root(0) / "id").get();
@@ -402,6 +404,8 @@ dict<std::string, std::string> multi_crimson_tng::get_usrp_rx_info(size_t chan) 
 }
 
 dict<std::string, std::string> multi_crimson_tng::get_usrp_tx_info(size_t chan) {
+	(void) chan;
+
     dict<std::string, std::string> crimson_info;
 
     crimson_info["mboard_id"]       = _tree->access<std::string>(mb_root(0) / "id").get();
@@ -426,109 +430,73 @@ dict<std::string, std::string> multi_crimson_tng::get_usrp_tx_info(size_t chan) 
  ******************************************************************/
 // Master clock rate is fixed at 322.265625 MHz
 void multi_crimson_tng::set_master_clock_rate(double rate, size_t mboard){
+	(void)rate;
+	(void)mboard;
     return;
 }
 
 double multi_crimson_tng::get_master_clock_rate(size_t mboard){
+	(void)mboard;
     return _tree->access<double>(mb_root(0) / "tick_rate").get();
 }
 
 std::string multi_crimson_tng::get_pp_string(void){
-    std::string buff = str(boost::format(
-        "%s Crimson:\n"
-        "  Device: %s\n"
-    )
-        % ((get_num_mboards() > 1)? "Multi" : "Single")
-        % (_tree->access<std::string>("/name").get())
-    );
-    for (size_t m = 0; m < get_num_mboards(); m++){
-        buff += str(boost::format(
-            "  Mboard %d: %s\n"
-        ) % m
-            % (_tree->access<std::string>(mb_root(m) / "name").get())
-        );
-    }
-
-    //----------- rx side of life ----------------------------------
-    for (size_t m = 0, chan = 0; m < get_num_mboards(); m++){
-        for (; chan < (m + 1)*get_rx_subdev_spec(m).size(); chan++){
-            buff += str(boost::format(
-                "  RX Channel: %u\n"
-                "    RX DSP: %s\n"
-                "    RX Dboard: %s\n"
-                "    RX Subdev: %s\n"
-            ) % chan
-                % rx_dsp_root(chan).leaf()
-                % rx_rf_fe_root(chan).branch_path().branch_path().leaf()
-                % (_tree->access<std::string>(rx_rf_fe_root(chan) / "name").get())
-            );
-        }
-    }
-
-    //----------- tx side of life ----------------------------------
-    for (size_t m = 0, chan = 0; m < get_num_mboards(); m++){
-        for (; chan < (m + 1)*get_tx_subdev_spec(m).size(); chan++){
-            buff += str(boost::format(
-                "  TX Channel: %u\n"
-                "    TX DSP: %s\n"
-                "    TX Dboard: %s\n"
-                "    TX Subdev: %s\n"
-            ) % chan
-                % tx_dsp_root(chan).leaf()
-                % tx_rf_fe_root(chan).branch_path().branch_path().leaf()
-                % (_tree->access<std::string>(tx_rf_fe_root(chan) / "name").get())
-            );
-        }
-    }
-    return buff;
+	return "Crimson TNG";
 }
 
 // Get the Digital board name
 std::string multi_crimson_tng::get_mboard_name(size_t mboard){
+	(void)mboard;
     return _tree->access<std::string>(mb_root(0) / "name").get();
 }
 
 // Get the current time on Crimson
 time_spec_t multi_crimson_tng::get_time_now(size_t mboard){
+	(void)mboard;
 	return _tree->access<time_spec_t>(mb_root(0) / "time/now").get();
 }
 
 // Get the time of the last PPS (pulse per second)
 time_spec_t multi_crimson_tng::get_time_last_pps(size_t mboard){
+	(void)mboard;
     return _tree->access<time_spec_t>(mb_root(0) / "time/pps").get();
 }
 
 // Set the current time on Crimson
 void multi_crimson_tng::set_time_now(const time_spec_t &time_spec, size_t mboard){
+	(void)mboard;
     _tree->access<time_spec_t>(mb_root(0) / "time/now").set(time_spec);
     return;
 }
 
 // Set the time for the next PPS (pulse per second)
 void multi_crimson_tng::set_time_next_pps(const time_spec_t &time_spec, size_t mboard){
+	(void)mboard;
     _tree->access<time_spec_t>(mb_root(0) / "time/pps").set(time_spec);
     return;
 }
 
 void multi_crimson_tng::set_time_unknown_pps(const time_spec_t &time_spec){
-    // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+	set_time_now( time_spec );
 }
 
 bool multi_crimson_tng::get_time_synchronized(void){
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
     return true;
 }
 void multi_crimson_tng::set_command_time(const time_spec_t &time_spec, size_t mboard){
+	(void)time_spec;
+	(void)mboard;
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
     return;
 }
 void multi_crimson_tng::clear_command_time(size_t mboard){
+	(void)mboard;
     // Not implemented
-    throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
-    return;
+    //throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
+    //return;
 }
 
 void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
@@ -542,6 +510,7 @@ void multi_crimson_tng::issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t 
 }
 
 void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, size_t mboard) {
+	(void)mboard;
     //set the reference source...
     std::string clock_source;
     switch(clock_config.ref_source){
@@ -565,48 +534,57 @@ void multi_crimson_tng::set_clock_config(const clock_config_t &clock_config, siz
 
 // set the current time source
 void multi_crimson_tng::set_time_source(const std::string &source, const size_t mboard){
+	(void)mboard;
     _tree->access<std::string>(mb_root(0) / "time_source" / "value").set(source);
     return;
 }
 
 // get the current time source
 std::string multi_crimson_tng::get_time_source(const size_t mboard){
+	(void)mboard;
     return _tree->access<std::string>(mb_root(0) / "time_source" / "value").get();
 }
 
 // get all possible time sources
 std::vector<std::string> multi_crimson_tng::get_time_sources(const size_t mboard){
+	(void)mboard;
     return _tree->access<std::vector<std::string> >(mb_root(0) / "time_source" / "options").get();
 }
 
 // set the current clock source (Crimson only uses internal reference for now, because it is a really good clock already)
 void multi_crimson_tng::set_clock_source(const std::string &source, const size_t mboard){
+	(void)source;
+	(void)mboard;
     //_tree->access<std::string>(mb_root(0) / "clock_source" / "value").set(source);
     return;
 }
 
 // get the current clock source
 std::string multi_crimson_tng::get_clock_source(const size_t mboard){
+	(void)mboard;
     return _tree->access<std::string>(mb_root(0) / "clock_source" / "value").get();
 }
 
 // get all possible clock sources
 std::vector<std::string> multi_crimson_tng::get_clock_sources(const size_t mboard){
+	(void)mboard;
     return _tree->access<std::vector<std::string> >(mb_root(0) / "clock_source" / "options").get();
 }
 
 // Set the clock source output, Crimson doesn't have an SMA for clock out
 void multi_crimson_tng::set_clock_source_out(const bool enb, const size_t mboard){
+	(void)enb;
+	(void)mboard;
     // Not supported
     throw uhd::runtime_error("multi_crimson_tng::set_clock_source_out - not supported on this device");
-    return;
 }
 
 // Set the time source output, Crimson doesn't have an SMA for time out
 void multi_crimson_tng::set_time_source_out(const bool enb, const size_t mboard){
+	(void)enb;
+	(void)mboard;
     // Not supported
     throw uhd::runtime_error("multi_crimson_tng::set_time_source_out - not supported on this device");
-    return;
 }
 
 // Crimson only has support for 1 Digital (mboard) board.
@@ -615,15 +593,19 @@ size_t multi_crimson_tng::get_num_mboards(void){
 }
 
 sensor_value_t multi_crimson_tng::get_mboard_sensor(const std::string &name, size_t mboard){
+	(void)mboard;
     return _tree->access<sensor_value_t>(mb_root(0) / "sensors" / name).get();
 }
 
 std::vector<std::string> multi_crimson_tng::get_mboard_sensor_names(size_t mboard){
+	(void)mboard;
     return _tree->list(mb_root(0) / "sensors");
 }
 
 void multi_crimson_tng::set_user_register(const boost::uint8_t addr, const boost::uint32_t data, size_t mboard){
-    // Not implemented
+	(void)addr;
+	(void)data;
+	(void)mboard;
     throw uhd::not_implemented_error("timed command feature not implemented on this hardware");
 }
 
@@ -631,17 +613,19 @@ void multi_crimson_tng::set_user_register(const boost::uint8_t addr, const boost
  * RX methods
  ******************************************************************/
 rx_streamer::sptr multi_crimson_tng::get_rx_stream(const stream_args_t &args) {
-    _check_tng_link_rate(args);
     return this->get_device()->get_rx_stream(args);
 }
 
 // Crimson does not support changing subdev properties because you can't add daughter boards
 void multi_crimson_tng::set_rx_subdev_spec(const subdev_spec_t &spec, size_t mboard){
+	(void)spec;
+	(void)mboard;
     throw uhd::runtime_error("multi_crimson_tng::set_tx_subdev_spec - not supported on this device");
 }
 
 // Get the current RX chain subdev properties, Crimson only has one mboard
 subdev_spec_t multi_crimson_tng::get_rx_subdev_spec(size_t mboard){
+	(void)mboard;
     return subdev_spec_t("Slot_1:RX_Chain_1 Slot_2:RX_Chain_2 Slot_3:RX_Chain_3 Slot_4:RX_Chain_4");
 }
 
@@ -662,7 +646,7 @@ void multi_crimson_tng::set_rx_rate(double rate, size_t chan){
 		if ( rate < range.start() || rate > range.stop() ) {
 			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
 		}
-		double actual_rate = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate).get();
+		_tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 		return;
 	}
 	for (size_t c = 0; c < get_rx_num_channels(); c++){
@@ -682,23 +666,27 @@ meta_range_t multi_crimson_tng::get_rx_rates(size_t chan){
 
 // set the RX frequency on specified channel
 tune_result_t multi_crimson_tng::set_rx_freq( const tune_request_t &tune_request, size_t chan ) {
-
 	tune_result_t result;
+	if (chan != ALL_CHANS){
+		double gain = get_rx_gain( chan );
 
-	double gain = get_rx_gain( chan );
+		result =
+			tune_lo_and_dsp(
+				RX_SIGN,
+				_tree->subtree( rx_dsp_root( chan ) ),
+				_tree->subtree( rx_rf_fe_root( chan ) ),
+				tune_request
+			);
 
-	result =
-		tune_lo_and_dsp(
-			RX_SIGN,
-			_tree->subtree( rx_dsp_root( chan ) ),
-			_tree->subtree( rx_rf_fe_root( chan ) ),
-			tune_request
-		);
+		do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "RX" );
 
-	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "RX" );
+		set_rx_gain( gain, chan );
 
-	set_rx_gain( gain, chan );
-
+		return result;
+	}
+	for (size_t c = 0; c < get_tx_num_channels(); c++){
+		result = set_rx_freq( tune_request, c );
+	}
 	return result;
 }
 
@@ -814,103 +802,133 @@ void multi_crimson_tng::set_rx_lo_export_enabled(bool enabled, const std::string
     }
 }
 bool multi_crimson_tng::get_rx_lo_export_enabled(const std::string &name, size_t chan) {
-
+	(void)name;
+	(void)chan;
+	throw uhd::runtime_error("This device does not support manual configuration of LOs");
 }
 double multi_crimson_tng::set_rx_lo_freq(double freq, const std::string &name, size_t chan) {
-
+	(void)freq;
+	(void)name;
+	(void)chan;
+	throw uhd::runtime_error("This device does not support manual configuration of LOs");
 }
 double multi_crimson_tng::get_rx_lo_freq(const std::string &name, size_t chan) {
-
+	(void)name;
+	(void)chan;
+	throw uhd::runtime_error("This device does not support manual configuration of LOs");
 }
 freq_range_t multi_crimson_tng::get_rx_lo_freq_range(const std::string &name, size_t chan) {
-
+	(void)name;
+	(void)chan;
+	throw uhd::runtime_error("This device does not support manual configuration of LOs");
 }
 // set RX frontend gain on specified channel, name specifies which IC to configure the gain for
 void multi_crimson_tng::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
-	double atten_val = 0;
-	double gain_val = 0;
-	double lna_val = 0;
+	if ( ALL_CHANS != chan ) {
 
-	gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
-	gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
+		(void) name;
 
-	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
-		// Low-Band
+		double atten_val = 0;
+		double gain_val = 0;
+		double lna_val = 0;
 
-		double low_band_gain = gain > 31.5 ? 31.5 : gain;
+		gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
+		gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
-		if ( low_band_gain != gain ) {
-            boost::format rf_lo_message(
-                "  The RF Low Band does not support the requested gain:\n"
-                "    Requested RF Low Band gain: %f dB\n"
-                "    Actual RF Low Band gain: %f dB\n"
-            );
-            rf_lo_message % gain % low_band_gain;
-            std::string results_string = rf_lo_message.str();
-        	UHD_MSG(status) << results_string;
-		}
+		if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+			// Low-Band
 
-		// PMA is off (+0dB)
-		lna_val = 0;
-		// BFP is off (+0dB)
-		// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
-		atten_val = 31.75;
-		// LMH is adjusted from 0dB to 31.5dB
-		gain_val = low_band_gain;
+			double low_band_gain = gain > 31.5 ? 31.5 : gain;
 
-	} else {
-		// High-Band
+			if ( low_band_gain != gain ) {
+				boost::format rf_lo_message(
+					"  The RF Low Band does not support the requested gain:\n"
+					"    Requested RF Low Band gain: %f dB\n"
+					"    Actual RF Low Band gain: %f dB\n"
+				);
+				rf_lo_message % gain % low_band_gain;
+				std::string results_string = rf_lo_message.str();
+				UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
+			}
 
-		if ( false ) {
-		} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
 			// PMA is off (+0dB)
 			lna_val = 0;
-			// BFP is on (+20dB)
-			// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+			// BFP is off (+0dB)
+			// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
 			atten_val = 31.75;
 			// LMH is adjusted from 0dB to 31.5dB
-			gain_val = gain;
-		} else if ( 31.5 < gain && gain <= 63.25 ) {
-			// PMA is off (+0dB)
-			lna_val = 0;
-			// BFP is on (+20dB)
-			// PE437 is adjusted from -31.75 dB to 0dB
-			atten_val = 63.25 - gain;
-			// LMH is maxed (+31.5dB)
-			gain_val = 31.5;
-		} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
-			// PMA is on (+20dB)
-			lna_val = 20;
-			// BFP is on (+20dB)
-			// PE437 is adjusted from -20 dB to 0dB
-			atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
-			// LMH is maxed (+31.5dB)
-			gain_val = 31.5;
+			gain_val = low_band_gain;
+
+		} else {
+			// High-Band
+
+			if ( false ) {
+			} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
+				// PMA is off (+0dB)
+				lna_val = 0;
+				// BFP is on (+20dB)
+				// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+				atten_val = 31.75;
+				// LMH is adjusted from 0dB to 31.5dB
+				gain_val = gain;
+			} else if ( 31.5 < gain && gain <= 63.25 ) {
+				// PMA is off (+0dB)
+				lna_val = 0;
+				// BFP is on (+20dB)
+				// PE437 is adjusted from -31.75 dB to 0dB
+				atten_val = 63.25 - gain;
+				// LMH is maxed (+31.5dB)
+				gain_val = 31.5;
+			} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+				// PMA is on (+20dB)
+				lna_val = 20;
+				// BFP is on (+20dB)
+				// PE437 is adjusted from -20 dB to 0dB
+				atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
+				// LMH is maxed (+31.5dB)
+				gain_val = 31.5;
+			}
 		}
+
+		int lna_bypass_enable = 0 == lna_val ? 1 : 0;
+		_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
+
+		if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+			_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+			_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+		} else {
+			_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
+			_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+		}
+		return;
 	}
 
-	int lna_bypass_enable = 0 == lna_val ? 1 : 0;
-	_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
-
-    if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
-		_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-		_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
-    } else {
-		_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
-		_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+    for (size_t c = 0; c < get_rx_num_channels(); c++){
+        set_rx_gain( gain, name, c );
     }
 }
 
-void multi_crimson_tng::set_normalized_rx_gain(double gain, size_t chan) {
-
+void multi_crimson_tng::set_normalized_rx_gain(double gain, size_t chan )
+{
+  if (gain > 1.0 || gain < 0.0) {
+    throw uhd::runtime_error("Normalized gain out of range, must be in [0, 1].");
+  }
+  gain_range_t gain_range = get_rx_gain_range(ALL_GAINS, chan);
+  double abs_gain = (gain * (gain_range.stop() - gain_range.start())) + gain_range.start();
+  set_rx_gain(abs_gain, ALL_GAINS, chan);
 }
 void multi_crimson_tng::set_rx_agc(bool enable, size_t chan) {
-
+	(void) enable;
+	(void) chan;
+	throw uhd::runtime_error("This device does not support rx agc");
 }
 
 // get RX frontend gain on specified channel
 double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
+
+	(void)name;
+	(void)chan;
 
 	double r;
 
@@ -929,31 +947,44 @@ double multi_crimson_tng::get_rx_gain(const std::string &name, size_t chan){
 }
 
 double multi_crimson_tng::get_normalized_rx_gain(size_t chan) {
-
+	(void) chan;
+	throw uhd::runtime_error("This device does not support normalized rx gain");
 }
 
 // get RX frontend gain range on specified channel
 gain_range_t multi_crimson_tng::get_rx_gain_range(const std::string &name, size_t chan){
-    return _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "gain" / "range").get();
+	try {
+		if ( ALL_GAINS != name ) {
+			throw uhd::key_error( "no gain for name '" + name + "'" );
+		}
+		return _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "gain" / "range").get();
+	} catch (uhd::key_error &) {
+		THROW_GAIN_NAME_ERROR(name,chan,rx);
+	}
 }
 
 // get RX frontend gain names/options. There is only one configurable gain on the RX rf chain.
 std::vector<std::string> multi_crimson_tng::get_rx_gain_names(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_rx_gain_names - not supported on this device");
 }
 
 // Crimson does not cater to antenna specifications, this is up to the user to accomodate for
 void multi_crimson_tng::set_rx_antenna(const std::string &ant, size_t chan){
+	(void)ant;
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::set_rx_antenna - not supported on this device");
 }
 
 // Crimson does not cater to antenna specifications, this is up to the user to accomodate for
 std::string multi_crimson_tng::get_rx_antenna(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_rx_antenna - not supported on this device");
 }
 
 // Crimson does not cater to antenna specifications, this is up to the user to accomodate for
 std::vector<std::string> multi_crimson_tng::get_rx_antennas(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_rx_antennas - not supported on this device");
 }
 
@@ -972,14 +1003,17 @@ meta_range_t multi_crimson_tng::get_rx_bandwidth_range(size_t chan){
 
 // There is no dboard interface available for Crimson. Everything is communicated through the mboard (Digital board)
 dboard_iface::sptr multi_crimson_tng::get_rx_dboard_iface(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_rx_dboard_iface - not supported on this device");
 }
 
 sensor_value_t multi_crimson_tng::get_rx_sensor(const std::string &name, size_t chan){
+	(void)chan;
     return _tree->access<sensor_value_t>(rx_rf_fe_root(0) / "sensors" / name).get();
 }
 
 std::vector<std::string> multi_crimson_tng::get_rx_sensor_names(size_t chan){
+	(void)chan;
     return _tree->list(rx_rf_fe_root(0) / "sensors");
 }
 
@@ -996,7 +1030,7 @@ void multi_crimson_tng::set_rx_iq_balance(const bool enb, size_t chan) {
         if (_tree->exists(rx_rf_fe_root(chan) / "iq_balance" / "enable")) {
             _tree->access<bool>(rx_rf_fe_root(chan) / "iq_balance" / "enable").set(enb);
         } else {
-            UHD_MSG(warning) << "Setting IQ imbalance compensation is not possible on this device." << std::endl;
+            UHD_LOGGER_WARNING("MULTI_CRIMSON") << "Setting IQ imbalance compensation is not possible on this device." << std::endl;
         }
         return;
     }
@@ -1009,21 +1043,67 @@ void multi_crimson_tng::set_rx_iq_balance(const std::complex<double> &offset, si
     _tree->access< std::complex<double> >(mb_root(0) / "rx_frontends" / chan_to_string(chan) / "iq_balance" / "value").set(offset);
 }
 
+void multi_crimson_tng::set_rx_gain_profile(const std::string& profile, const size_t chan){
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            _tree->access<std::string>(rx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+        }
+    } else {
+        for (size_t c = 0; c < get_rx_num_channels(); c++){
+            if (_tree->exists(rx_rf_fe_root(c) / "gains/all/profile/value")) {
+                _tree->access<std::string>(rx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+            }
+        }
+    }
+}
+
+std::string multi_crimson_tng::get_rx_gain_profile(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            return _tree->access<std::string>(
+                rx_rf_fe_root(chan) / "gains/all/profile/value"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get RX gain profile from "
+                                 "all channels at once!");
+    }
+    return "";
+}
+
+std::vector<std::string> multi_crimson_tng::get_rx_gain_profile_names(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/options")) {
+            return _tree->access<std::vector<std::string>>(
+                rx_rf_fe_root(chan) / "gains/all/profile/options"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get RX gain profile names from "
+                                 "all channels at once!");
+    }
+    return std::vector<std::string>();
+}
+
 /*******************************************************************
  * TX methods
  ******************************************************************/
 tx_streamer::sptr multi_crimson_tng::get_tx_stream(const stream_args_t &args) {
-    _check_tng_link_rate(args);
     return this->get_device()->get_tx_stream(args);
 }
 
 // Crimson does not support changing subdev properties because you can't add daughter boards
 void multi_crimson_tng::set_tx_subdev_spec(const subdev_spec_t &spec, size_t mboard){
+	(void)spec;
+	(void)mboard;
     throw uhd::runtime_error("multi_crimson_tng::set_tx_subdev_spec - not supported on this device");
 }
 
 // Get the current TX chain subdev properties, Crimson only has one mboard
 subdev_spec_t multi_crimson_tng::get_tx_subdev_spec(size_t mboard){
+	(void)mboard;
     return subdev_spec_t("Slot_1:TX_Chain_1 Slot_2:TX_Chain_2 Slot_3:TX_Chain_3 Slot_4:TX_Chain_4");
 }
 
@@ -1044,7 +1124,7 @@ void multi_crimson_tng::set_tx_rate(double rate, size_t chan){
 		if ( rate < range.start() || rate > range.stop() ) {
 			throw value_error( "Invalid rate " + std::to_string( rate ) + " for channel " + std::string( 1, ((char)'A' + chan) ) );
 		}
-		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate).get();
+		_tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 		return;
 	}
 	for (size_t c = 0; c < get_tx_num_channels(); c++){
@@ -1064,23 +1144,27 @@ meta_range_t multi_crimson_tng::get_tx_rates(size_t chan){
 
 // set the TX frequency on specified channel
 tune_result_t multi_crimson_tng::set_tx_freq(const tune_request_t & tune_request, size_t chan) {
-
 	tune_result_t result;
+	if (chan != ALL_CHANS){
+		double gain = get_tx_gain( chan );
 
-	double gain = get_tx_gain( chan );
+		result =
+			tune_lo_and_dsp(
+				TX_SIGN,
+				_tree->subtree( tx_dsp_root( chan ) ),
+				_tree->subtree( tx_rf_fe_root( chan ) ),
+				tune_request
+			);
 
-	result =
-		tune_lo_and_dsp(
-			TX_SIGN,
-			_tree->subtree( tx_dsp_root( chan ) ),
-			_tree->subtree( tx_rf_fe_root( chan ) ),
-			tune_request
-		);
+		do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_tx_freq( chan ), "RX" );
 
-	do_tune_freq_results_message( (tune_request_t &) tune_request, result, get_rx_freq( chan ), "TX" );
+		set_tx_gain( gain, chan );
 
-	set_tx_gain( gain, chan );
-
+		return result;
+	}
+	for (size_t c = 0; c < get_tx_num_channels(); c++){
+		result = set_tx_freq( tune_request, c );
+	}
 	return result;
 }
 
@@ -1107,20 +1191,74 @@ freq_range_t multi_crimson_tng::get_fe_tx_freq_range(size_t chan){
 
 // set TX frontend gain on specified channel, name specifies which IC to configure the gain for
 void multi_crimson_tng::set_tx_gain(double gain, const std::string &name, size_t chan){
-	double MAX_GAIN = 31.75;
-	double MIN_GAIN = 0;
 
-	if 		(gain > MAX_GAIN) gain = MAX_GAIN;
-	else if (gain < MIN_GAIN) gain = MIN_GAIN;
+	if ( ALL_CHANS != chan ) {
+		(void)name;
 
-	gain = round(gain / 0.25);
+		double MAX_GAIN = 31.75;
+		double MIN_GAIN = 0;
 
-    if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-    	_tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
-    } else {
-    	_tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+		if 		(gain > MAX_GAIN) gain = MAX_GAIN;
+		else if (gain < MIN_GAIN) gain = MIN_GAIN;
+
+		gain = round(gain / 0.25);
+
+		if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+			_tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+		} else {
+			_tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+		}
+		return;
+	}
+    for (size_t c = 0; c < get_rx_num_channels(); c++){
+        set_tx_gain(gain, name, c);
     }
 }
+
+void multi_crimson_tng::set_tx_gain_profile(const std::string& profile, const size_t chan){
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            _tree->access<std::string>(tx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+        }
+    } else {
+        for (size_t c = 0; c < get_tx_num_channels(); c++){
+            if (_tree->exists(tx_rf_fe_root(c) / "gains/all/profile/value")) {
+                _tree->access<std::string>(tx_rf_fe_root(chan) / "gains/all/profile/value").set(profile);
+            }
+        }
+    }
+}
+
+std::string multi_crimson_tng::get_tx_gain_profile(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/value")) {
+            return _tree->access<std::string>(
+                tx_rf_fe_root(chan) / "gains/all/profile/value"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get TX gain profile from "
+                                 "all channels at once!");
+    }
+    return "";
+}
+
+std::vector<std::string> multi_crimson_tng::get_tx_gain_profile_names(const size_t chan)
+{
+    if (chan != ALL_CHANS) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/options")) {
+            return _tree->access<std::vector<std::string>>(
+                tx_rf_fe_root(chan) / "gains/all/profile/options"
+            ).get();
+        }
+    } else {
+        throw uhd::runtime_error("Can't get TX gain profile names from "
+                                 "all channels at once!");
+    }
+    return std::vector<std::string>();
+}
+
 void multi_crimson_tng::set_normalized_tx_gain(double gain, size_t chan) {
     if (gain > 1.0 || gain < 0.0) {
       throw uhd::runtime_error("Normalized gain out of range, must be in [0, 1].");
@@ -1132,6 +1270,7 @@ void multi_crimson_tng::set_normalized_tx_gain(double gain, size_t chan) {
 
 // get TX frontend gain on specified channel
 double multi_crimson_tng::get_tx_gain(const std::string &name, size_t chan){
+	(void)name;
     double gain_val = _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
     return gain_val * 0.25;
 }
@@ -1152,26 +1291,32 @@ double multi_crimson_tng::get_normalized_tx_gain(size_t chan) {
 
 // get TX frontend gain range on specified channel
 gain_range_t multi_crimson_tng::get_tx_gain_range(const std::string &name, size_t chan){
+	(void)name;
     return _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "gain" / "range").get();
 }
 
 // get TX frontend gain names/options. There is only one configurable gain on the TX rf chain.
 std::vector<std::string> multi_crimson_tng::get_tx_gain_names(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_tx_gain_names - not supported on this device");
 }
 
 // Crimson does not cater to antenna specifications, this is up to the user to accomodate for
 void multi_crimson_tng::set_tx_antenna(const std::string &ant, size_t chan){
+	(void)ant;
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::set_tx_antenna - not supported on this device");
 }
 
 // Crimson does not cater to antenna specifications, this is up to the user to accomodate for
 std::string multi_crimson_tng::get_tx_antenna(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_tx_antenna - not supported on this device");
 }
 
 // Crimson does not cater to antenna specifications, this is up to the user to accomodate for
 std::vector<std::string> multi_crimson_tng::get_tx_antennas(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_tx_antennas - not supported on this device");
 }
 
@@ -1192,6 +1337,7 @@ meta_range_t multi_crimson_tng::get_tx_bandwidth_range(size_t chan){
 
 // There is no dboard interface available for Crimson. Everything is communicated through the mboard (Digital board)
 dboard_iface::sptr multi_crimson_tng::get_tx_dboard_iface(size_t chan){
+	(void)chan;
     throw uhd::runtime_error("multi_crimson_tng::get_tx_dboard_iface - not supported on this device");
 }
 
@@ -1213,23 +1359,265 @@ void multi_crimson_tng::set_tx_iq_balance(const std::complex<double> &offset, si
     _tree->access< std::complex<double> >(tx_rf_fe_root(chan) / "iq_balance" / "value").set(offset);
 }
 
+std::vector<std::string> multi_crimson_tng::get_tx_lo_names(const size_t chan){
+    std::vector<std::string> lo_names;
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        for (const std::string &name : _tree->list(tx_rf_fe_root(chan) / "los")) {
+            lo_names.push_back(name);
+        }
+    }
+    return lo_names;
+}
+
+void multi_crimson_tng::set_tx_lo_source(
+        const std::string &src,
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
+                // Special value ALL_LOS support atomically sets the source
+                // for all LOs
+                _tree->access<std::string>(
+                        tx_rf_fe_root(chan) / "los" / ALL_LOS /
+                        "source" / "value"
+                ).set(src);
+            } else {
+                for (const auto &n : _tree->list(tx_rf_fe_root(chan) / "los")) {
+                    this->set_tx_lo_source(src, n, chan);
+                }
+            }
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                _tree->access<std::string>(
+                    tx_rf_fe_root(chan) / "los" / name / "source" /
+                        "value"
+                ).set(src);
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        throw uhd::runtime_error("This device does not support manual "
+                                 "configuration of LOs");
+    }
+}
+
+const std::string multi_crimson_tng::get_tx_lo_source(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+            return _tree->access<std::string>(
+                tx_rf_fe_root(chan) / "los" / name / "source" / "value"
+            ).get();
+        } else {
+            throw uhd::runtime_error("Could not find LO stage " + name);
+        }
+    } else {
+        // If the daughterboard doesn't expose its LO(s) then it can only
+        // be internal
+        return "internal";
+    }
+}
+
+std::vector<std::string> multi_crimson_tng::get_tx_lo_sources(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
+                // Special value ALL_LOS support atomically sets the source
+                // for all LOs
+                return _tree->access<std::vector<std::string>>(
+                    tx_rf_fe_root(chan) / "los" / ALL_LOS /
+                        "source" / "options"
+                ).get();
+            } else {
+                return std::vector<std::string>();
+            }
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access< std::vector<std::string> >(tx_rf_fe_root(chan) / "los" / name / "source" / "options").get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        // If the daughterboard doesn't expose its LO(s) then it can only
+        // be internal
+        return std::vector<std::string>(1, "internal");
+    }
+}
+
+void multi_crimson_tng::set_tx_lo_export_enabled(
+        const bool enabled,
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
+                //Special value ALL_LOS support atomically sets the source for all LOs
+                _tree->access<bool>(tx_rf_fe_root(chan) / "los" / ALL_LOS / "export").set(enabled);
+            } else {
+                for(const std::string &n:  _tree->list(tx_rf_fe_root(chan) / "los")) {
+                    this->set_tx_lo_export_enabled(enabled, n, chan);
+                }
+            }
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                _tree->access<bool>(tx_rf_fe_root(chan) / "los" / name / "export").set(enabled);
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        throw uhd::runtime_error("This device does not support manual configuration of LOs");
+    }
+}
+
+bool multi_crimson_tng::get_tx_lo_export_enabled(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+            return _tree->access<bool>(
+                tx_rf_fe_root(chan) / "los" / name / "export"
+            ).get();
+        } else {
+            throw uhd::runtime_error("Could not find LO stage " + name);
+        }
+    } else {
+        // If the daughterboard doesn't expose its LO(s), assume it cannot
+        // export
+        return false;
+    }
+}
+
+double multi_crimson_tng::set_tx_lo_freq(
+        const double freq,
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            throw uhd::runtime_error("LO frequency must be set for each "
+                                     "stage individually");
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access<double>(
+                    tx_rf_fe_root(chan) / "los" / name / "freq" / "value"
+                ).set(freq).get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        throw uhd::runtime_error("This device does not support manual "
+                                 "configuration of LOs");
+    }
+}
+
+double multi_crimson_tng::get_tx_lo_freq(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            throw uhd::runtime_error("LO frequency must be retrieved for "
+                                     "each stage individually");
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access<double>(tx_rf_fe_root(chan) / "los" / name / "freq" / "value").get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        // Return actual RF frequency if the daughterboard doesn't expose
+        // its LO(s)
+        return _tree->access<double>(
+            tx_rf_fe_root(chan) / "freq" /" value"
+        ).get();
+    }
+}
+
+freq_range_t multi_crimson_tng::get_tx_lo_freq_range(
+        const std::string &name,
+        const size_t chan
+) {
+    if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+        if (name == ALL_LOS) {
+            throw uhd::runtime_error("LO frequency range must be retrieved "
+                                     "for each stage individually");
+        } else {
+            if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
+                return _tree->access<freq_range_t>(
+                    tx_rf_fe_root(chan) / "los" / name / "freq" / "range"
+                ).get();
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    } else {
+        // Return the actual RF range if the daughterboard doesn't expose
+        // its LO(s)
+        return _tree->access<meta_range_t>(
+            tx_rf_fe_root(chan) / "freq" / "range"
+        ).get();
+    }
+}
+
 /*******************************************************************
  * GPIO methods
  ******************************************************************/
 std::vector<std::string> multi_crimson_tng::get_gpio_banks(const size_t mboard){
+	(void)mboard;
     // Not supported
     throw uhd::runtime_error("multi_crimson_tng::get_gpio_banks - not supported on this device");
 }
 
 void multi_crimson_tng::set_gpio_attr(const std::string &bank, const std::string &attr,
     const boost::uint32_t value, const boost::uint32_t mask, const size_t mboard){
+	(void)bank;
+	(void)attr;
+	(void)value;
+	(void)mask;
+	(void)mboard;
+    // Not supported
+    throw uhd::runtime_error("multi_crimson_tng::set_gpio_attr - not supported on this device");
+}
+void multi_crimson_tng::set_gpio_attr(const std::string &bank, const std::string &attr, const std::string &str_value , const uint32_t mask, const size_t mboard)
+{
+	(void)bank;
+	(void)attr;
+	(void)str_value;
+	(void)mask;
+	(void)mboard;
     // Not supported
     throw uhd::runtime_error("multi_crimson_tng::set_gpio_attr - not supported on this device");
 }
 
-boost::uint32_t multi_crimson_tng::get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard){
+uint32_t multi_crimson_tng::get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard)
+{
+	(void)bank;
+	(void)attr;
+	(void)mboard;
     // Not supported
-    throw uhd::runtime_error("multi_crimson_tng::get_gpio_attr - not supported on this device");
+    throw uhd::runtime_error("multi_crimson_tng::set_gpio_attr - not supported on this device");
+}
+std::vector<std::string> multi_crimson_tng::get_gpio_string_attr(const std::string &bank, const std::string &attr, const size_t mboard)
+{
+	(void)bank;
+	(void)attr;
+	(void)mboard;
+    // Not supported
+	throw uhd::runtime_error(str(boost::format("The hardware has no support for given gpio bank name: %s:\n") % bank));
 }
 
 /*******************************************************************

@@ -30,8 +30,10 @@
 #include "uhd/transport/udp_zero_copy.hpp"
 
 #include "crimson_tng_iface.hpp"
-#include "crimson_tng_impl.hpp"
+#include "flow_control.hpp"
 #include "pidc.hpp"
+
+#include "system_time.hpp"
 
 namespace uhd {
 namespace usrp {
@@ -45,18 +47,9 @@ struct time_diff_req {
 #pragma pack(pop)
 
 #pragma pack(push,1)
-struct time_diff_uoflow {
-	uint64_t uflow;
-	uint64_t oflow;
-};
-#pragma pack(pop)
-
-#pragma pack(push,1)
 struct time_diff_resp {
 	int64_t tv_sec;
 	int64_t tv_tick;
-	uint16_t fifo[ CRIMSON_TNG_TX_CHANNELS ];
-	struct time_diff_uoflow uoflow[ CRIMSON_TNG_TX_CHANNELS ];
 };
 #pragma pack(pop)
 
@@ -71,8 +64,6 @@ struct rx_stream_cmd {
 
 }
 }
-
-#include "crimson_tng_tx_streamer.hpp"
 
 namespace uhd {
 namespace usrp {
@@ -92,23 +83,19 @@ public:
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);
     virtual uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 
-    // UHD legacy support
-    virtual bool recv_async_msg(uhd::async_metadata_t &async_metadata, double timeout = 0.1);
+    bool recv_async_msg(uhd::async_metadata_t &, double);
 
-    uhd::device_addr_t _addr;
+    uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now() {
     	double diff = time_diff_get();
-    	return time_spec_t::get_system_time() + diff;
+        return uhd::get_system_time() + diff;
     }
     inline double time_diff_get() { return _time_diff; }
     inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }
     bool time_diff_converged();
     void start_bm();
     void stop_bm();
-
-    void bm_listener_add( uhd::crimson_tng_tx_streamer *listener );
-    void bm_listener_rem( uhd::crimson_tng_tx_streamer *listener );
 
     void send_rx_stream_cmd_req( const rx_stream_cmd & req );
     static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
@@ -162,10 +149,8 @@ private:
     void set_properties_from_addr();
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
-    uhd::crimson_tng_iface::sptr _iface;
+    //uhd::crimson_tng_iface::sptr _iface;
     std::mutex _iface_lock;
-
-    std::vector<uhd::transport::udp_zero_copy::sptr> rx_if;
 
 	/**
 	 * Clock Domain Synchronization Objects
@@ -193,8 +178,6 @@ private:
      * Buffer Management Objects
      */
 
-    std::set<uhd::crimson_tng_tx_streamer *> _bm_listeners;
-
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
@@ -205,13 +188,35 @@ private:
 	static void bm_thread_fn( crimson_tng_impl *dev );
 	bool is_bm_thread_needed();
 
-	/**
-	 * RX Streamer Objects
-	 */
-	std::vector<size_t> _rx_channels;
-	std::vector<size_t> _stream_cmd_samples_remaining;
-	std::vector<boost::weak_ptr<uhd::rx_streamer>> _rx_streamers;
-	double update_rx_samp_rate( const size_t & chan_i, const double & rate );
+    struct mb_container_type{
+        crimson_tng_iface::sptr iface;
+        std::vector<boost::weak_ptr<uhd::rx_streamer> > rx_streamers;
+        std::vector<boost::weak_ptr<uhd::tx_streamer> > tx_streamers;
+        std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
+        std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
+        std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
+        // radio control core sort of like magnesium (maybe plutonium? only if it's organic)
+        size_t rx_chan_occ, tx_chan_occ;
+        mb_container_type(void): rx_chan_occ(0), tx_chan_occ(0){}
+    };
+    uhd::dict<std::string, mb_container_type> _mbc;
+
+    UHD_PIMPL_DECL(io_impl) _io_impl;
+    void io_init(void);
+    //void update_tick_rate(const double rate);
+    void update_rx_samp_rate(const std::string & mb, const size_t chan, const double rate);
+    void update_tx_samp_rate(const std::string & mb, const size_t chan, const double rate);
+    void update_rates(void);
+    //update spec methods are coercers until we only accept db_name == A
+    void update_rx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
+    void update_tx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
+    double set_tx_dsp_freq(const std::string &, const double);
+    uhd::meta_range_t get_tx_dsp_freq_range(const std::string &);
+    void update_clock_source(const std::string &, const std::string &);
+    void program_stream_dest(uhd::transport::zero_copy_if::sptr &, const uhd::stream_args_t &);
+
+
+    static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
 };
 
 }

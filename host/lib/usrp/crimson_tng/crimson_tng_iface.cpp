@@ -16,7 +16,6 @@
 //
 
 #include <uhd/exception.hpp>
-#include <uhd/utils/msg.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/tasks.hpp>
 //#include <uhd/utils/images.hpp>

@@ -29,8 +29,6 @@
 #include <chrono>
 #include <thread>
 
-#include "uhd/usrp/multi_crimson_tng.hpp"
-
 using namespace uhd;
 using namespace uhd::usrp;
 
@@ -226,145 +224,383 @@ static gain_fcns_t make_gain_fcns_from_subtree(property_tree::sptr subtree){
 static const double RX_SIGN = +1.0;
 static const double TX_SIGN = -1.0;
 
-static tune_result_t tune_xx_subdev_and_dsp(
-    const double xx_sign,
-    property_tree::sptr dsp_subtree,
-    property_tree::sptr rf_fe_subtree,
-    const tune_request_t &tune_request
-){
-    //------------------------------------------------------------------
-    //-- calculate the tunable frequency ranges of the system
-    //------------------------------------------------------------------
-    freq_range_t tune_range = make_overall_tune_range(
-            rf_fe_subtree->access<meta_range_t>("freq/range").get(),
-            dsp_subtree->access<meta_range_t>("freq/range").get(),
-            rf_fe_subtree->access<double>("bandwidth/value").get()
-        );
-
-    freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
-    freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
-
-    double clipped_requested_freq = tune_range.clip(tune_request.target_freq);
-
-    //------------------------------------------------------------------
-    //-- If the RF FE requires an LO offset, build it into the tune request
-    //------------------------------------------------------------------
-
-    /*! The automatically calculated LO offset is only used if the
-     * 'use_lo_offset' field in the daughterboard property tree is set to TRUE,
-     * and the tune policy is set to AUTO. To use an LO offset normally, the
-     * user should specify the MANUAL tune policy and lo_offset as part of the
-     * tune_request. This lo_offset is based on the requirements of the FE, and
-     * does not reflect a user-requested lo_offset, which is handled later. */
-    double lo_offset = 0.0;
-    if (rf_fe_subtree->exists("use_lo_offset") and
-        rf_fe_subtree->access<bool>("use_lo_offset").get()){
-        // If the frontend has lo_offset value and range properties, trust it
-        // for lo_offset
-        if (rf_fe_subtree->exists("lo_offset/value")) {
-            lo_offset = rf_fe_subtree->access<double>("lo_offset/value").get();
-        }
-
-        //If the local oscillator will be in the passband, use an offset.
-        //But constrain the LO offset by the width of the filter bandwidth.
-        const double rate = dsp_subtree->access<double>("rate/value").get();
-        const double bw = rf_fe_subtree->access<double>("bandwidth/value").get();
-        if (bw > rate) lo_offset = std::min((bw - rate)/2, rate/2);
-    }
-
-    //------------------------------------------------------------------
-    //-- poke the tune request args into the dboard
-    //------------------------------------------------------------------
-    if (rf_fe_subtree->exists("tune_args")) {
-        rf_fe_subtree->access<device_addr_t>("tune_args").set(tune_request.args);
-    }
-
-    //------------------------------------------------------------------
-    //-- set the RF frequency depending upon the policy
-    //------------------------------------------------------------------
-    double target_rf_freq = 0.0;
-
-    switch (tune_request.rf_freq_policy){
-        case tune_request_t::POLICY_AUTO:
-            target_rf_freq = clipped_requested_freq + lo_offset;
-            break;
-
-        case tune_request_t::POLICY_MANUAL:
-            // If the rf_fe understands lo_offset settings, infer the desired
-            // lo_offset and set it. Side effect: In TVRX2 for example, after
-            // setting the lo_offset (if_freq) with a POLICY_MANUAL, there is no
-            // way for the user to automatically get back to default if_freq
-            // without deconstruct/reconstruct the rf_fe objects.
-            if (rf_fe_subtree->exists("lo_offset/value")) {
-                rf_fe_subtree->access<double>("lo_offset/value")
-                    .set(tune_request.rf_freq - tune_request.target_freq);
-            }
-
-            target_rf_freq = rf_range.clip(tune_request.rf_freq);
-            break;
-
-        case tune_request_t::POLICY_NONE:
-            break; //does not set
-    }
-
-    //------------------------------------------------------------------
-    //-- Tune the RF frontend
-    //------------------------------------------------------------------
-    if (tune_request.rf_freq_policy != tune_request_t::POLICY_NONE) {
-        rf_fe_subtree->access<double>("freq/value").set(target_rf_freq);
-    }
-    const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
-
-    //------------------------------------------------------------------
-    //-- Set the DSP frequency depending upon the DSP frequency policy.
-    //------------------------------------------------------------------
-    double target_dsp_freq = 0.0;
-    switch (tune_request.dsp_freq_policy) {
-        case tune_request_t::POLICY_AUTO:
-            /* If we are using the AUTO tuning policy, then we prevent the
-             * CORDIC from spinning us outside of the range of the baseband
-             * filter, regardless of what the user requested. This could happen
-             * if the user requested a center frequency so far outside of the
-             * tunable range of the FE that the CORDIC would spin outside the
-             * filtered baseband. */
-            target_dsp_freq = actual_rf_freq - clipped_requested_freq;
-
-            //invert the sign on the dsp freq for transmit (spinning up vs down)
-            target_dsp_freq *= xx_sign;
-
-            break;
-
-        case tune_request_t::POLICY_MANUAL:
-            /* If the user has specified a manual tune policy, we will allow
-             * tuning outside of the baseband filter, but will still clip the
-             * target DSP frequency to within the bounds of the CORDIC to
-             * prevent undefined behavior (likely an overflow). */
-            target_dsp_freq = dsp_range.clip(tune_request.dsp_freq);
-            break;
-
-        case tune_request_t::POLICY_NONE:
-            break; //does not set
-    }
-
-    //------------------------------------------------------------------
-    //-- Tune the DSP
-    //------------------------------------------------------------------
-    if (tune_request.dsp_freq_policy != tune_request_t::POLICY_NONE) {
-        dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
-    }
-    const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
-
-    //------------------------------------------------------------------
-    //-- Load and return the tune result
-    //------------------------------------------------------------------
-    tune_result_t tune_result;
-    tune_result.clipped_rf_freq = clipped_requested_freq;
-    tune_result.target_rf_freq = target_rf_freq;
-    tune_result.actual_rf_freq = actual_rf_freq;
-    tune_result.target_dsp_freq = target_dsp_freq;
-    tune_result.actual_dsp_freq = actual_dsp_freq;
-    return tune_result;
+// XXX: @CF: 20180418: stop-gap until moved to server
+static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
+	return freq + bw / 2.0 >= dsp_range.stop();
 }
+
+// XXX: @CF: 20180418: stop-gap until moved to server
+// return true if b is a (not necessarily strict) subset of a
+static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
+	return b.start() >= a.start() && b.stop() <= a.stop();
+}
+
+// XXX: @CF: 20180418: stop-gap until moved to server
+static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
+
+	/*
+	 * Scenario 1) Channels A and B
+	 *
+	 * We want a shift such that the full bandwidth fits inside of one of the
+	 * dashed regions.
+	 *
+	 * Our margin around each sensitive area is 1 MHz on either side.
+	 *
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
+	 * Region A
+	 * Region B
+	 * Region F
+	 * Region G
+	 * Region H
+	 *
+	 * Region A is preferred because it exhibits the least attenuation. B is
+	 * preferred over C for that reason (and because it has a more bandwidth
+	 * than C). F is the next largest band and is preferred over E because
+	 * it avoids the LO fundamental, but it contains FM. G is the next-to-last
+	 * preference because it includes the LO and FM but has a very large
+	 * bandwidth. Finally, H is the catch-all. It suffers at high frequencies
+	 * due to the ADC filterbank, but includes the entirety of the spectrum.
+	 *
+	[--]-------------------[+]-----------------------+-------------------------+-----------[///////////+////////]---------------+------------[\\\\\\\\\\\+\\\\\\\\\\\\\\>
+	 | |                    |                                                              |                    |                            |                      |    f (MHz)
+	 0 2                    25                                                           87.9                  107.9                        137                    162.5
+	DC                 LO fundamental                                                               FM                                   ADC Cutoff            Max Samp Rate
+           A (21 MHz)                            B (60.9 MHz)                                                             C (27.1 Mhz)                 D (26.5 MHz)
+                           E = A + B (includes LO)                                                                     F = B + C (includes FM)
+					                                           G = A + B + C
+					                                           H = A + B + C + D
+	 */
+	static const std::vector<freq_range_t> AB_regions {
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 86.9e6 ), // B
+		freq_range_t( 26e6, 136e6 ), // F = B + C
+		freq_range_t( 3e6, 136e6 ), // G = A + B + C
+		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Catch All)
+		freq_range_t( -162.5e6, 162.5e6 ), // I = 2*H (Catch All)
+	};
+	/*
+	 * Scenario 2) Channels C and D
+	 *
+	 * Channels C & D only provide 1/2 the bandwidth of A & B due to silicon
+	 * errata. This should be corrected in subsequent hardware revisions of
+	 * Crimson.
+	 *
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
+	 * Region A
+	 * Region B
+	 * Region C
+	[--]-------------------[+]-----------------------+-------------------------+---->
+	 | |                    |                                                  |    f (MHz)
+	 0 2                    25                                               81.25
+	DC                 LO fundamental                                      Max Samp Rate
+           A (21 MHz)                            B (55.25 MHz)
+                           C = A + B (includes LO)
+	 */
+	static const std::vector<freq_range_t> CD_regions {
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 81.25e6 ), // B
+		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
+		freq_range_t( -81.25e6, 81.25e6 ), // I = 2*H (Catch All)
+	};
+	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
+
+	static const double lo_step = 25e6;
+
+	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > 81.25e6 ? 'A' : 'C';
+	const double bw = dsp_subtree->access<double>("/rate/value").get();
+	const std::vector<freq_range_t> & regions =
+		( 'A' == channel || 'B' == channel )
+		? AB_regions
+		: CD_regions
+	;
+	const int K = (int) floor( ( dsp_range.stop() - dsp_range.start() ) / lo_step );
+
+	for( int k = 0; k <= K; k++ ) {
+		for( double sign: { +1, -1 } ) {
+
+			double candidate_lo = target_freq;
+			if ( sign > 0 ) {
+				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
+				// above the target frequency
+				candidate_lo += lo_step - fmod( target_freq, lo_step );
+			} else {
+				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
+				// above the target frequency
+				candidate_lo -= fmod( target_freq, lo_step );
+			}
+			candidate_lo += k * sign * lo_step;
+
+			const double candidate_nco = target_freq - candidate_lo;
+			const double bb_ft = target_freq - candidate_lo + candidate_nco;
+			const meta_range_t candidate_range( bb_ft - bw / 2, bb_ft + bw / 2 );
+
+			for( const freq_range_t & _range: regions ) {
+				if ( range_contains( _range, candidate_range ) ) {
+					return candidate_nco;
+				}
+			}
+		}
+	}
+
+	// Under normal operating parameters, this should never happen because
+	// the last-choice _range in each of AB_regions and CD_regions is
+	// a catch-all for the entire DSP bandwidth. Hitting this scenario is
+	// equivalent to saying that the LO is incapable of up / down mixing
+	// the RF signal into the baseband domain.
+	throw runtime_error(
+		(
+			boost::format( "No suitable baseband region found: target_freq: %f, bw: %f, dsp_range: %s" )
+			% target_freq
+			% bw
+			% dsp_range.to_pp_string()
+		).str()
+	);
+}
+
+// XXX: @CF: 20180418: stop-gap until moved to server
+static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+
+	enum {
+		LOW_BAND,
+		HIGH_BAND,
+	};
+
+	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t adc_range( dsp_range.start(), 137e6, 0.0001 );
+	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
+
+	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
+
+	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
+
+	//------------------------------------------------------------------
+	//-- set the RF frequency depending upon the policy
+	//------------------------------------------------------------------
+	double target_rf_freq = 0.0;
+	double dsp_nco_shift = 0;
+
+	// kb #3689, for phase coherency, we must set the DAC NCO to 0
+	if ( TX_SIGN == xx_sign ) {
+		rf_fe_subtree->access<double>("nco").set( 0.0 );
+	}
+
+	rf_fe_subtree->access<int>( "freq/band" ).set( band );
+
+	switch (tune_request.rf_freq_policy){
+		case tune_request_t::POLICY_AUTO:
+			switch( band ) {
+			case LOW_BAND:
+				// in low band, we only use the DSP to tune
+				target_rf_freq = 0;
+				break;
+			case HIGH_BAND:
+				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
+				// in high band, we use the LO for most of the shift, and use the DSP for the difference
+				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
+				break;
+			}
+		break;
+
+		case tune_request_t::POLICY_MANUAL:
+			target_rf_freq = rf_range.clip( tune_request.rf_freq );
+			break;
+
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
+
+	//------------------------------------------------------------------
+	//-- Tune the RF frontend
+	//------------------------------------------------------------------
+	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
+	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+
+	//------------------------------------------------------------------
+	//-- Set the DSP frequency depending upon the DSP frequency policy.
+	//------------------------------------------------------------------
+	double target_dsp_freq = 0.0;
+	switch (tune_request.dsp_freq_policy) {
+		case tune_request_t::POLICY_AUTO:
+			target_dsp_freq = actual_rf_freq - clipped_requested_freq;
+
+			//invert the sign on the dsp freq for transmit (spinning up vs down)
+			target_dsp_freq *= xx_sign;
+
+			break;
+
+		case tune_request_t::POLICY_MANUAL:
+			target_dsp_freq = tune_request.dsp_freq;
+			break;
+
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
+
+	//------------------------------------------------------------------
+	//-- Tune the DSP
+	//------------------------------------------------------------------
+	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
+	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+
+	//------------------------------------------------------------------
+	//-- Load and return the tune result
+	//------------------------------------------------------------------
+	tune_result_t tune_result;
+	tune_result.clipped_rf_freq = clipped_requested_freq;
+	tune_result.target_rf_freq = target_rf_freq;
+	tune_result.actual_rf_freq = actual_rf_freq;
+	tune_result.target_dsp_freq = target_dsp_freq;
+	tune_result.actual_dsp_freq = actual_dsp_freq;
+	return tune_result;
+}
+
+
+//static tune_result_t tune_xx_subdev_and_dsp(
+//    const double xx_sign,
+//    property_tree::sptr dsp_subtree,
+//    property_tree::sptr rf_fe_subtree,
+//    const tune_request_t &tune_request
+//){
+//    //------------------------------------------------------------------
+//    //-- calculate the tunable frequency ranges of the system
+//    //------------------------------------------------------------------
+//    freq_range_t tune_range = make_overall_tune_range(
+//            rf_fe_subtree->access<meta_range_t>("freq/range").get(),
+//            dsp_subtree->access<meta_range_t>("freq/range").get(),
+//            rf_fe_subtree->access<double>("bandwidth/value").get()
+//        );
+//
+//    freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+//    freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+//
+//    double clipped_requested_freq = tune_range.clip(tune_request.target_freq);
+//
+//    //------------------------------------------------------------------
+//    //-- If the RF FE requires an LO offset, build it into the tune request
+//    //------------------------------------------------------------------
+//
+//    /*! The automatically calculated LO offset is only used if the
+//     * 'use_lo_offset' field in the daughterboard property tree is set to TRUE,
+//     * and the tune policy is set to AUTO. To use an LO offset normally, the
+//     * user should specify the MANUAL tune policy and lo_offset as part of the
+//     * tune_request. This lo_offset is based on the requirements of the FE, and
+//     * does not reflect a user-requested lo_offset, which is handled later. */
+//    double lo_offset = 0.0;
+//    if (rf_fe_subtree->exists("use_lo_offset") and
+//        rf_fe_subtree->access<bool>("use_lo_offset").get()){
+//        // If the frontend has lo_offset value and range properties, trust it
+//        // for lo_offset
+//        if (rf_fe_subtree->exists("lo_offset/value")) {
+//            lo_offset = rf_fe_subtree->access<double>("lo_offset/value").get();
+//        }
+//
+//        //If the local oscillator will be in the passband, use an offset.
+//        //But constrain the LO offset by the width of the filter bandwidth.
+//        const double rate = dsp_subtree->access<double>("rate/value").get();
+//        const double bw = rf_fe_subtree->access<double>("bandwidth/value").get();
+//        if (bw > rate) lo_offset = std::min((bw - rate)/2, rate/2);
+//    }
+//
+//    //------------------------------------------------------------------
+//    //-- poke the tune request args into the dboard
+//    //------------------------------------------------------------------
+//    if (rf_fe_subtree->exists("tune_args")) {
+//        rf_fe_subtree->access<device_addr_t>("tune_args").set(tune_request.args);
+//    }
+//
+//    //------------------------------------------------------------------
+//    //-- set the RF frequency depending upon the policy
+//    //------------------------------------------------------------------
+//    double target_rf_freq = 0.0;
+//
+//    switch (tune_request.rf_freq_policy){
+//        case tune_request_t::POLICY_AUTO:
+//            target_rf_freq = clipped_requested_freq + lo_offset;
+//            break;
+//
+//        case tune_request_t::POLICY_MANUAL:
+//            // If the rf_fe understands lo_offset settings, infer the desired
+//            // lo_offset and set it. Side effect: In TVRX2 for example, after
+//            // setting the lo_offset (if_freq) with a POLICY_MANUAL, there is no
+//            // way for the user to automatically get back to default if_freq
+//            // without deconstruct/reconstruct the rf_fe objects.
+//            if (rf_fe_subtree->exists("lo_offset/value")) {
+//                rf_fe_subtree->access<double>("lo_offset/value")
+//                    .set(tune_request.rf_freq - tune_request.target_freq);
+//            }
+//
+//            target_rf_freq = rf_range.clip(tune_request.rf_freq);
+//            break;
+//
+//        case tune_request_t::POLICY_NONE:
+//            break; //does not set
+//    }
+//
+//    //------------------------------------------------------------------
+//    //-- Tune the RF frontend
+//    //------------------------------------------------------------------
+//    if (tune_request.rf_freq_policy != tune_request_t::POLICY_NONE) {
+//        rf_fe_subtree->access<double>("freq/value").set(target_rf_freq);
+//    }
+//    const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+//
+//    //------------------------------------------------------------------
+//    //-- Set the DSP frequency depending upon the DSP frequency policy.
+//    //------------------------------------------------------------------
+//    double target_dsp_freq = 0.0;
+//    switch (tune_request.dsp_freq_policy) {
+//        case tune_request_t::POLICY_AUTO:
+//            /* If we are using the AUTO tuning policy, then we prevent the
+//             * CORDIC from spinning us outside of the range of the baseband
+//             * filter, regardless of what the user requested. This could happen
+//             * if the user requested a center frequency so far outside of the
+//             * tunable range of the FE that the CORDIC would spin outside the
+//             * filtered baseband. */
+//            target_dsp_freq = actual_rf_freq - clipped_requested_freq;
+//
+//            //invert the sign on the dsp freq for transmit (spinning up vs down)
+//            target_dsp_freq *= xx_sign;
+//
+//            break;
+//
+//        case tune_request_t::POLICY_MANUAL:
+//            /* If the user has specified a manual tune policy, we will allow
+//             * tuning outside of the baseband filter, but will still clip the
+//             * target DSP frequency to within the bounds of the CORDIC to
+//             * prevent undefined behavior (likely an overflow). */
+//            target_dsp_freq = dsp_range.clip(tune_request.dsp_freq);
+//            break;
+//
+//        case tune_request_t::POLICY_NONE:
+//            break; //does not set
+//    }
+//
+//    //------------------------------------------------------------------
+//    //-- Tune the DSP
+//    //------------------------------------------------------------------
+//    if (tune_request.dsp_freq_policy != tune_request_t::POLICY_NONE) {
+//        dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
+//    }
+//    const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+//
+//    //------------------------------------------------------------------
+//    //-- Load and return the tune result
+//    //------------------------------------------------------------------
+//    tune_result_t tune_result;
+//    tune_result.clipped_rf_freq = clipped_requested_freq;
+//    tune_result.target_rf_freq = target_rf_freq;
+//    tune_result.actual_rf_freq = actual_rf_freq;
+//    tune_result.target_dsp_freq = target_dsp_freq;
+//    tune_result.actual_dsp_freq = actual_dsp_freq;
+//    return tune_result;
+//}
 
 static double derive_freq_from_xx_subdev_and_dsp(
     const double xx_sign,
@@ -937,9 +1173,18 @@ public:
         return result;
     }
 
+    // XXX: @CF: 20180418: stop-gap until moved to server
     double get_rx_freq(size_t chan){
-        return derive_freq_from_xx_subdev_and_dsp(RX_SIGN, _tree->subtree(rx_dsp_root(chan)), _tree->subtree(rx_rf_fe_root(chan)));
+        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
+        double cur_lo_freq = 0;
+        if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+            cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
+        }
+        return cur_lo_freq - cur_dsp_nco;
     }
+//    double get_rx_freq(size_t chan){
+//        return derive_freq_from_xx_subdev_and_dsp(RX_SIGN, _tree->subtree(rx_dsp_root(chan)), _tree->subtree(rx_rf_fe_root(chan)));
+//    }
 
     freq_range_t get_rx_freq_range(size_t chan){
         return make_overall_tune_range(
@@ -1338,33 +1583,120 @@ public:
     /**************************************************************************
      * Gain control
      *************************************************************************/
-    void set_rx_gain(double gain, const std::string &name, size_t chan){
-        /* Check if any AGC mode is enable and if so warn the user */
-        if (chan != ALL_CHANS) {
-            if (_tree->exists(rx_rf_fe_root(chan) / "gain" / "agc")) {
-                bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
-                if(agc) {
-                    UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
-                }
-            }
-        } else {
-            for (size_t c = 0; c < get_rx_num_channels(); c++){
-                if (_tree->exists(rx_rf_fe_root(c) / "gain" / "agc")) {
-                    bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
-                    if(agc) {
-                        UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
-                    }
-                }
-            }
-        }
-        /* Apply gain setting.
-         * If device is in AGC mode it will ignore the setting. */
-        try {
-            return rx_gain_group(chan)->set_value(gain, name);
-        } catch (uhd::key_error &) {
-            THROW_GAIN_NAME_ERROR(name,chan,rx);
+	#include "crimson_tng/crimson_tng_fw_common.h"
+    void set_rx_gain(double gain, const std::string &name, size_t chan) {
+
+    	if ( ALL_CHANS != chan ) {
+
+    		(void) name;
+
+    		double atten_val = 0;
+    		double gain_val = 0;
+    		double lna_val = 0;
+
+    		gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
+    		gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
+
+    		if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+    			// Low-Band
+
+    			double low_band_gain = gain > 31.5 ? 31.5 : gain;
+
+    			if ( low_band_gain != gain ) {
+    				boost::format rf_lo_message(
+    					"  The RF Low Band does not support the requested gain:\n"
+    					"    Requested RF Low Band gain: %f dB\n"
+    					"    Actual RF Low Band gain: %f dB\n"
+    				);
+    				rf_lo_message % gain % low_band_gain;
+    				std::string results_string = rf_lo_message.str();
+    				UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
+    			}
+
+    			// PMA is off (+0dB)
+    			lna_val = 0;
+    			// BFP is off (+0dB)
+    			// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
+    			atten_val = 31.75;
+    			// LMH is adjusted from 0dB to 31.5dB
+    			gain_val = low_band_gain;
+
+    		} else {
+    			// High-Band
+
+    			if ( false ) {
+    			} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
+    				// PMA is off (+0dB)
+    				lna_val = 0;
+    				// BFP is on (+20dB)
+    				// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+    				atten_val = 31.75;
+    				// LMH is adjusted from 0dB to 31.5dB
+    				gain_val = gain;
+    			} else if ( 31.5 < gain && gain <= 63.25 ) {
+    				// PMA is off (+0dB)
+    				lna_val = 0;
+    				// BFP is on (+20dB)
+    				// PE437 is adjusted from -31.75 dB to 0dB
+    				atten_val = 63.25 - gain;
+    				// LMH is maxed (+31.5dB)
+    				gain_val = 31.5;
+    			} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+    				// PMA is on (+20dB)
+    				lna_val = 20;
+    				// BFP is on (+20dB)
+    				// PE437 is adjusted from -20 dB to 0dB
+    				atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
+    				// LMH is maxed (+31.5dB)
+    				gain_val = 31.5;
+    			}
+    		}
+
+    		int lna_bypass_enable = 0 == lna_val ? 1 : 0;
+    		_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
+
+    		//if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+    			_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+    			_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+    		//} else {
+    		//	_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
+    		//	_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+    		//}
+    		return;
+    	}
+
+        for (size_t c = 0; c < get_rx_num_channels(); c++){
+            set_rx_gain( gain, name, c );
         }
     }
+
+//    void set_rx_gain(double gain, const std::string &name, size_t chan){
+//        /* Check if any AGC mode is enable and if so warn the user */
+//        if (chan != ALL_CHANS) {
+//            if (_tree->exists(rx_rf_fe_root(chan) / "gain" / "agc")) {
+//                bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
+//                if(agc) {
+//                    UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
+//                }
+//            }
+//        } else {
+//            for (size_t c = 0; c < get_rx_num_channels(); c++){
+//                if (_tree->exists(rx_rf_fe_root(c) / "gain" / "agc")) {
+//                    bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
+//                    if(agc) {
+//                        UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
+//                    }
+//                }
+//            }
+//        }
+//        /* Apply gain setting.
+//         * If device is in AGC mode it will ignore the setting. */
+//        try {
+//            return rx_gain_group(chan)->set_value(gain, name);
+//        } catch (uhd::key_error &) {
+//            THROW_GAIN_NAME_ERROR(name,chan,rx);
+//        }
+//    }
 
     void set_rx_gain_profile(const std::string& profile, const size_t chan){
         if (chan != ALL_CHANS) {
@@ -1439,13 +1771,35 @@ public:
 
     }
 
+    // get RX frontend gain on specified channel
     double get_rx_gain(const std::string &name, size_t chan){
-        try {
-            return rx_gain_group(chan)->get_value(name);
-        } catch (uhd::key_error &) {
-            THROW_GAIN_NAME_ERROR(name,chan,rx);
-        }
+
+    	(void)name;
+    	(void)chan;
+
+    	double r;
+
+    	bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
+        double lna_val = lna_bypass_enable ? 0 : 20;
+        double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
+        double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
+
+    	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+    		r = gain_val;
+    	} else {
+    		r = 31.75 - atten_val + lna_val + gain_val; // maximum is 83.25
+    	}
+
+        return r;
     }
+
+//    double get_rx_gain(const std::string &name, size_t chan){
+//        try {
+//            return rx_gain_group(chan)->get_value(name);
+//        } catch (uhd::key_error &) {
+//            THROW_GAIN_NAME_ERROR(name,chan,rx);
+//        }
+//    }
 
     double get_normalized_rx_gain(size_t chan)
     {
@@ -1757,9 +2111,19 @@ public:
         return result;
     }
 
+    // XXX: @CF: 20180418: stop-gap until moved to server
     double get_tx_freq(size_t chan){
-        return derive_freq_from_xx_subdev_and_dsp(TX_SIGN, _tree->subtree(tx_dsp_root(chan)), _tree->subtree(tx_rf_fe_root(chan)));
+        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+        double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
+        double cur_lo_freq = 0;
+        if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+        	cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
+        }
+        return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
     }
+//    double get_tx_freq(size_t chan){
+//        return derive_freq_from_xx_subdev_and_dsp(TX_SIGN, _tree->subtree(tx_dsp_root(chan)), _tree->subtree(tx_rf_fe_root(chan)));
+//    }
 
     freq_range_t get_tx_freq_range(size_t chan){
         return make_overall_tune_range(
@@ -1773,13 +2137,39 @@ public:
         return _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get();
     }
 
+    // XXX: @CF: 20180418: stop-gap until moved to server
     void set_tx_gain(double gain, const std::string &name, size_t chan){
-        try {
-            return tx_gain_group(chan)->set_value(gain, name);
-        } catch (uhd::key_error &) {
-            THROW_GAIN_NAME_ERROR(name,chan,tx);
+
+        if ( ALL_CHANS != chan ) {
+            (void)name;
+
+            double MAX_GAIN = 31.75;
+            double MIN_GAIN = 0;
+
+            if         (gain > MAX_GAIN) gain = MAX_GAIN;
+            else if (gain < MIN_GAIN) gain = MIN_GAIN;
+
+            gain = round(gain / 0.25);
+
+            //if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+                _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+            //} else {
+            //    _tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+            //}
+            return;
+        }
+        for (size_t c = 0; c < get_tx_num_channels(); c++){
+            set_tx_gain(gain, name, c);
         }
     }
+
+//    void set_tx_gain(double gain, const std::string &name, size_t chan){
+//        try {
+//            return tx_gain_group(chan)->set_value(gain, name);
+//        } catch (uhd::key_error &) {
+//            THROW_GAIN_NAME_ERROR(name,chan,tx);
+//        }
+//    }
 
     void set_tx_gain_profile(const std::string& profile, const size_t chan){
         if (chan != ALL_CHANS) {
@@ -2585,14 +2975,5 @@ multi_usrp::~multi_usrp(void){
  **********************************************************************/
 multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
     UHD_LOGGER_TRACE("MULTI_USRP") << "multi_usrp::make with args " << dev_addr.to_pp_string() ;
-
-    // This is where the code branches off to the Crimson implementation.
-    // The instantiation of multi_usrp_impl will throw an error, when no USRP device is found.
-    // This also means that you cannot support both Crimson and USRP devices within the same
-    // network hub.
-    try {
-        return sptr(new multi_usrp_impl(dev_addr));
-    } catch (...) {
-	   return sptr(new multi_crimson_tng(dev_addr));
-    }
+    return sptr(new multi_usrp_impl(dev_addr));
 }
