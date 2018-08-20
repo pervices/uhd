@@ -42,7 +42,7 @@ class ad9361_ctrl : public boost::noncopyable
 public:
     typedef boost::shared_ptr<ad9361_ctrl> sptr;
 
-    virtual ~ad9361_ctrl(void) {};
+    virtual ~ad9361_ctrl(void) {}
 
     //! make a new codec control object
     static sptr make_spi(
@@ -51,8 +51,10 @@ public:
         uint32_t slave_num
     );
 
-    virtual void set_timed_spi(uhd::spi_iface::sptr spi_iface, uint32_t slave_num) = 0;
-    virtual void set_safe_spi(uhd::spi_iface::sptr spi_iface, uint32_t slave_num) = 0;
+    static sptr make_spi(
+        ad9361_params::sptr client_settings,
+        ad9361_io::sptr spi_io_iface
+    );
 
     //! Get a list of gain names for RX or TX
     static std::vector<std::string> get_gain_names(const std::string &/*which*/)
@@ -70,16 +72,16 @@ public:
         }
     }
 
-    //! get the freq range for the frontend which
+    //! get the freq range
     static uhd::meta_range_t get_rf_freq_range(void)
     {
         return uhd::meta_range_t(50e6, 6e9);
     }
 
     //! get the filter range for the frontend which
-    static uhd::meta_range_t get_bw_filter_range(const std::string &/*which*/)
+    static uhd::meta_range_t get_bw_filter_range(void)
     {
-        return uhd::meta_range_t(200e3, 56e6);
+        return uhd::meta_range_t(ad9361_device_t::AD9361_MIN_BW, ad9361_device_t::AD9361_MAX_BW);
     }
 
     //! get the clock rate range for the frontend
@@ -108,6 +110,9 @@ public:
 
     //! set which RX and TX chains/antennas are active
     virtual void set_active_chains(bool tx1, bool tx2, bool rx1, bool rx2) = 0;
+
+    //! set which timing mode is used
+    virtual void set_timing_mode(const std::string &timing_mode) = 0;
 
     //! tune the given frontend, return the exact value
     virtual double tune(const std::string &which, const double value) = 0;

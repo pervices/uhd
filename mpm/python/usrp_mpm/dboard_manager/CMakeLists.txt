@@ -1,7 +1,7 @@
 #
-# Copyright 2017 Ettus Research, a National Instruments Company
+# Copyright 2017-2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -12,10 +12,12 @@ SET(USRP_MPM_DBMGR_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
     ${CMAKE_CURRENT_SOURCE_DIR}/base.py
     ${CMAKE_CURRENT_SOURCE_DIR}/eiscat.py
+    ${CMAKE_CURRENT_SOURCE_DIR}/neon.py
     ${CMAKE_CURRENT_SOURCE_DIR}/lmk_eiscat.py
     ${CMAKE_CURRENT_SOURCE_DIR}/lmk_mg.py
     ${CMAKE_CURRENT_SOURCE_DIR}/magnesium.py
     ${CMAKE_CURRENT_SOURCE_DIR}/magnesium_update_cpld.py
+    ${CMAKE_CURRENT_SOURCE_DIR}/mg_init.py
     ${CMAKE_CURRENT_SOURCE_DIR}/mg_periphs.py
     ${CMAKE_CURRENT_SOURCE_DIR}/test.py
     ${CMAKE_CURRENT_SOURCE_DIR}/unknown.py

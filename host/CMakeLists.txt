@@ -1,6 +1,5 @@
 #
-# Copyright 2010-2016 Ettus Research LLC
-# Copyright 2018 Ettus Research, a National Instruments Company
+# Copyright 2010-2018 Ettus Research, a National Instruments Company
 #
 # SPDX-License-Identifier: GPL-3.0
 #
@@ -13,7 +12,7 @@
 ########################################################################
 # Project setup
 ########################################################################
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
 IF(POLICY CMP0048)
   CMAKE_POLICY(SET CMP0048 NEW) # Suppress Version warnings
 ENDIF(POLICY CMP0048)
@@ -284,6 +283,17 @@ IF(WIN32)
 ENDIF(WIN32)
 
 ########################################################################
+# Choose a version of Python
+########################################################################
+OPTION(ENABLE_PYTHON3 "Enable Python 3. Default is Python 2" OFF)
+SET(BOOST_PYTHON_COMPONENT python)
+SET(BOOST_PYTHON_VERSION 2.7)
+IF(${ENABLE_PYTHON3})
+    SET(BOOST_PYTHON_COMPONENT python3)
+    SET(BOOST_PYTHON_VERSION 3)
+ENDIF()
+
+########################################################################
 # Setup Boost
 ########################################################################
 MESSAGE(STATUS "")
@@ -298,6 +308,8 @@ SET(BOOST_REQUIRED_COMPONENTS
     unit_test_framework
     serialization
 )
+
+SET(BOOST_OPTIONAL_COMPONENTS ${BOOST_PYTHON_COMPONENT})
 IF(MINGW)
     LIST(APPEND BOOST_REQUIRED_COMPONENTS thread_win32)
 ELSE()
@@ -320,12 +332,26 @@ ENDIF(MSVC)
 SET(Boost_ADDITIONAL_VERSIONS
     "1.46.0" "1.46" "1.47.0" "1.47" "1.48.0" "1.48" "1.48.0" "1.49" "1.50.0" "1.50"
     "1.51.0" "1.51" "1.52.0" "1.52" "1.53.0" "1.53" "1.54.0" "1.54" "1.55.0" "1.55"
-    "1.56.0" "1.56" "1.57" "1.57" "1.58" "1.59" "1.60" "1.61"
+    "1.56.0" "1.56" "1.57" "1.57" "1.58" "1.59" "1.60" "1.61" "1.62" "1.63"
 )
+
+#Python API requirements
+MESSAGE(STATUS "Looking for optional Boost components...")
+FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} OPTIONAL_COMPONENTS ${BOOST_OPTIONAL_COMPONENTS})
+
+MESSAGE(STATUS "Looking for required Boost components...")
 FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
+
+#Check to see if the Python version we're looking for exists
+SET(BOOST_PYTHON_FOUND ${Boost_PYTHON_FOUND})
+SET(BOOST_PYTHON_LIBRARY ${Boost_PYTHON_LIBRARY})
+IF(${ENABLE_PYTHON3})
+    SET(BOOST_PYTHON_FOUND ${Boost_PYTHON3_FOUND})
+    SET(BOOST_PYTHON_LIBRARY ${Boost_PYTHON3_LIBRARY})
+ENDIF()
 
 MESSAGE(STATUS "Boost include directories: ${Boost_INCLUDE_DIRS}")
 MESSAGE(STATUS "Boost library directories: ${Boost_LIBRARY_DIRS}")
@@ -342,11 +368,18 @@ INCLUDE(UHDLog)
 ########################################################################
 # Check Python Modules
 ########################################################################
+FIND_PACKAGE(PythonInterp ${BOOST_PYTHON_VERSION})
+FIND_PACKAGE(PythonLibs ${BOOST_PYTHON_VERSION})
 INCLUDE(UHDPython)
 
+SET(PYTHON_VERSION "platform.python_version() >= '2.7' and platform.python_version() < '3.0'")
+IF(${ENABLE_PYTHON3})
+    SET(PYTHON_VERSION "platform.python_version() >= '3.0'")
+ENDIF()
+
 PYTHON_CHECK_MODULE(
-    "Python version 2.7 or greater"
-    "platform" "platform.python_version() >= '2.7'"
+    "Python version ${BOOST_PYTHON_VERSION} or greater"
+    "platform" ${PYTHON_VERSION}
     HAVE_PYTHON_PLAT_MIN_VERSION
 )
 
@@ -361,6 +394,14 @@ PYTHON_CHECK_MODULE(
     "requests" "requests.__version__ >= '2.0'"
     HAVE_PYTHON_MODULE_REQUESTS
 )
+
+PYTHON_CHECK_MODULE(
+    "numpy 1.7 or greater"
+    "numpy" "LooseVersion(numpy.__version__) >= LooseVersion('1.7')"
+    HAVE_PYTHON_MODULE_NUMPY
+)
+
+SET(PYTHON_ADDITIONAL_VERSIONS 2.7 3.4 3.5)
 
 ########################################################################
 # Create Uninstall Target
@@ -385,23 +426,15 @@ UHD_INSTALL(FILES
 )
 
 ########################################################################
-# Images download directory for utils/uhd_images_downloader.py
-########################################################################
-#{{{IMG_SECTION
-# This section is written automatically by /images/create_imgs_package.py
-# Any manual changes in here will be overwritten.
-SET(UHD_IMAGES_MD5SUM "6fc29c5c141e8f3faec6189ab07e458d")
-SET(UHD_IMAGES_DOWNLOAD_SRC "uhd-images_3.11.0.git-227-g9277fc58.zip")
-#}}}
-
-########################################################################
 # Register top level components
 ########################################################################
 LIBUHD_REGISTER_COMPONENT("LibUHD" ENABLE_LIBUHD ON "Boost_FOUND;HAVE_PYTHON_PLAT_MIN_VERSION;HAVE_PYTHON_MODULE_MAKO" OFF ON)
 LIBUHD_REGISTER_COMPONENT("LibUHD - C API" ENABLE_C_API ON "ENABLE_LIBUHD" OFF OFF)
+LIBUHD_REGISTER_COMPONENT("LibUHD - Python API" ENABLE_PYTHON_API OFF "ENABLE_LIBUHD;BOOST_PYTHON_FOUND;HAVE_PYTHON_MODULE_NUMPY;PythonLibs_FOUND" OFF OFF)
 LIBUHD_REGISTER_COMPONENT("Examples" ENABLE_EXAMPLES ON "ENABLE_LIBUHD" OFF OFF)
 LIBUHD_REGISTER_COMPONENT("Utils" ENABLE_UTILS ON "ENABLE_LIBUHD" OFF OFF)
 LIBUHD_REGISTER_COMPONENT("Tests" ENABLE_TESTS ON "ENABLE_LIBUHD" OFF OFF)
+
 
 ########################################################################
 # Check for fpga-src submodule
@@ -440,6 +473,10 @@ IF(ENABLE_UTILS)
 ENDIF(ENABLE_UTILS)
 
 ADD_SUBDIRECTORY(docs)
+
+IF(ENABLE_PYTHON_API)
+    ADD_SUBDIRECTORY(python)
+ENDIF()
 
 ########################################################################
 # Create Pkg Config File
@@ -548,7 +585,7 @@ ELSEIF(UHDHOST_PKG)
     SET(PRINT_APPEND " (Debian uhd-host package configuration)")
 ENDIF(LIBUHD_PKG)
 UHD_PRINT_COMPONENT_SUMMARY()
-IF(UHD_VERSION_DEVEL AND NOT UHD_GIT_BRANCH STREQUAL "maint")
+IF(UHD_VERSION_DEVEL AND NOT UHD_GIT_BRANCH MATCHES "^UHD-")
     MESSAGE(STATUS "******************************************************")
     IF(UHD_GIT_BRANCH STREQUAL "master")
         MESSAGE(STATUS "* You are building the UHD development master branch.")
@@ -561,6 +598,6 @@ IF(UHD_VERSION_DEVEL AND NOT UHD_GIT_BRANCH STREQUAL "maint")
         MESSAGE(STATUS "* unstable and/or experimental!")
     ENDIF(UHD_GIT_BRANCH STREQUAL "master")
     MESSAGE(STATUS "******************************************************")
-ENDIF(UHD_VERSION_DEVEL AND NOT UHD_GIT_BRANCH STREQUAL "maint")
+ENDIF(UHD_VERSION_DEVEL AND NOT UHD_GIT_BRANCH MATCHES "^UHD-")
 MESSAGE(STATUS "Building version: ${UHD_VERSION}${PRINT_APPEND}")
 MESSAGE(STATUS "Using install prefix: ${CMAKE_INSTALL_PREFIX}")

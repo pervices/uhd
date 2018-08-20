@@ -6,6 +6,7 @@
 //
 
 #include <uhd/property_tree.hpp>
+#include <uhd/types/eeprom.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/usrp/gpio_defs.hpp>
 #include <uhd/exception.hpp>
@@ -20,12 +21,13 @@
 #include <uhdlib/usrp/gpio_defs.hpp>
 #include <uhdlib/rfnoc/legacy_compat.hpp>
 #include <boost/assign/list_of.hpp>
-#include <boost/thread.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <algorithm>
 #include <cmath>
 #include <bitset>
+#include <chrono>
+#include <thread>
 
 #include "uhd/usrp/multi_crimson_tng.hpp"
 
@@ -410,38 +412,82 @@ public:
     dict<std::string, std::string> get_usrp_rx_info(size_t chan){
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         dict<std::string, std::string> usrp_info;
-
-        mboard_eeprom_t mb_eeprom = _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
-        dboard_eeprom_t db_eeprom = _tree->access<dboard_eeprom_t>(rx_rf_fe_root(chan).branch_path().branch_path() / "rx_eeprom").get();
-
+        const auto mb_eeprom =
+            _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
         usrp_info["mboard_id"] = _tree->access<std::string>(mb_root(mcp.mboard) / "name").get();
-        usrp_info["mboard_name"] = mb_eeprom["name"];
+        usrp_info["mboard_name"] = mb_eeprom.get("name", "n/a");
         usrp_info["mboard_serial"] = mb_eeprom["serial"];
-        usrp_info["rx_id"] = db_eeprom.id.to_pp_string();
         usrp_info["rx_subdev_name"] = _tree->access<std::string>(rx_rf_fe_root(chan) / "name").get();
         usrp_info["rx_subdev_spec"] = _tree->access<subdev_spec_t>(mb_root(mcp.mboard) / "rx_subdev_spec").get().to_string();
-        usrp_info["rx_serial"] = db_eeprom.serial;
         usrp_info["rx_antenna"] =  _tree->access<std::string>(rx_rf_fe_root(chan) / "antenna" / "value").get();
-
+        if (_tree->exists(rx_rf_fe_root(chan).branch_path().branch_path() / "rx_eeprom")) {
+            const auto db_eeprom =
+                _tree->access<dboard_eeprom_t>(
+                        rx_rf_fe_root(chan).branch_path().branch_path()
+                        / "rx_eeprom"
+                ).get();
+            usrp_info["rx_serial"] = db_eeprom.serial;
+            usrp_info["rx_id"] = db_eeprom.id.to_pp_string();
+        }
+        const auto rfnoc_path = mb_root(mcp.mboard) / "xbar";
+        if (_tree->exists(rfnoc_path)) {
+            const auto spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
+            const auto radio_index = get_radio_index(spec.db_name);
+            const auto radio_path = rfnoc_path / str(boost::format("Radio_%d") % radio_index);
+            const auto eeprom_path = radio_path / "eeprom";
+            if (_tree->exists(eeprom_path)) {
+                const auto db_eeprom = _tree->access<eeprom_map_t>(eeprom_path).get();
+                usrp_info["rx_serial"] = db_eeprom.count("serial") ?
+                    std::string(db_eeprom.at("serial").begin(), db_eeprom.at("serial").end())
+                    : "n/a"
+                ;
+                usrp_info["rx_id"] = db_eeprom.count("pid") ?
+                   std::string(db_eeprom.at("pid").begin(), db_eeprom.at("pid").end())
+                   : "n/a"
+                ;
+            }
+        }
         return usrp_info;
     }
 
     dict<std::string, std::string> get_usrp_tx_info(size_t chan){
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
         dict<std::string, std::string> usrp_info;
-
-        mboard_eeprom_t mb_eeprom = _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
-        dboard_eeprom_t db_eeprom = _tree->access<dboard_eeprom_t>(tx_rf_fe_root(chan).branch_path().branch_path() / "tx_eeprom").get();
-
+        const auto mb_eeprom =
+            _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
         usrp_info["mboard_id"] = _tree->access<std::string>(mb_root(mcp.mboard) / "name").get();
-        usrp_info["mboard_name"] = mb_eeprom["name"];
+        usrp_info["mboard_name"] = mb_eeprom.get("name", "n/a");
         usrp_info["mboard_serial"] = mb_eeprom["serial"];
-        usrp_info["tx_id"] = db_eeprom.id.to_pp_string();
         usrp_info["tx_subdev_name"] = _tree->access<std::string>(tx_rf_fe_root(chan) / "name").get();
         usrp_info["tx_subdev_spec"] = _tree->access<subdev_spec_t>(mb_root(mcp.mboard) / "tx_subdev_spec").get().to_string();
-        usrp_info["tx_serial"] = db_eeprom.serial;
         usrp_info["tx_antenna"] = _tree->access<std::string>(tx_rf_fe_root(chan) / "antenna" / "value").get();
-
+        if (_tree->exists(tx_rf_fe_root(chan).branch_path().branch_path() / "tx_eeprom")) {
+            const auto db_eeprom =
+                _tree->access<dboard_eeprom_t>(
+                        tx_rf_fe_root(chan).branch_path().branch_path()
+                        / "tx_eeprom"
+                ).get();
+            usrp_info["tx_serial"] = db_eeprom.serial;
+            usrp_info["tx_id"] = db_eeprom.id.to_pp_string();
+        }
+        const auto rfnoc_path = mb_root(mcp.mboard) / "xbar";
+        if (_tree->exists(rfnoc_path)) {
+            const auto spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
+            const auto radio_index = get_radio_index(spec.db_name);
+            const auto radio_path = rfnoc_path / str(boost::format("Radio_%d")%radio_index);
+            const auto path = radio_path / "eeprom";
+            if(_tree->exists(path)) {
+                const auto db_eeprom = _tree->access<eeprom_map_t>(path).get();
+                usrp_info["tx_serial"] = db_eeprom.count("serial") ?
+                    std::string(db_eeprom.at("serial").begin(), db_eeprom.at("serial").end())
+                    : "n/a"
+                ;
+                usrp_info["tx_id"] = db_eeprom.count("pid") ?
+                   std::string(db_eeprom.at("pid").begin(), db_eeprom.at("pid").end())
+                   : "n/a"
+                ;
+            }
+        }
         return usrp_info;
     }
 
@@ -465,6 +511,23 @@ public:
 
     double get_master_clock_rate(size_t mboard){
         return _tree->access<double>(mb_root(mboard) / "tick_rate").get();
+    }
+
+    meta_range_t get_master_clock_rate_range(const size_t mboard)
+    {
+        if (_tree->exists(mb_root(mboard) / "tick_rate/range")) {
+            return _tree->access<meta_range_t>(
+                mb_root(mboard) / "tick_rate/range"
+            ).get();
+        }
+        // The USRP may not have a range defined, in which case we create a
+        // fake range with a single value:
+        const double tick_rate = get_master_clock_rate(mboard);
+        return meta_range_t(
+            tick_rate,
+            tick_rate,
+            0
+        );
     }
 
     std::string get_pp_string(void){
@@ -551,25 +614,27 @@ public:
     }
 
     void set_time_unknown_pps(const time_spec_t &time_spec){
-        UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
-        boost::system_time end_time = boost::get_system_time() + boost::posix_time::milliseconds(1100);
+        UHD_LOGGER_INFO("MULTI_USRP")
+            << "    1) catch time transition at pps edge";
+        auto end_time = std::chrono::steady_clock::now()
+                            + std::chrono::milliseconds(1100);
         time_spec_t time_start_last_pps = get_time_last_pps();
         while (time_start_last_pps == get_time_last_pps())
         {
-            if (boost::get_system_time() > end_time)
-            {
+            if (std::chrono::steady_clock::now() > end_time) {
                 throw uhd::runtime_error(
                     "Board 0 may not be getting a PPS signal!\n"
                     "No PPS detected within the time interval.\n"
                     "See the application notes for your device.\n"
                 );
             }
-            boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
-        UHD_LOGGER_INFO("MULTI_USRP") << "    2) set times next pps (synchronously)";
+        UHD_LOGGER_INFO("MULTI_USRP")
+            << "    2) set times next pps (synchronously)";
         set_time_next_pps(time_spec, ALL_MBOARDS);
-        boost::this_thread::sleep(boost::posix_time::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         //verify that the time registers are read to be within a few RTT
         for (size_t m = 1; m < get_num_mboards(); m++){
@@ -740,7 +805,10 @@ public:
     }
 
     std::vector<std::string> get_mboard_sensor_names(size_t mboard){
-        return _tree->list(mb_root(mboard) / "sensors");
+        if (_tree->exists(mb_root(mboard) / "sensors")) {
+            return _tree->list(mb_root(mboard) / "sensors");
+        }
+        return {};
     }
 
     void set_user_register(const uint8_t addr, const uint32_t data, size_t mboard){
@@ -840,6 +908,27 @@ public:
     }
 
     tune_result_t set_rx_freq(const tune_request_t &tune_request, size_t chan){
+
+        // If any mixer is driven by an external LO the daughterboard assumes that no CORDIC correction is
+        // necessary. Since the LO might be sourced from another daughterboard which would normally apply a
+        // cordic correction a manual DSP tune policy should be used to ensure identical configurations across
+        // daughterboards.
+        if (tune_request.dsp_freq_policy == tune_request.POLICY_AUTO and
+            tune_request.rf_freq_policy  == tune_request.POLICY_AUTO)
+        {
+            for (size_t c = 0; c < get_rx_num_channels(); c++) {
+                const bool external_all_los = _tree->exists(rx_rf_fe_root(chan) / "los" / ALL_LOS)
+                                              && get_rx_lo_source(ALL_LOS, c) == "external";
+                if (external_all_los) {
+                    UHD_LOGGER_WARNING("MULTI_USRP")
+                            << "At least one channel is using an external LO."
+                            << "Using a manual DSP frequency policy is recommended to ensure "
+                            << "the same frequency shift on all channels.";
+                    break;
+                }
+            }
+        }
+
         tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
                 _tree->subtree(rx_dsp_root(chan)),
                 _tree->subtree(rx_rf_fe_root(chan)),
@@ -1456,6 +1545,15 @@ public:
         }
     }
 
+    meta_range_t get_rx_dc_offset_range(size_t chan) {
+        if (_tree->exists(rx_fe_root(chan) / "dc_offset" / "range")) {
+            return _tree->access<uhd::meta_range_t>(rx_fe_root(chan) / "dc_offset" / "range").get();
+        } else {
+            UHD_LOGGER_WARNING("MULTI_USRP") << "This device does not support querying the RX DC offset range." ;
+            return meta_range_t(0, 0);
+        }
+    }
+
     void set_rx_iq_balance(const bool enb, size_t chan){
         if (chan != ALL_CHANS){
             if (_tree->exists(rx_rf_fe_root(chan) / "iq_balance" / "enable")) {
@@ -1827,6 +1925,15 @@ public:
         }
     }
 
+    meta_range_t get_tx_dc_offset_range(size_t chan) {
+        if (_tree->exists(tx_fe_root(chan) / "dc_offset" / "range")) {
+            return _tree->access<uhd::meta_range_t>(tx_fe_root(chan) / "dc_offset" / "range").get();
+        } else {
+            UHD_LOGGER_WARNING("MULTI_USRP") << "This device does not support querying the TX DC offset range." ;
+            return meta_range_t(0, 0);
+        }
+    }
+
     void set_tx_iq_balance(const std::complex<double> &offset, size_t chan){
         if (chan != ALL_CHANS){
             if (_tree->exists(tx_fe_root(chan) / "iq_balance" / "value")) {
@@ -1862,158 +1969,195 @@ public:
         return banks;
     }
 
-    void set_gpio_attr(const std::string &bank, const std::string &attr, const uint32_t value, const uint32_t mask, const size_t mboard)
-    {
+    void set_gpio_attr(
+        const std::string &bank,
+        const std::string &attr,
+        const uint32_t value,
+        const uint32_t mask,
+        const size_t mboard
+    ) {
         std::vector<std::string> attr_value;
-        if (_tree->exists(mb_root(mboard) / "gpio" / bank))
-        {
+        if (_tree->exists(mb_root(mboard) / "gpio" / bank)) {
             if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr)){
-                gpio_atr::gpio_attr_t attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
-                switch (attr_type){
+                const auto attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
+                switch (attr_type) {
                     case gpio_atr::GPIO_SRC:
-                        throw uhd::runtime_error("Can't set SRC attribute using u32int_t value");
+                        throw uhd::runtime_error(
+                            "Can't set SRC attribute using integer value!"
+                        );
                         break;
                     case gpio_atr::GPIO_CTRL:
-                    case gpio_atr::GPIO_DDR:{
-                        attr_value = _tree->access<std::vector<std::string>>(mb_root(mboard) / "gpio" / bank / attr).get();
+                    case gpio_atr::GPIO_DDR: {
+                        attr_value = _tree->access<std::vector<std::string>>(
+                            mb_root(mboard) / "gpio" / bank / attr
+                        ).get();
                         UHD_ASSERT_THROW(attr_value.size() <= 32);
                         std::bitset<32> bit_mask = std::bitset<32>(mask);
                         std::bitset<32> bit_value = std::bitset<32>(value);
-                        for (size_t i = 0 ; i < bit_mask.size();i++){
-                            if (bit_mask[i] == 1){
+                        for (size_t i = 0; i < bit_mask.size(); i++) {
+                            if (bit_mask[i] == 1) {
                                 attr_value[i] = gpio_atr::attr_value_map.at(attr_type).at(bit_value[i]);
                             }
                         }
-                        _tree->access<std::vector<std::string>>(mb_root(mboard) / "gpio" / bank / attr).set(attr_value);
+                        _tree->access<std::vector<std::string>>(
+                            mb_root(mboard) / "gpio" / bank / attr
+                        ).set(attr_value);
                     }
-                        break;
+                    break;
                     default:{
-                        const uint32_t current = _tree->access<uint32_t>(mb_root(mboard) / "gpio" / bank / attr).get();
+                        const uint32_t current = _tree->access<uint32_t>(
+                            mb_root(mboard) / "gpio" / bank / attr).get();
                         const uint32_t new_value = (current & ~mask) | (value & mask);
                         _tree->access<uint32_t>(mb_root(mboard) / "gpio" / bank / attr).set(new_value);
                     }
-                        break;
+                    break;
                 }
                 return;
-            }else{
-                throw uhd::runtime_error(str(boost::format(
-                    "The hardware has no gpio attribute: %s:\n") % attr));
+            } else {
+                throw uhd::runtime_error(str(
+                    boost::format("The hardware has no gpio attribute: `%s':\n")
+                    % attr
+                ));
             }
         }
-        if (bank.size() > 2 and bank[1] == 'X')
-        {
+        if (bank.size() > 2 and bank[1] == 'X') {
             const std::string name = bank.substr(2);
-            const dboard_iface::unit_t unit = (bank[0] == 'R')? dboard_iface::UNIT_RX : dboard_iface::UNIT_TX;
-            dboard_iface::sptr iface = _tree->access<dboard_iface::sptr>(mb_root(mboard) / "dboards" / name / "iface").get();
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_CTRL)) iface->set_pin_ctrl(unit, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_DDR)) iface->set_gpio_ddr(unit, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_OUT)) iface->set_gpio_out(unit, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_0X)) iface->set_atr_reg(unit, gpio_atr::ATR_REG_IDLE, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_RX)) iface->set_atr_reg(unit, gpio_atr::ATR_REG_RX_ONLY, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_TX)) iface->set_atr_reg(unit, gpio_atr::ATR_REG_TX_ONLY, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_XX)) iface->set_atr_reg(unit, gpio_atr::ATR_REG_FULL_DUPLEX, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_SRC)){
+            const dboard_iface::unit_t unit =
+                (bank[0] == 'R')
+                ? dboard_iface::UNIT_RX
+                : dboard_iface::UNIT_TX;
+            auto iface = _tree->access<dboard_iface::sptr>(
+                mb_root(mboard) / "dboards" / name / "iface").get();
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_CTRL))
+                iface->set_pin_ctrl(unit, uint16_t(value), uint16_t(mask));
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_DDR))
+                iface->set_gpio_ddr(unit, uint16_t(value), uint16_t(mask));
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_OUT))
+                iface->set_gpio_out(unit, uint16_t(value), uint16_t(mask));
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_0X))
+                iface->set_atr_reg(unit, gpio_atr::ATR_REG_IDLE, uint16_t(value), uint16_t(mask));
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_RX))
+                iface->set_atr_reg(unit, gpio_atr::ATR_REG_RX_ONLY, uint16_t(value), uint16_t(mask));
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_TX))
+                iface->set_atr_reg(unit, gpio_atr::ATR_REG_TX_ONLY, uint16_t(value), uint16_t(mask));
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_XX))
+                iface->set_atr_reg(unit, gpio_atr::ATR_REG_FULL_DUPLEX, uint16_t(value), uint16_t(mask));
+            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_SRC)) {
                 throw uhd::runtime_error("Setting gpio source does not supported in daughter board.");
             }
             return;
         }
-        throw uhd::runtime_error(str(boost::format(
-            "The hardware has no gpio bank: %s:\n") % bank));
+        throw uhd::runtime_error(str(
+            boost::format("The hardware has no GPIO bank `%s'")
+            % bank
+        ));
     }
 
-    void set_gpio_attr(const std::string &bank, const std::string &attr, const std::string &str_value , const uint32_t mask, const size_t mboard)
-    {
-
-        gpio_atr::gpio_attr_t attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
-
-        if (_tree->exists(mb_root(mboard) / "gpio" / bank))
-        {
-            if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr)){
-
+    void set_gpio_attr(
+            const std::string &bank,
+            const std::string &attr,
+            const std::string &str_value,
+            const uint32_t mask,
+            const size_t mboard
+    ) {
+        const auto attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
+        if (_tree->exists(mb_root(mboard) / "gpio" / bank)) {
+            if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr)) {
                 switch (attr_type){
                     case gpio_atr::GPIO_SRC:
                     case gpio_atr::GPIO_CTRL:
                     case gpio_atr::GPIO_DDR:{
-                         std::vector<std::string> attr_value = _tree->access<std::vector<std::string>>(mb_root(mboard) / "gpio" / bank / attr).get();
-                         UHD_ASSERT_THROW(attr_value.size() <= 32);
+                        auto attr_value =
+                            _tree->access<std::vector<std::string>>(
+                                mb_root(mboard) / "gpio" / bank / attr).get();
+                        UHD_ASSERT_THROW(attr_value.size() <= 32);
                         std::bitset<32> bit_mask = std::bitset<32>(mask);
-                        for (size_t i = 0 ; i < bit_mask.size(); i++){
-                            if (bit_mask[i] == 1){
-                                 attr_value[i] = str_value;
-                             }
-                         }
-                         _tree->access<std::vector<std::string>>(mb_root(mboard) / "gpio" / bank / attr).set(attr_value);
-                     }
-                        break;
-                    default:{
-                        uint32_t value = gpio_atr::gpio_attr_value_pair.at(attr).at(str_value) == 0 ? -1 : 0;
-                        const uint32_t current = _tree->access<uint32_t>(mb_root(mboard) / "gpio" / bank / attr).get();
-                        const uint32_t new_value = (current & ~mask) | (value & mask);
-                        _tree->access<uint32_t>(mb_root(mboard) / "gpio" / bank / attr).set(new_value);
+                        for (size_t i = 0 ; i < bit_mask.size(); i++) {
+                            if (bit_mask[i] == 1) {
+                                attr_value[i] = str_value;
+                            }
+                        }
+                        _tree->access<std::vector<std::string>>(
+                               mb_root(mboard) / "gpio" / bank / attr
+                        ).set(attr_value);
                     }
-                        break;
+                    break;
+                    default: {
+                        const uint32_t value =
+                            gpio_atr::gpio_attr_value_pair.at(attr).at(str_value) == 0 ? -1 : 0;
+                        const uint32_t current = _tree->access<uint32_t>(
+                            mb_root(mboard) / "gpio" / bank / attr).get();
+                        const uint32_t new_value =
+                            (current & ~mask) | (value & mask);
+                        _tree->access<uint32_t>(
+                            mb_root(mboard) / "gpio" / bank / attr
+                        ).set(new_value);
+                    }
+                    break;
                 }
                 return;
-            }else{
-                throw uhd::runtime_error(str(boost::format(
-                    "The hardware has no gpio attribute: %s:\n") % attr));
+            } else {
+                throw uhd::runtime_error(str(
+                    boost::format("The hardware has no gpio attribute `%s'")
+                    % attr
+                ));
             }
         }
-        if (bank.size() > 2 and bank[1] == 'X')
-        {
-            uint32_t value = gpio_atr::gpio_attr_value_pair.at(attr).at(str_value) == 0 ? -1 : 0;
-            const std::string name = bank.substr(2);
-            const dboard_iface::unit_t unit = (bank[0] == 'R')? dboard_iface::UNIT_RX : dboard_iface::UNIT_TX;
-            dboard_iface::sptr iface = _tree->access<dboard_iface::sptr>(mb_root(mboard) / "dboards" / name / "iface").get();
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_CTRL))    iface->set_pin_ctrl(unit, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_DDR))     iface->set_gpio_ddr(unit, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_OUT))     iface->set_gpio_out(unit, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_0X))  iface->set_atr_reg(unit, gpio_atr::ATR_REG_IDLE, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_RX))  iface->set_atr_reg(unit, gpio_atr::ATR_REG_RX_ONLY, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_TX))  iface->set_atr_reg(unit, gpio_atr::ATR_REG_TX_ONLY, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_ATR_XX))  iface->set_atr_reg(unit, gpio_atr::ATR_REG_FULL_DUPLEX, uint16_t(value), uint16_t(mask));
-            if (attr == gpio_atr::gpio_attr_map.at(gpio_atr::GPIO_SRC)){
-                throw uhd::runtime_error("Setting gpio source does not supported in daughter board.");
-            }
-            return;
-        }
-        throw uhd::runtime_error(str(boost::format("The hardware has no gpio bank: %s:\n") % bank));
+        // If the bank is not in the prop tree, convert string value to integer
+        // value and have it handled by the other set_gpio_attr()
+        const uint32_t value =
+            gpio_atr::gpio_attr_value_pair.at(attr).at(str_value) == 0
+            ? -1
+            : 0;
+        set_gpio_attr(
+            bank,
+            attr,
+            value,
+            mask,
+            mboard
+        );
     }
 
-    uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard)
-    {
+    uint32_t get_gpio_attr(
+            const std::string &bank,
+            const std::string &attr,
+            const size_t mboard
+    ) {
         std::vector<std::string> str_val;
 
-        if (_tree->exists(mb_root(mboard) / "gpio" / bank))
-        {
-            if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr)){
-                gpio_atr::gpio_attr_t attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
+        if (_tree->exists(mb_root(mboard) / "gpio" / bank)) {
+            if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr)) {
+                const auto attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
                 switch (attr_type){
                     case gpio_atr::GPIO_SRC:
-                        throw uhd::runtime_error("Can't set SRC  attribute using u32int_t value");
+                        throw uhd::runtime_error("Can't set SRC attribute using integer value");
                     case gpio_atr::GPIO_CTRL:
-                    case gpio_atr::GPIO_DDR:{
-                        str_val = _tree->access<std::vector<std::string>>(mb_root(mboard) / "gpio" / bank / attr).get();
+                    case gpio_atr::GPIO_DDR: {
+                        str_val = _tree->access<std::vector<std::string>>(
+                            mb_root(mboard) / "gpio" / bank / attr).get();
                         uint32_t val = 0;
-                        for(size_t i = 0 ; i < str_val.size() ; i++){
-                                val += usrp::gpio_atr::gpio_attr_value_pair.at(attr).at(str_val[i])<<i;
+                        for(size_t i = 0 ; i < str_val.size() ; i++) {
+                            val += usrp::gpio_atr::gpio_attr_value_pair.at(attr).at(str_val[i]) << i;
                         }
                         return val;
                     }
-                    default:{
-                        return uint32_t(_tree->access<uint64_t>(mb_root(mboard) / "gpio" / bank / attr).get());
-                    }
+                    default:
+                        return uint32_t(_tree->access<uint64_t>(
+                            mb_root(mboard) / "gpio" / bank / attr).get());
                 }
                 return 0;
-            }else{
-                throw uhd::runtime_error(str(boost::format("The hardware has no gpio attribute: %s:\n") % attr));
+            } else {
+                throw uhd::runtime_error(str(
+                    boost::format("The hardware has no gpio attribute: `%s'")
+                    % attr
+                ));
             }
         }
-        if (bank.size() > 2 and bank[1] == 'X')
-        {
+        if (bank.size() > 2 and bank[1] == 'X') {
             const std::string name = bank.substr(2);
             const dboard_iface::unit_t unit = (bank[0] == 'R')? dboard_iface::UNIT_RX : dboard_iface::UNIT_TX;
-            dboard_iface::sptr iface = _tree->access<dboard_iface::sptr>(mb_root(mboard) / "dboards" / name / "iface").get();
+            auto iface = _tree->access<dboard_iface::sptr>(
+                mb_root(mboard) / "dboards" / name / "iface").get();
             if (attr == "CTRL")     return iface->get_pin_ctrl(unit);
             if (attr == "DDR")      return iface->get_gpio_ddr(unit);
             if (attr == "OUT")      return iface->get_gpio_out(unit);
@@ -2023,24 +2167,28 @@ public:
             if (attr == "ATR_XX")   return iface->get_atr_reg(unit, gpio_atr::ATR_REG_FULL_DUPLEX);
             if (attr == "READBACK") return iface->read_gpio(unit);
         }
-        throw uhd::runtime_error(str(boost::format("The hardware has no gpio bank: %s:\n") % bank));
+        throw uhd::runtime_error(str(
+            boost::format("The hardware has no gpio bank `%s'")
+            % bank
+        ));
     }
-    std::vector<std::string> get_gpio_string_attr(const std::string &bank, const std::string &attr, const size_t mboard)
-    {
-        gpio_atr::gpio_attr_t attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
-        std::vector<std::string> str_val = std::vector<std::string>(32, gpio_atr::default_attr_value_map.at(attr_type));
-        if (_tree->exists(mb_root(mboard) / "gpio" / bank))
-        {
-            if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr))
-            {
-                gpio_atr::gpio_attr_t attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
+
+    std::vector<std::string> get_gpio_string_attr(
+        const std::string &bank,
+        const std::string &attr,
+        const size_t mboard
+    ) {
+        const auto attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
+        auto str_val = std::vector<std::string>(32, gpio_atr::default_attr_value_map.at(attr_type));
+        if (_tree->exists(mb_root(mboard) / "gpio" / bank)) {
+            if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr)) {
+                const auto attr_type = gpio_atr::gpio_attr_rev_map.at(attr);
                 switch (attr_type){
                     case gpio_atr::GPIO_SRC:
                     case gpio_atr::GPIO_CTRL:
-                    case gpio_atr::GPIO_DDR:{
+                    case gpio_atr::GPIO_DDR:
                         return _tree->access<std::vector<std::string>>(mb_root(mboard) / "gpio" / bank / attr).get();
-                    }
-                    default:{
+                    default: {
                         uint32_t value = uint32_t(_tree->access<uint32_t>(mb_root(mboard) / "gpio" / bank / attr).get());
                         std::bitset<32> bit_value = std::bitset<32>(value);
                         for (size_t i = 0; i < bit_value.size(); i++)
@@ -2051,13 +2199,19 @@ public:
                     }
                 }
             }
-            else
-            {
-                throw uhd::runtime_error(str(boost::format("The hardware has no gpio attribute: %s:\n") % attr));
+            else {
+                throw uhd::runtime_error(str(
+                    boost::format("The hardware has no gpio attribute: `%s'")
+                    % attr
+                ));
             }
         }
-        throw uhd::runtime_error(str(boost::format("The hardware has no support for given gpio bank name: %s:\n") % bank));
+        throw uhd::runtime_error(str(
+            boost::format("The hardware has no support for given gpio bank name `%s'")
+            % bank
+        ));
     }
+
     void write_register(const std::string &path, const uint32_t field, const uint64_t value, const size_t mboard)
     {
         if (_tree->exists(mb_root(mboard) / "registers"))
@@ -2316,6 +2470,24 @@ private:
         catch(const std::exception &e)
         {
             throw uhd::index_error(str(boost::format("multi_usrp::tx_fe_root(%u) - mcp(%u) - %s") % chan % mcp.chan % e.what()));
+        }
+    }
+
+    size_t get_radio_index(const std::string slot_name)
+    {
+        if (slot_name == "A") {
+            return 0;
+        } else if (slot_name == "B") {
+            return 1;
+        } else if (slot_name == "C") {
+            return 2;
+        } else if (slot_name == "D") {
+            return  3;
+        } else {
+           throw uhd::key_error(str(
+                boost::format("[multi_usrp]: radio slot name %s out of supported range.")
+                % slot_name
+            ));
         }
     }
 

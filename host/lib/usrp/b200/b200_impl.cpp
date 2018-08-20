@@ -17,9 +17,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/usrp/dboard_eeprom.hpp>
 #include <boost/format.hpp>
-#include <boost/assign/list_of.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/thread/thread.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/make_shared.hpp>
@@ -27,6 +25,7 @@
 #include <cstdio>
 #include <ctime>
 #include <cmath>
+#include <chrono>
 
 #include "../../transport/libusb1_base.hpp"
 
@@ -35,7 +34,9 @@ using namespace uhd::usrp;
 using namespace uhd::usrp::gpio_atr;
 using namespace uhd::transport;
 
-static const boost::posix_time::milliseconds REENUMERATION_TIMEOUT_MS(3000);
+namespace {
+    constexpr int64_t  REENUMERATION_TIMEOUT_MS = 3000;
+}
 
 // B200 + B210:
 class b200_ad9361_client_t : public ad9361_params {
@@ -198,13 +199,14 @@ static device_addrs_t b200_find(const device_addr_t &hint)
         found++;
     }
 
-    const boost::system_time timeout_time = boost::get_system_time() + REENUMERATION_TIMEOUT_MS;
-
+    const auto timeout_time =
+        std::chrono::steady_clock::now()
+        + std::chrono::milliseconds(REENUMERATION_TIMEOUT_MS);
     //search for the device until found or timeout
-    while (boost::get_system_time() < timeout_time and b200_addrs.empty() and found != 0)
-    {
-        for(usb_device_handle::sptr handle:  get_b200_device_handles(hint))
-        {
+    while (std::chrono::steady_clock::now() < timeout_time
+            and b200_addrs.empty()
+            and found != 0) {
+        for(usb_device_handle::sptr handle:  get_b200_device_handles(hint)) {
             usb_control::sptr control;
             try{control = usb_control::make(handle, 0);}
             catch(const uhd::exception &){continue;} //ignore claimed
@@ -516,9 +518,48 @@ b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::s
     // before being cleared.
     ////////////////////////////////////////////////////////////////////
     device_addr_t data_xport_args;
-    data_xport_args["recv_frame_size"] = device_addr.get("recv_frame_size", "8192");
+    const int max_transfer = usb_speed == 3 ? 1024 : 512;
+    int recv_frame_size = device_addr.cast<int>(
+        "recv_frame_size",
+        B200_USB_DATA_DEFAULT_FRAME_SIZE
+    );
+    // Check that recv_frame_size limits.
+    if (recv_frame_size < B200_USB_DATA_MIN_RECV_FRAME_SIZE) {
+        UHD_LOGGER_WARNING("B200")
+            << "Requested recv_frame_size of " << recv_frame_size
+            << " is too small. It will be set to "
+            << B200_USB_DATA_MIN_RECV_FRAME_SIZE << ".";
+        recv_frame_size = B200_USB_DATA_MIN_RECV_FRAME_SIZE;
+    } else if (recv_frame_size > B200_USB_DATA_MAX_RECV_FRAME_SIZE) {
+        UHD_LOGGER_WARNING("B200")
+            << "Requested recv_frame_size of " << recv_frame_size
+            << " is too large. It will be set to "
+            << B200_USB_DATA_MAX_RECV_FRAME_SIZE << ".";
+        recv_frame_size = B200_USB_DATA_MAX_RECV_FRAME_SIZE;
+    } else if (recv_frame_size % max_transfer == 0 or recv_frame_size % 8 != 0) {
+        // The Cypress FX3 does not properly handle recv_frame_sizes that are
+        // aligned to the maximum transfer size and the FPGA code requires the
+        // data to be aligned to 8 byte words.  The code below coerces the
+        // recv_frame_size to a value that is a multiple of 8 bytes, not
+        // a multiple of the maximum transfer size, and aligned to 24 bytes
+        // to support full 8 byte word alignment for sc8, sc12, and sc16 data
+        // types.
+
+        // Align to 8 byte words
+        recv_frame_size += 8 - (recv_frame_size % 8);
+        if (recv_frame_size % max_transfer == 0) {
+            recv_frame_size = (((recv_frame_size - 16) / 24) * 24) + 16;
+        }
+        UHD_LOGGER_WARNING("B200")
+            << "The recv_frame_size must be a multiple of 8 bytes and not a multiple of "
+            << max_transfer << " bytes.  Requested recv_frame_size of "
+            << device_addr["recv_frame_size"]
+            << " coerced to " << recv_frame_size << ".";
+    }
+
+    data_xport_args["recv_frame_size"] = std::to_string(recv_frame_size);
     data_xport_args["num_recv_frames"] = device_addr.get("num_recv_frames", "16");
-    data_xport_args["send_frame_size"] = device_addr.get("send_frame_size", "8192");
+    data_xport_args["send_frame_size"] = device_addr.get("send_frame_size", std::to_string(B200_USB_DATA_DEFAULT_FRAME_SIZE));
     data_xport_args["num_send_frames"] = device_addr.get("num_send_frames", "16");
 
     // This may throw a uhd::usb_error, which will be caught by b200_make().
@@ -572,6 +613,11 @@ b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::s
         .set_coercer(boost::bind(&b200_impl::set_tick_rate, this, _1))
         .set_publisher(boost::bind(&b200_impl::get_tick_rate, this))
         .add_coerced_subscriber(boost::bind(&b200_impl::update_tick_rate, this, _1));
+    _tree->create<meta_range_t>(mb_path / "tick_rate/range")
+        .set_publisher([this](){
+            return this->_codec_ctrl->get_clock_rate_range();
+        })
+    ;
     _tree->create<time_spec_t>(mb_path / "time" / "cmd");
     _tree->create<bool>(mb_path / "auto_tick_rate").set(false);
 
@@ -610,13 +656,14 @@ b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::s
         this->setup_radio(i);
 
     //now test each radio module's connection to the codec interface
-    for(radio_perifs_t &perif:  _radio_perifs)
-    {
+    for (radio_perifs_t &perif : _radio_perifs) {
         _codec_mgr->loopback_self_test(
-            boost::bind(
-                &radio_ctrl_core_3000::poke32, perif.ctrl, TOREG(SR_CODEC_IDLE), _1
-            ),
-            boost::bind(&radio_ctrl_core_3000::peek64, perif.ctrl, RB64_CODEC_READBACK)
+            [&perif](const uint32_t value){
+                perif.ctrl->poke32(TOREG(SR_CODEC_IDLE), value);
+            },
+            [&perif](){
+                return perif.ctrl->peek64(RB64_CODEC_READBACK);
+            }
         );
     }
 
@@ -637,18 +684,20 @@ b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::s
     }
 
     //setup time source props
-    static const std::vector<std::string> time_sources = (_gpsdo_capable) ?
-                                boost::assign::list_of("none")("internal")("external")("gpsdo") :
-                                boost::assign::list_of("none")("internal")("external") ;
+    const std::vector<std::string> time_sources =
+        (_gpsdo_capable) ?
+        std::vector<std::string>{"none", "internal", "external", "gpsdo"} :
+        std::vector<std::string>{"none", "internal", "external"};
     _tree->create<std::vector<std::string> >(mb_path / "time_source" / "options")
         .set(time_sources);
     _tree->create<std::string>(mb_path / "time_source" / "value")
         .set_coercer(boost::bind(&check_option_valid, "time source", time_sources, _1))
         .add_coerced_subscriber(boost::bind(&b200_impl::update_time_source, this, _1));
     //setup reference source props
-    static const std::vector<std::string> clock_sources = (_gpsdo_capable) ?
-                                boost::assign::list_of("internal")("external")("gpsdo") :
-                                boost::assign::list_of("internal")("external") ;
+    const std::vector<std::string> clock_sources =
+        (_gpsdo_capable) ?
+        std::vector<std::string>{"internal", "external", "gpsdo"} :
+        std::vector<std::string>{"internal", "external"};
     _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options")
         .set(clock_sources);
     _tree->create<std::string>(mb_path / "clock_source" / "value")
@@ -841,8 +890,7 @@ void b200_impl::setup_radio(const size_t dspno)
     ////////////////////////////////////////////////////////////////////
     // create RF frontend interfacing
     ////////////////////////////////////////////////////////////////////
-    static const std::vector<direction_t> dirs = boost::assign::list_of(RX_DIRECTION)(TX_DIRECTION);
-    for(direction_t dir:  dirs) {
+    for (direction_t dir : std::vector<direction_t>{RX_DIRECTION, TX_DIRECTION}) {
         const std::string x = (dir == RX_DIRECTION) ? "rx" : "tx";
         const std::string key = std::string(((dir == RX_DIRECTION) ? "RX" : "TX")) + std::string(((dspno == _fe1) ? "1" : "2"));
         const fs_path rf_fe_path
@@ -862,7 +910,7 @@ void b200_impl::setup_radio(const size_t dspno)
         ;
         if (dir == RX_DIRECTION)
         {
-            static const std::vector<std::string> ants = boost::assign::list_of("TX/RX")("RX2");
+            static const std::vector<std::string> ants{"TX/RX", "RX2"};
             _tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options").set(ants);
             _tree->create<std::string>(rf_fe_path / "antenna" / "value")
                 .add_coerced_subscriber(boost::bind(&b200_impl::update_antenna_sel, this, dspno, _1))
@@ -922,6 +970,17 @@ void b200_impl::enforce_tick_rate_limits(size_t chan_count, double tick_rate, co
                 boost::format("current master clock rate (%.6f MHz) exceeds maximum possible master clock rate (%.6f MHz) when using %d %s channels")
                     % (tick_rate/1e6)
                     % (max_tick_rate/1e6)
+                    % chan_count
+                    % (direction.empty() ? "data" : direction)
+            ));
+        }
+        const double min_tick_rate = ad9361_device_t::AD9361_MIN_CLOCK_RATE / ((chan_count <= 1) ? 1 : 2);
+        if (min_tick_rate - tick_rate >= 1.0)
+        {
+            throw uhd::value_error(boost::str(
+                boost::format("current master clock rate (%.6f MHz) is less than minimum possible master clock rate (%.6f MHz) when using %d %s channels")
+                    % (tick_rate/1e6)
+                    % (min_tick_rate/1e6)
                     % chan_count
                     % (direction.empty() ? "data" : direction)
             ));

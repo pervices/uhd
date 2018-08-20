@@ -44,34 +44,51 @@ def get_sfp_bist_defaults():
         'bits': 12012486656,
     }
 
+def assert_aurora_image(master, slave):
+    """
+    Make sure we have an FPGA image with which we can run the requested tests.
+
+    Will load an AA image if not, which always satisfies all conditions for
+    running Aurora tests.
+    """
+    from usrp_mpm.sys_utils import uio
+    if not uio.find_uio_device(master)[0] or \
+            (slave is not None and not uio.find_uio_device(slave)[0]):
+        load_fpga_image('AA')
+
 def run_aurora_bist(master, slave=None):
     """
     Spawn a BER test
     """
     from usrp_mpm import aurora_control
-    from usrp_mpm.sys_utils.uio import UIO
+    from usrp_mpm.sys_utils.uio import open_uio
+
+    class DummyContext(object):
+        """Dummy class for context managers"""
+        def __enter__(self):
+            return
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return exc_type is None
+
+    # Go, go, go!
     try:
-        master_au_uio = UIO(label=master, read_only=False)
-        master_au_uio.open()
-        master_au_ctrl = aurora_control.AuroraControl(master_au_uio)
-        if slave is not None:
-            slave_au_uio = UIO(label=slave, read_only=False)
-            slave_au_uio.open()
-        slave_au_ctrl = None if slave is None else aurora_control.AuroraControl(
-            slave_au_uio
-        )
-        return master_au_ctrl.run_ber_loopback_bist(
-            duration=10,
-            requested_rate=1300 * 8e6,
-            slave=slave_au_ctrl,
-        )
+        assert_aurora_image(master, slave)
+        with open_uio(label=master, read_only=False) as master_au_uio:
+            master_au_ctrl = aurora_control.AuroraControl(master_au_uio)
+            with open_uio(label=slave, read_only=False)\
+                    if slave is not None else DummyContext() as slave_au_uio:
+                slave_au_ctrl = aurora_control.AuroraControl(slave_au_uio)\
+                    if slave is not None else None
+                return master_au_ctrl.run_ber_loopback_bist(
+                    duration=10,
+                    requested_rate=1300 * 8e6,
+                    slave=slave_au_ctrl,
+                )
     except Exception as ex:
         print("Unexpected exception: {}".format(str(ex)))
         exit(1)
-    finally:
-        master_au_uio.close()
-        if slave is not None:
-            slave_au_uio.close()
+
 
 def aurora_results_to_status(bist_results):
     """
@@ -163,6 +180,9 @@ def filter_results_for_lv(results):
             'cooling_device0': -1,
             'cooling_device1': -1,
         },
+        'whiterabbit': {
+            'lock_status': 0,
+        },
     }
     # OK now go and brush up the results:
     def fixup_dict(result_dict, ref_dict):
@@ -238,9 +258,11 @@ class N3XXBIST(object):
     """
     # This defines special tests that are really collections of other tests.
     collections = {
-        'standard': ["ddr3", "gpsdo", "rtc", "temp", "clock_int", "tpm"],
+        'standard': ["ddr3", "gpsdo", "rtc", "temp", "fan", "tpm"],
         'extended': "*",
     }
+    # Default FPGA image type
+    DEFAULT_FPGA_TYPE = 'HG'
 
     @staticmethod
     def make_arg_parser():
@@ -275,6 +297,12 @@ class N3XXBIST(object):
                  "status when using this mode.",
         )
         parser.add_argument(
+            '--skip-fpga-reload', action='store_true',
+            help="Skip reloading the default FPGA image post-test. Note: by"
+                 "specifying this argument, the FPGA image loaded could be "
+                 "anything post-test.",
+        )
+        parser.add_argument(
             'tests',
             help="List the tests that should be run",
             nargs='+', # There has to be at least one
@@ -284,6 +312,8 @@ class N3XXBIST(object):
     def __init__(self):
         self.args = N3XXBIST.make_arg_parser().parse_args()
         self.args.option = expand_options(self.args.option)
+        # If this is true, trigger a reload of the default FPGA image
+        self.reload_fpga_image = False
         try:
             from usrp_mpm.periph_manager.n3xx import n3xx
             default_rev = n3xx.mboard_max_rev
@@ -361,6 +391,8 @@ class N3XXBIST(object):
         if self.args.lv_compat:
             result = filter_results_for_lv(result)
         post_results(result)
+        if self.reload_fpga_image and not self.args.skip_fpga_reload:
+            load_fpga_image(self.DEFAULT_FPGA_TYPE)
         return tests_successful
 
 #############################################################################
@@ -611,6 +643,7 @@ class N3XXBIST(object):
         if self.args.dry_run:
             return True, get_sfp_bist_defaults()
         sfp_bist_results = run_aurora_bist(master='misc-auro-regs0')
+        self.reload_fpga_image = True
         return aurora_results_to_status(sfp_bist_results)
 
     def bist_sfp1_loopback(self):
@@ -633,6 +666,7 @@ class N3XXBIST(object):
         if self.args.dry_run:
             return True, get_sfp_bist_defaults()
         sfp_bist_results = run_aurora_bist(master='misc-auro-regs1')
+        self.reload_fpga_image = True
         return aurora_results_to_status(sfp_bist_results)
 
     def bist_sfp_loopback(self):
@@ -658,6 +692,7 @@ class N3XXBIST(object):
             master='misc-auro-regs0',
             slave='misc-auro-regs1',
         )
+        self.reload_fpga_image = True
         return aurora_results_to_status(sfp_bist_results)
 
     def bist_gpio(self):
@@ -687,10 +722,10 @@ class N3XXBIST(object):
                 'write_patterns': list(patterns),
                 'read_patterns': list(patterns),
             }
-        from usrp_mpm.periph_manager import n3xx
-        gpio_tca6424 = n3xx.TCA6424(self.mb_rev)
+        from usrp_mpm.periph_manager import n3xx, n3xx_periphs
+        gpio_tca6424 = n3xx_periphs.TCA6424(self.mb_rev)
         gpio_tca6424.set("FPGA-GPIO-EN")
-        mb_regs = n3xx.MboardRegsControl(n3xx.n3xx.mboard_regs_label, self.log)
+        mb_regs = n3xx_periphs.MboardRegsControl(n3xx.n3xx.mboard_regs_label, self.log)
         mb_regs.set_fp_gpio_master(0xFFF)
         # Allow some time for the front-panel GPIOs to become usable
         time.sleep(.5)
@@ -698,7 +733,7 @@ class N3XXBIST(object):
         ddr2 = 0xfc0
         def _run_gpio(ddr, patterns):
             " Run a GPIO test for a given set of patterns "
-            gpio_ctrl = n3xx.FrontpanelGPIO(ddr)
+            gpio_ctrl = n3xx_periphs.FrontpanelGPIO(ddr)
             for pattern in patterns:
                 gpio_set_all(gpio_ctrl, pattern, GPIO_WIDTH, ddr)
                 time.sleep(0.1)
@@ -762,6 +797,40 @@ class N3XXBIST(object):
         }
         return len(result) == 2, result
 
+    def bist_whiterabbit(self):
+        """
+        BIST for White Rabbit.
+        Description: Checks if the WR core can lock.
+
+        External Equipment: A WR source needs to be connected to SFP0.
+        """
+        assert 'whiterabbit' in self.tests_to_run
+        if self.args.dry_run:
+            return True, {'lock': True}
+        from usrp_mpm.cores import WhiteRabbitRegsControl
+        from usrp_mpm.periph_manager.n3xx import n3xx
+        from usrp_mpm.periph_manager import n3xx_periphs
+        from usrp_mpm.sys_utils import uio
+        if not uio.find_uio_device(n3xx.wr_regs_label, logger=self.log)[0]:
+            self.log.info("Need to load WX image before proceeding...")
+            load_fpga_image('WX')
+            self.log.info("Image loading complete.")
+        self.reload_fpga_image = True
+        mb_regs = n3xx_periphs.MboardRegsControl(
+            n3xx.mboard_regs_label, self.log)
+        mb_regs.set_time_source('sfp0', 25e6)
+        wr_regs_control = WhiteRabbitRegsControl(
+            n3xx.wr_regs_label, self.log)
+        lock_status = poll_with_timeout(
+            lambda: wr_regs_control.get_time_lock_status(),
+            40000, # Try for x ms... this number is set from a few benchtop tests
+            1000, # Poll every... second! why not?
+        )
+        result = {
+            'lock_status': int(lock_status),
+        }
+        return lock_status, result
+
 
 def gpio_set_all(gpio_bank, value, gpio_size, ddr_mask):
     """Helper function for set gpio.
@@ -779,6 +848,35 @@ def gpio_set_all(gpio_bank, value, gpio_size, ddr_mask):
     for i in range(gpio_size):
         if ddr_bitstring[gpio_size - 1 - i] == "1":
             gpio_bank.set(i, value_bitstring[i % ddr_size])
+
+def get_product_id():
+    """Return the mboard product ID (n310 or n300):"""
+    cmd = ['eeprom-id']
+    output = subprocess.check_output(
+        cmd,
+        stderr=subprocess.STDOUT,
+        shell=True,
+    ).decode('utf-8')
+    if 'n310' in output:
+        return 'n310'
+    elif 'n300' in output:
+        return 'n300'
+    raise AssertionError("Cannot determine product ID.")
+
+def load_fpga_image(fpga_type):
+    """Load an FPGA image (HG, XG, AA, ...)"""
+    cmd = ['uhd_image_loader', '--args', 'type=n3xx', '--fpga-path']
+    images_folder = '/usr/share/uhd/images/'
+    fpga_file_name = \
+            'usrp_' + get_product_id() + '_fpga_' + fpga_type.upper() + '.bit'
+    fpga_image = images_folder + fpga_file_name
+    cmd.append(fpga_image)
+    cmd_str = ' '.join(cmd)
+    subprocess.check_output(
+        cmd_str,
+        stderr=subprocess.STDOUT,
+        shell=True
+    )
 
 ##############################################################################
 # main

@@ -40,7 +40,10 @@
 #include <string>
 #include <vector>
 
-namespace uhd{ namespace usrp{
+namespace uhd {
+    class device3;
+
+    namespace usrp{
 
 /*!
  * The Multi-USRP device class:
@@ -122,6 +125,20 @@ public:
      */
     virtual device::sptr get_device(void) = 0;
 
+    /*! Returns true if this is a generation-3 device.
+     */
+    virtual bool is_device3(void) = 0;
+
+    /*!
+     * Get the underlying device3 object. Only works for generation-3 (or later) devices.
+     *
+     * This is needed to get access to the streaming API and properties.
+     *
+     * \return The uhd::device3 object for this USRP.
+     * \throws uhd::type_error if this device is not actually a generation-3 device.
+     */
+    virtual boost::shared_ptr<uhd::device3> get_device3(void) = 0;
+
     //! Convenience method to get a RX streamer. See also uhd::device::get_rx_stream().
     virtual rx_streamer::sptr get_rx_stream(const stream_args_t &args) = 0;
 
@@ -180,6 +197,26 @@ public:
      * \return the master clock rate in Hz.
      */
     virtual double get_master_clock_rate(size_t mboard = 0) = 0;
+
+    /*! Return the range within which the master clock rate can be set for this
+     *  session
+     *
+     * Note that many USRPs do not actually support setting the master clock
+     * rate during a running session. In this case, the range will consist of
+     * a single value, which is the current master clock rate.
+     * Values from this range are valid/sensible inputs to
+     * set_master_clock_rate(), although keep in mind that the latter coerces.
+     *
+     * Examples:
+     * - The B200 series' master clock rate can be changed at runtime and
+     *   will report the true range of supported values
+     * - The X300 series has _two_ discrete options for the clock rate, but will
+     *   always return the clock rate which the USRP was initialized to because
+     *   it cannot be changed at runtime
+     * - The N200 series does not have a configurable clock rate, and will
+     *   always return the same single value as a range
+     */
+    virtual meta_range_t get_master_clock_rate_range(const size_t mboard = 0) = 0;
 
     /*!
      * Get a printable summary for this USRP configuration.
@@ -991,6 +1028,12 @@ public:
     virtual void set_rx_dc_offset(const std::complex<double> &offset, size_t chan = ALL_CHANS) = 0;
 
     /*!
+     * Get the valid range for RX DC offset values.
+     * \param chan the channel index 0 to N-1
+     */
+    virtual meta_range_t get_rx_dc_offset_range(size_t chan = ALL_CHANS) = 0;
+
+    /*!
      * Enable/disable the automatic IQ imbalance correction.
      *
      * \param enb true to enable automatic IQ balance correction
@@ -1272,6 +1315,12 @@ public:
      * \param chan the channel index 0 to N-1
      */
     virtual void set_tx_dc_offset(const std::complex<double> &offset, size_t chan = ALL_CHANS) = 0;
+
+    /*!
+     * Get the valid range for TX DC offset values.
+     * \param chan the channel index 0 to N-1
+     */
+    virtual meta_range_t get_tx_dc_offset_range(size_t chan = ALL_CHANS) = 0;
 
     /*!
      * Set the TX frontend IQ imbalance correction.

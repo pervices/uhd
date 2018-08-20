@@ -171,7 +171,7 @@ void magnesium_radio_ctrl_impl::set_rx_antenna(
         chan ? magnesium_cpld_ctrl::CHAN1 : magnesium_cpld_ctrl::CHAN2;
     _update_atr_switches(chan_sel, RX_DIRECTION, ant);
 
-    radio_ctrl_impl::set_rx_antenna(ant, chan); // we don't use _master here since each radio has one antenna.
+    radio_ctrl_impl::set_rx_antenna(ant, chan);
 }
 
 double magnesium_radio_ctrl_impl::set_tx_frequency(
@@ -513,15 +513,15 @@ void magnesium_radio_ctrl_impl::set_rx_lo_source(
         const std::string &name,
         const size_t /*chan*/
 ) {
-    UHD_LOG_TRACE(unique_id(),"Attempting to set rx LO." <<"LO "<<name<<" to "<<src);
     //TODO: checking what options are there
     std::lock_guard<std::mutex> l(_set_lock);
-    UHD_LOG_TRACE(unique_id(), "Set LO source." <<"LO "<<name<<" to "<<src);
+    UHD_LOG_TRACE(unique_id(), "Setting RX LO " << name << " to " << src);
 
-    if (name == MAGNESIUM_LO1){
+    if (name == MAGNESIUM_LO1) {
         _ad9371->set_lo_source(src, RX_DIRECTION);
-    }else{
-        UHD_LOG_ERROR(unique_id(), "This LO " <<name <<" does not support set_lo_source to "<< src);
+    } else {
+        UHD_LOG_ERROR(unique_id(),
+           "RX LO " << name << " does not support setting source to " << src);
     }
 }
 
@@ -634,16 +634,16 @@ freq_range_t magnesium_radio_ctrl_impl::get_tx_lo_freq_range(
 void magnesium_radio_ctrl_impl::set_tx_lo_source(
         const std::string &src,
         const std::string &name,
-        const size_t chan
+        const size_t /*chan*/
 ) {
-    UHD_LOG_TRACE(unique_id(), "Attempting to set tx LO." <<"LO "<<name<<" to "<<src << " at "<<chan);
     //TODO: checking what options are there
     std::lock_guard<std::mutex> l(_set_lock);
-    UHD_LOG_TRACE(unique_id(), "Set LO source." <<"LO "<<name<<" to "<<src << " at "<<chan);
-    if (name == MAGNESIUM_LO1){
+    UHD_LOG_TRACE(unique_id(), "Setting TX LO " << name << " to " << src);
+    if (name == MAGNESIUM_LO1) {
         _ad9371->set_lo_source(src, TX_DIRECTION);
-    }else{
-        UHD_LOG_ERROR(unique_id(), "This LO " <<name <<" does not support set_lo_source to "<< src);
+    } else {
+        UHD_LOG_ERROR(unique_id(),
+           "TX LO " << name << " does not support setting source to " << src);
     }
 }
 
@@ -733,7 +733,6 @@ std::string magnesium_radio_ctrl_impl::get_dboard_fe_from_chan(
     return std::to_string(chan);
 }
 
-std::mutex magnesium_radio_ctrl_impl::_set_rpc_lock; // FIXME remove
 
 void magnesium_radio_ctrl_impl::set_rpc_client(
     uhd::rpc_client::sptr rpcc,
@@ -779,15 +778,7 @@ void magnesium_radio_ctrl_impl::set_rpc_client(
     }
     UHD_LOG_DEBUG(unique_id(),
         "Master Clock Rate is: " << (_master_clock_rate / 1e6) << " MHz.");
-    {
-        // FIXME: Remove this lock. It's masking a bug that's probably, but not
-        // confirmed, to be in the receive packet demuxer. It'll pop up when
-        // running UHD over liberio without using serialize_init
-        std::lock_guard<std::mutex> l(magnesium_radio_ctrl_impl::_set_rpc_lock);
-        radio_ctrl_impl::set_rate(_master_clock_rate);
-        // Note: This lock needs to encompass all CHDR traffic. RPC traffic is
-        // OK from a thread-safety perspective.
-    }
+    radio_ctrl_impl::set_rate(_master_clock_rate);
 
     // EEPROM paths subject to change FIXME
     const size_t db_idx = get_block_id().get_block_count();
