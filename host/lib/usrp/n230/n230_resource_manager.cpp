@@ -15,11 +15,12 @@
 #include <uhd/utils/platform.hpp>
 #include <uhd/utils/paths.hpp>
 #include <boost/format.hpp>
-#include <boost/thread.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/make_shared.hpp>
 #include "n230_fw_defs.h"
 #include "n230_fw_host_iface.h"
+#include <chrono>
+#include <thread>
 
 #define IF_DATA_I_MASK  0xFFF00000
 #define IF_DATA_Q_MASK  0x0000FFF0
@@ -33,6 +34,8 @@ static const uint8_t N230_HOST_DEST_ADDR     = 2;
 
 static const uint8_t N230_ETH0_IFACE_ID  = 0;
 static const uint8_t N230_ETH1_IFACE_ID  = 1;
+
+boost::mutex n230_resource_manager::_claimer_mutex;
 
 class n230_ad9361_client_t : public ad9361_params {
 public:
@@ -206,7 +209,7 @@ n230_resource_manager::n230_resource_manager(
             _gps_uart = n230_uart::make(gps_uart_xport, uhd::htonx(gps_uart_sid.get()));
             _gps_uart->set_baud_divider(fpga::BUS_CLK_RATE/fpga::GPSDO_UART_BAUDRATE);
             _gps_uart->write_uart("\n"); //cause the baud and response to be setup
-            boost::this_thread::sleep(boost::posix_time::seconds(1)); //allow for a little propagation
+            std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for a little propagation
             _gps_ctrl = gps_ctrl::make(_gps_uart);
         } catch(std::exception &e) {
             UHD_LOGGER_ERROR("N230") << "An error occurred making GPSDO control: " << e.what() ;
@@ -239,7 +242,7 @@ n230_resource_manager::~n230_resource_manager()
 {
     _claimer_task.reset();
     {   //Critical section
-        boost::mutex::scoped_lock(_claimer_mutex);
+        boost::mutex::scoped_lock lock(_claimer_mutex);
         _fw_ctrl->poke32(N230_FW_HOST_SHMEM_OFFSET(claim_time), 0);
         _fw_ctrl->poke32(N230_FW_HOST_SHMEM_OFFSET(claim_src), 0);
     }
@@ -266,7 +269,7 @@ transport::zero_copy_if::sptr n230_resource_manager::create_transport(
 
 bool n230_resource_manager::is_device_claimed(n230_fw_ctrl_iface::sptr fw_ctrl)
 {
-    boost::mutex::scoped_lock(_claimer_mutex);
+    boost::mutex::scoped_lock lock(_claimer_mutex);
 
     //If timed out then device is definitely unclaimed
     if (fw_ctrl->peek32(N230_FW_HOST_SHMEM_OFFSET(claim_status)) == 0)
@@ -279,11 +282,11 @@ bool n230_resource_manager::is_device_claimed(n230_fw_ctrl_iface::sptr fw_ctrl)
 void n230_resource_manager::_claimer_loop()
 {
     {   //Critical section
-        boost::mutex::scoped_lock(_claimer_mutex);
+        boost::mutex::scoped_lock lock(_claimer_mutex);
         _fw_ctrl->poke32(N230_FW_HOST_SHMEM_OFFSET(claim_time), time(NULL));
         _fw_ctrl->poke32(N230_FW_HOST_SHMEM_OFFSET(claim_src), get_process_hash());
     }
-    boost::this_thread::sleep(boost::posix_time::milliseconds(N230_CLAIMER_TIMEOUT_IN_MS / 2));
+    std::this_thread::sleep_for(std::chrono::milliseconds(N230_CLAIMER_TIMEOUT_IN_MS / 2));
 }
 
 void n230_resource_manager::_initialize_radio(size_t instance)
@@ -444,7 +447,7 @@ void n230_resource_manager::_reset_codec_digital_interface()
     _core_ctrl->poke32(fpga::sr_addr(fpga::SR_CORE_CLK_DELAY), fpga::CODEC_CLK_DELAY);
 
     _core_radio_ctrl_reg.write(fpga::core_radio_ctrl_reg_t::CODEC_ARST, 1);
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     _core_radio_ctrl_reg.write(fpga::core_radio_ctrl_reg_t::CODEC_ARST, 0);
 }
 
@@ -470,7 +473,7 @@ bool n230_resource_manager::_radio_data_loopback_self_test(wb_iface::sptr iface)
         const uint32_t word32 = uint32_t(hash) & (IF_DATA_I_MASK | IF_DATA_Q_MASK);
         iface->poke32(fpga::sr_addr(fpga::SR_RADIO_CODEC_IDLE), word32);
         iface->peek64(fpga::rb_addr(fpga::RB_RADIO_CODEC_DATA)); //block until request completes
-        boost::this_thread::sleep(boost::posix_time::microseconds(100)); //wait for loopback to propagate through codec
+        std::this_thread::sleep_for(std::chrono::microseconds(100)); //wait for loopback to propagate through codec
         const uint64_t rb_word64 = iface->peek64(fpga::rb_addr(fpga::RB_RADIO_CODEC_DATA));
         const uint32_t rb_tx = uint32_t(rb_word64 >> 32);
         const uint32_t rb_rx = uint32_t(rb_word64 & 0xffffffff);

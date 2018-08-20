@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Ettus Research, National Instruments Company
+# Copyright 2017-2018 Ettus Research, a National Instruments Company
 #
 # SPDX-License-Identifier: GPL-3.0
 #
@@ -11,9 +11,11 @@ ADD_SUBDIRECTORY(chips)
 ADD_SUBDIRECTORY(spi)
 ADD_SUBDIRECTORY(types)
 
-if(MPM_DEVICE STREQUAL "n3xx")
+if(ENABLE_MYKONOS)
     ADD_SUBDIRECTORY(mykonos)
-endif(MPM_DEVICE STREQUAL "n3xx")
+elseif(ENABLE_E320)
+    ADD_SUBDIRECTORY(catalina)
+endif(ENABLE_MYKONOS)
 
 USRP_PERIPHS_ADD_OBJECT(periphs
     exception.cpp

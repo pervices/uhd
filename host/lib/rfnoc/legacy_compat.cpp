@@ -20,7 +20,6 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhdlib/rfnoc/legacy_compat.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/assign.hpp>
 
 #define UHD_LEGACY_LOG() UHD_LOGGER_TRACE("RFNOC")
 
@@ -136,8 +135,8 @@ public:
                 : num_ports(_tree, RADIO_BLOCK_NAME, "out")),
         _rx_spp(get_block_ctrl<radio_ctrl>(0, RADIO_BLOCK_NAME, 0)->get_arg<int>("spp")),
         _tx_spp(_rx_spp),
-        _rx_channel_map(_num_mboards, std::vector<radio_port_pair_t>(_num_radios_per_board)),
-        _tx_channel_map(_num_mboards, std::vector<radio_port_pair_t>(_num_radios_per_board))
+        _rx_channel_map(_num_mboards, std::vector<radio_port_pair_t>()),
+        _tx_channel_map(_num_mboards, std::vector<radio_port_pair_t>())
     {
         _device->clear();
         check_available_periphs(); // Throws if invalid configuration.
@@ -167,11 +166,19 @@ public:
         if (not _has_dmafifo and not _has_sramfifo) {
             UHD_LOGGER_WARNING("RFNOC") << "[legacy_compat] No FIFO detected. Higher transmit rates may encounter errors.";
         }
-
         for (size_t mboard = 0; mboard < _num_mboards; mboard++) {
             for (size_t radio = 0; radio < _num_radios_per_board; radio++) {
-                _rx_channel_map[mboard][radio].radio_index = radio;
-                _tx_channel_map[mboard][radio].radio_index = radio;
+                auto radio_block_ctrl = get_block_ctrl<radio_ctrl>(mboard, "Radio", radio);
+                for (size_t port = 0; port < _num_rx_chans_per_radio; port++) {
+                    if (!radio_block_ctrl->get_dboard_fe_from_chan(port, uhd::RX_DIRECTION).empty()) {
+                        _rx_channel_map[mboard].push_back({radio, port});
+                     }
+                }
+                for (size_t port = 0; port < _num_tx_chans_per_radio; port++) {
+                    if (!radio_block_ctrl->get_dboard_fe_from_chan(port, uhd::TX_DIRECTION).empty()) {
+                        _tx_channel_map[mboard].push_back({radio, port});
+                    }
+                }
             }
 
             const double tick_rate = _tree->access<double>(mb_root(mboard) / "tick_rate").get();
@@ -359,7 +366,7 @@ public:
                 }
             }
         } else {
-            std::set<size_t> chans_to_change = boost::assign::list_of(chan);
+            std::set<size_t> chans_to_change{chan};
             if (_rx_stream_cache.count(chan)) {
                 uhd::rx_streamer::sptr str_ptr = _rx_stream_cache[chan].lock();
                 if (str_ptr) {
@@ -402,7 +409,7 @@ public:
                 }
             }
         } else {
-            std::set<size_t> chans_to_change = boost::assign::list_of(chan);
+            std::set<size_t> chans_to_change{chan};
             if (_tx_stream_cache.count(chan)) {
                 uhd::tx_streamer::sptr str_ptr = _tx_stream_cache[chan].lock();
                 if (str_ptr) {
@@ -565,35 +572,21 @@ private: // methods
     }
 
     //! Given mboard_index(m), radio_index(r), and port_index(p),
-    //  this function return the index of a block on the input blocklist that match m,r,p
-    size_t find_block(const std::vector<source_port_t> &source_port_list, const size_t &m, const size_t &r, const size_t &p)
+    //  this function returns the index of a block on the input block list that match m,r,p
+    template <typename T>
+    size_t find_block(const std::vector<T> &port_list, const size_t &m, const size_t &r, const size_t &p)
     {
         size_t index  = 0;
-        for (auto port : source_port_list)
+        for (auto port : port_list)
         {
-            auto source_block_id = (port.first)->get_block_id();
-            if (p == port.second && r == source_block_id.get_block_count() && m == source_block_id.get_device_no())
+            auto block_id = (port.first)->get_block_id();
+            if (p == port.second && r == block_id.get_block_count() && m == block_id.get_device_no())
             {
                 return index;
             }
             index++;
         }
-    }
-
-    //! Given mboard_index(m), radio_index(r), and port_index(p),
-    //  this function return the index of a block on the input blocklist that match m,r,p
-    size_t find_block(const std::vector<sink_port_t> &sink_port_list, const size_t &m, const size_t &r, const size_t &p)
-    {
-        size_t index = 0;
-        for (auto port : sink_port_list)
-        {
-            auto sink_block_id = (port.first)->get_block_id();
-            if (p == port.second && r == sink_block_id.get_block_count() && m == sink_block_id.get_device_no())
-            {
-                return index;
-            }
-            index++;
-        }
+        throw uhd::runtime_error((boost::format("Could not find block in list for device %d, radio %d, and port %d") % m % r % p).str());
     }
 
     template <uhd::direction_t dir>
@@ -603,11 +596,9 @@ private: // methods
         const size_t &port_index)
     {
         block_name_to_block_map_t legacy_block_map = get_legacy_blocks(_device);
-        auto radio_src_flat = _flatten_blocks_by_n_ports(legacy_block_map[RADIO_BLOCK_NAME].first);
-        auto radio_snk_flat = _flatten_blocks_by_n_ports(legacy_block_map[RADIO_BLOCK_NAME].second);
-        size_t index_src = find_block(radio_src_flat, mboard_idx, radio_index, port_index);
-        size_t index_snk = find_block(radio_snk_flat, mboard_idx, radio_index, port_index);
         if (dir == uhd::TX_DIRECTION){
+            auto radio_snk_flat = _flatten_blocks_by_n_ports(legacy_block_map[RADIO_BLOCK_NAME].second);
+            size_t index_snk = find_block<sink_port_t>(radio_snk_flat, mboard_idx, radio_index, port_index);
             if (_has_sramfifo){
                 auto sfifo_snk_flat = _flatten_blocks_by_n_ports(legacy_block_map[SFIFO_BLOCK_NAME].second);
                 UHD_ASSERT_THROW(index_snk < sfifo_snk_flat.size());
@@ -622,7 +613,7 @@ private: // methods
                 if (_has_ducs){
                     return std::make_pair(block_id_t(mboard_idx, DUC_BLOCK_NAME, radio_index).to_string(),port_index);
                     auto duc_snk_flat = _flatten_blocks_by_n_ports(legacy_block_map[DUC_BLOCK_NAME].second);
-                    UHD_ASSERT_THROW(index_src < duc_snk_flat.size());
+                    UHD_ASSERT_THROW(index_snk < duc_snk_flat.size());
                     auto duc_block = duc_snk_flat[index_snk].first->get_block_id();
                     return std::make_pair(duc_block, duc_snk_flat[index_snk].second);
                 }else{
@@ -630,6 +621,8 @@ private: // methods
                 }
             }
         }else{
+            auto radio_src_flat = _flatten_blocks_by_n_ports(legacy_block_map[RADIO_BLOCK_NAME].first);
+            size_t index_src = find_block<source_port_t>(radio_src_flat, mboard_idx, radio_index, port_index);
             if (_has_ddcs){
                 auto ddc_src_flat = _flatten_blocks_by_n_ports(legacy_block_map[DDC_BLOCK_NAME].first);
                 UHD_ASSERT_THROW(index_src < ddc_src_flat.size());
@@ -883,7 +876,7 @@ private: // methods
         const size_t rx_bpp = _rx_spp * BYTES_PER_SAMPLE + MAX_BYTES_PER_HEADER;
         const size_t tx_bpp = _tx_spp * BYTES_PER_SAMPLE + MAX_BYTES_PER_HEADER;
         block_name_to_block_map_t legacy_block_map =  get_legacy_blocks(_device);
-        size_t index = 0 ;
+        size_t index = 0, sram_fifo_index = 0, dma_fifo_index = 0;
         auto ddc_snk_flat = _flatten_blocks_by_n_ports(legacy_block_map[DDC_BLOCK_NAME].second);
         auto duc_src_flat = _flatten_blocks_by_n_ports(legacy_block_map[DUC_BLOCK_NAME].first);
         auto duc_snk_flat = _flatten_blocks_by_n_ports(legacy_block_map[DUC_BLOCK_NAME].second);
@@ -922,21 +915,29 @@ private: // methods
                 down_stream_port = duc_snk_flat[index].second;
             }
             if (_has_sramfifo) {
-                UHD_ASSERT_THROW(index < sfifo_src_flat.size());
-                auto sfifo_block =  sfifo_src_flat[index].first->get_block_id();
-                _graph->connect(
-                    sfifo_block, sfifo_src_flat[index].second,
-                    down_stream_block, down_stream_port,
-                    tx_bpp
-                );
+                if(sram_fifo_index < sfifo_src_flat.size()){
+                    auto sfifo_block =  sfifo_src_flat[sram_fifo_index].first->get_block_id();
+                    _graph->connect(
+                        sfifo_block, sfifo_src_flat[sram_fifo_index].second,
+                        down_stream_block, down_stream_port,
+                        tx_bpp
+                    );
+                    sram_fifo_index++;
+                }else {
+                    UHD_LOGGER_WARNING("RFNOC") << "[legacy compat] Running out of SRAM FIFO ports to connect.";
+                }
             }else if (_has_dmafifo) {
-                UHD_ASSERT_THROW(index < dfifo_src_flat.size());
-                auto dfifo_block = dfifo_src_flat[index].first->get_block_id();
-                _graph->connect(
-                    dfifo_block, dfifo_src_flat[index].second,
-                    down_stream_block, down_stream_port,
-                    tx_bpp
-                );
+                if(dma_fifo_index < dfifo_src_flat.size()){
+                    auto dfifo_block = dfifo_src_flat[dma_fifo_index].first->get_block_id();
+                    _graph->connect(
+                        dfifo_block, dfifo_src_flat[dma_fifo_index].second,
+                        down_stream_block, down_stream_port,
+                        tx_bpp
+                    );
+                    dma_fifo_index++;
+                }else {
+                     UHD_LOGGER_WARNING("RFNOC") << "[legacy compat] Running out of DRAM FIFO ports to connect.";
+                }
             }
             index++;
         }

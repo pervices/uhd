@@ -28,10 +28,6 @@ using namespace uhd::transport;
 static const double ACK_TIMEOUT = 2.0; //supposed to be worst case practical timeout
 static const double MASSIVE_TIMEOUT = 10.0; //for when we wait on a timed command
 
-ctrl_iface::~ctrl_iface(void){
-    /* NOP */
-}
-
 template <uhd::endianness_t _endianness>
 class ctrl_iface_impl: public ctrl_iface
 {
@@ -56,7 +52,7 @@ public:
         while (_xports.recv->get_recv_buff(0.0)) {}
     }
 
-    ~ctrl_iface_impl(void)
+    virtual ~ctrl_iface_impl(void)
     {
         UHD_SAFE_CALL(
             // dummy peek with the purpose of ack'ing all packets
@@ -264,4 +260,3 @@ ctrl_iface::sptr ctrl_iface::make(
         );
     }
 }
-

@@ -20,13 +20,13 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhdlib/usrp/common/max287x.hpp>
 
-#include <boost/assign/list_of.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/thread.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/thread/mutex.hpp>
 #include <map>
+#include <chrono>
+#include <thread>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -155,12 +155,12 @@ static const dboard_id_t UBX_TDD_160MHZ_RX_ID(0x0203);
 static const freq_range_t ubx_freq_range(10e6, 6.0e9);
 static const gain_range_t ubx_tx_gain_range(0, 31.5, double(0.5));
 static const gain_range_t ubx_rx_gain_range(0, 31.5, double(0.5));
-static const std::vector<std::string> ubx_pgas = boost::assign::list_of("PGA-TX")("PGA-RX");
-static const std::vector<std::string> ubx_plls = boost::assign::list_of("TXLO")("RXLO");
-static const std::vector<std::string> ubx_tx_antennas = boost::assign::list_of("TX/RX")("CAL");
-static const std::vector<std::string> ubx_rx_antennas = boost::assign::list_of("TX/RX")("RX2")("CAL");
-static const std::vector<std::string> ubx_power_modes = boost::assign::list_of("performance")("powersave");
-static const std::vector<std::string> ubx_xcvr_modes = boost::assign::list_of("FDX")("TX")("TX/RX")("RX");
+static const std::vector<std::string> ubx_pgas{"PGA-TX", "PGA-RX"};
+static const std::vector<std::string> ubx_plls{"TXLO", "RXLO"};
+static const std::vector<std::string> ubx_tx_antennas{"TX/RX", "CAL"};
+static const std::vector<std::string> ubx_rx_antennas{"TX/RX", "RX2", "CAL"};
+static const std::vector<std::string> ubx_power_modes{"performance", "powersave"};
+static const std::vector<std::string> ubx_xcvr_modes{"FDX", "TX", "TX/RX", "RX"};
 
 static const ubx_gpio_field_info_t ubx_proto_gpio_info[] = {
     //Field         Unit                  Offset Mask      Width    Direction                   ATR    IDLE,TX,RX,FDX
@@ -384,7 +384,7 @@ public:
         _iface->set_pin_ctrl(dboard_iface::UNIT_RX, _rx_gpio_reg.atr_mask);
 
         // bring CPLD out of reset
-        boost::this_thread::sleep(boost::posix_time::milliseconds(20)); // hold CPLD reset for minimum of 20 ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(20)); // hold CPLD reset for minimum of 20 ms
 
         set_gpio_field(CPLD_RST_N, 1);
         write_gpio();
@@ -396,7 +396,7 @@ public:
             _txlo2 = max287x_iface::make<max2870>(boost::bind(&ubx_xcvr::write_spi_regs, this, TXLO2, _1));
             _rxlo1 = max287x_iface::make<max2870>(boost::bind(&ubx_xcvr::write_spi_regs, this, RXLO1, _1));
             _rxlo2 = max287x_iface::make<max2870>(boost::bind(&ubx_xcvr::write_spi_regs, this, RXLO2, _1));
-            std::vector<max287x_iface::sptr> los = boost::assign::list_of(_txlo1)(_txlo2)(_rxlo1)(_rxlo2);
+            std::vector<max287x_iface::sptr> los{_txlo1, _txlo2, _rxlo1, _rxlo2};
             for(max287x_iface::sptr lo:  los)
             {
                 lo->set_auto_retune(false);
@@ -410,7 +410,7 @@ public:
             _txlo2 = max287x_iface::make<max2871>(boost::bind(&ubx_xcvr::write_spi_regs, this, TXLO2, _1));
             _rxlo1 = max287x_iface::make<max2871>(boost::bind(&ubx_xcvr::write_spi_regs, this, RXLO1, _1));
             _rxlo2 = max287x_iface::make<max2871>(boost::bind(&ubx_xcvr::write_spi_regs, this, RXLO2, _1));
-            std::vector<max287x_iface::sptr> los = boost::assign::list_of(_txlo1)(_txlo2)(_rxlo1)(_rxlo2);
+            std::vector<max287x_iface::sptr> los{_txlo1, _txlo2, _rxlo1, _rxlo2};
             for(max287x_iface::sptr lo:  los)
             {
                 lo->set_auto_retune(false);
@@ -474,7 +474,7 @@ public:
         get_tx_subtree()->create<std::vector<std::string> >("antenna/options")
             .set(ubx_tx_antennas);
         get_tx_subtree()->create<std::string>("antenna/value")
-            .add_coerced_subscriber(boost::bind(&ubx_xcvr::set_tx_ant, this, _1))
+            .set_coercer(boost::bind(&ubx_xcvr::set_tx_ant, this, _1))
             .set(ubx_tx_antennas.at(0));
         get_tx_subtree()->create<std::string>("connection")
             .set("QI");
@@ -488,7 +488,7 @@ public:
             .set(freq_range_t(bw, bw));
         get_tx_subtree()->create<int64_t>("sync_delay")
             .add_coerced_subscriber(boost::bind(&ubx_xcvr::set_sync_delay, this, true, _1))
-            .set(-8);
+            .set(0);
 
         ////////////////////////////////////////////////////////////////////
         // Register RX properties
@@ -511,7 +511,7 @@ public:
         get_rx_subtree()->create<std::vector<std::string> >("antenna/options")
             .set(ubx_rx_antennas);
         get_rx_subtree()->create<std::string>("antenna/value")
-            .add_coerced_subscriber(boost::bind(&ubx_xcvr::set_rx_ant, this, _1)).set("RX2");
+            .set_coercer(boost::bind(&ubx_xcvr::set_rx_ant, this, _1)).set("RX2");
         get_rx_subtree()->create<std::string>("connection")
             .set("IQ");
         get_rx_subtree()->create<bool>("enabled")
@@ -524,7 +524,7 @@ public:
             .set(freq_range_t(bw, bw));
         get_rx_subtree()->create<int64_t>("sync_delay")
             .add_coerced_subscriber(boost::bind(&ubx_xcvr::set_sync_delay, this, false, _1))
-            .set(-8);
+            .set(0);
     }
 
     virtual ~ubx_xcvr(void)
@@ -669,20 +669,26 @@ private:
             // Phase synchronization for MAX2871 requires that the sync signal
             // is at least 4/(N*PFD_freq) + 2.6ns before the rising edge of the
             // ref clock and 4/(N*PFD_freq) after the rising edge of the ref clock.
-            // Since the ref clock, the radio clock, and the VITA time are all
-            // synchronized to the 10 MHz clock, use the time spec to move
-            // the rising edge of the sync signal away from the 10 MHz edge,
-            // which will move it away from the ref clock edge by the same amount.
             // Since the MAX2871 requires the ref freq and PFD freq be the same
             // for phase synchronization, the dboard clock rate is used as the PFD
-            // freq and the worst case value of 20 is used for the N value to
-            // calculate the offset.
-            double pfd_freq = _iface->get_clock_rate(dir == TX_DIRECTION ? dboard_iface::UNIT_TX : dboard_iface::UNIT_RX);
-            double tick_rate = _iface->get_codec_rate(dir == TX_DIRECTION ? dboard_iface::UNIT_TX : dboard_iface::UNIT_RX);
+            // freq and the sync signal is aligned to the falling edge to meet
+            // the setup and hold requirements.  Since the command time ticks
+            // at the radio clock rate, this only works if the radio clock is
+            // an even multiple of the dboard clock, the dboard clock is a
+            // multiple of the system reference, and the device time has been
+            // set on a PPS edge sampled by the system reference clock.
+
+            const double pfd_freq = _iface->get_clock_rate(dir == TX_DIRECTION ? dboard_iface::UNIT_TX : dboard_iface::UNIT_RX);
+            const double tick_rate = _iface->get_codec_rate(dir == TX_DIRECTION ? dboard_iface::UNIT_TX : dboard_iface::UNIT_RX);
+            const int64_t ticks_per_pfd_cycle = (int64_t)(tick_rate / pfd_freq);
+
+            // Convert time to ticks
             int64_t ticks = cmd_time.to_ticks(tick_rate);
-            ticks -= ticks % (int64_t)(tick_rate / 10e6);            // align to 10 MHz clock
+            // Align time to next falling edge of dboard clock
+            ticks += ticks_per_pfd_cycle - (ticks % ticks_per_pfd_cycle) + (ticks_per_pfd_cycle / 2);
+            // Add any user specified delay
             ticks += dir == TX_DIRECTION ? _tx_sync_delay : _rx_sync_delay;
-            ticks += std::ceil(tick_rate*4/(20*pfd_freq));  // add required offset (using worst case N value of 20)
+            // Set the command time
             cmd_time = uhd::time_spec_t::from_ticks(ticks, tick_rate);
             _iface->set_command_time(cmd_time);
 
@@ -735,16 +741,17 @@ private:
         return sensor_value_t("Unknown", false, "locked", "unlocked");
     }
 
-    void set_tx_ant(const std::string &ant)
+    std::string set_tx_ant(const std::string &ant)
     {
         //validate input
         assert_has(ubx_tx_antennas, ant, "ubx tx antenna name");
         set_cpld_field(CAL_ENABLE, (ant == "CAL"));
         write_cpld_reg();
+        return ant;
     }
 
     // Set RX antennas
-    void set_rx_ant(const std::string &ant)
+    std::string set_rx_ant(const std::string &ant)
     {
         boost::mutex::scoped_lock lock(_mutex);
         //validate input
@@ -767,6 +774,8 @@ private:
         }
         write_gpio();
         write_cpld_reg();
+
+        return ant;
     }
 
     /***********************************************************************

@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Ettus Research, a National Instruments Company
+# Copyright 2017-2018 Ettus Research, a National Instruments Company
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -8,401 +8,38 @@ N3xx implementation module
 """
 
 from __future__ import print_function
-import os
 import copy
-import shutil
-import subprocess
-import json
-import datetime
+import re
 import threading
 from six import iteritems, itervalues
-from builtins import object
-from usrp_mpm.gpsd_iface import GPSDIface
+from usrp_mpm.cores import WhiteRabbitRegsControl
+from usrp_mpm.components import ZynqComponents
+from usrp_mpm.gpsd_iface import GPSDIfaceExtension
 from usrp_mpm.periph_manager import PeriphManagerBase
 from usrp_mpm.mpmtypes import SID
-from usrp_mpm.mpmutils import assert_compat_number, str2bool
+from usrp_mpm.mpmutils import assert_compat_number, str2bool, poll_with_timeout
 from usrp_mpm.rpc_server import no_rpc
 from usrp_mpm.sys_utils import dtoverlay
-from usrp_mpm.sys_utils.sysfs_gpio import SysFSGPIO, GPIOBank
-from usrp_mpm.sys_utils.uio import UIO
 from usrp_mpm.sys_utils.sysfs_thermal import read_thermal_sensor_value
 from usrp_mpm.xports import XportMgrUDP, XportMgrLiberio
+from usrp_mpm.periph_manager.n3xx_periphs import TCA6424
+from usrp_mpm.periph_manager.n3xx_periphs import BackpanelGPIO
+from usrp_mpm.periph_manager.n3xx_periphs import MboardRegsControl
+from usrp_mpm.dboard_manager.magnesium import Magnesium
+from usrp_mpm.dboard_manager.eiscat import EISCAT
 
 N3XX_DEFAULT_EXT_CLOCK_FREQ = 10e6
 N3XX_DEFAULT_CLOCK_SOURCE = 'internal'
 N3XX_DEFAULT_TIME_SOURCE = 'internal'
 N3XX_DEFAULT_ENABLE_GPS = True
 N3XX_DEFAULT_ENABLE_FPGPIO = True
+N3XX_DEFAULT_ENABLE_PPS_EXPORT = True
 N3XX_FPGA_COMPAT = (5, 2)
 N3XX_MONITOR_THREAD_INTERVAL = 1.0 # seconds
-N3XX_SFP_TYPES = {0:"", 1:"1G", 2:"10G", 3:"A"}
 
-###############################################################################
-# Additional peripheral controllers specific to Magnesium
-###############################################################################
-class TCA6424(object):
-    """
-    Abstraction layer for the port/gpio expander
-    pins_list is  an array of different version of TCA6424 pins map.
-    First element of this array corresponding to revC, second is revD etc...
-    """
-    pins_list = [
-        (
-            'PWREN-CLK-MGT156MHz',
-            'NETCLK-CE',         #revC name: 'PWREN-CLK-WB-CDCM',
-            'NETCLK-RESETn',     #revC name: 'WB-CDCM-RESETn',
-            'NETCLK-PR0',        #revC name: 'WB-CDCM-PR0',
-            'NETCLK-PR1',        #revC name: 'WB-CDCM-PR1',
-            'NETCLK-OD0',        #revC name: 'WB-CDCM-OD0',
-            'NETCLK-OD1',        #revC name: 'WB-CDCM-OD1',
-            'NETCLK-OD2',        #revC name: 'WB-CDCM-OD2',
-            'PWREN-CLK-MAINREF',
-            'CLK-MAINSEL-25MHz', #revC name: 'CLK-MAINREF-SEL1',
-            'CLK-MAINSEL-EX_B',  #revC name: 'CLK-MAINREF-SEL0',
-            '12',
-            'CLK-MAINSEL-GPS',   #revC name: '13',
-            'FPGA-GPIO-EN',
-            'PWREN-CLK-WB-20MHz',
-            'PWREN-CLK-WB-25MHz',
-            'GPS-PHASELOCK',
-            'GPS-nINITSURV',
-            'GPS-nRESET',
-            'GPS-WARMUP',
-            'GPS-SURVEY',
-            'GPS-LOCKOK',
-            'GPS-ALARM',
-            'PWREN-GPS',
-        ),
-        (
-            'NETCLK-PR1',
-            'NETCLK-PR0',
-            'NETCLK-CE',
-            'NETCLK-RESETn',
-            'NETCLK-OD2',
-            'NETCLK-OD1',
-            'NETCLK-OD0',
-            'PWREN-CLK-MGT156MHz',
-            'PWREN-CLK-MAINREF',
-            'CLK-MAINSEL-25MHz',
-            'CLK-MAINSEL-EX_B',
-            '12',
-            'CLK-MAINSEL-GPS',
-            'FPGA-GPIO-EN',
-            'PWREN-CLK-WB-20MHz',
-            'PWREN-CLK-WB-25MHz',
-            'GPS-PHASELOCK',
-            'GPS-nINITSURV',
-            'GPS-nRESET',
-            'GPS-WARMUP',
-            'GPS-SURVEY',
-            'GPS-LOCKOK',
-            'GPS-ALARM',
-            'PWREN-GPS',
-        )]
-
-    def __init__(self, rev):
-        # Default state: Turn on GPS power, take GPS out of reset or
-        # init-survey, turn on 156.25 MHz clock
-        # min Support from revC or rev = 2
-        if rev == 2:
-            self.pins = self.pins_list[0]
-        else:
-            self.pins = self.pins_list[1]
-
-        default_val = 0x860101 if rev == 2 else 0x860780
-        self._gpios = SysFSGPIO('tca6424', 0xFFF7FF, 0x86F7FF, default_val)
-
-    def set(self, name, value=None):
-        """
-        Assert a pin by name
-        """
-        assert name in self.pins
-        self._gpios.set(self.pins.index(name), value=value)
-
-    def reset(self, name):
-        """
-        Deassert a pin by name
-        """
-        self.set(name, value=0)
-
-    def get(self, name):
-        """
-        Read back a pin by name
-        """
-        assert name in self.pins
-        return self._gpios.get(self.pins.index(name))
-
-
-class FrontpanelGPIO(GPIOBank):
-    """
-    Abstraction layer for the front panel GPIO
-    """
-    EMIO_BASE = 54
-    FP_GPIO_OFFSET = 32 # Bit offset within the ps_gpio_* pins
-
-    def __init__(self, ddr):
-        GPIOBank.__init__(
-            self,
-            'zynq_gpio',
-            self.FP_GPIO_OFFSET + self.EMIO_BASE,
-            0xFFF, # use_mask
-            ddr
-        )
-
-class BackpanelGPIO(GPIOBank):
-    """
-    Abstraction layer for the back panel GPIO
-    """
-    EMIO_BASE = 54
-    BP_GPIO_OFFSET = 45
-    LED_LINK = 0
-    LED_REF = 1
-    LED_GPS = 2
-
-    def __init__(self):
-        GPIOBank.__init__(
-            self,
-            'zynq_gpio',
-            self.BP_GPIO_OFFSET + self.EMIO_BASE,
-            0x7, # use_mask
-            0x7, # ddr
-        )
-
-class MboardRegsControl(object):
-    """
-    Control the FPGA Motherboard registers
-    """
-    # Motherboard registers
-    M_COMPAT_NUM    = 0x0000
-    MB_DATESTAMP    = 0x0004
-    MB_GIT_HASH     = 0x0008
-    MB_SCRATCH      = 0x000C
-    MB_NUM_CE       = 0x0010
-    MB_NUM_IO_CE    = 0x0014
-    MB_CLOCK_CTRL   = 0x0018
-    MB_XADC_RB      = 0x001C
-    MB_BUS_CLK_RATE = 0x0020
-    MB_BUS_COUNTER  = 0x0024
-    MB_SFP0_INFO    = 0x0028
-    MB_SFP1_INFO    = 0x002C
-    MB_GPIO_MASTER  = 0x0030
-    MB_GPIO_RADIO_SRC  = 0x0034
-
-    # Bitfield locations for the MB_CLOCK_CTRL register.
-    MB_CLOCK_CTRL_PPS_SEL_INT_10 = 0 # pps_sel is one-hot encoded!
-    MB_CLOCK_CTRL_PPS_SEL_INT_25 = 1
-    MB_CLOCK_CTRL_PPS_SEL_EXT    = 2
-    MB_CLOCK_CTRL_PPS_SEL_GPSDO  = 3
-    MB_CLOCK_CTRL_PPS_OUT_EN = 4 # output enabled = 1
-    MB_CLOCK_CTRL_MEAS_CLK_RESET = 12 # set to 1 to reset mmcm, default is 0
-    MB_CLOCK_CTRL_MEAS_CLK_LOCKED = 13 # locked indication for meas_clk mmcm
-
-    def __init__(self, label, log):
-        self.log = log
-        self.regs = UIO(
-            label=label,
-            read_only=False
-        )
-        self.poke32 = self.regs.poke32
-        self.peek32 = self.regs.peek32
-
-    def get_compat_number(self):
-        """get FPGA compat number
-
-        This function reads back FPGA compat number.
-        The return is a tuple of
-        2 numbers: (major compat number, minor compat number )
-        """
-        with self.regs.open():
-            compat_number = self.peek32(self.M_COMPAT_NUM)
-        minor = compat_number & 0xff
-        major = (compat_number>>16) & 0xff
-        return (major, minor)
-
-    def set_fp_gpio_master(self, value):
-        """set driver for front panel GPIO
-        Arguments:
-            value {unsigned} -- value is a single bit bit mask of 12 pins GPIO
-        """
-        with self.regs.open():
-            return self.poke32(self.MB_GPIO_MASTER, value)
-
-    def get_fp_gpio_master(self):
-        """get "who" is driving front panel gpio
-           The return value is a bit mask of 12 pins GPIO.
-           0: means the pin is driven by PL
-           1: means the pin is driven by PS
-        """
-        with self.regs.open():
-            return self.peek32(self.MB_GPIO_MASTER) & 0xfff
-
-    def set_fp_gpio_radio_src(self, value):
-        """set driver for front panel GPIO
-        Arguments:
-            value {unsigned} -- value is 2-bit bit mask of 12 pins GPIO
-           00: means the pin is driven by radio 0
-           01: means the pin is driven by radio 1
-           10: means the pin is driven by radio 2
-           11: means the pin is driven by radio 3
-        """
-        with self.regs.open():
-            return self.poke32(self.MB_GPIO_RADIO_SRC, value)
-
-    def get_fp_gpio_radio_src(self):
-        """get which radio is driving front panel gpio
-           The return value is 2-bit bit mask of 12 pins GPIO.
-           00: means the pin is driven by radio 0
-           01: means the pin is driven by radio 1
-           10: means the pin is driven by radio 2
-           11: means the pin is driven by radio 3
-        """
-        with self.regs.open():
-            return self.peek32(self.MB_GPIO_RADIO_SRC) & 0xffffff
-
-    def get_build_timestamp(self):
-        """
-        Returns the build date/time for the FPGA image.
-        The return is datetime string with the  ISO 8601 format
-        (YYYY-MM-DD HH:MM:SS.mmmmmm)
-        """
-        with self.regs.open():
-            datestamp_rb = self.peek32(self.MB_DATESTAMP)
-        if datestamp_rb > 0:
-            dt_str = datetime.datetime(
-                year=((datestamp_rb>>17)&0x3F)+2000,
-                month=(datestamp_rb>>23)&0x0F,
-                day=(datestamp_rb>>27)&0x1F,
-                hour=(datestamp_rb>>12)&0x1F,
-                minute=(datestamp_rb>>6)&0x3F,
-                second=((datestamp_rb>>0)&0x3F))
-            self.log.trace("FPGA build timestamp: {}".format(str(dt_str)))
-            return str(dt_str)
-        else:
-            # Compatibility with FPGAs without datestamp capability
-            return ''
-
-    def get_git_hash(self):
-        """
-        Returns the GIT hash for the FPGA build.
-        The return is a tuple of
-        2 numbers: (short git hash, bool: is the tree dirty?)
-        """
-        with self.regs.open():
-            git_hash_rb = self.peek32(self.MB_GIT_HASH)
-        git_hash = git_hash_rb & 0x0FFFFFFF
-        tree_dirty = ((git_hash_rb & 0xF0000000) > 0)
-        dirtiness_qualifier = 'dirty' if tree_dirty else 'clean'
-        self.log.trace("FPGA build GIT Hash: {:07x} ({})".format(
-            git_hash, dirtiness_qualifier))
-        return (git_hash, dirtiness_qualifier)
-
-    def set_time_source(self, time_source, ref_clk_freq):
-        """
-        Set time source
-        """
-        pps_sel_val = 0x0
-        if time_source == 'internal':
-            assert ref_clk_freq in (10e6, 25e6)
-            if ref_clk_freq == 10e6:
-                self.log.debug("Setting time source to internal "
-                               "(10 MHz reference)...")
-                pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_INT_10
-            elif ref_clk_freq == 25e6:
-                self.log.debug("Setting time source to internal "
-                               "(25 MHz reference)...")
-                pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_INT_25
-        elif time_source == 'external':
-            self.log.debug("Setting time source to external...")
-            pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_EXT
-        elif time_source == 'gpsdo':
-            self.log.debug("Setting time source to gpsdo...")
-            pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_GPSDO
-        else:
-            assert False
-        with self.regs.open():
-            reg_val = self.peek32(self.MB_CLOCK_CTRL) & 0xFFFFFFF0
-            reg_val = reg_val | (pps_sel_val & 0xF)
-            self.log.trace("Writing MB_CLOCK_CTRL to 0x{:08X}".format(reg_val))
-            self.poke32(self.MB_CLOCK_CTRL, reg_val)
-
-    def enable_pps_out(self, enable):
-        """
-        Enables the PPS/Trig output on the back panel
-        """
-        self.log.trace("%s PPS/Trig output!",
-                       "Enabling" if enable else "Disabling")
-        mask = 0xFFFFFFFF ^ (0b1 << self.MB_CLOCK_CTRL_PPS_OUT_EN)
-        with self.regs.open():
-            # mask the bit to clear it:
-            reg_val = self.peek32(self.MB_CLOCK_CTRL) & mask
-            if enable:
-                # set the bit if desired:
-                reg_val = reg_val | (0b1 << self.MB_CLOCK_CTRL_PPS_OUT_EN)
-            self.log.trace("Writing MB_CLOCK_CTRL to 0x{:08X}".format(reg_val))
-            self.poke32(self.MB_CLOCK_CTRL, reg_val)
-
-    def reset_meas_clk_mmcm(self, reset=True):
-        """
-        Reset or unreset the MMCM for the measurement clock in the FPGA TDC.
-        """
-        self.log.trace("%s measurement clock MMCM reset...",
-                       "Asserting" if reset else "Clearing")
-        mask = 0xFFFFFFFF ^ (0b1 << self.MB_CLOCK_CTRL_MEAS_CLK_RESET)
-        with self.regs.open():
-            # mask the bit to clear it
-            reg_val = self.peek32(self.MB_CLOCK_CTRL) & mask
-            if reset:
-                # set the bit if desired
-                reg_val = reg_val | (0b1 << self.MB_CLOCK_CTRL_MEAS_CLK_RESET)
-            self.log.trace("Writing MB_CLOCK_CTRL to 0x{:08X}".format(reg_val))
-            self.poke32(self.MB_CLOCK_CTRL, reg_val)
-
-    def get_meas_clock_mmcm_lock(self):
-        """
-        Check the status of the MMCM for the measurement clock in the FPGA TDC.
-        """
-        mask = 0b1 << self.MB_CLOCK_CTRL_MEAS_CLK_LOCKED
-        with self.regs.open():
-            reg_val = self.peek32(self.MB_CLOCK_CTRL)
-        locked = (reg_val & mask) > 0
-        if not locked:
-            self.log.warning("Measurement clock MMCM reporting unlocked. "
-                             "MB_CLOCK_CTRL reg: 0x{:08X}".format(reg_val))
-        else:
-            self.log.trace("Measurement clock MMCM locked!")
-        return locked
-
-    def get_fpga_type(self):
-        """
-        Reads the type of the FPGA image currently loaded
-        Returns a string with the type (ie HG, XG, AA, etc.)
-        """
-        with self.regs.open():
-            sfp0_info_rb = self.peek32(self.MB_SFP0_INFO)
-            sfp1_info_rb = self.peek32(self.MB_SFP1_INFO)
-        # Print the registers values as 32-bit hex values
-        self.log.trace("SFP0 Info: 0x{0:0{1}X}".format(sfp0_info_rb, 8))
-        self.log.trace("SFP1 Info: 0x{0:0{1}X}".format(sfp1_info_rb, 8))
-
-        sfp0_type = N3XX_SFP_TYPES.get((sfp0_info_rb & 0x0000FF00) >> 8, "")
-        sfp1_type = N3XX_SFP_TYPES.get((sfp1_info_rb & 0x0000FF00) >> 8, "")
-        self.log.trace("SFP types: ({}, {})".format(sfp0_type, sfp1_type))
-        if (sfp0_type == "") or (sfp1_type == ""):
-            return ""
-        elif (sfp0_type == "1G") and (sfp1_type == "10G"):
-            return "HG"
-        elif (sfp0_type == "10G") and (sfp1_type == "10G"):
-            return "XG"
-        elif (sfp0_type == "10G") and (sfp1_type == "A"):
-            return "XA"
-        elif (sfp0_type == "A") and (sfp1_type == "A"):
-            return "AA"
-        else:
-            self.log.warning("Unrecognized SFP type combination: ({}, {})".format(
-                sfp0_type, sfp1_type
-            ))
-            return ""
-
+# Import daughterboard PIDs from their respective classes
+MG_PID = Magnesium.pids[0]
+EISCAT_PID = EISCAT.pids[0]
 
 ###############################################################################
 # Transport managers
@@ -446,10 +83,26 @@ class N3xxXportMgrLiberio(XportMgrLiberio):
 ###############################################################################
 # Main Class
 ###############################################################################
-class n3xx(PeriphManagerBase):
+class n3xx(ZynqComponents, PeriphManagerBase):
     """
     Holds N3xx specific attributes and methods
     """
+    # For every variant of the N3xx, add a line to the product map. If
+    # it uses a new daughterboard, also import that PID from the dboard
+    # manager class. The format of this map is:
+    # (motherboard product code, (Slot-A DB PID, [Slot-B DB PID])) -> product
+    product_map = {
+        ('n300', tuple()) : 'n300',
+        ('n300', (MG_PID,       )): 'n300', # Slot B is empty
+        ('n310', tuple()) : 'n310',
+        ('n310', (MG_PID, MG_PID)): 'n310',
+        ('n310', (MG_PID,       )): 'n310', # If Slot B is empty, we can
+                                            # still use the n310.bin image.
+                                            # We'll leave this here for
+                                            # debugging purposes.
+        ('n310', (EISCAT_PID, EISCAT_PID)): 'eiscat',
+    }
+
     #########################################################################
     # Overridables
     #
@@ -460,19 +113,15 @@ class n3xx(PeriphManagerBase):
     mboard_eeprom_addr = "e0005000.i2c"
     mboard_eeprom_offset = 0
     mboard_eeprom_max_len = 256
-    mboard_info = {"type": "n3xx",
-                   "product": "unknown",
-                  }
-    mboard_max_rev = 4 # 4 == RevE
+    mboard_info = {"type": "n3xx"}
+    mboard_max_rev = 5 # 5 == RevF
     mboard_sensor_callback_map = {
         'ref_locked': 'get_ref_lock_sensor',
         'gps_locked': 'get_gps_lock_sensor',
-        'gps_time': 'get_gps_time_sensor',
-        'gps_tpv': 'get_gps_tpv_sensor',
-        'gps_sky': 'get_gps_sky_sensor',
         'temp': 'get_temp_sensor',
         'fan': 'get_fan_sensor',
     }
+    crossbar_base_port = 3  # It's 3 because 0,1,2 are SFP,SFP,DMA
     dboard_eeprom_addr = "e0004000.i2c"
     dboard_eeprom_offset = 0
     dboard_eeprom_max_len = 64
@@ -483,6 +132,8 @@ class n3xx(PeriphManagerBase):
     # N3xx-specific settings
     # Label for the mboard UIO
     mboard_regs_label = "mboard-regs"
+    # Label for the white rabbit UIO
+    wr_regs_label = "wr-regs"
     # Override the list of updateable components
     updateable_components = {
         'fpga': {
@@ -498,8 +149,22 @@ class n3xx(PeriphManagerBase):
         },
     }
 
+    @classmethod
+    def generate_device_info(cls, eeprom_md, mboard_info, dboard_infos):
+        """
+        Hard-code our product map
+        """
+        mb_pid = eeprom_md.get('pid')
+        lookup_key = (
+            n3xx.pids.get(mb_pid, 'unknown'),
+            tuple([x['pid'] for x in dboard_infos]),
+        )
+        device_info = mboard_info
+        device_info['product'] = cls.product_map.get(lookup_key, 'unknown')
+        return device_info
+
     @staticmethod
-    def list_required_dt_overlays(eeprom_md, device_args):
+    def list_required_dt_overlays(device_info):
         """
         Lists device tree overlays that need to be applied before this class can
         be used. List of strings.
@@ -510,7 +175,7 @@ class n3xx(PeriphManagerBase):
         """
         # In the N3xx case, we name the dtbo file the same as the product.
         # N310 -> n310.dtbo, N300 -> n300.dtbo and so on.
-        return [n3xx.pids[eeprom_md['pid']]]
+        return [device_info['product']]
 
     ###########################################################################
     # Ctor and device initialization tasks
@@ -523,6 +188,7 @@ class n3xx(PeriphManagerBase):
         self._time_source = None
         self._available_endpoints = list(range(256))
         self._bp_leds = None
+        self._gpsd = None
         super(n3xx, self).__init__(args)
         if not self._device_initialized:
             # Don't try and figure out what's going on. Just give up.
@@ -533,6 +199,11 @@ class n3xx(PeriphManagerBase):
             self.log.error("Failed to initialize motherboard: %s", str(ex))
             self._initialization_status = str(ex)
             self._device_initialized = False
+        try:
+            if not args.get('skip_boot_init', False):
+                self.init(args)
+        except Exception as ex:
+            self.log.warning("Failed to init device on boot!")
 
     def _check_fpga_compat(self):
         " Throw an exception if the compat numbers don't match up "
@@ -571,7 +242,7 @@ class n3xx(PeriphManagerBase):
                 default_args.get('time_source', N3XX_DEFAULT_TIME_SOURCE)
             )
             self.enable_pps_out(
-                default_args.get('pps_export', True)
+                default_args.get('pps_export', N3XX_DEFAULT_ENABLE_PPS_EXPORT)
             )
 
     def _init_meas_clock(self):
@@ -617,7 +288,7 @@ class n3xx(PeriphManagerBase):
         likely.
         """
         # Sanity checks
-        assert self.mboard_info.get('product') in self.pids.values(), \
+        assert self.device_info.get('product') in self.product_map.values(), \
                 "Device product could not be determined!"
         # Init peripherals
         self.log.trace("Initializing TCA6424 port expander controls...")
@@ -627,6 +298,7 @@ class n3xx(PeriphManagerBase):
         self.log.trace("Enabling power of MGT156MHZ clk")
         self._gpios.set("PWREN-CLK-MGT156MHz")
         self.enable_1g_ref_clock()
+        self.enable_wr_ref_clock()
         self.enable_gps(
             enable=str2bool(
                 args.get('enable_gps', N3XX_DEFAULT_ENABLE_GPS)
@@ -652,6 +324,8 @@ class n3xx(PeriphManagerBase):
         self._ext_clock_freq = None
         self._init_ref_clock_and_time(args)
         self._init_meas_clock()
+        # Init GPSd iface and GPS sensors
+        self._init_gps_sensors()
         # Init CHDR transports
         self._xport_mgrs = {
             'udp': N3xxXportMgrUDP(self.log.getChild('UDP')),
@@ -666,7 +340,23 @@ class n3xx(PeriphManagerBase):
         )
         self._status_monitor_thread.start()
         # Init complete.
-        self.log.debug("mboard info: {}".format(self.mboard_info))
+        self.log.debug("Device info: {}".format(self.device_info))
+
+    def _init_gps_sensors(self):
+        "Init and register the GPSd Iface and related sensor functions"
+        self.log.trace("Initializing GPSd interface")
+        self._gpsd = GPSDIfaceExtension()
+        new_methods = self._gpsd.extend(self)
+        for method_name in new_methods:
+            try:
+                # Extract the sensor name from the getter
+                sensor_name = re.search(r"get_.*_sensor", method_name).string
+                # Register it with the MB sensor framework
+                self.mboard_sensor_callback_map[sensor_name] = method_name
+                self.log.trace("Adding %s sensor function", sensor_name)
+            except AttributeError:
+                # re.search will return None is if can't find the sensor name
+                self.log.warning("Error while registering sensor function: %s", method_name)
 
     ###########################################################################
     # Session init and deinit
@@ -680,6 +370,13 @@ class n3xx(PeriphManagerBase):
             self.log.error(
                 "Cannot run init(), device was never fully initialized!")
             return False
+        # We need to disable the PPS out during clock initialization in order
+        # to avoid glitches.
+        enable_pps_out_state = self._default_args.get(
+            'pps_export',
+            N3XX_DEFAULT_ENABLE_PPS_EXPORT
+        )
+        self.enable_pps_out(False)
         if "clock_source" in args:
             self.set_clock_source(args.get("clock_source"))
         if "clock_source" in args or "time_source" in args:
@@ -688,13 +385,18 @@ class n3xx(PeriphManagerBase):
         # source connectors on the front panel, so we assume that if this was
         # selected, it was an artifact from N310-related code. The user gets
         # a warning and the setting is reset to internal.
-        if self.mboard_info.get('product') == 'n300':
+        if self.device_info.get('product') == 'n300':
             for lo_source in ('rx_lo_source', 'tx_lo_source'):
                 if lo_source in args and args.get(lo_source) != 'internal':
                     self.log.warning("The N300 variant does not support "
                                      "external LOs! Setting to internal.")
                     args[lo_source] = 'internal'
+        # Note: The parent class takes care of calling init() on all the
+        # daughterboards
         result = super(n3xx, self).init(args)
+        # Now the clocks are all enabled, we can also re-enable PPS export if
+        # it was turned off:
+        self.enable_pps_out(enable_pps_out_state)
         for xport_mgr in itervalues(self._xport_mgrs):
             xport_mgr.init(args)
         return result
@@ -760,13 +462,13 @@ class n3xx(PeriphManagerBase):
             "operating on temporary SID: %s",
             dst_address, suggested_src_address, str(xport_type), str(sid))
         # FIXME token!
-        assert self.mboard_info['rpc_connection'] in ('remote', 'local')
-        if self.mboard_info['rpc_connection'] == 'remote':
+        assert self.device_info['rpc_connection'] in ('remote', 'local')
+        if self.device_info['rpc_connection'] == 'remote':
             return self._xport_mgrs['udp'].request_xport(
                 sid,
                 xport_type,
             )
-        elif self.mboard_info['rpc_connection'] == 'local':
+        elif self.device_info['rpc_connection'] == 'local':
             return self._xport_mgrs['liberio'].request_xport(
                 sid,
                 xport_type,
@@ -782,14 +484,14 @@ class n3xx(PeriphManagerBase):
         session.
         """
         ## Go, go, go
-        assert self.mboard_info['rpc_connection'] in ('remote', 'local')
+        assert self.device_info['rpc_connection'] in ('remote', 'local')
         sid = SID(xport_info['send_sid'])
         self._available_endpoints.remove(sid.src_ep)
         self.log.debug("Committing transport for SID %s, xport info: %s",
                        str(sid), str(xport_info))
-        if self.mboard_info['rpc_connection'] == 'remote':
+        if self.device_info['rpc_connection'] == 'remote':
             return self._xport_mgrs['udp'].commit_xport(sid, xport_info)
-        elif self.mboard_info['rpc_connection'] == 'local':
+        elif self.device_info['rpc_connection'] == 'local':
             return self._xport_mgrs['liberio'].commit_xport(sid, xport_info)
 
     ###########################################################################
@@ -804,7 +506,8 @@ class n3xx(PeriphManagerBase):
         device_info = self._xport_mgrs['udp'].get_xport_info()
         device_info.update({
             'fpga_version': "{}.{}".format(
-                *self.mboard_regs_control.get_compat_number())
+                *self.mboard_regs_control.get_compat_number()),
+            'fpga': self.updateable_components.get('fpga', {}).get('type', ""),
         })
         return device_info
 
@@ -892,7 +595,7 @@ class n3xx(PeriphManagerBase):
 
     def get_time_sources(self):
         " Returns list of valid time sources "
-        return ['internal', 'external', 'gpsdo']
+        return ['internal', 'external', 'gpsdo', 'sfp0']
 
     def get_time_source(self):
         " Return the currently selected time source "
@@ -902,8 +605,36 @@ class n3xx(PeriphManagerBase):
         " Set a time source "
         assert time_source in self.get_time_sources()
         self._time_source = time_source
-        self.mboard_regs_control.set_time_source(
-            time_source, self.get_ref_clock_freq())
+        self.mboard_regs_control.set_time_source(time_source, self.get_ref_clock_freq())
+        if time_source == 'sfp0':
+            # This error is specific to slave and master mode for White Rabbit.
+            # Grand Master mode will require the external or gpsdo sources (not supported).
+            if (time_source == 'sfp0' or time_source == 'sfp1') and \
+              self.get_clock_source() != 'internal':
+                error_msg = "Time source sfp(0|1) requires the internal clock source!"
+                self.log.error(error_msg)
+                raise RuntimeError(error_msg)
+            if self.updateable_components['fpga']['type'] != 'WX':
+                self.log.error("{} time source requires 'WX' FPGA type" \
+                               .format(time_source))
+                raise RuntimeError("{} time source requires 'WX' FPGA type" \
+                               .format(time_source))
+            # Only open UIO to the WR core once we're guaranteed it exists.
+            wr_regs_control = WhiteRabbitRegsControl(
+                self.wr_regs_label, self.log)
+            # Wait for time source to become ready. Only applies to SFP0/1. All other
+            # targets start their PPS immediately.
+            self.log.debug("Waiting for {} timebase to lock..." \
+                           .format(time_source))
+            if not poll_with_timeout(
+                    lambda: wr_regs_control.get_time_lock_status(),
+                    40000, # Try for x ms... this number is set from a few benchtop tests
+                    1000, # Poll every... second! why not?
+                ):
+                self.log.error("{} timebase failed to lock within 40 seconds. Status: 0x{:X}" \
+                               .format(time_source, wr_regs_control.get_time_lock_status()))
+                raise RuntimeError("Failed to lock SFP timebase.")
+
 
     def set_fp_gpio_master(self, value):
         """set driver for front panel GPIO
@@ -980,7 +711,7 @@ class n3xx(PeriphManagerBase):
         Enables 125 MHz refclock for 1G interface.
         """
         self.log.trace("Enable 125 MHz Clock for 1G SFP interface.")
-        self._gpios.set("NETCLK-CE")
+        self._gpios.set("NETCLK-CE", 1)
         self._gpios.set("NETCLK-RESETn", 0)
         self._gpios.set("NETCLK-PR0", 1)
         self._gpios.set("NETCLK-PR1", 1)
@@ -991,8 +722,17 @@ class n3xx(PeriphManagerBase):
         self.log.trace("Finished configuring NETCLK CDCM.")
         self._gpios.set("NETCLK-RESETn", 1)
 
+    def enable_wr_ref_clock(self):
+        """
+        Enables 20 MHz WR refclk. Note that enable_1g_ref_clock() is also required for this
+        interface to work, although calling it here is redundant.
+        """
+        self.log.trace("Enable White Rabbit reference clock.")
+        self._gpios.set("PWREN-CLK-WB-20MHz", 1)
+
     ###########################################################################
     # Sensors
+    # Note: GPS sensors are registered at runtime
     ###########################################################################
     def get_ref_lock_sensor(self):
         """
@@ -1068,71 +808,6 @@ class n3xx(PeriphManagerBase):
             'unit': 'locked' if gps_locked else 'unlocked',
             'value': str(gps_locked).lower(),
         }
-
-    def get_gps_time_sensor(self):
-        """
-        Calculates GPS time using a TPV response from GPSd, and returns as a sensor dict
-
-        This time is not high accuracy.
-        """
-        self.log.trace("Polling GPS time results from GPSD")
-        with GPSDIface() as gps_iface:
-            response_mode = 0
-            # Read responses from GPSD until we get a non-trivial mode
-            while response_mode <= 0:
-                gps_info = gps_iface.get_gps_info(resp_class='tpv', timeout=15)
-                self.log.trace("GPS info: {}".format(gps_info))
-                response_mode = gps_info.get("mode", 0)
-        time_str = gps_info.get("time", "")
-        self.log.trace("GPS time string: {}".format(time_str))
-        time_dt = datetime.datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%fZ")
-        self.log.trace("GPS datetime: {}".format(time_dt))
-        epoch_dt = datetime.datetime(1970, 1, 1)
-        gps_time = int((time_dt - epoch_dt).total_seconds())
-        return {
-            'name': 'gps_time',
-            'type': 'INTEGER',
-            'unit': 'seconds',
-            'value': str(gps_time),
-        }
-
-    def get_gps_tpv_sensor(self):
-        """
-        Get a TPV response from GPSd as a sensor dict
-        """
-        self.log.trace("Polling GPS TPV results from GPSD")
-        with GPSDIface() as gps_iface:
-            response_mode = 0
-            # Read responses from GPSD until we get a non-trivial mode
-            while response_mode <= 0:
-                gps_info = gps_iface.get_gps_info(resp_class='tpv', timeout=15)
-                self.log.trace("GPS info: {}".format(gps_info))
-                response_mode = gps_info.get("mode", 0)
-            # Return the JSON'd results
-            gps_tpv = json.dumps(gps_info)
-            return {
-                'name': 'gps_tpv',
-                'type': 'STRING',
-                'unit': '',
-                'value': gps_tpv,
-            }
-
-    def get_gps_sky_sensor(self):
-        """
-        Get a SKY response from GPSd as a sensor dict
-        """
-        self.log.trace("Polling GPS SKY results from GPSD")
-        with GPSDIface() as gps_iface:
-            # Just get the first SKY result
-            gps_info = gps_iface.get_gps_info(resp_class='sky', timeout=15)
-            # Return the JSON'd results
-            gps_sky = json.dumps(gps_info)
-            return {
-                'name': 'gps_sky',
-                'type': 'STRING',
-                'unit': '',
-                'value': gps_sky,
-            }
 
     ###########################################################################
     # EEPROMs
@@ -1218,80 +893,13 @@ class n3xx(PeriphManagerBase):
     ###########################################################################
     # Component updating
     ###########################################################################
-    @no_rpc
-    def update_fpga(self, filepath, metadata):
-        """
-        Update the FPGA image in the filesystem and reload the overlay
-        :param filepath: path to new FPGA image
-        :param metadata: Dictionary of strings containing metadata
-        """
-        self.log.trace("Updating FPGA with image at {} (metadata: `{}')"
-                       .format(filepath, str(metadata)))
-        _, file_extension = os.path.splitext(filepath)
-        # Cut off the period from the file extension
-        file_extension = file_extension[1:].lower()
-        binfile_path = self.updateable_components['fpga']['path'].format(
-            self.mboard_info['product'])
-        if file_extension == "bit":
-            self.log.trace("Converting bit to bin file and writing to {}"
-                           .format(binfile_path))
-            from usrp_mpm.fpga_bit_to_bin import fpga_bit_to_bin
-            fpga_bit_to_bin(filepath, binfile_path, flip=True)
-        elif file_extension == "bin":
-            self.log.trace("Copying bin file to %s", binfile_path)
-            shutil.copy(filepath, binfile_path)
-        else:
-            self.log.error("Invalid FPGA bitfile: %s", filepath)
-            raise RuntimeError("Invalid N3xx FPGA bitfile")
-        # RPC server will reload the periph manager after this.
-        return True
-
+    # Note: Component updating functions defined by ZynqComponents
     @no_rpc
     def _update_fpga_type(self):
         """Update the fpga type stored in the updateable components"""
         fpga_type = self.mboard_regs_control.get_fpga_type()
         self.log.debug("Updating mboard FPGA type info to {}".format(fpga_type))
         self.updateable_components['fpga']['type'] = fpga_type
-
-    @no_rpc
-    def update_dts(self, filepath, metadata):
-        """
-        Update the DTS image in the filesystem
-        :param filepath: path to new DTS image
-        :param metadata: Dictionary of strings containing metadata
-        """
-        dtsfile_path = self.updateable_components['dts']['path'].format(
-            self.mboard_info['product'])
-        self.log.trace("Updating DTS with image at %s to %s (metadata: %s)",
-                       filepath, dtsfile_path, str(metadata))
-        shutil.copy(filepath, dtsfile_path)
-        dtbofile_path = self.updateable_components['dts']['output'].format(
-            self.mboard_info['product'])
-        self.log.trace("Compiling to %s...", dtbofile_path)
-        dtc_command = [
-            'dtc',
-            '--symbols',
-            '-O', 'dtb',
-            '-q', # Suppress warnings
-            '-o',
-            dtbofile_path,
-            dtsfile_path,
-        ]
-        self.log.trace("Executing command: `$ %s'", " ".join(dtc_command))
-        try:
-            out = subprocess.check_output(dtc_command)
-            if out.strip() != "":
-                # Keep this as debug because dtc is an external tool and
-                # something could go wrong with it that's outside of our control
-                self.log.debug("`dtc' command output: \n%s", out)
-        except OSError as ex:
-            self.log.error("Could not execute `dtc' command. Binary probably "\
-                           "not installed. Please compile DTS by hand.")
-            # No fatal error here, in order not to break the current workflow
-        except subprocess.CalledProcessError as ex:
-            self.log.error("Error executing `dtc': %s", str(ex))
-            return False
-        return True
 
     #######################################################################
     # Claimer API
