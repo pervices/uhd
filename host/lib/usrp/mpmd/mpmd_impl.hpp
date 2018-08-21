@@ -126,7 +126,13 @@ class mpmd_mboard_impl
     //! Set the RPC call timeout to the default value
     void set_timeout_default();
 
+    //! Set the RPC call timeout to the value for initializations
+    void set_timeout_init();
+
   private:
+    /*! Reference to the RPC client that handles claiming
+     */
+    uhd::rpc_client::sptr _claim_rpc;
     /*************************************************************************
      * Private methods
      ************************************************************************/
@@ -137,9 +143,15 @@ class mpmd_mboard_impl
      */
     bool claim();
 
+     /*! Set RPC client timeout value
+      *
+      * \param timeout_ms time limit (in ms) that a rpc client waits for a single call
+      */
+     void set_rpcc_timeout(
+        const uint64_t timeout_ms
+    );
+
     uhd::task::sptr claim_device_and_make_task(
-            uhd::rpc_client::sptr rpc,
-            const uhd::device_addr_t mb_args
     );
 
     /*! Read out the log buffer from the MPM device and send it to native

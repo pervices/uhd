@@ -30,6 +30,14 @@ SET(example_sources
     sync_to_gps.cpp
 )
 
+IF(ENABLE_RFNOC)
+    LIST(APPEND
+        example_sources
+        rfnoc_nullsource_ce_rx.cpp
+        rfnoc_rx_to_file.cpp
+    )
+ENDIF(ENABLE_RFNOC)
+
 IF(ENABLE_OCTOCLOCK)
     LIST(APPEND example_sources test_clock_synch.cpp)
 ENDIF(ENABLE_OCTOCLOCK)
@@ -102,3 +110,7 @@ IF(ENABLE_C_API)
         ENDFOREACH(example ${C_API_EXAMPLES})
     ENDIF(HAVE_C99_STRUCTDECL)
 ENDIF(ENABLE_C_API)
+
+IF(ENABLE_PYTHON_API)
+    ADD_SUBDIRECTORY(python)
+ENDIF(ENABLE_PYTHON_API)

@@ -1,5 +1,5 @@
 //
-// Copyright 2014 Ettus Research LLC
+// Copyright 2014-2016 Ettus Research LLC
 // Copyright 2018 Ettus Research, a National Instruments Company
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -20,7 +20,7 @@ std::string node_ctrl_base::unique_id() const
 
 void node_ctrl_base::clear()
 {
-    UHD_RFNOC_BLOCK_TRACE() << "node_ctrl_base::clear() " ;
+    UHD_LOG_TRACE(unique_id(), "node_ctrl_base::clear()");
     // Reset connections:
     _upstream_nodes.clear();
     _downstream_nodes.clear();

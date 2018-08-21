@@ -47,6 +47,9 @@
 #ifndef UHD_TXRX_DEBUG_PRINTS
 //#define UHD_TXRX_DEBUG_PRINTS
 #endif
+#ifndef UHD_TXRX_SEND_DEBUG_PRINTS
+//#define UHD_TXRX_SEND_DEBUG_PRINTS
+#endif
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -164,6 +167,7 @@ public:
 		_samp_rate( 1.0 ),
 		_pillaging( false ),
 		_blessbless( false ) // icelandic (viking) for bye
+
 	{
 	}
 
@@ -217,6 +221,10 @@ public:
                 std::cout << "Warning: first call to send but no start of burst!" << std::endl;
                 #endif
                 metadata.start_of_burst = true;
+
+        		//for( auto & ep: _eprops ) {
+        		//	ep._remaining_num_samps = 0;
+        		//}
             }
         }
         if ( _first_call_to_send ) {
@@ -247,13 +255,23 @@ public:
             #ifdef UHD_TXRX_DEBUG_PRINTS
             std::cout << "first call to send: nsamps_per_buff: " << nsamps_per_buff << std::endl;
             #endif
+           // for( auto & ep: _eprops ) {
+            //	ep._remaining_num_samps = nsamps_per_buff;
+           // }
         }
         _first_call_to_send = false;
 
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
         // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
+      //  std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
-        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
+
+        //for( auto & ep: _eprops ) {
+
+           // ep.buffer_mutex.lock();
+			//if (ep._remaining_num_samps <=0) ep._remaining_num_samps = nsamps_per_buff;
+	       // ep.buffer_mutex.unlock();
+      //  }
 
         now = get_time_now();
 
@@ -268,7 +286,7 @@ public:
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
             retreat();
-        }
+        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         return r;
     }
@@ -287,7 +305,8 @@ public:
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
         //Last thing we do is update our buffer model with sent data
-        my_streamer->check_fc_update( chan);
+        //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
+        my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
 
@@ -377,6 +396,7 @@ private:
     	uhd::flow_control::sptr flow_control;
     	uint64_t oflow;
     	uint64_t uflow;
+        size_t _remaining_num_samps;
         std::mutex buffer_mutex;
         std::string name;
         eprops_type() : oflow( -1 ), uflow( -1 ) {}
@@ -397,21 +417,20 @@ private:
     	}
     }
 
-    bool check_fc_update( const size_t chan) {
-        std::lock_guard<std::mutex> lock( _eprops.at( chan ).buffer_mutex );
-        _eprops.at( chan ).flow_control->update( _actual_num_samps, get_time_now() );
+    void check_fc_update( const size_t chan, size_t nsamps) {
+    	_eprops.at( chan ).buffer_mutex.lock();
+        _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
+		_eprops.at( chan ).buffer_mutex.unlock();
     }
 
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
-        #ifdef UHD_TXRX_DEBUG_PRINTS
+        #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
         static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
         #endif
 
         uhd::time_spec_t now, then, dt;
 		struct timespec req, rem;
-
-        std::lock_guard<std::mutex> lock( _eprops.at( chan ).buffer_mutex );
 
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
@@ -421,7 +440,7 @@ private:
             return false;
         }
 
-		#ifdef UHD_TXRX_DEBUG_PRINTS
+		#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
 		if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
 			last_print_time = now;
 			next_print_time = last_print_time + 0.2;
@@ -1005,17 +1024,25 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
                 my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
+
                 my_streamer->set_on_fini(chan_i, boost::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
+
                 boost::weak_ptr<uhd::tx_streamer> my_streamerp = my_streamer;
+
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
                 ));
+
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
+
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
+
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
+
                 my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));
+
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
