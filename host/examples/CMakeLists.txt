@@ -28,6 +28,7 @@ SET(example_sources
     latency_test.cpp
     gpio.cpp
     sync_to_gps.cpp
+    rxtx_inline_filter_crimson.cpp
 )
 
 IF(ENABLE_RFNOC)
