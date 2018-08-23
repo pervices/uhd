@@ -108,6 +108,7 @@ COPYONLY)
 
 UHD_INSTALL(PROGRAMS
     ${CMAKE_CURRENT_BINARY_DIR}/uhd_images_downloader.py
+    ${CMAKE_CURRENT_BINARY_DIR}/crimson_diagnostic.sh
     DESTINATION ${PKG_LIB_DIR}/utils
     COMPONENT utilities
 )
