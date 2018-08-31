@@ -104,8 +104,6 @@ public:
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
 
-		std::cout << "get_time_until_next_send(...)" << std::endl;
-
 		(void)nsamples_to_send;
 
 		uhd::time_spec_t dt;
@@ -116,21 +114,10 @@ public:
 		if ( BOOST_UNLIKELY( unlocked_start_of_burst_pending( now ) ) ) {
 
 			dt = sob_time - now;
-			//bl = unlocked_get_buffer_level( now );
-			//std::cout << nominal_buffer_level << ": " << bl << std::endl;
-
-
-			//if ( nominal_buffer_level > bl ) {
-			//	dt = 0.0;
-			//} else {
-			//	dt = sob_time - now;
-			//}
-			std::cout << "\t unlikely: " << dt.get_real_secs() << std::endl;
 
 		} else {
 			bl = unlocked_get_buffer_level( now );
 			dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
-			std::cout << "\t likely: " << dt.get_real_secs()  << std::endl;
 		}
 
 
