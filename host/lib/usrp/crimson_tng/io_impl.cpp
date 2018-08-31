@@ -238,12 +238,13 @@ public:
         }
         if ( metadata.start_of_burst ) {
             if ( metadata.time_spec < now + default_sob ) {
-                metadata.time_spec = now + default_sob;
+                //metadata.time_spec = now + default_sob;
                 #ifdef UHD_TXRX_DEBUG_PRINTS
                 std::cout << "Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
-            #ifdef UHD_TXRX_DEBUG_PRINTS
+#define UHD_TXRX_DEBUG_PRINTS_TIMING
+            #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
             std::cout << get_time_now() << ": Setting start of burst @ " << metadata.time_spec << " or " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
             #endif
             for( auto & ep: _eprops ) {
@@ -276,7 +277,7 @@ public:
         now = get_time_now();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
-            #ifdef UHD_TXRX_DEBUG_PRINTS
+            #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
             std::cout << now << ": " << __func__ << ": Received end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
