@@ -55,8 +55,6 @@ public:
 	}
 	void set_start_of_burst_time( const uhd::time_spec_t & sob ) {
 
-		std::cout << "set_start_of_burst_time(...)" << std::endl;
-
 		std::lock_guard<std::mutex> _lock( lock );
 
 		sob_time = sob;
