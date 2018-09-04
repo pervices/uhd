@@ -199,7 +199,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        static const double default_sob = 1.0;
+        static const double default_sob = 0.0;
 
         size_t r;
 
@@ -236,16 +236,16 @@ public:
                 metadata.time_spec = now + default_sob;
             }
         }
+#define UHD_TXRX_DEBUG_PRINTS_TIMING
         if ( metadata.start_of_burst ) {
             if ( metadata.time_spec < now + default_sob ) {
-                //metadata.time_spec = now + default_sob;
-                #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
+                metadata.time_spec = now + default_sob;
+                #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
+                std::cout << "UHD::CRIMSON_TNG::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
-#define UHD_TXRX_DEBUG_PRINTS_TIMING
             #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
-            std::cout << get_time_now() << ": Setting start of burst @ " << metadata.time_spec << " or " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
             #endif
             for( auto & ep: _eprops ) {
 				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
@@ -278,7 +278,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
-            std::cout << now << ": " << __func__ << ": Received end of burst @ " << now << " or " << now.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
             async_metadata_t am;
