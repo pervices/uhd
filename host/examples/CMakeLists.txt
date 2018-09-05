@@ -29,6 +29,7 @@ SET(example_sources
     gpio.cpp
     sync_to_gps.cpp
     rxtx_inline_filter_crimson.cpp
+    set_get_path_value.cpp
 )
 
 IF(ENABLE_RFNOC)

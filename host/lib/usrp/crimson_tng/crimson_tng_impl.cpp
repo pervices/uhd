@@ -216,6 +216,18 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 	const size_t ch = pre_to_ch( pre );
 	const uhd::time_spec_t now = get_time_now();
 
+    std::cout
+        << std::fixed << std::setprecision(6)
+        << now.get_real_secs()
+        << ": "
+        << stream_cmd.stream_mode
+        << ": "
+        << pre
+        << ": SETTING STREAM COMMAND: "
+        << stream_cmd.num_samps << ": "
+        << stream_cmd.stream_now << ": "
+        << stream_cmd.time_spec.get_real_secs() << std::endl;
+
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
 	make_rx_stream_cmd_packet( stream_cmd, now, ch, rx_stream_cmd );

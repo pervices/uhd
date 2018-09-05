@@ -630,6 +630,57 @@ public:
         }
     }
 
+    // TREE SETTERS.
+    void set(const std::string path, const std::string value) {
+        _tree->access<std::string>(path).set(value);
+    }
+    void set(const std::string path, const double value) {
+        _tree->access<double>(path).set(value);
+    }
+    void set(const std::string path, const int value) {
+        _tree->access<int>(path).set(value);
+    }
+    void set(const std::string path, const time_spec_t value) {
+        _tree->access<time_spec_t>(path).set(value);
+    }
+    void set(const std::string path, const bool value) {
+        _tree->access<bool>(path).set(value);
+    }
+    void set(const std::string path, const stream_cmd_t value) {
+        _tree->access<stream_cmd_t>(path).set(value);
+    }
+
+    // TREE GETTERS.
+    void get(const std::string path, std::string& value) {
+        value = _tree->access<std::string>(path).get();
+    }
+    void get(const std::string path, double& value) {
+        value = _tree->access<double>(path).get();
+    }
+    void get(const std::string path, int& value) {
+        value = _tree->access<int>(path).get();
+    }
+    void get(const std::string path, time_spec_t& value) {
+        value = _tree->access<time_spec_t>(path).get();
+    }
+    void get(const std::string path, bool& value) {
+        value = _tree->access<bool>(path).get();
+    }
+    void get(const std::string path, stream_cmd_t& value) {
+        value = _tree->access<stream_cmd_t>(path).get();
+    }
+
+    // TREE PRINTER.
+    void dump(const std::string root)
+    {
+        for(auto& path : _tree->list(root))
+        {
+            const std::string full = root + "/" + path;
+            std::cout << full << std::endl;
+            dump(full);
+        }
+    }
+
     device::sptr get_device(void){
         return _dev;
     }
