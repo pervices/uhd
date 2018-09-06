@@ -13,9 +13,9 @@ namespace
             std::string value;
 
             std::string path = base + channel + field;
-            usrp->get(path, value);
+            usrp->get_tree_value(path, value);
             std::cout << value << std::endl;
-            usrp->set(path, value);
+            usrp->set_tree_value(path, value);
         }
     }
 
@@ -26,9 +26,9 @@ namespace
 
         int value;
 
-        usrp->get(path, value);
+        usrp->get_tree_value(path, value);
         std::cout << value << std::endl;
-        usrp->set(path, value);
+        usrp->set_tree_value(path, value);
     }
 
     void test_doubles(uhd::usrp::multi_usrp::sptr& usrp)
@@ -38,9 +38,9 @@ namespace
 
         double value;
 
-        usrp->get(path, value);
+        usrp->get_tree_value(path, value);
         std::cout << value << std::endl;
-        usrp->set(path, value);
+        usrp->set_tree_value(path, value);
     }
 
     void test_bools(uhd::usrp::multi_usrp::sptr& usrp)
@@ -50,9 +50,9 @@ namespace
 
         bool value;
 
-        usrp->get(path, value);
+        usrp->get_tree_value(path, value);
         std::cout << value << std::endl;
-        usrp->set(path, value);
+        usrp->set_tree_value(path, value);
     }
 
     void test_stream_cmd(uhd::usrp::multi_usrp::sptr& usrp)
@@ -66,8 +66,8 @@ namespace
             uhd::stream_cmd_t value(uhd::stream_cmd_t::stream_mode_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
 
             std::string path = base + channel + field;
-            usrp->get(path, value);
-            usrp->set(path, value);
+            usrp->get_tree_value(path, value);
+            usrp->set_tree_value(path, value);
         }
     }
 
@@ -80,9 +80,9 @@ namespace
 
         uhd::time_spec_t value;
 
-        usrp->get(path, value);
+        usrp->get_tree_value(path, value);
         std::cout << value.get_real_secs() << std::endl;
-        usrp->set(path, value);
+        usrp->set_tree_value(path, value);
     }
 }
 
@@ -90,7 +90,7 @@ int main()
 {
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
 
-    usrp->dump();
+    usrp->dump_tree("");
 
     test_strings(usrp);
     test_ints(usrp);

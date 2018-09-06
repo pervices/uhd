@@ -119,27 +119,6 @@ public:
     static sptr make(const device_addr_t &dev_addr);
 
     /*!
-     * Generic setters and getters for values at paths.
-     * Use dump_tree() to print a list of usable paths.
-     */
-
-    virtual void set(std::string, std::string) = 0;
-    virtual void set(std::string, double) = 0;
-    virtual void set(std::string, int) = 0;
-    virtual void set(std::string, time_spec_t) = 0;
-    virtual void set(std::string, bool) = 0;
-    virtual void set(std::string, stream_cmd_t) = 0;
-
-    virtual void get(std::string, std::string&) = 0;
-    virtual void get(std::string, double&) = 0;
-    virtual void get(std::string, int&) = 0;
-    virtual void get(std::string, time_spec_t&) = 0;
-    virtual void get(std::string, bool&) = 0;
-    virtual void get(std::string, stream_cmd_t&) = 0;
-
-    virtual void dump(std::string path = "") = 0;
-
-    /*!
      * Get the underlying device object.
      * This is needed to get access to the streaming API and properties.
      * \return the device object within this USRP
@@ -1527,6 +1506,20 @@ public:
      */
     virtual void set_filter(const std::string &path, filter_info_base::sptr filter) = 0;
 
+    virtual void set_tree_value(const std::string path, const std::string value) = 0;
+    virtual void set_tree_value(const std::string path, const double value) = 0;
+    virtual void set_tree_value(const std::string path, const int value) = 0;
+    virtual void set_tree_value(const std::string path, const time_spec_t value) = 0;
+    virtual void set_tree_value(const std::string path, const bool value) = 0;
+    virtual void set_tree_value(const std::string path, const stream_cmd_t value) = 0;
+
+    virtual void get_tree_value(const std::string path, std::string& value) = 0;
+    virtual void get_tree_value(const std::string path, double& value) = 0;
+    virtual void get_tree_value(const std::string path, int& value) = 0;
+    virtual void get_tree_value(const std::string path, time_spec_t& value) = 0;
+    virtual void get_tree_value(const std::string path, bool& value) = 0;
+    virtual void get_tree_value(const std::string path, stream_cmd_t& value) = 0;
+    virtual void dump_tree(const std::string root) = 0;
 };
 
 }}
