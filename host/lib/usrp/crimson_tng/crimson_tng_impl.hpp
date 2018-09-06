@@ -35,6 +35,8 @@
 
 #include "system_time.hpp"
 
+typedef std::pair<uint8_t, uint32_t> user_reg_t;
+
 namespace uhd {
 namespace usrp {
 
@@ -144,6 +146,10 @@ private:
     // wrapper for type <time_spec_t> through the ASCII Crimson interface
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
+
+    user_reg_t get_user_reg(std::string req);
+
+    void set_user_reg(const std::string key, user_reg_t value);
 
     // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
     void set_properties_from_addr();

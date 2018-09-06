@@ -260,6 +260,14 @@ void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value )
 	}
 }
 
+user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
+    return user_reg_t(0, 0);
+}
+
+void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
+    set_string(key, std::to_string(value.first) + ":" + std::to_string(value.second));
+}
+
 void crimson_tng_impl::set_properties_from_addr() {
 
 	static const std::string crimson_prop_prefix( "crimson:" );
@@ -810,6 +818,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "sw_version", "fpga/about/sw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(mb_path / "temp", "fpga/board/temp", std::string, string);
+
+    TREE_CREATE_RW(mb_path / "user/regs", "user/regs", user_reg_t, user_reg);
 
     TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", int, int);
     TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
