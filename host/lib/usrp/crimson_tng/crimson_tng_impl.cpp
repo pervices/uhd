@@ -258,14 +258,78 @@ void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value )
 	if ( "time/clk/cur_time" == key ) {
 		start_bm();
 	}
+
+	if ( "time/clk/cmd" == key ) {
+        _command_time = value; // Handles set_command_time() and clear_command_time()
+        std::cout << "updating command time to: " << _command_time.get_real_secs() << std::endl;
+    }
 }
 
 user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
+
+    (void) req;
+
+    // Returns nothing.
     return user_reg_t(0, 0);
 }
 
+void crimson_tng_impl::send_gpio_burst_req(const gpio_burst_req& req) {
+	_time_diff_iface->send(boost::asio::const_buffer(&req, sizeof(req)));
+}
+
 void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
-    set_string(key, std::to_string(value.first) + ":" + std::to_string(value.second));
+
+    (void) key;
+
+    const uint8_t  address = value.first;
+    const uint32_t setting = value.second;
+
+    static uint64_t pins = 0x0;
+    static uint64_t mask = 0x0;
+
+    // Clearing.
+    if(address == 0) pins &= ~(((uint64_t) 0xFFFFFFFF) << 0x00);
+    if(address == 1) pins &= ~(((uint64_t) 0xFFFFFFFF) << 0x20);
+    if(address == 2) mask &= ~(((uint64_t) 0xFFFFFFFF) << 0x00);
+    if(address == 3) mask &= ~(((uint64_t) 0xFFFFFFFF) << 0x20);
+
+    // Setting.
+    if(address == 0) pins |= (((uint64_t) setting) << 0x00);
+    if(address == 1) pins |= (((uint64_t) setting) << 0x20);
+    if(address == 2) mask |= (((uint64_t) setting) << 0x00);
+    if(address == 3) mask |= (((uint64_t) setting) << 0x20);
+
+    if(address > 3)
+        std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
+
+    // Ship if address 3 was written to.
+    if(address == 3)
+    {
+        gpio_burst_req pkt;
+	    pkt.header = ((uint64_t) 0x3) << 32;
+        pkt.tv_sec = _command_time.get_full_secs();
+        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
+        pkt.pins = pins;
+        pkt.mask = mask;
+
+        std::printf(
+            "SHIPPING(set_user_reg):\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
+
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.header);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask);
+
+        std::cout << "GPIO packet size: " << sizeof(pkt) << " bytes" << std::endl;
+
+        send_gpio_burst_req(pkt);
+    }
 }
 
 void crimson_tng_impl::set_properties_from_addr() {
@@ -711,7 +775,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_time_diff_converged( false ),
 	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
-	_bm_thread_should_exit( false )
+	_bm_thread_should_exit( false ),
+    _command_time()
 {
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
@@ -819,7 +884,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(mb_path / "temp", "fpga/board/temp", std::string, string);
 
-    TREE_CREATE_RW(mb_path / "user/regs", "user/regs", user_reg_t, user_reg);
+    TREE_CREATE_RW(mb_path / "user/regs", "fpga/user/regs", user_reg_t, user_reg);
 
     TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", int, int);
     TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
@@ -860,7 +925,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // This is the master clock rate
     TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2);
 
-    TREE_CREATE_ST(time_path / "cmd", time_spec_t, time_spec_t(0.0));
+    TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
