@@ -1,4 +1,6 @@
+#include <uhd/utils/thread.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
+#include <uhd/utils/safe_main.hpp>
 
 namespace
 {
@@ -84,10 +86,36 @@ namespace
         std::cout << value.get_real_secs() << std::endl;
         usrp->set_tree_value(path, value);
     }
+
+    void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
+    {
+        std::string path = "/mboards/0/fpga/board/flow_control/sfpa_port";
+
+        const int expected = 12345;
+
+        // Get old value.
+        int old;
+        usrp->get_tree_value(path, old);
+
+        // Set new value.
+        usrp->set_tree_value(path, expected);
+
+        // Get the newly changed value.
+        int changed;
+        usrp->get_tree_value(path, changed);
+
+        // Ensure the newly changed value is the expected value.
+        assert(changed == expected);
+    }
 }
 
-int main()
+int UHD_SAFE_MAIN(int argc, char *argv[])
 {
+    (void) argc;
+    (void) argv;
+
+    uhd::set_thread_priority_safe();
+
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
 
     usrp->dump_tree("");
@@ -98,4 +126,7 @@ int main()
     test_bools(usrp);
     test_stream_cmd(usrp);
     test_time_specs(usrp);
+    test_sfpa_port_change(usrp);
+
+    return 0;
 }
