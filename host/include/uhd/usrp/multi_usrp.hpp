@@ -1506,6 +1506,20 @@ public:
      */
     virtual void set_filter(const std::string &path, filter_info_base::sptr filter) = 0;
 
+    virtual void set_tree_value(const std::string path, const std::string value) = 0;
+    virtual void set_tree_value(const std::string path, const double value) = 0;
+    virtual void set_tree_value(const std::string path, const int value) = 0;
+    virtual void set_tree_value(const std::string path, const time_spec_t value) = 0;
+    virtual void set_tree_value(const std::string path, const bool value) = 0;
+    virtual void set_tree_value(const std::string path, const stream_cmd_t value) = 0;
+
+    virtual void get_tree_value(const std::string path, std::string& value) = 0;
+    virtual void get_tree_value(const std::string path, double& value) = 0;
+    virtual void get_tree_value(const std::string path, int& value) = 0;
+    virtual void get_tree_value(const std::string path, time_spec_t& value) = 0;
+    virtual void get_tree_value(const std::string path, bool& value) = 0;
+    virtual void get_tree_value(const std::string path, stream_cmd_t& value) = 0;
+    virtual void dump_tree(const std::string root) = 0;
 };
 
 }}

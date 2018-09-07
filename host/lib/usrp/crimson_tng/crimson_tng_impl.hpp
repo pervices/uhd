@@ -35,8 +35,20 @@
 
 #include "system_time.hpp"
 
+typedef std::pair<uint8_t, uint32_t> user_reg_t;
+
 namespace uhd {
 namespace usrp {
+
+#pragma pack(push,1)
+struct gpio_burst_req {
+	uint64_t header; // Frame 1
+	int64_t tv_sec;  // Frame 2
+	int64_t tv_psec; // Frame 2
+	uint64_t pins;   // Frame 3
+	uint64_t mask;   // Frame 3
+};
+#pragma pack(pop)
 
 #pragma pack(push,1)
 struct time_diff_req {
@@ -145,6 +157,11 @@ private:
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
+    user_reg_t get_user_reg(std::string req);
+    void send_gpio_burst_req(const gpio_burst_req& req);
+
+    void set_user_reg(const std::string key, user_reg_t value);
+
     // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
     void set_properties_from_addr();
 
@@ -185,6 +202,9 @@ private:
 	bool _bm_thread_needed;
 	bool _bm_thread_running;
 	bool _bm_thread_should_exit;
+
+    time_spec_t _command_time;
+
 	static void bm_thread_fn( crimson_tng_impl *dev );
 	bool is_bm_thread_needed();
 
