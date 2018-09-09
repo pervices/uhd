@@ -199,7 +199,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        static const double default_sob = 0.0;
+        static const double default_sob = 1.0;
 
         size_t r;
 
