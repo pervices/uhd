@@ -140,6 +140,7 @@ public:
 			buffer_level_set_time = now;
 		}
 
+#define DEBUG_FLOW_CONTROL
 #ifdef DEBUG_FLOW_CONTROL
 		// underflow
 		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {

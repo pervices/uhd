@@ -45,10 +45,10 @@
 #include "system_time.hpp"
 
 #ifndef UHD_TXRX_DEBUG_PRINTS
-//#define UHD_TXRX_DEBUG_PRINTS
+#define UHD_TXRX_DEBUG_PRINTS
 #endif
 #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
-//#define UHD_TXRX_SEND_DEBUG_PRINTS
+#define UHD_TXRX_SEND_DEBUG_PRINTS
 #endif
 
 using namespace uhd;
@@ -236,15 +236,14 @@ public:
                 metadata.time_spec = now + default_sob;
             }
         }
-#define UHD_TXRX_DEBUG_PRINTS_TIMING
         if ( metadata.start_of_burst ) {
             if ( metadata.time_spec < now + default_sob ) {
                 metadata.time_spec = now + default_sob;
-                #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
+                #ifdef UHD_TXRX_DEBUG_PRINTS
                 std::cout << "UHD::CRIMSON_TNG::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
-            #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
+            #ifdef UHD_TXRX_DEBUG_PRINTS
             std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
             #endif
             for( auto & ep: _eprops ) {
@@ -277,7 +276,7 @@ public:
         now = get_time_now();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
-            #ifdef UHD_TXRX_DEBUG_PRINTS_TIMING
+            #ifdef UHD_TXRX_DEBUG_PRINTS
             std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
