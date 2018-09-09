@@ -2965,6 +2965,7 @@ private:
         return link_rate_is_ok;
     }
 
+    // Generic tree setters and getters.
     void set_tree_value(const std::string path, const std::string value) {
         _tree->access<std::string>(path).set(value);
     }
