@@ -271,7 +271,7 @@ public:
             if (num_samps_sent == 0) return total_num_samps_sent;
 
             //setup metadata for the next fragment
-            const time_spec_t time_spec = metadata.time_spec + time_spec_t::from_ticks(total_num_samps_sent, _samp_rate);
+            const time_spec_t time_spec = metadata.time_spec; // + time_spec_t::from_ticks(total_num_samps_sent, _samp_rate);
             if_packet_info.tsf = time_spec.to_ticks(_tick_rate);
             if_packet_info.sob = false;
 
