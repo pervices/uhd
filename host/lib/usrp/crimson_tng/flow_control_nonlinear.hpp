@@ -119,6 +119,7 @@ public:
                 dt = sob_time - now;
             }
         } else {
+
             bl = unlocked_get_buffer_level( now );
             dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
         }

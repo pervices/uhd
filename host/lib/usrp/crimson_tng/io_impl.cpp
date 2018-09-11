@@ -246,8 +246,9 @@ public:
             #ifdef UHD_TXRX_DEBUG_PRINTS
             std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
             #endif
+
             for( auto & ep: _eprops ) {
-				ep.flow_control->set_start_of_burst_time( metadata.time_spec );
+                ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
             sob_time = metadata.time_spec;
         }
@@ -358,6 +359,14 @@ public:
 		std::lock_guard<std::mutex> lck( _mutex );
 		if ( ! _pillaging ) {
 			_blessbless = false;
+
+            // Assuming pillage is called for each send(), and thus each stacked command,
+            // the buffer level must be set to zero else flow control will crash since it thinks
+            // the transfer buffer is already primed.
+            for( auto & ep: _eprops ) {
+                ep.flow_control->set_buffer_level(0, get_time_now());
+            }
+
 			//spawn a new viking to raid the send hoardes
 			_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
 			_pillaging = true;

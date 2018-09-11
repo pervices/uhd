@@ -43,6 +43,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double rate, freq, gain, wave_freq, bw;
     float ampl;
 
+    double first, last, increment;
+
     //setup the program options
     po::options_description desc("Allowed options");
     desc.add_options()
@@ -64,6 +66,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("int-n", "tune USRP with integer-N tuning")
+        ("first", po::value<double>(&first)->default_value(5), "Time for first stacked command")
+        ("last", po::value<double>(&last)->default_value(5), "Time for last stacked command")
+        ("increment", po::value<double>(&increment)->default_value(1), "Increment for stack commands between <first> and <last> times")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -228,40 +233,45 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
-    // Set up metadata. We start streaming a bit in the future
-    // to allow MIMO operation:
-    uhd::tx_metadata_t md;
-    md.start_of_burst = true;
-    md.end_of_burst   = false;
-    md.has_time_spec  = true;
-    md.time_spec = usrp->get_time_now() + uhd::time_spec_t(0.1);
+    usrp->set_time_now(0.0);
 
-    //send data until the signal handler gets called
-    //or if we accumulate the number of samples specified (unless it's 0)
-    uint64_t num_acc_samps = 0;
-    while(true){
+    for(double time = first; time <= last; time += increment)
+    {
+        // Set up metadata. We start streaming a bit in the future
+        // to allow MIMO operation:
+        uhd::tx_metadata_t md;
+        md.start_of_burst = true;
+        md.end_of_burst   = false;
+        md.has_time_spec  = true;
+        md.time_spec = uhd::time_spec_t(time);
 
-        if (stop_signal_called) break;
-        if (total_num_samps > 0 and num_acc_samps >= total_num_samps) break;
+        //send data until the signal handler gets called
+        //or if we accumulate the number of samples specified (unless it's 0)
+        uint64_t num_acc_samps = 0;
+        while(true){
 
-        //fill the buffer with the waveform
-        for (size_t n = 0; n < buff.size(); n++){
-            buff[n] = wave_table(index += step);
+            if (stop_signal_called)
+                break;
+
+            if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
+                break;
+
+            //fill the buffer with the waveform
+            for (size_t n = 0; n < buff.size(); n++){
+                buff[n] = wave_table(index += step);
+            }
+
+            //send the entire contents of the buffer
+            num_acc_samps += tx_stream->send(buffs, buff.size(), md);
+
+            md.start_of_burst = false;
+            md.has_time_spec = false;
         }
 
-        //send the entire contents of the buffer
-        num_acc_samps += tx_stream->send(
-            buffs, buff.size(), md
-        );
-
-        md.start_of_burst = false;
-        md.has_time_spec = false;
+        //send a mini EOB packet
+        md.end_of_burst = true;
+        tx_stream->send("", 0, md);
     }
-
-    //send a mini EOB packet
-    md.end_of_burst = true;
-    tx_stream->send("", 0, md);
-
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;

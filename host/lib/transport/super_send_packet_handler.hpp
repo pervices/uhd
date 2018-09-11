@@ -249,7 +249,9 @@ public:
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
-			return nsamps_sent;        }
+			return nsamps_sent;
+        }
+
         size_t total_num_samps_sent = 0;
 
         //false until final fragment
@@ -262,13 +264,10 @@ public:
         for (size_t i = 0; i < num_fragments; i++){
 
             //send a fragment with the helper function
-            const size_t num_samps_sent = send_one_packet(
-                buffs, _max_samples_per_packet,
-                if_packet_info, timeout,
-                total_num_samps_sent*_bytes_per_cpu_item
-            );
+            const size_t num_samps_sent = send_one_packet(buffs, _max_samples_per_packet, if_packet_info, timeout, total_num_samps_sent*_bytes_per_cpu_item);
             total_num_samps_sent += num_samps_sent;
-            if (num_samps_sent == 0) return total_num_samps_sent;
+            if (num_samps_sent == 0)
+                return total_num_samps_sent;
 
             //setup metadata for the next fragment
             const time_spec_t time_spec = metadata.time_spec; // + time_spec_t::from_ticks(total_num_samps_sent, _samp_rate);
@@ -279,12 +278,10 @@ public:
 
         //send the final fragment with the helper function
         if_packet_info.eob = metadata.end_of_burst;
-		size_t nsamps_sent = total_num_samps_sent
-				+ send_one_packet(buffs, final_length, if_packet_info, timeout,
-					total_num_samps_sent * _bytes_per_cpu_item);
+		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
+
 #ifdef UHD_TXRX_DEBUG_PRINTS
 		dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
-
 #endif
 		return nsamps_sent;
     }
@@ -371,7 +368,6 @@ private:
         const double timeout,
         const size_t buffer_offset_bytes = 0
     ){
-
         //load the rest of the if_packet_info in here
         if_packet_info.num_payload_bytes = nsamps_per_buff*_num_inputs*_bytes_per_otw_item;
         if_packet_info.num_payload_words32 = (if_packet_info.num_payload_bytes + 3/*round up*/)/sizeof(uint32_t);

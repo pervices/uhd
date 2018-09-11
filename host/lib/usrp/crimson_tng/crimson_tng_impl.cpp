@@ -312,6 +312,12 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
         pkt.pins = pins;
         pkt.mask = mask;
 
+        boost::endian::native_to_big_inplace(pkt.header);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask);
+
         std::printf(
             "SHIPPING(set_user_reg):\n"
             "0x%016lX\n"
@@ -319,12 +325,6 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
             "0x%016lX\n"
             "0x%016lX\n"
             "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
-
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.header);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask);
 
         std::cout << "GPIO packet size: " << sizeof(pkt) << " bytes" << std::endl;
 
