@@ -19,6 +19,7 @@ SET(example_sources
     test_messages.cpp
     test_pps_input.cpp
     test_timed_commands.cpp
+    test_stacked_gpio_commands.cpp
     tx_bursts.cpp
     tx_samples_from_file.cpp
     tx_timed_samples.cpp

@@ -282,22 +282,23 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     (void) key;
 
     const uint8_t  address = value.first;
-    const uint32_t setting = value.second;
+    const uint64_t setting = value.second;
 
     static uint64_t pins = 0x0;
     static uint64_t mask = 0x0;
 
     // Clearing.
-    if(address == 0) pins &= ~(((uint64_t) 0xFFFFFFFF) << 0x00);
-    if(address == 1) pins &= ~(((uint64_t) 0xFFFFFFFF) << 0x20);
-    if(address == 2) mask &= ~(((uint64_t) 0xFFFFFFFF) << 0x00);
-    if(address == 3) mask &= ~(((uint64_t) 0xFFFFFFFF) << 0x20);
+    const uint64_t all = 0xFFFFFFFF;
+    if(address == 0) pins &= ~(all << 0x00);
+    if(address == 1) pins &= ~(all << 0x20);
+    if(address == 2) mask &= ~(all << 0x00);
+    if(address == 3) mask &= ~(all << 0x20);
 
     // Setting.
-    if(address == 0) pins |= (((uint64_t) setting) << 0x00);
-    if(address == 1) pins |= (((uint64_t) setting) << 0x20);
-    if(address == 2) mask |= (((uint64_t) setting) << 0x00);
-    if(address == 3) mask |= (((uint64_t) setting) << 0x20);
+    if(address == 0) pins |= (setting << 0x00);
+    if(address == 1) pins |= (setting << 0x20);
+    if(address == 2) mask |= (setting << 0x00);
+    if(address == 3) mask |= (setting << 0x20);
 
     if(address > 3)
         std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
@@ -314,13 +315,13 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
 
         std::printf(
             "SHIPPING(set_user_reg):\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
+            "0x%016llX\n"
+            "0x%016llX\n"
+            "0x%016llX\n"
+            "0x%016llX\n"
+            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
 
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.header);
+        boost::endian::native_to_big_inplace(pkt.header);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);

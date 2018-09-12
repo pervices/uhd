@@ -119,6 +119,7 @@ public:
                 dt = sob_time - now;
             }
         } else {
+
             bl = unlocked_get_buffer_level( now );
             dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
         }
@@ -140,6 +141,7 @@ public:
 			buffer_level_set_time = now;
 		}
 
+#define DEBUG_FLOW_CONTROL
 #ifdef DEBUG_FLOW_CONTROL
 		// underflow
 		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
