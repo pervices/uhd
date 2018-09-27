@@ -44,11 +44,13 @@
 
 #include "system_time.hpp"
 
-#ifndef UHD_TXRX_DEBUG_PRINTS
-#define UHD_TXRX_DEBUG_PRINTS
-#endif
-#ifndef UHD_TXRX_SEND_DEBUG_PRINTS
-#define UHD_TXRX_SEND_DEBUG_PRINTS
+#if 0
+  #ifndef UHD_TXRX_DEBUG_PRINTS
+  #define UHD_TXRX_DEBUG_PRINTS
+  #endif
+  #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
+  #define UHD_TXRX_SEND_DEBUG_PRINTS
+  #endif
 #endif
 
 using namespace uhd;
