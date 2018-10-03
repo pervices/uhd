@@ -9,6 +9,10 @@
 #include "flow_control.hpp"
 #include "sma.hpp"
 
+#if 0
+#define DEBUG_FLOW_CONTROL
+#endif
+
 namespace uhd {
 
 class flow_control_nonlinear: virtual uhd::flow_control {
@@ -141,7 +145,6 @@ public:
 			buffer_level_set_time = now;
 		}
 
-#define DEBUG_FLOW_CONTROL
 #ifdef DEBUG_FLOW_CONTROL
 		// underflow
 		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
