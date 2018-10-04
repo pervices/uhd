@@ -100,11 +100,21 @@ public:
     uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now() {
-    	double diff = time_diff_get();
+        double diff = time_diff_get();
         return uhd::get_system_time() + diff;
     }
-    inline double time_diff_get() { return _time_diff; }
-    inline void time_diff_set( double time_diff ) { _time_diff = time_diff; }
+
+    std::mutex _time_diff_mutex;
+
+    inline double time_diff_get() {
+        std::lock_guard<std::mutex> _lock( _time_diff_mutex );
+        return _time_diff;
+    }
+    inline void time_diff_set( double time_diff ) {
+        std::lock_guard<std::mutex> _lock( _time_diff_mutex );
+        _time_diff = time_diff;
+    }
+
     bool time_diff_converged();
     void start_bm();
     void stop_bm();

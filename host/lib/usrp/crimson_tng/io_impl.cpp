@@ -44,11 +44,13 @@
 
 #include "system_time.hpp"
 
-#ifndef UHD_TXRX_DEBUG_PRINTS
-#define UHD_TXRX_DEBUG_PRINTS
-#endif
-#ifndef UHD_TXRX_SEND_DEBUG_PRINTS
-#define UHD_TXRX_SEND_DEBUG_PRINTS
+#if 0
+  #ifndef UHD_TXRX_DEBUG_PRINTS
+  #define UHD_TXRX_DEBUG_PRINTS
+  #endif
+  #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
+  #define UHD_TXRX_SEND_DEBUG_PRINTS
+  #endif
 #endif
 
 using namespace uhd;
@@ -201,7 +203,7 @@ public:
     ){
         static const double default_sob = 1.0;
 
-        size_t r;
+        size_t r = 0;
 
         uhd::tx_metadata_t metadata = metadata_;
 
@@ -222,9 +224,9 @@ public:
                 #endif
                 metadata.start_of_burst = true;
 
-        		//for( auto & ep: _eprops ) {
-        		//	ep._remaining_num_samps = 0;
-        		//}
+				//for( auto & ep: _eprops ) {
+				//	ep._remaining_num_samps = 0;
+				//}
             }
         }
         if ( _first_call_to_send ) {
@@ -271,7 +273,7 @@ public:
 
            // ep.buffer_mutex.lock();
 			//if (ep._remaining_num_samps <=0) ep._remaining_num_samps = nsamps_per_buff;
-	       // ep.buffer_mutex.unlock();
+		   // ep.buffer_mutex.unlock();
       //  }
 
         now = get_time_now();
@@ -312,7 +314,7 @@ public:
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
-    	_eprops.at(chan).on_fini = on_fini;
+		_eprops.at(chan).on_fini = on_fini;
     }
     void set_time_now( timenow_type time_now ) {
         _time_now = time_now;
@@ -321,13 +323,13 @@ public:
         return _time_now ? _time_now() : get_system_time();
     }
     void set_xport_chan( size_t chan, uhd::transport::zero_copy_if::sptr xport ) {
-    	_eprops.at(chan).xport_chan = xport;
+		_eprops.at(chan).xport_chan = xport;
     }
     void set_xport_chan_fifo_lvl( size_t chan, xport_chan_fifo_lvl_type get_fifo_lvl ) {
-    	_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
+		_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
     }
     void set_async_pusher( async_pusher_type pusher ) {
-    	async_pusher = pusher;
+		async_pusher = pusher;
     }
     void set_channel_name( size_t chan, std::string name ) {
         _eprops.at(chan).name = name;
@@ -339,7 +341,7 @@ public:
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
-    	sph::send_packet_handler::resize(size);
+		sph::send_packet_handler::resize(size);
     }
 
     void set_samp_rate(const double rate){
@@ -399,12 +401,12 @@ private:
 
     // extended per-channel properties, beyond what is available in sph::send_packet_handler::xport_chan_props_type
     struct eprops_type{
-    	onfini_type on_fini;
-    	uhd::transport::zero_copy_if::sptr xport_chan;
-    	xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
-    	uhd::flow_control::sptr flow_control;
-    	uint64_t oflow;
-    	uint64_t uflow;
+		onfini_type on_fini;
+		uhd::transport::zero_copy_if::sptr xport_chan;
+		xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
+		uhd::flow_control::sptr flow_control;
+		uint64_t oflow;
+		uint64_t uflow;
         size_t _remaining_num_samps;
         std::mutex buffer_mutex;
         std::string name;
@@ -421,13 +423,13 @@ private:
     std::vector<eprops_type> _eprops;
 
     void push_async_msg( uhd::async_metadata_t &async_metadata ){
-    	if ( async_pusher ) {
-    		async_pusher( async_metadata );
-    	}
+		if ( async_pusher ) {
+			async_pusher( async_metadata );
+		}
     }
 
     void check_fc_update( const size_t chan, size_t nsamps) {
-    	_eprops.at( chan ).buffer_mutex.lock();
+		_eprops.at( chan ).buffer_mutex.lock();
         _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
@@ -459,21 +461,15 @@ private:
 		}
 		#endif
 
-		for(
-			;
-			dt > 0.0001;
-			now = get_time_now(),
-				dt = then - now
-		) {
-			dt = dt - 0.0001;
-			req.tv_sec = (time_t) dt.get_full_secs();
-			req.tv_nsec = dt.get_frac_secs()*1e9;
-			nanosleep( &req, &rem );
-		}
-		//Nop loop for finer accuracy
-		while (then-get_time_now() > 0.0){
-			static_cast<void> (0);
-		}
+		// The time delta (dt) may be negative from the linear interpolator.
+		// In such a case, do not bother with the delay calculations and send right away.
+		if(dt <= 0.0)
+			return true;
+
+		// Otherwise, delay.
+		req.tv_sec = (time_t) dt.get_full_secs();
+		req.tv_nsec = dt.get_frac_secs()*1e9;
+		nanosleep( &req, &rem );
 
 		return true;
     }
@@ -491,7 +487,11 @@ private:
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
 
 		for( ; ! self->_blessbless; ) {
+
+			const auto t0 = std::chrono::high_resolution_clock::now();
+
 			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
+
 				eprops_type & ep = self->_eprops[ i ];
 
 				xport_chan_fifo_lvl_type get_fifo_level;
@@ -515,6 +515,11 @@ private:
 				try {
 					get_fifo_level( level_pcnt, uflow, oflow, then );
 				} catch( ... ) {
+
+#define DEBUG_FC
+#ifdef DEBUG_FC
+				std::printf("%10d\t", -1);
+#endif
 					continue;
 				}
 
@@ -529,13 +534,17 @@ private:
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
 					fc->set_buffer_level( level, now );
+#ifdef DEBUG_FC
+				std::printf("%10lu\t", level);
+#endif
 				}
-
-
+#ifdef DEBUG_FC
+				std::printf("%10ld\t", uflow);
+#endif
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
-		            // async_metadata_t metadata;
-		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+					// async_metadata_t metadata;
+					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
 					metadata.has_time_spec = true;
 					metadata.time_spec = then;
@@ -545,10 +554,13 @@ private:
 				}
 				ep.uflow = uflow;
 
+#ifdef DEBUG_FC
+				std::printf("%10ld", oflow);
+#endif
 				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
-		            // async_metadata_t metadata;
-		            // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+					// async_metadata_t metadata;
+					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
 					metadata.has_time_spec = true;
 					metadata.time_spec = then;
@@ -558,10 +570,20 @@ private:
 				}
 				ep.oflow = oflow;
 			}
+
+			const auto t1 = std::chrono::high_resolution_clock::now();
+			const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+			const long long usloop = 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6;
+			const long long usdelay = usloop - us;
+
+#ifdef DEBUG_FC
+			std::printf("%10lld %10lld %10lld\n", us, usloop, usdelay);
+#endif
+
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			::usleep( 200000 );
 #else
-			::usleep( 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6 );
+			::usleep( usdelay < 0 ? 0 : usdelay );
 #endif
 		}
 		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
@@ -919,13 +941,14 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 	boost::endian::big_to_native_inplace( req.header );
 
-	size_t r;
+	size_t r = 0;
 
 	for( size_t tries = 0; tries < 1; tries++ ) {
 		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 		if ( sizeof( req ) != r ) {
 			continue;
 		}
+
 		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
 		if ( sizeof( rsp ) != r ) {
 			continue;
@@ -998,7 +1021,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     crimson_tng_send_packet_streamer::timenow_type timenow_ = boost::bind( & crimson_tng_impl::get_time_now, this );
     std::vector<uhd::transport::zero_copy_if::sptr> xports;
     for( auto & i: args.channels ) {
-    	xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
+        xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
     boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = boost::make_shared<crimson_tng_send_packet_streamer>( spp );
 
