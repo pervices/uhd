@@ -51,6 +51,9 @@
   #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
   #define UHD_TXRX_SEND_DEBUG_PRINTS
   #endif
+  #ifndef DEBUG_FC
+  #define DEBUG_FC
+  #endif
 #endif
 
 using namespace uhd;
@@ -516,7 +519,7 @@ private:
 					get_fifo_level( level_pcnt, uflow, oflow, then );
 				} catch( ... ) {
 
-#define DEBUG_FC
+
 #ifdef DEBUG_FC
 				std::printf("%10d\t", -1);
 #endif
