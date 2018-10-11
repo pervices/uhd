@@ -53,6 +53,12 @@
   #endif
 #endif
 
+#if 0
+  #ifndef UHD_TXRX_DEBUG_TIME
+  #define UHD_TXRX_DEBUG_TIME
+  #endif
+#endif
+
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
@@ -207,8 +213,6 @@ public:
 
         uhd::tx_metadata_t metadata = metadata_;
 
-        pillage();
-
         uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now();
 
@@ -262,6 +266,7 @@ public:
             //	ep._remaining_num_samps = nsamps_per_buff;
            // }
         }
+
         _first_call_to_send = false;
 
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
@@ -277,6 +282,8 @@ public:
       //  }
 
         now = get_time_now();
+
+        pillage();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -580,7 +587,7 @@ private:
 			std::printf("%10lld %10lld %10lld\n", us, usloop, usdelay);
 #endif
 
-#ifdef UHD_TXRX_DEBUG_PRINTS
+#ifdef UHD_TXRX_DEBUG_TIME
 			::usleep( 200000 );
 #else
 			::usleep( usdelay < 0 ? 0 : usdelay );
@@ -1105,7 +1112,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
 	}
-    my_streamer->pillage();
+    //my_streamer->pillage();
 
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );

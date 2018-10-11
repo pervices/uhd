@@ -25,7 +25,7 @@ namespace po = boost::program_options;
 
 namespace {
     constexpr int64_t CLOCK_TIMEOUT = 1000;  // 1000mS timeout for external clock locking
-    constexpr float   INIT_DELAY    = 0.05;  // 50mS initial delay before transmit
+    constexpr float   INIT_DELAY    = 1.10;  // Crimson TNG default start of burst time is 1.0 and will be adjust if not greater than 1.0.
 }
 
 /***********************************************************************
@@ -201,6 +201,7 @@ void benchmark_tx_rate(
     for (size_t ch = 0; ch < tx_stream->get_num_channels(); ch++)
         buffs.push_back(&buff.front()); //same buffer for each channel
     md.has_time_spec = (buffs.size() != 1);
+    md.start_of_burst = true;
 
     if (random_nsamps) {
         std::srand((unsigned int)time(NULL));
@@ -226,6 +227,7 @@ void benchmark_tx_rate(
                     std::cerr << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx << std::endl;
                 }
             }
+            md.start_of_burst = false;
             md.has_time_spec = false;
         }
     }
@@ -481,33 +483,25 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
        usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
     }
 
-    //spawn the receive test thread
+    uhd::tx_streamer::sptr tx_stream;
+    uhd::rx_streamer::sptr rx_stream;
+
+    if (vm.count("tx_rate")){
+        usrp->set_tx_rate(tx_rate);
+        uhd::stream_args_t stream_args(tx_cpu, tx_otw);
+        stream_args.channels = tx_channel_nums;
+        tx_stream = usrp->get_tx_stream(stream_args);
+    }
+
     if (vm.count("rx_rate")){
         usrp->set_rx_rate(rx_rate);
-        //create a receive streamer
         uhd::stream_args_t stream_args(rx_cpu, rx_otw);
         stream_args.channels = rx_channel_nums;
-        uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-        auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed](){
-            benchmark_rx_rate(
-                usrp,
-                rx_cpu,
-                rx_stream,
-                random_nsamps,
-                start_time,
-                burst_timer_elapsed
-            );
-        });
-        uhd::set_thread_name(rx_thread, "bmark_rx_stream");
+        rx_stream = usrp->get_rx_stream(stream_args);
     }
 
     //spawn the transmit test thread
     if (vm.count("tx_rate")){
-        usrp->set_tx_rate(tx_rate);
-        //create a transmit streamer
-        uhd::stream_args_t stream_args(tx_cpu, tx_otw);
-        stream_args.channels = tx_channel_nums;
-        uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
         auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed](){
             benchmark_tx_rate(
                 usrp,
@@ -527,6 +521,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             );
         });
         uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
+    }
+
+    //spawn the receive test thread
+    if (vm.count("rx_rate")){
+        auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed](){
+            benchmark_rx_rate(
+                usrp,
+                rx_cpu,
+                rx_stream,
+                random_nsamps,
+                start_time,
+                burst_timer_elapsed
+            );
+        });
+        uhd::set_thread_name(rx_thread, "bmark_rx_stream");
     }
 
     //sleep for the required duration
