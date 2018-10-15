@@ -523,7 +523,6 @@ private:
 					get_fifo_level( level_pcnt, uflow, oflow, then );
 				} catch( ... ) {
 
-#define DEBUG_FC
 #ifdef DEBUG_FC
 				std::printf("%10d\t", -1);
 #endif
