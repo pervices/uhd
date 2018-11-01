@@ -30,6 +30,49 @@ namespace po = boost::program_options;
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
+static void setup_trigger(uhd::usrp::multi_usrp::sptr& usrp, const std::vector<size_t>& channels)
+{
+    std::cout << "Setting up trigger" << std::endl;
+
+    struct Pair
+    {
+        std::string path;
+        std::string value;
+    };
+
+    // Global channel settings.
+    {
+        const std::string root = "/mboards/0/trigger/";
+        const std::vector<Pair> pairs= {
+            { root + "sma_dir", "in"       },
+            { root + "sma_pol", "positive" },
+        };
+        for(const auto& pair : pairs)
+        {
+            std::cout << pair.path << "=" << pair.value << std::endl;
+            usrp->set_tree_value(pair.path, pair.value);
+        }
+    }
+
+    // Independent channel settings.
+    for(const auto& channel : channels)
+    {
+        const std::string root = "/mboards/0/tx/" + std::to_string(channel) + "/";
+        const std::vector<Pair> pairs = {
+            { root + "trigger/sma_mode"       , "edge" },
+            { root + "trigger/trig_sel"       , "1"    },
+            { root + "trigger/edge_backoff"   , "0"    },
+            { root + "trigger/edge_sample_num", "100"  },
+            { root + "trigger/gating"         , "dsp"  },
+        };
+        for(const auto& pair : pairs)
+        {
+            std::cout << pair.path << "=" << pair.value << std::endl;
+            usrp->set_tree_value(pair.path, pair.value);
+        }
+    }
+}
+
 /***********************************************************************
  * Main function
  **********************************************************************/
@@ -233,6 +276,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
+    setup_trigger(usrp, channel_nums);
+
     usrp->set_time_now(0.0);
 
     for(double time = first; time <= last; time += increment)
@@ -258,7 +303,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             //fill the buffer with the waveform
             for (size_t n = 0; n < buff.size(); n++){
-                buff[n] = wave_table(index += step);
+                buff[n] = -0.9; //wave_table(index += step);
             }
 
             //send the entire contents of the buffer
@@ -267,6 +312,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             md.start_of_burst = false;
             md.has_time_spec = false;
         }
+
+        std::getchar();
 
         //send a mini EOB packet
         md.end_of_burst = true;
