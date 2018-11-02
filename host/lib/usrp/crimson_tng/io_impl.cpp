@@ -524,7 +524,7 @@ private:
 				} catch( ... ) {
 
 #ifdef DEBUG_FC
-				std::printf("%10d\t", -1);
+				    std::printf("%10d\t", -1);
 #endif
 					continue;
 				}
@@ -541,7 +541,7 @@ private:
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
 					fc->set_buffer_level( level, now );
 #ifdef DEBUG_FC
-				std::printf("%10lu\t", level);
+				    std::printf("%10lu\t", level);
 #endif
 				}
 #ifdef DEBUG_FC
@@ -981,6 +981,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	uint16_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
+    std::printf("%4d\n", lvl);
+
 	uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
 	oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
 
@@ -1015,11 +1017,11 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     static const size_t hdr_size = 0
         + vrt_send_header_offset_words32*sizeof(uint32_t)
         + vrt::max_if_hdr_words32*sizeof(uint32_t)
-        - sizeof(vrt::if_packet_info_t().tlr) //crimson tng does not use trailer on tx
         - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
         - sizeof(vrt::if_packet_info_t().sid) //no stream id ever used
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
-    ;
+        ;
+
     const size_t bpp = _mbc[_mbc.keys().front()].tx_dsp_xports[0]->get_send_frame_size() - hdr_size;
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
 

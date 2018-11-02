@@ -426,6 +426,7 @@ private:
         uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
         if_packet_info.has_sid = _props[index].has_sid;
         if_packet_info.sid = _props[index].sid;
+
         _vrt_packer(otw_mem, if_packet_info);
         otw_mem += if_packet_info.num_header_words32;
 
