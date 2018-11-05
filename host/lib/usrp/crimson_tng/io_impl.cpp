@@ -981,8 +981,6 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	uint16_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
-    std::printf("%4d\n", lvl);
-
 	uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
 	oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
 

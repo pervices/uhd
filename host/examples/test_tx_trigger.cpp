@@ -11,7 +11,7 @@
 class Trigger
 {
 private:
-    const int channel {0};
+    const int channel;
     uhd::usrp::multi_usrp::sptr usrp;
 
 public:
@@ -55,24 +55,24 @@ private:
         return sets;
     }
 
-    void apply(const std::vector<Set> sets) const
+    void apply(const std::vector<Set>& sets) const
     {
         set(sets);
         check(sets);
     }
 
-    void set(const std::vector<Set> sets) const
+    void set(const std::vector<Set>& sets) const
     {
-        for(const auto set : sets)
+        for(const auto& set : sets)
         {
             usrp->set_tree_value(set.path, set.value);
             set.print();
         }
     }
 
-    void check(const std::vector<Set> sets) const
+    void check(const std::vector<Set>& sets) const
     {
-        for(const auto set : sets)
+        for(const auto& set : sets)
         {
             std::string value;
             usrp->get_tree_value(set.path, value);
@@ -81,55 +81,100 @@ private:
     }
 };
 
-int main()
+class Uhd
 {
-    const int channel {0};
+public:
+    uhd::usrp::multi_usrp::sptr usrp;
 
-    uhd::set_thread_priority_safe();
-
-    // Setup USRP.
-    auto usrp = uhd::usrp::multi_usrp::make(std::string(""));
-    usrp->set_clock_source("internal");
-    usrp->set_tx_rate(25e6);
-    usrp->set_tx_freq(uhd::tune_request_t(0.0));
-    usrp->set_tx_gain(10.0);
-
-    // Setup TX streamer.
-    uhd::stream_args_t stream_args("fc32", "sc16");
-    stream_args.channels = { channel };
-    const uhd::tx_streamer::sptr tx { usrp->get_tx_stream(stream_args) };
-
-    // Setup transfer buffer.
-    const int packet_size = tx->get_max_num_samps();
-    std::vector<std::complex<float>> buffer(packet_size);
-    for(int n = 0; n < packet_size; n++)
-        buffer[n] = 0.5 * std::sin(2.0 * 3.1416 * 100.0 * n / packet_size);
-
-    // Trigger disables at end of test with destructor.
-    const Trigger trig(usrp, channel, 100);
-
-    // Setup start of burst.
-    uhd::tx_metadata_t md;
-    md.start_of_burst = true;
-    md.end_of_burst = false;
-    md.has_time_spec = true;
-    md.time_spec = uhd::time_spec_t(2.0);
-
-    const int packets = 5;
-    for(int i = 0; i < packets; i++)
+    Uhd()
     {
-        // Send packet.
-        tx->send(&buffer.front(), packet_size, md);
+        usrp = uhd::usrp::multi_usrp::make(std::string(""));
+        usrp->set_clock_source("internal");
+        usrp->set_tx_rate(25e6);
+        usrp->set_tx_freq(uhd::tune_request_t(0.0));
+        usrp->set_tx_gain(10.0);
+    }
+};
 
-        // Setup subsequent packets to be middle of burst packets.
-        md.start_of_burst = false;
-        md.has_time_spec = false;
+class Streamer
+{
+public:
+    uhd::tx_streamer::sptr tx;
+
+    Streamer(uhd::usrp::multi_usrp::sptr usrp, const size_t channel)
+    {
+        uhd::stream_args_t stream_args("fc32", "sc16");
+        stream_args.channels = { channel };
+        tx = usrp->get_tx_stream(stream_args);
     }
 
-    // Wait for user input.
-    std::getchar();
+    void stream(std::vector<std::complex<float>> values, const size_t packets)
+    {
+        uhd::tx_metadata_t md;
+        md.start_of_burst = true;
+        md.end_of_burst = false;
+        md.has_time_spec = true;
+        md.time_spec = uhd::time_spec_t(2.0);
 
-    // Setup end of burst with empty data and send.
-    md.end_of_burst = true;
-    tx->send("", 0, md);
+        for(size_t i = 0; i < packets; i++)
+        {
+            tx->send(&values.front(), values.size(), md);
+            md.start_of_burst = false;
+            md.has_time_spec = false;
+        }
+        std::cout << "Press any key to stop streaming" << std::endl;
+        std::cin.get();
+
+        md.end_of_burst = true;
+        tx->send("", 0, md);
+    }
+};
+
+class Buffer
+{
+public:
+    std::vector<std::complex<float>> values;
+
+    Buffer(const int size)
+    :
+    values(size)
+    {
+        for(int n = 0; n < size; n++)
+            values[n] = 0.5 * std::sin(2.0 * 3.1416 * 100.0 * n / size);
+    }
+};
+
+class Args
+{
+public:
+    size_t channel;
+    size_t packets;
+
+    Args(int argc, char* argv[])
+    {
+        if(argc != 3)
+        {
+            std::cout << "sudo ./test_tx_trigger channel packets" << std::endl;
+            std::exit(1);
+        }
+        channel = std::stoi(argv[1]);
+        packets = std::stoi(argv[2]);
+    }
+};
+
+int main(int argc, char* argv[])
+{
+    uhd::set_thread_priority_safe();
+
+    const Args args(argc, argv);
+
+    Uhd uhd;
+
+    Streamer streamer(uhd.usrp, args.channel);
+
+    const Buffer buffer(streamer.tx->get_max_num_samps());
+
+    const Trigger trig(uhd.usrp, args.channel, 100);
+
+    streamer.stream(buffer.values, args.packets);
 }
