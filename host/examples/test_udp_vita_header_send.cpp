@@ -161,31 +161,41 @@ public:
     }
 };
 
-void stream(
-    const std::string addr,
-    const std::string port,
-    const int packet_count,
-    const int packet_size,
-    const bool has_tlr, const bool has_cid, const bool has_tsf, const bool has_tsi, const bool has_sid)
+struct Needle
 {
-    uhd::transport::udp_simple::sptr udp = uhd::transport::udp_simple::make_connected(addr, port);
-    std::vector<uint32_t> data(packet_size, 0);
+    const std::string addr;
+    const std::string port;
+    const int packet_count;
+    const int packet_size;
+    const bool has_tlr;
+    const bool has_cid;
+    const bool has_tsf;
+    const bool has_tsi;
+    const bool has_sid;
+    const double freq;
+    const double ampl;
+};
+
+void stream(Needle n)
+{
+    uhd::transport::udp_simple::sptr udp = uhd::transport::udp_simple::make_connected(n.addr, n.port);
+    std::vector<uint32_t> data(n.packet_size, 0);
     const int bytes = to_bytes<uint32_t>(data.size());
 
     // Will stream forever if packet_count is equal to negative one (-1).
-    for(int packet = 0; packet_count == -1 ? true : packet < packet_count; packet++)
+    for(int packet = 0; n.packet_count == -1 ? true : packet < n.packet_count; packet++)
     {
         Header header(
-            packet_size,
+            n.packet_size,
             packet,
-            has_tsf ? TSF::SAMPLE_COUNT : TSF::NONE,
-            has_tsi ? TSI::UTC : TSI::NONE,
-            has_tlr,
-            has_cid,
-            has_sid ? Type::IF_WITH_STREAM_ID : Type::IF_WITHOUT_STREAM_ID);
+            n.has_tsf ? TSF::SAMPLE_COUNT : TSF::NONE,
+            n.has_tsi ? TSI::UTC : TSI::NONE,
+            n.has_tlr,
+            n.has_cid,
+            n.has_sid ? Type::IF_WITH_STREAM_ID : Type::IF_WITHOUT_STREAM_ID);
 
-        header.stamp(data, (1 + packet) * packet_size);
-        header.sin(data, 0.1, 10.0);
+        header.stamp(data, (1 + packet) * n.packet_size);
+        header.sin(data, n.ampl, n.freq);
         header.flip_endian(data);
 
         udp->send(boost::asio::const_buffer(&data.front(), bytes));
@@ -195,6 +205,8 @@ void stream(
 int main(int argc, char* argv[])
 {
     // Command line arguments.
+    std::vector<std::string> ports;
+    std::vector<std::string> addrs;
     int packet_count;
     int packet_size;
     bool has_tlr;
@@ -202,23 +214,25 @@ int main(int argc, char* argv[])
     bool has_tsf;
     bool has_tsi;
     bool has_sid;
+    double freq;
+    double ampl;
 
     // Parse command line arguments.
     namespace po = boost::program_options;
     po::options_description desc("Command line arguments");
-    std::vector<std::string> ports;
-    std::vector<std::string> addrs;
     desc.add_options()
         ("help"        , "This help screen")
         ("ports"       , po::value<std::vector<std::string>>(&ports)->multitoken(), "List of IP ports (42809 42810)"              )
         ("addrs"       , po::value<std::vector<std::string>>(&addrs)->multitoken(), "List of IP addresses (10.10.10.2 10.10.10.3)")
-        ("packet_count", po::value<int >(&packet_count)->default_value(8         ), "Number of packets to send (-1 for infinite)" )
-        ("packet_size" , po::value<int >(&packet_size )->default_value(2233      ), "Number of samples per packet"                )
-        ("has_tlr"     , po::value<bool>(&has_tlr     )->default_value(0         ), "Use a Trailer?"                              )
-        ("has_cid"     , po::value<bool>(&has_cid     )->default_value(0         ), "Use a Class ID?"                             )
-        ("has_tsf"     , po::value<bool>(&has_tsf     )->default_value(1         ), "Use a Fractional Time Stamp?"                )
-        ("has_tsi"     , po::value<bool>(&has_tsi     )->default_value(0         ), "Use an Integer Time Stamp?"                  )
-        ("has_sid"     , po::value<bool>(&has_sid     )->default_value(0         ), "Use a Stream ID"                             )
+        ("packet_count", po::value<int   >(&packet_count)->default_value(8         ), "Number of packets to send (-1 for infinite)" )
+        ("packet_size" , po::value<int   >(&packet_size )->default_value(2233      ), "Number of samples per packet"                )
+        ("has_tlr"     , po::value<bool  >(&has_tlr     )->default_value(0         ), "Use a Trailer?"                              )
+        ("has_cid"     , po::value<bool  >(&has_cid     )->default_value(0         ), "Use a Class ID?"                             )
+        ("has_tsf"     , po::value<bool  >(&has_tsf     )->default_value(1         ), "Use a Fractional Time Stamp?"                )
+        ("has_tsi"     , po::value<bool  >(&has_tsi     )->default_value(0         ), "Use an Integer Time Stamp?"                  )
+        ("has_sid"     , po::value<bool  >(&has_sid     )->default_value(0         ), "Use a Stream ID"                             )
+        ("freq"        , po::value<double>(&freq        )->default_value(100.0     ), "Sinewave frequency per packet (not total frequency")
+        ("ampl"        , po::value<double>(&ampl        )->default_value(0.1       ), "Sinewave amplitude")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -226,7 +240,7 @@ int main(int argc, char* argv[])
     if(vm.count("help"))
     {
         std::cout << boost::format("%s") % desc << std::endl;
-        std::cout << "Exiting" << std::endl;
+        std::cout << "Exiting..." << std::endl;
         exit(1);
     }
     if(ports.size() != addrs.size())
@@ -241,9 +255,10 @@ int main(int argc, char* argv[])
     {
         const std::string addr = addrs[i];
         const std::string port = ports[i];
-        threads[i] = boost::thread(stream, addr, port, packet_count, packet_size, has_tlr, has_cid, has_tsf, has_tsi, has_sid);
+        Needle needle = { addr, port, packet_count, packet_size, has_tlr, has_cid, has_tsf, has_tsi, has_sid, freq, ampl };
+        threads[i] = boost::thread(stream, needle);
     }
 
-    // Cleanup.
-    for(auto& thread : threads) thread.join();
+    // Wait for threads to complete.
+    for(auto& thread: threads) thread.join();
 }
