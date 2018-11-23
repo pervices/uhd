@@ -2,9 +2,11 @@
 #include <uhd/transport/udp_simple.hpp>
 #include <boost/endian/conversion.hpp>
 #include <boost/format.hpp>
+#include <boost/thread.hpp>
 #include <iostream>
+#include <cmath>
 
-enum class Packet
+enum class Type
 {
     IF_WITHOUT_STREAM_ID, IF_WITH_STREAM_ID, EXTENSION_WITHOUT_STREAM_ID, EXTENSION_WITH_STREAM_ID, CONTEXT, EXTENSION_CONTEX, RESERVED
 };
@@ -19,38 +21,35 @@ enum class TSF
     NONE, SAMPLE_COUNT, PICOSECOND, FREE_RUNNING
 };
 
-template <typename T>
-struct Load
+template <typename T> size_t to_bits()
 {
-    std::vector<T> data;
-    const int bytes;
+    return sizeof(T) * CHAR_BIT;
+}
 
-    Load(const int packet_size)
-    :
-    data(packet_size),
-    bytes(packet_size * sizeof(T))
-    {}
-};
+template <typename T> size_t to_bytes(const size_t count)
+{
+    return sizeof(T) * count;
+}
 
 class Header
 {
 public:
-    const int words;
-    const int count;
+    const int packet_size;
+    const int packet;
     const TSF tsf;
     const TSI tsi;
     const bool has_tlr;
     const bool has_cid;
-    const Packet type;
+    const Type type;
     const bool has_hdr;
     const bool has_tsf;
     const bool has_tsi;
     const bool has_sid;
 
-    Header(const int words, const int count, const TSF tsf, const TSI tsi, const bool has_tlr, const bool has_cid, const Packet type)
+    Header(const int packet_size, const int packet, const TSF tsf, const TSI tsi, const bool has_tlr, const bool has_cid, const Type type)
     :
-    words {words},
-    count {count},
+    packet_size {packet_size},
+    packet {packet},
     tsf {tsf},
     tsi {tsi},
     has_tlr {has_tlr},
@@ -64,112 +63,114 @@ public:
         tsi != TSI::NONE
     },
     has_sid {
-        type == Packet::IF_WITH_STREAM_ID || type == Packet::EXTENSION_WITH_STREAM_ID
+        type == Type::IF_WITH_STREAM_ID ||
+        type == Type::EXTENSION_WITH_STREAM_ID
     }
     {}
 
 private:
     int get_data_start() const
     {
-        return 1 * has_hdr + 1 * has_sid + 2 * has_cid + 1 * has_tsi + 2 * has_tsf;
+        return
+            1 * has_hdr +
+            1 * has_sid +
+            2 * has_cid +
+            1 * has_tsi +
+            2 * has_tsf;
     }
 
     int get_data_length() const
     {
-        return words - get_data_start() - 1 * has_tlr;
+        return packet_size - get_data_start() - 1 * has_tlr;
+    }
+
+    int get_data_end() const
+    {
+        return get_data_start() + get_data_length();
     }
 
 public:
-    template <typename T>
-    void stamp(Load<T>& load) const
+    void stamp(std::vector<uint32_t>& data) const
     {
         int index = 0;
-        load.data[index++] =
-            ((static_cast<int>(words  ) & 0xFFFF) <<  0) |
-            ((static_cast<int>(count  ) & 0x000F) << 16) |
-            ((static_cast<int>(tsf    ) & 0x0003) << 20) |
-            ((static_cast<int>(tsi    ) & 0x0003) << 22) |
-            ((static_cast<int>(has_tlr) & 0x0001) << 26) |
-            ((static_cast<int>(has_cid) & 0x0001) << 27) |
-            ((static_cast<int>(type   ) & 0x000F) << 28);
+        data[index++] =
+            ((static_cast<int>(packet_size) & 0xFFFF) <<  0) |
+            ((static_cast<int>(packet     ) & 0x000F) << 16) |
+            ((static_cast<int>(tsf        ) & 0x0003) << 20) |
+            ((static_cast<int>(tsi        ) & 0x0003) << 22) |
+            ((static_cast<int>(has_tlr    ) & 0x0001) << 26) |
+            ((static_cast<int>(has_cid    ) & 0x0001) << 27) |
+            ((static_cast<int>(type       ) & 0x000F) << 28);
 
         if(has_sid)
-            load.data[index++] = 0xBabeCafe;
+            data[index++] = 0xBabeCafe;
 
         if(has_cid)
         {
-            load.data[index++] = 0xDeadBeef;
-            load.data[index++] = 0xBeefDead;
+            data[index++] = 0xDeadBeef;
+            data[index++] = 0xBeefDead;
         }
 
         if(has_tsi)
-            load.data[index++] = 0xDeadFace;
+            data[index++] = 0xDeadFace;
 
         if(has_tsf)
-            load.data[index++] = 0xDeadDead;
+            data[index++] = 0xDeadDead;
 
         if(has_tlr)
-            load.data[words-1] = 0xDeadCafe;
+            data[packet_size-1] = 0xDeadCafe;
     }
 
-    template <typename T>
-    void increment(Load<T>& load) const
+    void increment(std::vector<uint32_t>& data) const
     {
         const int a = get_data_start();
-        const int b = get_data_start() + get_data_length();
+        const int b = get_data_end();
         for(int i = a; i < b; i++)
-            load.data[i] = i;
+            data[i] = i;
     }
 
-    template <typename T>
-    void flip_endian(Load<T>& load) const
+    void sin(std::vector<uint32_t>& data, const float ampl, const float freq) const
     {
-        for(int i = 0; i < words; i++)
-            boost::endian::native_to_big_inplace(load.data[i]);
+        const constexpr float pi = std::acos(-1.0);
+        const int a = get_data_start();
+        const int b = get_data_end();
+        const int n = get_data_length();
+        for(int i = a; i < b; i++)
+        {
+            // Generate.
+            const double I = ampl * (std::sin(freq * pi * i / (double) n) + 1.0);
+            const double Q = ampl * (std::cos(freq * pi * i / (double) n) + 1.0);
+
+            // Interleave.
+            const uint16_t II = I * UINT16_MAX;
+            const uint16_t QQ = Q * UINT16_MAX;
+
+            // Set.
+            data[i] = II << to_bits<uint16_t>() | QQ;
+        }
+    }
+
+    void flip_endian(std::vector<uint32_t>& data) const
+    {
+        for(int i = 0; i < packet_size; i++)
+            boost::endian::native_to_big_inplace(data[i]);
     }
 };
 
-int main(int argc, char* argv[])
+void stream(
+    const std::string addr,
+    const std::string port,
+    const int packet_count,
+    const int packet_size,
+    const bool has_tlr, const bool has_cid, const bool has_tsf, const bool has_tsi, const bool has_sid)
 {
-    std::string addr;
-    std::string port;
-    int packet_count;
-    int packet_size;
-    bool has_tlr;
-    bool has_cid;
-    bool has_tsf;
-    bool has_tsi;
-    bool has_sid;
-    boost::program_options::options_description desc("Command line arguments");
-    desc.add_options()
-        ("help"        , "This help screen")
-        ("addr"        , boost::program_options::value<std::string>(&addr)->default_value("10.10.10.2"), "IP address of target machine")
-        ("port"        , boost::program_options::value<std::string>(&port)->default_value("42809"     ), "Port of target machine"      )
-        ("packet_count", boost::program_options::value<int>(&packet_count)->default_value(32          ), "Number of packets to send"   )
-        ("packet_size" , boost::program_options::value<int>(&packet_size )->default_value(2233        ), "Number of samples per packet")
-        ("has_tlr"     , boost::program_options::value<bool>(&has_tlr    )->default_value(1           ), "Use a Trailer?"              )
-        ("has_cid"     , boost::program_options::value<bool>(&has_cid    )->default_value(1           ), "Use a Class ID?"             )
-        ("has_tsf"     , boost::program_options::value<bool>(&has_tsf    )->default_value(1           ), "Use a Fractional Time Stamp?")
-        ("has_tsi"     , boost::program_options::value<bool>(&has_tsi    )->default_value(1           ), "Use an Integer Time Stamp?"  )
-        ("has_sid"     , boost::program_options::value<bool>(&has_sid    )->default_value(1           ), "Use a Stream ID"             )
-    ;
-    boost::program_options::variables_map vm;
-    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
-    boost::program_options::notify(vm);
-
-    if(vm.count("help"))
-    {
-        std::cout << boost::format("%s") % desc << std::endl;
-        std::cout << "Exiting" << std::endl;
-        exit(1);
-    }
-
     uhd::transport::udp_simple::sptr udp = uhd::transport::udp_simple::make_connected(addr, port);
+    std::vector<uint32_t> data(packet_size, 0);
+    const int bytes = to_bytes<uint32_t>(data.size());
 
-    for(int packet = 0; packet < packet_count; packet++)
+    // Will stream forever if packet_count is equal to negative one (-1).
+    for(int packet = 0; packet_count == -1 ? true : packet < packet_count; packet++)
     {
-        Load<uint32_t> load(packet_size);
-
         Header header(
             packet_size,
             packet,
@@ -177,12 +178,68 @@ int main(int argc, char* argv[])
             has_tsi ? TSI::UTC : TSI::NONE,
             has_tlr,
             has_cid,
-            has_sid ? Packet::IF_WITH_STREAM_ID : Packet::IF_WITHOUT_STREAM_ID);
+            has_sid ? Type::IF_WITH_STREAM_ID : Type::IF_WITHOUT_STREAM_ID);
 
-        header.stamp(load);
-        header.increment(load);
-        header.flip_endian(load);
+        header.stamp(data);
+        header.sin(data, 0.1, 10.0);
+        header.flip_endian(data);
 
-        udp->send(boost::asio::const_buffer(&load.data.front(), load.bytes));
+        udp->send(boost::asio::const_buffer(&data.front(), bytes));
     }
+}
+
+int main(int argc, char* argv[])
+{
+    // Command line arguments.
+    int packet_count;
+    int packet_size;
+    bool has_tlr;
+    bool has_cid;
+    bool has_tsf;
+    bool has_tsi;
+    bool has_sid;
+
+    // Parse command line arguments.
+    namespace po = boost::program_options;
+    po::options_description desc("Command line arguments");
+    std::vector<std::string> ports;
+    std::vector<std::string> addrs;
+    desc.add_options()
+        ("help"        , "This help screen")
+        ("ports"       , po::value<std::vector<std::string>>(&ports)->multitoken(), "List of IP ports (42809 42810)"              )
+        ("addrs"       , po::value<std::vector<std::string>>(&addrs)->multitoken(), "List of IP addresses (10.10.10.2 10.10.10.3)")
+        ("packet_count", po::value<int >(&packet_count)->default_value(8         ), "Number of packets to send"                   )
+        ("packet_size" , po::value<int >(&packet_size )->default_value(2233      ), "Number of samples per packet"                )
+        ("has_tlr"     , po::value<bool>(&has_tlr     )->default_value(0         ), "Use a Trailer?"                              )
+        ("has_cid"     , po::value<bool>(&has_cid     )->default_value(0         ), "Use a Class ID?"                             )
+        ("has_tsf"     , po::value<bool>(&has_tsf     )->default_value(1         ), "Use a Fractional Time Stamp?"                )
+        ("has_tsi"     , po::value<bool>(&has_tsi     )->default_value(0         ), "Use an Integer Time Stamp?"                  )
+        ("has_sid"     , po::value<bool>(&has_sid     )->default_value(0         ), "Use a Stream ID"                             )
+    ;
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+    if(vm.count("help"))
+    {
+        std::cout << boost::format("%s") % desc << std::endl;
+        std::cout << "Exiting" << std::endl;
+        exit(1);
+    }
+    if(ports.size() != addrs.size())
+    {
+        std::cout << "Error: Number of ports must equal number of addrs";
+        std::exit(1);
+    }
+
+    // Stream one thread per channel (eg. one thread per IP Address and Port pair).
+    std::vector<boost::thread> threads {addrs.size()};
+    for(size_t i = 0; i < threads.size(); i++)
+    {
+        const std::string addr = addrs[i];
+        const std::string port = ports[i];
+        threads[i] = boost::thread(stream, addr, port, packet_count, packet_size, has_tlr, has_cid, has_tsf, has_tsi, has_sid);
+    }
+
+    // Cleanup.
+    for(auto& thread : threads) thread.join();
 }
