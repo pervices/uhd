@@ -90,7 +90,7 @@ private:
     }
 
 public:
-    void stamp(std::vector<uint32_t>& data) const
+    void stamp(std::vector<uint32_t>& data, const uint64_t timestamp) const
     {
         int index = 0;
         data[index++] =
@@ -115,10 +115,14 @@ public:
             data[index++] = 0xDeadFace;
 
         if(has_tsf)
-            data[index++] = 0xDeadDead;
+        {
+            const uint32_t mask = 0xFFFFFFFF;
+            data[index++] = mask & (timestamp >> to_bits<uint32_t>());
+            data[index++] = mask & (timestamp);
+        }
 
         if(has_tlr)
-            data[packet_size-1] = 0xDeadCafe;
+            data[packet_size - 1] = 0xDeadCafe;
     }
 
     void increment(std::vector<uint32_t>& data) const
@@ -180,7 +184,7 @@ void stream(
             has_cid,
             has_sid ? Type::IF_WITH_STREAM_ID : Type::IF_WITHOUT_STREAM_ID);
 
-        header.stamp(data);
+        header.stamp(data, (1 + packet) * packet_size);
         header.sin(data, 0.1, 10.0);
         header.flip_endian(data);
 
