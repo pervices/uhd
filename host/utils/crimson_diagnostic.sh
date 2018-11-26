@@ -37,8 +37,12 @@ done
 
 # -------------------------------------------------------------------------
 
+#TODO: Add check/print out of client UHD version
+
 # Ping the device (timeout = 10s)
 # Send a single packet to see is the device host is up
+
+#TODO: Get management IP address from uhd_find_devices 
 
 ping -c 1 192.168.10.2 -w 10 > /dev/null
 if [ $? -eq 0 ]; then
@@ -58,6 +62,7 @@ fi
 
 # Ping each port (timeout = 10s)
 # Ping SFP+ A/B to see if the ports are working
+# TODO: Get this from server?
 # Same as software ping test
 
 count=0
@@ -80,6 +85,9 @@ echo -e "Ping Test:\t$count of 2 Successful$error_msg"
 
 # Check the sysctl mem settings
 # Receive Buffer Size
+
+#TODO: Use interfaces associated with SFP+ addresses
+# Or on same subnet
 rmem_max=$(sysctl -n net.core.rmem_max)
 if [ $rmem_max -ne 50000000 ]; then
     # Only set the buffer size if appropriate flag set
@@ -178,7 +186,7 @@ fi
 
 # Processes
 # Check if there are other processes running on Crimson
-
+# Use SFP ip addresses
 processes=$(lsof | egrep '10.10.10.2|10.10.11.2')
 if [ ! -z "$processes" ]; then
     echo -e "\nThere are processes currently controlling Crimson."

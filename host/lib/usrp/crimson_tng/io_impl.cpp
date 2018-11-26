@@ -51,6 +51,9 @@
   #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
   #define UHD_TXRX_SEND_DEBUG_PRINTS
   #endif
+  #ifndef DEBUG_FC
+  #define DEBUG_FC
+  #endif
 #endif
 
 #if 0
@@ -524,7 +527,7 @@ private:
 				} catch( ... ) {
 
 #ifdef DEBUG_FC
-				    std::printf("%10d\t", -1);
+				  std::printf("%10d\t", -1);
 #endif
 					continue;
 				}

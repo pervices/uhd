@@ -41,6 +41,13 @@ namespace asio = boost::asio;
 #define DEFAULT_NUM_FRAMES 32
 #endif
 
+#if 0
+    #ifndef
+      #define DEBUG_COUT
+    #endif
+#endif
+
+
 // This is a lock to prevent multiple threads from requesting commands from
 // the device at the same time. This is important in GNURadio, as they spawn
 // a new thread per block. If not protected, UDP commands would time out.
@@ -215,7 +222,7 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 
 	const size_t ch = pre_to_ch( pre );
 	const uhd::time_spec_t now = get_time_now();
-
+#ifdef DEBUG_COUT
     std::cout
         << std::fixed << std::setprecision(6)
         << now.get_real_secs()
@@ -227,6 +234,7 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
         << stream_cmd.num_samps << ": "
         << stream_cmd.stream_now << ": "
         << stream_cmd.time_spec.get_real_secs() << std::endl;
+#endif
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
@@ -261,7 +269,9 @@ void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value )
 
 	if ( "time/clk/cmd" == key ) {
         _command_time = value; // Handles set_command_time() and clear_command_time()
+        #ifdef DEBUG_COUT
         std::cout << "updating command time to: " << _command_time.get_real_secs() << std::endl;
+        #endif
     }
 }
 
@@ -326,8 +336,9 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.mask);
-
+        #ifdef DEBUG_COUT
         std::cout << "GPIO packet size: " << sizeof(pkt) << " bytes" << std::endl;
+        #endif
 
         send_gpio_burst_req(pkt);
     }

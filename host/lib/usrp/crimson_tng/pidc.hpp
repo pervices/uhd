@@ -1,8 +1,9 @@
 #ifndef PIDC_HPP_
 #define PIDC_HPP_
 
-#ifndef DEBUG_PIDC
-//#define DEBUG_PIDC 1
+#if 0
+ #ifndef DEBUG_PIDC
+ #define DEBUG_PIDC 1
 #endif
 
 #ifdef DEBUG_PIDC
