@@ -31,6 +31,8 @@ SET(example_sources
     sync_to_gps.cpp
     rxtx_inline_filter_crimson.cpp
     test_set_get_path_value.cpp
+    test_tx_trigger.cpp
+    test_udp_vita_header_send.cpp
 )
 
 IF(ENABLE_RFNOC)
