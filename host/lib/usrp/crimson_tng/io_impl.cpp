@@ -51,6 +51,9 @@
   #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
   #define UHD_TXRX_SEND_DEBUG_PRINTS
   #endif
+#endif
+
+#if 1
   #ifndef DEBUG_FC
   #define DEBUG_FC
   #endif
