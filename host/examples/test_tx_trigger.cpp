@@ -120,10 +120,6 @@ public:
 
         for(size_t n = 0; n < size; n++)
             buffer[n] = ampl * std::sin(2.0 * pi * freq * n / size);
-
-        std::cout << size << std::endl;
-        std::cout << buffer.size() << std::endl;
-        std::exit(1);
     }
 
     void mirror(const std::vector<size_t>& channels)

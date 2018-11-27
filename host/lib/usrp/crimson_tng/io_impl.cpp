@@ -53,9 +53,15 @@
   #endif
 #endif
 
-#if 1
+#if 0
   #ifndef DEBUG_FC
   #define DEBUG_FC
+  #endif
+#endif
+
+#if 1
+  #ifndef BUFFER_LVL_DEBUG
+  #define BUFFER_LVL_DEBUG
   #endif
 #endif
 
@@ -986,6 +992,14 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 	uint16_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
+
+#ifdef BUFFER_LVL_DEBUG
+    std::printf("%10u\t", lvl);
+    if(channel == 3)
+    {
+        std::printf("\n");
+    }
+#endif
 
 	uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
 	oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
