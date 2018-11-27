@@ -980,6 +980,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
 		_tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
 
+		_tree->create<std::string>(rx_fe_path / "antenna" / "value").set("N/A");
+
 		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
 		_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
 
@@ -1123,6 +1125,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
 		_tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
+
+		_tree->create<std::string>(tx_fe_path / "antenna" / "value").set("N/A");
 
 		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
 		_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
