@@ -29,7 +29,7 @@ class TCA6408(object):
     def __init__(self, i2c_dev):
         if i2c_dev is None:
             raise RuntimeError("Need to specify i2c device to use the TCA6408")
-        self._gpios = SysFSGPIO('tca6408', 0xBF, 0xAA, 0xAA, i2c_dev)
+        self._gpios = SysFSGPIO({'label': 'tca6408'}, 0xBF, 0xAA, 0xAA, i2c_dev)
 
     def set(self, name, value=None):
         """
@@ -190,12 +190,19 @@ class MgCPLD(object):
         mask = (1<<4) if which.lower() == 'tx' else 1
         return bool(self.peek16(self.REG_LO_STATUS & mask))
 
-    def reset_mykonos(self):
+    def reset_mykonos(self, keep_in_reset=False):
         """
-        Hard-resets Mykonos
+        Hard-resets Mykonos.
+
+        Arguments:
+        keep_in_reset -- If True, Mykonos will stay in reset. Otherwise, it will
+                         simply pulse the reset and Mykonos will be out of reset
+                         once the function returns
         """
         self.log.debug("Resetting AD9371!")
         self.poke16(self.REG_MYK_CTRL, 0x1)
+        if keep_in_reset:
+            return
         time.sleep(0.001) # No spec here, but give it some time to reset.
         self.poke16(self.REG_MYK_CTRL, 0x0)
         time.sleep(0.001) # No spec here, but give it some time to reset.

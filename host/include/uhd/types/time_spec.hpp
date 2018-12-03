@@ -10,7 +10,6 @@
 
 #include <uhd/config.hpp>
 #include <boost/operators.hpp>
-#include <ctime>
 
 namespace uhd{
 
@@ -26,7 +25,10 @@ namespace uhd{
      * This gives the fractional seconds enough precision to unambiguously
      * specify a clock-tick/sample-count up to rates of several petahertz.
      */
-    class UHD_API time_spec_t : boost::additive<time_spec_t>, boost::totally_ordered<time_spec_t>{
+    class UHD_API time_spec_t : 
+        boost::additive<time_spec_t>,
+        boost::additive<time_spec_t, double>,
+        boost::totally_ordered<time_spec_t>{
     public:
     	 /*! DEPRECATED -- Will get removed from UHD in future versions.
     	         *
@@ -47,7 +49,7 @@ namespace uhd{
          * \param full_secs the whole/integer seconds count
          * \param frac_secs the fractional seconds count (default = 0)
          */
-        time_spec_t(time_t full_secs, double frac_secs = 0);
+        time_spec_t(int64_t full_secs, double frac_secs = 0);
 
         /*!
          * Create a time_spec_t from whole seconds and fractional ticks.
@@ -56,7 +58,7 @@ namespace uhd{
          * \param tick_count the fractional seconds tick count
          * \param tick_rate the number of ticks per second
          */
-        time_spec_t(time_t full_secs, long tick_count, double tick_rate);
+        time_spec_t(int64_t full_secs, long tick_count, double tick_rate);
 
         /*!
          * Create a time_spec_t from a 64-bit tick count.
@@ -94,7 +96,7 @@ namespace uhd{
          * Get the whole/integer part of the time in seconds.
          * \return the whole/integer seconds
          */
-        time_t get_full_secs(void) const;
+        int64_t get_full_secs(void) const;
 
         /*!
          * Get the fractional part of the time in seconds.
@@ -105,13 +107,14 @@ namespace uhd{
         //! Implement addable interface
         time_spec_t &operator+=(const time_spec_t &);
         time_spec_t &operator+=(double &);
-        time_spec_t operator+(double &);
-        time_spec_t operator+(const time_spec_t &);
         //! Implement subtractable interface
         time_spec_t &operator-=(const time_spec_t &);
+        time_spec_t &operator-=(double &);
 
     //private time storage details
-    private: time_t _full_secs; double _frac_secs;
+    private:
+        int64_t _full_secs;
+        double _frac_secs;
     };
 
     //! Implement equality_comparable interface
@@ -120,7 +123,7 @@ namespace uhd{
     //! Implement less_than_comparable interface
     UHD_API bool operator<(const time_spec_t &, const time_spec_t &);
 
-    UHD_INLINE time_t time_spec_t::get_full_secs(void) const{
+    UHD_INLINE int64_t time_spec_t::get_full_secs(void) const{
         return this->_full_secs;
     }
 
