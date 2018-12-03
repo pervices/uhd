@@ -14,7 +14,9 @@ Boost.Python from your Boost library). Make sure you have the CMake variable
 
 The Python API supports both Python 2 and 3, but if you have both versions
 installed, CMake might require some hints which version is the desired one.
-To force Python 3, UHD has a CMake variable `ENABLE_PYTHON3`
+To force Python 3, UHD has a CMake variable `ENABLE_PYTHON3`. If you set it,
+e.g., by running `cmake -DENABLE_PYTHON3=ON`, it will force the usage of
+Python 3.
 
 \subsection python_install_windows Installing on Windows
 
@@ -58,7 +60,7 @@ usrp.set_rx_freq(100e6)
 
 Not all API calls from the C++ API are also supported in the Python API, and
 the Python API has some additional functions that are not available in C++, but
-for the most part, the `uhd::usrp::multi_usrp` API is identical.
+for the most part, the uhd::usrp::multi_usrp API is identical.
 
 \section python_usage_oneoff One-off transmit/receive applications
 
@@ -90,6 +92,29 @@ def recv_to_file():
 
 This kind of API is particularly useful in combination with Jupyter Notebooks or
 similar interactive environments.
+
+\section python_usage_gil Python Global Interpreter Lock
+
+From the <a href="https://wiki.python.org/moin/GlobalInterpreterLock">Python wiki page on the GIL:</a>
+> In CPython, the global interpreter lock, or GIL, is a mutex that protects
+> access to Python objects, preventing multiple threads from executing Python
+> bytecodes at once.
+
+During some performance-critical function calls, the UHD Python API releases the
+GIL, during which Python objects have their contents modified. The functions
+calls which do so are uhd::rx_streamer::recv, uhd::tx_streamer::send, and
+uhd::tx_streamer::recv_async_msg. To be clear, the functions listed here violate
+the expected contract set out by the GIL by accessing Python objects (from C++)
+without holding the GIL. This is necessary to achieve rates similar to what the
+C++ API can provide.
+
+To this end, users must ensure that the Python objects accessed by the listed
+functions are handled with care. In simple, single threaded applications, this
+won't require any extra work. However, in more complicated and/or multi-
+threaded applications, steps must be taken to avoid thread-unsafe behavior. For
+example, if an application needs to call recv() in one thread, and access the
+sample buffer from another thread, a synchronization method (ie. a mutex) must
+be used to safeguard access to that buffer.
 
 */
 // vim:ft=doxygen:

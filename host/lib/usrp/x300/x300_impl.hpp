@@ -12,6 +12,8 @@
 #include "x300_clock_ctrl.hpp"
 #include "x300_fw_common.h"
 #include "x300_regs.hpp"
+#include "x300_defaults.hpp"
+#include "x300_device_args.hpp"
 
 #include "../device3/device3_impl.hpp"
 #include <uhd/property_tree.hpp>
@@ -107,6 +109,7 @@ struct x300_eth_conn_t
 {
     std::string addr;
     x300_eth_iface_t type;
+    size_t link_rate;
 };
 
 
@@ -155,6 +158,8 @@ private:
     //vector of member objects per motherboard
     struct mboard_members_t
     {
+        uhd::usrp::x300::x300_device_args_t args;
+
         bool initialization_done;
         uhd::task::sptr claimer_task;
         std::string xport_path;
@@ -287,7 +292,7 @@ private:
             const uhd::usrp::mboard_eeprom_t &
     );
 
-    void check_fw_compat(const uhd::fs_path &mb_path, uhd::wb_iface::sptr iface);
+    void check_fw_compat(const uhd::fs_path &mb_path, const mboard_members_t &members);
     void check_fpga_compat(const uhd::fs_path &mb_path, const mboard_members_t &members);
 
     /// More IO stuff

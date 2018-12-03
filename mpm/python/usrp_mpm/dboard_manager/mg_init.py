@@ -76,6 +76,11 @@ class MagnesiumInitManager(object):
     # Variable PPS delay before the RP/SP pulsers begin. Fixed value for the
     # N3xx devices.
     N3XX_INT_PPS_DELAY = 4
+    # JESD core default configuration.
+    JESD_DEFAULT_ARGS = {"bypass_descrambler": False,
+                         "lmfc_divider"      : 20,
+                         "rx_sysref_delay"   : 8,
+                         "tx_sysref_delay"   : 11}
 
     def __init__(self, mg_class, spi_ifaces):
         self.mg_class = mg_class
@@ -460,6 +465,10 @@ class MagnesiumInitManager(object):
         time.sleep(0.001) # 17us... ish.
         jesdcore.send_sysref_pulse()
         async_exec(self.mykonos, "finish_initialization")
+        # According to the AD9371 user guide, p.57, the RF cal must come before
+        # the framer/deframer init. We tried otherwise, and failed. So don't
+        # move this anywhere else.
+        self.init_rf_cal(args)
         self.log.trace("Starting JESD204b Link Initialization...")
         # Generally, enable the source before the sink. Start with the DAC side.
         self.log.trace("Starting FPGA framer...")
@@ -521,7 +530,7 @@ class MagnesiumInitManager(object):
             read_only=False
         ) as dboard_ctrl_regs:
             self.log.trace("Creating jesdcore object...")
-            jesdcore = nijesdcore.NIMgJESDCore(dboard_ctrl_regs, slot_idx)
+            jesdcore = nijesdcore.NIJESDCore(dboard_ctrl_regs, slot_idx, **self.JESD_DEFAULT_ARGS)
             # Now get cracking with the actual init sequence:
             self.log.trace("Creating dboard clock control object...")
             db_clk_control = DboardClockControl(dboard_ctrl_regs, self.log)
@@ -547,8 +556,9 @@ class MagnesiumInitManager(object):
             self.log.debug(
                 "Sample Clocks and Phase DAC Configured Successfully!")
             # Clocks and PPS are now fully active!
-            self.mykonos.set_master_clock_rate(master_clock_rate)
-            self.init_jesd(jesdcore, master_clock_rate, args)
+            if args.get('skip_rfic', None) == None:
+                self.mykonos.set_master_clock_rate(master_clock_rate)
+                self.init_jesd(jesdcore, master_clock_rate, args)
             jesdcore = None # Help with garbage collection
             # That's all that requires access to the dboard regs!
         return True
@@ -617,10 +627,5 @@ class MagnesiumInitManager(object):
                 "enabled inside Mykonos!")
             self.mykonos.enable_jesd_loopback(1)
         else:
-            # Now initialize calibrations:
-            # TODO: This also takes a long time. It might be faster to somehow
-            # just reset the calibrations, but one thing at a time.
-            self.init_rf_cal(args)
             self.mykonos.start_radio()
         return True
-

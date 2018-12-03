@@ -11,6 +11,7 @@
 
 LIBUHD_APPEND_SOURCES(
     # Infrastructure:
+    ${CMAKE_CURRENT_SOURCE_DIR}/async_msg_handler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/block_ctrl_base.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/block_ctrl_base_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/block_ctrl_impl.cpp
@@ -40,6 +41,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/radio_ctrl_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/siggen_block_ctrl_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dma_fifo_block_ctrl_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/replay_block_ctrl_impl.cpp
 )
 
 INCLUDE_SUBDIRECTORY(nocscript)

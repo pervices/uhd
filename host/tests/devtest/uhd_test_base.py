@@ -5,6 +5,9 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
+"""
+Devtest: Base module. Provides classes for running devtest tests.
+"""
 
 from __future__ import print_function
 import os
@@ -17,6 +20,33 @@ from subprocess import Popen, PIPE
 import yaml
 from six import iteritems
 from usrp_probe import get_usrp_list
+
+#--------------------------------------------------------------------------
+# Helpers
+#--------------------------------------------------------------------------
+def filter_warnings(errstr):
+    """
+    Searches errstr for UHD warnings, removes them, and puts them into a
+    separate string.
+    Returns (errstr, warnstr), where errstr no longer has warnings. """
+    warn_re = re.compile("UHD Warning:\n(?:    .*\n)+")
+    warnstr = "\n".join(warn_re.findall(errstr)).strip()
+    errstr = warn_re.sub('', errstr).strip()
+    return (errstr, warnstr)
+
+def filter_stderr(stderr, run_results=None):
+    """
+    Filters the output to stderr. run_results[] is a dictionary.
+    This function will:
+    - Remove warnings and put them in run_results['warnings']
+    - Put the filtered error string into run_results['errors'] and returns the dictionary
+    """
+    run_results = run_results or {}
+    errstr, run_results['warnings'] = filter_warnings(stderr)
+    # Scan for underruns and sequence errors / dropped packets  not detected in the counter
+    errstr = re.sub("\n\n+", "\n", errstr)
+    run_results['errors'] = errstr.strip()
+    return run_results
 
 #--------------------------------------------------------------------------
 # Application
@@ -39,10 +69,23 @@ class shell_application(object):
         cmd_line = [self.name]
         cmd_line.extend(args)
         start_time = time.time()
-        proc = Popen(cmd_line, stdout=PIPE, stderr=PIPE, close_fds=True)
-        self.stdout, self.stderr = proc.communicate()
-        self.returncode = proc.returncode
-        self.exec_time = time.time() - start_time
+        env = os.environ
+        env["UHD_LOG_FASTPATH_DISABLE"] = "1"
+        try:
+            proc = Popen(
+                cmd_line,
+                stdout=PIPE,
+                stderr=PIPE,
+                close_fds=True,
+                env=env
+            )
+            self.stdout, self.stderr = proc.communicate()
+            self.returncode = proc.returncode
+            self.exec_time = time.time() - start_time
+        except OSError as ex:
+            raise RuntimeError("Failed to execute command: `{}'\n{}"
+                               .format(cmd_line, str(ex)))
+
 
 #--------------------------------------------------------------------------
 # Test case base
@@ -102,8 +145,10 @@ class uhd_test_case(unittest.TestCase):
     def tearDown(self):
         self.tear_down()
         if self.results_file:
-            open(self.results_file, 'w').write(yaml.dump(self.results, default_flow_style=False))
+            open(self.results_file, 'w').write(
+                yaml.dump(self.results, default_flow_style=False))
         time.sleep(15)
+
     def report_result(self, testname, key, value):
         """ Store a result as a key/value pair.
         After completion, all results for one test are written to the results file.
@@ -117,37 +162,6 @@ class uhd_test_case(unittest.TestCase):
         if len(self.args_str) == 0:
             return ''
         return '--{}={}'.format(argname, self.args_str)
-
-    def filter_warnings(self, errstr):
-        """ Searches errstr for UHD warnings, removes them, and puts them into a separate string.
-        Returns (errstr, warnstr), where errstr no longer has warning. """
-        warn_re = re.compile("UHD Warning:\n(?:    .*\n)+")
-        warnstr = "\n".join(warn_re.findall(errstr)).strip()
-        errstr = warn_re.sub('', errstr).strip()
-        return (errstr, warnstr)
-
-    def filter_stderr(self, stderr, run_results=None):
-        """ Filters the output to stderr. run_results[] is a dictionary.
-        This function will:
-        - Remove UUUUU... strings, since they are generally not a problem.
-        - Remove all DDDD and SSSS strings, and add run_results['has_S'] = True
-          and run_results['has_D'] = True.
-        - Remove warnings and put them in run_results['warnings']
-        - Put the filtered error string into run_results['errors'] and returns the dictionary
-        """
-        run_results = run_results or {}
-        errstr, run_results['warnings'] = self.filter_warnings(stderr)
-        # Scan for underruns and sequence errors / dropped packets  not detected in the counter
-        errstr = re.sub('UU+', '', errstr)
-        (errstr, n_subs) = re.subn('SS+', '', errstr)
-        if n_subs:
-            run_results['has_S'] = True
-        (errstr, n_subs) = re.subn('DD+', '', errstr)
-        if n_subs:
-            run_results['has_D'] = True
-        errstr = re.sub("\n\n+", "\n", errstr)
-        run_results['errors'] = errstr.strip()
-        return run_results
 
 class uhd_example_test_case(uhd_test_case):
     """
@@ -177,6 +191,8 @@ class uhd_example_test_case(uhd_test_case):
         """
         Run `example' (which has to be a UHD example or utility) with `args'.
         Return results and the app object.
+
+        Note: UHD_LOG_FASTPATH_DISABLE will be set to 1.
         """
         self.log.info("Running example: `%s %s'", example, " ".join(args))
         app = shell_application(example)
@@ -184,10 +200,8 @@ class uhd_example_test_case(uhd_test_case):
         run_results = {
             'return_code': app.returncode,
             'passed': False,
-            'has_D': False,
-            'has_S': False,
         }
-        run_results = self.filter_stderr(app.stderr, run_results)
+        run_results = filter_stderr(app.stderr, run_results)
         self.log.info('STDERR Output:')
         self.log.info(str(app.stderr))
         return (app, run_results)
@@ -220,7 +234,8 @@ class uhd_example_test_case(uhd_test_case):
         """
         for test_name, test_args in iteritems(self.test_params):
             time.sleep(15) # Wait for X300 devices to reclaim them
-            if not test_args.has_key('products') or (self.usrp_info['product'] in test_args.get('products', [])):
+            if not test_args.has_key('products') \
+                    or (self.usrp_info['product'] in test_args.get('products', [])):
                 run_results = self.run_test(test_name, test_args)
                 passed = bool(run_results)
                 if isinstance(run_results, dict):

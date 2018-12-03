@@ -9,6 +9,17 @@
 #include <boost/python/stl_iterator.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
+/*
+This solution was adapted from an Issue posted to the Boost.Python Github.
+https://github.com/boostorg/python/pull/159/files
+*/
+#if (BOOST_VERSION >= 106400) && (BOOST_VERSION < 106600)
+#warning overriding broken boost python implementation of BOOST_PYTHON_MODULE_INIT
+#  define BOOST_PYTHON_MODULE_INIT(name)                       \
+  void BOOST_PP_CAT(init_module_,name)();                      \
+extern "C" BOOST_SYMBOL_EXPORT _BOOST_PYTHON_MODULE_INIT(name)
+#endif
+
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
 
@@ -160,6 +171,15 @@ BOOST_PYTHON_MODULE(libpyuhd)
         export_metadata();
         export_sensors();
         export_tune();
+
+        // Declare some more converters
+        iterable_converter()
+            .from_python<std::vector<uhd::device_addr_t>>()
+            ;
+
+        bp::to_python_converter<
+            std::vector<uhd::device_addr_t>,
+            iterable_to_python_list<std::vector<uhd::device_addr_t>>, false >();
     }
 
     // Register usrp submodule

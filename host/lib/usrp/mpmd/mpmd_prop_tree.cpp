@@ -108,22 +108,15 @@ void mpmd_impl::init_property_tree(
         .set(mb->device_info.get("mpm_version", "UNKNOWN"));
     tree->create<std::string>(mb_path / "fpga_version")
         .set(mb->device_info.get("fpga_version", "UNKNOWN"));
+    tree->create<std::string>(mb_path / "fpga_version_hash")
+        .set(mb->device_info.get("fpga_version_hash", "UNKNOWN"));
 
     /*** Clocking *******************************************************/
     tree->create<std::string>(mb_path / "clock_source/value")
         .add_coerced_subscriber([mb](const std::string &clock_source){
-            // FIXME: Undo these changes
-            //mb->rpc->notify_with_token("set_clock_source", clock_source);
-            auto current_src = mb->rpc->request_with_token<std::string>(
-                "get_clock_source"
-            );
-            if (current_src != clock_source) {
-                UHD_LOG_WARNING("MPMD",
-                    "Setting clock source at runtime is currently not "
-                    "supported. Use clock_source=XXX as a device arg to "
-                    "select a clock source. The current source is: "
-                    << current_src);
-            }
+            mb->set_timeout_init();
+            mb->rpc->notify_with_token("set_clock_source", clock_source);
+            mb->set_timeout_default();
         })
         .set_publisher([mb](){
             return mb->rpc->request_with_token<std::string>(
@@ -141,18 +134,9 @@ void mpmd_impl::init_property_tree(
     ;
     tree->create<std::string>(mb_path / "time_source/value")
         .add_coerced_subscriber([mb](const std::string &time_source){
-            //mb->rpc->notify_with_token("set_time_source", time_source);
-            // FIXME: Undo these changes
-            auto current_src = mb->rpc->request_with_token<std::string>(
-                "get_time_source"
-            );
-            if (current_src != time_source) {
-                UHD_LOG_WARNING("MPMD",
-                    "Setting time source at runtime is currently not "
-                    "supported. Use time_source=XXX as a device arg to "
-                    "select a time source. The current source is: "
-                    << current_src);
-            }
+            mb->set_timeout_init();
+            mb->rpc->notify_with_token("set_time_source", time_source);
+            mb->set_timeout_default();
         })
         .set_publisher([mb](){
             return mb->rpc->request_with_token<std::string>(
@@ -184,11 +168,14 @@ void mpmd_impl::init_property_tree(
         tree->create<sensor_value_t>(
                 mb_path / "sensors" / sensor_name)
             .set_publisher([mb, sensor_name](){
-                return sensor_value_t(
+                mb->set_timeout_init();
+                auto sensor_val = sensor_value_t(
                     mb->rpc->request_with_token<sensor_value_t::sensor_map_t>(
                         "get_mb_sensor", sensor_name
                     )
                 );
+                mb->set_timeout_default();
+                return sensor_val;
             })
             .set_coercer([](const sensor_value_t &){
                 throw uhd::runtime_error(

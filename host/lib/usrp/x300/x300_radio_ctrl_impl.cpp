@@ -219,11 +219,25 @@ void x300_radio_ctrl_impl::set_tx_antenna(const std::string &ant, const size_t c
     ).set(ant);
 }
 
+std::string x300_radio_ctrl_impl::get_tx_antenna(const size_t chan)
+{
+    return _tree->access<std::string>(
+        fs_path("dboards" / _radio_slot / "tx_frontends" / _tx_fe_map.at(chan).db_fe_name / "antenna" / "value")
+    ).get();
+}
+
 void x300_radio_ctrl_impl::set_rx_antenna(const std::string &ant, const size_t chan)
 {
     _tree->access<std::string>(
         fs_path("dboards" / _radio_slot / "rx_frontends" / _rx_fe_map.at(chan).db_fe_name / "antenna" / "value")
     ).set(ant);
+}
+
+std::string x300_radio_ctrl_impl::get_rx_antenna(const size_t chan)
+{
+    return _tree->access<std::string>(
+        fs_path("dboards" / _radio_slot / "rx_frontends" / _rx_fe_map.at(chan).db_fe_name / "antenna" / "value")
+    ).get();
 }
 
 double x300_radio_ctrl_impl::set_tx_frequency(const double freq, const size_t chan)
@@ -715,8 +729,11 @@ void x300_radio_ctrl_impl::setup_radio(
                 // We need a desired subscriber for antenna/value because the experts don't coerce that property.
                 _tree->access<std::string>(db_path / "rx_frontends" / _rx_fe_map[i].db_fe_name / "antenna" / "value")
                     .add_desired_subscriber(boost::bind(&x300_radio_ctrl_impl::_update_atr_leds, this, _1, i));
+                _update_atr_leds(_tree->access<std::string>
+                        (db_path / "rx_frontends" / _rx_fe_map[i].db_fe_name / "antenna" / "value").get(), i);
+            } else {
+                _update_atr_leds("", i); //init anyway, even if never called
             }
-            _update_atr_leds("", i); //init anyway, even if never called
         }
     }
 

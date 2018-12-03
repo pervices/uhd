@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhdlib/usrp/common/fifo_ctrl_excelsior.hpp>
+#include "fifo_ctrl_excelsior.hpp"
 #include <uhdlib/usrp/common/async_packet_handler.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
@@ -15,10 +15,7 @@
 #include <uhd/utils/thread.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/thread.hpp>
-#include <boost/format.hpp>
-#include <boost/bind.hpp>
+#include <mutex>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -54,7 +51,7 @@ public:
         while (_xport->get_recv_buff(0.0)){} //flush
         this->set_time(uhd::time_spec_t(0.0));
         this->set_tick_rate(1.0); //something possible but bogus
-        _msg_task = task::make(boost::bind(&fifo_ctrl_excelsior_impl::handle_msg, this));
+        _msg_task = task::make([this](){ this->handle_msg(); });
         this->init_spi();
     }
 
@@ -66,18 +63,10 @@ public:
     }
 
     bool pop_async_msg(async_metadata_t &async_metadata, double timeout){
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
         return _async_fifo.pop_with_timed_wait(async_metadata, timeout);
     }
 
     void handle_msg(void){
-        set_thread_priority_safe();
-        while (not boost::this_thread::interruption_requested()){
-            this->handle_msg1();
-        }
-    }
-
-    void handle_msg1(void){
         managed_recv_buffer::sptr buff = _xport->get_recv_buff();
         if (not buff) return;
         const uint32_t *pkt = buff->cast<const uint32_t *>();
@@ -110,7 +99,7 @@ public:
      * Peek and poke 32 bit implementation
      ******************************************************************/
     void poke32(const wb_addr_type addr, const uint32_t data){
-        boost::mutex::scoped_lock lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
 
         this->send_pkt(addr, data, POKE32_CMD);
 
@@ -118,7 +107,7 @@ public:
     }
 
     uint32_t peek32(const wb_addr_type addr){
-        boost::mutex::scoped_lock lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
 
         this->send_pkt(addr, 0, PEEK32_CMD);
 
@@ -140,7 +129,7 @@ public:
      * FIFO controlled SPI implementation
      ******************************************************************/
     void init_spi(void){
-        boost::mutex::scoped_lock lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
 
         this->send_pkt(SPI_DIV, SPI_DIVIDER, POKE32_CMD);
         this->wait_for_ack(_seq_out-MAX_SEQS_OUT);
@@ -155,7 +144,7 @@ public:
         size_t num_bits,
         bool readback
     ){
-        boost::mutex::scoped_lock lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
 
         //load control word
         uint32_t ctrl_word = 0;
@@ -191,7 +180,7 @@ public:
      * Update methods for time
      ******************************************************************/
     void set_time(const uhd::time_spec_t &time){
-        boost::mutex::scoped_lock lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         _time = time;
         _use_time = _time != uhd::time_spec_t(0.0);
         if (_use_time) _timeout = MASSIVE_TIMEOUT; //permanently sets larger timeout
@@ -199,12 +188,12 @@ public:
 
     uhd::time_spec_t get_time(void)
     {
-        boost::mutex::scoped_lock lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         return _time;
     }
 
     void set_tick_rate(const double rate){
-        boost::mutex::scoped_lock lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         _tick_rate = rate;
     }
 
@@ -269,7 +258,7 @@ private:
 
     zero_copy_if::sptr _xport;
     const fifo_ctrl_excelsior_config _config;
-    boost::mutex _mutex;
+    std::mutex _mutex;
     uint16_t _seq_out;
     uint16_t _seq_ack;
     uhd::time_spec_t _time;
