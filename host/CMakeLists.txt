@@ -110,6 +110,16 @@ include(UHDComponent) #enable components
 include(UHDPackage)   #setup cpack
 
 ########################################################################
+# Per Vices CI Test System
+########################################################################
+
+option(CI_PV_ENABLE "Build test programs" OFF)
+if(CI_PV_ENABLE MATCHES ON)
+    MESSAGE("CI PV ENABLED")
+    ADD_DEFINITIONS(-DBUFFER_LVL_DEBUG)
+endif(CI_PV_ENABLE)
+
+########################################################################
 # Install Dirs
 ########################################################################
 #when the library suffix should be 64 (applies to redhat linux family)

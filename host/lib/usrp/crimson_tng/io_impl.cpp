@@ -59,7 +59,7 @@
   #endif
 #endif
 
-#if 1
+#if 0
   #ifndef BUFFER_LVL_DEBUG
   #define BUFFER_LVL_DEBUG
   #endif
@@ -929,6 +929,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
+
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE;
@@ -994,9 +995,22 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
+    static uint16_t last[4];
+    static uint16_t curr[4];
+    last[channel] = curr[channel];
+    curr[channel] = lvl;
+
     std::printf("%10u\t", lvl);
     if(channel == 3)
     {
+        std::printf("%10u\t", last[0] - curr[0]);
+        std::printf("%10u\t", last[1] - curr[1]);
+        std::printf("%10u\t", last[2] - curr[2]);
+        std::printf("%10u\t", last[3] - curr[3]);
+
+        const uint16_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
+        const uint16_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
+        std::printf("%10u\t", max - min);
         std::printf("\n");
     }
 #endif
