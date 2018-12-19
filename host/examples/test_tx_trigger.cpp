@@ -100,6 +100,7 @@ public:
             usrp->set_tx_freq(uhd::tune_request_t(0.0), ch);
             usrp->set_tx_gain(10.0, ch);
         }
+        usrp->set_time_now(uhd::time_spec_t(0.0));
     }
 };
 
@@ -154,13 +155,14 @@ public:
         tx = usrp->get_tx_stream(stream_args);
     }
 
-    void stream(Buffer buffer, const size_t packets) const
+    void stream(Buffer buffer, const float start_time, const size_t packets) const
     {
         uhd::tx_metadata_t md;
+
         md.start_of_burst = true;
         md.end_of_burst = false;
         md.has_time_spec = true;
-        md.time_spec = uhd::time_spec_t(2.0);
+        md.time_spec = uhd::time_spec_t(start_time);
 
         for(size_t i = 0; i < packets; i++)
         {
@@ -169,8 +171,7 @@ public:
             md.has_time_spec = false;
         }
 
-        std::cout << "Press any key to send end of burst packet." << std::endl;
-        std::cin.get();
+        sleep(start_time + 60);
 
         md.end_of_burst = true;
         tx->send("", 0, md);
@@ -193,7 +194,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     const int packets = 5;
 
     // Number of samples with which to transmit per trigger event.
-    const int samples = 100;
+    const int samples = 200;
 
     uhd::set_thread_priority_safe();
 
@@ -205,7 +206,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     Trigger trig(uhd.usrp, channels, samples);
 
-    streamer.stream(buffer, packets);
+    streamer.stream(buffer, 10.0, packets);
 
     return 0;
 }
