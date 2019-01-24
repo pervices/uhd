@@ -6,6 +6,8 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 
+#include <fstream>
+
 #undef NDEBUG
 #include <cassert>
 
@@ -16,7 +18,7 @@ private:
     const uhd::usrp::multi_usrp::sptr usrp;
 
 public:
-    Trigger(uhd::usrp::multi_usrp::sptr& usrp, const std::vector<size_t>& channels, const int samples)
+    Trigger(uhd::usrp::multi_usrp::sptr& usrp, const std::vector<size_t> channels, const int samples)
     :
     channels {channels},
     usrp {usrp}
@@ -90,7 +92,7 @@ class Uhd
 public:
     uhd::usrp::multi_usrp::sptr usrp;
 
-    Uhd(const std::vector<size_t>& channels)
+    Uhd(const std::vector<size_t> channels)
     {
         for(const auto& ch : channels)
         {
@@ -107,38 +109,71 @@ public:
 class Buffer
 {
 public:
-    std::vector<std::complex<float>> buffer;
+    std::vector<std::complex<float> > buffer;
     std::vector<std::complex<float>*> mirrors;
-    const size_t size;
 
-    void sin()
+    const std::vector<size_t> channels;
+
+    void load(const char* path, const int max)
     {
-        const constexpr double pi = acos(-1.0);
+        std::ifstream file(path);
+	if(file.fail())
+	{
+            std::cout << "File " << path << " not found..." << std::endl;
+            std::cout << "Create this file with one column of floating point data within range [-1.0, 1.0]" << std::endl;
+            std::cout << "eg. Triangle wave:" << std::endl;
+            std::cout << " 0.01" << std::endl;
+            std::cout << " 0.02" << std::endl;
+            std::cout << " 0.03" << std::endl;
+            std::cout << " 0.02" << std::endl;
+            std::cout << " 0.01" << std::endl;
+            std::cout << " 0.00" << std::endl;
+            std::cout << "-0.01" << std::endl;
+            std::cout << "-0.02" << std::endl;
+            std::cout << "-0.03" << std::endl;
+            std::cout << "-0.02" << std::endl;
+            std::cout << "-0.01" << std::endl;
+            std::cout << " 0.00" << std::endl;
+            std::cout << "IMPORTANT: This signal will be applied to all channels." << std::endl;
+	    std::exit(1);
+	}
 
-        // Frequency per packet. Not overall wave frequency.
-        const double freq = 100.0;
-        const double ampl = 0.5;
+        for(std::string line; std::getline(file, line);)
+        {
+            std::stringstream stream(line);
+            float val {0.0f};
+            stream >> val;
+	    std::cout << line << " " << val << std::endl;
+            buffer.push_back(val);
+        }
 
-        for(size_t n = 0; n < size; n++)
-            buffer[n] = ampl * std::sin(2.0 * pi * freq * n / size);
+        if(size() > max)
+	{
+            std::cout << "Number of samples in file (" << size() << ") greater than max packet size (" << max << ")" << std::endl;
+	    std::exit(1);
+	}
     }
 
-    void mirror(const std::vector<size_t>& channels)
+    void mirror()
     {
-        for(const auto& ch : channels)
+        for(const auto ch : channels)
         {
             (void) ch;
             mirrors.push_back(&buffer.front());
         }
     }
 
-    Buffer(const std::vector<size_t>& channels, const size_t size)
-    :
-    buffer(size),
-    size {size}
+    int size() const
     {
-        sin();
-        mirror(channels);
+        return buffer.size(); // Mirrors reflect this size.
+    }
+
+    Buffer(const std::vector<size_t> channels, const char* path, const int max)
+    :
+    channels {channels}
+    {
+        load(path, max);
+        mirror();
     }
 };
 
@@ -148,7 +183,7 @@ private:
     uhd::tx_streamer::sptr tx;
 
 public:
-    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t>& channels)
+    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels)
     {
         uhd::stream_args_t stream_args("fc32", "sc16");
         stream_args.channels = channels;
@@ -164,12 +199,27 @@ public:
         md.has_time_spec = true;
         md.time_spec = uhd::time_spec_t(start_time);
 
+	// The buffer is filled here, and then some time is slept before the end of burst packet is sent.
         for(size_t i = 0; i < packets; i++)
         {
-            tx->send(buffer.mirrors, buffer.size, md);
+            tx->send(buffer.mirrors, buffer.size(), md);
             md.start_of_burst = false;
             md.has_time_spec = false;
         }
+
+#if 1
+	// Enable this segment if the client wants to continuously stream additional packets
+	// to the FPGA transfer buffer with an SMA trigger rate of 1Hz.
+	//
+	// NOTE: This is considered soft flow control. A closed loop approach is better;
+	// the client would need to read the FPGA transfer buffer size and sleep a calculated <N> microseconds with usleep.
+	// Unfortunately, there is no elegant way to expose the getter of the transfer buffer size.
+        while(true)
+	{
+            tx->send(buffer.mirrors, buffer.size(), md);
+       	    usleep(1e6);
+	}
+#endif
 
         sleep(start_time + 60);
 
@@ -190,23 +240,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     const std::vector<size_t> channels = { 0, 1, 2, 3 };
 
-    // Number of packets with which to fill internal FPGA buffer.
-    const int packets = 5;
-
-    // Number of samples with which to transmit per trigger event.
-    const int samples = 200;
-
     uhd::set_thread_priority_safe();
 
     Uhd uhd(channels);
 
     Streamer streamer(uhd.usrp, channels);
 
-    const Buffer buffer(channels, streamer.get_max_num_samps());
+    const Buffer buffer(channels, "data.txt", streamer.get_max_num_samps());
 
-    Trigger trig(uhd.usrp, channels, samples);
+    Trigger trig(uhd.usrp, channels, buffer.size());
 
-    streamer.stream(buffer, 10.0, packets);
+    streamer.stream(buffer, 10.0, 5);
 
     return 0;
 }
