@@ -1259,9 +1259,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 				std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
 			)
 		);
-
-		std::string address = _tree->access<std::string>( mb_path / "link" / sfp / "ip_addr" ).get();
-		std::string port = std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get());
     }
 
 	const fs_path cm_path  = mb_path / "cm";
