@@ -76,6 +76,7 @@ public:
         return peek().header & 0xFFFF;
     }
 
+private:
     struct Request
     {
         uint64_t header;
@@ -90,7 +91,6 @@ public:
         }
     };
 
-private:
     struct Response
     {
         uint64_t header;
@@ -141,13 +141,13 @@ public:
     channels {channels},
     usrp {usrp}
     {
-        for(const auto& ch : channels)
+        for(const auto ch : channels)
             apply(sma(ch, samples));
     }
 
     ~Trigger()
     {
-        for(const auto& ch : channels)
+        for(const auto ch : channels)
             apply(sma(ch, 0));
     }
 
@@ -212,7 +212,7 @@ public:
 
     Uhd(const std::vector<size_t> channels)
     {
-        for(const auto& ch : channels)
+        for(const auto ch : channels)
         {
             usrp = uhd::usrp::multi_usrp::make(std::string(""));
             usrp->set_clock_source("internal");
