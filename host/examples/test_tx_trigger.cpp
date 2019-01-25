@@ -56,77 +56,77 @@ namespace Exit
 
 class Fifo
 {
-	uhd::transport::udp_simple::sptr link;
+    uhd::transport::udp_simple::sptr link;
 
-	const size_t channel;
+    const size_t channel;
 
 public:
-	Fifo(const size_t channel)
-	:
-	channel {channel}
-	{
-		const std::string port = channel % 2 ? "10.10.11.2" : "10.10.10.2";
-		const std::string ip = "42809";
-		link = uhd::transport::udp_simple::make_connected(port, ip);
-	}
+    Fifo(const size_t channel)
+    :
+    channel {channel}
+    {
+        const std::string port = channel % 2 ? "10.10.11.2" : "10.10.10.2";
+        const std::string ip = "42809";
+        link = uhd::transport::udp_simple::make_connected(port, ip);
+    }
 
-	uint16_t get_level()
-	{
-		poke();
-		return peek().header & 0xFFFF;
-	}
+    uint16_t get_level()
+    {
+        poke();
+        return peek().header & 0xFFFF;
+    }
 
-	struct Request
-	{
-		uint64_t header;
+    struct Request
+    {
+        uint64_t header;
 
         //
         // FPGA endianess is reversed.
         //
 
-		void flip()
-		{
-			boost::endian::big_to_native_inplace(header);
-		}
-	};
+        void flip()
+        {
+            boost::endian::big_to_native_inplace(header);
+        }
+    };
 
 private:
-	struct Response
-	{
-		uint64_t header;
-		uint64_t overflow;
-		uint64_t underflow;
-		uint64_t seconds;
-		uint64_t ticks;
+    struct Response
+    {
+        uint64_t header;
+        uint64_t overflow;
+        uint64_t underflow;
+        uint64_t seconds;
+        uint64_t ticks;
 
         //
         // FPGA endianess is reversed.
         //
 
-		void flip()
-		{
-			boost::endian::big_to_native_inplace(header);
-			boost::endian::big_to_native_inplace(overflow);
-			boost::endian::big_to_native_inplace(underflow);
-			boost::endian::big_to_native_inplace(seconds);
-			boost::endian::big_to_native_inplace(ticks);
-		}
-	};
+        void flip()
+        {
+            boost::endian::big_to_native_inplace(header);
+            boost::endian::big_to_native_inplace(overflow);
+            boost::endian::big_to_native_inplace(underflow);
+            boost::endian::big_to_native_inplace(seconds);
+            boost::endian::big_to_native_inplace(ticks);
+        }
+    };
 
-	void poke()
-	{
-		Request request = { 0x10001UL << 16 | (channel & 0xFFFF) };
-		request.flip();
-		link->send(boost::asio::mutable_buffer(&request, sizeof(request)));
-	}
+    void poke()
+    {
+        Request request = { 0x10001UL << 16 | (channel & 0xFFFF) };
+        request.flip();
+        link->send(boost::asio::mutable_buffer(&request, sizeof(request)));
+    }
 
-	Response peek()
-	{
-		Response response = {};
-		link->recv(boost::asio::mutable_buffer(&response, sizeof(response)));
-		response.flip();
-		return response;
-	}
+    Response peek()
+    {
+        Response response = {};
+        link->recv(boost::asio::mutable_buffer(&response, sizeof(response)));
+        response.flip();
+        return response;
+    }
 };
 
 class Trigger
@@ -318,7 +318,7 @@ public:
     void stream(Buffer buffer, const double start_time, const int setpoint, const double period) const
     {
         //
-	    // Prime the FPGA FIFO buffer.
+        // Prime the FPGA FIFO buffer.
         //
         
         uhd::tx_metadata_t md;
@@ -368,7 +368,7 @@ public:
             //
 
             usleep(1.0e6 / period);
-        }	
+        }   
         thread.join();
 
         md.end_of_burst = true;
