@@ -1,20 +1,138 @@
 //
-// Copyright 2018 Per Vices Corporation (GPL-3.0)
+// Copyright 2018 - 2019 Per Vices Corporation GPL 3
 //
 
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
+#include <uhd/transport/udp_simple.hpp>
+#include <boost/endian/conversion.hpp>
 
 #include <fstream>
+#include <thread>
+#include <mutex>
+
+#include <csignal>
 
 #undef NDEBUG
 #include <cassert>
 
+namespace Exit
+{
+    bool now = false;
+
+    std::mutex mutex;
+
+    void set()
+    {
+        std::lock_guard<std::mutex> guard(mutex);
+        now = true;
+    }
+
+    void interrupt(int)
+    {
+        std::lock_guard<std::mutex> guard(mutex);
+        now = true;
+        std::cout << "\nInterrupt caught: Hit Enter for Crimson cleanup" << std::endl;
+    }
+
+    bool get()
+    {
+        std::lock_guard<std::mutex> guard(mutex);
+        return now;
+    }
+
+    //
+    // Ctrl-C and / or Enter will exit this program mid stream.
+    //
+
+    void wait()
+    {
+        signal(SIGINT, interrupt);
+        std::getchar();
+        set();
+    }
+}
+
+class Fifo
+{
+    uhd::transport::udp_simple::sptr link;
+
+    const size_t channel;
+
+public:
+    Fifo(const size_t channel)
+    :
+    channel {channel}
+    {
+        const std::string port = channel % 2 ? "10.10.11.2" : "10.10.10.2";
+        const std::string ip = "42809";
+        link = uhd::transport::udp_simple::make_connected(port, ip);
+    }
+
+    uint16_t get_level()
+    {
+        poke();
+        return peek().header & 0xFFFF;
+    }
+
+    struct Request
+    {
+        uint64_t header;
+
+        //
+        // FPGA endianess is reversed.
+        //
+
+        void flip()
+        {
+            boost::endian::big_to_native_inplace(header);
+        }
+    };
+
+private:
+    struct Response
+    {
+        uint64_t header;
+        uint64_t overflow;
+        uint64_t underflow;
+        uint64_t seconds;
+        uint64_t ticks;
+
+        //
+        // FPGA endianess is reversed.
+        //
+
+        void flip()
+        {
+            boost::endian::big_to_native_inplace(header);
+            boost::endian::big_to_native_inplace(overflow);
+            boost::endian::big_to_native_inplace(underflow);
+            boost::endian::big_to_native_inplace(seconds);
+            boost::endian::big_to_native_inplace(ticks);
+        }
+    };
+
+    void poke()
+    {
+        Request request = { 0x10001UL << 16 | (channel & 0xFFFF) };
+        request.flip();
+        link->send(boost::asio::mutable_buffer(&request, sizeof(request)));
+    }
+
+    Response peek()
+    {
+        Response response = {};
+        link->recv(boost::asio::mutable_buffer(&response, sizeof(response)));
+        response.flip();
+        return response;
+    }
+};
+
 class Trigger
 {
-private:
     const std::vector<size_t> channels;
+
     const uhd::usrp::multi_usrp::sptr usrp;
 
 public:
@@ -108,50 +226,66 @@ public:
 
 class Buffer
 {
-public:
-    std::vector<std::complex<float> > buffer;
-    std::vector<std::complex<float>*> mirrors;
-
     const std::vector<size_t> channels;
 
+public:
+    std::vector<std::complex<float> > buffer;
+
+    std::vector<std::complex<float>*> mirrors;
+
+    Buffer(const std::vector<size_t> channels, const char* path, const int max)
+    :
+    channels {channels}
+    {
+        load(path, max);
+        mirror();
+    }
+
+    //
+    // Mirrors are of equal size.
+    //
+
+    int size() const
+    {
+        return buffer.size();
+    }
+
+private:
     void load(const char* path, const int max)
     {
         std::ifstream file(path);
-	if(file.fail())
-	{
-            std::cout << "File " << path << " not found..." << std::endl;
-            std::cout << "Create this file with one column of floating point data within range [-1.0, 1.0]" << std::endl;
-            std::cout << "eg. Triangle wave:" << std::endl;
-            std::cout << " 0.01" << std::endl;
-            std::cout << " 0.02" << std::endl;
-            std::cout << " 0.03" << std::endl;
-            std::cout << " 0.02" << std::endl;
-            std::cout << " 0.01" << std::endl;
-            std::cout << " 0.00" << std::endl;
-            std::cout << "-0.01" << std::endl;
-            std::cout << "-0.02" << std::endl;
-            std::cout << "-0.03" << std::endl;
-            std::cout << "-0.02" << std::endl;
-            std::cout << "-0.01" << std::endl;
-            std::cout << " 0.00" << std::endl;
-            std::cout << "IMPORTANT: This signal will be applied to all channels." << std::endl;
-	    std::exit(1);
-	}
+
+        if(file.fail())
+        {
+            std::cout
+                << "File " << path << " not found..."
+                << std::endl
+                << "Create this file with one column of floating point data within range [-1.0, 1.0]"
+                << std::endl
+                << "IMPORTANT: This signal will be applied to all channels."
+                << std::endl;
+
+            std::exit(1);
+        }
 
         for(std::string line; std::getline(file, line);)
         {
             std::stringstream stream(line);
-            float val {0.0f};
+
+            float val = 0.0f;
             stream >> val;
-	    std::cout << line << " " << val << std::endl;
+
             buffer.push_back(val);
         }
 
         if(size() > max)
-	{
-            std::cout << "Number of samples in file (" << size() << ") greater than max packet size (" << max << ")" << std::endl;
-	    std::exit(1);
-	}
+        {
+            std::cout
+                << "Number of samples in file (" << size() << ") greater than max packet size (" << max << ")"
+                << std::endl;
+
+            std::exit(1);
+        }
     }
 
     void mirror()
@@ -162,19 +296,6 @@ public:
             mirrors.push_back(&buffer.front());
         }
     }
-
-    int size() const
-    {
-        return buffer.size(); // Mirrors reflect this size.
-    }
-
-    Buffer(const std::vector<size_t> channels, const char* path, const int max)
-    :
-    channels {channels}
-    {
-        load(path, max);
-        mirror();
-    }
 };
 
 class Streamer
@@ -182,46 +303,73 @@ class Streamer
 private:
     uhd::tx_streamer::sptr tx;
 
+    const std::vector<size_t> channels;
+
 public:
     Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels)
+    :
+    channels {channels}
     {
         uhd::stream_args_t stream_args("fc32", "sc16");
         stream_args.channels = channels;
         tx = usrp->get_tx_stream(stream_args);
     }
 
-    void stream(Buffer buffer, const float start_time, const size_t packets) const
+    void stream(Buffer buffer, const double start_time, const int setpoint, const double period) const
     {
+        //
+        // Prime the FPGA FIFO buffer.
+        //
+        
         uhd::tx_metadata_t md;
-
         md.start_of_burst = true;
         md.end_of_burst = false;
         md.has_time_spec = true;
         md.time_spec = uhd::time_spec_t(start_time);
 
-	// The buffer is filled here, and then some time is slept before the end of burst packet is sent.
-        for(size_t i = 0; i < packets; i++)
+        //
+        // Transmission will start at <start_time>.
+        //
+        // Fuzzy flow control begins now. Hit Enter or Ctrl-C to exit and cleanup.
+        //
+
+        std::thread thread(Exit::wait);
+        while(!Exit::get())
         {
-            tx->send(buffer.mirrors, buffer.size(), md);
-            md.start_of_burst = false;
-            md.has_time_spec = false;
-        }
+            std::vector<int> levels;
 
-#if 1
-	// Enable this segment if the client wants to continuously stream additional packets
-	// to the FPGA transfer buffer with an SMA trigger rate of 1Hz.
-	//
-	// NOTE: This is considered soft flow control. A closed loop approach is better;
-	// the client would need to read the FPGA transfer buffer size and sleep a calculated <N> microseconds with usleep.
-	// Unfortunately, there is no elegant way to expose the getter of the transfer buffer size.
-        while(true)
-	{
-            tx->send(buffer.mirrors, buffer.size(), md);
-       	    usleep(1e6);
-	}
-#endif
+            for(const auto ch : channels)
+                levels.push_back(Fifo(ch).get_level());
 
-        sleep(start_time + 60);
+            const int max = *std::max_element(std::begin(levels), std::end(levels));
+            const int min = *std::min_element(std::begin(levels), std::end(levels));
+
+            //
+            // The fuzzy bit.
+            //
+
+            if(min < setpoint)
+            {
+                tx->send(buffer.mirrors, buffer.size(), md);
+                md.start_of_burst = false;
+                md.has_time_spec = false;
+            }
+
+            //
+            // Print FIFO levels.
+            //
+
+            for(const auto level : levels)
+                std::cout << level << "\t";
+            std::cout << max - min << std::endl;
+
+            //
+            // Loop control rate must be faster than SMA trigger rate.
+            //
+
+            usleep(1.0e6 / period);
+        }   
+        thread.join();
 
         md.end_of_burst = true;
         tx->send("", 0, md);
@@ -250,7 +398,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     Trigger trig(uhd.usrp, channels, buffer.size());
 
-    streamer.stream(buffer, 10.0, 5);
+    streamer.stream(buffer, 5.0, 5000, 10.0);
 
     return 0;
 }
