@@ -2,6 +2,7 @@
 // Copyright 2018 - 2019 Per Vices Corporation GPL 3
 //
 
+#include <boost/program_options.hpp>
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
@@ -13,13 +14,12 @@
 #include <mutex>
 
 #include <csignal>
-
 #undef NDEBUG
 #include <cassert>
 
 namespace Exit
 {
-    bool now = false;
+    bool now {false};
 
     std::mutex mutex;
 
@@ -58,7 +58,7 @@ class Fifo
 {
     uhd::transport::udp_simple::sptr link;
 
-    const size_t channel;
+    const size_t channel {0};
 
 public:
     Fifo(const size_t channel)
@@ -135,11 +135,14 @@ class Trigger
 
     const uhd::usrp::multi_usrp::sptr usrp;
 
+    const std::string gating;
+
 public:
-    Trigger(uhd::usrp::multi_usrp::sptr& usrp, const std::vector<size_t> channels, const int samples)
+    Trigger(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels, const int samples, const std::string gating)
     :
     channels {channels},
-    usrp {usrp}
+    usrp {usrp},
+    gating {gating}
     {
         for(const auto ch : channels)
             apply(sma(ch, samples));
@@ -171,22 +174,22 @@ private:
             { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0" },
             { root + "trigger/edge_backoff"   , "0"                     },
             { root + "trigger/edge_sample_num", std::to_string(samples) },
-            { root + "trigger/gating"         , "dsp"                   },
+            { root + "trigger/gating"         , gating                  },
             { "/mboards/0/trigger/sma_dir"    , "in"                    },
             { "/mboards/0/trigger/sma_pol"    , "positive"              },
         };
         return sets;
     }
 
-    void apply(const std::vector<Set>& sets) const
+    void apply(const std::vector<Set> sets) const
     {
         set(sets);
         check(sets);
     }
 
-    void set(const std::vector<Set>& sets) const
+    void set(const std::vector<Set> sets) const
     {
-        for(const auto& set : sets)
+        for(const auto set : sets)
         {
             usrp->set_tree_value(set.path, set.value);
             set.print();
@@ -194,9 +197,9 @@ private:
         std::cout << std::endl;
     }
 
-    void check(const std::vector<Set>& sets) const
+    void check(const std::vector<Set> sets) const
     {
-        for(const auto& set : sets)
+        for(const auto set : sets)
         {
             std::string value;
             usrp->get_tree_value(set.path, value);
@@ -212,6 +215,8 @@ public:
 
     Uhd(const std::vector<size_t> channels)
     {
+        uhd::set_thread_priority_safe();
+
         for(const auto ch : channels)
         {
             usrp = uhd::usrp::multi_usrp::make(std::string(""));
@@ -233,11 +238,11 @@ public:
 
     std::vector<std::complex<float>*> mirrors;
 
-    Buffer(const std::vector<size_t> channels, const char* path, const int max)
+    Buffer(const std::vector<size_t> channels, const std::string path)
     :
     channels {channels}
     {
-        load(path, max);
+        load(path);
         mirror();
     }
 
@@ -251,14 +256,14 @@ public:
     }
 
 private:
-    void load(const char* path, const int max)
+    void load(const std::string path)
     {
         std::ifstream file(path);
 
         if(file.fail())
         {
             std::cout
-                << "File " << path << " not found..."
+                << "File '" << path << "' not found..."
                 << std::endl
                 << "Create this file with one column of floating point data within range [-1.0, 1.0]"
                 << std::endl
@@ -277,15 +282,6 @@ private:
 
             buffer.push_back(val);
         }
-
-        if(size() > max)
-        {
-            std::cout
-                << "Number of samples in file (" << size() << ") greater than max packet size (" << max << ")"
-                << std::endl;
-
-            std::exit(1);
-        }
     }
 
     void mirror()
@@ -300,7 +296,6 @@ private:
 
 class Streamer
 {
-private:
     uhd::tx_streamer::sptr tx;
 
     const std::vector<size_t> channels;
@@ -315,7 +310,7 @@ public:
         tx = usrp->get_tx_stream(stream_args);
     }
 
-    void stream(Buffer buffer, const double start_time, const int setpoint, const double period) const
+    void stream(const Buffer buffer, const double start_time, const int setpoint, const double period) const
     {
         //
         // Prime the FPGA FIFO buffer.
@@ -381,24 +376,72 @@ public:
     }
 };
 
-int UHD_SAFE_MAIN(int argc, char *argv[])
+class Args
 {
-    (void) argc;
-    (void) argv;
+public:
+    double start_time {0.0};
+
+    double period {0.0};
+
+    int setpoint {0};
+
+    int samples {0};
+
+    std::string path;
+
+    std::string gating;
+
+    //
+    // Channels not to be set from command line.
+    //
 
     const std::vector<size_t> channels = { 0, 1, 2, 3 };
 
-    uhd::set_thread_priority_safe();
+    Args(int argc, char* argv[])
+    {
+        namespace po = boost::program_options;
 
-    Uhd uhd(channels);
+        po::options_description description("Command line options");
 
-    Streamer streamer(uhd.usrp, channels);
+        description.add_options()
+            ("help", "This help screen")
+            ("start_time", po::value<double     >(&start_time)->default_value(       5.0), "(Seconds) Transmitter will enable after this many seconds")
+            ("period"    , po::value<double     >(&period    )->default_value(      20.0), "(Hz     ) Closed loop control frequency updates at this rate")
+            ("setpoint"  , po::value<int        >(&setpoint  )->default_value(      5000), "(Samples) Closed loop control will maintain this sample count as the setpoint")
+            ("samples"   , po::value<int        >(&samples   )->default_value(       250), "(Samples) Number of samples to send per trigger event")
+            ("path"      , po::value<std::string>(&path      )->default_value("data.txt"), "(Path   ) File path of single column floating point data (Just I, not Q) in range [-1.0, 1.0] to be applied to all device channels")
+            ("gating"    , po::value<std::string>(&gating    )->default_value(     "dsp"), "(String ) Gating mode [\"dsp\" | \"output\"]")
+            ;
 
-    const Buffer buffer(channels, "data.txt", streamer.get_max_num_samps());
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, description), vm);
+        po::notify(vm);
 
-    Trigger trig(uhd.usrp, channels, buffer.size());
+        if (vm.count("help"))
+        {
+            std::cout << description << std::endl;
+            std::exit(1);
+        }
+    }
+};
 
-    streamer.stream(buffer, 5.0, 5000, 10.0);
+int UHD_SAFE_MAIN(int argc, char* argv[])
+{
+    Args args(argc, argv);
+
+    Uhd uhd(args.channels);
+
+    Streamer streamer(uhd.usrp, args.channels);
+
+    Buffer buffer(args.channels, args.path);
+
+    //
+    // Trigger class will destruct and cleanup SMA settings on Exit signal.
+    //
+
+    Trigger trigger(uhd.usrp, args.channels, args.samples, args.gating);
+
+    streamer.stream(buffer, args.start_time, args.setpoint, args.period);
 
     return 0;
 }
