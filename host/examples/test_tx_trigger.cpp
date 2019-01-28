@@ -213,7 +213,7 @@ class Uhd
 public:
     uhd::usrp::multi_usrp::sptr usrp;
 
-    Uhd(const std::vector<size_t> channels)
+    Uhd(const std::vector<size_t> channels, const double tx_rate, const double tx_center_freq, const double tx_gain)
     {
         uhd::set_thread_priority_safe();
 
@@ -221,9 +221,9 @@ public:
         {
             usrp = uhd::usrp::multi_usrp::make(std::string(""));
             usrp->set_clock_source("internal");
-            usrp->set_tx_rate(25e6, ch);
-            usrp->set_tx_freq(uhd::tune_request_t(0.0), ch);
-            usrp->set_tx_gain(10.0, ch);
+            usrp->set_tx_rate(tx_rate, ch);
+            usrp->set_tx_freq(uhd::tune_request_t(tx_center_freq), ch);
+            usrp->set_tx_gain(tx_gain, ch);
         }
         usrp->set_time_now(uhd::time_spec_t(0.0));
     }
@@ -383,6 +383,12 @@ public:
 
     double period {0.0};
 
+    double tx_rate {0.0};
+    
+    double tx_center_freq {0.0};
+
+    double tx_gain {0.0};
+
     int setpoint {0};
 
     int samples {0};
@@ -405,12 +411,15 @@ public:
 
         description.add_options()
             ("help", "This help screen")
-            ("start_time", po::value<double     >(&start_time)->default_value(       5.0), "(Seconds) Transmitter will enable after this many seconds")
-            ("period"    , po::value<double     >(&period    )->default_value(      20.0), "(Hz     ) Closed loop control frequency updates at this rate")
-            ("setpoint"  , po::value<int        >(&setpoint  )->default_value(      5000), "(Samples) Closed loop control will maintain this sample count as the setpoint")
-            ("samples"   , po::value<int        >(&samples   )->default_value(       250), "(Samples) Number of samples to send per trigger event")
-            ("path"      , po::value<std::string>(&path      )->default_value("data.txt"), "(Path   ) File path of single column floating point data (Just I, not Q) in range [-1.0, 1.0] to be applied to all device channels")
-            ("gating"    , po::value<std::string>(&gating    )->default_value(     "dsp"), "(String ) Gating mode [\"dsp\" | \"output\"]")
+            ("start_time"    , po::value<double     >(&start_time    )->default_value(       5.0), "(Seconds) Transmitter will enable after this many seconds")
+            ("period"        , po::value<double     >(&period        )->default_value(      20.0), "(Hz     ) Closed loop control frequency updates at this rate")
+            ("tx_rate"       , po::value<double     >(&tx_rate       )->default_value(     100e3), "(Hz     ) Transmitter sample rate")
+            ("tx_center_freq", po::value<double     >(&tx_center_freq)->default_value(     123e6), "(Hz     ) Transmitter center frequency")
+            ("tx_gain"       , po::value<double     >(&tx_gain       )->default_value(      10.0), "(Scalar ) Transmitter gain")
+            ("setpoint"      , po::value<int        >(&setpoint      )->default_value(      5000), "(Samples) Closed loop control will maintain this sample count as the setpoint")
+            ("samples"       , po::value<int        >(&samples       )->default_value(       400), "(Samples) Number of samples to send per trigger event")
+            ("path"          , po::value<std::string>(&path          )->default_value("data.txt"), "(Path   ) File path of single column floating point data (Just I, not Q) in range [-1.0, 1.0] to be applied to all device channels")
+            ("gating"        , po::value<std::string>(&gating        )->default_value(     "dsp"), "(String ) Gating mode [\"dsp\" | \"output\"]")
             ;
 
         po::variables_map vm;
@@ -429,7 +438,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     Args args(argc, argv);
 
-    Uhd uhd(args.channels);
+    Uhd uhd(args.channels, args.tx_rate, args.tx_center_freq, args.tx_gain);
 
     Streamer streamer(uhd.usrp, args.channels);
 
