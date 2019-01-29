@@ -9,7 +9,7 @@
 #define INCLUDED_UHD_TRANSPORT_BUFFER_POOL_HPP
 
 #include <uhd/config.hpp>
-#include <boost/utility.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 
 namespace uhd{ namespace transport{
@@ -18,10 +18,11 @@ namespace uhd{ namespace transport{
      * A buffer pool manages memory for a homogeneous set of buffers.
      * Each buffer is the pool start at a 16-byte alignment boundary.
      */
-    class UHD_API buffer_pool : boost::noncopyable{
-    public:
-        typedef boost::shared_ptr<buffer_pool> sptr;
-        typedef void * ptr_type;
+class UHD_API buffer_pool : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<buffer_pool> sptr;
+    typedef void* ptr_type;
 
         virtual ~buffer_pool(void) = 0;
 

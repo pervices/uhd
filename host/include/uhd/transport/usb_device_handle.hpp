@@ -9,10 +9,11 @@
 #define INCLUDED_UHD_TRANSPORT_USB_DEVICE_HANDLE_HPP
 
 #include <uhd/config.hpp>
-#include <boost/utility.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <stdint.h>
 #include <vector>
+#include <stdint.h>
 
 namespace uhd { namespace transport {
 
@@ -28,7 +29,8 @@ namespace uhd { namespace transport {
  *       a true descriptor serial number string. This interface returns the
  *       actual string descriptor.
  */
-class UHD_API usb_device_handle : boost::noncopyable {
+class UHD_API usb_device_handle : uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<usb_device_handle> sptr;
     typedef std::pair<uint16_t, uint16_t> vid_pid_pair_t;

@@ -11,15 +11,15 @@
 #include <string>
 
 #include <boost/function.hpp>
-#include <boost/noncopyable.hpp>
+#include <uhd/utils/noncopyable.hpp>
 
 #include <uhd/config.hpp>
 #include <uhd/types/device_addr.hpp>
 
 namespace uhd{
 
-class UHD_API image_loader : boost::noncopyable{
-
+class UHD_API image_loader : uhd::noncopyable
+{
 public:
 
     typedef struct{
