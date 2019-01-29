@@ -13,6 +13,7 @@
 #include <boost/shared_ptr.hpp>
 #include <uhd/transport/usb_device_handle.hpp>
 #include <libusb.h>
+#include <uhd/utils/noncopyable.hpp>
 
 //! Define LIBUSB_CALL when its missing (non-windows)
 #ifndef LIBUSB_CALL
@@ -53,9 +54,10 @@ namespace libusb {
      * The get global session call will create a new context if none exists.
      * When all references to session are destroyed, the context will be freed.
      */
-    class session : boost::noncopyable {
-    public:
-        typedef boost::shared_ptr<session> sptr;
+class session : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<session> sptr;
 
         virtual ~session(void);
 
@@ -78,9 +80,10 @@ namespace libusb {
     /*!
      * Holds a device pointer with a reference to the session.
      */
-    class device : boost::noncopyable {
-    public:
-        typedef boost::shared_ptr<device> sptr;
+class device : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<device> sptr;
 
         virtual ~device(void);
 
@@ -92,9 +95,10 @@ namespace libusb {
      * This device list class holds a device list that will be
      * automatically freed when the last reference is destroyed.
      */
-    class device_list : boost::noncopyable {
-    public:
-        typedef boost::shared_ptr<device_list> sptr;
+class device_list : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<device_list> sptr;
 
         virtual ~device_list(void);
 
@@ -111,9 +115,10 @@ namespace libusb {
     /*!
      * Holds a device descriptor and a reference to the device.
      */
-    class device_descriptor : boost::noncopyable {
-    public:
-        typedef boost::shared_ptr<device_descriptor> sptr;
+class device_descriptor : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<device_descriptor> sptr;
 
         virtual ~device_descriptor(void);
 
@@ -129,9 +134,10 @@ namespace libusb {
     /*!
      * Holds a device handle and a reference to the device.
      */
-    class device_handle : boost::noncopyable {
-    public:
-        typedef boost::shared_ptr<device_handle> sptr;
+class device_handle : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<device_handle> sptr;
 
         virtual ~device_handle(void);
 

@@ -27,8 +27,8 @@ class property_tree; //forward declaration
  * The device interface represents the hardware.
  * The API allows for discovery, configuration, and streaming.
  */
-class UHD_API device : boost::noncopyable{
-
+class UHD_API device : uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<device> sptr;
     typedef boost::function<device_addrs_t(const device_addr_t &)> find_t;

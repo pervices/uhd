@@ -9,6 +9,7 @@
 #define INCLUDED_UHD_TRANSPORT_ZERO_COPY_HPP
 
 #include <uhd/config.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/intrusive_ptr.hpp>
@@ -155,9 +156,10 @@ namespace uhd{ namespace transport{
      * Provides a way to get send and receive buffers
      * with memory managed by the transport object.
      */
-    class UHD_API zero_copy_if : boost::noncopyable{
-    public:
-        typedef boost::shared_ptr<zero_copy_if> sptr;
+class UHD_API zero_copy_if : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<zero_copy_if> sptr;
 
         /*!
          * Clean up tasks before releasing the transport object.

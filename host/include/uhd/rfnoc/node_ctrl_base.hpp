@@ -11,6 +11,7 @@
 #include <uhd/types/device_addr.hpp>
 #include <uhd/rfnoc/constants.hpp>
 #include <uhd/utils/log.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
 #include <boost/enable_shared_from_this.hpp>
@@ -28,7 +29,8 @@ namespace uhd {
  *
  */
 class UHD_RFNOC_API node_ctrl_base;
-class node_ctrl_base : boost::noncopyable, public boost::enable_shared_from_this<node_ctrl_base>
+class node_ctrl_base : uhd::noncopyable,
+                       public boost::enable_shared_from_this<node_ctrl_base>
 {
 public:
     /***********************************************************************

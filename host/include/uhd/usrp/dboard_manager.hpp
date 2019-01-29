@@ -12,7 +12,7 @@
 #include <uhd/usrp/dboard_base.hpp>
 #include <uhd/usrp/dboard_id.hpp>
 #include <uhd/usrp/dboard_eeprom.hpp>
-#include <boost/utility.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <string>
 #include <vector>
@@ -24,7 +24,8 @@ namespace uhd{ namespace usrp{
  * Create subdev instances for each subdev on a dboard.
  * Provide wax::obj access to the subdevs inside.
  */
-class UHD_API dboard_manager : boost::noncopyable{
+class UHD_API dboard_manager : uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<dboard_manager> sptr;
 

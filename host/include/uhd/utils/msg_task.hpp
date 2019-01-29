@@ -10,20 +10,23 @@
 
 #include <uhd/config.hpp>
 #include <uhd/transport/zero_copy.hpp>
-#include <boost/shared_ptr.hpp>
+#include <stdint.h>
 #include <boost/function.hpp>
-#include <boost/utility.hpp>
+#include <boost/optional/optional.hpp>
+#include <boost/shared_ptr.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/optional/optional.hpp>
 #include <stdint.h>
 #include <vector>
 
 namespace uhd{
-	class UHD_API msg_task : boost::noncopyable{
-        public:
-            typedef boost::shared_ptr<msg_task> sptr;
-            typedef std::vector<uint8_t> msg_payload_t;
-            typedef std::pair<uint32_t, msg_payload_t > msg_type_t;
-            typedef boost::function<boost::optional<msg_type_t>(void)> task_fcn_type;
+class UHD_API msg_task : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<msg_task> sptr;
+    typedef std::vector<uint8_t> msg_payload_t;
+    typedef std::pair<uint32_t, msg_payload_t> msg_type_t;
+    typedef boost::function<boost::optional<msg_type_t>(void)> task_fcn_type;
 
             /*
              * During shutdown message queues for radio control cores might not be available anymore.

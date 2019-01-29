@@ -11,13 +11,14 @@
 #include <uhd/config.hpp>
 #include <uhd/usrp/dboard_iface.hpp>
 #include <uhd/usrp/gpio_defs.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <uhdlib/usrp/gpio_defs.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <boost/shared_ptr.hpp>
 
 namespace uhd { namespace usrp { namespace gpio_atr {
 
-class gpio_atr_3000 : boost::noncopyable {
+class gpio_atr_3000 : uhd::noncopyable {
 public:
     typedef boost::shared_ptr<gpio_atr_3000> sptr;
 
