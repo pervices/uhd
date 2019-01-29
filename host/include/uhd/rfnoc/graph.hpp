@@ -8,13 +8,13 @@
 #ifndef INCLUDED_LIBUHD_RFNOC_GRAPH_HPP
 #define INCLUDED_LIBUHD_RFNOC_GRAPH_HPP
 
-#include <boost/noncopyable.hpp>
 #include <uhd/rfnoc/block_id.hpp>
 #include <uhd/types/sid.hpp>
+#include <uhd/utils/noncopyable.hpp>
 
 namespace uhd { namespace rfnoc {
 
-class graph : boost::noncopyable
+class graph : uhd::noncopyable
 {
 public:
     typedef boost::shared_ptr<uhd::rfnoc::graph> sptr;
