@@ -113,11 +113,21 @@ include(UHDPackage)   #setup cpack
 # Per Vices CI Test System
 ########################################################################
 
-option(CI_PV_ENABLE "Build test programs" OFF)
+option(CI_PV_ENABLE "Build hidden debug messages" OFF)
 if(CI_PV_ENABLE MATCHES ON)
     MESSAGE("CI PV ENABLED")
     ADD_DEFINITIONS(-DBUFFER_LVL_DEBUG)
 endif(CI_PV_ENABLE)
+
+option(PV_TATE  "TATE" OFF)
+if(PV_TATE MATCHES ON)
+    MESSAGE("TATE ENABLED")
+    ADD_DEFINITIONS(-DPV_TATE)
+endif(PV_TATE)
+
+########################################################################
+# Per Vices CI Build CONFIG
+########################################################################
 
 ########################################################################
 # Install Dirs

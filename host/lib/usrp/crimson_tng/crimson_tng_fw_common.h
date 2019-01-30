@@ -52,8 +52,13 @@
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH1_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
-#define CRIMSON_TNG_RX_CHANNELS 4
-#define CRIMSON_TNG_TX_CHANNELS 4
+#ifdef PV_TATE
+    #define CRIMSON_TNG_RX_CHANNELS 16
+    #define CRIMSON_TNG_TX_CHANNELS 16
+#else
+    #define CRIMSON_TNG_RX_CHANNELS 4
+    #define CRIMSON_TNG_TX_CHANNELS 4
+#endif
 
 #define CRIMSON_TNG_FW_COMMS_FLAGS_ACK        (1 << 0)
 #define CRIMSON_TNG_FW_COMMS_FLAGS_ERROR      (1 << 1)
