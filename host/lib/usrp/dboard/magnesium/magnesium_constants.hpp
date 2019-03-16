@@ -10,6 +10,7 @@
 #include <vector>
 #include <string>
 #include <cstddef>
+#include <uhd/types/ranges.hpp>
 
 static constexpr size_t FPGPIO_MASTER_RADIO = 0;
 static constexpr size_t TOTAL_RADIO_PORTS = 4;
@@ -25,6 +26,7 @@ static constexpr double AD9371_MAX_FREQ = 6.0e9; // Hz
 static constexpr double ADF4351_MIN_FREQ = 35.0e6;
 static constexpr double ADF4351_MAX_FREQ = 4.4e9;
 
+static const std::vector<double> MAGNESIUM_RADIO_RATES = {122.88e6, 125e6, 153.6e6};
 static constexpr double MAGNESIUM_RADIO_RATE = 125e6; // Hz
 static constexpr double MAGNESIUM_MIN_FREQ = 1e6; // Hz
 static constexpr double MAGNESIUM_MAX_FREQ = 6e9; // Hz
@@ -49,6 +51,8 @@ static constexpr double ALL_RX_GAIN_STEP = 0.5;
 static constexpr double ALL_TX_MIN_GAIN = 0.0;
 static constexpr double ALL_TX_MAX_GAIN = 65.0;
 static constexpr double ALL_TX_GAIN_STEP = 0.5;
+
+static const uhd::freq_range_t MAGNESIUM_FREQ_RANGE(MAGNESIUM_MIN_FREQ, MAGNESIUM_MAX_FREQ);
 
 static const std::vector<std::string> MAGNESIUM_RX_ANTENNAS = {
     "TX/RX", "RX2", "CAL", "LOCAL"

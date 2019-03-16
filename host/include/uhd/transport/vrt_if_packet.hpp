@@ -86,6 +86,8 @@ namespace vrt{
         bool sob, eob;
         //! This is asserted for command responses that are errors (CHDR only)
         bool error;
+        //! This is asserted for flow control packets are ACKS (CHDR only)
+        bool fc_ack;
 
         //optional fields
         //! Stream ID (SID). See uhd::sid_t
@@ -205,7 +207,7 @@ namespace vrt{
         num_packet_words32(0),
         packet_count(0),
         sob(false), eob(false),
-        error(false),
+        error(false), fc_ack(false),
         has_sid(false), sid(0),
         has_cid(false), cid(0),
 		has_tsi(false), tsi(0),

@@ -25,6 +25,7 @@
 ## USRP E-Series Devices
 
 \li \subpage page_usrp_e3x0
+\li \subpage page_usrp_e320
 
 ## USRP X-Series Devices
 
@@ -45,6 +46,7 @@ unless stated otherwise, they will still work with this version of UHD.
 ## Daughterboards
 
 \li \subpage page_dboards
+\li \subpage page_twinrx
 
 ## OctoClock
 

@@ -7,19 +7,9 @@
 
 #include "x300_regs.hpp"
 #include "x300_impl.hpp"
-#include "../../transport/super_recv_packet_handler.hpp"
-#include "../../transport/super_send_packet_handler.hpp"
-#include <uhdlib/usrp/common/async_packet_handler.hpp>
-#include <uhd/transport/nirio_zero_copy.hpp>
-#include <uhd/transport/bounded_buffer.hpp>
-#include <uhd/utils/tasks.hpp>
-#include <uhd/utils/log.hpp>
-#include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
 
 using namespace uhd;
 using namespace uhd::usrp;
-using namespace uhd::transport;
 
 /***********************************************************************
  * Hooks for get_tx_stream() and get_rx_stream()
@@ -27,22 +17,6 @@ using namespace uhd::transport;
 device_addr_t x300_impl::get_rx_hints(size_t mb_index)
 {
     device_addr_t rx_hints = _mb[mb_index].recv_args;
-    // (default to a large recv buff)
-    if (not rx_hints.has_key("recv_buff_size"))
-    {
-        if (_mb[mb_index].xport_path != "nirio") {
-            //For the ethernet transport, the buffer has to be set before creating
-            //the transport because it is independent of the frame size and # frames
-            //For nirio, the buffer size is not configurable by the user
-            #if defined(UHD_PLATFORM_MACOS) || defined(UHD_PLATFORM_BSD)
-                //limit buffer resize on macos or it will error
-                rx_hints["recv_buff_size"] = std::to_string(X300_RX_SW_BUFF_SIZE_ETH_MACOS);
-            #elif defined(UHD_PLATFORM_LINUX) || defined(UHD_PLATFORM_WIN32)
-                //set to half-a-second of buffering at max rate
-                rx_hints["recv_buff_size"] = std::to_string(X300_RX_SW_BUFF_SIZE_ETH);
-            #endif
-        }
-    }
     return rx_hints;
 }
 
@@ -62,8 +36,8 @@ void x300_impl::post_streamer_hooks(direction_t dir)
     // Loop through all tx streamers. Find all radios connected to one
     // streamer. Sync those.
     for(const boost::weak_ptr<uhd::tx_streamer> &streamer_w:  _tx_streamers.vals()) {
-        const boost::shared_ptr<sph::send_packet_streamer> streamer =
-            boost::dynamic_pointer_cast<sph::send_packet_streamer>(streamer_w.lock());
+        const boost::shared_ptr<device3_send_packet_streamer> streamer =
+            boost::dynamic_pointer_cast<device3_send_packet_streamer>(streamer_w.lock());
         if (not streamer) {
             continue;
         }

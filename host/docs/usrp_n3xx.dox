@@ -386,6 +386,8 @@ For a list of which arguments can be passed into make(), see Section
  skip_ddc              | Ignore DDC block. Connect Rx streamers straight into radio.                  | All N3xx          | skip_ddc=1
  skip_duc              | Ignore DUC block. Connect Rx streamers or DRAM straight into radio.          | All N3xx          | skip_duc=1
  skip_init             | Skip the initialization process for the device.                              | All N3xx          | skip_init=1
+ time_source           | Specify the time (PPS) source.                                               | All N3xx          | time_source=internal
+ clock_source          | Specify the reference clock source.                                          | All N3xx          | clock_source=internal
  ref_clk_freq          | Specify the external reference clock frequency, default is 10 MHz.           | N310              | ref_clk_freq=20e6
  init_cals             | Specify the bitmask for initial calibrations of the RFIC.                    | N310              | init_cals=BASIC
  init_cals_timeout     | Timeout for initial calibrations in milliseconds.                            | N310              | init_cals_timeout=45000
@@ -551,6 +553,48 @@ salt-minion):
 
     $ systemctl enable salt-minion
 
+To make use of Salt, both the device needs to be configured (the "minion") and,
+typically, a server to act as the Salt master. Refer to the Salt documentation
+on how to configure the minion and the master. A typical sequence to get started
+will look like this:
+
+1. Install the salt-master package on the server (e.g. by running `apt install salt-master`
+   if the server is an Ubuntu system), and make sure the Salt master is running.
+2. Add the network address / hostname of that server to the `/etc/salt/minion`
+   file on the device by editing the `master:` line.
+3. Launch the Salt minion on the USRP by running the command `systemctl start salt-minion`.
+4. The minion will try to connect to the master. You need to authorize the
+   minion by running `salt-key -a $hostname` where `$hostname` is the name of
+   the minion.
+5. Once the device is authorized, you can try various commands to see if the
+   communication was established:
+
+    $ [sudo] salt '*' test.ping
+    ni-n3xx-311FE00:
+        True
+    $ [sudo] salt '*' network.interfaces
+    ni-n3xx-311FE00:
+        ----------
+        eth0:
+            ----------
+            hwaddr:
+                02:00:03:11:fe:00
+            inet:
+                |_
+                  ----------
+                  address:
+                      10.16.32.113
+                  broadcast:
+                      10.16.33.255
+                  label:
+                      eth0
+                  netmask:
+                      255.255.254.0
+            up:
+                True
+    # [...]
+
+
 \section n3xx_synchronization Clock/Time Synchronization
 
 \subsection n3xx_synchronization_internal Internal references
@@ -565,13 +609,15 @@ Using an internal reference is the default.
 \subsection n3xx_synchronization_external External references
 
 In order to synchronize multiple USRPs, an external reference, such as the
-CDA-2990, is required. If only a clock reference is available, it is possible
-to derive an internal PPS signal from the reference (which will allow devices
-to share a frequency, but not a time reference). If both an external clock and
-time source are provided, devices will be synchronized in frequency and time.
+CDA-2990 (OctoClock), is required. If only a clock reference is available, it is
+possible to derive an internal PPS signal from the reference (which will allow
+devices to share a frequency, but not a time reference). If both an external
+clock and time source are provided, devices will be synchronized in frequency
+and time.
 
 ```cpp
-auto usrp = uhd::usrp::multi_usrp::make("type=n3xx,clock_source=external,time_source=external");
+auto usrp = uhd::usrp::multi_usrp::make(
+    "type=n3xx,clock_source=external,time_source=external");
 ```
 
 \subsection n3xx_synchronization_whiterabbit White Rabbit
@@ -582,7 +628,7 @@ configured as a White Rabbit slave.
 
 To use White Rabbit, it is necessary to provide an appropriate reference via
 Ethernet. This reference must be connected to SFP0. Finally, a White Rabbit-compatible
-FPGA must be loaded. SFP0 will not be available for data transport in this mode.
+FPGA must be loaded. SFP0 will *not be available for data transport* in this mode.
 
 The White Rabbit image is provided as a default image. To obtain the default
 images, simply run:
@@ -591,12 +637,24 @@ images, simply run:
 
 Then, you can install the WX (or WA) image using `uhd_image_loader`:
 
-    $ uhd_image_loader --args type=n3xx,addr=ni-n3xx-<DEVICE_SERIAL> --fpga-path=”<UHD_INSTALL_DIRECTORY>/share/uhd/images/usrp_n310_fpga_WX.bit
+    $ uhd_image_loader \
+        --args type=n3xx,addr=ni-n3xx-<DEVICE_SERIAL>,WX
 
-Once the image is loaded, select `sfp0` as the clock and time source:
+Once the image is loaded, select `internal` as the clock source and
+`sfp0` as the time source (note: this will fail if the WX or WA image is not
+currently loaded):
 
 ```cpp
-auto usrp = uhd::usrp::multi_usrp::make("type=n3xx,clock_source=sfp0,time_source=sfp0");
+auto usrp = uhd::usrp::multi_usrp::make(
+    "type=n3xx,clock_source=internal,time_source=sfp0");
+// Or if you want to change it to White Rabbit after initialization:
+usrp->set_sync_source(device_addr_t("clock_source=internal,time_source=sfp0"));
+// Using the older time/clock source APIs is also possible:
+usrp->set_time_source("sfp0");
+usrp->set_clock_source("internal");
+// The 2nd call can technically be skipped because the device implementations
+// will coerce, but for consistency with other code and for being explicit this
+// is the preferred way. The 2nd call will immediately return in this case.
 ```
 
 For more information, refer to the [White Rabbit Homepage](https://www.ohwr.org/projects/white-rabbit),
@@ -629,6 +687,53 @@ cores, there is hardware daemon which needs to be active in order for the
 device to function as a USRP (it is enabled to run by default).
 
 A large portion of hardware-specific setup is handled by the daemon.
+
+\section n3xx_fsbuild Building custom filesystems and SD card images
+
+Ettus Research provides SD card images at regular intervals, but there can be
+good reasons to build custom SD cards, e.g., to test the very latest UHD or MPM
+for which there has not been an SD card release, to add own applications to the
+SD card, or to run a modified version of UHD.
+
+Note that building SD cards is very disk space and RAM intensive.
+
+\subsection n3xx_fsbuild_docker Using Docker to build filesystems
+
+Ettus Research provides a Docker containers to facilitate building filesystems.
+Using Docker hub, the container can be downloaded by running
+
+    $ docker pull ettusresearch/oe-build
+
+Then, navigate to a location with enough disk space:
+
+    $ cd $BUILDDIR
+
+Create a world-writable directory called 'build':
+
+   $ mkdir build && chmod 777 build
+
+Then run the Docker container:
+
+    $ docker run -i -t -v $(pwd)/build:/home/oe-builder/build:rw,z ettusresearch/oe-build /bin/bash
+
+Note the order of the naming above might vary by docker version, sometimes it might need to be:
+
+    $ docker run -i -t ettusresearch/oe-build -v $(pwd)/build:/home/oe-builder/build:rw,z /bin/bash
+
+After running the previous command, you will be inside the container. First,
+configure your build environment:
+
+   $ TEMPLATECONF=`pwd`/meta-ettus/conf/sulfur source ./oe-core/oe-init-build-env ./build ./bitbake
+
+Then, you can invoke bitbake to build the image:
+
+    $ bitbake $image_name
+
+If you keep the build directory, bitbake will reuse it on consecutive runs,
+which will speed up builds significantly between runs.
+
+This step will build the SDK, the SD card image, and the Mender artefact.
+
 
 \section n3xx_software_dev Modifying and compiling UHD and MPM for the N3XX
 
@@ -791,7 +896,7 @@ the initialization sequence, the following steps are performed:
 - All clocking is initialized
 - The JESD links are trained and brought up (between the FPGA and the AD9371)
 - The AD9371 is reset, its firmware is uploaded, and calibrations are
-  initialized (See also \section n3xx_mg_calibrations)
+  initialized (See also \ref n3xx_mg_calibrations)
 - N310 only: The multi-chip synchronization is performed to align all the RFICs
   to the common time and clock reference
 

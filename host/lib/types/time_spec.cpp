@@ -62,7 +62,7 @@ time_spec_t time_spec_t::get_system_time(void){
  * Time spec constructors
  **********************************************************************/
 #define time_spec_init(full, frac) { \
-    const time_t _full = time_t(full); \
+    const int64_t _full = int64_t(full); \
     const double _frac = double(frac); \
     const int _frac_int = int(_frac); \
     _full_secs = _full + _frac_int; \
@@ -81,11 +81,11 @@ time_spec_t::time_spec_t(double secs){
     time_spec_init(0, secs);
 }
 
-time_spec_t::time_spec_t(time_t full_secs, double frac_secs){
+time_spec_t::time_spec_t(int64_t full_secs, double frac_secs){
     time_spec_init(full_secs, frac_secs);
 }
 
-time_spec_t::time_spec_t(time_t full_secs, long tick_count, double tick_rate){
+time_spec_t::time_spec_t(int64_t full_secs, long tick_count, double tick_rate){
     const double frac_secs = tick_count/tick_rate;
     time_spec_init(full_secs, frac_secs);
 }
@@ -93,7 +93,7 @@ time_spec_t::time_spec_t(time_t full_secs, long tick_count, double tick_rate){
 time_spec_t time_spec_t::from_ticks(long long ticks, double tick_rate){
     const long long rate_i = (long long)(tick_rate);
     const double rate_f = tick_rate - rate_i;
-    const time_t secs_full = time_t(ticks/rate_i);
+    const int64_t secs_full = int64_t(ticks/rate_i);
     const long long ticks_error = ticks - (secs_full*rate_i);
     const double ticks_frac = ticks_error - secs_full*rate_f;
     return time_spec_t(secs_full, ticks_frac/tick_rate);
@@ -139,24 +139,19 @@ time_spec_t &time_spec_t::operator+=(double &rhs){
     return *this;
 }
 
-time_spec_t time_spec_t::operator+(double &rhs){
-    double full_secs = std::trunc(rhs);
-    time_spec_t toRet(this->get_full_secs() + full_secs,
-         this->get_frac_secs() + rhs - full_secs);
-    return toRet;
-}
-
-time_spec_t time_spec_t::operator+(const time_spec_t &rhs){
-    time_spec_t toRet(
-        this->get_full_secs() + rhs.get_full_secs(),
-        this->get_frac_secs() + rhs.get_frac_secs());
-    return toRet;
-}
-
 time_spec_t &time_spec_t::operator-=(const time_spec_t &rhs){
     time_spec_init(
         this->get_full_secs() - rhs.get_full_secs(),
         this->get_frac_secs() - rhs.get_frac_secs()
+    );
+    return *this;
+}
+
+time_spec_t &time_spec_t::operator-=(double &rhs) {
+    double full_secs = std::trunc(rhs);
+    time_spec_init(
+        this->get_full_secs() - full_secs,
+        this->get_frac_secs() - (rhs - full_secs)
     );
     return *this;
 }

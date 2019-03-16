@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Ettus Research, a National Instruments Company
+# Copyright 2017-2018 Ettus Research, a National Instruments Company
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -8,11 +8,12 @@ JESD FPGA Core Interface
 """
 
 import time
+from six import iteritems
 from builtins import hex
 from builtins import object
 from usrp_mpm.mpmlog import get_logger
 
-class NIMgJESDCore(object):
+class NIJESDCore(object):
     """
     Provide interface for the FPGA JESD Core.
     Works with Magnesium/Mykonos daughterboards only.
@@ -21,6 +22,13 @@ class NIMgJESDCore(object):
     regs -- regs class to use for peek/poke
     """
 
+    # Bump this whenever we stop supporting older FPGA images or boards.
+    # YYMMDDHH
+    OLDEST_COMPAT_VERSION = 0x17122214
+    # Bump this whenever changes are made to the host code.
+    CURRENT_VERSION = 0x18071209
+
+    # Register offsets for JESD core.
     DB_ID                      = 0x0630
     MGT_QPLL_CONTROL           = 0x2000
     MGT_PLL_POWER_DOWN_CONTROL = 0x200C
@@ -33,36 +41,44 @@ class NIMgJESDCore(object):
     MGT_TX_SCRAMBLER_CONTROL   = 0x2068
     LMK_SYNC_CONTROL           = 0x206C
     JESD_MGT_DRP_CONTROL       = 0x2070
+    JESD_MGT_TEST_CONTROL      = 0x2074
     SYSREF_CAPTURE_CONTROL     = 0x2078
     JESD_SIGNATURE_REG         = 0x2100
     JESD_REVISION_REG          = 0x2104
     JESD_OLD_COMPAT_REV_REG    = 0x2108
 
+    # NIJESDCore configuration attributes.
+    # These parameters should be set per board (ie. Mg, Rh, etc.) at the creation
+    # of the NIJESDCore object. Use **kwargs to pass a dict which keys correspond
+    # to the parameter's name (eg. {"lmfc_divider": 12, ...}).
+    JESDCORE_DEFAULTS = {"qplls_used"        : 1,       # Number of QPLLs used.
+                         "cplls_used"        : 0,       # Number of CPLLs used.
+                         "rx_lanes"          : 4,       # Number of RX lanes used.
+                         "tx_lanes"          : 4,       # Number of TX lanes used.
+                         "bypass_descrambler": True,    # Bypass the desrambler IP.
+                         "bypass_scrambler"  : True,    # Bypass the scrambler IP.
+                         "lmfc_divider"      : 10,      # Number of FPGA clock cycles per LMFC period.
+                         "rx_sysref_delay"   : 10,      # Cycles of delay added to RX SYSREF
+                         "tx_sysref_delay"   : 10,      # Cycles of delay added to TX SYSREF
+                         "tx_driver_swing"   : 0b1111,  # See UG476, TXDIFFCTRL
+                         "tx_precursor"      : 0b00000, # See UG476, TXPRECURSOR
+                         "tx_postcursor"     : 0b00000, # See UG476, TXPOSTCURSOR
+                         "enable_rx_eyescan" : False}   # Enable the PMA Eye Scan circuitry.
 
-    def __init__(self, regs, slot_idx=0):
+    def __init__(self, regs, slot_idx=0, **kwargs):
         self.regs = regs
         self.log = get_logger("NIJESD204bCore-{}".format(slot_idx))
         assert hasattr(self.regs, 'peek32')
         assert hasattr(self.regs, 'poke32')
-        # FutureWork: The following are constants for the Magnesium board. These need
-        # to change to variables to support other interfaces.
-        self.qplls_used = 1
-        self.cplls_used = 0
-        self.rx_lanes = 4
-        self.tx_lanes = 4
-        self.bypass_descrambler = False
-        self.bypass_scrambler = True
-        self.lmfc_divider = 20 # Number of FPGA clock cycles per LMFC period.
-        self.rx_sysref_delay = 8  # Cycles of delay added to RX SYSREF
-        self.tx_sysref_delay = 11 # Cycles of delay added to TX SYSREF
-        self.tx_driver_swing = 0b1111 # See UG476, TXDIFFCTRL
-        self.tx_precursor = 0b00000 # See UG476, TXPRECURSOR
-        self.tx_postcursor = 0b00000 # See UG476, TXPOSTCURSOR
-        # Bump this whenever we stop supporting older FPGA images or boards.
-        # YYMMDDHH
-        self.oldest_compat_version = 0x17122214
-        # Bump this whenever changes are made to the host code.
-        self.current_version = 0x17122214
+        # Initialize the driver's attributes with the default value, or a user-given
+        # value if the attribute key exists in kwargs.
+        for key, default_value in iteritems(self.JESDCORE_DEFAULTS):
+            setattr(self, key, kwargs.get(key, default_value))
+            assert type(getattr(self, key)) == type(default_value), \
+                "Invalid type for attribute {}".format(key)
+            self.log.trace("Initialized attribute {0} = {1}."
+                           .format(key, getattr(self, key)))
+        
 
     def check_core(self):
         """
@@ -76,15 +92,15 @@ class NIMgJESDCore(object):
         #   Host Current Rev >= FPGA Oldest Compatible Rev
         fpga_current_revision    = self.regs.peek32(self.JESD_REVISION_REG) & 0xFFFFFFFF
         fpga_old_compat_revision = self.regs.peek32(self.JESD_OLD_COMPAT_REV_REG) & 0xFFFFFFFF
-        if fpga_current_revision < self.oldest_compat_version:
+        if fpga_current_revision < self.OLDEST_COMPAT_VERSION:
             self.log.error("Revision check failed! MPM oldest supported revision "
                            "(0x{:08X}) is too new for this FPGA revision (0x{:08X})."
-                           .format(self.oldest_compat_version, fpga_current_revision))
+                           .format(self.OLDEST_COMPAT_VERSION, fpga_current_revision))
             raise RuntimeError('This MPM version does not support the loaded FPGA image. Please update images!')
-        if self.current_version < fpga_old_compat_revision:
+        if self.CURRENT_VERSION < fpga_old_compat_revision:
             self.log.error("Revision check failed! FPGA oldest compatible revision "
                            "(0x{:08X}) is too new for this MPM version (0x{:08X})."
-                           .format(fpga_current_revision, self.current_version))
+                           .format(fpga_current_revision, self.CURRENT_VERSION))
             raise RuntimeError('The loaded FPGA version is too new for MPM. Please update MPM!')
         self.log.trace("JESD Core current revision: 0x{:08X}".format(fpga_current_revision))
         self.log.trace("JESD Core oldest compatible revision: 0x{:08X}".format(fpga_old_compat_revision))
@@ -196,6 +212,7 @@ class NIMgJESDCore(object):
         Initializes the core. Must happen after the reference clock is stable.
         """
         self.log.trace("Initializing JESD204B FPGA core(s)...")
+        self._gt_pma_eyescan(self.enable_rx_eyescan)
         self._gt_pll_power_control(self.qplls_used, self.cplls_used)
         self._gt_reset('tx', reset_only=True)
         self._gt_reset('rx', reset_only=True)
@@ -312,6 +329,57 @@ class NIMgJESDCore(object):
                     raise RuntimeError("One or more GT QPLLs failed to lock!")
                 self.log.trace("QPLL(s) reporting locked!")
 
+    def _gt_pma_eyescan(self, enable=False):
+        # According to UG476 pg. 220, for a GTX xcvr PMA_RSV2[5] should always be
+        # asserted when using Eye Scan; otherwise, the Eye Scan circuitry in the PMA
+        # will be powered down.
+        PMA_RSV2_DRP_ADDR = 0x082
+        self.log.debug("{} the eye scan circuitry in the PMA for the GTXs..."
+                       .format({True: "Enabling", False: "Disabling"}[enable]))
+        for gt_num in range(0, self.rx_lanes):
+            self.set_drp_target('mgt', gt_num)
+            drp_x082_rb = self.drp_access(rd=True, addr=PMA_RSV2_DRP_ADDR)
+            pma_rsv2_bit5 = int(enable)
+            drp_x082_wr = (drp_x082_rb & ~(0b1 << 5)) | (pma_rsv2_bit5 << 5)
+            self.drp_access(rd=False, addr=PMA_RSV2_DRP_ADDR, wr_data=drp_x082_wr)
+        self.disable_drp_target()
+
+    def set_pattern_gen(self, mode):
+        """
+        This method configures the TX pattern generator for ALL GTs.
+        """
+        TXPRBSSEL = {'OFF'    : 0b000, 'PRBS-7' : 0b001,
+                     'PRBS-15': 0b010, 'PRBS-23': 0b011,
+                     'PRBS-31': 0b100, 'PCIE'   : 0b101,
+                     'SQR-2UI': 0b110, 'SQR-xUI': 0b111}
+        assert mode in TXPRBSSEL
+        self.log.debug("Setting TX pattern mode for all GTs: {}".format(mode))
+        self.log.trace("Writing MGT Test Register (offset 0x{:04X}) with 0x{:08X}"
+                       .format(self.JESD_MGT_TEST_CONTROL, TXPRBSSEL[mode]))
+        self.regs.poke32(self.JESD_MGT_TEST_CONTROL, TXPRBSSEL[mode])
+
+
+    def adjust_tx_phy(self, **kwargs):
+        """
+        This method provides a mechanism to adjust the GT's TX PHY settings.
+        """
+        # Cycle through the PHY TX settings for the GTs, and see what's changed.
+        tx_settings_changed = False
+        for key, new_value in iteritems(kwargs):
+            assert key in self.JESDCORE_DEFAULTS, "{} is not a valid attribute".format(key)
+            if getattr(self, key) != new_value:
+                self.log.trace("Changing TX PHY attribute {0} from {1} to {2}..."
+                               .format(key, getattr(self, key), new_value))
+                setattr(self, key, new_value)
+                tx_settings_changed = True
+        # MGT TX PHY control.
+        if tx_settings_changed:
+            reg_val = ((self.tx_driver_swing & 0x0F) << 16) | \
+                      ((self.tx_precursor    & 0x1F) <<  8) | \
+                      ((self.tx_postcursor   & 0x1F) <<  0)
+            self.regs.poke32(self.MGT_TX_TRANSCEIVER_CONTROL, reg_val)
+
+
     def set_drp_target(self, mgt_or_qpll, dev_num):
         """
         Sets up access to the specified MGT or QPLL. This must be called
@@ -368,4 +436,3 @@ class NIMgJESDCore(object):
                 self.log.error("DRP read after write failed to match!")
 
         return rd_data
-

@@ -106,11 +106,14 @@ namespace {
      *                 number.
      * \param actual Tuple of 2 integers representing MAJOR.MINOR compat
      *                 number.
+     * \param advice_on_failure A string that is appended to the error message
+     *                          when compat number mismatches have occurred.
      */
     void assert_compat_number_throw(
         const std::string &component,
         const std::vector<size_t> &expected,
-        const std::vector<size_t> &actual
+        const std::vector<size_t> &actual,
+        const std::string& advice_on_failure=""
     ) {
         UHD_ASSERT_THROW(expected.size() == 2);
         UHD_ASSERT_THROW(actual.size() == 2);
@@ -124,20 +127,24 @@ namespace {
         if (actual[0] != expected[0]) {
             const std::string err_msg =
                 str(boost::format("%s major compat number mismatch. "
-                                 "Expected: %i.%i Actual: %i.%i")
+                                 "Expected: %i.%i Actual: %i.%i.%s%s")
                     % component
                     % expected[0] % expected[1]
-                    % actual[0] % actual[1]);
+                    % actual[0] % actual[1]
+                    % (advice_on_failure.empty() ? "" : " ")
+                    % advice_on_failure);
             UHD_LOG_ERROR("MPMD", err_msg);
             throw uhd::runtime_error(err_msg);
         }
         if (actual[1] < expected[1]) {
             const std::string err_msg =
                 str(boost::format("%s minor compat number mismatch. "
-                                 "Expected: %i.%i Actual: %i.%i")
+                                 "Expected: %i.%i Actual: %i.%i.%s%s")
                     % component
                     % expected[0] % expected[1]
-                    % actual[0] % actual[1]);
+                    % actual[0] % actual[1]
+                    % (advice_on_failure.empty() ? "" : " ")
+                    % advice_on_failure);
             UHD_LOG_ERROR("MPMD", err_msg);
             throw uhd::runtime_error(err_msg);
         }
@@ -279,7 +286,8 @@ void mpmd_impl::setup_mb(
     assert_compat_number_throw(
         "MPM",
         MPM_COMPAT_NUM,
-        mb->rpc->request<std::vector<size_t>>("get_mpm_compat_num")
+        mb->rpc->request<std::vector<size_t>>("get_mpm_compat_num"),
+        "Please update the version of MPM on your USRP device."
     );
 
     UHD_LOG_DEBUG("MPMD", "Initializing mboard " << mb_index);
@@ -297,12 +305,16 @@ void mpmd_impl::setup_rfnoc_blocks(
     UHD_LOG_TRACE("MPMD",
         "Mboard " << mb_index << " reports " << mb->num_xbars << " crossbar(s)."
     );
-
+    // TODO: The args apply to all xbars, which may or may not be true
     for (size_t xbar_index = 0; xbar_index < mb->num_xbars; xbar_index++) {
-        const size_t num_blocks =
-            mb->rpc->request<size_t>("get_num_blocks", xbar_index);
-        const size_t base_port =
-            mb->rpc->request<size_t>("get_base_port", xbar_index);
+        // Pull the number of blocks and base port from the args, if available.
+        // Otherwise, get the values from MPM.
+        const size_t num_blocks = ctrl_xport_args.has_key("rfnoc_num_blocks")
+            ? ctrl_xport_args.cast<size_t>("rfnoc_num_blocks", 0)
+            : mb->rpc->request<size_t>("get_num_blocks", xbar_index);
+        const size_t base_port = ctrl_xport_args.has_key("rfnoc_base_port")
+            ? ctrl_xport_args.cast<size_t>("rfnoc_base_port", 0)
+            : mb->rpc->request<size_t>("get_base_port", xbar_index);
         const size_t local_addr = mb->get_xbar_local_addr(xbar_index);
         UHD_LOGGER_TRACE("MPMD")
             << "Enumerating RFNoC blocks for xbar " << xbar_index
@@ -310,6 +322,18 @@ void mpmd_impl::setup_rfnoc_blocks(
             << " Base port: " << base_port
             << " Local address: " << local_addr
         ;
+        if (ctrl_xport_args.has_key("rfnoc_num_blocks") or
+            ctrl_xport_args.has_key("rfnoc_base_port")) {
+            // TODO: Remove this warning once we're confident this is
+            //       (relatively) safe and useful. Also add documentation to
+            //       usrp_n3xx.dox
+            UHD_LOGGER_WARNING("MPMD")
+                << "Overriding default RFNoC configuration. You are using an "
+                << "experimental development feature, which may go away in "
+                << "future versions."
+            ;
+        }
+
         try {
             enumerate_rfnoc_blocks(
               mb_index,

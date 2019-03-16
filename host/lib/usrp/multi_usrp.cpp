@@ -32,6 +32,8 @@
 using namespace uhd;
 using namespace uhd::usrp;
 
+const size_t multi_usrp::ALL_MBOARDS = size_t(~0);
+const size_t multi_usrp::ALL_CHANS = size_t(~0);
 const std::string multi_usrp::ALL_GAINS = "";
 const std::string multi_usrp::ALL_LOS = "all";
 
@@ -625,7 +627,7 @@ public:
         _tree = _dev->get_tree();
         _is_device3 = bool(boost::dynamic_pointer_cast<uhd::device3>(_dev));
 
-        if (is_device3()) {
+        if (is_device3() and not addr.has_key("recover_mb_eeprom")) {
             _legacy_compat = rfnoc::legacy_compat::make(get_device3(), addr);
         }
     }
@@ -958,7 +960,20 @@ public:
 
     void set_time_source(const std::string &source, const size_t mboard){
         if (mboard != ALL_MBOARDS){
-            _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").set(source);
+            const auto time_source_path =
+                mb_root(mboard) / "time_source/value";
+            const auto sync_source_path =
+                mb_root(mboard) / "sync_source/value";
+            if (_tree->exists(time_source_path)) {
+                _tree->access<std::string>(time_source_path).set(source);
+            } else if (_tree->exists(sync_source_path)) {
+                auto sync_source =
+                    _tree->access<device_addr_t>(sync_source_path).get();
+                sync_source["time_source"] = source;
+                _tree->access<device_addr_t>(sync_source_path).set(sync_source);
+            } else {
+                throw uhd::runtime_error("Can't set time source on this device.");
+            }
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++){
@@ -967,16 +982,53 @@ public:
     }
 
     std::string get_time_source(const size_t mboard){
-        return _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").get();
+        const auto time_source_path = mb_root(mboard) / "time_source/value";
+        if (_tree->exists(time_source_path)) {
+            return _tree->access<std::string>(time_source_path).get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/value")) {
+            auto sync_source = _tree->access<device_addr_t>(
+                mb_root(mboard) / "sync_source" / "value").get();
+            if (sync_source.has_key("time_source")) {
+                return sync_source.get("time_source");
+            }
+        }
+        throw uhd::runtime_error("Cannot query time_source on this device!");
     }
 
     std::vector<std::string> get_time_sources(const size_t mboard){
-        return _tree->access<std::vector<std::string> >(mb_root(mboard) / "time_source" / "options").get();
+        const auto time_source_path = mb_root(mboard) / "time_source/options";
+        if (_tree->exists(time_source_path)) {
+            return _tree->access<std::vector<std::string>>(time_source_path)
+                .get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/options")) {
+            const auto sync_sources = get_sync_sources(mboard);
+            std::vector<std::string> time_sources;
+            for (const auto& sync_source : sync_sources) {
+                if (sync_source.has_key("time_source")) {
+                    time_sources.push_back(sync_source.get("time_source"));
+                }
+            }
+        }
+        throw uhd::runtime_error("Cannot query time_source on this device!");
     }
 
     void set_clock_source(const std::string &source, const size_t mboard){
         if (mboard != ALL_MBOARDS){
-            _tree->access<std::string>(mb_root(mboard) / "clock_source" / "value").set(source);
+            const auto clock_source_path =
+                mb_root(mboard) / "clock_source/value";
+            const auto sync_source_path =
+                mb_root(mboard) / "sync_source/value";
+            if (_tree->exists(clock_source_path)) {
+                _tree->access<std::string>(clock_source_path).set(source);
+            } else if (_tree->exists(sync_source_path)) {
+                auto sync_source =
+                    _tree->access<device_addr_t>(sync_source_path).get();
+                sync_source["clock_source"] = source;
+                _tree->access<device_addr_t>(sync_source_path).set(sync_source);
+            } else {
+                throw uhd::runtime_error(
+                    "Can't set clock source on this device.");
+            }
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++){
@@ -985,11 +1037,115 @@ public:
     }
 
     std::string get_clock_source(const size_t mboard){
-        return _tree->access<std::string>(mb_root(mboard) / "clock_source" / "value").get();
+        const auto clock_source_path = mb_root(mboard) / "clock_source/value";
+        if (_tree->exists(clock_source_path)) {
+            return _tree->access<std::string>(
+                    mb_root(mboard) / "clock_source" / "value").get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/value")) {
+            auto sync_source = _tree->access<device_addr_t>(
+                mb_root(mboard) / "sync_source" / "value").get();
+            if (sync_source.has_key("clock_source")) {
+                return sync_source.get("clock_source");
+            }
+        }
+        throw uhd::runtime_error("Cannot query clock_source on this device!");
+    }
+
+    void set_sync_source(
+        const std::string &clock_source,
+        const std::string &time_source,
+        const size_t mboard
+    ) {
+        device_addr_t sync_args;
+        sync_args["clock_source"] = clock_source;
+        sync_args["time_source"] = time_source;
+        set_sync_source(sync_args, mboard);
+    }
+
+    void set_sync_source(
+        const device_addr_t& sync_source,
+        const size_t mboard
+    ) {
+        if (mboard != ALL_MBOARDS) {
+            const auto sync_source_path =
+                mb_root(mboard) / "sync_source/value";
+            if (_tree->exists(sync_source_path)) {
+                _tree->access<device_addr_t>(sync_source_path)
+                    .set(sync_source);
+            } else if (_tree->exists(mb_root(mboard) / "clock_source/value")
+                    and _tree->exists(mb_root(mboard) / "time_source/value")
+                    and sync_source.has_key("clock_source")
+                    and sync_source.has_key("time_source")) {
+                const std::string clock_source = sync_source["clock_source"];
+                const std::string time_source = sync_source["time_source"];
+                set_clock_source(clock_source, mboard);
+                set_time_source(time_source, mboard);
+            } else {
+                throw uhd::runtime_error(
+                    "Can't set sync source on this device.");
+            }
+            return;
+        }
+        for (size_t m = 0; m < get_num_mboards(); m++){
+            this->set_sync_source(sync_source, m);
+        }
+
+    }
+
+    device_addr_t get_sync_source(const size_t mboard)
+    {
+        const auto sync_source_path = mb_root(mboard) / "sync_source/value";
+        if (_tree->exists(sync_source_path)) {
+            return _tree->access<device_addr_t>(sync_source_path).get();
+        }
+        // If this path is not there, we fall back to the oldschool method and
+        // convert to a new-fangled sync source dictionary
+        const std::string clock_source = get_clock_source(mboard);
+        const std::string time_source = get_time_source(mboard);
+        device_addr_t sync_source;
+        sync_source["clock_source"] = clock_source;
+        sync_source["time_source"] = time_source;
+        return sync_source;
+    }
+
+    std::vector<device_addr_t> get_sync_sources(const size_t mboard)
+    {
+        const auto sync_source_path = mb_root(mboard) / "sync_source/options";
+        if (_tree->exists(sync_source_path)) {
+            return _tree->access<std::vector<device_addr_t>>(sync_source_path).get();
+        }
+        // If this path is not there, we fall back to the oldschool method and
+        // convert to a new-fangled sync source dictionary
+        const auto clock_sources = get_clock_sources(mboard);
+        const auto time_sources = get_time_sources(mboard);
+        std::vector<device_addr_t> sync_sources;
+        for (const auto& clock_source : clock_sources) {
+            for (const auto& time_source : time_sources) {
+                device_addr_t sync_source;
+                sync_source["clock_source"] = clock_source;
+                sync_source["time_source"] = time_source;
+                sync_sources.push_back(sync_source);
+            }
+        }
+
+        return sync_sources;
     }
 
     std::vector<std::string> get_clock_sources(const size_t mboard){
-        return _tree->access<std::vector<std::string> >(mb_root(mboard) / "clock_source" / "options").get();
+        const auto clock_source_path = mb_root(mboard) / "clock_source/options";
+        if (_tree->exists(clock_source_path)) {
+            return _tree->access<std::vector<std::string>>(clock_source_path)
+                .get();
+        } else if (_tree->exists(mb_root(mboard) / "sync_source/options")) {
+            const auto sync_sources = get_sync_sources(mboard);
+            std::vector<std::string> clock_sources;
+            for (const auto& sync_source : sync_sources) {
+                if (sync_source.has_key("clock_source")) {
+                    clock_sources.push_back(sync_source.get("clock_source"));
+                }
+            }
+        }
+        throw uhd::runtime_error("Cannot query clock_source on this device!");
     }
 
     void set_clock_source_out(const bool enb, const size_t mboard)
@@ -1056,6 +1212,18 @@ public:
         for (size_t m = 0; m < get_num_mboards(); m++){
             set_user_register(addr, data, m);
         }
+    }
+
+    wb_iface::sptr get_user_settings_iface(const size_t chan)
+    {
+        const auto user_settings_path =
+            rx_rf_fe_root(chan) / "user_settings" / "iface";
+        if (_tree->exists(user_settings_path)) {
+            return _tree->access<wb_iface::sptr>(user_settings_path).get();
+        }
+        UHD_LOG_WARNING("MULTI_USRP",
+            "Attempting to read back non-existant user settings iface!");
+        return nullptr;
     }
 
     /*******************************************************************

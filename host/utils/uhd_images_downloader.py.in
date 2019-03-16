@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!@RUNTIME_PYTHON_EXECUTABLE@
 #
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
@@ -18,11 +18,38 @@ import shutil
 import sys
 import tempfile
 import zipfile
-import requests
+import platform
+# For all the non-core-library imports, we will be extra paranoid and be very
+# nice with error messages so that everyone understands what's up.
 try:
     from urllib.parse import urljoin  # Python 3
 except ImportError:
     from urlparse import urljoin      # Python 2
+try:
+    from builtins import input
+except ImportError:
+    input = raw_input
+try:
+    from six import iteritems
+except ImportError:
+    sys.stdout.write(
+        "[ERROR] Missing module 'six'! Please install it, e.g., by "
+        "running 'pip install six' or any other tool that can install "
+        "Python modules.\n")
+    if platform.system() == 'Windows':
+        input('Hit Enter to continue.')
+    exit(0)
+try:
+    import requests
+except ImportError:
+    sys.stdout.write(
+        "[ERROR] Missing module 'requests'! Please install it, e.g., by "
+        "running 'pip install requests' or any other tool that can install "
+        "Python modules.\n")
+    if platform.system() == 'Windows':
+        input('Hit Enter to continue.')
+    exit(0)
+
 
 
 _DEFAULT_TARGET_REGEX     = "(fpga|fw|windrv)_default"
@@ -32,7 +59,7 @@ _DEFAULT_BASE_URL         = "http://files.ettus.com/binaries/cache/"
 _INVENTORY_FILENAME       = "inventory.json"
 _CONTACT                  = "support@ettus.com"
 _DEFAULT_BUFFER_SIZE      = 8192
-_ARCHIVE_ALGS             = ["zip", "targz", "tarxz"]
+_DEFAULT_DOWNLOAD_LIMIT   = 100 * 1024 * 1024 # Bytes
 _ARCHIVE_DEFAULT_TYPE     = "zip"
 _UHD_VERSION              = "@UHD_VERSION@"
 # Note: _MANIFEST_CONTENTS are placed at the bottom of this file for aesthetic reasons
@@ -42,18 +69,23 @@ _LOG_LEVELS = {"TRACE": 1,
                "WARN": 4,
                "ERROR": 5}
 _LOG_LEVEL = _LOG_LEVELS["INFO"]
+_YES = False
+_PROXIES = {}
 
 
-# TODO: Move to a standard logger?
 def log(level, message):
     """Logging function"""
     message_log_level = _LOG_LEVELS.get(level, 0)
     if message_log_level >= _LOG_LEVEL:
-        print("[{level}] {message}".format(level=level, message=message))
+        sys.stderr.write(
+            "[{level}] {message}\n".format(level=level, message=message))
 
 
 def parse_args():
-    """Setup argument parser and parse"""
+    """
+    Setup argument parser and parse. Also does some sanity checks and sets some
+    global variables we want to use.
+    """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-t', '--types', action='append',
                         help="RegEx to select image sets from the manifest file.")
@@ -65,16 +97,29 @@ def parse_args():
     parser.add_argument('-I', '--inventory-location', type=str, default="",
                         help="Set custom location for the inventory file")
     parser.add_argument('-l', '--list-targets', action="store_true", default=False,
-                        help="Print targets in the manifest file, and exit.")
+                        help="Print targets in the manifest file to stdout, and exit.\n"
+                        "To get relative paths only, specify an empty base URL (-b '').")
+    parser.add_argument('--url-only', action="store_true", default=False,
+                        help="With -l, only print the URLs, nothing else.")
     parser.add_argument("--buffer-size", type=int, default=_DEFAULT_BUFFER_SIZE,
                         help="Set download buffer size")
+    parser.add_argument("--download-limit", type=int, default=_DEFAULT_DOWNLOAD_LIMIT,
+                        help="Set threshold for download limits. Any download "
+                             "larger than this will require approval, either "
+                             "interactively, or by providing --yes.")
+    parser.add_argument("--http-proxy", type=str,
+                        help="Specify HTTP proxy in the format "
+                        "http://user:pass@1.2.3.4:port\n"
+                        "If this this option is not given, the environment "
+                        "variable HTTP_PROXY can also be used to specify a proxy.")
     parser.add_argument("-b", "--base-url", type=str, default=_DEFAULT_BASE_URL,
                         help="Set base URL for images download location")
-    parser.add_argument("-z", "--archive-type", type=str, default=_ARCHIVE_DEFAULT_TYPE,
-                        help=("Select archiving function (options: {})"
-                              .format(",".join(_ARCHIVE_ALGS))))
     parser.add_argument("-k", "--keep", action="store_true", default=False,
                         help="Keep the downloaded images archives in the image directory")
+    parser.add_argument("-T", "--test", action="store_true", default=False,
+                        help="Verify the downloaded archives before extracting them")
+    parser.add_argument("-y", "--yes", action="store_true", default=False,
+                        help="Answer all questions with 'yes' (for scripting purposes).")
     parser.add_argument("-n", "--dry-run", action="store_true", default=False,
                         help="Print selected target without actually downloading them.")
     parser.add_argument("--refetch", action="store_true", default=False,
@@ -84,7 +129,53 @@ def parse_args():
                         help="Decrease verbosity level")
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help="Increase verbosity level")
-    return parser.parse_args()
+    # Some sanitation that's easier to handle outside of the argparse framework:
+    args = parser.parse_args()
+    if not args.base_url.endswith('/') and args.base_url != "":
+        args.base_url += '/'
+    if args.yes:
+        global _YES
+        _YES = True
+    if args.http_proxy:
+        global _PROXIES
+        _PROXIES['http'] = args.http_proxy
+    # Set the verbosity
+    global _LOG_LEVEL
+    log("TRACE", "Default log level: {}".format(_LOG_LEVEL))
+    _LOG_LEVEL = _LOG_LEVEL - args.verbose + args.quiet
+    return args
+
+
+def get_images_dir(args):
+    """
+    Figure out where to store the images.
+    """
+    if args.install_location:
+        return args.install_location
+    if os.environ.get("UHD_IMAGES_DIR"):
+        log("DEBUG",
+            "UHD_IMAGES_DIR environment variable is set, using to set "
+            "install location.")
+        return os.environ.get("UHD_IMAGES_DIR")
+    return _DEFAULT_INSTALL_PATH
+
+
+def ask_permission(question, default_no=True):
+    """
+    Ask the question, and have the user type y or n on the keyboard. If the
+    global variable _YES is true, this always returns True without asking the
+    question. Otherwise, return True if the answer is 'yes', 'y', or something
+    similar.
+    """
+    if _YES:
+        log("DEBUG", "Assuming the answer is 'yes' for this question: " +
+            question)
+        return True
+    postfix = "[y/N]" if default_no else "[Y/n]"
+    answer = input(question + " " + postfix)
+    if answer and answer[0].lower() == 'y':
+        return True
+    return False
 
 
 class TemporaryDirectory:
@@ -107,6 +198,24 @@ class TemporaryDirectory:
         return exc_type is None
 
 
+def get_manifest_raw(args):
+    """
+    Return the raw content of the manifest (i.e. the text file). It
+    needs to be parsed to be of any practical use.
+    """
+    # If we're given a path to a manifest file, use it
+    if os.path.exists(args.manifest_location):
+        manifest_fn = args.manifest_location
+        log("INFO", "Using manifest file at location: {}".format(manifest_fn))
+        with open(manifest_fn, 'r') as manifest_file:
+            manifest_raw = manifest_file.read()
+    # Otherwise, use the CMake Magic manifest
+    else:
+        manifest_raw = _MANIFEST_CONTENTS
+    log("TRACE", "Raw manifest contents: {}".format(manifest_raw))
+    return manifest_raw
+
+
 def parse_manifest(manifest_contents):
     """Parse the manifest file, returns a dictionary of potential targets"""
     manifest = {}
@@ -121,7 +230,7 @@ def parse_manifest(manifest_contents):
             manifest[target] = {"repo_hash": repo_hash,
                                 "url": url,
                                 "sha256_hash": sha256_hash,
-                                }
+                               }
         except ValueError:
             log("WARN", "Warning: Invalid line in manifest file:\n"
                 "         {}".format(line))
@@ -159,44 +268,85 @@ def lookup_urls(regex_l, manifest, inventory, refetch=False):
     """Takes a list of RegExs to match within the manifest, returns a list of tuples with
     (hash, URL) that match the targets and are not in the inventory"""
     selected_targets = []
+    # Store whether or not we've found a target in the manifest that matches the requested type
+    found_one = False
     for target in manifest.keys():
         # Iterate through the possible targets in the manifest.
         # If any of them match any of the RegExs supplied, add the URL to the
         # return list
         if all(map((lambda regex: re.findall(regex, target)), regex_l)):
+            found_one = True
             log("TRACE", "Selected target: {}".format(target))
             target_info = manifest.get(target)
             target_url = target_info.get("url")
             target_hash = target_info.get("repo_hash")
             target_sha256 = target_info.get("sha256_hash")
-            # Check if the same filename and hash appear in the inventory
-            # TODO: Change to the TARGET instead of the filename
             filename = os.path.basename(target_url)
-            if not refetch and inventory.get(filename, {}).get("repo_hash", "") == target_hash:
+            # Check if the same filename and hash appear in the inventory
+            if not refetch and inventory.get(target, {}).get("repo_hash", "") == target_hash:
                 # We already have this file, we don't need to download it again
                 log("INFO", "Target {} is up to date.".format(target))
             else:
                 # We don't have that exact file, add it to the list
-                selected_targets.append({"repo_hash": target_hash,
+                selected_targets.append({"target": target,
+                                         "repo_hash": target_hash,
+                                         "filename": filename,
                                          "url": target_url,
                                          "sha256_hash": target_sha256})
+    if not found_one:
+        log("INFO", "No targets matching '{}'".format(regex_l))
     return selected_targets
 
 
-def download(images_url, filename, buffer_size=_DEFAULT_BUFFER_SIZE, print_progress=False):
+def print_target_list(manifest, args):
+    """
+    Print a list of targets.
+    """
+    char_offset = max(len(x) for x in manifest.keys())
+    if not args.url_only:
+        # Print a couple helpful lines,
+        # then print each (Target, URL) pair in the manifest
+        log("INFO", "Potential targets in manifest file:\n"
+                    "{} : {}".format(
+                        "# TARGET".ljust(char_offset),
+                        "URL" if args.base_url else "RELATIVE_URL"))
+        for key, value in sorted(manifest.items()):
+            print("{target} : {base}{relpath}".format(
+                target=key.ljust(char_offset),
+                base=args.base_url,
+                relpath=value["url"]))
+    else:
+        for manifest_item in iteritems(manifest):
+            print(args.base_url+manifest_item[1]["url"])
+
+
+def download(
+        images_url,
+        filename,
+        buffer_size=_DEFAULT_BUFFER_SIZE,
+        print_progress=False,
+        download_limit=None
+    ):
     """ Run the download, show progress """
+    download_limit = download_limit or _DEFAULT_DOWNLOAD_LIMIT
     log("TRACE", "Downloading {} to {}".format(images_url, filename))
     try:
-        resp = requests.get(images_url, stream=True,
+        resp = requests.get(images_url, stream=True, proxies=_PROXIES,
                             headers={'User-Agent': 'UHD Images Downloader'})
     except TypeError:
         # requests library versions pre-4c3b9df6091b65d8c72763222bd5fdefb7231149
         # (Dec.'12) workaround
-        resp = requests.get(images_url, prefetch=False,
+        resp = requests.get(images_url, prefetch=False, proxies=_PROXIES,
                             headers={'User-Agent': 'UHD Images Downloader'})
     if resp.status_code != 200:
         raise RuntimeError("URL does not exist: {}".format(images_url))
     filesize = float(resp.headers['content-length'])
+    if filesize > download_limit:
+        if not ask_permission(
+                "The file size for this target ({:.1f} MiB) exceeds the "
+                "download limit ({:.1f} MiB). Continue downloading?".format(
+                    filesize/1024**2, download_limit/1024**2)):
+            return 0, 0, ""
     filesize_dl = 0
     base_filename = os.path.basename(filename)
     if print_progress and not sys.stdout.isatty():
@@ -226,9 +376,12 @@ def download(images_url, filename, buffer_size=_DEFAULT_BUFFER_SIZE, print_progr
     return filesize, filesize_dl, sha256_sum.hexdigest()
 
 
-def delete_from_inv(archive_fn, inventory, images_dir):
-    """Uses the inventory to delete the contents of the archive file specified by `filename`"""
-    target = inventory.get(archive_fn, {})
+def delete_from_inv(target_info, inventory, images_dir):
+    """
+    Uses the inventory to delete the contents of the archive file specified by in `target_info`
+    """
+    target = inventory.get(target_info.get("target"), {})
+    target_name = target.get("target")
     log("TRACE", "Removing contents of {} from inventory ({})".format(
         target, target.get("contents", [])))
     dirs_to_delete = []
@@ -249,72 +402,110 @@ def delete_from_inv(archive_fn, inventory, images_dir):
                 os.removedirs(dir_path)
         except os.error as ex:
             log("ERROR", "Failed to delete dir: {}".format(ex))
-    inventory.pop(archive_fn, None)
+    inventory.pop(target_name, None)
     return True
 
 
-def extract(archive_path, images_dir, archive_type):
-    """Extract the contents of the archive into `images_dir`"""
-    if archive_type == "zip":
-        log("TRACE", "Attempting to extracted files from {}".format(archive_path))
-        with zipfile.ZipFile(archive_path) as images_zip:
-            images_zip.extractall(images_dir)
-            archive_namelist = images_zip.namelist()
-            log("TRACE", "Extracted files: {}".format(archive_namelist))
-            return archive_namelist
+def extract(archive_path, images_dir, test_zip=False):
+    """
+    Extract the contents of `archive_path` into `images_dir`
+
+    Returns a list of files that were extracted.
+
+    If test_zip is set, it will verify the zip file before extracting.
+    """
+    log("TRACE", "Attempting to extracted files from {}".format(archive_path))
+    with zipfile.ZipFile(archive_path) as images_zip:
+        # Check that the Zip file is valid, in which case `testzip()` returns
+        # None.  If it's bad, that function will return a list of bad files
+        try:
+            if test_zip and images_zip.testzip():
+                log("ERROR", "Could not extract the following invalid Zip file:"
+                             " {}".format(archive_path))
+                return []
+        except OSError:
+            log("ERROR", "Could not extract the following invalid Zip file:"
+                         " {}".format(archive_path))
+            return []
+        images_zip.extractall(images_dir)
+        archive_namelist = images_zip.namelist()
+        log("TRACE", "Extracted files: {}".format(archive_namelist))
+        return archive_namelist
+
+
+def update_target(target_info, temp_dir, images_dir, inventory, args):
+    """
+    Handle the updating of a single target.
+    """
+    target_name = target_info.get("target")
+    target_sha256 = target_info.get("sha256_hash")
+    filename = target_info.get("filename")
+    temp_path = os.path.join(temp_dir, filename)
+    # Add a trailing slash to make sure that urljoin handles things properly
+    full_url = urljoin(args.base_url+'/', target_info.get("url"))
+    _, downloaded_size, downloaded_sha256 = download(
+        images_url=full_url,
+        filename=temp_path,
+        buffer_size=args.buffer_size,
+        print_progress=(_LOG_LEVEL <= _LOG_LEVELS.get("INFO", 3))
+    )
+    if downloaded_size == 0:
+        log("INFO", "Skipping target: {}".format(target_name))
+        return
+    log("TRACE", "{} successfully downloaded ({} Bytes)"
+        .format(temp_path, downloaded_size))
+    # If the SHA256 in the manifest has the value '0', this is a special case
+    # and we just skip the verification step
+    if target_sha256 == '0':
+        log("DEBUG", "Skipping SHA256 check for {}.".format(full_url))
+    # If the check fails, print an error and don't unzip the file
+    elif downloaded_sha256 != target_sha256:
+        log("ERROR", "Downloaded SHA256 does not match manifest for {}!"
+            .format(full_url))
+        return
+        # Note: this skips the --keep option, so we'll never keep image packages
+        #       that fail the SHA256 checksum
+    ## Now copy the contents to the final destination (the images directory)
+    delete_from_inv(target_info, inventory, images_dir)
+    if os.path.splitext(temp_path)[1].lower() == '.zip':
+        archive_namelist = extract(
+            temp_path,
+            images_dir,
+            args.test)
+        if args.keep:
+            # If the user wants to keep the downloaded archive,
+            # save it to the images directory and add it to the inventory
+            shutil.copy(temp_path, images_dir)
+            archive_namelist.append(filename)
     else:
-        raise NotImplementedError("Archive type {} not implemented".format(archive_type))
+        archive_namelist = []
+        shutil.copy(temp_path, images_dir)
+    ## Update inventory
+    inventory[target_name] = {"repo_hash": target_info.get("repo_hash"),
+                              "contents": archive_namelist,
+                              "filename": filename}
 
 
 def main():
-    """Download the image files requested by the user"""
+    """
+    Main function; does whatever the user requested (download or list files).
+
+    Returns True on successful execution.
+    """
     args = parse_args()
-    archive_type = args.archive_type
-    if archive_type not in _ARCHIVE_ALGS:
-        log("ERROR", "Selected archive type not supported: {}".format(archive_type))
-        return 1
-    # Set the verbosity
-    global _LOG_LEVEL
-    log("TRACE", "Default log level: {}".format(_LOG_LEVEL))
-    _LOG_LEVEL = _LOG_LEVEL - args.verbose + args.quiet
-    images_dir = _DEFAULT_INSTALL_PATH
-    if args.install_location:
-        images_dir = args.install_location
-    elif os.environ.get("UHD_IMAGES_DIR") != None and os.environ.get("UHD_IMAGES_DIR") != "":
-        images_dir = os.environ.get("UHD_IMAGES_DIR")
-        log("DEBUG",
-            "UHD_IMAGES_DIR environment variable is set, using to set "
-            "install location.")
+    images_dir = get_images_dir(args)
     log("INFO", "Images destination: {}".format(os.path.abspath(images_dir)))
     try:
-        # If we're given a path to a manifest file, use it
-        if os.path.exists(args.manifest_location):
-            manifest_fn = args.manifest_location
-            log("INFO", "Using manifest file at location: {}".format(manifest_fn))
-            with open(manifest_fn, 'r') as manifest_file:
-                manifest_raw = manifest_file.read()
-        # Otherwise, use the CMake Magic manifest
-        else:
-            manifest_raw = _MANIFEST_CONTENTS
-            log("TRACE", "Raw manifest contents: {}".format(manifest_raw))
-
-        manifest = parse_manifest(manifest_raw)
+        manifest = parse_manifest(get_manifest_raw(args))
         if args.list_targets:
-            char_offset = max(map(len, manifest.keys()))
-            # Print a couple helpful lines,
-            # then print each (Target, URL) pair in the manifest
-            log("INFO", "Potential targets in manifest file:\n"
-                        "{} : {}\n"
-                        "{}".format(
-                "# TARGET".ljust(char_offset), "RELATIVE_URL",
-                "\n".join("{} : {}".format(key.ljust(char_offset), value["url"])
-                          for key, value in sorted(manifest.items()))
-            ))
-            return 0
-        else:
-            log("TRACE", "Manifest:\n{}".format(
-                "\n".join("{}".format(item) for item in manifest.items())
-            ))
+            print_target_list(
+                manifest,
+                args
+            )
+            return True
+        log("TRACE", "Manifest:\n{}".format(
+            "\n".join("{}".format(item) for item in manifest.items())
+        ))
 
         # Read the inventory into a dictionary we can perform lookups on
         if os.path.isfile(args.inventory_location):
@@ -338,70 +529,46 @@ def main():
         # Exit early if we don't have anything to download
         if targets_info:
             target_urls = [info.get("url") for info in targets_info]
-            log("TRACE", "URLs to download:\n{}".format(
+            log("DEBUG", "URLs to download:\n{}".format(
                 "\n".join("{}".format(item) for item in target_urls)
             ))
         else:
-            return 0
+            return True
 
-        with TemporaryDirectory() as temp_dir:
-            # Now download all the images archives into a temp directory
+        ## Now download all the images archives into a temp directory
+        if args.dry_run:
             for target_info in targets_info:
-                target_hash = target_info.get("repo_hash")
-                target_rel_url = target_info.get("url")
-                target_sha256 = target_info.get("sha256_hash")
-                filename = os.path.basename(target_rel_url)
-                temp_path = os.path.join(temp_dir, filename)
-                # Add a trailing slash to make sure that urljoin handles things properly
-                full_url = urljoin(args.base_url+'/', target_rel_url)
-                if not args.dry_run:
-                    _, downloaded_size, downloaded_sha256 = download(
-                        images_url=full_url,
-                        filename=temp_path,
-                        buffer_size=args.buffer_size,
-                        print_progress=(_LOG_LEVEL <= _LOG_LEVELS.get("INFO", 3))
-                    )
-                    log("TRACE", "{} successfully downloaded ({} Bytes)"
-                        .format(temp_path, downloaded_size))
-
-                    # If the SHA256 in the manifest has the value '0', this is a special case and
-                    # we just skip the verification step
-                    if target_sha256 == '0':
-                        log("DEBUG", "Skipping SHA256 check for {}.".format(full_url))
-                    # If the check fails, print an error and don't unzip the file
-                    elif downloaded_sha256 != target_sha256:
-                        log("ERROR", "Downloaded SHA256 does not match manifest for {}!".format(
-                            full_url))
-                        continue
-                        # Note: this skips the --keep option, so we'll never keep image packages
-                        #       that fail the SHA256 checksum
-
-                    # Otherwise, the check has succeeded, and we can proceed
-                    delete_from_inv(filename, inventory, images_dir)
-                    archive_namelist = extract(temp_path, images_dir, archive_type)
-                    if args.keep:
-                        # If the user wants to keep the downloaded archive,
-                        # save it to the images directory and add it to the inventory
-                        shutil.copy(temp_path, images_dir)
-                        archive_namelist.append(filename)
-                    inventory[filename] = {"repo_hash": target_hash, "contents": archive_namelist}
-                else:
-                    log("INFO", "[Dry run] {} successfully downloaded"
-                        .format(filename))
-
-        if not args.dry_run:
-            write_inventory(inventory, inventory_fn)
+                log("INFO", "[Dry Run] Fetch target: {}".format(
+                    target_info.get("filename")))
+            return True
+        with TemporaryDirectory() as temp_dir:
+            for target_info in targets_info:
+                update_target(
+                    target_info,
+                    temp_dir,
+                    images_dir,
+                    inventory,
+                    args
+                )
+        ## Update inventory with all the new content
+        write_inventory(inventory, inventory_fn)
 
     except Exception as ex:
         log("ERROR", "Downloader raised an unhandled exception: {ex}\n"
             "You can run this again with the '--verbose' flag to see more information\n"
             "If the problem persists, please email the output to: {contact}"
             .format(contact=_CONTACT, ex=ex))
-        return 1
+        # Again, we wait on Windows systems because if this is executed in a
+        # window, and immediately fails, the user doesn't have a way to see the
+        # error message, and if they're not very savvy, they won't know how to
+        # execute this in a shell.
+        if not _YES and platform.system() == 'Windows':
+            input('Hit Enter to continue.')
+        return False
     log("INFO", "Images download complete.")
-    return 0
+    return True
 
 # Placing this near the end of the file so we don't clutter the top
 _MANIFEST_CONTENTS = """@CMAKE_MANIFEST_CONTENTS@"""
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(not main())

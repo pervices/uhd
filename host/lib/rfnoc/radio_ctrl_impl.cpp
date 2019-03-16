@@ -191,42 +191,42 @@ double radio_ctrl_impl::get_rate() const
 
 std::string radio_ctrl_impl::get_tx_antenna(const size_t chan) /* const */
 {
-    return _tx_antenna[chan];
+    return _tx_antenna.at(chan);
 }
 
 std::string radio_ctrl_impl::get_rx_antenna(const size_t chan) /* const */
 {
-    return _rx_antenna[chan];
+    return _rx_antenna.at(chan);
 }
 
 double radio_ctrl_impl::get_tx_frequency(const size_t chan) /* const */
 {
-    return _tx_freq[chan];
+    return _tx_freq.at(chan);
 }
 
 double radio_ctrl_impl::get_rx_frequency(const size_t chan) /* const */
 {
-    return _rx_freq[chan];
+    return _rx_freq.at(chan);
 }
 
 double radio_ctrl_impl::get_tx_gain(const size_t chan) /* const */
 {
-    return _tx_gain[chan];
+    return _tx_gain.at(chan);
 }
 
 double radio_ctrl_impl::get_rx_gain(const size_t chan) /* const */
 {
-    return _rx_gain[chan];
+    return _rx_gain.at(chan);
 }
 
 double radio_ctrl_impl::get_tx_bandwidth(const size_t chan) /* const */
 {
-    return _tx_bandwidth[chan];
+    return _tx_bandwidth.at(chan);
 }
 
 double radio_ctrl_impl::get_rx_bandwidth(const size_t chan) /* const */
 {
-    return _rx_bandwidth[chan];
+    return _rx_bandwidth.at(chan);
 }
 
 /******************************************************************************
@@ -341,6 +341,14 @@ double radio_ctrl_impl::get_tx_lo_freq(
         const size_t chan
 ) {
     return get_tx_frequency(chan);
+}
+
+void radio_ctrl_impl::enable_rx_timestamps(const bool enable, const size_t chan)
+{
+    const uint32_t output_format = 0
+        | (enable ? 0x01 : 0x00)
+    ;
+    sr_write(regs::RX_CTRL_OUTPUT_FORMAT, output_format, chan);
 }
 
 /***********************************************************************

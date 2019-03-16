@@ -130,6 +130,8 @@ void neon_radio_ctrl_impl::loopback_self_test(
         std::function<void(uint32_t)> poker_functor,
         std::function<uint64_t()> peeker_functor
 ) {
+    // Save current rate before running this test
+    const double current_rate = this->get_rate();
     // Set 2R2T mode, stream on all channels
     this->set_streaming_mode(true, true, true, true);
     // Set maximum rate for 2R2T mode
@@ -180,6 +182,8 @@ void neon_radio_ctrl_impl::loopback_self_test(
     // Take AD936x out of loopback mode
     _ad9361->data_port_loopback(false);
     this->set_streaming_mode(true, false, true, false);
+    // Switch back to current rate
+    this->set_rate(current_rate);
 }
 
 double neon_radio_ctrl_impl::set_rate(const double rate)
@@ -204,6 +208,7 @@ void neon_radio_ctrl_impl::set_tx_antenna(
             % ant
         ));
     }
+    radio_ctrl_impl::set_tx_antenna(ant, chan);
     // We can't actually set the TX antenna, so let's stop here.
 }
 
@@ -224,8 +229,8 @@ void neon_radio_ctrl_impl::set_rx_antenna(
     UHD_LOG_TRACE(unique_id(),
         "Setting RX antenna to " << ant << " for chan " << chan);
 
-    _set_atr_bits(chan, radio_ctrl_impl::get_rx_frequency(chan), ant);
     radio_ctrl_impl::set_rx_antenna(ant, chan);
+    _set_atr_bits(chan);
 }
 
 double neon_radio_ctrl_impl::set_tx_frequency(
@@ -236,14 +241,14 @@ double neon_radio_ctrl_impl::set_tx_frequency(
         "set_tx_frequency(f=" << freq << ", chan=" << chan << ")");
     std::lock_guard<std::mutex> l(_set_lock);
 
+    double clipped_freq = uhd::clip(freq, AD9361_TX_MIN_FREQ, AD9361_TX_MAX_FREQ);
+
     double coerced_freq = _ad9361->tune(
         get_which_ad9361_chain(TX_DIRECTION, chan),
-        freq);
+        clipped_freq);
     radio_ctrl_impl::set_tx_frequency(coerced_freq, chan);
-    // Antenna settings
-    auto ant = get_tx_antenna(chan);
     // Front-end switching
-    _set_atr_bits(chan, freq, ant);
+    _set_atr_bits(chan);
 
     return coerced_freq;
 }
@@ -256,14 +261,14 @@ double neon_radio_ctrl_impl::set_rx_frequency(
         "set_rx_frequency(f=" << freq << ", chan=" << chan << ")");
     std::lock_guard<std::mutex> l(_set_lock);
 
+    double clipped_freq = uhd::clip(freq, AD9361_RX_MIN_FREQ, AD9361_RX_MAX_FREQ);
+
     double coerced_freq = _ad9361->tune(
         get_which_ad9361_chain(RX_DIRECTION, chan),
-        freq);
+        clipped_freq);
     radio_ctrl_impl::set_rx_frequency(coerced_freq, chan);
-    // Antenna settings
-    auto ant = get_rx_antenna(chan);
     // Front-end switching
-    _set_atr_bits(chan, coerced_freq, ant);
+    _set_atr_bits(chan);
 
     return coerced_freq;
 }
@@ -434,13 +439,13 @@ bool neon_radio_ctrl_impl::get_lo_lock_status(
 }
 
 void neon_radio_ctrl_impl::_set_atr_bits(
-    const size_t chan,
-    const double freq,
-    const std::string &ant
+    const size_t chan
 ) {
-
-    const uint32_t rx_regs = _get_rx_switches(chan, freq, ant);
-    const uint32_t tx_regs = _get_tx_switches(chan, freq);
+    const auto rx_freq = radio_ctrl_impl::get_rx_frequency(chan);
+    const auto tx_freq = radio_ctrl_impl::get_tx_frequency(chan);
+    const auto rx_ant = radio_ctrl_impl::get_rx_antenna(chan);
+    const uint32_t rx_regs = _get_rx_switches(chan, rx_freq, rx_ant);
+    const uint32_t tx_regs = _get_tx_switches(chan, tx_freq);
     const uint32_t idle_regs = TX_AMP_OFF << TX_AMP_SHIFT |
                         TRX1_SW_TX_HB << TRX_SW_SHIFT |
                         TX_SW2_LB_80 << TX_SW2_SHIFT |
@@ -456,7 +461,7 @@ void neon_radio_ctrl_impl::_set_atr_bits(
 
     // The LED signal names are reversed, but are consistent with the schematic
     const int idle_led = 0;
-    const bool is_txrx = ant == "TX/RX";
+    const bool is_txrx = rx_ant == "TX/RX";
     const int rx_led = 1 << TRX_LED_GRN_SHIFT;
     const int tx_led = 1 << TX_LED_RED_SHIFT;
     const int txrx_led = 1 << RX_LED_GRN_SHIFT;

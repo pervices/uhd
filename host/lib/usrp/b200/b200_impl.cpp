@@ -276,6 +276,7 @@ UHD_STATIC_BLOCK(register_b200_device)
 b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::sptr &handle) :
     _product(B200), // Some safe value
     _revision(0),
+    _enable_user_regs(device_addr.has_key("enable_user_regs")),
     _time_source(UNKNOWN),
     _tick_rate(0.0) // Forces a clock initialization at startup
 {
@@ -584,6 +585,7 @@ b200_impl::b200_impl(const uhd::device_addr_t& device_addr, usb_device_handle::s
     // Init codec - turns on clocks
     ////////////////////////////////////////////////////////////////////
     UHD_LOGGER_INFO("B200") << "Initialize CODEC control..." ;
+    reset_codec();
     ad9361_params::sptr client_settings;
     if (_product == B200MINI or _product == B205MINI) {
         client_settings = boost::make_shared<b2xxmini_ad9361_client_t>();
@@ -795,15 +797,6 @@ b200_impl::~b200_impl(void)
 /***********************************************************************
  * setup radio control objects
  **********************************************************************/
-
-void lambda_set_bool_prop(boost::weak_ptr<property_tree> tree_wptr, fs_path path, bool value, double)
-{
-    property_tree::sptr tree = tree_wptr.lock();
-    if (tree) {
-        tree->access<bool>(path).set(value);
-    }
-}
-
 void b200_impl::setup_radio(const size_t dspno)
 {
     radio_perifs_t &perif = _radio_perifs[dspno];
@@ -845,6 +838,18 @@ void b200_impl::setup_radio(const size_t dspno)
     perif.duc = tx_dsp_core_3000::make(perif.ctrl, TOREG(SR_TX_DSP));
     perif.duc->set_link_rate(10e9/8); //whatever
     perif.duc->set_freq(tx_dsp_core_3000::DEFAULT_CORDIC_FREQ);
+    if (_enable_user_regs) {
+        UHD_LOG_DEBUG("B200", "Enabling user settings registers");
+        perif.user_settings = user_settings_core_3000::make(perif.ctrl,
+            TOREG(SR_USER_SR_BASE),
+            TOREG(SR_USER_RB_ADDR)
+        );
+        if (!perif.user_settings) {
+            const std::string error_msg = "Failed to create user settings bus!";
+            UHD_LOG_ERROR("B200", error_msg);
+            throw uhd::runtime_error(error_msg);
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////
     // create time control objects
@@ -862,7 +867,12 @@ void b200_impl::setup_radio(const size_t dspno)
     _tree->create<bool>(rx_dsp_path / "rate" / "set").set(false);
     _tree->access<double>(rx_dsp_path / "rate" / "value")
         .set_coercer(boost::bind(&b200_impl::coerce_rx_samp_rate, this, perif.ddc, dspno, _1))
-        .add_coerced_subscriber(boost::bind(&lambda_set_bool_prop, boost::weak_ptr<property_tree>(_tree), rx_dsp_path / "rate" / "set", true, _1))
+        .add_coerced_subscriber([this, rx_dsp_path](const double){
+            if (this->_tree) {
+                this->_tree->access<bool>(rx_dsp_path / "rate" / "set")
+                    .set(true);
+            }
+        })
         .add_coerced_subscriber(boost::bind(&b200_impl::update_rx_samp_rate, this, dspno, _1))
     ;
     _tree->create<stream_cmd_t>(rx_dsp_path / "stream_cmd")
@@ -880,7 +890,12 @@ void b200_impl::setup_radio(const size_t dspno)
     _tree->create<bool>(tx_dsp_path / "rate" / "set").set(false);
     _tree->access<double>(tx_dsp_path / "rate" / "value")
         .set_coercer(boost::bind(&b200_impl::coerce_tx_samp_rate, this, perif.duc, dspno, _1))
-        .add_coerced_subscriber(boost::bind(&lambda_set_bool_prop, boost::weak_ptr<property_tree>(_tree), tx_dsp_path / "rate" / "set", true, _1))
+        .add_coerced_subscriber([this, tx_dsp_path](const double){
+            if (this->_tree) {
+                this->_tree->access<bool>(tx_dsp_path / "rate" / "set")
+                    .set(true);
+            }
+        })
         .add_coerced_subscriber(boost::bind(&b200_impl::update_tx_samp_rate, this, dspno, _1))
     ;
     _tree->access<double>(mb_path / "tick_rate")
@@ -923,6 +938,11 @@ void b200_impl::setup_radio(const size_t dspno)
             static const std::vector<std::string> ants(1, "TX/RX");
             _tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options").set(ants);
             _tree->create<std::string>(rf_fe_path / "antenna" / "value").set("TX/RX");
+        }
+
+        if (_enable_user_regs) {
+            _tree->create<uhd::wb_iface::sptr>(rf_fe_path / "user_settings/iface")
+                .set(perif.user_settings);
         }
     }
 }
@@ -1209,6 +1229,14 @@ void b200_impl::update_bandsel(const std::string& which, double freq)
     update_gpio_state();
 }
 
+void b200_impl::reset_codec()
+{
+    _gpio_state.codec_arst = 1;
+    update_gpio_state();
+    _gpio_state.codec_arst = 0;
+    update_gpio_state();
+}
+
 void b200_impl::update_gpio_state(void)
 {
     const uint32_t misc_word = 0
@@ -1218,7 +1246,7 @@ void b200_impl::update_gpio_state(void)
         | (_gpio_state.rx_bandsel_a << 5)
         | (_gpio_state.rx_bandsel_b << 4)
         | (_gpio_state.rx_bandsel_c << 3)
-        // Bit 2 currently not used.
+        | (_gpio_state.codec_arst << 2)
         | (_gpio_state.mimo << 1)
         | (_gpio_state.ref_sel << 0)
     ;
