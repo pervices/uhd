@@ -13,6 +13,7 @@
 #include <uhd/utils/dirty_tracked.hpp>
 #include <uhd/utils/noncopyable.hpp>
 #include <uhd/types/time_spec.hpp>
+#include <boost/core/noncopyable.hpp>
 #include <boost/function.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 #include <boost/thread.hpp>
