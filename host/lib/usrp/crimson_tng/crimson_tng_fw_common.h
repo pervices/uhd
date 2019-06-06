@@ -41,6 +41,10 @@
 
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_0         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff}
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_1         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33}
+#ifdef PV_TATE
+    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_2         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff} //TODO: Set to unique addr for sfpC
+    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_3         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33} //TODO: Set to unique addr for sfpD
+#endif
 
 #define CRIMSON_TNG_DEFAULT_GATEWAY            (192 << 24 | 168 << 16 | 10  << 8  | 1 << 0)
 
@@ -89,7 +93,12 @@
 
 
 // Crimson Clk Settings
-#define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
+#ifndef PV_TATE
+    #define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
+#else
+    #define CRIMSON_TNG_MASTER_CLOCK_RATE	400000000
+#endif
+
 #define CRIMSON_TNG_EXT_CLK_RATE		10000000	// only 10 MHz input sources allowed
 
 // Crimson Rate Settings
