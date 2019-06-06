@@ -20,10 +20,8 @@
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
-#include <boost/endian/conversion.hpp>
 
 #include "crimson_tng_impl.hpp"
-#include "crimson_tng_fw_common.h"
 
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_stream_zero_copy.hpp"
@@ -962,13 +960,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
-    // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
-    // unfortunately, we cannot yet call get_mboard_eeprom().
-    mboard_eeprom_t temp;
-    temp["name"]     = "FPGA Board";
-    temp["vendor"]   = "Per Vices";
-    temp["serial"]   = "";
-    TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, temp);
+    TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, mboard_eeprom_t());
 
     // This property chooses internal or external clock source
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
@@ -1026,11 +1018,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
 
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1039,12 +1031,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
-		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CRIMSON_TNG_LO_OFFSET );
+		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, 15e6 );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_RF_RX_GAIN_RANGE_START, (double) CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, (double) CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
+			meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
@@ -1062,18 +1054,32 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
 
 		// DSPs
+
+                
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
+#ifdef PV_TATE
+                default:
+#endif
+                    TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
+				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			break;
+#ifndef PV_TATE
                 case 'C':
 		case 'D':
 			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP  / 2, CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP , CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
+#endif
 		}
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
@@ -1166,11 +1172,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
 
 		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1178,13 +1184,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
-               //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
-                TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CRIMSON_TNG_LO_OFFSET );
+		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_RF_TX_GAIN_RANGE_START, (double) CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, (double) CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
+			meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
@@ -1200,22 +1205,27 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
+#ifdef PV_TATE
+                default:
+#endif
 			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
+#ifndef PV_TATE
 		case 'C':
 		case 'D':
 			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_QUARTER, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
+#endif
 		}
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
@@ -1227,7 +1237,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 
-		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
 		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
@@ -1382,7 +1391,8 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	switch( chan ) {
-	case 0:
+#ifndef PV_TATE
+        case 0:
 	case 2:
 		sfp = "sfpa";
 		break;
@@ -1390,6 +1400,32 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	case 3:
 		sfp = "sfpb";
 		break;
+#else
+        case 0:
+	case 1:
+        case 2:
+        case 3:
+		sfp = "sfpa";
+                break;
+        case 4:
+	case 5:
+        case 6:
+        case 7:
+                sfp = "sfpb";
+                break;
+        case 8:
+	case 9:
+        case 10:
+        case 11:
+                sfp = "sfpa"; //TODO: Fix to sfpC
+		break;
+        case 12:
+        case 13:
+        case 14:
+        case 15:
+                sfp = "sfpb"; //TODO: Fix to sfpD
+		break;
+#endif
 	}
 
 	const std::string chan_str( 1, 'A' + chan );
@@ -1402,341 +1438,4 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	udp_port_ss >> udp_port;
 
 	ip_addr = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
-}
-
-constexpr double RX_SIGN = +1.0;
-constexpr double TX_SIGN = -1.0;
-
-// XXX: @CF: 20180418: stop-gap until moved to server
-static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
-	return freq + bw / 2.0 >= dsp_range.stop();
-}
-
-// XXX: @CF: 20180418: stop-gap until moved to server
-// return true if b is a (not necessarily strict) subset of a
-static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
-	return b.start() >= a.start() && b.stop() <= a.stop();
-}
-
-// XXX: @CF: 20180418: stop-gap until moved to server
-static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
-
-	/*
-	 * Scenario 1) Channels A and B
-	 *
-	 * We want a shift such that the full bandwidth fits inside of one of the
-	 * dashed regions.
-	 *
-	 * Our margin around each sensitive area is 1 MHz on either side.
-	 *
-	 * In order of increasing bandwidth & minimal interference, our
-	 * preferences are
-	 *
-	 * Region A
-	 * Region B
-	 * Region F
-	 * Region G
-	 * Region H
-	 *
-	 * Region A is preferred because it exhibits the least attenuation. B is
-	 * preferred over C for that reason (and because it has a more bandwidth
-	 * than C). F is the next largest band and is preferred over E because
-	 * it avoids the LO fundamental, but it contains FM. G is the next-to-last
-	 * preference because it includes the LO and FM but has a very large
-	 * bandwidth. Finally, H is the catch-all. It suffers at high frequencies
-	 * due to the ADC filterbank, but includes the entirety of the spectrum.
-	 *
-	[--]-------------------[+]-----------------------+-------------------------+-----------[///////////+////////]---------------+------------[\\\\\\\\\\\+\\\\\\\\\\\\\\>
-	 | |                    |                                                              |                    |                            |                      |    f (MHz)
-	 0 2                    25                                                           87.9                  107.9                        137                    162.5
-	DC                 LO fundamental                                                               FM                                   ADC Cutoff            Max Samp Rate
-           A (21 MHz)                            B (60.9 MHz)                                                             C (27.1 Mhz)                 D (26.5 MHz)
-                           E = A + B (includes LO)                                                                     F = B + C (includes FM)
-					                                           G = A + B + C
-					                                           H = A + B + C + D
-	 */
-	static const std::vector<freq_range_t> AB_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_FM_LOWERLIMIT ), // B
-		//freq_range_t( -CRIMSON_TNG_FM_LOWERLIMIT,-(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -F
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -CRIMSON_TNG_DC_LOWERLIMIT ), // -G
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, -CRIMSON_TNG_DC_LOWERLIMIT ), // -H
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
-	};
-	/*
-	 * Scenario 2) Channels C and D
-	 *
-	 * Channels C & D only provide 1/4 the bandwidth of A & B due to silicon
-	 * limitations. This should be corrected in subsequent revisions of
-	 * Crimson.
-	 *
-	 * In order of increasing bandwidth & minimal interference, our
-	 * preferences are
-	 *
-	 * Region A
-	 * Region B
-	 * Region C
-	[--]-------------------[+]-----------------------+-------------------------+---->
-	 | |                    |                                                  |    f (MHz)
-	 0 2                    25                                               81.25
-	DC                 LO fundamental                                      Max Samp Rate
-           A (21 MHz)                            B (55.25 MHz)
-                           C = A + B (includes LO)
-	 */
-	static const std::vector<freq_range_t> CD_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // +A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // B
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -CRIMSON_TNG_DC_LOWERLIMIT ), // -C
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
-	};
-	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
-
-	static const double lo_step = CRIMSON_TNG_LO_STEPSIZE;
-
-	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CRIMSON_TNG_BW_QUARTER ? 'A' : 'C';
-	const double bw = dsp_subtree->access<double>("/rate/value").get();
-	const std::vector<freq_range_t> & regions =
-		( 'A' == channel || 'B' == channel )
-		? AB_regions
-		: CD_regions
-	;
-	const int K = (int) floor( abs( ( dsp_range.stop() - dsp_range.start() ) ) / lo_step );
-
-	for( int k = 0; k <= K; k++ ) {
-		for( double sign: { +1, -1 } ) {
-
-			double candidate_lo = target_freq;
-			if ( sign > 0 ) {
-				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
-				// above the target frequency
-				candidate_lo += lo_step - fmod( target_freq, lo_step );
-			} else {
-				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
-				// above the target frequency
-				candidate_lo -= fmod( target_freq, lo_step );
-			}
-			candidate_lo += k * sign * lo_step;
-
-			const double candidate_nco = target_freq - candidate_lo;
-
-			//Ensure that the combined NCO offset and signal bw fall within candidate range;
-			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
-
-			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
-			//the specified ranges (as they can't be negative).
-			//TBH: I'm not sure why this works right now, but it does.
-			for( const freq_range_t & _range: regions ) {
-				if ( range_contains( _range, candidate_range ) ) {
-					return candidate_nco;
-				}
-			}
-		}
-	}
-
-	// Under normal operating parameters, this should never happen because
-	// the last-choice _range in each of AB_regions and CD_regions is
-	// a catch-all for the entire DSP bandwidth. Hitting this scenario is
-	// equivalent to saying that the LO is incapable of up / down mixing
-	// the RF signal into the baseband domain.
-	throw runtime_error(
-		(
-			boost::format( "No suitable baseband region found: target_freq: %f, bw: %f, dsp_range: %s" )
-			% target_freq
-			% bw
-			% dsp_range.to_pp_string()
-		).str()
-	);
-}
-
-// XXX: @CF: 20180418: stop-gap until moved to server
-static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
-
-	enum {
-		LOW_BAND,
-		HIGH_BAND,
-	};
-
-	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
-	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
-
-	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
-	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
-
-	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
-
-	//------------------------------------------------------------------
-	//-- set the RF frequency depending upon the policy
-	//------------------------------------------------------------------
-	double target_rf_freq = 0.0;
-	double dsp_nco_shift = 0;
-
-	// kb #3689, for phase coherency, we must set the DAC NCO to 0
-	if ( TX_SIGN == xx_sign ) {
-		rf_fe_subtree->access<double>("nco").set( 0.0 );
-	}
-
-	rf_fe_subtree->access<int>( "freq/band" ).set( band );
-
-	switch (tune_request.rf_freq_policy){
-		case tune_request_t::POLICY_AUTO:
-			switch( band ) {
-			case LOW_BAND:
-				// in low band, we only use the DSP to tune
-				target_rf_freq = 0;
-				break;
-			case HIGH_BAND:
-				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
-				// in high band, we use the LO for most of the shift, and use the DSP for the difference
-				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
-				break;
-			}
-		break;
-
-		case tune_request_t::POLICY_MANUAL:
-			target_rf_freq = rf_range.clip( tune_request.rf_freq );
-			break;
-
-		case tune_request_t::POLICY_NONE:
-			break; //does not set
-	}
-
-	//------------------------------------------------------------------
-	//-- Tune the RF frontend
-	//------------------------------------------------------------------
-	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
-	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
-
-	//------------------------------------------------------------------
-	//-- Set the DSP frequency depending upon the DSP frequency policy.
-	//------------------------------------------------------------------
-	double target_dsp_freq = 0.0;
-	switch (tune_request.dsp_freq_policy) {
-		case tune_request_t::POLICY_AUTO:
-			target_dsp_freq = actual_rf_freq - clipped_requested_freq;
-
-			//invert the sign on the dsp freq for transmit (spinning up vs down)
-			target_dsp_freq *= xx_sign;
-
-			break;
-
-		case tune_request_t::POLICY_MANUAL:
-			target_dsp_freq = tune_request.dsp_freq;
-			break;
-
-		case tune_request_t::POLICY_NONE:
-			break; //does not set
-	}
-
-	//------------------------------------------------------------------
-	//-- Tune the DSP
-	//------------------------------------------------------------------
-	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
-	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
-
-	//------------------------------------------------------------------
-	//-- Load and return the tune result
-	//------------------------------------------------------------------
-	tune_result_t tune_result;
-	tune_result.clipped_rf_freq = clipped_requested_freq;
-	tune_result.target_rf_freq = target_rf_freq;
-	tune_result.actual_rf_freq = actual_rf_freq;
-	tune_result.target_dsp_freq = target_dsp_freq;
-	tune_result.actual_dsp_freq = actual_dsp_freq;
-	return tune_result;
-}
-
-uhd::tune_result_t crimson_tng_impl::set_rx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
-) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto rx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
-	};
-	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter; 		
-	};
-
-	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
-			_tree->subtree(rx_dsp_root(chan)),
-			_tree->subtree(rx_rf_fe_root(chan)),
-			tune_request);
-	return result;
-
-}
-
-double crimson_tng_impl::get_rx_freq(size_t chan) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto rx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
-	};
-	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter; 		
-	};
-
-        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
-        double cur_lo_freq = 0;
-        if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-            cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
-        }
-        return cur_lo_freq - cur_dsp_nco;
-}
-
-uhd::tune_result_t crimson_tng_impl::set_tx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
-) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto tx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/tx_dsps/" + std::to_string(chan);
-	};
-	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter; 		
-	};
-
-	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
-			_tree->subtree(tx_dsp_root(chan)),
-			_tree->subtree(tx_rf_fe_root(chan)),
-			tune_request);
-	return result;
-
-}
-
-double crimson_tng_impl::get_tx_freq(size_t chan) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto tx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/tx_dsps/" + std::to_string(chan);
-	};
-	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter; 		
-	};
-
-        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-        double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
-        double cur_lo_freq = 0;
-        if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-                cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
-        }
-        return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
