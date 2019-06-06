@@ -41,6 +41,10 @@
 
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_0         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff}
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_1         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33}
+#ifdef PV_TATE
+    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_2         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff} //TODO: Set to unique addr for sfpC
+    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_3         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33} //TODO: Set to unique addr for sfpD
+#endif
 
 #define CRIMSON_TNG_DEFAULT_GATEWAY            (192 << 24 | 168 << 16 | 10  << 8  | 1 << 0)
 
@@ -87,51 +91,29 @@
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP	83.25
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP	0.25
 
+
 // Crimson Clk Settings
-#define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
-#define CRIMSON_TNG_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
-// Crimson Tuning Range Settings
-#define CRIMSON_TNG_FREQ_RANGE_START	0
-#define CRIMSON_TNG_FREQ_RANGE_STOP	6000000000.0
-#define CRIMSON_TNG_FREQ_RANGE_STEP	1
-//Crimson LO Tuning Range Step Size
-#define CRIMSON_TNG_LO_STEPSIZE         25000000
-#define CRIMSON_TNG_LO_GUARDBAND	5000000
-#define CRIMSON_TNG_LO_OFFSET           25000000
+#ifndef PV_TATE
+    #define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
+#else
+    #define CRIMSON_TNG_MASTER_CLOCK_RATE	400000000
+#endif
 
-// Crimson Sample Rate Settings
+#define CRIMSON_TNG_EXT_CLK_RATE		10000000	// only 10 MHz input sources allowed
+
+// Crimson Rate Settings
 #define CRIMSON_TNG_RATE_RANGE_START	CRIMSON_TNG_MASTER_CLOCK_RATE/65536
-#define CRIMSON_TNG_RATE_RANGE_STOP_FULL	CRIMSON_TNG_MASTER_CLOCK_RATE
-#define CRIMSON_TNG_RATE_RANGE_STOP_QUARTER     CRIMSON_TNG_MASTER_CLOCK_RATE/4.0
-#define CRIMSON_TNG_RATE_RANGE_STEP	1.0
+#define CRIMSON_TNG_RATE_RANGE_STOP		CRIMSON_TNG_MASTER_CLOCK_RATE
+#define CRIMSON_TNG_RATE_RANGE_STEP		1.0
 
-// All ADCs and DACs take complex sample at 325MSPS,
-// and so all share a static front end bandwidth of 325MHz
-// However, for user throughput, DACs A/B have a max user complex samplerate of
-// 162.5MSPS, and DACs C/D have 81.25MSPS due to backhaul bandwidth limitations
-// and FPGA transciever clocking limitaions.
-#define CRIMSON_TNG_ADC_BW                  CRIMSON_TNG_MASTER_CLOCK_RATE/2.0
-#define CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF      0.8*CRIMSON_TNG_ADC_BW
-#define CRIMSON_TNG_BW_FULL                 CRIMSON_TNG_RATE_RANGE_STOP_FULL/2.0
-#define CRIMSON_TNG_BW_QUARTER              CRIMSON_TNG_RATE_RANGE_STOP_QUARTER
-#define CRIMSON_TNG_BW_RANGE_STEP	1.0
-#define CRIMSON_TNG_ADC_FREQ_RANGE_STEP	        1.0
-
-// There's a lower limit on the DC component we can pass. This is just an approximation.
-#define CRIMSON_TNG_DC_LOWERLIMIT	3000000
-#define CRIMSON_TNG_FM_LOWERLIMIT	86900000
-#define CRIMSON_TNG_FM_UPPERLIMIT	107900000
+// Crimson Freq Settings
+#define CRIMSON_TNG_FREQ_RANGE_START	0
+#define CRIMSON_TNG_FREQ_RANGE_STOP		6000000000.0
+#define CRIMSON_TNG_FREQ_RANGE_STEP		1.0
 
 // Crimson DSP Freq Settings
-// NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
-#define CRIMSON_TNG_DSP_BW_START    0
-#define CRIMSON_TNG_DSP_BW_STOP_FULL            CRIMSON_TNG_BW_FULL
-#define CRIMSON_TNG_DSP_BW_STOP_QUARTER         CRIMSON_TNG_BW_QUARTER
-#define CRIMSON_TNG_DSP_BW_STEPSIZE     1.0
-#define CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL	-CRIMSON_TNG_RATE_RANGE_STOP_FULL/2.0
-#define CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL	CRIMSON_TNG_RATE_RANGE_STOP_FULL/2.0
-#define CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER	-CRIMSON_TNG_RATE_RANGE_STOP_QUARTER/2.0
-#define CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER	CRIMSON_TNG_RATE_RANGE_STOP_QUARTER/2.0
+#define CRIMSON_TNG_DSP_FREQ_RANGE_START	0.0
+#define CRIMSON_TNG_DSP_FREQ_RANGE_STOP	CRIMSON_TNG_MASTER_CLOCK_RATE/2
 #define CRIMSON_TNG_DSP_FREQ_RANGE_STEP	1.0
 
 // Crimson VITA settings
