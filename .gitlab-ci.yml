@@ -1,0 +1,27 @@
+# Updated:  2019-06-21
+# Purpose:  Whenever the master UHD branch is updated, it will be rebuilt on the ci@cross account, to
+#            facilitate the rest of the CI process happening with the newest UHD build.
+
+stages:
+    - build
+
+before_script:
+    - apt-get update -qy && apt-get install -y sshpass 
+
+#####################
+##### BUILD UHD #####
+#####################
+
+generate-rpm:
+    stage:  generate
+    script:
+        - sshpass -p $HOST_PASS ssh -oStrictHostKeyChecking=no $HOST_USER@$HOST_HOST "
+            rm -rf uhd;
+            git clone https://github.com/pervices/uhd;
+            mkdir uhd/host/build;
+            cd uhd/host/build;
+            cmake -DCI_PV_ENABLE=ON .. &>/dev/null;
+            make -j8 &>/dev/null;
+            dir=$(pwd);
+            echo $HOST_PASS | sudo -S make install -C $dir
+        "
