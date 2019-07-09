@@ -43,7 +43,7 @@
 #include "crimson_tng/crimson_tng_fw_common.h"
 #include "crimson_tng/crimson_tng_impl.hpp"
 
-#define CRIMSON_MASTER_CLOCK_RATE	322265625
+#define CRIMSON_MASTER_CLOCK_RATE	325000000
 #define CRIMSON_RX_CHANNELS 4
 #define CRIMSON_TX_CHANNELS 4
 
