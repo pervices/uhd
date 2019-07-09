@@ -43,6 +43,10 @@
 #include "crimson_tng/crimson_tng_fw_common.h"
 #include "crimson_tng/crimson_tng_impl.hpp"
 
+#define CRIMSON_MASTER_CLOCK_RATE	400000000
+#define CRIMSON_RX_CHANNELS 16
+#define CRIMSON_TX_CHANNELS 16
+
 using namespace uhd;
 using namespace uhd::usrp;
 
@@ -622,19 +626,12 @@ void multi_crimson_tng::set_rx_subdev_spec(const subdev_spec_t &spec, size_t mbo
 // Get the current RX chain subdev properties, Crimson only has one mboard
 subdev_spec_t multi_crimson_tng::get_rx_subdev_spec(size_t mboard){
 	(void)mboard;
-#ifdef PV_TATE
-    return subdev_spec_t("Slot_1:RX_Chain_1   Slot_2:RX_Chain_2   Slot_3:RX_Chain_3  Slot_4:RX_Chain_4 \
-                          Slot_5:RX_Chain_5   Slot_6:RX_Chain_6   Slot_7:RX_Chain_7  Slot_8:RX_Chain_8 \
-                          Slot_9:RX_Chain_9   Slot_10:RX_Chain_10 Slot_11:RX_Chain11 Slot_12:RX_Chain_12 \
-                          Slot_13:RX_Chain_13 Slot_14:RX_Chain_14 Slot_15:RX_Chain15 Slot_16:RX_Chain_16");
-#else
     return subdev_spec_t("Slot_1:RX_Chain_1 Slot_2:RX_Chain_2 Slot_3:RX_Chain_3 Slot_4:RX_Chain_4");
-#endif
 }
 
-// Get number of RX channels, Crimson has 4, Cyan 16
+// Get number of RX channels, Crimson has 4
 size_t multi_crimson_tng::get_rx_num_channels(void){
-    return CRIMSON_TNG_RX_CHANNELS;
+    return 4;
 }
 
 // Get the name of the Crimson subdevice on specified channel
@@ -1107,19 +1104,12 @@ void multi_crimson_tng::set_tx_subdev_spec(const subdev_spec_t &spec, size_t mbo
 // Get the current TX chain subdev properties, Crimson only has one mboard
 subdev_spec_t multi_crimson_tng::get_tx_subdev_spec(size_t mboard){
 	(void)mboard;
-#ifdef PV_TATE
-    return subdev_spec_t("Slot_1:TX_Chain_1   Slot_2:TX_Chain_2   Slot_3:TX_Chain_3  Slot_4:TX_Chain_4 \
-                          Slot_5:TX_Chain_5   Slot_6:TX_Chain_6   Slot_7:TX_Chain_7  Slot_8:TX_Chain_8 \
-                          Slot_9:TX_Chain_9   Slot_10:TX_Chain_10 Slot_11:TX_Chain11 Slot_12:TX_Chain_12 \
-                          Slot_13:TX_Chain_13 Slot_14:TX_Chain_14 Slot_15:TX_Chain15 Slot_16:TX_Chain_16");
-#else
     return subdev_spec_t("Slot_1:TX_Chain_1 Slot_2:TX_Chain_2 Slot_3:TX_Chain_3 Slot_4:TX_Chain_4");
-#endif
 }
 
-// Get number of TX channels, Crimson has 4, Cyan 16.
+// Get number of TX channels, Crimson has 4
 size_t multi_crimson_tng::get_tx_num_channels(void){
-    return CRIMSON_TNG_TX_CHANNELS;
+    return 4;
 }
 
 // Get the name of the Crimson subdevice on specified channel
