@@ -169,7 +169,6 @@ private:
     std::vector<Set> sma(const size_t channel, const int samples, const int edge_debounce) const
     {
         const std::string root { "/mboards/0/tx/" + std::to_string(channel) + "/" };
-        const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channel) + "/" };
         const std::vector<Set> sets {
             { root + "trigger/sma_mode"       , "edge"                          },
             { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0"         },
@@ -178,7 +177,6 @@ private:
             { root + "trigger/gating"         , gating                          },
             { "/mboards/0/trigger/sma_dir"    , "in"                            },
             { "/mboards/0/trigger/sma_pol"    , "positive"                      },
-            { dsp_root + "rstreq"             , "1"                             },
         };
         return sets;
     }
@@ -204,12 +202,8 @@ private:
         for(const auto set : sets)
         {
             std::string value;
-            // skip checking rstreq, since it is self-clearing
-            if (set.path.find("rstreq") == std::string::npos ) {
-                usrp->get_tree_value(set.path, value);
-                assert(value == set.value);
-            }
-
+            usrp->get_tree_value(set.path, value);
+            assert(value == set.value);
         }
     }
 };
@@ -351,9 +345,7 @@ public:
 
             if(min < setpoint)
             {
-                // To compensate for the hidden buffer inside FPGA empty_handler, we're
-                // sending an additional 30 more samples.
-                tx->send(buffer.mirrors, setpoint+30, md);
+                tx->send(buffer.mirrors, buffer.size(), md);
                 md.start_of_burst = false;
                 md.has_time_spec = false;
             }
