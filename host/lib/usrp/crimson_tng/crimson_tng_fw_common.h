@@ -42,15 +42,19 @@
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_0         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff}
 #define CRIMSON_TNG_DEFAULT_MAC_ADDR_1         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33}
 #ifdef PV_TATE
-    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_2         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff} //TODO: Set to unique addr for sfpC
-    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_3         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33} //TODO: Set to unique addr for sfpD
+    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_2         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xaa}
+    #define CRIMSON_TNG_DEFAULT_MAC_ADDR_3         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x22}
 #endif
 
 #define CRIMSON_TNG_DEFAULT_GATEWAY            (192 << 24 | 168 << 16 | 10  << 8  | 1 << 0)
 
 #define CRIMSON_TNG_DEFAULT_IP_ETH0_1G         (192 << 24 | 168 << 16 | 10  << 8  | 2 << 0)
-#define CRIMSON_TNG_DEFAULT_IP_ETH0_10G        (192 << 24 | 168 << 16 | 30  << 8  | 2 << 0)
-#define CRIMSON_TNG_DEFAULT_IP_ETH1_10G        (192 << 24 | 168 << 16 | 40  << 8  | 2 << 0)
+#define CRIMSON_TNG_DEFAULT_IP_ETH0_10G        (10 << 24 | 10 << 16 | 10  << 8  | 2 << 0)
+#define CRIMSON_TNG_DEFAULT_IP_ETH1_10G        (10 << 24 | 10 << 16 | 11  << 8  | 2 << 0)
+#ifdef PV_TATE
+    #define CRIMSON_TNG_DEFAULT_IP_ETH0_10G        (10 << 24 | 10 << 16 | 12  << 8  | 2 << 0)
+    #define CRIMSON_TNG_DEFAULT_IP_ETH1_10G        (10 << 24 | 10 << 16 | 13  << 8  | 2 << 0)
+#endif
 
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH0_1G    (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
@@ -92,8 +96,8 @@
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP	0.25
 
 
-// Crimson Clk Settings
-#ifndef PV_TATE
+// Crimson/Cyan Clk Settings
+#ifdef PV_TATE
     #define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
 #else
     #define CRIMSON_TNG_MASTER_CLOCK_RATE	400000000
