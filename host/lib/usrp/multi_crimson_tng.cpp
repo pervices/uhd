@@ -636,9 +636,9 @@ subdev_spec_t multi_crimson_tng::get_rx_subdev_spec(size_t mboard){
     return subdev_spec_t("Slot_1:RX_Chain_1 Slot_2:RX_Chain_2 Slot_3:RX_Chain_3 Slot_4:RX_Chain_4");
 }
 
-// Get number of RX channels, Crimson has 4
+// Get number of RX channels, Crimson has 4, Cyan 16
 size_t multi_crimson_tng::get_rx_num_channels(void){
-    return 4;
+    return CRIMSON_TNG_RX_CHANNELS;
 }
 
 // Get the name of the Crimson subdevice on specified channel
@@ -1114,9 +1114,9 @@ subdev_spec_t multi_crimson_tng::get_tx_subdev_spec(size_t mboard){
     return subdev_spec_t("Slot_1:TX_Chain_1 Slot_2:TX_Chain_2 Slot_3:TX_Chain_3 Slot_4:TX_Chain_4");
 }
 
-// Get number of TX channels, Crimson has 4
+// Get number of TX channels, Crimson has 4, Cyan 16.
 size_t multi_crimson_tng::get_tx_num_channels(void){
-    return 4;
+    return CRIMSON_TNG_TX_CHANNELS;
 }
 
 // Get the name of the Crimson subdevice on specified channel
