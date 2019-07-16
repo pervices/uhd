@@ -1309,8 +1309,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
+#ifdef PV_TATE
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+#else
 		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
 		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+#endif
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 
