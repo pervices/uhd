@@ -109,7 +109,7 @@ std::string crimson_tng_iface::peek_str( float timeout_s ) {
 }
 
 std::string crimson_tng_iface::peek_str() {
-	return peek_str( 6.250 );
+	return peek_str( 8.000 );
 }
 
 /***********************************************************************
