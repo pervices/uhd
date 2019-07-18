@@ -117,7 +117,11 @@
 
 // Crimson Freq Settings
 #define CRIMSON_TNG_FREQ_RANGE_START	0
-#define CRIMSON_TNG_FREQ_RANGE_STOP		6000000000.0
+#ifdef PV_TATE
+    #define CRIMSON_TNG_FREQ_RANGE_STOP		18000000000.0
+#else
+    #define CRIMSON_TNG_FREQ_RANGE_STOP		6000000000.0
+#endif
 #define CRIMSON_TNG_FREQ_RANGE_STEP		1.0
 
 // Crimson DSP Freq Settings
