@@ -49,16 +49,21 @@
 #define CRIMSON_TNG_DEFAULT_GATEWAY            (192 << 24 | 168 << 16 | 10  << 8  | 1 << 0)
 
 #define CRIMSON_TNG_DEFAULT_IP_ETH0_1G         (192 << 24 | 168 << 16 | 10  << 8  | 2 << 0)
-#define CRIMSON_TNG_DEFAULT_IP_ETH0_10G        (10 << 24 | 10 << 16 | 10  << 8  | 2 << 0)
-#define CRIMSON_TNG_DEFAULT_IP_ETH1_10G        (10 << 24 | 10 << 16 | 11  << 8  | 2 << 0)
-#ifdef PV_TATE
-    #define CRIMSON_TNG_DEFAULT_IP_ETH0_10G        (10 << 24 | 10 << 16 | 12  << 8  | 2 << 0)
-    #define CRIMSON_TNG_DEFAULT_IP_ETH1_10G        (10 << 24 | 10 << 16 | 13  << 8  | 2 << 0)
-#endif
-
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH0_1G    (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
+
+#define CRIMSON_TNG_DEFAULT_IP_ETH0_10G        (10 << 24 | 10 << 16 | 10  << 8  | 2 << 0)
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
+
+#define CRIMSON_TNG_DEFAULT_IP_ETH1_10G        (10 << 24 | 10 << 16 | 11  << 8  | 2 << 0)
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH1_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
+
+#ifdef PV_TATE
+    #define CRIMSON_TNG_DEFAULT_IP_ETH2_10G        (10 << 24 | 10 << 16 | 12  << 8  | 2 << 0)
+    #define CRIMSON_TNG_DEFAULT_NETMASK_ETH2_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
+
+    #define CRIMSON_TNG_DEFAULT_IP_ETH3_10G        (10 << 24 | 10 << 16 | 13  << 8  | 2 << 0)
+    #define CRIMSON_TNG_DEFAULT_NETMASK_ETH3_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
+#endif
 
 #ifdef PV_TATE
     #define CRIMSON_TNG_RX_CHANNELS 16
