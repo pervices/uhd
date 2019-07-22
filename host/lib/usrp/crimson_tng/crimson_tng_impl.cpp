@@ -47,7 +47,6 @@ namespace asio = boost::asio;
     #endif
 #endif
 
-
 // This is a lock to prevent multiple threads from requesting commands from
 // the device at the same time. This is important in GNURadio, as they spawn
 // a new thread per block. If not protected, UDP commands would time out.
@@ -292,23 +291,78 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     (void) key;
 
     const uint8_t  address = value.first;
-    const uint64_t setting = value.second;
+    const uint64_t setting = (uint64_t) value.second;
 
-    static uint64_t pins = 0x0;
-    static uint64_t mask = 0x0;
+#ifdef PV_TATE
+    static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
+    static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
+#else
+    static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0};
+    static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0};
+#endif
 
-    // Clearing.
-    const uint64_t all = 0xFFFFFFFF;
-    if(address == 0) pins &= ~(all << 0x00);
-    if(address == 1) pins &= ~(all << 0x20);
-    if(address == 2) mask &= ~(all << 0x00);
-    if(address == 3) mask &= ~(all << 0x20);
 
-    // Setting.
-    if(address == 0) pins |= (setting << 0x00);
-    if(address == 1) pins |= (setting << 0x20);
-    if(address == 2) mask |= (setting << 0x00);
-    if(address == 3) mask |= (setting << 0x20);
+    // Sanity check to make sure that user is not exceeding legal GPIO range
+    uint32_t pin_number = setting;
+    int i = 0;
+    // Determine what is the biggest GPIO pin number in the setting
+    for (i = 0; i < 32; i++) {
+        pin_number = pin_number > 1;
+        if (pin_number == 1) {
+            break;
+        }
+    }
+    pin_number = (pin_number > 0) ? (((address/2)*32)+i) : 0;
+    if ( setting != 0 && pin_number > NUMBER_OF_GPIO_SIGNALS-1) {
+        char buff [100];
+        sprintf(buff, "FATAL: GPIO %d out of bounds (total %d GPIOs)", pin_number, NUMBER_OF_GPIO_SIGNALS);
+        std::string error_msg = buff;
+        throw runtime_error(error_msg);
+    }
+
+    const uint64_t all = 0x00000000FFFFFFFF;
+#ifdef PV_TATE
+    // Clearing first 32-bits
+    if(address == 0) pins[0] &= ~(all << 0x00);
+    if(address == 1) mask[0] &= ~(all << 0x00);
+    // Clearing second 32-bits
+    if(address == 2) pins[0] &= ~(all << 0x20);
+    if(address == 3) mask[0] &= ~(all << 0x20);
+    // Clearing first 32-bits
+    if(address == 4) pins[1] &= ~(all << 0x00);
+    if(address == 5) mask[1] &= ~(all << 0x00);
+    // Clearing second 32-bits
+    if(address == 6) pins[1] &= ~(all << 0x20);
+    if(address == 7) mask[1] &= ~(all << 0x20);
+
+    // Setting first 32-bits
+    if(address == 0) pins[0] |= (setting << 0x00);
+    if(address == 1) mask[0] |= (setting << 0x00);
+    // Setting second 32-bits
+    if(address == 2) pins[0] |= (setting << 0x20);
+    if(address == 3) mask[0] |= (setting << 0x20);
+    // Setting first 32-bits
+    if(address == 4) pins[1] |= (setting << 0x00);
+    if(address == 5) mask[1] |= (setting << 0x00);
+    // Setting second 32-bits
+    if(address == 6) pins[1] |= (setting << 0x20);
+    if(address == 7) mask[1] |= (setting << 0x20);
+
+#else
+    // Clearing first 32-bits
+    if(address == 0) pins[0] &= ~(all << 0x00);
+    if(address == 1) mask[0] &= ~(all << 0x00);
+    // Clearing second 32-bits
+    if(address == 2) pins[0] &= ~(all << 0x20);
+    if(address == 3) mask[0] &= ~(all << 0x20);
+
+    // Setting first 32-bits
+    if(address == 0) pins[0] |= (setting << 0x00);
+    if(address == 1) mask[0] |= (setting << 0x00);
+    // Setting second 32-bits
+    if(address == 2) pins[0] |= (setting << 0x20);
+    if(address == 3) mask[0] |= (setting << 0x20);
+#endif
 
     if(address > 3)
         std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
@@ -317,11 +371,19 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     if(address == 3)
     {
         gpio_burst_req pkt;
+#ifdef PV_TATE
+	    pkt.header = (((uint64_t) 0x3) << 32) + 1;
+#else
 	    pkt.header = ((uint64_t) 0x3) << 32;
+#endif
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
-        pkt.pins = pins;
-        pkt.mask = mask;
+#ifdef PV_TATE
+        pkt.pins[1] = pins[1];
+        pkt.mask[1] = mask[1];
+#endif
+        pkt.pins[0] = pins[0];
+        pkt.mask[0] = mask[0];
 
         std::printf(
             "SHIPPING(set_user_reg):\n"
@@ -334,8 +396,12 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
         boost::endian::native_to_big_inplace(pkt.header);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask);
+#ifdef PV_TATE
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[1]);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[1]);
+#endif
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[0]);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[0]);
         #ifdef DEBUG_COUT
         std::cout << "GPIO packet size: " << sizeof(pkt) << " bytes" << std::endl;
         #endif
