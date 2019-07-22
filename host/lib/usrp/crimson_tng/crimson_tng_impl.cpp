@@ -322,31 +322,32 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
 
     const uint64_t all = 0x00000000FFFFFFFF;
 #ifdef PV_TATE
+    // Note: pins and mask will be treated as big-endian later on, so address == 0 -> pins[1]
     // Clearing first 32-bits
-    if(address == 0) pins[0] &= ~(all << 0x00);
-    if(address == 1) mask[0] &= ~(all << 0x00);
+    if(address == 0) pins[1] &= ~(all << 0x00);
+    if(address == 1) mask[1] &= ~(all << 0x00);
     // Clearing second 32-bits
-    if(address == 2) pins[0] &= ~(all << 0x20);
-    if(address == 3) mask[0] &= ~(all << 0x20);
+    if(address == 2) pins[1] &= ~(all << 0x20);
+    if(address == 3) mask[1] &= ~(all << 0x20);
     // Clearing first 32-bits
-    if(address == 4) pins[1] &= ~(all << 0x00);
-    if(address == 5) mask[1] &= ~(all << 0x00);
+    if(address == 4) pins[0] &= ~(all << 0x00);
+    if(address == 5) mask[0] &= ~(all << 0x00);
     // Clearing second 32-bits
-    if(address == 6) pins[1] &= ~(all << 0x20);
-    if(address == 7) mask[1] &= ~(all << 0x20);
+    if(address == 6) pins[0] &= ~(all << 0x20);
+    if(address == 7) mask[0] &= ~(all << 0x20);
 
     // Setting first 32-bits
-    if(address == 0) pins[0] |= (setting << 0x00);
-    if(address == 1) mask[0] |= (setting << 0x00);
+    if(address == 0) pins[1] |= (setting << 0x00);
+    if(address == 1) mask[1] |= (setting << 0x00);
     // Setting second 32-bits
-    if(address == 2) pins[0] |= (setting << 0x20);
-    if(address == 3) mask[0] |= (setting << 0x20);
+    if(address == 2) pins[1] |= (setting << 0x20);
+    if(address == 3) mask[1] |= (setting << 0x20);
     // Setting first 32-bits
-    if(address == 4) pins[1] |= (setting << 0x00);
-    if(address == 5) mask[1] |= (setting << 0x00);
+    if(address == 4) pins[0] |= (setting << 0x00);
+    if(address == 5) mask[0] |= (setting << 0x00);
     // Setting second 32-bits
-    if(address == 6) pins[1] |= (setting << 0x20);
-    if(address == 7) mask[1] |= (setting << 0x20);
+    if(address == 6) pins[0] |= (setting << 0x20);
+    if(address == 7) mask[0] |= (setting << 0x20);
 
     if(address > 7)
         std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
@@ -374,7 +375,7 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
 #ifdef PV_TATE
     if(address == 7) {
         gpio_burst_req pkt;
-	    pkt.header = (((uint64_t) 0x3) << 32) + 1;
+	    pkt.header = (((uint64_t) 0x3) << 32) + (((uint64_t) 0x1) << 16);
         pkt.pins[1] = pins[1];
         pkt.mask[1] = mask[1];
         pkt.pins[0] = pins[0];
