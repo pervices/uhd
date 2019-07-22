@@ -37,6 +37,16 @@
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
+#ifdef PV_TATE
+// Tate has 80 GPIO signals and requires two 64-bit registers
+#define NUMBER_OF_GPIO_SIGNALS 80
+#define NUMBER_OF_GPIO_REGS 2
+#else
+// Vaunt has 44 GPIO signals which fit into a single 64-bit register
+#define NUMBER_OF_GPIO_SIGNALS 44
+#define NUMBER_OF_GPIO_REGS 1
+#endif
+
 namespace uhd {
 namespace usrp {
 
@@ -45,8 +55,8 @@ struct gpio_burst_req {
 	uint64_t header; // Frame 1
 	int64_t tv_sec;  // Frame 2
 	int64_t tv_psec; // Frame 2
-	uint64_t pins;   // Frame 3
-	uint64_t mask;   // Frame 3
+	uint64_t pins[NUMBER_OF_GPIO_REGS];   // Frame N
+	uint64_t mask[NUMBER_OF_GPIO_REGS];   // Frame N
 };
 #pragma pack(pop)
 
