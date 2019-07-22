@@ -348,6 +348,8 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     if(address == 6) pins[1] |= (setting << 0x20);
     if(address == 7) mask[1] |= (setting << 0x20);
 
+    if(address > 7)
+        std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
 #else
     // Clearing first 32-bits
     if(address == 0) pins[0] &= ~(all << 0x00);
@@ -362,28 +364,23 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     // Setting second 32-bits
     if(address == 2) pins[0] |= (setting << 0x20);
     if(address == 3) mask[0] |= (setting << 0x20);
-#endif
 
     if(address > 3)
         std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
+#endif
+
 
     // Ship if address 3 was written to.
-    if(address == 3)
-    {
+#ifdef PV_TATE
+    if(address == 7) {
         gpio_burst_req pkt;
-#ifdef PV_TATE
 	    pkt.header = (((uint64_t) 0x3) << 32) + 1;
-#else
-	    pkt.header = ((uint64_t) 0x3) << 32;
-#endif
-        pkt.tv_sec = _command_time.get_full_secs();
-        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
-#ifdef PV_TATE
         pkt.pins[1] = pins[1];
         pkt.mask[1] = mask[1];
-#endif
         pkt.pins[0] = pins[0];
         pkt.mask[0] = mask[0];
+        pkt.tv_sec = _command_time.get_full_secs();
+        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
 
         std::printf(
             "SHIPPING(set_user_reg):\n"
@@ -391,7 +388,26 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
             "0x%016llX\n"
             "0x%016llX\n"
             "0x%016llX\n"
-            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
+            "0x%016llX\n"
+            "0x%016llX\n"
+            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[1], pkt.pins[0], pkt.mask[1], pkt.mask[0]);
+#else
+    if(address == 3) {
+        gpio_burst_req pkt;
+	    pkt.header = ((uint64_t) 0x3) << 32;
+        pkt.pins[0] = pins[0];
+        pkt.mask[0] = mask[0];
+        pkt.tv_sec = _command_time.get_full_secs();
+        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
+
+        std::printf(
+            "SHIPPING(set_user_reg):\n"
+            "0x%016llX\n"
+            "0x%016llX\n"
+            "0x%016llX\n"
+            "0x%016llX\n"
+            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[0], pkt.mask[0]);
+#endif
 
         boost::endian::native_to_big_inplace(pkt.header);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
