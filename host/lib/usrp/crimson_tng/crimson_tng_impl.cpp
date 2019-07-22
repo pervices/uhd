@@ -372,9 +372,9 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     {
         gpio_burst_req pkt;
 #ifdef PV_TATE
-	    pkt.header = (((uint64_t) 0x3) << 32) + 1;
+	    pkt.header = (((uint64_t) 0x3) << 36) + 1;
 #else
-	    pkt.header = ((uint64_t) 0x3) << 32;
+	    pkt.header = ((uint64_t) 0x3) << 36;
 #endif
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
