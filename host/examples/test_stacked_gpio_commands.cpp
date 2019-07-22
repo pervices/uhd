@@ -30,20 +30,25 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     usrp->set_time_now(uhd::time_spec_t(0.0));
 
+
 #ifdef PV_TATE
+    std::cout << "GPIO example for Tate" << std::endl;
+    // Note that Tate has 80 GPIO pins
     uint64_t pins [2] = {0x0, 0x0};
-    uint64_t mask [2] = {0x0, 0x0};
-    const uint64_t all = 0xFFFFFFFFFFFFFFFF;
+    uint64_t mask [2] = {0xFFFFFFFFFFFFFFFF, 0xFFFF};
     for(double time = 0.0; time < 64.0; time++) {
-        pins[0] ^= all;
-        pins[1] ^= all;
-        gpio::write(usrp, pins , mask, time);
+        pins[0] ^= mask[0];
+        pins[1] ^= mask[1];
+        gpio::write(usrp, pins, mask, time);
     }
 #else
+    std::cout << "GPIO example for Vaunt" << std::endl;
+    // Note that Vaunt has 48 GPIO pins
     uint64_t pins = 0x0;
-    const uint64_t all = 0xFFFFFFFFFF;
+    const uint64_t mask = 0xFFFFFFFFFF;
     for(double time = 0.0; time < 64.0; time++)
-        gpio::write(usrp, pins ^= all, all, time);
+        pins ^= mask;
+        gpio::write(usrp, pins, mask, time);
 #endif
 
     return 0;
