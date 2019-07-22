@@ -6,6 +6,9 @@ namespace gpio
     void write(uhd::usrp::multi_usrp::sptr& usrp, const uint64_t pins [], const uint64_t mask [], const double time)
     {
         usrp->set_command_time(uhd::time_spec_t(time));
+        // NOTE: We expect set_user_register to be called sequentially for these registers
+        //       and the last register (3 for vaunt and 7 for tate) will trigger the
+        //       gpio packet to be sent
         usrp->set_user_register(0, (uint32_t) (pins[0] >> 0x00)); // Lower first.
         usrp->set_user_register(1, (uint32_t) (mask[0] >> 0x00)); // Same goes for the mask.
         usrp->set_user_register(2, (uint32_t) (pins[0] >> 0x20)); // Then upper.
