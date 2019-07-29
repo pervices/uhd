@@ -262,7 +262,7 @@ public:
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CRIMSON_TNG_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -299,7 +299,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CRIMSON_TNG_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -674,7 +674,7 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+    my_streamer->set_tick_rate( CRIMSON_TNG_DSP_CLOCK_RATE );
 }
 
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -687,7 +687,7 @@ void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t d
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+    my_streamer->set_tick_rate( CRIMSON_TNG_DSP_CLOCK_RATE );
 }
 
 void crimson_tng_impl::update_rates(void){
@@ -932,7 +932,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE;
+	static constexpr double tick_period_ps = 1.0 / CRIMSON_TNG_DSP_CLOCK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
