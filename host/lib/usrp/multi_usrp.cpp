@@ -226,6 +226,250 @@ static gain_fcns_t make_gain_fcns_from_subtree(property_tree::sptr subtree){
 static const double RX_SIGN = +1.0;
 static const double TX_SIGN = -1.0;
 
+// XXX: @CF: 20180418: stop-gap until moved to server
+static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
+	return freq + bw / 2.0 >= dsp_range.stop();
+}
+
+// XXX: @CF: 20180418: stop-gap until moved to server
+// return true if b is a (not necessarily strict) subset of a
+static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
+	return b.start() >= a.start() && b.stop() <= a.stop();
+}
+
+// XXX: @CF: 20180418: stop-gap until moved to server
+static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
+
+	/*
+	 * Scenario 1) Channels A and B
+	 *
+	 * We want a shift such that the full bandwidth fits inside of one of the
+	 * dashed regions.
+	 *
+	 * Our margin around each sensitive area is 1 MHz on either side.
+	 *
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
+	 * Region A
+	 * Region B
+	 * Region F
+	 * Region G
+	 * Region H
+	 *
+	 * Region A is preferred because it exhibits the least attenuation. B is
+	 * preferred over C for that reason (and because it has a more bandwidth
+	 * than C). F is the next largest band and is preferred over E because
+	 * it avoids the LO fundamental, but it contains FM. G is the next-to-last
+	 * preference because it includes the LO and FM but has a very large
+	 * bandwidth. Finally, H is the catch-all. It suffers at high frequencies
+	 * due to the ADC filterbank, but includes the entirety of the spectrum.
+	 *
+	[--]-------------------[+]-----------------------+-------------------------+-----------[///////////+////////]---------------+------------[\\\\\\\\\\\+\\\\\\\\\\\\\\>
+	 | |                    |                                                              |                    |                            |                      |    f (MHz)
+	 0 2                    25                                                           87.9                  107.9                        137                    162.5
+	DC                 LO fundamental                                                               FM                                   ADC Cutoff            Max Samp Rate
+           A (21 MHz)                            B (60.9 MHz)                                                             C (27.1 Mhz)                 D (26.5 MHz)
+                           E = A + B (includes LO)                                                                     F = B + C (includes FM)
+					                                           G = A + B + C
+					                                           H = A + B + C + D
+	 */
+	static const std::vector<freq_range_t> AB_regions {
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 86.9e6 ), // B
+		freq_range_t( 26e6, 136e6 ), // F = B + C
+		freq_range_t( 3e6, 136e6 ), // G = A + B + C
+		freq_range_t( 3e6, CRIMSON_MASTER_CLOCK_RATE/2.0 ), // H = A + B + C + D (Catch All)
+		freq_range_t( -CRIMSON_MASTER_CLOCK_RATE/2.0, CRIMSON_MASTER_CLOCK_RATE/2.0 ), // I = 2*H (Catch All)
+	};
+	/*
+	 * Scenario 2) Channels C and D
+	 *
+	 * Channels C & D only provide 1/2 the bandwidth of A & B due to silicon
+	 * errata. This should be corrected in subsequent hardware revisions of
+	 * Crimson.
+	 *
+	 * In order of increasing bandwidth & minimal interference, our
+	 * preferences are
+	 *
+	 * Region A
+	 * Region B
+	 * Region C
+	[--]-------------------[+]-----------------------+-------------------------+---->
+	 | |                    |                                                  |    f (MHz)
+	 0 2                    25                                               81.25
+	DC                 LO fundamental                                      Max Samp Rate
+           A (21 MHz)                            B (55.25 MHz)
+                           C = A + B (includes LO)
+	 */
+	static const std::vector<freq_range_t> CD_regions {
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 81.25e6 ), // B
+		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
+		freq_range_t( -CRIMSON_MASTER_CLOCK_RATE/4.0, CRIMSON_MASTER_CLOCK_RATE/4.0 ), // I = 2*H (Catch All)
+	};
+	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
+
+	static const double lo_step = 25e6;
+
+        const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+        #ifdef PV_TATE
+	const char channel = 'A';
+        #endif
+
+        #ifndef PV_TATE
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > (CRIMSON_MASTER_CLOCK_RATE / 4.0) ? 'A' : 'C';
+        #endif
+	const double bw = dsp_subtree->access<double>("/rate/value").get();
+	const std::vector<freq_range_t> & regions =
+		( 'A' == channel || 'B' == channel )
+		? AB_regions
+		: CD_regions
+	;
+	const int K = (int) floor( ( dsp_range.stop() - dsp_range.start() ) / lo_step );
+
+	for( int k = 0; k <= K; k++ ) {
+		for( double sign: { +1, -1 } ) {
+
+			double candidate_lo = target_freq;
+			if ( sign > 0 ) {
+				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
+				// above the target frequency
+				candidate_lo += lo_step - fmod( target_freq, lo_step );
+			} else {
+				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
+				// above the target frequency
+				candidate_lo -= fmod( target_freq, lo_step );
+			}
+			candidate_lo += k * sign * lo_step;
+
+			const double candidate_nco = target_freq - candidate_lo;
+			const double bb_ft = target_freq - candidate_lo + candidate_nco;
+			const meta_range_t candidate_range( bb_ft - bw / 2, bb_ft + bw / 2 );
+
+			for( const freq_range_t & _range: regions ) {
+				if ( range_contains( _range, candidate_range ) ) {
+					return candidate_nco;
+				}
+			}
+		}
+	}
+
+	// Under normal operating parameters, this should never happen because
+	// the last-choice _range in each of AB_regions and CD_regions is
+	// a catch-all for the entire DSP bandwidth. Hitting this scenario is
+	// equivalent to saying that the LO is incapable of up / down mixing
+	// the RF signal into the baseband domain.
+	throw runtime_error(
+		(
+			boost::format( "No suitable baseband region found: target_freq: %f, bw: %f, dsp_range: %s" )
+			% target_freq
+			% bw
+			% dsp_range.to_pp_string()
+		).str()
+	);
+}
+
+// XXX: @CF: 20180418: stop-gap until moved to server
+static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+
+	enum {
+		LOW_BAND,
+		HIGH_BAND,
+	};
+
+	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+	freq_range_t adc_range( dsp_range.start(), CRIMSON_TNG_DSP_CLOCK_RATE * 1.0 , 0.0001 ); //Assume ADC bandwidth is the same as DSP rate.
+	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
+
+	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
+
+	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
+
+	//------------------------------------------------------------------
+	//-- set the RF frequency depending upon the policy
+	//------------------------------------------------------------------
+	double target_rf_freq = 0.0;
+	double dsp_nco_shift = 0;
+
+	// kb #3689, for phase coherency, we must set the DAC NCO to 0
+	if ( TX_SIGN == xx_sign ) {
+		rf_fe_subtree->access<double>("nco").set( 0.0 );
+	}
+
+	rf_fe_subtree->access<int>( "freq/band" ).set( band );
+
+	switch (tune_request.rf_freq_policy){
+		case tune_request_t::POLICY_AUTO:
+			switch( band ) {
+			case LOW_BAND:
+				// in low band, we only use the DSP to tune
+				target_rf_freq = 0;
+				break;
+			case HIGH_BAND:
+				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
+				// in high band, we use the LO for most of the shift, and use the DSP for the difference
+				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
+				break;
+			}
+		break;
+
+		case tune_request_t::POLICY_MANUAL:
+			target_rf_freq = rf_range.clip( tune_request.rf_freq );
+			break;
+
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
+
+	//------------------------------------------------------------------
+	//-- Tune the RF frontend
+	//------------------------------------------------------------------
+	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
+	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+
+	//------------------------------------------------------------------
+	//-- Set the DSP frequency depending upon the DSP frequency policy.
+	//------------------------------------------------------------------
+	double target_dsp_freq = 0.0;
+	switch (tune_request.dsp_freq_policy) {
+		case tune_request_t::POLICY_AUTO:
+			target_dsp_freq = actual_rf_freq - clipped_requested_freq;
+
+			//invert the sign on the dsp freq for transmit (spinning up vs down)
+			target_dsp_freq *= xx_sign;
+
+			break;
+
+		case tune_request_t::POLICY_MANUAL:
+			target_dsp_freq = tune_request.dsp_freq;
+			break;
+
+		case tune_request_t::POLICY_NONE:
+			break; //does not set
+	}
+
+	//------------------------------------------------------------------
+	//-- Tune the DSP
+	//------------------------------------------------------------------
+	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
+	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+
+	//------------------------------------------------------------------
+	//-- Load and return the tune result
+	//------------------------------------------------------------------
+	tune_result_t tune_result;
+	tune_result.clipped_rf_freq = clipped_requested_freq;
+	tune_result.target_rf_freq = target_rf_freq;
+	tune_result.actual_rf_freq = actual_rf_freq;
+	tune_result.target_dsp_freq = target_dsp_freq;
+	tune_result.actual_dsp_freq = actual_dsp_freq;
+	return tune_result;
+}
+
+
 //static tune_result_t tune_xx_subdev_and_dsp(
 //    const double xx_sign,
 //    property_tree::sptr dsp_subtree,
@@ -1074,6 +1318,7 @@ public:
     }
 
     tune_result_t set_rx_freq(const tune_request_t &tune_request, size_t chan){
+
         // If any mixer is driven by an external LO the daughterboard assumes that no CORDIC correction is
         // necessary. Since the LO might be sourced from another daughterboard which would normally apply a
         // cordic correction a manual DSP tune policy should be used to ensure identical configurations across
@@ -1083,7 +1328,7 @@ public:
         {
             for (size_t c = 0; c < get_rx_num_channels(); c++) {
                 const bool external_all_los = _tree->exists(rx_rf_fe_root(chan) / "los" / ALL_LOS)
-                                                && get_rx_lo_source(ALL_LOS, c) == "external";
+                                              && get_rx_lo_source(ALL_LOS, c) == "external";
                 if (external_all_los) {
                     UHD_LOGGER_WARNING("MULTI_USRP")
                             << "At least one channel is using an external LO."
@@ -1093,12 +1338,23 @@ public:
                 }
             }
         }
-        return get_device()->set_rx_freq(tune_request, chan);
+
+        tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
+                _tree->subtree(rx_dsp_root(chan)),
+                _tree->subtree(rx_rf_fe_root(chan)),
+                tune_request);
+        //do_tune_freq_results_message(tune_request, result, get_rx_freq(chan), "RX");
+        return result;
     }
 
     // XXX: @CF: 20180418: stop-gap until moved to server
     double get_rx_freq(size_t chan){
-        return get_device()->get_rx_freq(chan);
+        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
+        double cur_lo_freq = 0;
+        if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+            cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
+        }
+        return cur_lo_freq - cur_dsp_nco;
     }
 //    double get_rx_freq(size_t chan){
 //        return derive_freq_from_xx_subdev_and_dsp(RX_SIGN, _tree->subtree(rx_dsp_root(chan)), _tree->subtree(rx_rf_fe_root(chan)));
@@ -2021,12 +2277,23 @@ public:
     }
 
     tune_result_t set_tx_freq(const tune_request_t &tune_request, size_t chan){
-        return get_device()->set_tx_freq(tune_request, chan);
+        tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
+                _tree->subtree(tx_dsp_root(chan)),
+                _tree->subtree(tx_rf_fe_root(chan)),
+                tune_request);
+        //do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
+        return result;
     }
 
     // XXX: @CF: 20180418: stop-gap until moved to server
     double get_tx_freq(size_t chan){
-        return get_device()->get_tx_freq(chan);
+        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+        double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
+        double cur_lo_freq = 0;
+        if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+        	cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
+        }
+        return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
     }
 //    double get_tx_freq(size_t chan){
 //        return derive_freq_from_xx_subdev_and_dsp(TX_SIGN, _tree->subtree(tx_dsp_root(chan)), _tree->subtree(tx_rf_fe_root(chan)));
