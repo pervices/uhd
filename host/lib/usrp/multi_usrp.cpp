@@ -238,8 +238,6 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-
-#include "crimson_tng/crimson_tng_fw_common.h"
 static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
 
 	/*
@@ -277,23 +275,18 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 					                                           H = A + B + C + D
 	 */
 	static const std::vector<freq_range_t> AB_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_FM_LOWERLIMIT ), // B
-		//freq_range_t( -CRIMSON_TNG_FM_LOWERLIMIT,-(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -F
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -CRIMSON_TNG_DC_LOWERLIMIT ), // -G
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, -CRIMSON_TNG_DC_LOWERLIMIT ), // -H
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 86.9e6 ), // B
+		freq_range_t( 26e6, 136e6 ), // F = B + C
+		freq_range_t( 3e6, 136e6 ), // G = A + B + C
+		freq_range_t( 3e6, CRIMSON_MASTER_CLOCK_RATE/2.0 ), // H = A + B + C + D (Catch All)
+		freq_range_t( -CRIMSON_MASTER_CLOCK_RATE/2.0, CRIMSON_MASTER_CLOCK_RATE/2.0 ), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
 	 *
-	 * Channels C & D only provide 1/4 the bandwidth of A & B due to silicon
-	 * limitations. This should be corrected in subsequent revisions of
+	 * Channels C & D only provide 1/2 the bandwidth of A & B due to silicon
+	 * errata. This should be corrected in subsequent hardware revisions of
 	 * Crimson.
 	 *
 	 * In order of increasing bandwidth & minimal interference, our
@@ -310,27 +303,30 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
                            C = A + B (includes LO)
 	 */
 	static const std::vector<freq_range_t> CD_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // +A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // B
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -CRIMSON_TNG_DC_LOWERLIMIT ), // -C
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
+		freq_range_t( 3e6, 24e6 ), // A
+		freq_range_t( 26e6, 81.25e6 ), // B
+		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
+		freq_range_t( -CRIMSON_MASTER_CLOCK_RATE/4.0, CRIMSON_MASTER_CLOCK_RATE/4.0 ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
-	static const double lo_step = CRIMSON_TNG_LO_STEPSIZE;
+	static const double lo_step = 25e6;
 
-	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CRIMSON_TNG_BW_QUARTER ? 'A' : 'C';
+        const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+        #ifdef PV_TATE
+	const char channel = 'A';
+        #endif
+
+        #ifndef PV_TATE
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > (CRIMSON_MASTER_CLOCK_RATE / 4.0) ? 'A' : 'C';
+        #endif
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
 		? AB_regions
 		: CD_regions
 	;
-	const int K = (int) floor( abs( ( dsp_range.stop() - dsp_range.start() ) ) / lo_step );
+	const int K = (int) floor( ( dsp_range.stop() - dsp_range.start() ) / lo_step );
 
 	for( int k = 0; k <= K; k++ ) {
 		for( double sign: { +1, -1 } ) {
@@ -348,13 +344,9 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 			candidate_lo += k * sign * lo_step;
 
 			const double candidate_nco = target_freq - candidate_lo;
+			const double bb_ft = target_freq - candidate_lo + candidate_nco;
+			const meta_range_t candidate_range( bb_ft - bw / 2, bb_ft + bw / 2 );
 
-			//Ensure that the combined NCO offset and signal bw fall within candidate range;
-			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
-
-			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
-			//the specified ranges (as they can't be negative).
-			//TBH: I'm not sure why this works right now, but it does.
 			for( const freq_range_t & _range: regions ) {
 				if ( range_contains( _range, candidate_range ) ) {
 					return candidate_nco;
@@ -388,7 +380,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
+	freq_range_t adc_range( dsp_range.start(), CRIMSON_TNG_DSP_CLOCK_RATE * 1.0 , 0.0001 ); //Assume ADC bandwidth is the same as DSP rate.
 	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
