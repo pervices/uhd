@@ -1499,7 +1499,7 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	case 5:
         case 6:
         case 7:
-                sfp = "sfpb";
+                sfp = "sfpa";
                 break;
         case 8:
 	case 9:
@@ -1511,7 +1511,7 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
         case 13:
         case 14:
         case 15:
-                sfp = "sfpb"; //TODO: Fix to sfpD
+                sfp = "sfpa"; //TODO: Fix to sfpD
 		break;
 #endif
 	}
