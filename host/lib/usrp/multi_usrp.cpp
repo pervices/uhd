@@ -238,6 +238,8 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
+
+#include "crimson_tng/crimson_tng_fw_common.h"
 static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
 
 	/*
@@ -279,8 +281,8 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 		freq_range_t( 26e6, 86.9e6 ), // B
 		freq_range_t( 26e6, 136e6 ), // F = B + C
 		freq_range_t( 3e6, 136e6 ), // G = A + B + C
-		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Catch All)
-		freq_range_t( -162.5e6, 162.5e6 ), // I = 2*H (Catch All)
+		freq_range_t( 3e6, CRIMSON_TNG_MASTER_CLOCK_RATE/2.0 ), // H = A + B + C + D (Catch All)
+		freq_range_t( -CRIMSON_TNG_MASTER_CLOCK_RATE/2.0, CRIMSON_TNG_MASTER_CLOCK_RATE/2.0 ), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
@@ -306,14 +308,20 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 		freq_range_t( 3e6, 24e6 ), // A
 		freq_range_t( 26e6, 81.25e6 ), // B
 		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
-		freq_range_t( -81.25e6, 81.25e6 ), // I = 2*H (Catch All)
+		freq_range_t( -CRIMSON_TNG_MASTER_CLOCK_RATE/4.0, CRIMSON_TNG_MASTER_CLOCK_RATE/4.0 ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
 	static const double lo_step = 25e6;
 
-	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > 81.25e6 ? 'A' : 'C';
+        const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+        #ifdef PV_TATE
+	const char channel = 'A';
+        #endif
+
+        #ifndef PV_TATE
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > (CRIMSON_TNG_MASTER_CLOCK_RATE / 4.0) ? 'A' : 'C';
+        #endif
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
@@ -374,7 +382,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t adc_range( dsp_range.start(), 137e6, 0.0001 );
+	freq_range_t adc_range( dsp_range.start(), CRIMSON_TNG_DSP_CLOCK_RATE, 0.0001 ); //Assume ADC bandwidth is the same as DSP rate.
 	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
@@ -1751,7 +1759,6 @@ public:
     /**************************************************************************
      * Gain control
      *************************************************************************/
-	#include "crimson_tng/crimson_tng_fw_common.h"
     void set_rx_gain(double gain, const std::string &name, size_t chan) {
 
     	if ( ALL_CHANS != chan ) {
