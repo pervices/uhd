@@ -171,7 +171,7 @@ private:
         const std::string root { "/mboards/0/tx/" + std::to_string(channel) + "/" };
         const std::vector<Set> sets {
             { root + "trigger/sma_mode"       , "edge"                          },
-            { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0"         },
+            { root + "trigger/trig_sel"       , samples > 0 ? "1" : "1"         },
             { root + "trigger/edge_backoff"   , std::to_string(edge_debounce)   },
             { root + "trigger/edge_sample_num", std::to_string(samples)         },
             { root + "trigger/gating"         , gating                          },
