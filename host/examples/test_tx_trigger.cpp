@@ -351,7 +351,9 @@ public:
 
             if(min < setpoint)
             {
-                tx->send(buffer.mirrors, buffer.size(), md);
+                // To compensate for the hidden buffer inside FPGA empty_handler, we're
+                // sending an additional 30 more samples.
+                tx->send(buffer.mirrors, setpoint+30, md);
                 md.start_of_burst = false;
                 md.has_time_spec = false;
             }
