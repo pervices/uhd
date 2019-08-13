@@ -177,6 +177,7 @@ private:
             { root + "trigger/gating"         , gating                          },
             { "/mboards/0/trigger/sma_dir"    , "in"                            },
             { "/mboards/0/trigger/sma_pol"    , "positive"                      },
+            { root + "tx_dsps/rstreq"         , "1"                             },
         };
         return sets;
     }
