@@ -1018,11 +1018,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_BW_FULL );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_BW_FULL, CRIMSON_TNG_BW_FULL ) );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
 
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1031,12 +1031,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
-		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, CRIMSON_TNG_LO_OFFSET );
+		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CRIMSON_TNG_LO_OFFSET );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
+			meta_range_t((double) CRIMSON_TNG_RF_RX_GAIN_RANGE_START, (double) CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, (double) CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
@@ -1060,11 +1060,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
                 case 'C':
 		case 'D':
 			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP_FULL, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_BW_START, CRIMSON_TNG_DSP_BW_STOP_FULL, CRIMSON_TNG_DSP_BW_STEPSIZE));
+				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
 			break;
 		}
 
@@ -1158,11 +1158,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_BW_FULL );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_BW_FULL, CRIMSON_TNG_BW_FULL ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
 
 		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1171,12 +1171,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
                //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
-                TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, CRIMSON_TNG_LO_OFFSET );
+                TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CRIMSON_TNG_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) CRIMSON_TNG_FREQ_RANGE_STOP, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
+			meta_range_t((double) CRIMSON_TNG_RF_TX_GAIN_RANGE_START, (double) CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, (double) CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
@@ -1193,20 +1193,20 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		case 'A':
 		case 'B':
 			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP_FULL, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_BW_START, CRIMSON_TNG_DSP_BW_STOP_FULL, CRIMSON_TNG_DSP_BW_STEPSIZE));
+				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
 			break;
 		case 'C':
 		case 'D':
 			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP_QUARTER, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_BW_START, CRIMSON_TNG_DSP_BW_STOP_QUARTER, CRIMSON_TNG_DSP_BW_STEPSIZE));
+				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_QUARTER, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
 			break;
 		}
 
