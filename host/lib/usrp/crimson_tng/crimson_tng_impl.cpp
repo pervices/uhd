@@ -914,6 +914,16 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "sfpc/ip_addr",  "fpga/link/sfpc/ip_addr",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpc/mac_addr", "fpga/link/sfpc/mac_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpc/pay_len",  "fpga/link/sfpc/pay_len",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/ip_addr",  "fpga/link/sfpd/ip_addr",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/mac_addr", "fpga/link/sfpd/mac_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/pay_len",  "fpga/link/sfpd/pay_len",  std::string, string);
+#endif
+
+
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
@@ -923,6 +933,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
+#endif
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
@@ -1378,7 +1392,34 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 }
 
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
-
+#ifdef PV_TATE
+	switch( chan ) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+		sfp = "sfpa";
+		break;
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+		sfp = "sfpb";
+		break;
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+		sfp = "sfpc";
+		break;
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+		sfp = "sfpd";
+		break;
+	}
+#else
 	switch( chan ) {
 	case 0:
 	case 2:
@@ -1389,7 +1430,7 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 		sfp = "sfpb";
 		break;
 	}
-
+#endif
 	const std::string chan_str( 1, 'A' + chan );
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path prop_path = mb_path / "tx_link";
