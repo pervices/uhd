@@ -238,6 +238,8 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
+
+#include "crimson_tng/crimson_tng_fw_common.h"
 static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
 
 	/*
@@ -277,16 +279,16 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	static const std::vector<freq_range_t> AB_regions {
 		freq_range_t( 3e6, 24e6 ), // A
 		freq_range_t( 26e6, 86.9e6 ), // B
-		freq_range_t( 26e6, 136e6 ), // F = B + C
-		freq_range_t( 3e6, 136e6 ), // G = A + B + C
-		freq_range_t( 3e6, 162.5e6 ), // H = A + B + C + D (Catch All)
-		freq_range_t( -162.5e6, 162.5e6 ), // I = 2*H (Catch All)
+		freq_range_t( 26e6, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
+		freq_range_t( 3e6, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
+		freq_range_t( 3e6, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
+		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
 	 *
-	 * Channels C & D only provide 1/2 the bandwidth of A & B due to silicon
-	 * errata. This should be corrected in subsequent hardware revisions of
+	 * Channels C & D only provide 1/4 the bandwidth of A & B due to silicon
+	 * limitations. This should be corrected in subsequent revisions of
 	 * Crimson.
 	 *
 	 * In order of increasing bandwidth & minimal interference, our
@@ -304,16 +306,16 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	 */
 	static const std::vector<freq_range_t> CD_regions {
 		freq_range_t( 3e6, 24e6 ), // A
-		freq_range_t( 26e6, 81.25e6 ), // B
-		freq_range_t( 3e6, 81.25e6 ), // C = A + B (Catch All)
-		freq_range_t( -81.25e6, 81.25e6 ), // I = 2*H (Catch All)
+		freq_range_t( 26e6, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // B
+		freq_range_t( 3e6, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
+		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
-	static const double lo_step = 25e6;
+	static const double lo_step = CRIMSON_TNG_LO_STEPSIZE;
 
 	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > 81.25e6 ? 'A' : 'C';
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CRIMSON_TNG_BW_QUARTER ? 'A' : 'C';
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
