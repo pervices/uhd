@@ -1049,6 +1049,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "link" / "sfpc" / "ip_addr",  "fpga/link/sfpc/ip_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
+    TREE_CREATE_RW(mb_path / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
+#endif
 
     // This is the master clock rate
     TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_DSP_CLOCK_RATE );
