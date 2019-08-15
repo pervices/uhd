@@ -1527,7 +1527,6 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	}
 #else
 	switch( chan ) {
-#ifndef PV_TATE
         case 0:
 	case 2:
 		sfp = "sfpa";
@@ -1536,32 +1535,6 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	case 3:
 		sfp = "sfpb";
 		break;
-#else
-        case 0:
-	case 1:
-        case 2:
-        case 3:
-		sfp = "sfpa";
-                break;
-        case 4:
-	case 5:
-        case 6:
-        case 7:
-                sfp = "sfpa";
-                break;
-        case 8:
-	case 9:
-        case 10:
-        case 11:
-                sfp = "sfpa"; //TODO: Fix to sfpC
-		break;
-        case 12:
-        case 13:
-        case 14:
-        case 15:
-                sfp = "sfpa"; //TODO: Fix to sfpD
-		break;
-#endif
 	}
 #endif
 	const std::string chan_str( 1, 'A' + chan );
