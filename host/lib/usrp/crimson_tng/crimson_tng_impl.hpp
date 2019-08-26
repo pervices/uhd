@@ -72,6 +72,9 @@ struct time_diff_req {
 struct time_diff_resp {
 	int64_t tv_sec;
 	int64_t tv_tick;
+	int64_t fifo_levels;
+	int64_t time_sec;
+	int64_t time_frac;
 };
 #pragma pack(pop)
 
