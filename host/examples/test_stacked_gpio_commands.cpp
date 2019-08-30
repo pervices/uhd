@@ -38,7 +38,32 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 #ifdef PV_TATE
     std::cout << "GPIO example for Tate" << std::endl;
     // Note that Tate has 80 GPIO pins
-    uint64_t pins [2] = {0x0, 0x0};
+    // The following is the mapping of the GPIO pins to the registers
+    //
+    //    pwr_en        : Power on the HDR board
+    //    hi_pwr_en     : Enable the high power branch
+    //    atten64..1    : Amount of attenuation (all will be summed together).
+    //                      9          8          7          6          5          4          3          2          1          0
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL A:   9 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |   0
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL B:  19 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  10
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL C:  29 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  20
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL D:  39 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  30
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL E:  49 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  40
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL F:  59 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  50
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL G:  69 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  60
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+    // CHANNEL H:  79 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  70
+    //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+
+    // default is to set pwr_en and enable hi_pwr branch and set attenuation to minimum (0).
+    uint64_t pins [2] = {0x0601806018060180, 0x6018};
     uint64_t mask [2] = {0xFFFFFFFFFFFFFFFF, 0xFFFF};
     for(double time = 0.0; time < 64.0; time++) {
         pins[0] ^= mask[0];
