@@ -65,7 +65,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     // default is to set pwr_en and enable hi_pwr branch and set attenuation to minimum (0).
     uint64_t pins [2] = {0x0601806018060180, 0x6018};
     uint64_t mask [2] = {0xFFFFFFFFFFFFFFFF, 0xFFFF};
-    for(double time = 0.0; time < 64.0; time++) {
+    // Toggle the pins for the next 10 seconds
+    for(double time = 0.0; time < 10.0; time++) {
         pins[0] ^= mask[0];
         pins[1] ^= mask[1];
         gpio::write(usrp, pins, mask, time);
