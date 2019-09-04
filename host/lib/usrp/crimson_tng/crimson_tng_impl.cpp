@@ -1006,7 +1006,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "sfpd/pay_len",  "fpga/link/sfpd/pay_len",  std::string, string);
 #endif
 
-
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
@@ -1014,6 +1013,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
     TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
+    TREE_CREATE_RW(mb_path / "fpga/board/rstreq_all_dsp", "fpga/board/rstreq_all_dsp", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
 #ifdef PV_TATE
@@ -1389,6 +1389,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 	const fs_path cm_path  = mb_path / "cm";
 
+#ifdef PV_TATE
+	_tree->access<int>(mb_path / "fpga/board/rstreq_all_dsp").set(1);
+#endif
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
