@@ -383,6 +383,7 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
 
+#ifdef DEBUG_COUT
         std::printf(
             "SHIPPING(set_user_reg):\n"
             "0x%016lX\n"
@@ -392,6 +393,7 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
             "0x%016lX\n"
             "0x%016lX\n"
             "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[1], pkt.pins[0], pkt.mask[1], pkt.mask[0]);
+#endif
 #else
     if(address == 3) {
         gpio_burst_req pkt;
@@ -401,6 +403,7 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
 
+#ifdef DEBUG_COUT
         std::printf(
             "SHIPPING(set_user_reg):\n"
             "0x%016lX\n"
@@ -408,6 +411,7 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
             "0x%016lX\n"
             "0x%016lX\n"
             "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[0], pkt.mask[0]);
+#endif
 #endif
 
         boost::endian::native_to_big_inplace(pkt.header);
