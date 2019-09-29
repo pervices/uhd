@@ -101,8 +101,7 @@ public:
 
 		std::lock_guard<std::mutex> _lock( lock );
 
-		model_level = model_level + 0.06 * ( actual_level - model_level);
-		unlocked_set_buffer_level( model_level );
+		unlocked_set_buffer_level( model_level + 0.06 * ( actual_level - model_level) );
                 buffer_level_set_time = now;
 	}
 
