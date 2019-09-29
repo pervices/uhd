@@ -93,15 +93,17 @@ public:
 		unlocked_set_buffer_level( level );
 		buffer_level_set_time = now;
 	}
-	void set_buffer_level_async( const size_t level ) {
 
-		ssize_t _level = level;
+	void set_buffer_level_crimson_feedback( const size_t model_level, const size_t actual_level, const uhd::time_spec_t & now ) {
+            //This function attempts to ensure that fifo levels return to normal after a fixed upset.
+            //model_level refers to our internal (application side) UHD fifo level count.
+            //actual_level refers to the actual, adjusted, level that was returned from Crimson.
 
 		std::lock_guard<std::mutex> _lock( lock );
 
-		_level = buffer_level + 0.06 * ( _level - buffer_level );
-
-		unlocked_set_buffer_level( _level );
+		model_level = model_level + 0.06 * ( actual_level - model_level);
+		unlocked_set_buffer_level( model_level );
+                buffer_level_set_time = now;
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {

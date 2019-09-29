@@ -525,6 +525,7 @@ private:
 
 				uhd::time_spec_t now, then;
 				double level_pcnt;
+
 				uint64_t uflow;
 				uint64_t oflow;
 				async_metadata_t metadata;
@@ -547,11 +548,13 @@ private:
 
 				now = self->get_time_now();
 
+                                size_t level_fromcrimson = fc->get_buffer_level_pcnt( now ) * 100;
 				size_t level = level_pcnt * max_level;
 
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
-					fc->set_buffer_level( level, now );
+					//fc->set_buffer_level( level, now );
+                                        fc->set_buffer_level_crimson_feedback( level, level_fromcrimson, now );
 #ifdef DEBUG_FC
 				    std::printf("%10lu\t", level);
 #endif
