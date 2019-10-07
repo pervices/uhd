@@ -862,6 +862,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
                 tdr_valid = false;
                 continue;
             }
+            xg_intf++;
         }
         // Skip this iteration, if one of the interfaces did not reply
         if (tdr_valid == false) {
@@ -874,6 +875,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         int64_t total_time_in_ns = 0;
         while (xg_intf < NUMBER_OF_XG_CONTROL_INTF) {
             total_time_in_ns += (tdr[xg_intf].tv_sec*1000000000) + tdr[xg_intf].tv_tick;
+            xg_intf++;
         }
         total_time_in_ns /= NUMBER_OF_XG_CONTROL_INTF;
         tdr_average.tv_sec = total_time_in_ns/1000000000;
