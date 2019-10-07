@@ -822,13 +822,14 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	double time_diff;
 
-	struct time_diff_resp tdr;
+    std::array<struct time_diff_resp, NUMBER_OF_XG_CONTROL_INTF> tdr;
+    struct time_diff_resp tdr_average;
 
 	//Gett offset
 	now = uhd::get_system_time();
 	dev->time_diff_send( now, xg_intf );
-	dev->time_diff_recv( tdr, xg_intf );
-	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+	dev->time_diff_recv( tdr[0], xg_intf );
+	dev->_time_diff_pidc.set_offset((double) tdr[0].tv_sec + (double)ticks_to_nsecs( tdr[0].tv_tick ) / 1e9);
 
 	for(
 		now = uhd::get_system_time(),
@@ -853,12 +854,32 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now, xg_intf );
-		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
-			continue;
-		}
-		dev->time_diff_process( tdr, now );
-		//dev->fifo_update_process( tdr );
+        xg_intf = 0;
+        bool tdr_valid = true;
+        while (xg_intf < NUMBER_OF_XG_CONTROL_INTF) {
+            dev->time_diff_send( crimson_now, xg_intf );
+            if ( ! dev->time_diff_recv( tdr[xg_intf], xg_intf ) ) {
+                tdr_valid = false;
+                continue;
+            }
+        }
+        // Skip this iteration, if one of the interfaces did not reply
+        if (tdr_valid == false) {
+            continue;
+        }
+        // Take the average of time diffs
+        xg_intf = 0;
+        tdr_average.tv_sec = 0;
+        tdr_average.tv_tick = 0;
+        int64_t total_time_in_ns = 0;
+        while (xg_intf < NUMBER_OF_XG_CONTROL_INTF) {
+            total_time_in_ns += (tdr[xg_intf].tv_sec*1000000000) + tdr[xg_intf].tv_tick;
+        }
+        total_time_in_ns /= NUMBER_OF_XG_CONTROL_INTF;
+        tdr_average.tv_sec = total_time_in_ns/1000000000;
+        tdr_average.tv_tick = total_time_in_ns % 1000000000;
+		dev->time_diff_process( tdr_average, now );
+		//dev->fifo_update_process( tdr_average );
 
 #if 0
 			// XXX: overruns - we need to fix this
@@ -870,13 +891,6 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 					<< std::endl;
 			}
 #endif
-        // At every iteration, loop through different interfaces so that we
-        // have an average of the time diffs through different interfaces!
-        if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
-            xg_intf++;
-        } else {
-            xg_intf = 0;
-        }
 	}
 	dev->_bm_thread_running = false;
 }
