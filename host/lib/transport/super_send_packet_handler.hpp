@@ -64,16 +64,6 @@ public:
     {
         this->set_enable_trailer(true);
         this->resize(size);
-
-        this->conversion_threads.resize(size);
-        this->conversion_done.resize(size);
-        this->conversion_ready.resize(size);
-        this->conversion_terminate = false;
-        for (size_t i = 0; i < size; i++) {
-            this->conversion_threads[i] = std::thread(&send_packet_handler::convert_to_in_buff, this, i);
-            this->conversion_done[i] = false;
-            this->conversion_ready[i] = false;
-        }
     }
 
     ~send_packet_handler(void){
@@ -83,6 +73,7 @@ public:
             for (size_t i = 0; i < this->size(); i++) {
                 this->conversion_ready[i] = true;
             }
+            std::unique_lock<std::mutex> guard(this->conversion_mutex);
             this->conversion_cv.notify_all();
 
             for (size_t i = 0; i < this->size(); i++) {
@@ -103,6 +94,7 @@ public:
             for (size_t i = 0; i < this->size(); i++) {
                 this->conversion_ready[i] = true;
             }
+            std::unique_lock<std::mutex> guard(this->conversion_mutex);
             this->conversion_cv.notify_all();
 
             for (size_t i = 0; i < this->size(); i++) {
@@ -444,6 +436,7 @@ private:
             conversion_done[i] = false;
             conversion_ready[i] = true;
         }
+        std::unique_lock<std::mutex> guard(this->conversion_mutex);
         conversion_cv.notify_all();
         // Sleep for 10 us intervals while checking whether the worker threads are done
         // TODO: verify that the sleep duration is efficient.
@@ -467,10 +460,10 @@ private:
     UHD_INLINE void convert_to_in_buff(const size_t index)
     {
         while (true) {
-            std::unique_lock<std::mutex> locker(conversion_mutex);
+            std::unique_lock<std::mutex> guard(conversion_mutex);
             // Wait until the controlling thread gives the green light
             while(!conversion_ready[index]) {
-                conversion_cv.wait(locker);
+                conversion_cv.wait(guard);
             }
             if (conversion_terminate) {
                 break;
