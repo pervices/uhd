@@ -74,6 +74,7 @@ public:
             for (size_t i = 0; i < this->size(); i++) {
                 this->conversion_ready[i] = true;
             }
+            guard.unlock();
             this->conversion_cv.notify_all();
 
             for (size_t i = 0; i < this->size(); i++) {
@@ -95,6 +96,7 @@ public:
             for (size_t i = 0; i < this->size(); i++) {
                 this->conversion_ready[i] = true;
             }
+            guard.unlock();
             this->conversion_cv.notify_all();
 
             for (size_t i = 0; i < this->size(); i++) {
@@ -437,6 +439,7 @@ private:
             conversion_done[i] = false;
             conversion_ready[i] = true;
         }
+        guard.unlock();
         conversion_cv.notify_all();
         // Sleep for 10 us intervals while checking whether the worker threads are done
         // TODO: verify that the sleep duration is efficient.
