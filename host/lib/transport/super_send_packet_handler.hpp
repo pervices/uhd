@@ -77,6 +77,18 @@ public:
     }
 
     ~send_packet_handler(void){
+        // Destroy the multi-threaded convert_to_in_buff
+        if (this->size() != 0) {
+            this->conversion_terminate = true;
+            for (size_t i = 0; i < this->size(); i++) {
+                this->conversion_ready[i] = true;
+            }
+            this->conversion_cv.notify_all();
+
+            for (size_t i = 0; i < this->size(); i++) {
+                this->conversion_threads[i].join();
+            }
+        }
         /* NOP */
     }
 
@@ -85,8 +97,12 @@ public:
         if (this->size() == size) return;
 
         // Handle the multi-threaded convert_to_in_buff
+        //   Destroy current threads
         if (this->size() != 0) {
             this->conversion_terminate = true;
+            for (size_t i = 0; i < this->size(); i++) {
+                this->conversion_ready[i] = true;
+            }
             this->conversion_cv.notify_all();
 
             for (size_t i = 0; i < this->size(); i++) {
@@ -94,6 +110,7 @@ public:
             }
         }
 
+        // Create new threads
         this->conversion_threads.resize(size);
         this->conversion_done.resize(size);
         this->conversion_ready.resize(size);
