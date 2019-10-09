@@ -69,11 +69,11 @@ public:
     ~send_packet_handler(void){
         // Destroy the multi-threaded convert_to_in_buff
         if (this->size() != 0) {
+            std::unique_lock<std::mutex> guard(this->conversion_mutex);
             this->conversion_terminate = true;
             for (size_t i = 0; i < this->size(); i++) {
                 this->conversion_ready[i] = true;
             }
-            std::unique_lock<std::mutex> guard(this->conversion_mutex);
             this->conversion_cv.notify_all();
 
             for (size_t i = 0; i < this->size(); i++) {
@@ -90,11 +90,11 @@ public:
         // Handle the multi-threaded convert_to_in_buff
         //   Destroy current threads
         if (this->size() != 0) {
+            std::unique_lock<std::mutex> guard(this->conversion_mutex);
             this->conversion_terminate = true;
             for (size_t i = 0; i < this->size(); i++) {
                 this->conversion_ready[i] = true;
             }
-            std::unique_lock<std::mutex> guard(this->conversion_mutex);
             this->conversion_cv.notify_all();
 
             for (size_t i = 0; i < this->size(); i++) {
@@ -432,11 +432,11 @@ private:
 
         //perform N channels of conversion
         // Wake up the worker threads (convert_to_in_buff) and wait for their completion
+        std::unique_lock<std::mutex> guard(this->conversion_mutex);
         for (size_t i = 0; i < this->size(); i++) {
             conversion_done[i] = false;
             conversion_ready[i] = true;
         }
-        std::unique_lock<std::mutex> guard(this->conversion_mutex);
         conversion_cv.notify_all();
         // Sleep for 10 us intervals while checking whether the worker threads are done
         // TODO: verify that the sleep duration is efficient.
@@ -460,11 +460,10 @@ private:
     UHD_INLINE void convert_to_in_buff(const size_t index)
     {
         while (true) {
-            std::unique_lock<std::mutex> guard(conversion_mutex);
             // Wait until the controlling thread gives the green light
-            while(!conversion_ready[index]) {
-                conversion_cv.wait(guard);
-            }
+            std::unique_lock<std::mutex> guard(conversion_mutex);
+            conversion_cv.wait(guard, [this, index]{return this->conversion_ready[index] == true;});
+
             if (conversion_terminate) {
                 break;
             }
