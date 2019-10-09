@@ -24,6 +24,8 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
 // Included for debugging
@@ -62,6 +64,16 @@ public:
     {
         this->set_enable_trailer(true);
         this->resize(size);
+
+        this->conversion_threads.resize(size);
+        this->conversion_done.resize(size);
+        this->conversion_ready.resize(size);
+        this->conversion_terminate = false;
+        for (size_t i = 0; i < size; i++) {
+            this->conversion_threads[i] = std::thread(&send_packet_handler::convert_to_in_buff, this, i);
+            this->conversion_done[i] = false;
+            this->conversion_ready[i] = false;
+        }
     }
 
     ~send_packet_handler(void){
@@ -71,6 +83,27 @@ public:
     //! Resize the number of transport channels
     void resize(const size_t size){
         if (this->size() == size) return;
+
+        // Handle the multi-threaded convert_to_in_buff
+        if (this->size() != 0) {
+            this->conversion_terminate = true;
+            this->conversion_cv.notify_all();
+
+            for (size_t i = 0; i < this->size(); i++) {
+                this->conversion_threads[i].join();
+            }
+
+            this->conversion_threads.resize(size);
+            this->conversion_done.resize(size);
+            this->conversion_ready.resize(size);
+            this->conversion_terminate = false;
+
+            for (size_t i = 0; i < size; i++) {
+                this->conversion_threads[i] = std::thread(&send_packet_handler::convert_to_in_buff, this, i);
+                this->conversion_done[i] = false;
+                this->conversion_ready[i] = false;
+            }
+        }
         _props.resize(size);
         static const uint64_t zero = 0;
         _zero_buffs.resize(size, &zero);
@@ -277,6 +310,14 @@ public:
 
 private:
 
+    // apparatus for multi-threaded execution of convert_to_in_buff
+    std::vector<std::thread> conversion_threads;
+    std::mutex conversion_mutex;
+    std::condition_variable conversion_cv;
+    std::vector<bool> conversion_ready;
+    std::vector<bool> conversion_done;
+    bool conversion_terminate;
+
     vrt_packer_type _vrt_packer;
     size_t _header_offset_words32;
     double _tick_rate, _samp_rate;
@@ -380,8 +421,20 @@ private:
         _convert_if_packet_info = &if_packet_info;
 
         //perform N channels of conversion
+        // Wake up the worker threads (convert_to_in_buff) and wait for their completion
         for (size_t i = 0; i < this->size(); i++) {
-            convert_to_in_buff(i);
+            conversion_done[i] = false;
+            conversion_ready[i] = true;
+        }
+        conversion_cv.notify_all();
+        // Sleep for 10 us intervals while checking whether the worker threads are done
+        // TODO: verify that the sleep duration is efficient.
+        while (true) {
+            for (size_t i = 0; i < this->size(); i++) {
+                if (!conversion_done[i]) {
+                    std::this_thread::sleep_for(std::chrono::microseconds(10));
+                }
+            }
         }
 
         _next_packet_seq++; //increment sequence after commits
@@ -397,38 +450,53 @@ private:
      */
     UHD_INLINE void convert_to_in_buff(const size_t index)
     {
-        //shortcut references to local data structures
-        managed_send_buffer::sptr &buff = _props[index].buff;
-        vrt::if_packet_info_t if_packet_info = *_convert_if_packet_info;
-        const tx_streamer::buffs_type &buffs = *_convert_buffs;
+        while (true) {
+            std::unique_lock<std::mutex> locker(conversion_mutex);
+            // Wait until the controlling thread gives the green light
+            while(!conversion_ready[index]) {
+                conversion_cv.wait(locker);
+            }
+            if (conversion_terminate) {
+                break;
+            }
 
-        //fill IO buffs with pointers into the output buffer
-        const void *io_buffs[4/*max interleave*/];
-        for (size_t i = 0; i < _num_inputs; i++){
-            const char *b = reinterpret_cast<const char *>(buffs[index*_num_inputs + i]);
-            io_buffs[i] = b + _convert_buffer_offset_bytes;
-        }
-        const ref_vector<const void *> in_buffs(io_buffs, _num_inputs);
+            //shortcut references to local data structures
+            managed_send_buffer::sptr &buff = _props[index].buff;
+            vrt::if_packet_info_t if_packet_info = *_convert_if_packet_info;
+            const tx_streamer::buffs_type &buffs = *_convert_buffs;
 
-        //pack metadata into a vrt header
-        uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
-        if_packet_info.has_sid = _props[index].has_sid;
-        if_packet_info.sid = _props[index].sid;
+            //fill IO buffs with pointers into the output buffer
+            const void *io_buffs[4/*max interleave*/];
+            for (size_t i = 0; i < _num_inputs; i++){
+                const char *b = reinterpret_cast<const char *>(buffs[index*_num_inputs + i]);
+                io_buffs[i] = b + _convert_buffer_offset_bytes;
+            }
+            const ref_vector<const void *> in_buffs(io_buffs, _num_inputs);
 
-        _vrt_packer(otw_mem, if_packet_info);
-        otw_mem += if_packet_info.num_header_words32;
+            //pack metadata into a vrt header
+            uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
+            if_packet_info.has_sid = _props[index].has_sid;
+            if_packet_info.sid = _props[index].sid;
 
-        //perform the conversion operation
-        _converter->conv(in_buffs, otw_mem, _convert_nsamps);
+            _vrt_packer(otw_mem, if_packet_info);
+            otw_mem += if_packet_info.num_header_words32;
 
-        //commit the samples to the zero-copy interface
-        const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
-        buff->commit(num_vita_words32*sizeof(uint32_t));
-        buff.reset(); //effectively a release
+            //perform the conversion operation
+            _converter->conv(in_buffs, otw_mem, _convert_nsamps);
 
-        if (_props[index].go_postal)
-        {
-            _props[index].go_postal();
+            //commit the samples to the zero-copy interface
+            const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
+            buff->commit(num_vita_words32*sizeof(uint32_t));
+            buff.reset(); //effectively a release
+
+            if (_props[index].go_postal)
+            {
+                _props[index].go_postal();
+            }
+
+            // Notify the calling thread that we're finished with our work.
+            conversion_ready[index] = false;
+            conversion_done[index] = true;
         }
     }
 
