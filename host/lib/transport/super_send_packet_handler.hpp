@@ -92,18 +92,19 @@ public:
             for (size_t i = 0; i < this->size(); i++) {
                 this->conversion_threads[i].join();
             }
-
-            this->conversion_threads.resize(size);
-            this->conversion_done.resize(size);
-            this->conversion_ready.resize(size);
-            this->conversion_terminate = false;
-
-            for (size_t i = 0; i < size; i++) {
-                this->conversion_threads[i] = std::thread(&send_packet_handler::convert_to_in_buff, this, i);
-                this->conversion_done[i] = false;
-                this->conversion_ready[i] = false;
-            }
         }
+
+        this->conversion_threads.resize(size);
+        this->conversion_done.resize(size);
+        this->conversion_ready.resize(size);
+        this->conversion_terminate = false;
+
+        for (size_t i = 0; i < size; i++) {
+            this->conversion_threads[i] = std::thread(&send_packet_handler::convert_to_in_buff, this, i);
+            this->conversion_done[i] = false;
+            this->conversion_ready[i] = false;
+        }
+
         _props.resize(size);
         static const uint64_t zero = 0;
         _zero_buffs.resize(size, &zero);
@@ -429,11 +430,9 @@ private:
         conversion_cv.notify_all();
         // Sleep for 10 us intervals while checking whether the worker threads are done
         // TODO: verify that the sleep duration is efficient.
-        while (true) {
-            for (size_t i = 0; i < this->size(); i++) {
-                if (!conversion_done[i]) {
-                    std::this_thread::sleep_for(std::chrono::microseconds(10));
-                }
+        for (size_t i = 0; i < this->size(); i++) {
+            while (!conversion_done[i]) {
+                std::this_thread::sleep_for(std::chrono::microseconds(10));
             }
         }
 
