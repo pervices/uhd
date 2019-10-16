@@ -18,6 +18,7 @@
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
+#include <functional>
 #include <iostream>
 #include <fstream>
 #include <csignal>
@@ -458,7 +459,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //start transmit worker thread
     boost::thread_group transmit_thread;
-    transmit_thread.create_thread(boost::bind(&transmit_worker, buff, wave_table, tx_stream, md, step, index, num_channels));
+
+transmit_thread.create_thread(std::bind(&transmit_worker, buff, wave_table, tx_stream, md, step, index, num_channels));
 
     //recv to file
     if (type == "double") recv_to_file<std::complex<double> >(rx_usrp, "fc64", otw, file, spb, total_num_samps, settling, rx_channel_nums);

@@ -13,12 +13,12 @@
 #include <uhd/exception.hpp>
 #include <boost/format.hpp>
 #include <boost/function.hpp>
-#include <boost/bind.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/circular_buffer.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/thread/condition_variable.hpp>
+#include <functional>
 #include <list>
+#include <memory>
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
 #include <vector>
@@ -231,7 +231,7 @@ public:
 
             _mb_pool.push_back(boost::make_shared<libusb_zero_copy_mb>(
                 lut, this->get_frame_size(), boost::bind(&libusb_zero_copy_single::enqueue_buffer, this, _1), is_recv, name
-            ));
+                std::bind(&libusb_zero_copy_single::enqueue_buffer, this, std::placeholders::_1),
 
             libusb_fill_bulk_transfer(
                 lut,                                                    // transfer

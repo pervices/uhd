@@ -5,18 +5,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhd/transport/usb_zero_copy.hpp>
 #include <uhd/transport/buffer_pool.hpp>
+#include <uhd/transport/usb_zero_copy.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhdlib/utils/atomic.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
-#include <boost/bind.hpp>
-#include <vector>
+#include <boost/thread/mutex.hpp>
+#include <functional>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -75,7 +75,7 @@ public:
         _internal(internal), _fragmentation_size(fragmentation_size)
     {
         _ok_to_auto_flush = false;
-        _task = uhd::task::make(boost::bind(&usb_zero_copy_wrapper_msb::auto_flush, this));
+        _task = uhd::task::make(std::bind(&usb_zero_copy_wrapper_msb::auto_flush, this));
     }
 
     ~usb_zero_copy_wrapper_msb(void)
@@ -161,9 +161,9 @@ public:
         _next_recv_buff_index(0)
     {
         for (size_t i = 0; i < this->get_num_recv_frames(); i++){
-            _mrb_pool.push_back(boost::make_shared<usb_zero_copy_wrapper_mrb>());
+            _mrb_pool.push_back(std::make_shared<usb_zero_copy_wrapper_mrb>());
         }
-        _the_only_msb = boost::make_shared<usb_zero_copy_wrapper_msb>(usb_zc, frame_boundary);
+        _the_only_msb = std::make_shared<usb_zero_copy_wrapper_msb>(usb_zc, frame_boundary);
     }
 
     managed_recv_buffer::sptr get_recv_buff(double timeout){
@@ -211,8 +211,8 @@ public:
 private:
     zero_copy_if::sptr _internal_zc;
     size_t _frame_boundary;
-    std::vector<boost::shared_ptr<usb_zero_copy_wrapper_mrb> > _mrb_pool;
-    boost::shared_ptr<usb_zero_copy_wrapper_msb> _the_only_msb;
+    std::vector<std::shared_ptr<usb_zero_copy_wrapper_mrb> > _mrb_pool;
+    std::shared_ptr<usb_zero_copy_wrapper_msb> _the_only_msb;
 
     //state for last recv buffer to create multiple managed buffers
     managed_recv_buffer::sptr _last_recv_buff;

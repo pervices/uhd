@@ -16,6 +16,7 @@
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 
+#include <functional>
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -110,7 +111,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         boost::thread_group thread_group;
         clock_time = clock->get_time();
         for(size_t j = 0; j < usrp->get_num_mboards(); j++){
-            thread_group.create_thread(boost::bind(&get_usrp_time, usrp, j, &usrp_times));
+            thread_group.create_thread(std::bind(&get_usrp_time, usrp, j, &usrp_times));
         }
         //Wait for threads to complete
         thread_group.join_all();

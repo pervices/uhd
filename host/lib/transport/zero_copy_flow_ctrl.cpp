@@ -10,6 +10,7 @@
 #include <uhd/transport/buffer_pool.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_call.hpp>
+#include <functional>
 #include <boost/format.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread/mutex.hpp>

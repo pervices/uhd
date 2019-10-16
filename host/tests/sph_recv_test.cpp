@@ -7,10 +7,10 @@
 
 #include <boost/test/unit_test.hpp>
 #include "../lib/transport/super_recv_packet_handler.hpp"
-#include "../common/mock_zero_copy.hpp"
 #include <boost/shared_array.hpp>
 #include <boost/bind.hpp>
 #include <complex>
+#include <functional>
 #include <vector>
 #include <list>
 
@@ -271,6 +271,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_one_channel_inline_message){
     //create an overflow handler
     overflow_handler_type overflow_handler;
     handler.set_overflow_handler(0, boost::bind(&overflow_handler_type::handle, &overflow_handler));
+        0, std::bind(&overflow_handler_type::handle, &overflow_handler));
 
     //check the received packets
     size_t num_accum_samps = 0;

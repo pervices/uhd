@@ -5,12 +5,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "twinrx/twinrx_experts.hpp"
+#include "dboard_ctor_args.hpp"
 #include "twinrx/twinrx_ctrl.hpp"
-#include "twinrx/twinrx_io.hpp"
+#include "twinrx/twinrx_experts.hpp"
 #include "twinrx/twinrx_ids.hpp"
-
-#include <uhdlib/experts/expert_factory.hpp>
+#include "twinrx/twinrx_io.hpp"
 #include <uhd/types/device_addr.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/sensors.hpp>
@@ -18,10 +17,10 @@
 #include <uhd/usrp/dboard_manager.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
-#include "dboard_ctor_args.hpp"
-#include <boost/make_shared.hpp>
+#include <uhdlib/experts/expert_factory.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
+#include <memory>
 //#include <fstream>    //Needed for _expert->to_dot() below
 
 using namespace uhd;
@@ -108,6 +107,28 @@ public:
             "los/all/export", prepend_ch("los/all/export", _ch_name),
             false, AUTO_RESOLVE_ON_WRITE);
 
+        // LO1 Charge Pump
+        get_rx_subtree()->create<meta_range_t>("los/LO1/charge_pump/range")
+            .set(_ctrl->get_lo1_charge_pump_range());
+        expert_factory::add_dual_prop_node<double>(_expert,
+            get_rx_subtree(),
+            "los/LO1/charge_pump/value",
+            prepend_ch("los/LO1/charge_pump/desired", _ch_name),
+            prepend_ch("los/LO1/charge_pump/coerced", _ch_name),
+            (get_rx_id() == twinrx::TWINRX_REV_C_ID) ? 0.9e-6 : 0.9375e-6,
+            AUTO_RESOLVE_ON_READ_WRITE);
+
+        // LO2 Charge Pump
+        get_rx_subtree()->create<meta_range_t>("los/LO2/charge_pump/range")
+            .set(_ctrl->get_lo2_charge_pump_range());
+        expert_factory::add_dual_prop_node<double>(_expert,
+            get_rx_subtree(),
+            "los/LO2/charge_pump/value",
+            prepend_ch("los/LO2/charge_pump/desired", _ch_name),
+            prepend_ch("los/LO2/charge_pump/coerced", _ch_name),
+            1.25e-6,
+            AUTO_RESOLVE_ON_READ_WRITE);
+
         //Gain Specific
         get_rx_subtree()->create<meta_range_t>("gains/all/range")
             .set(gain_range_t(0, 93, double(1.0)));
@@ -131,8 +152,9 @@ public:
             false, AUTO_RESOLVE_ON_WRITE);
 
         //Readback
-        get_rx_subtree()->create<sensor_value_t>("sensors/lo_locked")
-            .set_publisher(boost::bind(&twinrx_rcvr_fe::get_lo_locked, this));
+        get_rx_subtree()
+            ->create<sensor_value_t>("sensors/lo_locked")
+            .set_publisher([this]() { return this->get_lo_locked(); });
 
         //---------------------------------------------------------
         // Add internal channel-specific data nodes to expert
@@ -207,13 +229,13 @@ private:
 class twinrx_rcvr : public rx_dboard_base
 {
 public:
-    typedef boost::shared_ptr<twinrx_rcvr> sptr;
+    typedef std::shared_ptr<twinrx_rcvr> sptr;
 
     twinrx_rcvr(ctor_args_t args) : rx_dboard_base(args)
     {
         _db_iface = get_iface();
-        twinrx_gpio::sptr gpio_iface = boost::make_shared<twinrx_gpio>(_db_iface);
-        twinrx_cpld_regmap::sptr cpld_regs = boost::make_shared<twinrx_cpld_regmap>();
+        twinrx_gpio::sptr gpio_iface = std::make_shared<twinrx_gpio>(_db_iface);
+        twinrx_cpld_regmap::sptr cpld_regs = std::make_shared<twinrx_cpld_regmap>();
         cpld_regs->initialize(*gpio_iface, false);
         _ctrl = twinrx_ctrl::make(_db_iface, gpio_iface, cpld_regs, get_rx_id());
         _expert = expert_factory::create_container("twinrx_expert");
@@ -282,7 +304,7 @@ public:
     static dboard_base::sptr make_twinrx_fe(dboard_base::ctor_args_t args)
     {
         const dboard_ctor_args_t& db_args = dboard_ctor_args_t::cast(args);
-        sptr container = boost::dynamic_pointer_cast<twinrx_rcvr>(db_args.rx_container);
+        sptr container = std::dynamic_pointer_cast<twinrx_rcvr>(db_args.rx_container);
         if (container) {
             dboard_base::sptr fe = dboard_base::sptr(
                 new twinrx_rcvr_fe(args, container->get_expert(), container->get_ctrl()));

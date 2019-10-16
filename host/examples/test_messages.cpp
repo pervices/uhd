@@ -12,12 +12,14 @@
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/assign/list_of.hpp>
+#include <functional>
+#include <boost/format.hpp>
 #include <boost/program_options.hpp>
-#include <boost/bind.hpp>
+#include <complex>
+#include <cstdlib>
 #include <boost/format.hpp>
 #include <cstdlib>
 #include <ctime>
-#include <complex>
 #include <iostream>
 
 namespace po = boost::program_options;

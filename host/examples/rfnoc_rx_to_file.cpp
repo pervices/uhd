@@ -26,6 +26,7 @@
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
 #include <boost/thread.hpp>
+#include <functional>
 #include <iostream>
 #include <fstream>
 #include <csignal>
@@ -356,8 +357,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (not vm.count("skip-lo")){
         // TODO
         //check_locked_sensor(usrp->get_rx_sensor_names(0), "lo_locked", boost::bind(&uhd::usrp::multi_usrp::get_rx_sensor, usrp, _1, radio_id), setup_time);
-        //if (ref == "external")
+        // std::bind(&uhd::usrp::multi_usrp::get_rx_sensor, usrp, _1, radio_id),
             //check_locked_sensor(usrp->get_mboard_sensor_names(0), "ref_locked", boost::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, radio_id), setup_time);
+        // std::bind(&uhd::usrp::multi_usrp::get_mboard_sensor, usrp, _1, radio_id),
     }
 
     size_t spp = radio_ctrl->get_arg<int>("spp");
