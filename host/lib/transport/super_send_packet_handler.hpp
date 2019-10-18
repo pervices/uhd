@@ -108,7 +108,7 @@ public:
         // Decide which indices the conversion threads will handle
         std::vector< std::vector<size_t> > thread_indices;
         if (channel_per_conversion_thread < size) {
-            this->conversion_threads.resize(std::ceil(size/channel_per_conversion_thread));
+            this->conversion_threads.resize(std::ceil(((double)size)/channel_per_conversion_thread));
         } else {
             this->conversion_threads.resize(1);
         }
@@ -469,9 +469,11 @@ private:
         // TODO: verify that the sleep duration is efficient.
 
         // auto start = std::chrono::high_resolution_clock::now();
+
+        // Wait for worker threads to finish their work
         for (size_t i = 0; i < this->size(); i++) {
             while (!conversion_done[i]) {
-                std::this_thread::sleep_for(std::chrono::microseconds(2));
+                std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
             }
         }
         // auto end = std::chrono::high_resolution_clock::now();
@@ -523,7 +525,7 @@ private:
                 otw_mem += if_packet_info.num_header_words32;
 
                 //perform the conversion operation
-                // _converter->conv(in_buffs, otw_mem, _convert_nsamps);
+                _converter->conv(in_buffs, otw_mem, _convert_nsamps);
 
                 //commit the samples to the zero-copy interface
                 const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
