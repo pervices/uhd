@@ -78,7 +78,7 @@ public:
             guard.unlock();
             this->conversion_cv.notify_all();
 
-            for (size_t i = 0; i < this->conversion_threads.size(); i++) {
+            for (size_t i = 1; i < this->conversion_threads.size(); i++) {
                 this->conversion_threads[i].join();
             }
         }
@@ -100,13 +100,12 @@ public:
             guard.unlock();
             this->conversion_cv.notify_all();
 
-            for (size_t i = 0; i < this->conversion_threads.size(); i++) {
+            for (size_t i = 1; i < this->conversion_threads.size(); i++) {
                 this->conversion_threads[i].join();
             }
         }
 
         // Decide which indices the conversion threads will handle
-        std::vector< std::vector<size_t> > thread_indices;
         if (channel_per_conversion_thread < size) {
             this->conversion_threads.resize(std::ceil(((double)size)/channel_per_conversion_thread));
         } else {
@@ -130,7 +129,7 @@ public:
         this->conversion_terminate = false;
 
         // Create new threads
-        for (size_t i = 0; i < this->conversion_threads.size(); i++) {
+        for (size_t i = 1; i < this->conversion_threads.size(); i++) {
             this->conversion_threads[i] = std::thread(&send_packet_handler::convert_to_in_buff, this, thread_indices[i]);
         }
 
@@ -351,6 +350,7 @@ private:
     std::condition_variable conversion_cv;
     std::vector<bool> conversion_ready;
     std::vector<bool> conversion_done;
+    std::vector< std::vector<size_t> > thread_indices;
     bool conversion_terminate;
     size_t channel_per_conversion_thread;
 
@@ -470,8 +470,9 @@ private:
 
         // auto start = std::chrono::high_resolution_clock::now();
 
+        convert_to_in_buff_sequential(this->thread_indices[0]);
         // Wait for worker threads to finish their work
-        for (size_t i = 0; i < this->size(); i++) {
+        for (size_t i = thread_indices[1].front(); i < this->size(); i++) {
             while (!conversion_done[i]) {
                 std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
             }
@@ -544,6 +545,45 @@ private:
         }
     }
 
+    UHD_INLINE void convert_to_in_buff_sequential(const std::vector<size_t> indices)
+    {
+        for (auto index: indices) {
+
+            //shortcut references to local data structures
+            managed_send_buffer::sptr &buff = _props[index].buff;
+            vrt::if_packet_info_t if_packet_info = *_convert_if_packet_info;
+            const tx_streamer::buffs_type &buffs = *_convert_buffs;
+
+            //fill IO buffs with pointers into the output buffer
+            const void *io_buffs[4/*max interleave*/];
+            for (size_t i = 0; i < _num_inputs; i++){
+                const char *b = reinterpret_cast<const char *>(buffs[index*_num_inputs + i]);
+                io_buffs[i] = b + _convert_buffer_offset_bytes;
+            }
+            const ref_vector<const void *> in_buffs(io_buffs, _num_inputs);
+
+            //pack metadata into a vrt header
+            uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
+            if_packet_info.has_sid = _props[index].has_sid;
+            if_packet_info.sid = _props[index].sid;
+
+            _vrt_packer(otw_mem, if_packet_info);
+            otw_mem += if_packet_info.num_header_words32;
+
+            //perform the conversion operation
+            _converter->conv(in_buffs, otw_mem, _convert_nsamps);
+
+            //commit the samples to the zero-copy interface
+            const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
+            buff->commit(num_vita_words32*sizeof(uint32_t));
+            buff.reset(); //effectively a release
+
+            if (_props[index].go_postal)
+            {
+                _props[index].go_postal();
+            }
+        }
+    }
     //! Shared variables for the worker threads
     size_t _convert_nsamps;
     const tx_streamer::buffs_type *_convert_buffs;
