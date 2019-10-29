@@ -82,6 +82,17 @@ public:
                 this->conversion_threads[i].join();
             }
         }
+
+        // std::chrono::duration <double, std::micro> sum {0};
+        // int i = 0;
+        // for (auto send_time : elapsed) {
+        //     sum += send_time;
+        //     if (i < 400) {
+        //         std::cout << i << " : " << send_time.count() << "\n";
+        //     }
+        //     i++;
+        // }
+        // std::cout << "Average elapsed time: " << (sum/elapsed.size()).count() << "\n";
         /* NOP */
     }
 
@@ -353,6 +364,7 @@ private:
     std::vector< std::vector<size_t> > thread_indices;
     bool conversion_terminate;
     size_t channel_per_conversion_thread;
+    std::vector< std::chrono::duration<double, std::micro> > elapsed;
 
     vrt_packer_type _vrt_packer;
     size_t _header_offset_words32;
@@ -478,8 +490,7 @@ private:
             }
         }
         // auto end = std::chrono::high_resolution_clock::now();
-        // std::chrono::duration<double, std::micro> elapsed = end-start;
-        // std::cout << "Waited " << elapsed.count() << " ms\n";
+        // elapsed.push_back(end-start);
 
         _next_packet_seq++; //increment sequence after commits
         return nsamps_per_buff;
