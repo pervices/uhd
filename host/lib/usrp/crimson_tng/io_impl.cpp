@@ -202,6 +202,7 @@ public:
 			if ( ep.on_fini ) {
 				ep.on_fini();
 			}
+			std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
 		}
 		_eprops.clear();
 	}
