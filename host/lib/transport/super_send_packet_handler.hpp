@@ -470,13 +470,15 @@ private:
 
         //perform N channels of conversion
         // Wake up the worker threads (convert_to_in_buff) and wait for their completion
-        std::unique_lock<std::mutex> guard(this->conversion_mutex);
-        for (size_t i = 0; i < this->size(); i++) {
-            conversion_done[i] = false;
-            conversion_ready[i] = true;
+        if (this->conversion_threads.size() > 1) {
+            std::unique_lock<std::mutex> guard(this->conversion_mutex);
+            for (size_t i = 0; i < this->size(); i++) {
+                conversion_done[i] = false;
+                conversion_ready[i] = true;
+            }
+            guard.unlock();
+            conversion_cv.notify_all();
         }
-        guard.unlock();
-        conversion_cv.notify_all();
         // Sleep for 10 us intervals while checking whether the worker threads are done
         // TODO: verify that the sleep duration is efficient.
 
@@ -484,9 +486,11 @@ private:
 
         convert_to_in_buff_sequential(this->thread_indices[0]);
         // Wait for worker threads to finish their work
-        for (size_t i = thread_indices[1].front(); i < this->size(); i++) {
-            while (!conversion_done[i]) {
-                std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
+        if (this->conversion_threads.size() > 1) {
+            for (size_t i = thread_indices[1].front(); i < this->size(); i++) {
+                while (!conversion_done[i]) {
+                    std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
+                }
             }
         }
         // auto end = std::chrono::high_resolution_clock::now();
