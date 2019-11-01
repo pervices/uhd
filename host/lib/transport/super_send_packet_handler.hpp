@@ -469,16 +469,20 @@ private:
             int i = 0;
             for (auto buff : multi_msb.buffs) {
                 buff->get_iov(iov[i]);
+                msg[i].msg_hdr.msg_name = NULL;
+                msg[i].msg_hdr.msg_namelen = 0;
                 msg[i].msg_hdr.msg_iov = &iov[i];
                 msg[i].msg_hdr.msg_iovlen = 1;
+                msg[i].msg_hdr.msg_control = NULL;
+                msg[i].msg_hdr.msg_controllen = 0;
+
                 i++;
             }
 
             int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
             if (retval == -1) {
                 std::cout << "XXX: sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
-            } else {
-                std::cout << "XXX: sendmmsg did not fail" << "\n";
+                std::cout << "XXX: Must implement retry code!\n";
             }
 
             for (auto buff : multi_msb.buffs) {
