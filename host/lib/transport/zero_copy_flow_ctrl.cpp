@@ -48,6 +48,17 @@ public:
         }
     }
 
+    // Override base class get_socket virtual function
+    UHD_INLINE int get_socket(void) {
+        return 0;
+    }
+
+    // Override base class get_iov virtual function
+    UHD_INLINE void get_iov(iovec &iov) {
+        iov.iov_base = NULL;
+        iov.iov_len = 0;
+    }
+
     UHD_INLINE sptr get(sptr &mb)
     {
         _mb = mb;

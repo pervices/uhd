@@ -26,6 +26,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <sys/socket.h>
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
 // Included for debugging
@@ -65,6 +66,7 @@ public:
         this->channel_per_conversion_thread = 8;
         this->set_enable_trailer(true);
         // this->resize(size);
+        multi_msb_buffs.resize(1);
     }
 
     ~send_packet_handler(void){
@@ -81,6 +83,7 @@ public:
             for (size_t i = 1; i < this->conversion_threads.size(); i++) {
                 this->conversion_threads[i].join();
             }
+            this->multi_msb_buffs.clear();
         }
 
         // std::chrono::duration <double, std::micro> sum {0};
@@ -149,6 +152,7 @@ public:
             this->conversion_ready[i] = false;
         }
 
+        multi_msb_buffs.resize(size);
         _props.resize(size);
         static const uint64_t zero = 0;
         _zero_buffs.resize(size, &zero);
@@ -272,6 +276,12 @@ public:
         if_packet_info.eob     = metadata.end_of_burst;
         if_packet_info.fc_ack  = false; //This is a data packet
 
+        // Make sure all Multi Managed send buffers are clear
+        for (auto x: multi_msb_buffs) {
+            x.sock_fd = 0;
+            x.buffs.clear();
+        }
+
         /*
          * Metadata is cached when we get a send requesting a start of burst with no samples.
          * It is applied here on the next call to send() that actually has samples to send.
@@ -307,12 +317,15 @@ public:
                         return 0;
                     } else {
                         // send requests with no samples are handled here (such as end of burst)
-                        return send_one_packet(_zero_buffs, 1, if_packet_info, timeout) & 0x0;
+                        send_one_packet(_zero_buffs, 1, if_packet_info, timeout);
+                        send_multiple_packets();
+                        return 0;
                     }
                 }
             #endif
 
 			size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout);
+            send_multiple_packets();
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
@@ -346,6 +359,7 @@ public:
         //send the final fragment with the helper function
         if_packet_info.eob = metadata.end_of_burst;
 		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
+        send_multiple_packets();
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
 		dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
@@ -378,6 +392,15 @@ private:
         managed_send_buffer::sptr buff;
     };
     std::vector<xport_chan_props_type> _props;
+
+    // This structure will hold a vector of buffers of data to be sent to a single socket
+    // using sendmmsg system call.
+    struct multi_msb_type {
+        std::vector<managed_send_buffer::sptr> buffs;
+        int sock_fd;
+    };
+    std::vector<multi_msb_type> multi_msb_buffs;
+
     size_t _num_inputs;
     size_t _bytes_per_otw_item; //used in conversion
     size_t _bytes_per_cpu_item; //used in conversion
@@ -434,6 +457,38 @@ private:
 
 
 #endif
+    /*******************************************************************
+     * Send multiple packets at once:
+     ******************************************************************/
+    UHD_INLINE size_t send_multiple_packets(void) {
+        for (auto multi_msb : multi_msb_buffs) {
+            int number_of_messages = multi_msb.buffs.size();
+            mmsghdr msg[number_of_messages];
+            iovec iov[number_of_messages];
+
+            int i = 0;
+            for (auto buff : multi_msb.buffs) {
+                buff->get_iov(iov[i]);
+                msg[i].msg_hdr.msg_iov = &iov[i];
+                msg[i].msg_hdr.msg_iovlen = 1;
+                i++;
+            }
+
+            int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+            if (retval == -1) {
+                std::cout << "XXX: sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
+            } else {
+                std::cout << "XXX: sendmmsg did not fail" << "\n";
+            }
+
+            for (auto buff : multi_msb.buffs) {
+                // Efectively a release
+                buff.reset();
+            }
+        }
+        return 0;
+    }
+
 
     /*******************************************************************
      * Send a single packet:
@@ -546,7 +601,13 @@ private:
                 //commit the samples to the zero-copy interface
                 const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
                 buff->commit(num_vita_words32*sizeof(uint32_t));
-                buff.reset(); //effectively a release
+
+                // Add buffer to the array to be sent using sendmmsg
+                multi_msb_buffs[index].buffs.push_back(buff);
+                multi_msb_buffs[index].sock_fd = buff->get_socket();
+
+                buff->release();
+                // buff.reset(); //effectively a release
 
                 if (_props[index].go_postal)
                 {
@@ -591,7 +652,13 @@ private:
             //commit the samples to the zero-copy interface
             const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
             buff->commit(num_vita_words32*sizeof(uint32_t));
-            buff.reset(); //effectively a release
+
+            // Add buffer to the array to be sent using sendmmsg
+            multi_msb_buffs[index].buffs.push_back(buff);
+            multi_msb_buffs[index].sock_fd = buff->get_socket();;
+
+            buff->release();
+            // buff.reset(); //effectively a release
 
             if (_props[index].go_postal)
             {
