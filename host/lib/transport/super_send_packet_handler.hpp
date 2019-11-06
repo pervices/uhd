@@ -276,12 +276,6 @@ public:
         if_packet_info.eob     = metadata.end_of_burst;
         if_packet_info.fc_ack  = false; //This is a data packet
 
-        // Make sure all Multi Managed send buffers are clear
-        for (auto x: multi_msb_buffs) {
-            x.sock_fd = 0;
-            x.buffs.clear();
-        }
-
         /*
          * Metadata is cached when we get a send requesting a start of burst with no samples.
          * It is applied here on the next call to send() that actually has samples to send.
@@ -359,7 +353,11 @@ public:
         //send the final fragment with the helper function
         if_packet_info.eob = metadata.end_of_burst;
 		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
+
         send_multiple_packets();
+        for (auto &multi_msb : multi_msb_buffs) {
+            multi_msb.buffs.clear();
+        }
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
 		dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
@@ -461,7 +459,7 @@ private:
      * Send multiple packets at once:
      ******************************************************************/
     UHD_INLINE size_t send_multiple_packets(void) {
-        for (auto multi_msb : multi_msb_buffs) {
+        for (const auto &multi_msb : multi_msb_buffs) {
             int number_of_messages = multi_msb.buffs.size();
             mmsghdr msg[number_of_messages];
             iovec iov[number_of_messages];
@@ -479,7 +477,14 @@ private:
                 i++;
             }
 
+            // auto start = std::chrono::high_resolution_clock::now();
+
             int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+
+            // auto end = std::chrono::high_resolution_clock::now();
+            // std::chrono::duration <double, std::micro> elapsed = end-start;
+            // std::cout << "Send time for " << number_of_messages << " was: " << elapsed.count() << std::endl;
+
             if (retval == -1) {
                 std::cout << "XXX: sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                 std::cout << "XXX: Must implement retry code!\n";
@@ -490,6 +495,7 @@ private:
                 buff.reset();
             }
         }
+
         return 0;
     }
 
@@ -517,7 +523,8 @@ private:
         //get a buffer for each channel or timeout
         BOOST_FOREACH(xport_chan_props_type &props, _props){
             //We need to get nsamps_per_buff into crimson. How how how how
-            if (not props.buff) props.buff = props.get_buff(timeout);
+            // if (not props.buff) props.buff = props.get_buff(timeout);
+            props.buff = props.get_buff(timeout);
             if (not props.buff) return 0; //timeout
         }
 
