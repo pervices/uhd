@@ -330,8 +330,16 @@ public:
 
         //Last thing we do is update our buffer model with sent data
         //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
-        my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
+        // my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
+    }
+
+    static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
+
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        my_streamer->check_fc_update(chan, nsamps);
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
@@ -407,6 +415,7 @@ public:
 			}
 		}
 	}
+
 
 private:
 	bool _first_call_to_send;
@@ -967,11 +976,13 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	for( size_t tries = 0; tries < 1; tries++ ) {
 		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 		if ( sizeof( req ) != r ) {
+            std::cout << "WARNING: XXX: SSSSend get FIFO level failed\n";
 			continue;
 		}
 
 		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
 		if ( sizeof( rsp ) != r ) {
+            std::cout << "WARNING: XXX: RRRReceive get FIFO level failed\n";
 			continue;
 		}
 
@@ -993,12 +1004,12 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint16_t lvl = rsp.header & 0xffff;
+	uint32_t lvl = (rsp.header & 0xffff) << 2;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
-    static uint16_t last[4];
-    static uint16_t curr[4];
+    static uint32_t last[4];
+    static uint32_t curr[4];
     last[channel] = curr[channel];
     curr[channel] = lvl;
 
@@ -1010,8 +1021,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
         std::printf("%10u\t", last[2] - curr[2]);
         std::printf("%10u\t", last[3] - curr[3]);
 
-        const uint16_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
-        const uint16_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
+        const uint32_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
+        const uint32_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
         std::printf("%10u\t", max - min);
         std::printf("\n");
     }
@@ -1107,6 +1118,9 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                     &crimson_tng_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
                 ));
 
+                my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
+                ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
 
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(

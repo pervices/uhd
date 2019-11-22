@@ -51,6 +51,7 @@ namespace sph {
 class send_packet_handler{
 public:
     typedef std::function<managed_send_buffer::sptr(double)> get_buff_type;
+    typedef std::function<void(size_t)> update_fc_send_count_type;
     typedef std::function<void(void)> post_send_cb_type;
     typedef std::function<bool(uhd::async_metadata_t &, const double)> async_receiver_type;
     typedef void(*vrt_packer_type)(uint32_t *, vrt::if_packet_info_t &);
@@ -199,6 +200,9 @@ public:
         _props.at(xport_chan).get_buff = get_buff;
     }
 
+    void set_xport_chan_update_fc_send_size(const size_t xport_chan, const update_fc_send_count_type &update_fc_send_count){
+        _props.at(xport_chan).update_fc_send_count = update_fc_send_count;
+    }
     /*!
      * Set the callback function for post-send.
      * \param xport_chan which transport channel
@@ -312,14 +316,14 @@ public:
                     } else {
                         // send requests with no samples are handled here (such as end of burst)
                         send_one_packet(_zero_buffs, 1, if_packet_info, timeout);
-                        send_multiple_packets();
+                        send_multiple_packets(1);
                         return 0;
                     }
                 }
             #endif
 
 			size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout);
-            send_multiple_packets();
+            send_multiple_packets(nsamps_per_buff);
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
@@ -354,7 +358,7 @@ public:
         if_packet_info.eob = metadata.end_of_burst;
 		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
 
-        send_multiple_packets();
+        send_multiple_packets(nsamps_per_buff);
         for (auto &multi_msb : multi_msb_buffs) {
             multi_msb.buffs.clear();
         }
@@ -384,6 +388,7 @@ private:
     struct xport_chan_props_type{
         xport_chan_props_type(void):has_sid(false),sid(0){}
         get_buff_type get_buff;
+        update_fc_send_count_type update_fc_send_count;
         post_send_cb_type go_postal;
         bool has_sid;
         uint32_t sid;
@@ -458,7 +463,9 @@ private:
     /*******************************************************************
      * Send multiple packets at once:
      ******************************************************************/
-    UHD_INLINE size_t send_multiple_packets(void) {
+    UHD_INLINE size_t send_multiple_packets(size_t nsamps_per_buff) {
+        int chan = 0;
+
         for (const auto &multi_msb : multi_msb_buffs) {
             int number_of_messages = multi_msb.buffs.size();
             mmsghdr msg[number_of_messages];
@@ -494,6 +501,8 @@ private:
                 // Efectively a release
                 buff.reset();
             }
+            _props.at(chan).update_fc_send_count(nsamps_per_buff);
+            chan++;
         }
 
         return 0;

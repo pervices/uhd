@@ -855,8 +855,9 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 		dev->time_diff_send( crimson_now, xg_intf );
 		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
+			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
 			continue;
-		}
+        }
 		dev->time_diff_process( tdr, now );
 		//dev->fifo_update_process( tdr );
 
