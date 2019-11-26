@@ -50,9 +50,8 @@ namespace sph {
  **********************************************************************/
 
 static bool time_comp(std::chrono::duration <double, std::micro> a, std::chrono::duration <double, std::micro> b) {
-    return (a.count() > b.count());
+    return a.count() > b.count();
 }
-
 class send_packet_handler{
 public:
     typedef std::function<managed_send_buffer::sptr(double)> get_buff_type;
@@ -71,7 +70,6 @@ public:
     {
         this->channel_per_conversion_thread = 8;
         this->set_enable_trailer(true);
-        this->samps_per_buffer = 1;
         // this->resize(size);
         multi_msb_buffs.resize(1);
     }
@@ -177,7 +175,7 @@ public:
 
         // Create new threads
         for (size_t i = 1; i < this->conversion_threads.size(); i++) {
-            this->conversion_threads[i] = std::thread(&send_packet_handler::send_multiple_packets_threaded, this, thread_indices[i]);
+            this->conversion_threads[i] = std::thread(&send_packet_handler::convert_to_in_buff, this, thread_indices[i]);
         }
 
         for (size_t i = 0; i < size; i++) {
@@ -348,19 +346,14 @@ public:
                     } else {
                         // send requests with no samples are handled here (such as end of burst)
                         send_one_packet(_zero_buffs, 1, if_packet_info, timeout);
-                        this->samps_per_buffer = 1;
-                        send_multiple_packets();
+                        send_multiple_packets(1);
                         return 0;
                     }
                 }
             #endif
 
 			size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout);
-            this->samps_per_buffer = nsamps_per_buff;
-            send_multiple_packets();
-            for (auto &multi_msb : multi_msb_buffs) {
-                multi_msb.buffs.clear();
-            }
+            send_multiple_packets(nsamps_per_buff);
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
@@ -395,8 +388,7 @@ public:
         if_packet_info.eob = metadata.end_of_burst;
 		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
 
-        this->samps_per_buffer = nsamps_per_buff;
-        send_multiple_packets();
+        send_multiple_packets(nsamps_per_buff);
         for (auto &multi_msb : multi_msb_buffs) {
             multi_msb.buffs.clear();
         }
@@ -419,8 +411,6 @@ private:
     bool conversion_terminate;
     size_t channel_per_conversion_thread;
     std::vector< std::chrono::duration<double, std::micro> > elapsed;
-    size_t samps_per_buffer;
-
 
     vrt_packer_type _vrt_packer;
     size_t _header_offset_words32;
@@ -503,99 +493,10 @@ private:
     /*******************************************************************
      * Send multiple packets at once:
      ******************************************************************/
-    UHD_INLINE size_t send_multiple_packets() {
-        //perform N channels of conversion
-        // Wake up the worker threads (send_multiple_packets_threaded) and wait for their completion
-        if (this->conversion_threads.size() > 1) {
-            std::unique_lock<std::mutex> guard(this->conversion_mutex);
-            for (size_t i = 0; i < this->size(); i++) {
-                conversion_done[i] = false;
-                conversion_ready[i] = true;
-            }
-            guard.unlock();
-            conversion_cv.notify_all();
-        }
+    UHD_INLINE size_t send_multiple_packets(size_t nsamps_per_buff) {
+        int chan = 0;
 
-        auto start = std::chrono::high_resolution_clock::now();
-
-        send_multiple_packets_sequential(this->thread_indices[0]);
-
-        // Wait for worker threads to finish their work
-        if (this->conversion_threads.size() > 1) {
-            for (size_t i = thread_indices[1].front(); i < this->size(); i++) {
-                while (!conversion_done[i]) {
-                    // Sleep for 10 us intervals while checking whether the worker threads are done
-                    // TODO: verify that the sleep duration is efficient.
-                    std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
-                }
-            }
-        }
-        auto end = std::chrono::high_resolution_clock::now();
-        elapsed.push_back(end-start);
-        return 0;
-    }
-
-    UHD_INLINE size_t send_multiple_packets_threaded(const std::vector<size_t> channels) {
-        while (true) {
-            // Wait until the controlling thread gives the green light
-            std::unique_lock<std::mutex> guard(conversion_mutex);
-            conversion_cv.wait(guard, [this, channels]{return this->conversion_ready[channels[0]] == true;});
-
-            if (conversion_terminate) {
-                break;
-            }
-
-            for (const auto chan: channels) {
-                const auto multi_msb = multi_msb_buffs.at(chan);
-                int number_of_messages = multi_msb.buffs.size();
-                mmsghdr msg[number_of_messages];
-                iovec iov[number_of_messages];
-
-                int i = 0;
-                for (auto buff : multi_msb.buffs) {
-                    buff->get_iov(iov[i]);
-                    msg[i].msg_hdr.msg_name = NULL;
-                    msg[i].msg_hdr.msg_namelen = 0;
-                    msg[i].msg_hdr.msg_iov = &iov[i];
-                    msg[i].msg_hdr.msg_iovlen = 1;
-                    msg[i].msg_hdr.msg_control = NULL;
-                    msg[i].msg_hdr.msg_controllen = 0;
-
-                    i++;
-                }
-
-                // auto start = std::chrono::high_resolution_clock::now();
-
-                int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
-
-                // auto end = std::chrono::high_resolution_clock::now();
-                // std::chrono::duration <double, std::micro> elapsed = end-start;
-                // std::cout << "Send time for " << number_of_messages << " was: " << elapsed.count() << std::endl;
-
-                if (retval == -1) {
-                    std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
-                    std::cout << "XXX: Must implement retry code!\n";
-                }
-
-                // for (auto buff : multi_msb.buffs) {
-                //     // Efectively a release
-                //     buff.reset();
-                // }
-                _props.at(chan).update_fc_send_count(this->samps_per_buffer);
-
-                // Notify the calling thread that we're finished with our work.
-                this->conversion_ready[chan] = false;
-                this->conversion_done[chan] = true;
-            }
-        }
-
-        return 0;
-    }
-
-    UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
-
-        for (const auto & chan: channels) {
-            const auto multi_msb = multi_msb_buffs.at(chan);
+        for (const auto &multi_msb : multi_msb_buffs) {
             int number_of_messages = multi_msb.buffs.size();
             mmsghdr msg[number_of_messages];
             iovec iov[number_of_messages];
@@ -613,24 +514,24 @@ private:
                 i++;
             }
 
-            // auto start = std::chrono::high_resolution_clock::now();
+            auto start = std::chrono::high_resolution_clock::now();
 
             int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
 
-            // auto end = std::chrono::high_resolution_clock::now();
-            // std::chrono::duration <double, std::micro> elapsed = end-start;
-            // std::cout << "Send time for " << number_of_messages << " was: " << elapsed.count() << std::endl;
+            auto end = std::chrono::high_resolution_clock::now();
+            elapsed.push_back(end-start);
 
             if (retval == -1) {
-                std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
+                std::cout << "XXX: sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                 std::cout << "XXX: Must implement retry code!\n";
             }
 
-            // for (auto buff : multi_msb.buffs) {
-            //     // Efectively a release
-            //     buff.reset();
-            // }
-            _props.at(chan).update_fc_send_count(this->samps_per_buffer);
+            for (auto buff : multi_msb.buffs) {
+                // Efectively a release
+                buff.reset();
+            }
+            _props.at(chan).update_fc_send_count(nsamps_per_buff);
+            chan++;
         }
 
         return 0;
@@ -673,33 +574,31 @@ private:
 
         //perform N channels of conversion
         // Wake up the worker threads (convert_to_in_buff) and wait for their completion
-        // if (this->conversion_threads.size() > 1) {
-        //     std::unique_lock<std::mutex> guard(this->conversion_mutex);
-        //     for (size_t i = 0; i < this->size(); i++) {
-        //         conversion_done[i] = false;
-        //         conversion_ready[i] = true;
-        //     }
-        //     guard.unlock();
-        //     conversion_cv.notify_all();
-        // }
+        if (this->conversion_threads.size() > 1) {
+            std::unique_lock<std::mutex> guard(this->conversion_mutex);
+            for (size_t i = 0; i < this->size(); i++) {
+                conversion_done[i] = false;
+                conversion_ready[i] = true;
+            }
+            guard.unlock();
+            conversion_cv.notify_all();
+        }
         // Sleep for 10 us intervals while checking whether the worker threads are done
         // TODO: verify that the sleep duration is efficient.
 
-        auto start = std::chrono::high_resolution_clock::now();
+        // auto start = std::chrono::high_resolution_clock::now();
 
-        for (size_t i = 0; i < this->size(); i++) {
-            convert_to_in_buff(i);
-        }
+        convert_to_in_buff_sequential(this->thread_indices[0]);
         // Wait for worker threads to finish their work
-        // if (this->conversion_threads.size() > 1) {
-        //     for (size_t i = thread_indices[1].front(); i < this->size(); i++) {
-        //         while (!conversion_done[i]) {
-        //             std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
-        //         }
-        //     }
-        // }
-        auto end = std::chrono::high_resolution_clock::now();
-        elapsed.push_back(end-start);
+        if (this->conversion_threads.size() > 1) {
+            for (size_t i = thread_indices[1].front(); i < this->size(); i++) {
+                while (!conversion_done[i]) {
+                    std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
+                }
+            }
+        }
+        // auto end = std::chrono::high_resolution_clock::now();
+        // elapsed.push_back(end-start);
 
         _next_packet_seq++; //increment sequence after commits
         return nsamps_per_buff;
@@ -712,50 +611,110 @@ private:
      * - Releases internal data buffers
      * - Updates read/write pointers
      */
-    UHD_INLINE void convert_to_in_buff(const size_t index)
+    UHD_INLINE void convert_to_in_buff(const std::vector<size_t> indices)
     {
+        while (true) {
+            // Wait until the controlling thread gives the green light
+            std::unique_lock<std::mutex> guard(conversion_mutex);
+            conversion_cv.wait(guard, [this, indices]{return this->conversion_ready[indices[0]] == true;});
 
-        //shortcut references to local data structures
-        managed_send_buffer::sptr &buff = _props[index].buff;
-        vrt::if_packet_info_t if_packet_info = *_convert_if_packet_info;
-        const tx_streamer::buffs_type &buffs = *_convert_buffs;
+            if (conversion_terminate) {
+                break;
+            }
+            for (auto index: indices) {
 
-        //fill IO buffs with pointers into the output buffer
-        const void *io_buffs[4/*max interleave*/];
-        for (size_t i = 0; i < _num_inputs; i++){
-            const char *b = reinterpret_cast<const char *>(buffs[index*_num_inputs + i]);
-            io_buffs[i] = b + _convert_buffer_offset_bytes;
-        }
-        const ref_vector<const void *> in_buffs(io_buffs, _num_inputs);
+                //shortcut references to local data structures
+                managed_send_buffer::sptr &buff = _props[index].buff;
+                vrt::if_packet_info_t if_packet_info = *_convert_if_packet_info;
+                const tx_streamer::buffs_type &buffs = *_convert_buffs;
 
-        //pack metadata into a vrt header
-        uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
-        if_packet_info.has_sid = _props[index].has_sid;
-        if_packet_info.sid = _props[index].sid;
+                //fill IO buffs with pointers into the output buffer
+                const void *io_buffs[4/*max interleave*/];
+                for (size_t i = 0; i < _num_inputs; i++){
+                    const char *b = reinterpret_cast<const char *>(buffs[index*_num_inputs + i]);
+                    io_buffs[i] = b + _convert_buffer_offset_bytes;
+                }
+                const ref_vector<const void *> in_buffs(io_buffs, _num_inputs);
 
-        _vrt_packer(otw_mem, if_packet_info);
-        otw_mem += if_packet_info.num_header_words32;
+                //pack metadata into a vrt header
+                uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
+                if_packet_info.has_sid = _props[index].has_sid;
+                if_packet_info.sid = _props[index].sid;
 
-        //perform the conversion operation
-        _converter->conv(in_buffs, otw_mem, _convert_nsamps);
+                _vrt_packer(otw_mem, if_packet_info);
+                otw_mem += if_packet_info.num_header_words32;
 
-        //commit the samples to the zero-copy interface
-        const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
-        buff->commit(num_vita_words32*sizeof(uint32_t));
+                //perform the conversion operation
+                _converter->conv(in_buffs, otw_mem, _convert_nsamps);
 
-        // Add buffer to the array to be sent using sendmmsg
-        multi_msb_buffs[index].buffs.push_back(buff);
-        multi_msb_buffs[index].sock_fd = buff->get_socket();;
+                //commit the samples to the zero-copy interface
+                const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
+                buff->commit(num_vita_words32*sizeof(uint32_t));
 
-        buff->release();
-        // buff.reset(); //effectively a release
+                // Add buffer to the array to be sent using sendmmsg
+                multi_msb_buffs[index].buffs.push_back(buff);
+                multi_msb_buffs[index].sock_fd = buff->get_socket();
 
-        if (_props[index].go_postal)
-        {
-            _props[index].go_postal();
+                buff->release();
+                // buff.reset(); //effectively a release
+
+                if (_props[index].go_postal)
+                {
+                    _props[index].go_postal();
+                }
+
+                // Notify the calling thread that we're finished with our work.
+                conversion_ready[index] = false;
+                conversion_done[index] = true;
+            }
         }
     }
 
+    UHD_INLINE void convert_to_in_buff_sequential(const std::vector<size_t> indices)
+    {
+        for (auto index: indices) {
+
+            //shortcut references to local data structures
+            managed_send_buffer::sptr &buff = _props[index].buff;
+            vrt::if_packet_info_t if_packet_info = *_convert_if_packet_info;
+            const tx_streamer::buffs_type &buffs = *_convert_buffs;
+
+            //fill IO buffs with pointers into the output buffer
+            const void *io_buffs[4/*max interleave*/];
+            for (size_t i = 0; i < _num_inputs; i++){
+                const char *b = reinterpret_cast<const char *>(buffs[index*_num_inputs + i]);
+                io_buffs[i] = b + _convert_buffer_offset_bytes;
+            }
+            const ref_vector<const void *> in_buffs(io_buffs, _num_inputs);
+
+            //pack metadata into a vrt header
+            uint32_t *otw_mem = buff->cast<uint32_t *>() + _header_offset_words32;
+            if_packet_info.has_sid = _props[index].has_sid;
+            if_packet_info.sid = _props[index].sid;
+
+            _vrt_packer(otw_mem, if_packet_info);
+            otw_mem += if_packet_info.num_header_words32;
+
+            //perform the conversion operation
+            _converter->conv(in_buffs, otw_mem, _convert_nsamps);
+
+            //commit the samples to the zero-copy interface
+            const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
+            buff->commit(num_vita_words32*sizeof(uint32_t));
+
+            // Add buffer to the array to be sent using sendmmsg
+            multi_msb_buffs[index].buffs.push_back(buff);
+            multi_msb_buffs[index].sock_fd = buff->get_socket();;
+
+            buff->release();
+            // buff.reset(); //effectively a release
+
+            if (_props[index].go_postal)
+            {
+                _props[index].go_postal();
+            }
+        }
+    }
     //! Shared variables for the worker threads
     size_t _convert_nsamps;
     const tx_streamer::buffs_type *_convert_buffs;
