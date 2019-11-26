@@ -48,6 +48,10 @@ namespace sph {
  * The channel group shares a common sample rate.
  * All channels are sent in unison in send().
  **********************************************************************/
+
+static bool time_comp(std::chrono::duration <double, std::micro> a, std::chrono::duration <double, std::micro> b) {
+    return a.count() > b.count();
+}
 class send_packet_handler{
 public:
     typedef std::function<managed_send_buffer::sptr(double)> get_buff_type;
@@ -87,16 +91,42 @@ public:
             this->multi_msb_buffs.clear();
         }
 
-        // std::chrono::duration <double, std::micro> sum {0};
-        // int i = 0;
-        // for (auto send_time : elapsed) {
-        //     sum += send_time;
-        //     if (i < 400) {
-        //         std::cout << i << " : " << send_time.count() << "\n";
-        //     }
-        //     i++;
-        // }
-        // std::cout << "Average elapsed time: " << (sum/elapsed.size()).count() << "\n";
+        std::chrono::duration <double, std::micro> sum {0};
+        int i = 0;
+        std::cout << "First 400 sample send times:\n";
+        for (auto send_time : elapsed) {
+            sum += send_time;
+            if (i < 400) {
+                std::cout << send_time.count() << "  ---  ";
+            }
+            i++;
+        }
+        std::cout << "\n\n\n";
+        std::cout << "Minimum Times sorted:\n";
+        std::sort(elapsed.begin(), elapsed.end());
+        i = 0;
+        for (auto send_time : elapsed) {
+            if (i < 1000) {
+                std::cout << send_time.count() << "  ---  ";
+            } else {
+                break;
+            }
+            i++;
+        }
+        std::cout << "\n\n\n";
+        std::cout << "Maximum Times sorted:\n";
+        std::sort(elapsed.begin(), elapsed.end(), time_comp);
+        i = 0;
+        for (auto send_time : elapsed) {
+            if (i < 1000) {
+                std::cout << send_time.count() << "  ---  ";
+            } else {
+                break;
+            }
+            i++;
+        }
+        std::cout << "\n";
+        std::cout << "Average elapsed time: " << (sum/elapsed.size()).count() << "\n";
         /* NOP */
     }
 
@@ -484,13 +514,12 @@ private:
                 i++;
             }
 
-            // auto start = std::chrono::high_resolution_clock::now();
+            auto start = std::chrono::high_resolution_clock::now();
 
             int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
 
-            // auto end = std::chrono::high_resolution_clock::now();
-            // std::chrono::duration <double, std::micro> elapsed = end-start;
-            // std::cout << "Send time for " << number_of_messages << " was: " << elapsed.count() << std::endl;
+            auto end = std::chrono::high_resolution_clock::now();
+            elapsed.push_back(end-start);
 
             if (retval == -1) {
                 std::cout << "XXX: sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
