@@ -41,6 +41,8 @@ namespace uhd {
 namespace transport {
 namespace sph {
 
+#define MAX_CHANNELS 16
+
 /***********************************************************************
  * Super send packet handler
  *
@@ -57,6 +59,7 @@ class send_packet_handler{
 public:
     typedef std::function<managed_send_buffer::sptr(double)> get_buff_type;
     typedef std::function<void(size_t)> update_fc_send_count_type;
+    typedef std::function<bool(double)> check_flow_control_type;
     typedef std::function<void(void)> post_send_cb_type;
     typedef std::function<bool(uhd::async_metadata_t &, const double)> async_receiver_type;
     typedef void(*vrt_packer_type)(uint32_t *, vrt::if_packet_info_t &);
@@ -74,6 +77,8 @@ public:
         this->samps_per_buffer = 1;
         // this->resize(size);
         multi_msb_buffs.resize(1);
+        this->end_time = std::chrono::high_resolution_clock::now();
+        this->start_time = std::chrono::high_resolution_clock::now();
     }
 
     ~send_packet_handler(void){
@@ -93,42 +98,42 @@ public:
             this->multi_msb_buffs.clear();
         }
 
-        std::chrono::duration <double, std::micro> sum {0};
-        int i = 0;
-        std::cout << "First 400 sample send times:\n";
-        for (auto send_time : elapsed) {
-            sum += send_time;
-            if (i < 400) {
-                std::cout << send_time.count() << "  ---  ";
-            }
-            i++;
-        }
-        std::cout << "\n\n\n";
-        std::cout << "Minimum Times sorted:\n";
-        std::sort(elapsed.begin(), elapsed.end());
-        i = 0;
-        for (auto send_time : elapsed) {
-            if (i < 1000) {
-                std::cout << send_time.count() << "  ---  ";
-            } else {
-                break;
-            }
-            i++;
-        }
-        std::cout << "\n\n\n";
-        std::cout << "Maximum Times sorted:\n";
-        std::sort(elapsed.begin(), elapsed.end(), time_comp);
-        i = 0;
-        for (auto send_time : elapsed) {
-            if (i < 1000) {
-                std::cout << send_time.count() << "  ---  ";
-            } else {
-                break;
-            }
-            i++;
-        }
-        std::cout << "\n";
-        std::cout << "Average elapsed time: " << (sum/elapsed.size()).count() << "\n";
+        // std::chrono::duration <double, std::micro> sum {0};
+        // int i = 0;
+        // std::cout << "First 400 sample send times:\n";
+        // for (auto send_time : elapsed) {
+        //     sum += send_time;
+        //     if (i < 400) {
+        //         std::cout << send_time.count() << "  ---  ";
+        //     }
+        //     i++;
+        // }
+        // std::cout << "\n\n\n";
+        // std::cout << "Minimum Times sorted:\n";
+        // std::sort(elapsed.begin(), elapsed.end());
+        // i = 0;
+        // for (auto send_time : elapsed) {
+        //     if (i < 1000) {
+        //         std::cout << send_time.count() << "  ---  ";
+        //     } else {
+        //         break;
+        //     }
+        //     i++;
+        // }
+        // std::cout << "\n\n\n";
+        // std::cout << "Maximum Times sorted:\n";
+        // std::sort(elapsed.begin(), elapsed.end(), time_comp);
+        // i = 0;
+        // for (auto send_time : elapsed) {
+        //     if (i < 1000) {
+        //         std::cout << send_time.count() << "  ---  ";
+        //     } else {
+        //         break;
+        //     }
+        //     i++;
+        // }
+        // std::cout << "\n";
+        // std::cout << "Average elapsed time: " << (sum/elapsed.size()).count() << "\n";
         /* NOP */
     }
 
@@ -234,6 +239,10 @@ public:
 
     void set_xport_chan_update_fc_send_size(const size_t xport_chan, const update_fc_send_count_type &update_fc_send_count){
         _props.at(xport_chan).update_fc_send_count = update_fc_send_count;
+    }
+
+    void set_xport_chan_check_flow_control(const size_t xport_chan, const check_flow_control_type &check_flow_control){
+        _props.at(xport_chan).check_flow_control = check_flow_control;
     }
     /*!
      * Set the callback function for post-send.
@@ -359,6 +368,9 @@ public:
             this->samps_per_buffer = nsamps_per_buff;
             send_multiple_packets();
             for (auto &multi_msb : multi_msb_buffs) {
+                for (auto &buff: multi_msb.buffs) {
+                    buff.reset();
+                }
                 multi_msb.buffs.clear();
             }
 #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -395,11 +407,20 @@ public:
         if_packet_info.eob = metadata.end_of_burst;
 		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
 
+
         this->samps_per_buffer = nsamps_per_buff;
         send_multiple_packets();
         for (auto &multi_msb : multi_msb_buffs) {
+            for (auto &buff: multi_msb.buffs) {
+                buff.reset();
+            }
             multi_msb.buffs.clear();
         }
+        // end_time = std::chrono::high_resolution_clock::now();
+        // if (end_time > start_time) {
+        //     elapsed.push_back(end_time-start_time);
+        // }
+        // start_time = std::chrono::high_resolution_clock::now();
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
 		dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
@@ -420,6 +441,8 @@ private:
     size_t channel_per_conversion_thread;
     std::vector< std::chrono::duration<double, std::micro> > elapsed;
     size_t samps_per_buffer;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
 
 
     vrt_packer_type _vrt_packer;
@@ -429,6 +452,7 @@ private:
         xport_chan_props_type(void):has_sid(false),sid(0){}
         get_buff_type get_buff;
         update_fc_send_count_type update_fc_send_count;
+        check_flow_control_type check_flow_control;
         post_send_cb_type go_postal;
         bool has_sid;
         uint32_t sid;
@@ -516,8 +540,6 @@ private:
             conversion_cv.notify_all();
         }
 
-        auto start = std::chrono::high_resolution_clock::now();
-
         send_multiple_packets_sequential(this->thread_indices[0]);
 
         // Wait for worker threads to finish their work
@@ -530,12 +552,11 @@ private:
                 }
             }
         }
-        auto end = std::chrono::high_resolution_clock::now();
-        elapsed.push_back(end-start);
         return 0;
     }
 
     UHD_INLINE size_t send_multiple_packets_threaded(const std::vector<size_t> channels) {
+        const double timeout = 0.1;
         while (true) {
             // Wait until the controlling thread gives the green light
             std::unique_lock<std::mutex> guard(conversion_mutex);
@@ -545,7 +566,98 @@ private:
                 break;
             }
 
-            for (const auto chan: channels) {
+            // data structure to record which channels we have sent the data for
+            // char channels_serviced[MAX_CHANNELS];
+            // memset(channels_serviced, 0, MAX_CHANNELS*sizeof(char));
+            std::array<char, MAX_CHANNELS> channels_serviced;
+            for (auto &chan : channels_serviced) {
+                chan = 0;
+            }
+            size_t total_channels_to_service = channels.size();
+            size_t total_channels_serviced = 0;
+
+            while(total_channels_serviced < total_channels_to_service) {
+                for (const auto & chan: channels) {
+                    if (channels_serviced[chan] == 0) {
+                        if (!(_props.at(chan).check_flow_control(timeout))) {
+                            // The time to send for this channel has not reached.
+                            continue;
+                        }
+                        // It's time to send for this channel, mark it as serviced.
+                        channels_serviced[chan] = 1;
+                        total_channels_serviced++;
+                    } else {
+                        // We've already sent the data for this channel; move on.
+                        continue;
+                    }
+                    const auto multi_msb = multi_msb_buffs.at(chan);
+                    int number_of_messages = multi_msb.buffs.size();
+                    mmsghdr msg[number_of_messages];
+                    iovec iov[number_of_messages];
+
+                    int i = 0;
+                    for (auto buff : multi_msb.buffs) {
+                        buff->get_iov(iov[i]);
+                        msg[i].msg_hdr.msg_name = NULL;
+                        msg[i].msg_hdr.msg_namelen = 0;
+                        msg[i].msg_hdr.msg_iov = &iov[i];
+                        msg[i].msg_hdr.msg_iovlen = 1;
+                        msg[i].msg_hdr.msg_control = NULL;
+                        msg[i].msg_hdr.msg_controllen = 0;
+
+                        i++;
+                    }
+
+                    int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+                    if (retval == -1) {
+                        std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
+                        std::cout << "XXX: Must implement retry code!\n";
+                    }
+
+                    // for (auto buff : multi_msb.buffs) {
+                    //     // Efectively a release
+                    //     buff.reset();
+                    // }
+                    _props.at(chan).update_fc_send_count(this->samps_per_buffer);
+
+                    // Notify the calling thread that we're finished with our work.
+                    this->conversion_ready[chan] = false;
+                    this->conversion_done[chan] = true;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
+        const double timeout = 0.1;
+
+        // data structure to record which channels we have sent the data for
+        // char channels_serviced[MAX_CHANNELS];
+        // memset(channels_serviced, 0, MAX_CHANNELS*sizeof(char));
+        std::array<char, MAX_CHANNELS> channels_serviced;
+        for (auto &chan : channels_serviced) {
+            chan = 0;
+        }
+        size_t total_channels_to_service = channels.size();
+        size_t total_channels_serviced = 0;
+
+        while (total_channels_serviced < total_channels_to_service) {
+            for (const auto & chan: channels) {
+                if (channels_serviced[chan] == 0) {
+                    if (!(_props.at(chan).check_flow_control(timeout))) {
+                        // The time to send for this channel has not reached.
+                        continue;
+                    }
+                    // It's time to send for this channel, mark it as serviced.
+                    channels_serviced[chan] = 1;
+                    total_channels_serviced++;
+                } else {
+                    // We've already sent the data for this channel; move on.
+                    continue;
+                }
+
                 const auto multi_msb = multi_msb_buffs.at(chan);
                 int number_of_messages = multi_msb.buffs.size();
                 mmsghdr msg[number_of_messages];
@@ -564,14 +676,7 @@ private:
                     i++;
                 }
 
-                // auto start = std::chrono::high_resolution_clock::now();
-
                 int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
-
-                // auto end = std::chrono::high_resolution_clock::now();
-                // std::chrono::duration <double, std::micro> elapsed = end-start;
-                // std::cout << "Send time for " << number_of_messages << " was: " << elapsed.count() << std::endl;
-
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                     std::cout << "XXX: Must implement retry code!\n";
@@ -582,55 +687,7 @@ private:
                 //     buff.reset();
                 // }
                 _props.at(chan).update_fc_send_count(this->samps_per_buffer);
-
-                // Notify the calling thread that we're finished with our work.
-                this->conversion_ready[chan] = false;
-                this->conversion_done[chan] = true;
             }
-        }
-
-        return 0;
-    }
-
-    UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
-
-        for (const auto & chan: channels) {
-            const auto multi_msb = multi_msb_buffs.at(chan);
-            int number_of_messages = multi_msb.buffs.size();
-            mmsghdr msg[number_of_messages];
-            iovec iov[number_of_messages];
-
-            int i = 0;
-            for (auto buff : multi_msb.buffs) {
-                buff->get_iov(iov[i]);
-                msg[i].msg_hdr.msg_name = NULL;
-                msg[i].msg_hdr.msg_namelen = 0;
-                msg[i].msg_hdr.msg_iov = &iov[i];
-                msg[i].msg_hdr.msg_iovlen = 1;
-                msg[i].msg_hdr.msg_control = NULL;
-                msg[i].msg_hdr.msg_controllen = 0;
-
-                i++;
-            }
-
-            // auto start = std::chrono::high_resolution_clock::now();
-
-            int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
-
-            // auto end = std::chrono::high_resolution_clock::now();
-            // std::chrono::duration <double, std::micro> elapsed = end-start;
-            // std::cout << "Send time for " << number_of_messages << " was: " << elapsed.count() << std::endl;
-
-            if (retval == -1) {
-                std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
-                std::cout << "XXX: Must implement retry code!\n";
-            }
-
-            // for (auto buff : multi_msb.buffs) {
-            //     // Efectively a release
-            //     buff.reset();
-            // }
-            _props.at(chan).update_fc_send_count(this->samps_per_buffer);
         }
 
         return 0;
@@ -685,8 +742,6 @@ private:
         // Sleep for 10 us intervals while checking whether the worker threads are done
         // TODO: verify that the sleep duration is efficient.
 
-        auto start = std::chrono::high_resolution_clock::now();
-
         for (size_t i = 0; i < this->size(); i++) {
             convert_to_in_buff(i);
         }
@@ -698,8 +753,6 @@ private:
         //         }
         //     }
         // }
-        auto end = std::chrono::high_resolution_clock::now();
-        elapsed.push_back(end-start);
 
         _next_packet_seq++; //increment sequence after commits
         return nsamps_per_buff;
@@ -733,7 +786,7 @@ private:
         if_packet_info.has_sid = _props[index].has_sid;
         if_packet_info.sid = _props[index].sid;
 
-        _vrt_packer(otw_mem, if_packet_info);
+         _vrt_packer(otw_mem, if_packet_info);
         otw_mem += if_packet_info.num_header_words32;
 
         //perform the conversion operation

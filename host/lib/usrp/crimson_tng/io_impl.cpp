@@ -285,7 +285,8 @@ public:
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
         // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
       //  std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
-        _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
+        // _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
+        _actual_num_samps = nsamps_per_buff;
 
         //for( auto & ep: _eprops ) {
 
@@ -322,7 +323,7 @@ public:
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
         //wait on flow control w/ timeout
-        if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
+        // if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
@@ -339,6 +340,13 @@ public:
             boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
 
         my_streamer->check_fc_update(chan, nsamps);
+    }
+    
+    static bool check_flow_control(boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        return my_streamer->check_fc_condition( chan, timeout);
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
@@ -495,10 +503,16 @@ private:
 		if(dt <= 0.0)
 			return true;
 
-		// Otherwise, delay.
+		// // Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
 		req.tv_nsec = dt.get_frac_secs()*1e9;
-		nanosleep( &req, &rem );
+		// nanosleep( &req, &rem );
+        if (req.tv_sec == 0 && req.tv_nsec < 10000) {
+            // If there is less than 10 us, then send
+            return true;
+        } else {
+            return false;
+        }
 
 		return true;
     }
@@ -1119,6 +1133,9 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
+                ));
+                my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
                 ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
 
