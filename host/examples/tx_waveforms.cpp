@@ -384,9 +384,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             md.start_of_burst = false;
             md.has_time_spec = false;
-            break;
         }
-        break;
 
         //send a mini EOB packet
         md.end_of_burst = true;
