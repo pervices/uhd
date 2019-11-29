@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "wavetable.hpp"
+#include "wavetable_sc16.hpp"
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/static.hpp>
@@ -270,13 +270,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //pre-compute the waveform values
-    const wave_table_class wave_table(wave_type, ampl);
+    const wave_table_class_sc16 wave_table(wave_type, ampl);
     const size_t step = boost::math::iround(wave_freq/usrp->get_tx_rate() * wave_table_len);
     size_t index = 0;
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("fc32", otw);
+    //
+    // Note: sc16_item32_be means that the input is 16-bit complex numbers packed
+    //       into a 32-bit uint32_t variable with the upper two bytes being the I
+    //       sample and the lower two bytes being the Q sample
+    //       I = item32_be[31:16]
+    //       Q = item32_be[15:0]
+    uhd::stream_args_t stream_args("sc16_item32_be", otw);
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
@@ -378,7 +384,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             md.start_of_burst = false;
             md.has_time_spec = false;
+            break;
         }
+        break;
 
         //send a mini EOB packet
         md.end_of_burst = true;

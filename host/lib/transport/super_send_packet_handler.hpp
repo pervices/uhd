@@ -368,10 +368,10 @@ public:
             this->samps_per_buffer = nsamps_per_buff;
             send_multiple_packets();
             for (auto &multi_msb : multi_msb_buffs) {
-                for (auto &buff: multi_msb.buffs) {
-                    buff.reset();
-                }
-                multi_msb.buffs.clear();
+                multi_msb.data_buffs.clear();
+                multi_msb.data_buff_length.clear();
+                multi_msb.vrt_headers.clear();
+                multi_msb.vrt_header_length.clear();
             }
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
@@ -411,17 +411,17 @@ public:
         this->samps_per_buffer = nsamps_per_buff;
         send_multiple_packets();
         for (auto &multi_msb : multi_msb_buffs) {
-            for (auto &buff: multi_msb.buffs) {
-                buff.reset();
-            }
-            multi_msb.buffs.clear();
+            multi_msb.data_buffs.clear();
+            multi_msb.data_buff_length.clear();
+            multi_msb.vrt_headers.clear();
+            multi_msb.vrt_header_length.clear();
         }
+
         // end_time = std::chrono::high_resolution_clock::now();
         // if (end_time > start_time) {
         //     elapsed.push_back(end_time-start_time);
         // }
         // start_time = std::chrono::high_resolution_clock::now();
-
 #ifdef UHD_TXRX_DEBUG_PRINTS
 		dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
@@ -463,7 +463,10 @@ private:
     // This structure will hold a vector of buffers of data to be sent to a single socket
     // using sendmmsg system call.
     struct multi_msb_type {
-        std::vector<managed_send_buffer::sptr> buffs;
+        std::vector<const void *> data_buffs;
+        std::vector<size_t> data_buff_length;
+        std::vector<void *> vrt_headers;
+        std::vector<size_t> vrt_header_length;
         int sock_fd;
     };
     std::vector<multi_msb_type> multi_msb_buffs;
@@ -591,17 +594,31 @@ private:
                         continue;
                     }
                     const auto multi_msb = multi_msb_buffs.at(chan);
-                    int number_of_messages = multi_msb.buffs.size();
+                    int number_of_messages = multi_msb.data_buffs.size();
                     mmsghdr msg[number_of_messages];
-                    iovec iov[number_of_messages];
+                    // In case we want to use scatter/gather capability and
+                    // send Vita header and data in two separate buffers.
+                    iovec iov[2*number_of_messages];
 
                     int i = 0;
-                    for (auto buff : multi_msb.buffs) {
-                        buff->get_iov(iov[i]);
+                    for (auto data_buff : multi_msb.data_buffs) {
+                        // In case of scatter/gather, the VRT header should be in the first iov
+                        // and the data should be in the second iov
+                        if (_converter->bypass_conversion_and_use_scatter_gather()) {
+                            iov[(i*2)].iov_base = ((void *)multi_msb.vrt_headers.at(i));
+                            iov[(i*2)].iov_len = multi_msb.vrt_header_length.at(i);
+                            iov[(i*2)+1].iov_base = ((void *)data_buff);
+                            iov[(i*2)+1].iov_len = multi_msb.data_buff_length.at(i);
+                            msg[i].msg_hdr.msg_iov = &iov[i*2];
+                            msg[i].msg_hdr.msg_iovlen = 2;
+                        } else {
+                            iov[i].iov_base = ((void*)data_buff);
+                            iov[i].iov_len = multi_msb.data_buff_length.at(i);
+                            msg[i].msg_hdr.msg_iov = &iov[i];
+                            msg[i].msg_hdr.msg_iovlen = 1;
+                        }
                         msg[i].msg_hdr.msg_name = NULL;
                         msg[i].msg_hdr.msg_namelen = 0;
-                        msg[i].msg_hdr.msg_iov = &iov[i];
-                        msg[i].msg_hdr.msg_iovlen = 1;
                         msg[i].msg_hdr.msg_control = NULL;
                         msg[i].msg_hdr.msg_controllen = 0;
 
@@ -659,17 +676,31 @@ private:
                 }
 
                 const auto multi_msb = multi_msb_buffs.at(chan);
-                int number_of_messages = multi_msb.buffs.size();
+                int number_of_messages = multi_msb.data_buffs.size();
                 mmsghdr msg[number_of_messages];
-                iovec iov[number_of_messages];
+                // In case we want to use scatter/gather capability and
+                // send Vita header and data in two separate buffers.
+                iovec iov[2*number_of_messages];
 
                 int i = 0;
-                for (auto buff : multi_msb.buffs) {
-                    buff->get_iov(iov[i]);
+                for (auto data_buff : multi_msb.data_buffs) {
+                    // In case of scatter/gather, the VRT header should be in the first iov
+                    // and the data should be in the second iov
+                    if (_converter->bypass_conversion_and_use_scatter_gather()) {
+                        iov[(i*2)].iov_base = (void *)multi_msb.vrt_headers.at(i);
+                        iov[(i*2)].iov_len = multi_msb.vrt_header_length.at(i);
+                        iov[(i*2)+1].iov_base = (void *)data_buff;
+                        iov[(i*2)+1].iov_len = multi_msb.data_buff_length.at(i);
+                        msg[i].msg_hdr.msg_iov = &iov[i*2];
+                        msg[i].msg_hdr.msg_iovlen = 2;
+                    } else {
+                        iov[i].iov_base = (void *)data_buff;
+                        iov[i].iov_len = multi_msb.data_buff_length.at(i);
+                        msg[i].msg_hdr.msg_iov = &iov[i];
+                        msg[i].msg_hdr.msg_iovlen = 1;
+                    }
                     msg[i].msg_hdr.msg_name = NULL;
                     msg[i].msg_hdr.msg_namelen = 0;
-                    msg[i].msg_hdr.msg_iov = &iov[i];
-                    msg[i].msg_hdr.msg_iovlen = 1;
                     msg[i].msg_hdr.msg_control = NULL;
                     msg[i].msg_hdr.msg_controllen = 0;
 
@@ -786,22 +817,34 @@ private:
         if_packet_info.has_sid = _props[index].has_sid;
         if_packet_info.sid = _props[index].sid;
 
-         _vrt_packer(otw_mem, if_packet_info);
+        _vrt_packer(otw_mem, if_packet_info);
+        uint32_t *vrt_header = otw_mem;
         otw_mem += if_packet_info.num_header_words32;
 
-        //perform the conversion operation
-        _converter->conv(in_buffs, otw_mem, _convert_nsamps);
-
-        //commit the samples to the zero-copy interface
         const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
-        buff->commit(num_vita_words32*sizeof(uint32_t));
 
-        // Add buffer to the array to be sent using sendmmsg
-        multi_msb_buffs[index].buffs.push_back(buff);
-        multi_msb_buffs[index].sock_fd = buff->get_socket();;
+        if (_converter->bypass_conversion_and_use_scatter_gather()) {
+            // Add buffer to the array to be sent using sendmmsg
+            multi_msb_buffs[index].data_buffs.push_back(reinterpret_cast<const void *>(io_buffs[0]));
+            multi_msb_buffs[index].data_buff_length.push_back(num_vita_words32*sizeof(uint32_t));
+            multi_msb_buffs[index].sock_fd = buff->get_socket();;
+            multi_msb_buffs[index].vrt_headers.push_back(vrt_header);
+            multi_msb_buffs[index].vrt_header_length.push_back(if_packet_info.num_header_words32*sizeof(uint32_t));
+        } else {
+            //perform the conversion operation
+            _converter->conv(in_buffs, otw_mem, _convert_nsamps);
+
+            multi_msb_buffs[index].data_buffs.push_back(buff->cast<const void *>());
+            multi_msb_buffs[index].data_buff_length.push_back(buff->size());
+            multi_msb_buffs[index].sock_fd = buff->get_socket();;
+
+            //commit the samples to the zero-copy interface
+            buff->commit(num_vita_words32*sizeof(uint32_t));
+
+        }
 
         buff->release();
-        // buff.reset(); //effectively a release
+        buff.reset(); //effectively a release
 
         if (_props[index].go_postal)
         {
