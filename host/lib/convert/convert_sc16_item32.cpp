@@ -16,9 +16,9 @@ using namespace uhd::convert;
 
 typedef uint16_t (*to16_type)(uint16_t);
 
-struct convert_sc16_item32_1_to_sc16_item32_1 : public converter
+struct convert_uc16_item32_1_to_uc16_item32_be_1 : public converter
 {
-    convert_sc16_item32_1_to_sc16_item32_1(void):_scalar(0.0)
+    convert_uc16_item32_1_to_uc16_item32_be_1(void):_scalar(1.0)
     {
         //NOP
     }
@@ -30,10 +30,11 @@ struct convert_sc16_item32_1_to_sc16_item32_1 : public converter
 
     void operator()(const input_type &inputs, const output_type &outputs, const size_t nsamps)
     {
-        const item32_t *input  = reinterpret_cast<const item32_t *>(inputs[0]);
-        item32_t *output = reinterpret_cast<item32_t *>(outputs[0]);
+        // NOTE: If you need to copy, uncomment the following 
 
-        std::memcpy(output, input, nsamps*sizeof(item32_t));
+        // const item32_t *input  = reinterpret_cast<const item32_t *>(inputs[0]);
+        // item32_t *output = reinterpret_cast<item32_t *>(outputs[0]);
+        // std::memcpy(output, input, nsamps*sizeof(item32_t));
     }
 
     // This converter will bypass conversion
@@ -57,4 +58,4 @@ UHD_STATIC_BLOCK(register_convert_ ## itype ## _1_ ## otype ## _1) \
     uhd::convert::register_converter(id, &make_convert_ ## itype ## _1_ ## otype ## _1, PRIORITY_GENERAL); \
 }
 
-__make_registrations(sc16_item32_be, sc16_item32_be, convert_sc16_item32_1_to_sc16_item32_1)
+__make_registrations(uc16_item32, uc16_item32_be, convert_uc16_item32_1_to_uc16_item32_be_1)
