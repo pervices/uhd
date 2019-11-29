@@ -282,7 +282,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //       sample and the lower two bytes being the Q sample
     //       I = item32_be[31:16]
     //       Q = item32_be[15:0]
-    uhd::stream_args_t stream_args("sc16_item32_be", otw);
+     uhd::stream_args_t stream_args("uc16_item32", otw);
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
