@@ -145,6 +145,7 @@ UHD_STATIC_BLOCK(convert_register_item_sizes){
     convert::register_bytes_per_item("sc64", sizeof(std::complex<int64_t>));
     convert::register_bytes_per_item("sc32", sizeof(std::complex<int32_t>));
     convert::register_bytes_per_item("sc16", sizeof(std::complex<int16_t>));
+    convert::register_bytes_per_item("uc16", sizeof(std::complex<uint16_t>));
     convert::register_bytes_per_item("sc8", sizeof(std::complex<int8_t>));
 
     //register standard real types
