@@ -20,6 +20,7 @@
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
+#include <boost/endian/conversion.hpp>
 
 #include "crimson_tng_impl.hpp"
 
