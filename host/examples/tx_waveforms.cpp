@@ -5,7 +5,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#ifndef UC16_DATA
+#define UC16_DATA 1
+#endif
+
+#if (UC16_DATA == 1)
 #include "wavetable_sc16.hpp"
+#else
+#include "wavetable.hpp"
+#endif
+
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/static.hpp>
@@ -270,8 +279,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //pre-compute the waveform values
+
+#if (UC16_DATA == 1)
     const wave_table_class_sc16 wave_table(wave_type, ampl);
+#else
+    const wave_table_class wave_table(wave_type, ampl);
+#endif
     const size_t step = boost::math::iround(wave_freq/usrp->get_tx_rate() * wave_table_len);
+    std::cout << "Step size is : " << step << std::endl;
     size_t index = 0;
 
     //create a transmit streamer
@@ -282,8 +297,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //       sample and the lower two bytes being the Q sample
     //       I = item32_be[31:16]
     //       Q = item32_be[15:0]
+
+#if (UC16_DATA == 1)
     otw = "uc16";
-     uhd::stream_args_t stream_args("uc16_item32", otw);
+    uhd::stream_args_t stream_args("uc16_item32", otw);
+#else
+    otw = "sc16";
+    uhd::stream_args_t stream_args("fc32", otw);
+#endif
+
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
@@ -291,8 +313,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
+
+#if (UC16_DATA == 1)
+    std::vector<uint32_t > buff(spb);
+    std::vector<uint32_t *> buffs(channel_nums.size(), &buff.front());
+#else
     std::vector<std::complex<float> > buff(spb);
     std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
+#endif
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if (channel_nums.size() > 1)
@@ -372,8 +400,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             if (stop_signal_called)
                 break;
 
-            if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
+            if (total_num_samps > 0 and num_acc_samps >= total_num_samps) {
                 break;
+            }
 
             //fill the buffer with the waveform
             for (size_t n = 0; n < buff.size(); n++){
