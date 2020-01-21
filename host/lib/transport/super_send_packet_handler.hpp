@@ -821,22 +821,22 @@ private:
         uint32_t *vrt_header = otw_mem;
         otw_mem += if_packet_info.num_header_words32;
 
-        const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
 
         if (_converter->bypass_conversion_and_use_scatter_gather()) {
             // Add buffer to the array to be sent using sendmmsg
             multi_msb_buffs[index].data_buffs.push_back(reinterpret_cast<const void *>(io_buffs[0]));
-            multi_msb_buffs[index].data_buff_length.push_back(num_vita_words32*sizeof(uint32_t));
+            multi_msb_buffs[index].data_buff_length.push_back(if_packet_info.num_payload_words32*sizeof(uint32_t));
             multi_msb_buffs[index].sock_fd = buff->get_socket();;
             multi_msb_buffs[index].vrt_headers.push_back(vrt_header);
             multi_msb_buffs[index].vrt_header_length.push_back(if_packet_info.num_header_words32*sizeof(uint32_t));
         } else {
+            const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
             //perform the conversion operation
             _converter->conv(in_buffs, otw_mem, _convert_nsamps);
 
             multi_msb_buffs[index].data_buffs.push_back(buff->cast<const void *>());
-            multi_msb_buffs[index].data_buff_length.push_back(buff->size());
-            multi_msb_buffs[index].sock_fd = buff->get_socket();;
+            multi_msb_buffs[index].data_buff_length.push_back(num_vita_words32*sizeof(uint32_t));
+            multi_msb_buffs[index].sock_fd = buff->get_socket();
 
             //commit the samples to the zero-copy interface
             buff->commit(num_vita_words32*sizeof(uint32_t));
