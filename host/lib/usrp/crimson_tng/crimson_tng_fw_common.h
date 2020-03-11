@@ -96,6 +96,7 @@
 #define CRIMSON_TNG_FREQ_RANGE_STEP	1
 //Crimson LO Tuning Range Step Size
 #define CRIMSON_TNG_LO_STEPSIZE         25000000
+#define CRIMSON_TNG_LO_GUARDBAND	5000000
 #define CRIMSON_TNG_LO_OFFSET           25000000
 
 // Crimson Sample Rate Settings
@@ -115,6 +116,9 @@
 #define CRIMSON_TNG_BW_QUARTER              CRIMSON_TNG_RATE_RANGE_STOP_QUARTER
 #define CRIMSON_TNG_BW_RANGE_STEP	1.0
 #define CRIMSON_TNG_ADC_FREQ_RANGE_STEP	        1.0
+
+// There's a lower limit on the DC component we can pass. This is just an approximation.
+#define CRIMSON_TNG_DC_LOWERLIMIT	3000000
 
 // Crimson DSP Freq Settings
 // NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
