@@ -119,6 +119,8 @@
 
 // There's a lower limit on the DC component we can pass. This is just an approximation.
 #define CRIMSON_TNG_DC_LOWERLIMIT	3000000
+#define CRIMSON_TNG_FM_LOWERLIMIT	86900000
+#define CRIMSON_TNG_FM_UPPERLIMIT	107900000
 
 // Crimson DSP Freq Settings
 // NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
