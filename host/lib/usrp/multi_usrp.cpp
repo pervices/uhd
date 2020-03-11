@@ -278,15 +278,15 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	 */
 	static const std::vector<freq_range_t> AB_regions {
 		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // A
-		freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
+		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
 		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_FM_LOWERLIMIT ), // B
-		freq_range_t( -CRIMSON_TNG_FM_LOWERLIMIT,-(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
+		//freq_range_t( -CRIMSON_TNG_FM_LOWERLIMIT,-(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
 		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
-		freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -F
+		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -F
 		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
-		freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -CRIMSON_TNG_DC_LOWERLIMIT ), // -G
+		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -CRIMSON_TNG_DC_LOWERLIMIT ), // -G
 		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
-		freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, -CRIMSON_TNG_DC_LOWERLIMIT ), // -H
+		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, -CRIMSON_TNG_DC_LOWERLIMIT ), // -H
 		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
 	};
 	/*
@@ -311,11 +311,11 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	 */
 	static const std::vector<freq_range_t> CD_regions {
 		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // +A
-		freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
+		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
 		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // B
-		freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
+		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
 		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
-		freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -CRIMSON_TNG_DC_LOWERLIMIT ), // -C
+		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -CRIMSON_TNG_DC_LOWERLIMIT ), // -C
 		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
@@ -352,6 +352,9 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 			//Ensure that the combined NCO offset and signal bw fall within candidate range;
 			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
 
+			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
+			//the specified ranges (as they can't be negative).
+			//TBH: I'm not sure why this works right now, but it does.
 			for( const freq_range_t & _range: regions ) {
 				if ( range_contains( _range, candidate_range ) ) {
 					return candidate_nco;
