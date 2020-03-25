@@ -2294,13 +2294,14 @@ public:
 
     // XXX: @CF: 20180418: stop-gap until moved to server
     double get_tx_freq(size_t chan){
-        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+        double cur_dac_ch_nco = _tree->access<double>(tx_rf_fe_root(chan) / "chnco").get();
+        double cur_dac_dp_nco = _tree->access<double>(tx_rf_fe_root(chan) / "dpnco").get();
         double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
         double cur_lo_freq = 0;
         if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
         	cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
         }
-        return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
+        return cur_lo_freq + cur_dac_ch_nco + cur_dac_dp_nco + cur_dsp_nco;
     }
 //    double get_tx_freq(size_t chan){
 //        return derive_freq_from_xx_subdev_and_dsp(TX_SIGN, _tree->subtree(tx_dsp_root(chan)), _tree->subtree(tx_rf_fe_root(chan)));

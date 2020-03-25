@@ -1284,8 +1284,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // loop for all TX chains
     for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/4 + 'a'));
+		std::string num     = boost::lexical_cast<std::string>((char)(dspno/4 + 'A'));
 		std::string chan    = "Channel_" + num;
 
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
@@ -1303,57 +1303,54 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
 
         // TX Triggers
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/sma_mode"       , "tx_" + lc_num + "/trigger/sma_mode"       , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/trig_sel"       , "tx_" + lc_num + "/trigger/trig_sel"       , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_backoff"   , "tx_" + lc_num + "/trigger/edge_backoff"   , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_sample_num", "tx_" + lc_num + "/trigger/edge_sample_num", std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_mode"       , "tx_" + lc_num + "/trigger/ufl_mode"       , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"        , "tx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"        , "tx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/sma_mode"        , "tx_" + lc_num + "/trigger/sma_mode"          , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/trig_sel"        , "tx_" + lc_num + "/trigger/trig_sel"          , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_backoff"    , "tx_" + lc_num + "/trigger/edge_backoff"      , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_sample_num" , "tx_" + lc_num + "/trigger/edge_sample_num"   , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_mode"        , "tx_" + lc_num + "/trigger/ufl_mode"          , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"         , "tx_" + lc_num + "/trigger/ufl_dir"           , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"         , "tx_" + lc_num + "/trigger/ufl_pol"           , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"          , "tx_" + lc_num + "/trigger/gating"            , std::string, string);
 
 		// Actual frequency values
-		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
+		TREE_CREATE_RW(tx_path / chan / "freq" / "value"            , "tx_"+lc_num+"/rf/freq/val"                   , double, double);
 
 		// Power status
-		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
+		TREE_CREATE_RW(tx_path / dspno / "pwr"                      , "tx_"+lc_num+"/pwr"                           , std::string, string);
 
 		// Codecs, phony properties for Crimson
-		TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
-		TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
+		TREE_CREATE_RW(tx_codec_path / "gains"                      , "tx_"+lc_num+"/dsp/gain"                      , int, int);
+		TREE_CREATE_ST(tx_codec_path / "name"                       , std::string                                   , "TX Codec");
 
 		// Daughter Boards' Frontend Settings
-		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
+		TREE_CREATE_ST(tx_fe_path / "name"                          , std::string                                   , "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value"           , double                                        , CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range"           , meta_range_t                                  , meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
 
-		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "freq"                          , meta_range_t                                  , meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 
-		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
-		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value"           , std::complex<double>                          , std::complex<double>(0.0, 0.0));
+		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value"          , std::complex<double>                          , std::complex<double>(0.0, 0.0));
 
-		TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
+		TREE_CREATE_RW(tx_fe_path / "connection"                    , "tx_"+lc_num+"/link/iface"                    , std::string, string);
 
-		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
-		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
+		TREE_CREATE_ST(tx_fe_path / "use_lo_offset"                 , bool                                          , false);
+		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value"           , "tx_"+lc_num+"/rf/dac/nco"                    , double, double);
 
-		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "freq" / "range"                , meta_range_t                                  , meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "gain" / "range"                , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
-		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
-		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
-		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
+		TREE_CREATE_RW(tx_fe_path / "freq"  / "value"               , "tx_"+lc_num+"/rf/freq/val"                   , double, double);
+		TREE_CREATE_ST(tx_fe_path / "gains"                         , std::string                                   , "gain" );
+		TREE_CREATE_RW(tx_fe_path / "gain"  / "value"               , "tx_"+lc_num+"/rf/gain/val"                   , double, double);
 
 		// RF band
-		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/freq/band", int, int);
+		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/freq/band"                  , int, int);
 
 		// these are phony properties for Crimson
-		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
+		TREE_CREATE_ST(db_path / "tx_eeprom"                        , dboard_eeprom_t                               , dboard_eeprom_t());
 
 		// DSPs
 		switch( dspno + 'A' ) {
@@ -1362,22 +1359,16 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 #ifdef PV_TATE
                 default:
 #endif
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
 #ifndef PV_TATE
 		case 'C':
 		case 'D':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
 #endif
 		}
@@ -1387,18 +1378,48 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
 			.set_publisher(boost::bind(&crimson_tng_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
 
-		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
+		TREE_CREATE_RW(tx_dsp_path / "bw" / "value"                 , "tx_"+lc_num+"/dsp/rate"                      ,  double, double);
+		TREE_CREATE_RW(tx_dsp_path / "rstreq"                       , "tx_"+lc_num+"/dsp/rstreq"                    , double, double);
+#ifdef PV_TATE
+        // To understand this better, review the structure of the DAC. It has 6 channels and 2 datapaths.
+        // Note: ch2 and ch5 are unused.
+        switch (dspno % CRIMSON_TNG_DSP_PER_RFE) {
+            case 0 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch0fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch0fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch0freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac0freq"           , double, double);
+                break;
+            case 1 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch1fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch1fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch1freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac0freq"           , double, double);
+                break;
+            case 2 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch3fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch3fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch3freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac1freq"           , double, double);
+                break;
+            case 3 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch4fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch4fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch4freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac1freq"           , double, double);
+                break;
+        }
+#else
+		TREE_CREATE_RW(tx_dsp_path / "freq" / "value"   , "tx_"+lc_num+"/dsp/nco_adj", double, double);
+		TREE_CREATE_RW(tx_dsp_path / "nco"              , "tx_"+lc_num+"/dsp/nco_adj", double, double);
+		TREE_CREATE_RW(tx_fe_path / "nco"               , "tx_"+lc_num+"/rf/dac/nco", double, double);
+#endif
 
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
-
-		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
-		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
-		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
 		// Link settings
-		TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
-		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
-		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
+		TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_num+"/link/vita_en"  , std::string, string);
+		TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/port"     , std::string, string);
+		TREE_CREATE_RW(tx_link_path / "iface"           , "tx_"+lc_num+"/link/iface"    , std::string, string);
 
 
 		zero_copy_xport_params zcxp;
