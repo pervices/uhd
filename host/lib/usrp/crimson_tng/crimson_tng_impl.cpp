@@ -20,6 +20,7 @@
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
+#include <boost/endian/conversion.hpp>
 
 #include "crimson_tng_impl.hpp"
 
@@ -46,7 +47,6 @@ namespace asio = boost::asio;
       #define DEBUG_COUT
     #endif
 #endif
-
 
 // This is a lock to prevent multiple threads from requesting commands from
 // the device at the same time. This is important in GNURadio, as they spawn
@@ -284,7 +284,7 @@ user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
 }
 
 void crimson_tng_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-	_time_diff_iface->send(boost::asio::const_buffer(&req, sizeof(req)));
+	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
 void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
@@ -292,50 +292,138 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     (void) key;
 
     const uint8_t  address = value.first;
-    const uint64_t setting = value.second;
+    const uint64_t setting = (uint64_t) value.second;
 
-    static uint64_t pins = 0x0;
-    static uint64_t mask = 0x0;
+#ifdef PV_TATE
+    static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
+    static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
+#else
+    static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0};
+    static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0};
+#endif
 
-    // Clearing.
-    const uint64_t all = 0xFFFFFFFF;
-    if(address == 0) pins &= ~(all << 0x00);
-    if(address == 1) pins &= ~(all << 0x20);
-    if(address == 2) mask &= ~(all << 0x00);
-    if(address == 3) mask &= ~(all << 0x20);
 
-    // Setting.
-    if(address == 0) pins |= (setting << 0x00);
-    if(address == 1) pins |= (setting << 0x20);
-    if(address == 2) mask |= (setting << 0x00);
-    if(address == 3) mask |= (setting << 0x20);
+    // Sanity check to make sure that user is not exceeding legal GPIO range
+    uint32_t pin_number = setting;
+    int i = 0;
+    // Determine what is the biggest GPIO pin number in the setting
+    for (i = 0; i < 32; i++) {
+        pin_number = pin_number > 1;
+        if (pin_number == 1) {
+            break;
+        }
+    }
+    pin_number = (pin_number > 0) ? (((address/2)*32)+i) : 0;
+    if ( setting != 0 && pin_number > NUMBER_OF_GPIO_SIGNALS-1) {
+        char buff [100];
+        sprintf(buff, "FATAL: GPIO %d out of bounds (total %d GPIOs)", pin_number, NUMBER_OF_GPIO_SIGNALS);
+        std::string error_msg = buff;
+        throw runtime_error(error_msg);
+    }
+
+    const uint64_t all = 0x00000000FFFFFFFF;
+#ifdef PV_TATE
+    // Note: pins and mask will be treated as big-endian later on, so address == 0 -> pins[1]
+    // Clearing first 32-bits
+    if(address == 0) pins[1] &= ~(all << 0x00);
+    if(address == 1) mask[1] &= ~(all << 0x00);
+    // Clearing second 32-bits
+    if(address == 2) pins[1] &= ~(all << 0x20);
+    if(address == 3) mask[1] &= ~(all << 0x20);
+    // Clearing first 32-bits
+    if(address == 4) pins[0] &= ~(all << 0x00);
+    if(address == 5) mask[0] &= ~(all << 0x00);
+    // Clearing second 32-bits
+    if(address == 6) pins[0] &= ~(all << 0x20);
+    if(address == 7) mask[0] &= ~(all << 0x20);
+
+    // Setting first 32-bits
+    if(address == 0) pins[1] |= (setting << 0x00);
+    if(address == 1) mask[1] |= (setting << 0x00);
+    // Setting second 32-bits
+    if(address == 2) pins[1] |= (setting << 0x20);
+    if(address == 3) mask[1] |= (setting << 0x20);
+    // Setting first 32-bits
+    if(address == 4) pins[0] |= (setting << 0x00);
+    if(address == 5) mask[0] |= (setting << 0x00);
+    // Setting second 32-bits
+    if(address == 6) pins[0] |= (setting << 0x20);
+    if(address == 7) mask[0] |= (setting << 0x20);
+
+    if(address > 7)
+        std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
+#else
+    // Clearing first 32-bits
+    if(address == 0) pins[0] &= ~(all << 0x00);
+    if(address == 1) mask[0] &= ~(all << 0x00);
+    // Clearing second 32-bits
+    if(address == 2) pins[0] &= ~(all << 0x20);
+    if(address == 3) mask[0] &= ~(all << 0x20);
+
+    // Setting first 32-bits
+    if(address == 0) pins[0] |= (setting << 0x00);
+    if(address == 1) mask[0] |= (setting << 0x00);
+    // Setting second 32-bits
+    if(address == 2) pins[0] |= (setting << 0x20);
+    if(address == 3) mask[0] |= (setting << 0x20);
 
     if(address > 3)
         std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
+#endif
+
 
     // Ship if address 3 was written to.
-    if(address == 3)
-    {
+#ifdef PV_TATE
+    if(address == 7) {
         gpio_burst_req pkt;
-	    pkt.header = ((uint64_t) 0x3) << 32;
+	    pkt.header = (((uint64_t) 0x3) << 32) + (((uint64_t) 0x1) << 16);
+        pkt.pins[1] = pins[1];
+        pkt.mask[1] = mask[1];
+        pkt.pins[0] = pins[0];
+        pkt.mask[0] = mask[0];
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
-        pkt.pins = pins;
-        pkt.mask = mask;
 
+#ifdef DEBUG_COUT
         std::printf(
             "SHIPPING(set_user_reg):\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[1], pkt.pins[0], pkt.mask[1], pkt.mask[0]);
+#endif
+#else
+    if(address == 3) {
+        gpio_burst_req pkt;
+	    pkt.header = ((uint64_t) 0x3) << 32;
+        pkt.pins[0] = pins[0];
+        pkt.mask[0] = mask[0];
+        pkt.tv_sec = _command_time.get_full_secs();
+        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
+
+#ifdef DEBUG_COUT
+        std::printf(
+            "SHIPPING(set_user_reg):\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[0], pkt.mask[0]);
+#endif
+#endif
 
         boost::endian::native_to_big_inplace(pkt.header);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask);
+#ifdef PV_TATE
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[1]);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[1]);
+#endif
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[0]);
+        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[0]);
         #ifdef DEBUG_COUT
         std::cout << "GPIO packet size: " << sizeof(pkt) << " bytes" << std::endl;
         #endif
@@ -527,7 +615,7 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE * 1e9;
+static constexpr double tick_period_ns = 1.0 / CRIMSON_TNG_DSP_CLOCK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
@@ -588,7 +676,7 @@ void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd,
 }
 
 void crimson_tng_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
+	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
@@ -602,14 +690,51 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 		crimson_now
 	);
 
-	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+    // By default send over SFPA
+	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+}
+
+void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
+
+	time_diff_req pkt;
+
+	// Input to Process (includes feedback from PID Controller)
+	make_time_diff_packet(
+		pkt,
+		crimson_now
+	);
+
+    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
+        throw runtime_error( "XG Control interface offset out of bound!" );
+    }
+	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
 bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	size_t r;
 
-	r = _time_diff_iface->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+    // By default send over SFPA
+	r = _time_diff_iface[0]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+
+	if ( 0 == r ) {
+		return false;
+	}
+
+	boost::endian::big_to_native_inplace( tdr.tv_sec );
+	boost::endian::big_to_native_inplace( tdr.tv_tick );
+
+	return true;
+}
+
+bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
+
+	size_t r;
+
+    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
+        throw runtime_error( "XG Control interface offset out of bound!" );
+    }
+	r = _time_diff_iface[xg_intf]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
 
 	if ( 0 == r ) {
 		return false;
@@ -689,6 +814,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	dev->_bm_thread_running = true;
 
+    int xg_intf = 0;
 	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
@@ -701,8 +827,8 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	//Gett offset
 	now = uhd::get_system_time();
-	dev->time_diff_send( now );
-	dev->time_diff_recv( tdr );
+	dev->time_diff_send( now, xg_intf );
+	dev->time_diff_recv( tdr, xg_intf );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -728,10 +854,11 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now );
-		if ( ! dev->time_diff_recv( tdr ) ) {
+		dev->time_diff_send( crimson_now, xg_intf );
+		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
+			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
 			continue;
-		}
+        }
 		dev->time_diff_process( tdr, now );
 		//dev->fifo_update_process( tdr );
 
@@ -745,6 +872,13 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 					<< std::endl;
 			}
 #endif
+        // At every iteration, loop through different interfaces so that we
+        // have an average of the time diffs through different interfaces!
+        if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
+            xg_intf++;
+        } else {
+            xg_intf = 0;
+        }
 	}
 	dev->_bm_thread_running = false;
 }
@@ -914,6 +1048,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "sfpc/ip_addr",  "fpga/link/sfpc/ip_addr",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpc/mac_addr", "fpga/link/sfpc/mac_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpc/pay_len",  "fpga/link/sfpc/pay_len",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/ip_addr",  "fpga/link/sfpd/ip_addr",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/mac_addr", "fpga/link/sfpd/mac_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/pay_len",  "fpga/link/sfpd/pay_len",  std::string, string);
+#endif
+
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
@@ -921,8 +1064,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
     TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
+    TREE_CREATE_RW(mb_path / "fpga/board/rstreq_all_dsp", "fpga/board/rstreq_all_dsp", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
+#endif
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
@@ -952,9 +1100,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "link" / "sfpc" / "ip_addr",  "fpga/link/sfpc/ip_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
+    TREE_CREATE_RW(mb_path / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
+#endif
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2);
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_DSP_CLOCK_RATE );
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
@@ -1130,8 +1284,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // loop for all TX chains
     for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/4 + 'a'));
+		std::string num     = boost::lexical_cast<std::string>((char)(dspno/4 + 'A'));
 		std::string chan    = "Channel_" + num;
 
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
@@ -1149,57 +1303,54 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
 
         // TX Triggers
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/sma_mode"       , "tx_" + lc_num + "/trigger/sma_mode"       , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/trig_sel"       , "tx_" + lc_num + "/trigger/trig_sel"       , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_backoff"   , "tx_" + lc_num + "/trigger/edge_backoff"   , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_sample_num", "tx_" + lc_num + "/trigger/edge_sample_num", std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_mode"       , "tx_" + lc_num + "/trigger/ufl_mode"       , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"        , "tx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"        , "tx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
-        TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/sma_mode"        , "tx_" + lc_num + "/trigger/sma_mode"          , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/trig_sel"        , "tx_" + lc_num + "/trigger/trig_sel"          , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_backoff"    , "tx_" + lc_num + "/trigger/edge_backoff"      , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_sample_num" , "tx_" + lc_num + "/trigger/edge_sample_num"   , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_mode"        , "tx_" + lc_num + "/trigger/ufl_mode"          , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"         , "tx_" + lc_num + "/trigger/ufl_dir"           , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"         , "tx_" + lc_num + "/trigger/ufl_pol"           , std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"          , "tx_" + lc_num + "/trigger/gating"            , std::string, string);
 
 		// Actual frequency values
-		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
+		TREE_CREATE_RW(tx_path / chan / "freq" / "value"            , "tx_"+lc_num+"/rf/freq/val"                   , double, double);
 
 		// Power status
-		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
+		TREE_CREATE_RW(tx_path / dspno / "pwr"                      , "tx_"+lc_num+"/pwr"                           , std::string, string);
 
 		// Codecs, phony properties for Crimson
-		TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
-		TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
+		TREE_CREATE_RW(tx_codec_path / "gains"                      , "tx_"+lc_num+"/dsp/gain"                      , int, int);
+		TREE_CREATE_ST(tx_codec_path / "name"                       , std::string                                   , "TX Codec");
 
 		// Daughter Boards' Frontend Settings
-		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
+		TREE_CREATE_ST(tx_fe_path / "name"                          , std::string                                   , "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value"           , double                                        , CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range"           , meta_range_t                                  , meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
 
-		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "freq"                          , meta_range_t                                  , meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
 
-		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
-		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value"           , std::complex<double>                          , std::complex<double>(0.0, 0.0));
+		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value"          , std::complex<double>                          , std::complex<double>(0.0, 0.0));
 
-		TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
+		TREE_CREATE_RW(tx_fe_path / "connection"                    , "tx_"+lc_num+"/link/iface"                    , std::string, string);
 
-		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
-		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
+		TREE_CREATE_ST(tx_fe_path / "use_lo_offset"                 , bool                                          , false);
+		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value"           , "tx_"+lc_num+"/rf/dac/nco"                    , double, double);
 
-		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "freq" / "range"                , meta_range_t                                  , meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "gain" / "range"                , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
-		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
-		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
-		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
+		TREE_CREATE_RW(tx_fe_path / "freq"  / "value"               , "tx_"+lc_num+"/rf/freq/val"                   , double, double);
+		TREE_CREATE_ST(tx_fe_path / "gains"                         , std::string                                   , "gain" );
+		TREE_CREATE_RW(tx_fe_path / "gain"  / "value"               , "tx_"+lc_num+"/rf/gain/val"                   , double, double);
 
 		// RF band
-		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/freq/band", int, int);
+		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/freq/band"                  , int, int);
 
 		// these are phony properties for Crimson
-		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
+		TREE_CREATE_ST(db_path / "tx_eeprom"                        , dboard_eeprom_t                               , dboard_eeprom_t());
 
 		// DSPs
 		switch( dspno + 'A' ) {
@@ -1208,22 +1359,16 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 #ifdef PV_TATE
                 default:
 #endif
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
 #ifndef PV_TATE
 		case 'C':
 		case 'D':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
 #endif
 		}
@@ -1233,17 +1378,48 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
 			.set_publisher(boost::bind(&crimson_tng_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
 
-		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
+		TREE_CREATE_RW(tx_dsp_path / "bw" / "value"                 , "tx_"+lc_num+"/dsp/rate"                      ,  double, double);
+		TREE_CREATE_RW(tx_dsp_path / "rstreq"                       , "tx_"+lc_num+"/dsp/rstreq"                    , double, double);
+#ifdef PV_TATE
+        // To understand this better, review the structure of the DAC. It has 6 channels and 2 datapaths.
+        // Note: ch2 and ch5 are unused.
+        switch (dspno % CRIMSON_TNG_DSP_PER_RFE) {
+            case 0 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch0fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch0fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch0freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac0freq"           , double, double);
+                break;
+            case 1 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch1fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch1fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch1freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac0freq"           , double, double);
+                break;
+            case 2 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch3fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch3fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch3freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac1freq"           , double, double);
+                break;
+            case 3 :
+                TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch4fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch4fpga_nco"               , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch4freq"            , double, double);
+                TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac1freq"           , double, double);
+                break;
+        }
+#else
+		TREE_CREATE_RW(tx_dsp_path / "freq" / "value"   , "tx_"+lc_num+"/dsp/nco_adj", double, double);
+		TREE_CREATE_RW(tx_dsp_path / "nco"              , "tx_"+lc_num+"/dsp/nco_adj", double, double);
+		TREE_CREATE_RW(tx_fe_path / "nco"               , "tx_"+lc_num+"/rf/dac/nco", double, double);
+#endif
 
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
-
-		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
-		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
 		// Link settings
-		TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
-		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
-		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
+		TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_num+"/link/vita_en"  , std::string, string);
+		TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/port"     , std::string, string);
+		TREE_CREATE_RW(tx_link_path / "iface"           , "tx_"+lc_num+"/link/iface"    , std::string, string);
 
 
 		zero_copy_xport_params zcxp;
@@ -1285,6 +1461,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 	const fs_path cm_path  = mb_path / "cm";
 
+#ifdef PV_TATE
+	_tree->access<int>(mb_path / "fpga/board/rstreq_all_dsp").set(1);
+#endif
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
@@ -1309,8 +1488,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
+#ifdef PV_TATE
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+#else
 		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
 		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+#endif
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 
@@ -1323,11 +1507,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 //        }
     }
 
-	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
-	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
-	std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfpa" / "ip_addr" ).get();
-	std::string time_diff_port = std::to_string( sfpa_port );
-	_time_diff_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
+    for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
+        std::string xg_intf = std::string(1, char('a' + i));
+        int sfp_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string time_diff_port = std::to_string( sfp_port );
+        _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
+    }
 
 
 	_bm_thread_needed = is_bm_thread_needed();
@@ -1389,9 +1575,35 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 }
 
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
-
+#ifdef PV_TATE
 	switch( chan ) {
-#ifndef PV_TATE
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+		sfp = "sfpa";
+		break;
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+		sfp = "sfpb";
+		break;
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+		sfp = "sfpc";
+		break;
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+		sfp = "sfpd";
+		break;
+	}
+#else
+	switch( chan ) {
         case 0:
 	case 2:
 		sfp = "sfpa";
@@ -1400,34 +1612,8 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	case 3:
 		sfp = "sfpb";
 		break;
-#else
-        case 0:
-	case 1:
-        case 2:
-        case 3:
-		sfp = "sfpa";
-                break;
-        case 4:
-	case 5:
-        case 6:
-        case 7:
-                sfp = "sfpb";
-                break;
-        case 8:
-	case 9:
-        case 10:
-        case 11:
-                sfp = "sfpa"; //TODO: Fix to sfpC
-		break;
-        case 12:
-        case 13:
-        case 14:
-        case 15:
-                sfp = "sfpb"; //TODO: Fix to sfpD
-		break;
-#endif
 	}
-
+#endif
 	const std::string chan_str( 1, 'A' + chan );
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path prop_path = mb_path / "tx_link";
