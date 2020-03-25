@@ -391,7 +391,8 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
 	//------------------------------------------------------------------
-	double target_rf_freq = 0.0;
+	double target_rf_dac_dp_freq = 0.0;
+	double target_rf_dac_ch_freq = 0.0;
 	double dsp_nco_shift = 0;
 
 	// kb #3689, for phase coherency, we must set the DAC NCO to 0
@@ -417,7 +418,9 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 		break;
 
 		case tune_request_t::POLICY_MANUAL:
-			target_rf_freq = rf_range.clip( tune_request.rf_freq );
+			target_rf_freq = tune_request.rf_freq;
+			target_rf_dac_dp_freq = rf_range.clip( tune_request.rf_dp_freq );
+			target_rf_dac_ch_freq = rf_range.clip( tune_request.rf_ch_freq );
 			break;
 
 		case tune_request_t::POLICY_NONE:
@@ -427,8 +430,10 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend
 	//------------------------------------------------------------------
-	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
-	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+	rf_fe_subtree->access<double>("dpnco").set( target_rf_dac_dp_freq );
+	rf_fe_subtree->access<double>("chnco").set( target_rf_dac_ch_freq );
+	// const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+	const double actual_rf_freq = rf_fe_subtree->access<double>("dpnco").get() + rf_fe_subtree->access<double>("chnco").get();
 
 	//------------------------------------------------------------------
 	//-- Set the DSP frequency depending upon the DSP frequency policy.
