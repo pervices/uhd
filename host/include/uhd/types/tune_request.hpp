@@ -64,13 +64,20 @@ namespace uhd{
         policy_t rf_freq_policy;
 
         /*!
-         * The RF frequency in Hz. This is DAD Datapath NCO tuning word.
+         * The RF frequency in Hz.
+         * This is DAD Datapath plus DAC Channelizer NCO tuning word.
          * Set when the policy is set to manual.
          *
          * Note: We must reuse the same name for compatibility with UHD.
          *       A proper name for this variable would be rf_dp_freq.
          */
         double rf_freq;
+
+        /*!
+         * The RF frequency in Hz. This is DAD Datapath NCO tuning word.
+         * Set when the policy is set to manual.
+         */
+        double rf_dp_freq;
 
         /*!
          * The RF frequency in Hz. This is DAD Channel NCO tuning word.
