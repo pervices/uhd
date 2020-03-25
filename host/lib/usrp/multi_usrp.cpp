@@ -399,6 +399,7 @@ static tune_result_t tune_xx_subdev_and_dsp(const int is_tx, const double xx_sig
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
 	//------------------------------------------------------------------
+	double target_rf_freq = 0.0;
 	double target_rf_dac_dp_freq = 0.0;
 	double target_rf_dac_ch_freq = 0.0;
 	double dsp_nco_shift = 0;

@@ -37,7 +37,7 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
     /* NOP */
 }
 
-tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf_dp_freq, double dsp_freq double lo_off, double dsp_freq ):
+tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf_dp_freq, double dsp_freq, double lo_off, double dsp_freq ):
     target_freq(target_freq),
     rf_freq_policy(POLICY_MANUAL),
     rf_freq(rf_ch_freq + rf_dp_freq),
