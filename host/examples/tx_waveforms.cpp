@@ -91,7 +91,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
     uint64_t total_num_samps;
     size_t spb;
-    double rate, freq, gain, wave_freq, bw;
+    double rate, ch_freq, dp_freq, gain, wave_freq, bw;
     float ampl;
 
     double first, last, increment;
@@ -104,7 +104,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
         ("nsamps", po::value<uint64_t>(&total_num_samps)->default_value(0), "total number of samples to transmit")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
-        ("freq", po::value<double>(&freq), "RF center frequency in Hz")
+        ("ch-freq", po::value<double>(&ch_freq), "DAC Channel RF center frequency in Hz")
+        ("dp-freq", po::value<double>(&dp_freq), "DAC Datapath RF center frequency in Hz")
+        ("dsp-freq", po::value<double>(&dp_freq), "FPGA DSP center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
@@ -166,14 +168,26 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate()/1e6) << std::endl << std::endl;
 
     //set the center frequency
-    if (not vm.count("freq")){
-        std::cerr << "Please specify the center frequency with --freq" << std::endl;
+    if (not vm.count("dp-freq")){
+        std::cerr << "Please specify the DAC Datapath center frequency with --dp-freq" << std::endl;
+        return ~0;
+    }
+
+    //set the center frequency
+    if (not vm.count("ch-freq")){
+        std::cerr << "Please specify the DAC Channel center frequency with --ch-freq" << std::endl;
+        return ~0;
+    }
+
+    //set the center frequency
+    if (not vm.count("dsp-freq")){
+        std::cerr << "Please specify the DAC Channel center frequency with --dsp-freq" << std::endl;
         return ~0;
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(freq);
+        uhd::tune_request_t tune_request(ch_freq + dp_freq + dsp_freq, ch_freq, dp_freq, 0.0, dsp_freq);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
         std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
