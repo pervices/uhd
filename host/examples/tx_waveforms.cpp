@@ -158,7 +158,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
     uint64_t total_num_samps;
     size_t spb;
-    double rate, ch_freq, dp_freq, gain, wave_freq, bw;
+    double rate, ch_freq, dp_freq, dsp_freq, gain, wave_freq, bw;
     float ampl;
 
     double first, last, increment;
@@ -173,7 +173,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("ch-freq", po::value<double>(&ch_freq), "DAC Channel RF center frequency in Hz")
         ("dp-freq", po::value<double>(&dp_freq), "DAC Datapath RF center frequency in Hz")
-        ("dsp-freq", po::value<double>(&dp_freq), "FPGA DSP center frequency in Hz")
+        ("dsp-freq", po::value<double>(&dsp_freq), "FPGA DSP center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
@@ -253,8 +253,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
-        std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(ch_freq + dp_freq + dsp_freq, ch_freq, dp_freq, 0.0, dsp_freq);
+        double total_freq = ch_freq + dp_freq + dsp_freq;
+        std::cout << boost::format("Setting TX Freq: %f MHz...") % (total_freq/1e6) << std::endl;
+        uhd::tune_request_t tune_request(total_freq, ch_freq, dp_freq, 0.0, dsp_freq);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
         std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
