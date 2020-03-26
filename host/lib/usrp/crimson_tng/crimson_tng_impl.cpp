@@ -1294,6 +1294,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		const fs_path tx_dsp_path   = mb_path / "tx_dsps" / dspno;
 		const fs_path tx_link_path  = mb_path / "tx_link" / dspno;
 
+#ifdef PV_TATE
+        if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
+#endif
 		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
 		_tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
 
@@ -1301,6 +1304,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
 		_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
+#ifdef PV_TATE
+        }
+#endif
 
         // TX Triggers
         TREE_CREATE_RW(tx_path / dspno / "/trigger/sma_mode"        , "tx_" + lc_num + "/trigger/sma_mode"          , std::string, string);
