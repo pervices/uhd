@@ -1286,9 +1286,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/4 + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno/4 + 'A'));
-		std::string chan    = "Channel_" + num;
+		// std::string chan    = "Channel_" + num;
+		std::string chan    = "Channel_" + std::to_string(dspno%4);
 
-		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
+		const fs_path tx_codec_path = mb_path / "tx_codecs" / num / "tx_codecs" / chan;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
 		const fs_path db_path       = mb_path / "dboards" / num;
 		const fs_path tx_dsp_path   = mb_path / "tx_dsps" / dspno;
@@ -1319,7 +1320,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"          , "tx_" + lc_num + "/trigger/gating"            , std::string, string);
 
 		// Actual frequency values
-		TREE_CREATE_RW(tx_path / chan / "freq" / "value"            , "tx_"+lc_num+"/rf/freq/val"                   , double, double);
+		TREE_CREATE_RW(tx_path / chan / dspno / "freq" / "value"            , "tx_"+lc_num+"/rf/freq/val"                   , double, double);
 
 		// Power status
 		TREE_CREATE_RW(tx_path / dspno / "pwr"                      , "tx_"+lc_num+"/pwr"                           , std::string, string);
@@ -1355,8 +1356,14 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		// RF band
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/freq/band"                  , int, int);
 
+#ifdef PV_TATE
+        if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
+#endif
 		// these are phony properties for Crimson
 		TREE_CREATE_ST(db_path / "tx_eeprom"                        , dboard_eeprom_t                               , dboard_eeprom_t());
+#ifdef PV_TATE
+        }
+#endif
 
 		// DSPs
 		switch( dspno + 'A' ) {
@@ -1582,32 +1589,15 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 #ifdef PV_TATE
-	switch( chan ) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-		sfp = "sfpa";
-		break;
-	case 4:
-	case 5:
-	case 6:
-	case 7:
-		sfp = "sfpb";
-		break;
-	case 8:
-	case 9:
-	case 10:
-	case 11:
-		sfp = "sfpc";
-		break;
-	case 12:
-	case 13:
-	case 14:
-	case 15:
-		sfp = "sfpd";
-		break;
-	}
+    if (chan < 16) {
+        sfp = "sfpa";
+    } else if (chan < 32) {
+        sfp = "sfpb";
+    } else if (chan < 48) {
+        sfp = "sfpc";
+    } else if (chan < 64) {
+        sfp = "sfpd";
+    }
 #else
 	switch( chan ) {
         case 0:
