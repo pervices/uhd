@@ -358,7 +358,7 @@ static void do_tune_freq_results_message( tune_request_t &req, tune_result_t &re
  **********************************************************************/
 multi_cyan_64t::multi_cyan_64t(const device_addr_t &addr) {
     // this make will invoke the correct inherited crimson device class
-    _dev  = device::make(addr, device::CRIMSON_TNG);
+    _dev  = device::make(addr, device::CYAN_64T);
     _tree = _dev  -> get_tree();
 }
 
@@ -634,7 +634,7 @@ subdev_spec_t multi_cyan_64t::get_rx_subdev_spec(size_t mboard){
 
 // Get number of RX channels, Crimson has 4, Cyan 16
 size_t multi_cyan_64t::get_rx_num_channels(void){
-    return CRIMSON_TNG_RX_CHANNELS;
+    return CYAN_64T_RX_CHANNELS;
 }
 
 // Get the name of the Crimson subdevice on specified channel
@@ -836,8 +836,8 @@ void multi_cyan_64t::set_rx_gain(double gain, const std::string &name, size_t ch
 		double gain_val = 0;
 		double lna_val = 0;
 
-		gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
-		gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
+		gain = gain < CYAN_64T_RF_RX_GAIN_RANGE_START ? CYAN_64T_RF_RX_GAIN_RANGE_START : gain;
+		gain = gain > CYAN_64T_RF_RX_GAIN_RANGE_STOP ? CYAN_64T_RF_RX_GAIN_RANGE_STOP : gain;
 
 		if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
 			// Low-Band
@@ -867,7 +867,7 @@ void multi_cyan_64t::set_rx_gain(double gain, const std::string &name, size_t ch
 			// High-Band
 
 			if ( false ) {
-			} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
+			} else if ( CYAN_64T_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
 				// PMA is off (+0dB)
 				lna_val = 0;
 				// BFP is on (+20dB)
@@ -883,12 +883,12 @@ void multi_cyan_64t::set_rx_gain(double gain, const std::string &name, size_t ch
 				atten_val = 63.25 - gain;
 				// LMH is maxed (+31.5dB)
 				gain_val = 31.5;
-			} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+			} else if ( 63.25 < gain && gain <= CYAN_64T_RF_RX_GAIN_RANGE_STOP ) {
 				// PMA is on (+20dB)
 				lna_val = 20;
 				// BFP is on (+20dB)
 				// PE437 is adjusted from -20 dB to 0dB
-				atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
+				atten_val = CYAN_64T_RF_RX_GAIN_RANGE_STOP - gain;
 				// LMH is maxed (+31.5dB)
 				gain_val = 31.5;
 			}
@@ -1119,7 +1119,7 @@ subdev_spec_t multi_cyan_64t::get_tx_subdev_spec(size_t mboard){
 
 // Get number of TX channels, Crimson has 4, Cyan 16.
 size_t multi_cyan_64t::get_tx_num_channels(void){
-    return CRIMSON_TNG_TX_CHANNELS;
+    return CYAN_64T_TX_CHANNELS;
 }
 
 // Get the name of the Crimson subdevice on specified channel

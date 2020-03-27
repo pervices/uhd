@@ -1031,7 +1031,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&crimson_tng_impl::update_tx_subdev_spec, this, mb, _1));
 
     TREE_CREATE_ST(mb_path / "vendor", std::string, "Per Vices");
-    TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
+    TREE_CREATE_ST(mb_path / "name",   std::string, "CrimsonTNG");
     TREE_CREATE_RW(mb_path / "id",         "fpga/about/id",     std::string, string);
     TREE_CREATE_RW(mb_path / "serial",     "fpga/about/serial", std::string, string);
     TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
@@ -1079,14 +1079,14 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(time_path / "sw_version", "time/about/sw_ver", std::string, string);
 
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
-    TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 322MHz BW and DC-6GHz each");
+    TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 325MHz BW and DC-6GHz each");
     TREE_CREATE_RW(rx_path / "id",         "rx_a/about/id",     std::string, string);
     TREE_CREATE_RW(rx_path / "serial",     "rx_a/about/serial", std::string, string);
     TREE_CREATE_RW(rx_path / "fw_version", "rx_a/about/fw_ver", std::string, string);
     TREE_CREATE_RW(rx_path / "sw_version", "rx_a/about/sw_ver", std::string, string);
 
     TREE_CREATE_ST(tx_path / "name", std::string, "TX Board");
-    TREE_CREATE_ST(tx_path / "spec", std::string, "4 TX RF chains, 322MHz BW and DC-6GHz each");
+    TREE_CREATE_ST(tx_path / "spec", std::string, "4 TX RF chains, 325MHz BW and DC-6GHz each");
     TREE_CREATE_RW(tx_path / "id",         "tx_a/about/id",     std::string, string);
     TREE_CREATE_RW(tx_path / "serial",     "tx_a/about/serial", std::string, string);
     TREE_CREATE_RW(tx_path / "fw_version", "tx_a/about/fw_ver", std::string, string);

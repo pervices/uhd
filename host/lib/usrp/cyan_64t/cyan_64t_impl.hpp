@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CRIMSON_TNG_IMPL_HPP
-#define INCLUDED_CRIMSON_TNG_IMPL_HPP
+#ifndef INCLUDED_CYAN_64T_IMPL_HPP
+#define INCLUDED_CYAN_64T_IMPL_HPP
 
 #include <set>
 #include <vector>
@@ -37,17 +37,10 @@
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
-#ifdef PV_TATE
 // Tate has 80 GPIO signals and requires two 64-bit registers
 #define NUMBER_OF_GPIO_SIGNALS 80
 #define NUMBER_OF_GPIO_REGS 2
 #define NUMBER_OF_XG_CONTROL_INTF 4
-#else
-// Vaunt has 44 GPIO signals which fit into a single 64-bit register
-#define NUMBER_OF_GPIO_SIGNALS 44
-#define NUMBER_OF_GPIO_REGS 1
-#define NUMBER_OF_XG_CONTROL_INTF 1
-#endif
 
 namespace uhd {
 namespace usrp {
@@ -266,4 +259,4 @@ private:
 }
 }
 
-#endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
+#endif /* INCLUDED_CYAN_64T_IMPL_HPP */

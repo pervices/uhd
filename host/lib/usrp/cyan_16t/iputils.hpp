@@ -1,5 +1,5 @@
-#ifndef HOST_LIB_USRP_CRIMSON_TNG_IPUTILS_HPP_
-#define HOST_LIB_USRP_CRIMSON_TNG_IPUTILS_HPP_
+#ifndef HOST_LIB_USRP_CYAN_16T_IPUTILS_HPP_
+#define HOST_LIB_USRP_CYAN_16T_IPUTILS_HPP_
 
 #include <cstdio>
 #include <iostream>
@@ -242,4 +242,4 @@ public:
 
 }
 
-#endif /* HOST_LIB_USRP_CRIMSON_TNG_IPUTILS_HPP_ */
+#endif /* HOST_LIB_USRP_CYAN_16T_IPUTILS_HPP_ */

@@ -294,14 +294,8 @@ void cyan_64t_impl::set_user_reg(const std::string key, user_reg_t value) {
     const uint8_t  address = value.first;
     const uint64_t setting = (uint64_t) value.second;
 
-#ifdef PV_TATE
     static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
     static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
-#else
-    static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0};
-    static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0};
-#endif
-
 
     // Sanity check to make sure that user is not exceeding legal GPIO range
     uint32_t pin_number = setting;
@@ -322,7 +316,7 @@ void cyan_64t_impl::set_user_reg(const std::string key, user_reg_t value) {
     }
 
     const uint64_t all = 0x00000000FFFFFFFF;
-#ifdef PV_TATE
+
     // Note: pins and mask will be treated as big-endian later on, so address == 0 -> pins[1]
     // Clearing first 32-bits
     if(address == 0) pins[1] &= ~(all << 0x00);
@@ -352,28 +346,9 @@ void cyan_64t_impl::set_user_reg(const std::string key, user_reg_t value) {
 
     if(address > 7)
         std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
-#else
-    // Clearing first 32-bits
-    if(address == 0) pins[0] &= ~(all << 0x00);
-    if(address == 1) mask[0] &= ~(all << 0x00);
-    // Clearing second 32-bits
-    if(address == 2) pins[0] &= ~(all << 0x20);
-    if(address == 3) mask[0] &= ~(all << 0x20);
-
-    // Setting first 32-bits
-    if(address == 0) pins[0] |= (setting << 0x00);
-    if(address == 1) mask[0] |= (setting << 0x00);
-    // Setting second 32-bits
-    if(address == 2) pins[0] |= (setting << 0x20);
-    if(address == 3) mask[0] |= (setting << 0x20);
-
-    if(address > 3)
-        std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
-#endif
-
 
     // Ship if address 3 was written to.
-#ifdef PV_TATE
+
     if(address == 7) {
         gpio_burst_req pkt;
 	    pkt.header = (((uint64_t) 0x3) << 32) + (((uint64_t) 0x1) << 16);
@@ -395,38 +370,20 @@ void cyan_64t_impl::set_user_reg(const std::string key, user_reg_t value) {
             "0x%016lX\n"
             "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[1], pkt.pins[0], pkt.mask[1], pkt.mask[0]);
 #endif
-#else
-    if(address == 3) {
-        gpio_burst_req pkt;
-	    pkt.header = ((uint64_t) 0x3) << 32;
-        pkt.pins[0] = pins[0];
-        pkt.mask[0] = mask[0];
-        pkt.tv_sec = _command_time.get_full_secs();
-        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
 
-#ifdef DEBUG_COUT
-        std::printf(
-            "SHIPPING(set_user_reg):\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[0], pkt.mask[0]);
-#endif
-#endif
 
         boost::endian::native_to_big_inplace(pkt.header);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
-#ifdef PV_TATE
+
         boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[1]);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[1]);
-#endif
+
         boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[0]);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[0]);
-        #ifdef DEBUG_COUT
+#ifdef DEBUG_COUT
         std::cout << "GPIO packet size: " << sizeof(pkt) << " bytes" << std::endl;
-        #endif
+#endif
 
         send_gpio_burst_req(pkt);
     }
@@ -457,7 +414,7 @@ void cyan_64t_impl::set_properties_from_addr() {
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
+				UHD_LOGGER_ERROR("CYAN_64T_IMPL")
 					<< __func__ << "(): "
 					<< "Setting Crimson property failed: "
 					<< "key: '"<< key << "', "
@@ -480,7 +437,7 @@ static device_addrs_t cyan_64t_find_with_addr(const device_addr_t &hint)
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
+        hint["addr"], BOOST_STRINGIZE(CYAN_64T_FW_COMMS_UDP_PORT));
 
     then = uhd::get_system_time();
 
@@ -489,7 +446,7 @@ static device_addrs_t cyan_64t_find_with_addr(const device_addr_t &hint)
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
-    char buff[CRIMSON_TNG_FW_COMMS_MTU] = {};
+    char buff[CYAN_64T_FW_COMMS_MTU] = {};
 
     for(
 		float to = 0.2;
@@ -517,7 +474,7 @@ static device_addrs_t cyan_64t_find_with_addr(const device_addr_t &hint)
             (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
-            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found cyan_64t at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
+            //UHD_LOGGER_INFO( "CYAN_64T_IMPL" ) << "Found cyan_64t at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
             addrs.push_back(new_addr);
         }
     }
@@ -554,11 +511,7 @@ static device_addrs_t cyan_64t_find(const device_addr_t &hint_)
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
 
-#ifdef PV_TATE
-    if (hint.has_key("type") and hint["type"] != "tate") return addrs;
-#else
     if (hint.has_key("type") and hint["type"] != "cyan_64t") return addrs;
-#endif
 
     //use the address given
     if (hint.has_key("addr"))
@@ -570,11 +523,11 @@ static device_addrs_t cyan_64t_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("CYAN_64T_IMPL") << "CYAN_64T Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("CYAN_64T_IMPL") << "CYAN_64T Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -611,7 +564,7 @@ static device_addrs_t cyan_64t_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 1.0 / CRIMSON_TNG_DSP_CLOCK_RATE * 1e9;
+static constexpr double tick_period_ns = 1.0 / CYAN_64T_DSP_CLOCK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
@@ -781,7 +734,7 @@ void cyan_64t_impl::start_bm() {
 			time_now = uhd::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
+				UHD_LOGGER_ERROR("CYAN_64T_IMPL")
 					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
 					<< std::endl;
 				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
@@ -811,8 +764,8 @@ void cyan_64t_impl::bm_thread_fn( cyan_64t_impl *dev ) {
 	dev->_bm_thread_running = true;
 
     int xg_intf = 0;
-	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
-	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS );
+	const uhd::time_spec_t T( 1.0 / (double) CYAN_64T_UPDATE_PER_SEC );
+	std::vector<size_t> fifo_lvl( CYAN_64T_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
 	uhd::time_spec_t crimson_now;
 	struct timespec req, rem;
@@ -863,7 +816,7 @@ void cyan_64t_impl::bm_thread_fn( cyan_64t_impl *dev ) {
 			now = uhd::get_system_time();
 
 			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CRIMSON_IMPL" )
+				UHD_LOGGER_INFO( "CYAN_64T_IMPL" )
 					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
 					<< std::endl;
 			}
@@ -928,7 +881,7 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 	_bm_thread_should_exit( false ),
     _command_time()
 {
-    _type = device::CRIMSON_TNG;
+    _type = device::CYAN_64T;
     device_addr = _device_addr;
 
     //setup the dsp transport hints (default to a large recv buff)
@@ -944,7 +897,7 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_64T_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
@@ -967,8 +920,8 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 //        device_addr["recv_frame_size"] = boost::lexical_cast<std::string>(mtu.recv_mtu);
 //        device_addr["send_frame_size"] = boost::lexical_cast<std::string>(mtu.send_mtu);
 //
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
+//        UHD_LOGGER_INFO("CYAN_64T_IMPL") << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
+//        UHD_LOGGER_INFO("CYAN_64T_IMPL") << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
 //    }
 //    catch(const uhd::not_implemented_error &){
 //        //just ignore this error, makes older fw work...
@@ -982,7 +935,7 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     _mbc[mb].iface = cyan_64t_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
-			BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
+			BOOST_STRINGIZE( CYAN_64T_FW_COMMS_UDP_PORT )
 		)
     );
 
@@ -1011,23 +964,21 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options").set(clock_source_options);
 
-    TREE_CREATE_ST("/name", std::string, "Crimson_TNG Device");
+    TREE_CREATE_ST("/name", std::string, "Cyan 64t Device");
 
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
-#ifdef PV_TATE
+
     static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-#else
-    static const std::vector<size_t> default_map { 0, 1, 2, 3 };
-#endif
+
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_64t_impl::update_rx_subdev_spec, this, mb, _1));
     _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_64t_impl::update_tx_subdev_spec, this, mb, _1));
 
     TREE_CREATE_ST(mb_path / "vendor", std::string, "Per Vices");
-    TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
+    TREE_CREATE_ST(mb_path / "name",   std::string, "Cyan64t");
     TREE_CREATE_RW(mb_path / "id",         "fpga/about/id",     std::string, string);
     TREE_CREATE_RW(mb_path / "serial",     "fpga/about/serial", std::string, string);
     TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
@@ -1044,14 +995,14 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
-#ifdef PV_TATE
+
     TREE_CREATE_RW(mb_path / "sfpc/ip_addr",  "fpga/link/sfpc/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpc/mac_addr", "fpga/link/sfpc/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpc/pay_len",  "fpga/link/sfpc/pay_len",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpd/ip_addr",  "fpga/link/sfpd/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpd/mac_addr", "fpga/link/sfpd/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpd/pay_len",  "fpga/link/sfpd/pay_len",  std::string, string);
-#endif
+
 
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
@@ -1063,10 +1014,10 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "fpga/board/rstreq_all_dsp", "fpga/board/rstreq_all_dsp", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
-#ifdef PV_TATE
+
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
-#endif
+
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
@@ -1075,14 +1026,14 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(time_path / "sw_version", "time/about/sw_ver", std::string, string);
 
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
-    TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 322MHz BW and DC-6GHz each");
+    TREE_CREATE_ST(rx_path / "spec",   std::string, "64 RX RF chains, 1000MHz BW and DC-18GHz each");
     TREE_CREATE_RW(rx_path / "id",         "rx_a/about/id",     std::string, string);
     TREE_CREATE_RW(rx_path / "serial",     "rx_a/about/serial", std::string, string);
     TREE_CREATE_RW(rx_path / "fw_version", "rx_a/about/fw_ver", std::string, string);
     TREE_CREATE_RW(rx_path / "sw_version", "rx_a/about/sw_ver", std::string, string);
 
     TREE_CREATE_ST(tx_path / "name", std::string, "TX Board");
-    TREE_CREATE_ST(tx_path / "spec", std::string, "4 TX RF chains, 322MHz BW and DC-6GHz each");
+    TREE_CREATE_ST(tx_path / "spec", std::string, "64 TX RF chains, 1000MHz BW and DC-18GHz each");
     TREE_CREATE_RW(tx_path / "id",         "tx_a/about/id",     std::string, string);
     TREE_CREATE_RW(tx_path / "serial",     "tx_a/about/serial", std::string, string);
     TREE_CREATE_RW(tx_path / "fw_version", "tx_a/about/fw_ver", std::string, string);
@@ -1096,15 +1047,15 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
-#ifdef PV_TATE
+
     TREE_CREATE_RW(mb_path / "link" / "sfpc" / "ip_addr",  "fpga/link/sfpc/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
-#endif
+
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_DSP_CLOCK_RATE );
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_64T_DSP_CLOCK_RATE );
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
@@ -1116,7 +1067,7 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
-    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CRIMSON_TNG_EXT_CLK_RATE);
+    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CYAN_64T_EXT_CLK_RATE);
     TREE_CREATE_ST(mb_path / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(mb_path / "time_source"  / "output", bool, true);
 
@@ -1126,7 +1077,7 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
-    for( size_t dspno = 0; dspno < CRIMSON_TNG_RX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < CYAN_64T_RX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1168,11 +1119,11 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CYAN_64T_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CYAN_64T_MASTER_CLOCK_RATE / 2.0, CYAN_64T_MASTER_CLOCK_RATE / 2.0 ) );
 
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CYAN_64T_FREQ_RANGE_START, CYAN_64T_FREQ_RANGE_STOP, CYAN_64T_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1184,9 +1135,9 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, 15e6 );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CYAN_64T_FREQ_RANGE_START, CYAN_64T_FREQ_RANGE_STOP, CYAN_64T_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
+			meta_range_t(CYAN_64T_RF_RX_GAIN_RANGE_START, CYAN_64T_RF_RX_GAIN_RANGE_STOP, CYAN_64T_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
@@ -1209,27 +1160,14 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
-#ifdef PV_TATE
                 default:
-#endif
                     TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_64T_RATE_RANGE_START, CYAN_64T_RATE_RANGE_STOP, CYAN_64T_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t(CYAN_64T_DSP_FREQ_RANGE_START, CYAN_64T_DSP_FREQ_RANGE_STOP, CYAN_64T_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_64T_RATE_RANGE_START, CYAN_64T_RATE_RANGE_STOP, CYAN_64T_RATE_RANGE_STEP));
 			break;
-#ifndef PV_TATE
-                case 'C':
-		case 'D':
-			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP  / 2, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP , CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
-			break;
-#endif
 		}
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
@@ -1258,7 +1196,7 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_64T_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = 0;
 		zcxp.recv_frame_size = bpp;
@@ -1279,7 +1217,7 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
     }
 
     // loop for all TX chains
-    for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
+    for( int dspno = 0; dspno < CYAN_64T_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1322,11 +1260,11 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, CYAN_64T_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CYAN_64T_MASTER_CLOCK_RATE / 2.0, CYAN_64T_MASTER_CLOCK_RATE / 2.0 ) );
 
 		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CYAN_64T_FREQ_RANGE_START, CYAN_64T_FREQ_RANGE_STOP, CYAN_64T_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1337,9 +1275,9 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CYAN_64T_FREQ_RANGE_START, CYAN_64T_FREQ_RANGE_STOP, CYAN_64T_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
+			meta_range_t(CYAN_64T_RF_TX_GAIN_RANGE_START, CYAN_64T_RF_TX_GAIN_RANGE_STOP, CYAN_64T_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
@@ -1355,27 +1293,15 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
-#ifdef PV_TATE
                 default:
-#endif
 			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_64T_RATE_RANGE_START, CYAN_64T_RATE_RANGE_STOP, CYAN_64T_RATE_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t(CYAN_64T_DSP_FREQ_RANGE_START, CYAN_64T_DSP_FREQ_RANGE_STOP, CYAN_64T_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_64T_RATE_RANGE_START, CYAN_64T_RATE_RANGE_STOP, CYAN_64T_RATE_RANGE_STEP));
 			break;
-#ifndef PV_TATE
-		case 'C':
-		case 'D':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
-			break;
-#endif
+
 		}
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
@@ -1404,11 +1330,11 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_64T_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = bpp;
 		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_send_frames = CYAN_64T_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
 		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;
@@ -1436,9 +1362,9 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 
 	const fs_path cm_path  = mb_path / "cm";
 
-#ifdef PV_TATE
+
 	_tree->access<int>(mb_path / "fpga/board/rstreq_all_dsp").set(1);
-#endif
+
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
@@ -1463,13 +1389,10 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-#ifdef PV_TATE
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
-#else
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-#endif
+
+        _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+        _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 
@@ -1506,10 +1429,10 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 			0.0, // desired set point is 0.0s error
 			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+			2.0 / (double)CYAN_64T_UPDATE_PER_SEC
 		);
 
-		_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+		_time_diff_pidc.set_error_filter_length( CYAN_64T_UPDATE_PER_SEC );
 
 		// XXX: @CF: 20170720: coarse to fine for convergence
 		// we coarsely lock on at first, to ensure the class instantiates properly
@@ -1550,7 +1473,7 @@ bool cyan_64t_impl::is_bm_thread_needed() {
 }
 
 void cyan_64t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
-#ifdef PV_TATE
+
 	switch( chan ) {
 	case 0:
 	case 1:
@@ -1577,18 +1500,7 @@ void cyan_64t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t
 		sfp = "sfpd";
 		break;
 	}
-#else
-	switch( chan ) {
-        case 0:
-	case 2:
-		sfp = "sfpa";
-		break;
-	case 1:
-	case 3:
-		sfp = "sfpb";
-		break;
-	}
-#endif
+
 	const std::string chan_str( 1, 'A' + chan );
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path prop_path = mb_path / "tx_link";
