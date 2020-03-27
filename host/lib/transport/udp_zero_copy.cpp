@@ -17,6 +17,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <sys/socket.h>
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -107,25 +108,35 @@ public:
         _mem(mem), _sock_fd(sock_fd), _frame_size(frame_size) { /*NOP*/ }
 
     void release(void){
-        //Retry logic because send may fail with ENOBUFS.
-        //This is known to occur at least on some OSX systems.
-        //But it should be safe to always check for the error.
-        while (true)
-        {
-            const ssize_t ret = ::send(_sock_fd, (const char *)_mem, size(), 0);
-            if (ret == ssize_t(size())) break;
-            if (ret == -1 and errno == ENOBUFS)
-            {
-                std::this_thread::sleep_for(std::chrono::microseconds(1));
-                continue; //try to send again
-            }
-            if (ret == -1)
-            {
-                throw uhd::io_error(str(boost::format("send error on socket: %s") % strerror(errno)));
-            }
-            UHD_ASSERT_THROW(ret == ssize_t(size()));
-        }
+        // //Retry logic because send may fail with ENOBUFS.
+        // //This is known to occur at least on some OSX systems.
+        // //But it should be safe to always check for the error.
+        // while (true)
+        // {
+        //     const ssize_t ret = ::send(_sock_fd, (const char *)_mem, size(), 0);
+        //     if (ret == ssize_t(size())) break;
+        //     if (ret == -1 and errno == ENOBUFS)
+        //     {
+        //         std::this_thread::sleep_for(std::chrono::microseconds(1));
+        //         continue; //try to send again
+        //     }
+        //     if (ret == -1)
+        //     {
+        //         throw uhd::io_error(str(boost::format("send error on socket: %s") % strerror(errno)));
+        //     }
+        //     UHD_ASSERT_THROW(ret == ssize_t(size()));
+        // }
         _claimer.release();
+    }
+
+    // Override base class get_socket function
+    UHD_INLINE int get_socket(void) {
+        return _sock_fd;
+    }
+
+    UHD_INLINE void get_iov(iovec &iov) {
+        iov.iov_base = _mem;
+        iov.iov_len = _frame_size;
     }
 
     UHD_INLINE sptr get_new(const double timeout, size_t &index){

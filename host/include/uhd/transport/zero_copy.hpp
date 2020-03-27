@@ -14,6 +14,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/detail/atomic_count.hpp>
+#include <sys/socket.h>
 
 namespace uhd{ namespace transport{
 
@@ -45,6 +46,7 @@ namespace uhd{ namespace transport{
         UHD_INLINE void commit(size_t num_bytes){
             _length = num_bytes;
         }
+
 
         /*!
          * Get a pointer to the underlying buffer.
@@ -123,6 +125,10 @@ namespace uhd{ namespace transport{
     class UHD_API managed_send_buffer : public managed_buffer{
     public:
         typedef boost::intrusive_ptr<managed_send_buffer> sptr;
+
+        virtual int get_socket(void) = 0;
+
+        virtual void get_iov(iovec &iov) = 0;
     };
 
     /*!

@@ -20,6 +20,7 @@
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
+#include <boost/endian/conversion.hpp>
 
 #include "crimson_tng_impl.hpp"
 
@@ -283,7 +284,7 @@ user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
 }
 
 void crimson_tng_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-	_time_diff_iface->send(boost::asio::const_buffer(&req, sizeof(req)));
+	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
 void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
@@ -383,15 +384,17 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
 
+#ifdef DEBUG_COUT
         std::printf(
             "SHIPPING(set_user_reg):\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[1], pkt.pins[0], pkt.mask[1], pkt.mask[0]);
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[1], pkt.pins[0], pkt.mask[1], pkt.mask[0]);
+#endif
 #else
     if(address == 3) {
         gpio_burst_req pkt;
@@ -401,13 +404,15 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
 
+#ifdef DEBUG_COUT
         std::printf(
             "SHIPPING(set_user_reg):\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[0], pkt.mask[0]);
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[0], pkt.mask[0]);
+#endif
 #endif
 
         boost::endian::native_to_big_inplace(pkt.header);
@@ -671,7 +676,7 @@ void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd,
 }
 
 void crimson_tng_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
+	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
@@ -685,14 +690,51 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 		crimson_now
 	);
 
-	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+    // By default send over SFPA
+	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+}
+
+void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
+
+	time_diff_req pkt;
+
+	// Input to Process (includes feedback from PID Controller)
+	make_time_diff_packet(
+		pkt,
+		crimson_now
+	);
+
+    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
+        throw runtime_error( "XG Control interface offset out of bound!" );
+    }
+	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
 bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	size_t r;
 
-	r = _time_diff_iface->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+    // By default send over SFPA
+	r = _time_diff_iface[0]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+
+	if ( 0 == r ) {
+		return false;
+	}
+
+	boost::endian::big_to_native_inplace( tdr.tv_sec );
+	boost::endian::big_to_native_inplace( tdr.tv_tick );
+
+	return true;
+}
+
+bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
+
+	size_t r;
+
+    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
+        throw runtime_error( "XG Control interface offset out of bound!" );
+    }
+	r = _time_diff_iface[xg_intf]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
 
 	if ( 0 == r ) {
 		return false;
@@ -772,6 +814,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	dev->_bm_thread_running = true;
 
+    int xg_intf = 0;
 	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
@@ -784,8 +827,8 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	//Gett offset
 	now = uhd::get_system_time();
-	dev->time_diff_send( now );
-	dev->time_diff_recv( tdr );
+	dev->time_diff_send( now, xg_intf );
+	dev->time_diff_recv( tdr, xg_intf );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -811,10 +854,11 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now );
-		if ( ! dev->time_diff_recv( tdr ) ) {
+		dev->time_diff_send( crimson_now, xg_intf );
+		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
+			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
 			continue;
-		}
+        }
 		dev->time_diff_process( tdr, now );
 		//dev->fifo_update_process( tdr );
 
@@ -828,6 +872,13 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 					<< std::endl;
 			}
 #endif
+        // At every iteration, loop through different interfaces so that we
+        // have an average of the time diffs through different interfaces!
+        if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
+            xg_intf++;
+        } else {
+            xg_intf = 0;
+        }
 	}
 	dev->_bm_thread_running = false;
 }
@@ -997,6 +1048,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "sfpc/ip_addr",  "fpga/link/sfpc/ip_addr",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpc/mac_addr", "fpga/link/sfpc/mac_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpc/pay_len",  "fpga/link/sfpc/pay_len",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/ip_addr",  "fpga/link/sfpd/ip_addr",  std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/mac_addr", "fpga/link/sfpd/mac_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "sfpd/pay_len",  "fpga/link/sfpd/pay_len",  std::string, string);
+#endif
+
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
@@ -1004,8 +1064,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
     TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
+    TREE_CREATE_RW(mb_path / "fpga/board/rstreq_all_dsp", "fpga/board/rstreq_all_dsp", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
+#endif
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
@@ -1035,6 +1100,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
+#ifdef PV_TATE
+    TREE_CREATE_RW(mb_path / "link" / "sfpc" / "ip_addr",  "fpga/link/sfpc/ip_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
+    TREE_CREATE_RW(mb_path / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
+    TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
+#endif
 
     // This is the master clock rate
     TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_DSP_CLOCK_RATE );
@@ -1320,6 +1391,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 
+		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
 		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
@@ -1368,6 +1440,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 	const fs_path cm_path  = mb_path / "cm";
 
+#ifdef PV_TATE
+	_tree->access<int>(mb_path / "fpga/board/rstreq_all_dsp").set(1);
+#endif
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
@@ -1411,11 +1486,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 //        }
     }
 
-	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
-	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
-	std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfpa" / "ip_addr" ).get();
-	std::string time_diff_port = std::to_string( sfpa_port );
-	_time_diff_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
+    for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
+        std::string xg_intf = std::string(1, char('a' + i));
+        int sfp_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string time_diff_port = std::to_string( sfp_port );
+        _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
+    }
 
 
 	_bm_thread_needed = is_bm_thread_needed();
@@ -1477,9 +1554,35 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 }
 
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
-
+#ifdef PV_TATE
 	switch( chan ) {
-#ifndef PV_TATE
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+		sfp = "sfpa";
+		break;
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+		sfp = "sfpb";
+		break;
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+		sfp = "sfpc";
+		break;
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+		sfp = "sfpd";
+		break;
+	}
+#else
+	switch( chan ) {
         case 0:
 	case 2:
 		sfp = "sfpa";
@@ -1488,34 +1591,8 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	case 3:
 		sfp = "sfpb";
 		break;
-#else
-        case 0:
-	case 1:
-        case 2:
-        case 3:
-		sfp = "sfpa";
-                break;
-        case 4:
-	case 5:
-        case 6:
-        case 7:
-                sfp = "sfpa";
-                break;
-        case 8:
-	case 9:
-        case 10:
-        case 11:
-                sfp = "sfpa"; //TODO: Fix to sfpC
-		break;
-        case 12:
-        case 13:
-        case 14:
-        case 15:
-                sfp = "sfpa"; //TODO: Fix to sfpD
-		break;
-#endif
 	}
-
+#endif
 	const std::string chan_str( 1, 'A' + chan );
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path prop_path = mb_path / "tx_link";

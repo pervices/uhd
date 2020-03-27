@@ -5,7 +5,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#ifndef UC16_DATA
+#define UC16_DATA 1
+#endif
+
+#if (UC16_DATA == 1)
+#include "wavetable_sc16.hpp"
+#else
 #include "wavetable.hpp"
+#endif
+
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/static.hpp>
@@ -29,7 +38,116 @@ namespace po = boost::program_options;
  **********************************************************************/
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
+uhd::usrp::multi_usrp::sptr usrp;
 
+/***********************************************************************
+ * Helper functions
+ **********************************************************************/
+namespace gpio
+{
+	std::thread gpio_thread;
+
+    void write(uhd::usrp::multi_usrp::sptr& usrp, const uint64_t pins [], const uint64_t mask [], const double time)
+    {
+        usrp->set_command_time(uhd::time_spec_t(time));
+        // NOTE: We expect set_user_register to be called sequentially for these registers
+        //       and the last register (3 for vaunt and 7 for tate) will trigger the
+        //       gpio packet to be sent
+        usrp->set_user_register(0, (uint32_t) (pins[0] >> 0x00)); // GPIO 31:0
+        usrp->set_user_register(1, (uint32_t) (mask[0] >> 0x00)); // MASK for 31:0
+        usrp->set_user_register(2, (uint32_t) (pins[0] >> 0x20)); // GPIO 63:32
+        usrp->set_user_register(3, (uint32_t) (mask[0] >> 0x20)); // MASK for 63:32
+#ifdef PV_TATE
+        usrp->set_user_register(4, (uint32_t) (pins[1] >> 0x00)); // GPIO 95:64
+        usrp->set_user_register(5, (uint32_t) (mask[1] >> 0x00)); // MASK for 95:64
+        usrp->set_user_register(6, (uint32_t) (pins[1] >> 0x20)); // GPIO 128:96
+        usrp->set_user_register(7, (uint32_t) (mask[1] >> 0x20)); // MASK for 128:96 (Also writes packet).
+#endif
+    }
+
+    void gpio_main()
+    {
+#ifdef PV_TATE
+        std::cout << "GPIO example for Tate" << std::endl;
+        // Note that Tate has 80 GPIO pins
+        // The following is the mapping of the GPIO pins to the registers
+        //
+        //    pwr_en        : Power on the HDR board
+        //    hi_pwr_en     : Enable the high power branch
+        //    atten64..1    : Amount of attenuation (all will be summed together).
+        //                      9          8          7          6          5          4          3          2          1          0
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL A:   9 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |   0
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL B:  19 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  10
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL C:  29 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  20
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL D:  39 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  30
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL E:  49 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  40
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL F:  59 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  50
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL G:  69 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  60
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        // CHANNEL H:  79 | Reserved |   pwr_en | hi_pwr_en| atten64  | atten32  | atten16  | atten8   | atten4   | atten2   | atten1   |  70
+        //                +----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+
+        
+        // default is to set pwr_en and enable hi_pwr branch and set attenuation to minimum (0).
+        uint64_t pins_default [2] = {0x0601806018060180, 0x6018};
+        uint64_t pins [2] = {0x0601806018060180, 0x6018};
+        uint64_t mask [2] = {0xFFFFFFFFFFFFFFFF, 0xFFFF};
+        double time = 0.0;
+        uint64_t attenuation = 0;
+        while (!stop_signal_called) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            time += 0.5;
+            // Ramp up the attenuation every half second
+            attenuation++;
+            if (attenuation == 128) {
+                attenuation = 0;
+            }
+            pins[0] = pins_default[0]   | 
+                      (attenuation<< 0) | 
+                      (attenuation<<10) |
+                      (attenuation<<20) |
+                      (attenuation<<30) |
+                      (attenuation<<40) |
+                      (attenuation<<50) |
+                      (attenuation<<60);
+
+            // Watch out for crossing the 64-bit boundary in the previous array entry
+            pins[1] = pins_default[1]   |
+                      (attenuation>> 4) |
+                      (attenuation<< 6);
+
+
+            gpio::write(usrp, pins, mask, time);
+        }
+#else
+        std::cout << "GPIO example for Vaunt" << std::endl;
+        // Note that Vaunt has 48 GPIO pins
+        uint64_t pins = 0x0;
+        const uint64_t mask = 0xFFFFFFFFFF;
+        for(double time = 0.0; time < 64.0; time++) {
+            // Toggle the pins for the next 64 seconds
+            pins ^= mask;
+            gpio::write(usrp, pins, mask, time);
+            if (stop_signal_called) {
+                break;
+            }
+        }
+#endif
+
+    }
+
+    void start_gpio_thread()
+    {
+		gpio_thread = std::thread(gpio_main);
+    }
+
+}
 /***********************************************************************
  * Main function
  **********************************************************************/
@@ -83,7 +201,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //create a usrp device
     std::cout << std::endl;
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
-    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+    usrp = uhd::usrp::multi_usrp::make(args);
 
     //always select the subdevice first, the channel mapping affects the other settings
     if (vm.count("subdev")) usrp->set_tx_subdev_spec(subdev);
@@ -161,13 +279,33 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //pre-compute the waveform values
+
+#if (UC16_DATA == 1)
+    const wave_table_class_sc16 wave_table(wave_type, ampl);
+#else
     const wave_table_class wave_table(wave_type, ampl);
+#endif
     const size_t step = boost::math::iround(wave_freq/usrp->get_tx_rate() * wave_table_len);
+    std::cout << "Step size is : " << step << std::endl;
     size_t index = 0;
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
+    //
+    // Note: sc16_item32_be means that the input is 16-bit complex numbers packed
+    //       into a 32-bit uint32_t variable with the upper two bytes being the I
+    //       sample and the lower two bytes being the Q sample
+    //       I = item32_be[31:16]
+    //       Q = item32_be[15:0]
+
+#if (UC16_DATA == 1)
+    otw = "uc16";
+    uhd::stream_args_t stream_args("uc16_item32", otw);
+#else
+    otw = "sc16";
     uhd::stream_args_t stream_args("fc32", otw);
+#endif
+
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
@@ -175,8 +313,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
+
+#if (UC16_DATA == 1)
+    std::vector<uint32_t > buff(spb);
+    std::vector<uint32_t *> buffs(channel_nums.size(), &buff.front());
+#else
     std::vector<std::complex<float> > buff(spb);
     std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
+#endif
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if (channel_nums.size() > 1)
@@ -235,6 +379,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     usrp->set_time_now(0.0);
 
+    gpio::start_gpio_thread();
+
+
     for(double time = first; time <= last; time += increment)
     {
         // Set up metadata. We start streaming a bit in the future
@@ -253,8 +400,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             if (stop_signal_called)
                 break;
 
-            if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
+            if (total_num_samps > 0 and num_acc_samps >= total_num_samps) {
                 break;
+            }
 
             //fill the buffer with the waveform
             for (size_t n = 0; n < buff.size(); n++){
@@ -272,6 +420,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.end_of_burst = true;
         tx_stream->send("", 0, md);
     }
+    gpio::gpio_thread.join();
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;

@@ -138,20 +138,20 @@ class Trigger
     const std::string gating;
 
 public:
-    Trigger(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels, const int samples, const std::string gating)
+    Trigger(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels, const int samples, const int edge_debounce, const std::string gating)
     :
     channels {channels},
     usrp {usrp},
     gating {gating}
     {
         for(const auto ch : channels)
-            apply(sma(ch, samples));
+            apply(sma(ch, samples, edge_debounce));
     }
 
     ~Trigger()
     {
         for(const auto ch : channels)
-            apply(sma(ch, 0));
+            apply(sma(ch, 0, 0));
     }
 
 private:
@@ -166,17 +166,19 @@ private:
         }
     };
 
-    std::vector<Set> sma(const size_t channel, const int samples) const
+    std::vector<Set> sma(const size_t channel, const int samples, const int edge_debounce) const
     {
         const std::string root { "/mboards/0/tx/" + std::to_string(channel) + "/" };
+        const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channel) + "/" };
         const std::vector<Set> sets {
-            { root + "trigger/sma_mode"       , "edge"                  },
-            { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0" },
-            { root + "trigger/edge_backoff"   , "0"                     },
-            { root + "trigger/edge_sample_num", std::to_string(samples) },
-            { root + "trigger/gating"         , gating                  },
-            { "/mboards/0/trigger/sma_dir"    , "in"                    },
-            { "/mboards/0/trigger/sma_pol"    , "positive"              },
+            { root + "trigger/sma_mode"       , "edge"                          },
+            { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0"         },
+            { root + "trigger/edge_backoff"   , std::to_string(edge_debounce)   },
+            { root + "trigger/edge_sample_num", std::to_string(samples)         },
+            { root + "trigger/gating"         , gating                          },
+            { "/mboards/0/trigger/sma_dir"    , "in"                            },
+            { "/mboards/0/trigger/sma_pol"    , "positive"                      },
+            { dsp_root + "rstreq"             , "1"                             },
         };
         return sets;
     }
@@ -202,8 +204,12 @@ private:
         for(const auto set : sets)
         {
             std::string value;
-            usrp->get_tree_value(set.path, value);
-            assert(value == set.value);
+            // skip checking rstreq, since it is self-clearing
+            if (set.path.find("rstreq") == std::string::npos ) {
+                usrp->get_tree_value(set.path, value);
+                assert(value == set.value);
+            }
+
         }
     }
 };
@@ -345,7 +351,9 @@ public:
 
             if(min < setpoint)
             {
-                tx->send(buffer.mirrors, buffer.size(), md);
+                // To compensate for the hidden buffer inside FPGA empty_handler, we're
+                // sending an additional 30 more samples.
+                tx->send(buffer.mirrors, setpoint+30, md);
                 md.start_of_burst = false;
                 md.has_time_spec = false;
             }
@@ -397,6 +405,8 @@ public:
 
     std::string gating;
 
+    int edge_debounce {0};
+
     //
     // Channels not to be set from command line.
     //
@@ -420,6 +430,7 @@ public:
             ("samples"       , po::value<int        >(&samples       )->default_value(       400), "(Samples) Number of samples to send per trigger event")
             ("path"          , po::value<std::string>(&path          )->default_value("data.txt"), "(Path   ) File path of single column floating point data (Just I, not Q) in range [-1.0, 1.0] to be applied to all device channels")
             ("gating"        , po::value<std::string>(&gating        )->default_value(     "dsp"), "(String ) Gating mode [\"dsp\" | \"output\"]")
+            ("edge_debounce" , po::value<int        >(&edge_debounce )->default_value(         0), "(Samples) Number of samples to ignore after first trigger (for debouncing)")
             ;
 
         po::variables_map vm;
@@ -448,7 +459,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // Trigger class will destruct and cleanup SMA settings on Exit signal.
     //
 
-    Trigger trigger(uhd.usrp, args.channels, args.samples, args.gating);
+    Trigger trigger(uhd.usrp, args.channels, args.samples, args.edge_debounce, args.gating);
 
     streamer.stream(buffer, args.start_time, args.setpoint, args.period);
 

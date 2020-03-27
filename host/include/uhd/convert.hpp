@@ -34,6 +34,17 @@ namespace uhd{ namespace convert{
             if (num != 0) (*this)(in, out, num);
         }
 
+        //   By default, converters do not bypass conversion and pack all the 
+        // data into a single buffer. But for increased performance, some converters
+        // might try to bypass conversion (as the data has already been packed into the
+        // input buffer) and use scatter gather to send VRT header and data.
+        //
+        //   Any derivative of this class that wants this behavior must overwrite this
+        // function and return 1 instead of 0.
+        virtual bool bypass_conversion_and_use_scatter_gather(void) {
+            return 0;
+        }
+
     private:
         //! Callable method: input vectors, output vectors, num samples
         //

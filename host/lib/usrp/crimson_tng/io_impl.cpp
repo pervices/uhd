@@ -41,6 +41,7 @@
 #include <vector>
 
 #include <boost/endian/buffers.hpp>
+#include <boost/endian/conversion.hpp>
 
 #include "system_time.hpp"
 
@@ -201,6 +202,7 @@ public:
 			if ( ep.on_fini ) {
 				ep.on_fini();
 			}
+			std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
 		}
 		_eprops.clear();
 	}
@@ -284,7 +286,8 @@ public:
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
         // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
       //  std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
-        _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
+        // _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
+        _actual_num_samps = nsamps_per_buff;
 
         //for( auto & ep: _eprops ) {
 
@@ -321,15 +324,30 @@ public:
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
         //wait on flow control w/ timeout
-        if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
+        // if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
         //Last thing we do is update our buffer model with sent data
         //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
-        my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
+        // my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
+    }
+
+    static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
+
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        my_streamer->check_fc_update(chan, nsamps);
+    }
+    
+    static bool check_flow_control(boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        return my_streamer->check_fc_condition( chan, timeout);
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
@@ -405,6 +423,7 @@ public:
 			}
 		}
 	}
+
 
 private:
 	bool _first_call_to_send;
@@ -485,10 +504,16 @@ private:
 		if(dt <= 0.0)
 			return true;
 
-		// Otherwise, delay.
+		// // Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
 		req.tv_nsec = dt.get_frac_secs()*1e9;
-		nanosleep( &req, &rem );
+		// nanosleep( &req, &rem );
+        if (req.tv_sec == 0 && req.tv_nsec < 10000) {
+            // If there is less than 10 us, then send
+            return true;
+        } else {
+            return false;
+        }
 
 		return true;
     }
@@ -965,11 +990,13 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	for( size_t tries = 0; tries < 1; tries++ ) {
 		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 		if ( sizeof( req ) != r ) {
+            std::cout << "WARNING: XXX: SSSSend get FIFO level failed\n";
 			continue;
 		}
 
 		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
 		if ( sizeof( rsp ) != r ) {
+            std::cout << "WARNING: XXX: RRRReceive get FIFO level failed\n";
 			continue;
 		}
 
@@ -991,12 +1018,12 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint16_t lvl = rsp.header & 0xffff;
+	uint32_t lvl = (rsp.header & 0xffff) << 2;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
-    static uint16_t last[4];
-    static uint16_t curr[4];
+    static uint32_t last[4];
+    static uint32_t curr[4];
     last[channel] = curr[channel];
     curr[channel] = lvl;
 
@@ -1008,8 +1035,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
         std::printf("%10u\t", last[2] - curr[2]);
         std::printf("%10u\t", last[3] - curr[3]);
 
-        const uint16_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
-        const uint16_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
+        const uint32_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
+        const uint32_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
         std::printf("%10u\t", max - min);
         std::printf("\n");
     }
@@ -1041,7 +1068,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16"){
+    if (args.otw_format != "sc16" && args.otw_format != "uc16"){
         throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
     }
 
@@ -1105,6 +1132,12 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                     &crimson_tng_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
                 ));
 
+                my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
+                ));
+                my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
+                ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
 
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
