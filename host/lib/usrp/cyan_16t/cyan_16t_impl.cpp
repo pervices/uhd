@@ -514,7 +514,7 @@ static device_addrs_t cyan_16t_find(const device_addr_t &hint_)
     device_addrs_t addrs;
 
     //The following line is only temporary and for debug purposes
-    if (hint.has_key("type") and hint["type"] != "tate") return addrs;
+    if (hint.has_key("type") and hint["type"] != "tate") return addrs; //Temporary only!
     if (hint.has_key("type") and hint["type"] != "cyan_16t") return addrs;
 
 

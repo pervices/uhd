@@ -460,7 +460,7 @@ static device_addrs_t cyan_64t_find_with_addr(const device_addr_t &hint)
         cyan_64t_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
-        if (tokens[2] != "cyan_64t") break;
+        if ( ( tokens[2] != "tate") || ( tokens[2] != "cyan_64t") ) break; //This should eventually be removed.
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
@@ -511,6 +511,8 @@ static device_addrs_t cyan_64t_find(const device_addr_t &hint_)
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
 
+    //The following line is only temporary and for debug purposes
+    if (hint.has_key("type") and hint["type"] != "tate") return addrs; //Temporary only!
     if (hint.has_key("type") and hint["type"] != "cyan_64t") return addrs;
 
     //use the address given
