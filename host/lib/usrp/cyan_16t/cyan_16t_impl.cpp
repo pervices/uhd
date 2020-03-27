@@ -58,7 +58,7 @@ namespace asio = boost::asio;
  **********************************************************************/
 
 // seperates the input data into the vector tokens based on delim
-void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
+void cyan_16t_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 	int i = 0;
 	while (data[i]) {
 		std::string token = "";
@@ -456,7 +456,7 @@ static device_addrs_t cyan_16t_find_with_addr(const device_addr_t &hint)
 
         // parse the return buffer and store it in a vector
         std::vector<std::string> tokens;
-        tng_csv_parse(tokens, buff, ',');
+        cyan_16t_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
 	//DEBUG ONLY: This is a temporary fix until we update the cyan servers to return the
