@@ -398,7 +398,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 	// kb #3689, for phase coherency, we must set the DAC NCO to 0
 	if ( TX_SIGN == xx_sign ) {
-		rf_fe_subtree->access<double>("nco").set( 0.0 );
+		rf_fe_subtree->access<double>("chnco").set( 0.0 );
 	}
 
 	rf_fe_subtree->access<int>( "freq/band" ).set( band );
@@ -3082,7 +3082,9 @@ private:
         try
         {
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
-            return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / spec.sd_name;
+            const std::string sd_name     = "Channel_" + std::to_string(chan%4);
+            return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / sd_name;
+            // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / spec.sd_name;
         }
         catch(const std::exception &e)
         {
@@ -3107,12 +3109,12 @@ private:
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
         const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
         gain_group::sptr gg = gain_group::make();
-        for(const std::string &name:  _tree->list(mb_root(mcp.mboard) / "tx_codecs" / spec.db_name / "gains")){
-            gg->register_fcns("DAC-"+name, make_gain_fcns_from_subtree(_tree->subtree(mb_root(mcp.mboard) / "tx_codecs" / spec.db_name / "gains" / name)), 1 /* high prio */);
-        }
-        for(const std::string &name:  _tree->list(tx_rf_fe_root(chan) / "gains")){
-            gg->register_fcns(name, make_gain_fcns_from_subtree(_tree->subtree(tx_rf_fe_root(chan) / "gains" / name)), 0 /* low prio */);
-        }
+        // for(const std::string &name:  _tree->list(mb_root(mcp.mboard) / "tx_codecs" / spec.db_name / "gains")){
+        //     gg->register_fcns("DAC-"+name, make_gain_fcns_from_subtree(_tree->subtree(mb_root(mcp.mboard) / "tx_codecs" / spec.db_name / "gains" / name)), 1 /* high prio */);
+        // }
+        // for(const std::string &name:  _tree->list(tx_rf_fe_root(chan) / "gains")){
+        //     gg->register_fcns(name, make_gain_fcns_from_subtree(_tree->subtree(tx_rf_fe_root(chan) / "gains" / name)), 0 /* low prio */);
+        // }
         return gg;
     }
 
