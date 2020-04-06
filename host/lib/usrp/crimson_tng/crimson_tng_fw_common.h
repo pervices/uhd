@@ -66,8 +66,8 @@
 #endif
 
 #ifdef PV_TATE
-    #define CRIMSON_TNG_MASTER_CLOCK_RATE	        400000000
-    #define CRIMSON_TNG_DSP_CLOCK_RATE              100000000
+    #define CRIMSON_TNG_MASTER_CLOCK_RATE           250000000
+    #define CRIMSON_TNG_DSP_CLOCK_RATE              125000000
     #define CRIMSON_TNG_SAMPS_PER_DSP_TICK  4
     #define CRIMSON_TNG_DSP_PER_RFE 4
     #define CRIMSON_TNG_RX_CHANNELS 16
