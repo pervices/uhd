@@ -1021,7 +1021,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
 #ifdef PV_TATE
-    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 };
 #else
     static const std::vector<size_t> default_map { 0, 1, 2, 3 };
 #endif
@@ -1133,7 +1133,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     for( size_t dspno = 0; dspno < CRIMSON_TNG_RX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
-		std::string chan    = "Channel_" + num;
+		std::string chan    = "Channel_0";// + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
 
 		const fs_path rx_codec_path = mb_path / "rx_codecs" / num;
 		const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / chan;
@@ -1170,6 +1170,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		// Daughter Boards' Frontend Settings
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
+
+        std::cout << rx_fe_path / "name" << std::endl;
 
 	    // RX bandwidth
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
@@ -1286,8 +1288,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/4 + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno/4 + 'A'));
+		std::string chan    = "Channel_" + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
 		// std::string chan    = "Channel_" + num;
-		std::string chan    = "Channel_" + std::to_string(dspno%4);
 
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num / "tx_codecs" / chan;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
@@ -1510,8 +1512,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 //        }
 
 #ifdef PV_TATE
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_0 B:Channel_0 C:Channel_0 D:Channel_0 E:Channel_0 F:Channel_0 G:Channel_0 H:Channel_0 I:Channel_0 J:Channel_0 K:Channel_0 L:Channel_0 M:Channel_0 N:Channel_0 O:Channel_0 P:Channel_0" ));
+		// _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_0 A:Channel_1 A:Channel_2 A:Channel_3 B:Channel_0 B:Channel_1 B:Channel_2 B:Channel_3 C:Channel_0 C:Channel_1 C:Channel_2 C:Channel_3 D:Channel_0 D:Channel_1 D:Channel_2 D:Channel_3 E:Channel_0 E:Channel_1 E:Channel_2 E:Channel_3 F:Channel_0 F:Channel_1 F:Channel_2 F:Channel_3 G:Channel_0 G:Channel_1 G:Channel_2 G:Channel_3 H:Channel_0 H:Channel_1 H:Channel_2 H:Channel_3 I:Channel_0 I:Channel_1 I:Channel_2 I:Channel_3 J:Channel_0 J:Channel_1 J:Channel_2 J:Channel_3 K:Channel_0 K:Channel_1 K:Channel_2 K:Channel_3 L:Channel_0 L:Channel_1 L:Channel_2 L:Channel_3 M:Channel_0 M:Channel_1 M:Channel_2 M:Channel_3 N:Channel_0 N:Channel_1 N:Channel_2 N:Channel_3 O:Channel_0 O:Channel_1 O:Channel_2 O:Channel_3 P:Channel_0 P:Channel_1 P:Channel_2 P:Channel_3" ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_0 A:Channel_1 A:Channel_2 A:Channel_3 B:Channel_0 B:Channel_1 B:Channel_2 B:Channel_3 C:Channel_0 C:Channel_1 C:Channel_2 C:Channel_3 D:Channel_0 D:Channel_1 D:Channel_2 D:Channel_3 E:Channel_0 E:Channel_1 E:Channel_2 E:Channel_3 F:Channel_0 F:Channel_1 F:Channel_2 F:Channel_3 G:Channel_0 G:Channel_1 G:Channel_2 G:Channel_3 H:Channel_0 H:Channel_1 H:Channel_2 H:Channel_3 I:Channel_0 I:Channel_1 I:Channel_2 I:Channel_3 J:Channel_0 J:Channel_1 J:Channel_2 J:Channel_3 K:Channel_0 K:Channel_1 K:Channel_2 K:Channel_3 L:Channel_0 L:Channel_1 L:Channel_2 L:Channel_3 M:Channel_0 M:Channel_1 M:Channel_2 M:Channel_3 N:Channel_0 N:Channel_1 N:Channel_2 N:Channel_3 O:Channel_0 O:Channel_1 O:Channel_2 O:Channel_3 P:Channel_0 P:Channel_1 P:Channel_2 P:Channel_3" ));
 #else
 		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
 		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
