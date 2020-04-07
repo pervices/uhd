@@ -1122,7 +1122,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
-                my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
+                std::string name = std::string( 1, ('A' + chan/CRIMSON_TNG_DSP_PER_RFE)) + std::to_string (chan%CRIMSON_TNG_DSP_PER_RFE);
+                my_streamer->set_channel_name(chan_i, name);
 
                 my_streamer->set_on_fini(chan_i, boost::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
 
