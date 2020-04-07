@@ -125,6 +125,12 @@ namespace gpio
 
             gpio::write(usrp, pins, mask, time);
         }
+
+        // Turn off the HDR boards when the program is terminated.
+        time += 0.5;
+        pins[0] = 0;
+        pins[1] = 0;
+        gpio::write(usrp, pins, mask, time);
 #else
         std::cout << "GPIO example for Vaunt" << std::endl;
         // Note that Vaunt has 48 GPIO pins
