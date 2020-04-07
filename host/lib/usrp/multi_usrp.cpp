@@ -2910,7 +2910,9 @@ private:
 
     mboard_chan_pair rx_chan_to_mcp(size_t chan){
         mboard_chan_pair mcp;
-        mcp.chan = chan;
+        // HACK: This is to unsure that we don't go over the actual number of RX channels, when TX has 64 channels.
+        mcp.chan = chan % CRIMSON_TNG_RX_CHANNELS;
+        // mcp.chan = chan;
         for (mcp.mboard = 0; mcp.mboard < get_num_mboards(); mcp.mboard++){
             size_t sss = get_rx_subdev_spec(mcp.mboard).size();
             if (mcp.chan < sss) break;
