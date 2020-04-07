@@ -3089,8 +3089,10 @@ private:
         try
         {
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
+            const std::string db_name     = boost::lexical_cast<std::string>((char)(chan/4 + 'A'));
             const std::string sd_name     = "Channel_" + std::to_string(chan%4);
-            return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / sd_name;
+            return mb_root(mcp.mboard) / "dboards" / db_name / "tx_frontends" / sd_name;
+            // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / sd_name;
             // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / spec.sd_name;
         }
         catch(const std::exception &e)

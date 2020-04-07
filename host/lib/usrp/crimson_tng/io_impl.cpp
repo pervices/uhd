@@ -704,8 +704,8 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
 
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
-    set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
-    double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
+    set_double( "tx_" + std::string( 1, 'a' + (dsp/4) ) + "/dsp/rate", rate_ );
+    double rate = get_double( "tx_" + std::string( 1, 'a' + (dsp/4) ) + "/dsp/rate" );
 
 	boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
         boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
@@ -1018,7 +1018,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint32_t lvl = (rsp.header & 0xffff) << 2;
+	uint32_t lvl = (rsp.header & 0xffff) << 1;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
