@@ -28,9 +28,6 @@
 #include <condition_variable>
 #include <sys/socket.h>
 
-#include "../usrp/crimson_tng/crimson_tng_fw_common.h"
-#include <cmath>
-
 #ifdef UHD_TXRX_DEBUG_PRINTS
 // Included for debugging
 #include <boost/format.hpp>
@@ -324,8 +321,6 @@ public:
         if_packet_info.eob     = metadata.end_of_burst;
         if_packet_info.fc_ack  = false; //This is a data packet
 
-        const uint64_t aggregate_samp_rate = metadata.aggregate_samp_rate;
-
         /*
          * Metadata is cached when we get a send requesting a start of burst with no samples.
          * It is applied here on the next call to send() that actually has samples to send.
@@ -361,7 +356,7 @@ public:
                         return 0;
                     } else {
                         // send requests with no samples are handled here (such as end of burst)
-                        send_one_packet(_zero_buffs, 1, if_packet_info, timeout, 0);
+                        send_one_packet(_zero_buffs, 1, if_packet_info, timeout);
                         this->samps_per_buffer = 1;
                         send_multiple_packets();
                         return 0;
@@ -369,10 +364,10 @@ public:
                 }
             #endif
 
-			size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout, 0);
+			size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout);
             this->samps_per_buffer = nsamps_per_buff;
             send_multiple_packets();
-            for (auto &multi_msb : this->multi_msb_buffs) {
+            for (auto &multi_msb : multi_msb_buffs) {
                 multi_msb.data_buffs.clear();
                 multi_msb.data_buff_length.clear();
                 multi_msb.vrt_headers.clear();
@@ -385,21 +380,15 @@ public:
         }
 
         size_t total_num_samps_sent = 0;
-        size_t prev_total_num_samps_sent = 0;
 
         //false until final fragment
         if_packet_info.eob = false;
 
         const size_t num_fragments = (nsamps_per_buff-1)/_max_samples_per_packet;
         const size_t final_length = ((nsamps_per_buff-1)%_max_samples_per_packet)+1;
-        const double fc_buff_size_limit_percentage = (aggregate_samp_rate > 640000000) ? 0.05 :
-                                                     (aggregate_samp_rate > 320000000) ? 0.10 : 0.15;
-        const size_t flow_control_limit = CRIMSON_TNG_BUFF_SIZE*fc_buff_size_limit_percentage;
-        const size_t flow_control_passes = ceil(nsamps_per_buff/flow_control_limit);
 
         //loop through the following fragment indexes
-        size_t i = 0;
-        while ( i < num_fragments) {
+        for (size_t i = 0; i < num_fragments; i++){
 
             //send a fragment with the helper function
             const size_t num_samps_sent = send_one_packet(buffs, _max_samples_per_packet, if_packet_info, timeout, total_num_samps_sent*_bytes_per_cpu_item);
@@ -412,29 +401,16 @@ public:
             if_packet_info.tsf = time_spec.to_ticks(_tick_rate);
             if_packet_info.sob = false;
 
-            if ((flow_control_passes > 1 && i > 0 && i%flow_control_passes == 0)
-                || (i == num_fragments-1)) 
-            {
-                this->samps_per_buffer = total_num_samps_sent - prev_total_num_samps_sent;
-                prev_total_num_samps_sent = total_num_samps_sent;
-                send_multiple_packets();
-                for (auto &multi_msb : this->multi_msb_buffs) {
-                    multi_msb.data_buffs.clear();
-                    multi_msb.data_buff_length.clear();
-                    multi_msb.vrt_headers.clear();
-                    multi_msb.vrt_header_length.clear();
-                }
-            }
-            i++;
         }
 
         //send the final fragment with the helper function
         if_packet_info.eob = metadata.end_of_burst;
 		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
 
-        this->samps_per_buffer = nsamps_sent - total_num_samps_sent;
+
+        this->samps_per_buffer = nsamps_per_buff;
         send_multiple_packets();
-        for (auto &multi_msb : this->multi_msb_buffs) {
+        for (auto &multi_msb : multi_msb_buffs) {
             multi_msb.data_buffs.clear();
             multi_msb.data_buff_length.clear();
             multi_msb.vrt_headers.clear();
@@ -747,6 +723,7 @@ private:
 
         return 0;
     }
+
 
     /*******************************************************************
      * Send a single packet:

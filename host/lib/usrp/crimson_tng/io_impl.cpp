@@ -375,7 +375,7 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CRIMSON_TNG_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -1018,7 +1018,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint32_t lvl = rsp.header & 0xffff;
+	uint32_t lvl = (rsp.header & 0xffff) << 2;
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
