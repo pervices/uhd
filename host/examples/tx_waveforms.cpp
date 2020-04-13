@@ -402,6 +402,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     gpio::start_gpio_thread();
 
+    uint64_t aggregate_samp_rate = rate * channel_strings.size();
 
     for(double time = first; time <= last; time += increment)
     {
@@ -412,6 +413,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.end_of_burst   = false;
         md.has_time_spec  = true;
         md.time_spec = uhd::time_spec_t(time);
+        md.aggregate_samp_rate = aggregate_samp_rate;
 
         //send data until the signal handler gets called
         //or if we accumulate the number of samples specified (unless it's 0)
