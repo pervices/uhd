@@ -374,8 +374,9 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 
 	enum {
-		LOW_BAND,
-		HIGH_BAND,
+		LOW_BAND = 0,
+		HIGH_BAND = 1,
+		SUPER_LOW_BAND = 9,
 	};
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
@@ -401,11 +402,14 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 		rf_fe_subtree->access<double>("chnco").set( 0.0 );
 	}
 
-	rf_fe_subtree->access<int>( "freq/band" ).set( band );
+	// For now manually set to low band; later on must fix frequency band detection.
+	// rf_fe_subtree->access<int>( "freq/band" ).set( band );
+	rf_fe_subtree->access<int>( "freq/band" ).set( SUPER_LOW_BAND, LOW_BAND );
 
 	switch (tune_request.rf_freq_policy){
 		case tune_request_t::POLICY_AUTO:
 			switch( band ) {
+			case SUPER_LOW_BAND:
 			case LOW_BAND:
 				// in low band, we only use the DSP to tune
 				target_rf_freq = 0;
