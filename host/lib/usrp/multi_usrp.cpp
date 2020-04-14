@@ -404,7 +404,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 	// For now manually set to low band; later on must fix frequency band detection.
 	// rf_fe_subtree->access<int>( "freq/band" ).set( band );
-	rf_fe_subtree->access<int>( "freq/band" ).set( SUPER_LOW_BAND, LOW_BAND );
+	rf_fe_subtree->access<int>( "freq/band" ).set( SUPER_LOW_BAND );
 
 	switch (tune_request.rf_freq_policy){
 		case tune_request_t::POLICY_AUTO:
