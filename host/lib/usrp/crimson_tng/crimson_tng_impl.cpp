@@ -1348,7 +1348,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_fe_path / "gain"  / "value"               , "tx_"+lc_num+"/rf/gain/val"                   , double, double);
 
 		// RF band
-		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/freq/band"                  , int, int);
+		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/band"                       , int, int);
 
 #ifdef PV_TATE
         if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
