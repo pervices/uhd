@@ -105,7 +105,8 @@ namespace gpio
             time += 0.5;
             // Ramp up the attenuation every half second
             attenuation++;
-            if (attenuation == 128) {
+            // In this example, let's not attenuate all the way, because it'd be hard to detect the signal.
+            if (attenuation == 80) {
                 attenuation = 0;
             }
             pins[0] = pins_default[0]   | 
@@ -259,9 +260,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
-        double total_freq = ch_freq + dp_freq + dsp_freq;
+        // As an example, space the Channelizer frequencies 500KHz apart
+        double ch_freq_incr = ch_freq + (ch*500000);
+
+        double total_freq = ch_freq_incr + dp_freq + dsp_freq;
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (total_freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(total_freq, ch_freq, dp_freq, 0.0, dsp_freq);
+        uhd::tune_request_t tune_request(total_freq, ch_freq_incr, dp_freq, 0.0, dsp_freq);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
         std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
