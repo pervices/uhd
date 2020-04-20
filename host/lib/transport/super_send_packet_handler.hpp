@@ -392,15 +392,14 @@ public:
 
         const size_t num_fragments = (nsamps_per_buff-1)/_max_samples_per_packet;
         const size_t final_length = ((nsamps_per_buff-1)%_max_samples_per_packet)+1;
-        const double fc_buff_size_limit_percentage = (aggregate_samp_rate > 640000000) ? 0.05 :
-                                                     (aggregate_samp_rate > 320000000) ? 0.10 : 0.15;
-        const size_t flow_control_limit = CRIMSON_TNG_BUFF_SIZE*fc_buff_size_limit_percentage;
-        const size_t flow_control_passes = ceil(nsamps_per_buff/flow_control_limit);
+        const double fc_buff_size_limit_percentage = (aggregate_samp_rate > 640000000) ? 0.20 :
+                                                     (aggregate_samp_rate > 320000000) ? 0.15 : 0.14;
+        const double flow_control_limit = CRIMSON_TNG_BUFF_SIZE*fc_buff_size_limit_percentage;
+        const size_t flow_control_passes = ceil(flow_control_limit/_max_samples_per_packet);
 
         //loop through the following fragment indexes
         size_t i = 0;
         while ( i < num_fragments) {
-
             //send a fragment with the helper function
             const size_t num_samps_sent = send_one_packet(buffs, _max_samples_per_packet, if_packet_info, timeout, total_num_samps_sent*_bytes_per_cpu_item);
             total_num_samps_sent += num_samps_sent;
