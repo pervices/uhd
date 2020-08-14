@@ -29,6 +29,8 @@
 #include <chrono>
 #include <thread>
 
+#include "crimson_tng/crimson_tng_fw_common.h"
+
 using namespace uhd;
 using namespace uhd::usrp;
 
@@ -287,8 +289,8 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	/*
 	 * Scenario 2) Channels C and D
 	 *
-	 * Channels C & D only provide 1/2 the bandwidth of A & B due to silicon
-	 * errata. This should be corrected in subsequent hardware revisions of
+	 * Channels C & D only provide 1/4 the bandwidth of A & B due to silicon
+	 * limitations. This should be corrected in subsequent revisions of
 	 * Crimson.
 	 *
 	 * In order of increasing bandwidth & minimal interference, our
@@ -312,23 +314,17 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
-	static const double lo_step = 25e6;
+	static const double lo_step = CRIMSON_TNG_LO_STEPSIZE;
 
-        const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-        #ifdef PV_TATE
-	const char channel = 'A';
-        #endif
-
-        #ifndef PV_TATE
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > (CRIMSON_TNG_MASTER_CLOCK_RATE / 4.0) ? 'A' : 'C';
-        #endif
+	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CRIMSON_TNG_BW_QUARTER ? 'A' : 'C';
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
 		? AB_regions
 		: CD_regions
 	;
-	const int K = (int) floor( ( dsp_range.stop() - dsp_range.start() ) / lo_step );
+	const int K = (int) floor( abs( ( dsp_range.stop() - dsp_range.start() ) ) / lo_step );
 
 	for( int k = 0; k <= K; k++ ) {
 		for( double sign: { +1, -1 } ) {
@@ -346,9 +342,13 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 			candidate_lo += k * sign * lo_step;
 
 			const double candidate_nco = target_freq - candidate_lo;
-			const double bb_ft = target_freq - candidate_lo + candidate_nco;
-			const meta_range_t candidate_range( bb_ft - bw / 2, bb_ft + bw / 2 );
 
+			//Ensure that the combined NCO offset and signal bw fall within candidate range;
+			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
+
+			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
+			//the specified ranges (as they can't be negative).
+			//TBH: I'm not sure why this works right now, but it does.
 			for( const freq_range_t & _range: regions ) {
 				if ( range_contains( _range, candidate_range ) ) {
 					return candidate_nco;
@@ -383,7 +383,7 @@ static tune_result_t tune_xx_subdev_and_dsp(const int is_tx, const double xx_sig
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t adc_range( dsp_range.start(), CRIMSON_TNG_DSP_CLOCK_RATE, 0.0001 ); //Assume ADC bandwidth is the same as DSP rate.
+	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
 	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
     if (is_tx) {
         min_range = dsp_range;
@@ -3224,3 +3224,4 @@ multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
     UHD_LOGGER_TRACE("MULTI_USRP") << "multi_usrp::make with args " << dev_addr.to_pp_string() ;
     return sptr(new multi_usrp_impl(dev_addr));
 }
+

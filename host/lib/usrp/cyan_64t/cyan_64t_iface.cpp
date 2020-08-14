@@ -15,6 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include "cyan_64t_iface.hpp"
+
 #include <uhd/exception.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/tasks.hpp>
@@ -34,8 +36,7 @@
 #include <iostream>
 #include <inttypes.h>
 #include <uhd/utils/platform.hpp>
-#include "crimson_tng_fw_common.h"
-#include "crimson_tng_iface.hpp"
+#include "cyan_64t_fw_common.h"
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -109,7 +110,7 @@ std::string crimson_tng_iface::peek_str( float timeout_s ) {
 }
 
 std::string crimson_tng_iface::peek_str() {
-	return peek_str( 6.250 );
+	return peek_str( 8.000 );
 }
 
 /***********************************************************************

@@ -37,7 +37,8 @@ public:
         ANY,
         USRP,
         CLOCK,
-		CRIMSON_TNG
+		CRIMSON_TNG,
+		CYAN_64T,
     };
     virtual ~device(void) = 0;
 

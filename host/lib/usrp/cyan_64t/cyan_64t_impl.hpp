@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CRIMSON_TNG_IMPL_HPP
-#define INCLUDED_CRIMSON_TNG_IMPL_HPP
+#ifndef INCLUDED_CYAN_64T_IMPL_HPP
+#define INCLUDED_CYAN_64T_IMPL_HPP
 
 #include <set>
 #include <vector>
@@ -25,17 +25,29 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
-#include "uhd/usrp/multi_crimson_tng.hpp"
+#include "uhd/usrp/multi_cyan_64t.hpp"
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "crimson_tng_iface.hpp"
+#include "cyan_64t_iface.hpp"
 #include "flow_control.hpp"
 #include "pidc.hpp"
 
 #include "system_time.hpp"
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
+
+#ifdef PV_TATE
+// Tate has 80 GPIO signals and requires two 64-bit registers
+#define NUMBER_OF_GPIO_SIGNALS 80
+#define NUMBER_OF_GPIO_REGS 2
+#define NUMBER_OF_XG_CONTROL_INTF 4
+#else
+// Vaunt has 44 GPIO signals which fit into a single 64-bit register
+#define NUMBER_OF_GPIO_SIGNALS 44
+#define NUMBER_OF_GPIO_REGS 1
+#define NUMBER_OF_XG_CONTROL_INTF 1
+#endif
 
 namespace uhd {
 namespace usrp {
@@ -45,8 +57,8 @@ struct gpio_burst_req {
 	uint64_t header; // Frame 1
 	int64_t tv_sec;  // Frame 2
 	int64_t tv_psec; // Frame 2
-	uint64_t pins;   // Frame 3
-	uint64_t mask;   // Frame 3
+	uint64_t pins[NUMBER_OF_GPIO_REGS];   // Frame N
+	uint64_t mask[NUMBER_OF_GPIO_REGS];   // Frame N
 };
 #pragma pack(pop)
 
@@ -80,15 +92,15 @@ struct rx_stream_cmd {
 namespace uhd {
 namespace usrp {
 
-class crimson_tng_impl : public uhd::device
+class cyan_64t_impl : public uhd::device
 {
 public:
     // shared pointer to the Crimson device
-    typedef boost::shared_ptr<crimson_tng_impl> sptr;
+    typedef boost::shared_ptr<cyan_64t_impl> sptr;
 
-    // This is the core constructor to be called when a crimson_tng device is found
-    crimson_tng_impl(const uhd::device_addr_t &);
-    ~crimson_tng_impl(void);
+    // This is the core constructor to be called when a cyan_64t device is found
+    cyan_64t_impl(const uhd::device_addr_t &);
+    ~cyan_64t_impl(void);
 
     // pointers to the streams for the device
     // these functions are defined in io_impl.cpp
@@ -176,7 +188,7 @@ private:
     void set_properties_from_addr();
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
-    //uhd::crimson_tng_iface::sptr _iface;
+    //uhd::cyan_64t_iface::sptr _iface;
     std::mutex _iface_lock;
 
 	/**
@@ -184,7 +196,7 @@ private:
 	 */
 
 	/// UDP endpoint that receives our Time Diff packets
-	uhd::transport::udp_simple::sptr _time_diff_iface;
+    std::array<uhd::transport::udp_simple::sptr, NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -197,7 +209,9 @@ private:
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
-    bool time_diff_recv( time_diff_resp & tdr );
+    void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
+    bool time_diff_recv( time_diff_resp & td );
+    bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
     void fifo_update_process( const time_diff_resp & tdr );
 
@@ -215,11 +229,11 @@ private:
 
     time_spec_t _command_time;
 
-	static void bm_thread_fn( crimson_tng_impl *dev );
+	static void bm_thread_fn( cyan_64t_impl *dev );
 	bool is_bm_thread_needed();
 
     struct mb_container_type{
-        crimson_tng_iface::sptr iface;
+        cyan_64t_iface::sptr iface;
         std::vector<boost::weak_ptr<uhd::rx_streamer> > rx_streamers;
         std::vector<boost::weak_ptr<uhd::tx_streamer> > tx_streamers;
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
@@ -252,4 +266,4 @@ private:
 }
 }
 
-#endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
+#endif /* INCLUDED_CYAN_64T_IMPL_HPP */
