@@ -29,6 +29,8 @@
 #include <chrono>
 #include <thread>
 
+#include "crimson_tng/crimson_tng_fw_common.h"
+
 using namespace uhd;
 using namespace uhd::usrp;
 

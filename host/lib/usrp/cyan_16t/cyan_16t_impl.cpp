@@ -459,10 +459,6 @@ static device_addrs_t cyan_16t_find_with_addr(const device_addr_t &hint)
         cyan_16t_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
-	//DEBUG ONLY: This is a temporary fix until we update the cyan servers to return the
-	//correct device name.
-	if ( ( tokens[2] != "tate") || ( tokens[2] != "cyan_16t") ) break; //This should eventually be removed.
-        //if (tokens[2] != "cyan_16t") break;
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
@@ -476,7 +472,6 @@ static device_addrs_t cyan_16t_find_with_addr(const device_addr_t &hint)
             (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
-            //UHD_LOGGER_INFO( "CYAN_16T_IMPL" ) << "Found cyan_16t at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
             addrs.push_back(new_addr);
         }
     }
