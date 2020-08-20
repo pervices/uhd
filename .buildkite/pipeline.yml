@@ -1,0 +1,10 @@
+steps:
+  - command:
+    - apt install -y ccache
+    - sh .buildkite/run.sh
+    plugins:
+      - docker#v3.5.0:
+          image: cfriedt/uhd:xenial
+          propogate-environment: true
+          volumes:
+            - "/var/lib/buildkite-agent/.ccache:/root/.ccache"

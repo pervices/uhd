@@ -1,0 +1,3 @@
+#!/bin/sh
+
+chown -R buildkite-agent:buildkite-agent /var/lib/buildkite-agent/.ccache/
