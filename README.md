@@ -7,6 +7,10 @@ platform, created and sold by Ettus Research.
 UHD supports all Ettus Research USRP™ hardware, including all motherboards and
 daughterboards, and the combinations thereof.
 
+## Build Status
+
+[![Build status](https://badge.buildkite.com/1907006555da4b5a0a7c2e017e0690f200123d59f9ed8aae79.svg?branch=ci)](https://buildkite.com/per-vices-corporation/per-vices-uhd)
+
 ## Documentation
 
 For technical documentation related to USRP™ hardware or UHD system
