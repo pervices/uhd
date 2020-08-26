@@ -1114,7 +1114,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
-    TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, mboard_eeprom_t());
+    // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
+    // unfortunately, we cannot yet call get_mboard_eeprom().
+    mboard_eeprom_t temp;
+    temp["name"]     = "FPGA Board";
+    temp["vendor"]   = "Per Vices";
+    temp["serial"]   = "";
+    TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, temp);
 
     // This property chooses internal or external clock source
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
