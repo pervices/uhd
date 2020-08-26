@@ -28,7 +28,7 @@ cmake \
         -DENABLE_EXAMPLES=ON \
         -DENABLE_UTILS=ON \
         -DENABLE_TESTS=ON \
-        -DENABLE_N320=OFF \
+        -DENABLE_N230=OFF \
         -DENABLE_N300=OFF \
         -DENABLE_E320=OFF \
         -DENABLE_USRP1=OFF \
