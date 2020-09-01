@@ -13,6 +13,8 @@
 #include <uhd/deprecated.hpp>
 #include <uhd/property_tree.hpp>
 #include <uhd/types/device_addr.hpp>
+#include <uhd/types/tune_request.hpp>
+#include <uhd/types/tune_result.hpp>
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
@@ -37,7 +39,8 @@ public:
         ANY,
         USRP,
         CLOCK,
-		CRIMSON_TNG
+        CRIMSON_TNG,
+        CYAN_16T,
     };
     virtual ~device(void) = 0;
 
@@ -111,6 +114,54 @@ public:
 
     //! Get device type
     device_filter_t get_device_type() const;
+
+    /*!
+     * Set the RX center frequency.
+     * \param tune_request tune request instructions
+     * \param chan the channel index 0 to N-1
+     * \return a tune result object
+     */
+    virtual uhd::tune_result_t set_rx_freq(
+        const uhd::tune_request_t &tune_request, size_t chan = 0
+    ) {
+        (void) tune_request;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Get the RX center frequency.
+     * \param chan the channel index 0 to N-1
+     * \return the frequency in Hz
+     */
+    virtual double get_rx_freq(size_t chan = 0) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Set the RX center frequency.
+     * \param tune_request tune request instructions
+     * \param chan the channel index 0 to N-1
+     * \return a tune result object
+     */
+    virtual uhd::tune_result_t set_tx_freq(
+        const uhd::tune_request_t &tune_request, size_t chan = 0
+    ) {
+        (void) tune_request;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Get the TX center frequency.
+     * \param chan the channel index 0 to N-1
+     * \return the frequency in Hz
+     */
+    virtual double get_tx_freq(size_t chan = 0) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
 
 protected:
     uhd::property_tree::sptr _tree;

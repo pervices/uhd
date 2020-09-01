@@ -34,8 +34,8 @@
 #include <iostream>
 #include <inttypes.h>
 #include <uhd/utils/platform.hpp>
-#include "crimson_tng_fw_common.h"
-#include "crimson_tng_iface.hpp"
+#include "cyan_16t_fw_common.h"
+#include "cyan_16t_iface.hpp"
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -45,7 +45,7 @@ static uint32_t seq = 1;
 /***********************************************************************
  * Structors
  **********************************************************************/
-crimson_tng_iface::crimson_tng_iface(udp_simple::sptr ctrl_transport):
+cyan_16t_iface::cyan_16t_iface(udp_simple::sptr ctrl_transport):
     _ctrl_transport(ctrl_transport),
     _ctrl_seq_num(0),
     _protocol_compat(0)
@@ -56,18 +56,18 @@ crimson_tng_iface::crimson_tng_iface(udp_simple::sptr ctrl_transport):
 /***********************************************************************
  * Peek and Poke
  **********************************************************************/
-// Never call this function by itself, always call through crimson_tng_impl::get/set()
+// Never call this function by itself, always call through cyan_16t_impl::get/set()
 // else it will mess up the protocol with the sequencing and will contian no error checks.
-void crimson_tng_iface::poke_str(std::string data) {
+void cyan_16t_iface::poke_str(std::string data) {
     // populate the command string with sequence number
     data = data.insert(0, (boost::lexical_cast<std::string>(seq++) + ","));
     _ctrl_transport->send( boost::asio::buffer(data, data.length()) );
     return;
 }
 
-// Never call this function by itself, always call through crimson_tng_impl::get/set(),
+// Never call this function by itself, always call through cyan_16t_impl::get/set(),
 // else it will mess up the protocol with the sequencing and will contian no error checks.
-std::string crimson_tng_iface::peek_str( float timeout_s ) {
+std::string cyan_16t_iface::peek_str( float timeout_s ) {
     uint32_t iseq;
     std::vector<std::string> tokens;
     uint8_t tries = 0;
@@ -108,21 +108,21 @@ std::string crimson_tng_iface::peek_str( float timeout_s ) {
     }
 }
 
-std::string crimson_tng_iface::peek_str() {
-	return peek_str( 6.250 );
+std::string cyan_16t_iface::peek_str() {
+	return peek_str( 8.000 );
 }
 
 /***********************************************************************
- * Public make function for crimson_tng interface
+ * Public make function for cyan_16t interface
  **********************************************************************/
-crimson_tng_iface::sptr crimson_tng_iface::make(udp_simple::sptr ctrl_transport){
-    return crimson_tng_iface::sptr(new crimson_tng_iface(ctrl_transport));
+cyan_16t_iface::sptr cyan_16t_iface::make(udp_simple::sptr ctrl_transport){
+    return cyan_16t_iface::sptr(new cyan_16t_iface(ctrl_transport));
 }
 
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-void crimson_tng_iface::parse(std::vector<std::string> &tokens, char* data, const char delim) {
+void cyan_16t_iface::parse(std::vector<std::string> &tokens, char* data, const char delim) {
 	int i = 0;
 	while (data[i]) {
 		std::string token = "";

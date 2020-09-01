@@ -122,12 +122,6 @@ if(CI_PV_ENABLE MATCHES ON)
     ADD_DEFINITIONS(-DBUFFER_LVL_DEBUG)
 endif(CI_PV_ENABLE)
 
-option(PV_TATE  "TATE" ON)
-if(PV_TATE MATCHES ON)
-    MESSAGE("TATE ENABLED")
-    ADD_DEFINITIONS(-DPV_TATE)
-endif(PV_TATE)
-
 ########################################################################
 # Per Vices CI Build CONFIG
 ########################################################################
