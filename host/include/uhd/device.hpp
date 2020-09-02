@@ -41,6 +41,7 @@ public:
         CLOCK,
         CRIMSON_TNG,
         CYAN_16T,
+        CYAN_64T,
     };
     virtual ~device(void) = 0;
 

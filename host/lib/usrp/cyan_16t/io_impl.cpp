@@ -43,7 +43,7 @@
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
-#include "system_time.hpp"
+#include "../crimson_tng/system_time.hpp"
 
 #if 0
   #ifndef UHD_TXRX_DEBUG_PRINTS

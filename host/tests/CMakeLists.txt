@@ -121,6 +121,20 @@ UHD_ADD_TEST(cyan_16t_test cyan_16t_test)
 UHD_INSTALL(TARGETS cyan_16t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
 endif(ENABLE_CYAN_16T)
 
+if(ENABLE_CYAN_64T)
+# Cannot call into cyan_64t_impl.o that is in libuhd.so due to default visibility=hidden
+# so it is necessary to link it into the executable before the shared library is linked in
+add_executable(cyan_64t_test
+    cyan_64t_test.cpp
+    ${CMAKE_SOURCE_DIR}/lib/usrp/cyan_64t/cyan_64t_impl.cpp
+    ${CMAKE_SOURCE_DIR}/lib/usrp/cyan_64t/io_impl.cpp
+    ${CMAKE_SOURCE_DIR}/lib/usrp/cyan_64t/cyan_64t_iface.cpp
+)
+target_link_libraries(cyan_64t_test uhd ${Boost_LIBRARIES})
+UHD_ADD_TEST(cyan_64t_test cyan_64t_test)
+UHD_INSTALL(TARGETS cyan_64t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+endif(ENABLE_CYAN_64T)
+
 # Other tests that don't directly link with libuhd: (TODO find a nicer way to do this)
 include_directories(${CMAKE_BINARY_DIR}/lib/rfnoc/nocscript/)
 include_directories(${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/)

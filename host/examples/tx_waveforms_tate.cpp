@@ -5,15 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef UC16_DATA
-#define UC16_DATA 1
-#endif
-
-#if (UC16_DATA == 1)
 #include "wavetable_sc16.hpp"
-#else
-#include "wavetable.hpp"
-#endif
 
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
@@ -57,17 +49,14 @@ namespace gpio
         usrp->set_user_register(1, (uint32_t) (mask[0] >> 0x00)); // MASK for 31:0
         usrp->set_user_register(2, (uint32_t) (pins[0] >> 0x20)); // GPIO 63:32
         usrp->set_user_register(3, (uint32_t) (mask[0] >> 0x20)); // MASK for 63:32
-#ifdef PV_TATE
         usrp->set_user_register(4, (uint32_t) (pins[1] >> 0x00)); // GPIO 95:64
         usrp->set_user_register(5, (uint32_t) (mask[1] >> 0x00)); // MASK for 95:64
         usrp->set_user_register(6, (uint32_t) (pins[1] >> 0x20)); // GPIO 128:96
         usrp->set_user_register(7, (uint32_t) (mask[1] >> 0x20)); // MASK for 128:96 (Also writes packet).
-#endif
     }
 
     void gpio_main()
     {
-#ifdef PV_TATE
         std::cout << "GPIO example for Tate" << std::endl;
         // Note that Tate has 80 GPIO pins
         // The following is the mapping of the GPIO pins to the registers
@@ -105,7 +94,8 @@ namespace gpio
             time += 0.5;
             // Ramp up the attenuation every half second
             attenuation++;
-            if (attenuation == 128) {
+            // In this example, let's not attenuate all the way, because it'd be hard to detect the signal.
+            if (attenuation == 80) {
                 attenuation = 0;
             }
             pins[0] = pins_default[0]   | 
@@ -125,21 +115,12 @@ namespace gpio
 
             gpio::write(usrp, pins, mask, time);
         }
-#else
-        std::cout << "GPIO example for Vaunt" << std::endl;
-        // Note that Vaunt has 48 GPIO pins
-        uint64_t pins = 0x0;
-        const uint64_t mask = 0xFFFFFFFFFF;
-        for(double time = 0.0; time < 64.0; time++) {
-            // Toggle the pins for the next 64 seconds
-            pins ^= mask;
-            gpio::write(usrp, pins, mask, time);
-            if (stop_signal_called) {
-                break;
-            }
-        }
-#endif
 
+        // Turn off the HDR boards when the program is terminated.
+        time += 0.5;
+        pins[0] = 0;
+        pins[1] = 0;
+        gpio::write(usrp, pins, mask, time);
     }
 
     void start_gpio_thread()
@@ -158,7 +139,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
     uint64_t total_num_samps;
     size_t spb;
-    double rate, freq, gain, wave_freq, bw;
+    double rate, ch_freq, dp_freq, dsp_freq, gain, wave_freq, bw;
     float ampl;
 
     double first, last, increment;
@@ -171,7 +152,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
         ("nsamps", po::value<uint64_t>(&total_num_samps)->default_value(0), "total number of samples to transmit")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
-        ("freq", po::value<double>(&freq), "RF center frequency in Hz")
+        ("ch-freq", po::value<double>(&ch_freq), "DAC Channel RF center frequency in Hz")
+        ("dp-freq", po::value<double>(&dp_freq), "DAC Datapath RF center frequency in Hz")
+        ("dsp-freq", po::value<double>(&dsp_freq), "FPGA DSP center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
@@ -233,14 +216,30 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate()/1e6) << std::endl << std::endl;
 
     //set the center frequency
-    if (not vm.count("freq")){
-        std::cerr << "Please specify the center frequency with --freq" << std::endl;
+    if (not vm.count("dp-freq")){
+        std::cerr << "Please specify the DAC Datapath center frequency with --dp-freq" << std::endl;
+        return ~0;
+    }
+
+    //set the center frequency
+    if (not vm.count("ch-freq")){
+        std::cerr << "Please specify the DAC Channel center frequency with --ch-freq" << std::endl;
+        return ~0;
+    }
+
+    //set the center frequency
+    if (not vm.count("dsp-freq")){
+        std::cerr << "Please specify the DAC Channel center frequency with --dsp-freq" << std::endl;
         return ~0;
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
-        std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(freq);
+        // As an example, space the Channelizer frequencies 500KHz apart
+        double ch_freq_incr = ch_freq + (ch*500000);
+
+        double total_freq = ch_freq_incr + dp_freq + dsp_freq;
+        std::cout << boost::format("Setting TX Freq: %f MHz...") % (total_freq/1e6) << std::endl;
+        uhd::tune_request_t tune_request(total_freq, ch_freq_incr, dp_freq, 0.0, dsp_freq);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
         std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
@@ -280,11 +279,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //pre-compute the waveform values
 
-#if (UC16_DATA == 1)
     const wave_table_class_sc16 wave_table(wave_type, ampl);
-#else
-    const wave_table_class wave_table(wave_type, ampl);
-#endif
     const size_t step = boost::math::iround(wave_freq/usrp->get_tx_rate() * wave_table_len);
     std::cout << "Step size is : " << step << std::endl;
     size_t index = 0;
@@ -381,6 +376,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     gpio::start_gpio_thread();
 
+    uint64_t aggregate_samp_rate = rate * channel_strings.size();
 
     for(double time = first; time <= last; time += increment)
     {
@@ -391,6 +387,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.end_of_burst   = false;
         md.has_time_spec  = true;
         md.time_spec = uhd::time_spec_t(time);
+        md.aggregate_samp_rate = aggregate_samp_rate;
 
         //send data until the signal handler gets called
         //or if we accumulate the number of samples specified (unless it's 0)

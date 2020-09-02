@@ -452,7 +452,7 @@ BOOST_AUTO_TEST_CASE(test_get_mboard_name){
 // clear_command_time()
 
 BOOST_AUTO_TEST_CASE(test_issue_stream_cmd){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -460,13 +460,13 @@ BOOST_AUTO_TEST_CASE(test_issue_stream_cmd){
 // set_clock_config() // deprecated
 
 BOOST_AUTO_TEST_CASE(test_set_time_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_time_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     //BOOST_CHECK_EQUAL("internal", usrp->get_clock_source(0));
     // not happy-path testing?
 }
@@ -485,13 +485,13 @@ BOOST_AUTO_TEST_CASE(test_get_time_sources){
 }
 
 BOOST_AUTO_TEST_CASE(test_set_clock_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // todo: test the non-happy path
     //sources = usrp->get_clock_sources(1);
 }
 
 BOOST_AUTO_TEST_CASE(test_get_clock_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     //BOOST_CHECK_EQUAL("internal", usrp->get_clock_source(0));
     // not happy-path testing?
 }
@@ -509,31 +509,31 @@ BOOST_AUTO_TEST_CASE(test_get_clock_sources){
 }
 
 BOOST_AUTO_TEST_CASE(test_set_sync_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_sync_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_sync_sources){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_clock_source_out){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_time_source_out){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -559,7 +559,7 @@ BOOST_AUTO_TEST_CASE(test_get_mboard_sensor_names){
 }
 
 BOOST_AUTO_TEST_CASE(test_set_user_register){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -571,13 +571,13 @@ BOOST_AUTO_TEST_CASE(test_set_user_register){
  ******************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_set_rx_subdev_spec){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_subdev_spec){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -594,13 +594,13 @@ BOOST_AUTO_TEST_CASE(test_get_rx_subdev_name){
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_rate){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_rate){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -619,13 +619,13 @@ BOOST_AUTO_TEST_CASE(test_get_rx_rates){
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -661,103 +661,103 @@ BOOST_AUTO_TEST_CASE(test_get_fe_rx_freq_range){
  *************************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_get_rx_lo_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_lo_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_lo_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_lo_sources){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_lo_export_enabled){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_lo_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_lo_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_lo_freq_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_lo_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_lo_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_get_tx_lo_source){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_lo_sources){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_lo_export_enabled){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_lo_export_enabled){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_lo_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_lo_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_lo_freq_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -767,133 +767,133 @@ BOOST_AUTO_TEST_CASE(test_get_tx_lo_freq_range){
  *************************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_set_rx_gain){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_gain_profile_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_gain_profile){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_gain_profile){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_normalized_rx_gain){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_rx_agc){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_gain){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_normalized_rx_gain){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_gain_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_gain_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_antenna){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_antenna){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_antennas){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_bandwidth){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_bandwidth){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_bandwidth_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_dboard_iface){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_sensor){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_sensor_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_dc_offset){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_rx_dc_offset_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_rx_iq_balance){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -903,13 +903,13 @@ BOOST_AUTO_TEST_CASE(test_set_rx_iq_balance){
  ******************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_set_tx_subdev_spec){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_subdev_spec){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -920,19 +920,19 @@ BOOST_AUTO_TEST_CASE(test_get_tx_num_channels){
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_subdev_name){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_rate){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_rate){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -959,13 +959,13 @@ BOOST_AUTO_TEST_CASE(test_get_tx_rates){
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_freq){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -1019,109 +1019,109 @@ BOOST_AUTO_TEST_CASE(test_set_tx_gain){
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_gain_profile_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_gain_profile){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_gain_profile){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_normalized_tx_gain){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_gain){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_normalized_tx_gain){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_gain_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_gain_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_antenna){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_antenna){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_antennas){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_bandwidth){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_bandwidth_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_dboard_iface){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_sensor){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_sensor_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_tx_dc_offset_range){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_tx_iq_balance){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -1131,49 +1131,49 @@ BOOST_AUTO_TEST_CASE(test_set_tx_iq_balance){
  ******************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_get_gpio_banks){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_set_gpio_attr){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_gpio_attr){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_gpio_string_attr){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_enumerate_registers){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_register_info){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_write_register){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_read_register){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
@@ -1183,13 +1183,13 @@ BOOST_AUTO_TEST_CASE(test_read_register){
  ******************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_get_filter_names){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
 
 BOOST_AUTO_TEST_CASE(test_get_filter){
-    auto usrp = get_usrp();
+    //auto usrp = get_usrp();
     // it's quite possible that we will need to test a few things here
     //BOOST_FAIL("");
 }
