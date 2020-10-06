@@ -313,7 +313,7 @@ public:
 
         return r;
     }
-
+    
     static managed_send_buffer::sptr get_send_buff( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
 
         boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
@@ -331,6 +331,21 @@ public:
         //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
         my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
+    }
+    
+    static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
+
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        my_streamer->check_fc_update( chan, nsamps);
+    }
+    
+    static bool check_flow_control(boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        return my_streamer->check_fc_condition( chan, timeout);
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
@@ -453,7 +468,7 @@ private:
         _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
-
+    
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -1107,6 +1122,14 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
+                
+                my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
+                ));
+                
+                my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
+                ));
 
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
