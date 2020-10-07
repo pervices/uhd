@@ -24,7 +24,11 @@
 #include <mutex>
 
 #include "../../transport/super_recv_packet_handler.hpp"
-#include "../../transport/super_send_packet_handler.hpp"
+// TODO: fix flow control for crimson and switch back to using
+// #include "../../transport/super_send_packet_handler.hpp"
+// Remember to uncomment function definitions and bind callbacks 
+// for update_fc_send_count and check_flow_control in this file
+#include "../../transport/super_send_packet_handler_crimson.hpp"
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
 #include <uhd/utils/log.hpp>
@@ -338,7 +342,7 @@ public:
         my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
-    
+/* These functions not defined while using super_send_packet_handler_crimson
     static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
         boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
@@ -353,7 +357,7 @@ public:
 
         return my_streamer->check_fc_condition( chan, timeout);
     }
-
+*/
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
@@ -1128,7 +1132,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
-                
+/* These functions not defined while using super_send_packet_handler_crimson
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
                 ));
@@ -1136,7 +1140,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
                 ));
-
+*/
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
