@@ -1576,7 +1576,14 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
 	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
-	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+	double clipped_requested_freq;
+	// clip function returns zero for any negative input, which is normally expected, but for cyan_16t we need to set the dsp nco to a negative value
+	if (tune_request.target_freq < 0) {
+		clipped_requested_freq = 0 - rf_range.clip( 0 - tune_request.target_freq );
+	}
+	else {
+		clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+	}
 	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
 	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
