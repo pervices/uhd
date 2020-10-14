@@ -1024,7 +1024,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint32_t lvl = (rsp.header & 0xffff) << 2;
+	uint32_t lvl = (rsp.header & 0xffff) << 5; //RDB it was 2; changed to 5 : 1 (*2) + 4 (*16 sample/loc)
 	pcnt = (double)lvl / CYAN_16T_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG

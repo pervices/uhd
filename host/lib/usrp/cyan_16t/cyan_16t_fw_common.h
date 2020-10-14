@@ -99,8 +99,15 @@
 #define CYAN_16T_UPDATE_PER_SEC	100
 #define CYAN_16T_SS_FIFOLVL_THRESHOLD 107421875
 
-// Crimson Buffer Size
-#define CYAN_16T_BUFF_SIZE	(65536*4)
+// Cyan_16t Buffer Size
+#define DDR_WIDTH           512
+#define SAMPLE_WIDTH        32
+#define MAX_PKT_IN_DDR      900
+#define MAX_BYTE_PER_PKT    9000
+#define BYTE_PER_DDR_LOC    64
+#define SAMPLE_PER_LOC      (DDR_WIDTH/SAMPLE_WIDTH)
+#define N_DDR_LOC           (MAX_PKT_IN_DDR*MAX_BYTE_PER_PKT/BYTE_PER_DDR_LOC)
+#define CYAN_16T_BUFF_SIZE  (N_DDR_LOC*SAMPLE_PER_LOC)
 
 // Crimson RF Settings
 #define CYAN_16T_RF_TX_GAIN_RANGE_START	0.0
