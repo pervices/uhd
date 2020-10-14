@@ -5,6 +5,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include "../global.hpp"
+
 #include "udp_common.hpp"
 #include <uhd/transport/udp_zero_copy.hpp>
 #include <uhd/transport/udp_simple.hpp> //mtu
@@ -18,6 +20,11 @@
 #include <chrono>
 #include <thread>
 #include <sys/socket.h>
+
+namespace global
+{
+    bool udp_retry;
+}
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -108,24 +115,28 @@ public:
         _mem(mem), _sock_fd(sock_fd), _frame_size(frame_size) { /*NOP*/ }
 
     void release(void){
-        // //Retry logic because send may fail with ENOBUFS.
-        // //This is known to occur at least on some OSX systems.
-        // //But it should be safe to always check for the error.
-        // while (true)
-        // {
-        //     const ssize_t ret = ::send(_sock_fd, (const char *)_mem, size(), 0);
-        //     if (ret == ssize_t(size())) break;
-        //     if (ret == -1 and errno == ENOBUFS)
-        //     {
-        //         std::this_thread::sleep_for(std::chrono::microseconds(1));
-        //         continue; //try to send again
-        //     }
-        //     if (ret == -1)
-        //     {
-        //         throw uhd::io_error(str(boost::format("send error on socket: %s") % strerror(errno)));
-        //     }
-        //     UHD_ASSERT_THROW(ret == ssize_t(size()));
-        // }
+        //Retry logic because send may fail with ENOBUFS.
+        //This is known to occur at least on some OSX systems.
+        //2020 OCT - jpol: On my dev machines,
+        //     crimson will underflow without retry
+        //     and cyan will overflow with retry.
+        //     So in the io_impl.cpp file for each device
+        //     we set global::udp_retry appropriately.
+        while (global::udp_retry)
+        {
+            const ssize_t ret = ::send(_sock_fd, (const char *)_mem, size(), 0);
+            if (ret == ssize_t(size())) break;
+            if (ret == -1 and errno == ENOBUFS)
+            {
+                std::this_thread::sleep_for(std::chrono::microseconds(1));
+                continue; //try to send again
+            }
+            if (ret == -1)
+            {
+                throw uhd::io_error(str(boost::format("send error on socket: %s") % strerror(errno)));
+            }
+            UHD_ASSERT_THROW(ret == ssize_t(size()));
+        }
         _claimer.release();
     }
 
