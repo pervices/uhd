@@ -343,7 +343,7 @@ udp_zero_copy::sptr udp_zero_copy::make(
     xport_params.send_frame_size = size_t(hints.cast<double>("send_frame_size", default_buff_args.send_frame_size));
     xport_params.num_send_frames = size_t(hints.cast<double>("num_send_frames", default_buff_args.num_send_frames));
     xport_params.recv_buff_size = size_t(hints.cast<double>("recv_buff_size", default_buff_args.recv_buff_size));
-    xport_params.send_buff_size = size_t(hints.cast<double>("send_buff_size", default_buff_args.send_buff_size));
+    xport_params.send_buff_size = (size_t)default_buff_args.send_buff_size;
 
     if (xport_params.num_recv_frames == 0) {
         UHD_LOG_TRACE("UDP", "Default value for num_recv_frames: "
