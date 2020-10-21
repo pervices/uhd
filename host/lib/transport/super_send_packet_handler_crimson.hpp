@@ -36,7 +36,7 @@
 
 namespace uhd {
 namespace transport {
-namespace sph {
+namespace sphc {
 
 /***********************************************************************
  * Super send packet handler
