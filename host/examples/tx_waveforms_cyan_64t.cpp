@@ -190,6 +190,34 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("subdev")) usrp->set_tx_subdev_spec(subdev);
 
     //detect which channels to use
+
+    // Note that CYAN_64T has 8 OUTPUT channels and 64 JESD channels
+    // The following is the mapping of the OUTPUT channels to the JESD channels
+    // The OUTPUT channels are listed along the left of the chart and the 
+    // associated JESD channels associated shown for the low and high power branches
+    //
+    //                 LO POWER      HI POWER  
+    //             +-------------+-------------+
+    // CHANNEL A:  |   0,1,2,3   | 16,17,18,19 |
+    //             +-------------+-------------+
+    // CHANNEL B:  |   4,5,6,7   | 20,21,22,23 |
+    //             +-------------+-------------+
+    // CHANNEL C:  |  8,9,10,11  | 24,25,26,27 |
+    //             +-------------+-------------+
+    // CHANNEL D:  | 12,13,14,15 | 28,29,30,31 |
+    //             +-------------+-------------+
+    // CHANNEL E:  | 32,33,34,35 | 48,49,50,51 |
+    //             +-------------+-------------+
+    // CHANNEL F:  | 36,37,38,39 | 52,53,54,55 |
+    //             +-------------+-------------+
+    // CHANNEL G:  | 40,41,42,43 | 56,57,58,59 |
+    //             +-------------+-------------+
+    // CHANNEL H:  | 44,45,46,47 | 60,61,62,63 |
+    //             +-------------+-------------+
+    //
+    // For example, to run only the high power branch for OUTPUT channel A:
+    // tx_waveforms_cyan_64t --rate 1000000 --ch-freq 500000000 --dp-freq 1000000000 --dsp-freq 500000  --gain 20 --wave-type="SINE" --wave-freq=50000 --ampl=0.99 --channels="16,17"
+
     std::vector<std::string> channel_strings;
     std::vector<size_t> channel_nums;
     boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
