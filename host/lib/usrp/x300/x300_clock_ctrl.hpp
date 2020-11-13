@@ -9,8 +9,8 @@
 #define INCLUDED_X300_CLOCK_CTRL_HPP
 
 #include <uhd/types/serial.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/utility.hpp>
 
 
 enum x300_clock_which_t
@@ -26,7 +26,7 @@ enum x300_clock_which_t
     X300_CLOCK_WHICH_FPGA,
 };
 
-class x300_clock_ctrl : boost::noncopyable
+class x300_clock_ctrl : uhd::noncopyable
 {
 public:
 

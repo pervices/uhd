@@ -40,6 +40,14 @@ class mock_msb : public uhd::transport::managed_send_buffer {
     void release(void) { /* nop */
     }
 
+    virtual int get_socket(void) {
+        return -1;
+    }
+
+    virtual void get_iov(iovec &iov) {
+        (void) iov;
+    }
+
     sptr get_new(boost::shared_array<uint8_t> mem, size_t* len) {
         _mem = mem;
         return make(this, mem.get(), *len);

@@ -10,9 +10,9 @@
 
 #include <uhd/config.hpp>
 #include <uhd/types/ranges.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/function.hpp>
-#include <boost/utility.hpp>
+#include <boost/shared_ptr.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <vector>
 #include <string>
 
@@ -27,7 +27,8 @@ struct UHD_API gain_fcns_t{
     boost::function<void(double)>        set_value;
 };
 
-class UHD_API gain_group : boost::noncopyable{
+class UHD_API gain_group : uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<gain_group> sptr;
 

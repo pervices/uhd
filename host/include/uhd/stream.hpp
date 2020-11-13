@@ -11,8 +11,9 @@
 #include <uhd/config.hpp>
 #include <uhd/types/metadata.hpp>
 #include <uhd/types/device_addr.hpp>
-#include <uhd/types/stream_cmd.hpp>
 #include <uhd/types/ref_vector.hpp>
+#include <uhd/types/stream_cmd.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
 #include <vector>
@@ -167,7 +168,8 @@ struct UHD_API stream_args_t{
  * It represents the layer between the samples on the host
  * and samples inside the device's receive DSP processing.
  */
-class UHD_API rx_streamer : boost::noncopyable{
+class UHD_API rx_streamer : uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<rx_streamer> sptr;
 
@@ -243,7 +245,8 @@ public:
  * It represents the layer between the samples on the host
  * and samples inside the device's transmit DSP processing.
  */
-class UHD_API tx_streamer : boost::noncopyable{
+class UHD_API tx_streamer : uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<tx_streamer> sptr;
 

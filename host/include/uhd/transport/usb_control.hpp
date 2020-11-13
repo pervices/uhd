@@ -9,10 +9,13 @@
 #define INCLUDED_UHD_TRANSPORT_USB_CONTROL_HPP
 
 #include <uhd/transport/usb_device_handle.hpp>
+#include <uhd/utils/noncopyable.hpp>
+#include <boost/shared_ptr.hpp>
 
 namespace uhd { namespace transport {
 
-class UHD_API usb_control : boost::noncopyable {
+class UHD_API usb_control : uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<usb_control> sptr;
 
@@ -47,14 +50,14 @@ public:
      * \return             number of bytes submitted or error code
      */
     virtual int submit(uint8_t request_type,
-                       uint8_t request,
-                       uint16_t value,
-                       uint16_t index, 
-                       unsigned char *buff,
-                       uint16_t length,
-                       uint32_t timeout = 0) = 0;
+        uint8_t request,
+        uint16_t value,
+        uint16_t index,
+        unsigned char* buff,
+        uint16_t length,
+        uint32_t timeout = 0) = 0;
 };
 
-}} //namespace
+}} // namespace uhd::transport
 
 #endif /* INCLUDED_UHD_TRANSPORT_USB_CONTROL_HPP */

@@ -100,4 +100,5 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/convert_pack_sc12.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/convert_unpack_sc12.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/convert_fc32_item32.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convert_uc16_item32.cpp
 )

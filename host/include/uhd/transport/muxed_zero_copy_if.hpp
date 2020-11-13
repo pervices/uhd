@@ -11,7 +11,7 @@
 #include <uhd/transport/zero_copy.hpp>
 #include <uhd/config.hpp>
 #include <boost/function.hpp>
-#include <boost/noncopyable.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <stdint.h>
 
 namespace uhd { namespace transport {
@@ -25,7 +25,8 @@ namespace uhd { namespace transport {
  * appropriate virtual streams with the given classifier
  * function. A worker therad is spawned to handle the demuxing.
  */
-class muxed_zero_copy_if : private boost::noncopyable {
+class muxed_zero_copy_if : private uhd::noncopyable
+{
 public:
     typedef boost::shared_ptr<muxed_zero_copy_if> sptr;
 

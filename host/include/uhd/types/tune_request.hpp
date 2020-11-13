@@ -41,6 +41,16 @@ namespace uhd{
          */
         tune_request_t(double target_freq, double lo_off);
 
+        /*!
+         * Fully manual tune request which supports multiple center frequencies.
+         * \param target_freq the target frequency in Hz
+         * \param rf_ch_freq the target frequency of DAC channelizer
+         * \param rf_dp_freq the target frequency of DAC Datapath
+         * \param lo_off the LO offset frequency in Hz
+         * \param dsp_freq the target frequency of FPGA DSP
+         */
+        tune_request_t(double target_freq, double rf_ch_freq, double rf_dp_freq, double lo_off, double dsp_freq);
+
         //! Policy options for tunable elements in the RF chain.
         enum policy_t {
             //! Do not set this argument, use current setting.
@@ -65,9 +75,31 @@ namespace uhd{
 
         /*!
          * The RF frequency in Hz.
+         * This is DAD Datapath plus DAC Channelizer NCO tuning word.
          * Set when the policy is set to manual.
+         *
+         * Note: We must reuse the same name for compatibility with UHD.
+         *       A proper name for this variable would be rf_dp_freq.
          */
         double rf_freq;
+
+        /*!
+         * The RF frequency in Hz. This is DAD Datapath NCO tuning word.
+         * Set when the policy is set to manual.
+         */
+        double rf_dp_freq;
+
+        /*!
+         * The RF frequency in Hz. This is DAD Channel NCO tuning word.
+         * Set when the policy is set to manual.
+         */
+        double rf_ch_freq;
+
+        /*!
+         * The External LO frequency in Hz.
+         * Set when the policy is set to manual.
+         */
+        double lo_freq;
 
         /*!
          * The policy for the DSP frequency.

@@ -146,6 +146,8 @@ namespace uhd{
         //! Set end of burst to true for the last packet in the chain.
         bool end_of_burst;
 
+        //! Aggregate sample rate accross all channels
+        uint64_t aggregate_samp_rate;
         /*!
          * The default constructor:
          * Sets the fields to default values (flags set to false).

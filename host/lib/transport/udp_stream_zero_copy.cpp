@@ -130,6 +130,17 @@ public:
         _claimer.release();
     }
 
+    // Override base class get_socket virtual function
+    UHD_INLINE int get_socket(void) {
+        return _sock_fd;
+    }
+
+    // Override base class get_iov virtual function
+    UHD_INLINE void get_iov(iovec &iov) {
+        iov.iov_base = _mem;
+        iov.iov_len = _frame_size;
+    }
+
     UHD_INLINE sptr get_new(const double timeout, size_t &index){
         if (not _claimer.claim_with_wait(timeout)) return sptr();
         index++; //advances the caller's buffer

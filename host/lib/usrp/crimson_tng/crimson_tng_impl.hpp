@@ -245,6 +245,10 @@ private:
     void update_clock_source(const std::string &, const std::string &);
     void program_stream_dest(uhd::transport::zero_copy_if::sptr &, const uhd::stream_args_t &);
 
+    uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
+    double get_rx_freq(size_t chan = 0);
+    uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
+    double get_tx_freq(size_t chan = 0);
 
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
 };

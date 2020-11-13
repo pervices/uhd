@@ -16,13 +16,20 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include "../../global.hpp"
+
 #include <stdlib.h>
 
 #include <iomanip>
 #include <mutex>
 
 #include "../../transport/super_recv_packet_handler.hpp"
-#include "../../transport/super_send_packet_handler.hpp"
+// TODO: fix flow control for crimson and switch back to using
+// #include "../../transport/super_send_packet_handler.hpp"
+// Remember to uncomment function definitions and bind callbacks 
+// for update_fc_send_count and check_flow_control in this file
+// and change all references to sphc back to sph
+#include "../../transport/super_send_packet_handler_crimson.hpp"
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
 #include <uhd/utils/log.hpp>
@@ -71,6 +78,8 @@
   #define UHD_TXRX_DEBUG_TIME
   #endif
 #endif
+
+extern bool global::udp_retry;
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -170,8 +179,8 @@ static void shutdown_lingering_rx_streamers() {
 
 // XXX: @CF: 20180227: We need this for several reasons
 // 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
-// 2) to wrap sph::send_packet_streamer::send() and use our existing flow control algorithm
-class crimson_tng_send_packet_streamer : public sph::send_packet_streamer {
+// 2) to wrap sphc::send_packet_streamer::send() and use our existing flow control algorithm
+class crimson_tng_send_packet_streamer : public sphc::send_packet_streamer {
 public:
 
 	typedef boost::function<void(void)> onfini_type;
@@ -181,7 +190,7 @@ public:
 
 	crimson_tng_send_packet_streamer( const size_t max_num_samps )
 	:
-		sph::send_packet_streamer( max_num_samps ),
+		sphc::send_packet_streamer( max_num_samps ),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
@@ -220,6 +229,8 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        global::udp_retry = true;
+        
         static const double default_sob = 1.0;
 
         size_t r = 0;
@@ -313,7 +324,7 @@ public:
 
         return r;
     }
-
+    
     static managed_send_buffer::sptr get_send_buff( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
 
         boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
@@ -332,7 +343,22 @@ public:
         my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
+/* These functions not defined while using super_send_packet_handler_crimson
+    static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        my_streamer->check_fc_update( chan, nsamps);
+    }
+    
+    static bool check_flow_control(boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
+        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+
+        return my_streamer->check_fc_condition( chan, timeout);
+    }
+*/
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
@@ -361,11 +387,11 @@ public:
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
-		sph::send_packet_handler::resize(size);
+		sphc::send_packet_handler::resize(size);
     }
 
     void set_samp_rate(const double rate){
-        sph::send_packet_handler::set_samp_rate( rate );
+        sphc::send_packet_handler::set_samp_rate( rate );
         _samp_rate = rate;
         uhd::time_spec_t now = get_time_now();
         for( auto & ep: _eprops ) {
@@ -419,7 +445,7 @@ private:
     timenow_type _time_now;
     std::mutex _mutex;
 
-    // extended per-channel properties, beyond what is available in sph::send_packet_handler::xport_chan_props_type
+    // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
     struct eprops_type{
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
@@ -453,7 +479,7 @@ private:
         _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
-
+    
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -1107,7 +1133,15 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
-
+/* These functions not defined while using super_send_packet_handler_crimson
+                my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
+                ));
+                
+                my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
+                    &crimson_tng_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
+                ));
+*/
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));

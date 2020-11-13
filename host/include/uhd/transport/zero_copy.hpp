@@ -9,10 +9,12 @@
 #define INCLUDED_UHD_TRANSPORT_ZERO_COPY_HPP
 
 #include <uhd/config.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/detail/atomic_count.hpp>
+#include <sys/socket.h>
 
 namespace uhd{ namespace transport{
 
@@ -44,6 +46,7 @@ namespace uhd{ namespace transport{
         UHD_INLINE void commit(size_t num_bytes){
             _length = num_bytes;
         }
+
 
         /*!
          * Get a pointer to the underlying buffer.
@@ -122,6 +125,10 @@ namespace uhd{ namespace transport{
     class UHD_API managed_send_buffer : public managed_buffer{
     public:
         typedef boost::intrusive_ptr<managed_send_buffer> sptr;
+
+        virtual int get_socket(void) = 0;
+
+        virtual void get_iov(iovec &iov) = 0;
     };
 
     /*!
@@ -149,9 +156,10 @@ namespace uhd{ namespace transport{
      * Provides a way to get send and receive buffers
      * with memory managed by the transport object.
      */
-    class UHD_API zero_copy_if : boost::noncopyable{
-    public:
-        typedef boost::shared_ptr<zero_copy_if> sptr;
+class UHD_API zero_copy_if : uhd::noncopyable
+{
+public:
+    typedef boost::shared_ptr<zero_copy_if> sptr;
 
         /*!
          * Clean up tasks before releasing the transport object.
