@@ -150,6 +150,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             }
         }
 
+        if(device_type.compare("crimson_tng") != 0){
+            std::cout << "ERROR: not implemented for current device type\n";
+            continue;
+        }
+
         std::cout << "Device Type    : " << device_type << std::endl;
         std::cout << "TODO: print the server revision\n";
         std::cout << "Server Version : " << get_from_tree(tree, i, "server_version")
