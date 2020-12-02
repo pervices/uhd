@@ -1,28 +1,25 @@
-#include <iostream>
-#include <cstdlib>
-
-#include <boost/program_options.hpp>
-
-#include <uhd/version.hpp>
 #include <uhd/device.hpp>
 #include <uhd/property_tree.hpp>
-
 #include <uhd/utils/safe_main.hpp>
+#include <uhd/version.hpp>
+#include <boost/program_options.hpp>
+#include <cstdlib>
+#include <iostream>
 
 namespace po = boost::program_options;
 
 namespace {
-    //! Conditionally append find_all=1 if the key isn't there yet
-    uhd::device_addr_t append_findall(const uhd::device_addr_t& device_args)
-    {
-        uhd::device_addr_t new_device_args(device_args);
-        if (!new_device_args.has_key("find_all")) {
-            new_device_args["find_all"] = "1";
-        }
-
-        return new_device_args;
+//! Conditionally append find_all=1 if the key isn't there yet
+uhd::device_addr_t append_findall(const uhd::device_addr_t& device_args)
+{
+    uhd::device_addr_t new_device_args(device_args);
+    if (!new_device_args.has_key("find_all")) {
+        new_device_args["find_all"] = "1";
     }
+
+    return new_device_args;
 }
+} // namespace
 
 typedef std::map<std::string, std::set<std::string>> device_multi_addrs_t;
 typedef std::map<std::string, device_multi_addrs_t> device_addrs_filtered_t;
@@ -30,7 +27,9 @@ typedef std::map<std::string, device_multi_addrs_t> device_addrs_filtered_t;
 void print_usage(po::options_description desc)
 {
     std::cout << "Usage: uhd_usrp_init [OPTIONS]..." << std::endl
-              << "Diagnostic script that completely captures the state, code, and revision of a Per Vices SDR" << std::endl
+              << "Diagnostic script that completely captures the state, code, and "
+                 "revision of a Per Vices SDR"
+              << std::endl
               << std::endl
               << desc << std::endl
               << std::endl
@@ -39,7 +38,8 @@ void print_usage(po::options_description desc)
               << std::endl;
 }
 
-std::string get_from_tree(uhd::property_tree::sptr tree, const int device_id, const char *relative_path)
+std::string get_from_tree(
+    uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
     return tree->access<std::string>(path).get();
@@ -75,7 +75,7 @@ device_addrs_filtered_t find_devices(uhd::device_addrs_t device_addrs)
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
-    //uhd::set_thread_priority_safe();
+    // uhd::set_thread_priority_safe();
     po::options_description desc("Allowed options");
 
     // clang-format off
@@ -111,14 +111,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
     device_addrs_filtered_t found_devices = find_devices(device_addrs);
 
-    int i = 0;
+    int i        = 0;
     int ndevices = found_devices.size();
 
     std::cout << std::endl;
-    std::cout << ndevices
-	      << " SDRs found!"
-	      << std::endl
-	      << std::endl;
+    std::cout << ndevices << " SDRs found!" << std::endl << std::endl;
 
     // create property tree for later
     uhd::device::sptr dev         = uhd::device::make(vm["args"].as<std::string>());
@@ -126,47 +123,54 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::string device_type, device_address;
     for (auto dit = found_devices.begin(); dit != found_devices.end(); ++dit) {
-	std::cout << "Device " << (i + 1) << std::endl;
+        std::cout << "Device " << (i + 1) << std::endl;
 
         for (auto mit = dit->second.begin(); mit != dit->second.end(); ++mit) {
             for (auto vit = mit->second.begin(); vit != mit->second.end(); ++vit) {
-		if(mit->first == "addr"){
-			device_address = *vit;
-		}
-		if(mit->first == "type"){
-			device_type = *vit;
-		}
+                if (mit->first == "addr") {
+                    device_address = *vit;
+                }
+                if (mit->first == "type") {
+                    device_type = *vit;
+                }
             }
         }
 
-	std::cout << "Device Type    : " << device_type << std::endl;
+        std::cout << "Device Type    : " << device_type << std::endl;
         std::cout << "TODO: print the server revision\n";
-        std::cout << "Server Version : " << get_from_tree(tree, i, "server_version") << std::endl;
-        std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version") << std::endl;
+        std::cout << "Server Version : " << get_from_tree(tree, i, "server_version")
+                  << std::endl;
+        std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version")
+                  << std::endl;
 
         std::cout << "TODO: print the uhd revision for all the plugged in boards\n";
-	std::cout << "Board Hardware Versions : " << std::endl;
-        std::cout << "\tTime 0: " << get_from_tree(tree, i, "time/fw_version") << std::endl;
+        std::cout << "Board Hardware Versions : " << std::endl;
+        std::cout << "\tTime 0: " << get_from_tree(tree, i, "time/fw_version")
+                  << std::endl;
         std::cout << "\tTx   0: " << get_from_tree(tree, i, "tx/fw_version") << std::endl;
         std::cout << "\tRx   0: " << get_from_tree(tree, i, "rx/fw_version") << std::endl;
 
-        if (vm.count("networking") || vm.count("all") ) {
-	    std::cout << "Device Address : " << std::endl;
-	    std::cout << "\tManagement IP: " << device_address << std::endl;
-            std::cout << "\tSFP A IP     : " << get_from_tree(tree, i, "sfpa/ip_addr") << std::endl;
-            std::cout << "\tSFP B IP     : " << get_from_tree(tree, i, "sfpb/ip_addr") << std::endl;
+        if (vm.count("networking") || vm.count("all")) {
+            std::cout << "Device Address : " << std::endl;
+            std::cout << "\tManagement IP: " << device_address << std::endl;
+            std::cout << "\tSFP A IP     : " << get_from_tree(tree, i, "sfpa/ip_addr")
+                      << std::endl;
+            std::cout << "\tSFP B IP     : " << get_from_tree(tree, i, "sfpb/ip_addr")
+                      << std::endl;
         }
 
-        if (vm.count("time") || vm.count("all") ) {
-            //std::cout << "Time (fpga/board/gps): " << get_from_tree(tree, i, "gps_time") << std::endl;
+        if (vm.count("time") || vm.count("all")) {
+            // std::cout << "Time (fpga/board/gps): " << get_from_tree(tree, i,
+            // "gps_time") << std::endl;
             std::cout << "TODO: provide the SOC: 'date' 'hwclock' and the time on SDR\n";
         }
 
-        if (vm.count("lock") || vm.count("all") ) {
-            std::cout << "TODO: provide the PLL lock status for Rx/Tx/time and if we are using internal/external reference\n";
+        if (vm.count("lock") || vm.count("all")) {
+            std::cout << "TODO: provide the PLL lock status for Rx/Tx/time and if we are "
+                         "using internal/external reference\n";
         }
 
-        if (vm.count("boards") || vm.count("all") ) {
+        if (vm.count("boards") || vm.count("all")) {
             std::cout << "TODO: RFE frontend status of each board\n";
         }
 
