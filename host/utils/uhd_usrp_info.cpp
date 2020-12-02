@@ -49,14 +49,14 @@ std::string get_from_tree_int(
     uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
-    return (std::string)(tree->access<int>(path).get());
+    return std::to_string(tree->access<int>(path).get());
 }
 
 std::string get_from_tree_double(
     uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
-    return (std::string)(tree->access<double>(path).get());
+    return std::to_string(tree->access<double>(path).get());
 }
 
 device_addrs_filtered_t find_devices(uhd::device_addrs_t device_addrs)
