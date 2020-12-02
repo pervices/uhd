@@ -160,9 +160,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
 
         if (vm.count("time") || vm.count("all")) {
-            // std::cout << "Time (fpga/board/gps): " << get_from_tree(tree, i,
-            // "gps_time") << std::endl;
-            std::cout << "TODO: provide the SOC: 'date' 'hwclock' and the time on SDR\n";
+            std::cout << "Time (fpga/gps_time): " << get_from_tree(tree, i,"gps_time") << std::endl;
         }
 
         if (vm.count("lock") || vm.count("all")) {
