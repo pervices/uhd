@@ -126,8 +126,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::string device_type, device_address;
     for (auto dit = found_devices.begin(); dit != found_devices.end(); ++dit) {
-	std::cout << "Device " << (i + 1) << std::endl; 
-	
+	std::cout << "Device " << (i + 1) << std::endl;
+
         for (auto mit = dit->second.begin(); mit != dit->second.end(); ++mit) {
             for (auto vit = mit->second.begin(); vit != mit->second.end(); ++vit) {
 		if(mit->first == "addr"){
@@ -139,8 +139,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             }
         }
 
-	std::cout << "Device Type    : " << device_type << std::endl; 
+	std::cout << "Device Type    : " << device_type << std::endl;
         std::cout << "TODO: print the server revision\n";
+        std::cout << "Server Version : " << get_from_tree(tree, i, "server_version") << std::endl;
         std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version") << std::endl;
 
         std::cout << "TODO: print the uhd revision for all the plugged in boards\n";
@@ -151,7 +152,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         if (vm.count("networking") || vm.count("all") ) {
 	    std::cout << "Device Address : " << std::endl;
-	    std::cout << "\tManagement IP: " << device_address << std::endl; 
+	    std::cout << "\tManagement IP: " << device_address << std::endl;
             std::cout << "\tSFP A IP     : " << get_from_tree(tree, i, "sfpa/ip_addr") << std::endl;
             std::cout << "\tSFP B IP     : " << get_from_tree(tree, i, "sfpb/ip_addr") << std::endl;
         }
