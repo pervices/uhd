@@ -45,6 +45,20 @@ std::string get_from_tree(
     return tree->access<std::string>(path).get();
 }
 
+std::string get_from_tree_int(
+    uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
+{
+    std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
+    return (std::string)(tree->access<int>(path).get());
+}
+
+std::string get_from_tree_double(
+    uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
+{
+    std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
+    return (std::string)(tree->access<double>(path).get());
+}
+
 device_addrs_filtered_t find_devices(uhd::device_addrs_t device_addrs)
 {
     device_addrs_filtered_t found_devices;
@@ -160,7 +174,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
 
         if (vm.count("time") || vm.count("all")) {
-            std::cout << "Time (fpga/gps_time): " << get_from_tree(tree, i,"gps_time") << std::endl;
+            std::cout << "Time (fpga/gps_time) : " << get_from_tree_int(tree, i,"gps_time") << std::endl;
+            std::cout << "Time (time/curr_time): " << get_from_tree_int(tree, i,"time/now") << std::endl;
         }
 
         if (vm.count("lock") || vm.count("all")) {
