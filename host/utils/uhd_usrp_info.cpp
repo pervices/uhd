@@ -190,6 +190,38 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         if (vm.count("boards") || vm.count("all")) {
             std::cout << "TODO: RFE frontend status of each board\n";
+            std::cout << "Rx Board A" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/A/rx_frontends/Channel_A/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/A/rx_frontends/Channel_A/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/A/rx_frontends/Channel_A/gain/value") << std::endl;
+            std::cout << "Rx Board B" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/B/rx_frontends/Channel_B/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/B/rx_frontends/Channel_B/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/B/rx_frontends/Channel_B/gain/value") << std::endl;
+            std::cout << "Rx Board C" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/C/rx_frontends/Channel_C/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/C/rx_frontends/Channel_C/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/C/rx_frontends/Channel_C/gain/value") << std::endl;
+            std::cout << "Rx Board D" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/D/rx_frontends/Channel_D/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/D/rx_frontends/Channel_D/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/D/rx_frontends/Channel_D/gain/value") << std::endl;
+            std::cout << "Tx Board A" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/A/tx_frontends/Channel_A/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/A/tx_frontends/Channel_A/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/A/tx_frontends/Channel_A/gain/value") << std::endl;
+            std::cout << "Tx Board B" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/B/tx_frontends/Channel_B/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/B/tx_frontends/Channel_B/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/B/tx_frontends/Channel_B/gain/value") << std::endl;
+            std::cout << "Tx Board C" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/C/tx_frontends/Channel_C/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/C/tx_frontends/Channel_C/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/C/tx_frontends/Channel_C/gain/value") << std::endl;
+            std::cout << "Tx Board D" << std::endl;
+            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/D/tx_frontends/Channel_D/freq/band") << std::endl;
+            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/D/tx_frontends/Channel_D/freq/value") << std::endl;
+            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/D/tx_frontends/Channel_D/gain/value") << std::endl;
         }
 
         i++;
