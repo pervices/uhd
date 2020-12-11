@@ -164,13 +164,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << "Board MCU revision: " << std::endl;
         std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
         std::cout << "\trx(a): " << get_from_tree(tree, i, "rx/0/fw_version") << std::endl;
-        std::cout << "\trx(a): " << get_from_tree(tree, i, "rx/1/fw_version") << std::endl;
-        std::cout << "\trx(a): " << get_from_tree(tree, i, "rx/2/fw_version") << std::endl;
-        std::cout << "\trx(a): " << get_from_tree(tree, i, "rx/3/fw_version") << std::endl;
+        std::cout << "\trx(b): " << get_from_tree(tree, i, "rx/1/fw_version") << std::endl;
+        std::cout << "\trx(c): " << get_from_tree(tree, i, "rx/2/fw_version") << std::endl;
+        std::cout << "\trx(d): " << get_from_tree(tree, i, "rx/3/fw_version") << std::endl;
         std::cout << "\ttx(a): " << get_from_tree(tree, i, "tx/0/fw_version") << std::endl;
-        std::cout << "\ttx(a): " << get_from_tree(tree, i, "tx/1/fw_version") << std::endl;
-        std::cout << "\ttx(a): " << get_from_tree(tree, i, "tx/2/fw_version") << std::endl;
-        std::cout << "\ttx(a): " << get_from_tree(tree, i, "tx/3/fw_version") << std::endl;
+        std::cout << "\ttx(b): " << get_from_tree(tree, i, "tx/1/fw_version") << std::endl;
+        std::cout << "\ttx(c): " << get_from_tree(tree, i, "tx/2/fw_version") << std::endl;
+        std::cout << "\ttx(d): " << get_from_tree(tree, i, "tx/3/fw_version") << std::endl;
 
         if (vm.count("networking") || vm.count("all")) {
             std::cout << "Device Address : " << std::endl;
