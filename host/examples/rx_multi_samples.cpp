@@ -30,15 +30,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //setup the program options
     po::options_description desc("Allowed options");
     desc.add_options()
-        ("help", "help message")
-        ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
-        ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
-        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
-        ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming samples")
-        ("sync", po::value<std::string>(&sync)->default_value("now"), "synchronization method: now, pps, mimo")
-        ("subdev", po::value<std::string>(&subdev), "subdev spec (homogeneous across motherboards)")
-        ("dilv", "specify to disable inner-loop verbose")
+        ("args",     po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("dilv",     "specify to disable inner-loop verbose")
+        ("file",     po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to write binary samples to")
+        ("help",     "help message")
+        ("nsamps",   po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
+        ("null",     "run without writing to file")
+        ("rate",     po::value<double>(&rate)->default_value(100e6/16), "rate of incoming samples")
+        ("secs",     po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
+        ("subdev",   po::value<std::string>(&subdev), "subdev spec (homogeneous across motherboards)")
+        ("sync",     po::value<std::string>(&sync)->default_value("now"), "synchronization method: now, pps, mimo")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -148,6 +150,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
+    std::vector<std::ofstream> outfiles(usrp->get_rx_num_channels(), std::ofstream());
+    std::string filename;
+    for (int i = 0; i < outfiles.size(); ++i) {
+        filename = file.c_str()  + "_ch" + std::to_string(i);
+        outfiles.at(i).open(filename, std::ofstream::binary);
+    }
+
     size_t num_acc_samps = 0; //number of accumulated samples
     while(num_acc_samps < total_num_samps){
         //receive a single packet
@@ -171,9 +180,27 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ) % num_rx_samps % md.time_spec.get_full_secs() % md.time_spec.get_frac_secs() << std::endl;
 
         num_acc_samps += num_rx_samps;
+
+        for (int i = 0; i < outfiles.size(); ++i) {
+            if (outfiles.at(i).is_open()) {
+                outfiles.at(i).write(
+                    (const char*)buff_ptrs.at(i),
+                    num_rx_samps*sizeof(samp_type)
+                );
+            }
+        }
+
     }
 
-    if (num_acc_samps < total_num_samps) std::cerr << "Receive timeout before all samples received..." << std::endl;
+    if (num_acc_samps < total_num_samps){
+        std::cerr << "Receive timeout before all samples received..." << std::endl;
+    }
+
+    for (int i = 0; i < outfiles.size(); ++i) {
+        if (outfiles.at(i).is_open()) {
+            outfiles.at(i).close();
+        }
+    }
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
