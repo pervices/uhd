@@ -152,7 +152,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::vector<std::ofstream> outfiles(usrp->get_rx_num_channels(), std::ofstream());
     std::string filename;
-    for (int i = 0; i < outfiles.size(); ++i) {
+    for (size_t i = 0; i < outfiles.size(); ++i) {
         filename = file.c_str()  + "_ch" + std::to_string(i);
         outfiles.at(i).open(filename, std::ofstream::binary);
     }
@@ -181,7 +181,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         num_acc_samps += num_rx_samps;
 
-        for (int i = 0; i < outfiles.size(); ++i) {
+        for (size_t i = 0; i < outfiles.size(); ++i) {
             if (outfiles.at(i).is_open()) {
                 outfiles.at(i).write(
                     (const char*)buff_ptrs.at(i),
@@ -196,7 +196,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cerr << "Receive timeout before all samples received..." << std::endl;
     }
 
-    for (int i = 0; i < outfiles.size(); ++i) {
+    for (size_t i = 0; i < outfiles.size(); ++i) {
         if (outfiles.at(i).is_open()) {
             outfiles.at(i).close();
         }
