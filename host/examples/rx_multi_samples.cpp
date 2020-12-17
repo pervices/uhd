@@ -152,10 +152,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
-    std::vector<std::ofstream> outfiles(usrp->get_rx_num_channels());
     std::string filename;
+    std::vector<std::ofstream> outfiles;
+    outfiles.resize (usrp->get_rx_num_channels);
     for (size_t i = 0; i < outfiles.size(); ++i) {
         filename = file + "_ch" + std::to_string(i);
+        outfiles.at(i) = new std::ofstream();
         outfiles.at(i).open(filename.c_str(), std::ofstream::binary);
     }
 
