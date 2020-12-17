@@ -188,7 +188,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         for (size_t i = 0; i < outfiles.size(); ++i) {
             if (outfiles.at(i).is_open()) {
-                outfiles.at(i).write( (const char*)buff_ptrs[i], num_rx_samps*sizeof(samp_type) );
+                outfiles.at(i).write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
             }
         }
 
@@ -198,9 +198,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cerr << "Receive timeout before all samples received..." << std::endl;
     }
 
-    for (auto outfile: outfiles) {
-        if (outfile.is_open()) {
-            outfile.close();
+    for (size_t i = 0; i < outfiles.size(); ++i) {
+        if (outfiles.at(i).is_open()) {
+            outfiles.at(i).close();
         }
     }
 
