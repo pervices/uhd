@@ -12,6 +12,7 @@
 #include <boost/format.hpp>
 #include <boost/algorithm/string.hpp>
 #include <iostream>
+#include <fstream>
 #include <complex>
 #include <chrono>
 #include <thread>
