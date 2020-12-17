@@ -161,7 +161,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         for (size_t i = 0; i < nfiles;  i++) {
             filename = file + "_ch_" + std::to_string(i);
             std::ofstream ofs (filename.c_str(), std::ofstream::binary);
-            outfiles.emplace_back(ofs);
+            outfiles.at(i) = ofs;
         }
     }
 
