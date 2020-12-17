@@ -152,11 +152,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
-    std::string filename;
-    std::vector<std::ofstream> outfiles (usrp->get_rx_num_channels(), new std::ofstream);
-    for (size_t i = 0; i < outfiles.size(); ++i) {
-        filename = file + "_ch" + std::to_string(i);
-        outfiles[i].open(filename.c_str(), std::ofstream::binary);
+    /* std::string filename; */
+    /* std::vector<std::ofstream> outfiles (usrp->get_rx_num_channels(), new std::ofstream); */
+    /* for (size_t i = 0; i < outfiles.size(); ++i) { */
+    /*     filename = file + "_ch" + std::to_string(i); */
+    /*     outfiles[i].open(filename.c_str(), std::ofstream::binary); */
+    /* } */
+    std::vector<std::ofstream> outfiles;
+    size_t nfiles = usrp->get_rx_num_channels();
+    for (size_t i = 0; i < nfiles;  i++) {
+        std::string filename = file + "_ch" + std::to_string(i);
+        outfiles.emplace_back(std::ofstream( filename ));
+
     }
 
     size_t num_acc_samps = 0; //number of accumulated samples
