@@ -156,10 +156,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string filename;
     std::vector<std::ofstream> outfiles;
     size_t nfiles = usrp->get_rx_num_channels();
-    for (size_t i = 0; i < nfiles;  i++) {
-        filename = file + "_ch_" + std::to_string(i);
-        std::ofstream ofs (filename.c_str(), std::ofstream::binary);
-        outfiles.emplace_back(ofs);
+    if (not null){
+        for (size_t i = 0; i < nfiles;  i++) {
+            filename = file + "_ch_" + std::to_string(i);
+            std::ofstream ofs (filename.c_str(), std::ofstream::binary);
+            outfiles.emplace_back(ofs);
+        }
     }
 
     size_t num_acc_samps = 0; //number of accumulated samples
