@@ -26,8 +26,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double seconds_in_future;
     size_t total_num_samps;
     double rate;
-    const std::string file;
-    bool null = false;
+    std::string file;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -66,6 +65,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     bool verbose = vm.count("dilv") == 0;
+    bool null = vm.count("null") > 0;
 
     //create a usrp device
     std::cout << std::endl;
