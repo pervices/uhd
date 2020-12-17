@@ -26,8 +26,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double seconds_in_future;
     size_t total_num_samps;
     double rate;
-    const std::string &file,
-    bool null = false,
+    const std::string &file;
+    bool null = false;
 
     //setup the program options
     po::options_description desc("Allowed options");
