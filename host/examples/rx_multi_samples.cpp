@@ -157,6 +157,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::ofstream> outfiles;
     size_t nfiles = usrp->get_rx_num_channels();
     if (not null){
+        outfiles.resize(nfiles)
         for (size_t i = 0; i < nfiles;  i++) {
             filename = file + "_ch_" + std::to_string(i);
             std::ofstream ofs (filename.c_str(), std::ofstream::binary);
