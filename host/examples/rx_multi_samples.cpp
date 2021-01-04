@@ -204,8 +204,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for (size_t i = 0; i < ofstream_ptrs.size(); ++i) {
         std::ofstream* ofstream_ptr = ofstream_ptrs.at(i);
         if ((*ofstream_ptr).is_open()) {
-            delete ofstream_ptr
             (*ofstream_ptr).close();
+            delete ofstream_ptr
         }
     }
 
