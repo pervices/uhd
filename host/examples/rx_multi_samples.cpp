@@ -154,13 +154,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
     std::string filename;
-    std::vector<std::ofstream> outfiles;
+    std::vector<std::ofstream *> outfiles;
     size_t nfiles = usrp->get_rx_num_channels();
     if (not null){
         for (size_t i = 0; i < nfiles;  i++) {
             filename = file + "_ch_" + std::to_string(i);
             std::ofstream ofs (filename.c_str(), std::ofstream::binary);
-            outfiles.push_back(ofs);
+            outfiles.push_back(&ofs);
         }
     }
 
