@@ -154,13 +154,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
     std::string filename;
-    std::vector<std::ofstream *> outfile_ptrs;
+    std::vector<std::ofstream *> ofstream_ptrs;
     size_t nfiles = usrp->get_rx_num_channels();
     if (not null){
         for (size_t i = 0; i < nfiles;  i++) {
             filename = file + "_ch_" + std::to_string(i) + ".dat";
             std::ofstream ofs (filename.c_str(), std::ofstream::binary);
-            outfile_ptrs.push_back(&ofs);
+            ofstream_ptrs.push_back(&ofs);
         }
     }
 
@@ -188,8 +188,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         num_acc_samps += num_rx_samps;
 
-        for (size_t i = 0; i < outfile_ptrs.size(); ++i) {
-            std::ofstream* ofstream_ptr = outfile_ptrs.at(i);
+        for (size_t i = 0; i < ofstream_ptrs.size(); ++i) {
+            std::ofstream* ofstream_ptr = ofstream_ptrs.at(i);
             if ((*ofstream_ptr).is_open()) {
                 (*ofstream_ptr).write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
             }
@@ -201,10 +201,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cerr << "Receive timeout before all samples received..." << std::endl;
     }
 
-    for (size_t i = 0; i < outfile_ptrs.size(); ++i) {
-        std::ofstream* ofstream_ptr = outfile_ptrs.at(i);
-        if ((*outfile_ptr).is_open()) {
-            (*outfile_ptr).close();
+    for (size_t i = 0; i < ofstream_ptrs.size(); ++i) {
+        std::ofstream* ofstream_ptr = ofstream_ptrs.at(i);
+        if ((*ofstream_ptr).is_open()) {
+            (*ofstream_ptr).close();
         }
     }
 
