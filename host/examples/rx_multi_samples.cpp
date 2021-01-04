@@ -191,7 +191,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         for (size_t i = 0; i < outfile_ptrs.size(); ++i) {
             std::ofstream* ofstream_ptr = outfile_ptrs.at(i);
             if ((*ofstream_ptr).is_open()) {
-                ((*ofstream_ptr).write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
+                (*ofstream_ptr).write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
             }
         }
 
