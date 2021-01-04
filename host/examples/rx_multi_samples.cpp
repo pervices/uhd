@@ -35,7 +35,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("args",     po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("dilv",     "specify to disable inner-loop verbose")
-        ("file",     po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to write binary samples to")
+        ("file",     po::value<std::string>(&file)->default_value("usrp_samples"), "name of the file to write binary samples to")
         ("help",     "help message")
         ("nsamps",   po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("null",     "run without writing to file")
@@ -158,7 +158,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     size_t nfiles = usrp->get_rx_num_channels();
     if (not null){
         for (size_t i = 0; i < nfiles;  i++) {
-            filename = file + "_ch_" + std::to_string(i);
+            filename = file + "_ch_" + std::to_string(i) + ".dat";
             std::ofstream ofs (filename.c_str(), std::ofstream::binary);
             outfile_ptrs.push_back(&ofs);
         }
@@ -190,8 +190,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         for (size_t i = 0; i < outfile_ptrs.size(); ++i) {
             std::ofstream* ofstream_ptr = outfile_ptrs.at(i);
-            if ((* outfile_ptrs.at(i)).is_open()) {
-                (* outfile_ptrs.at(i)).write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
+            if ((*ofstream_ptr).is_open()) {
+                ((*ofstream_ptr).write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
             }
         }
 
@@ -202,8 +202,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     for (size_t i = 0; i < outfile_ptrs.size(); ++i) {
-        if (( *outfile_ptrs.at(i)).is_open()) {
-            (*outfile_ptrs.at(i)).close();
+        std::ofstream* ofstream_ptr = outfile_ptrs.at(i);
+        if ((*outfile_ptr).is_open()) {
+            (*outfile_ptr).close();
         }
     }
 
