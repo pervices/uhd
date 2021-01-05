@@ -210,6 +210,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         const size_t channel_buff_size = num_rx_samps * sizeof(buffer_sample_t);
 
+        std::cout << "ofstream size :" << std::to_string(ofstream_ptrs.size()) << " "; 
+        std::cout << "buffs size :" << std::to_string(buffs.size()) < "\n"; 
         for (size_t i = 0; i < ofstream_ptrs.size(); i++) {
             if (ofstream_ptrs.at(i)->is_open()) {
                 std::cout << std::to_string(i) << "\n";
