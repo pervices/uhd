@@ -226,9 +226,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "Made it here V \n";
                 buffer_sample_t* first_sample = &(channel_buff.front());
         std::cout << "Made it here V \n";
-                const char filecontent = (const char) std::to_string(first_sample);
+                std::string filestr = std::to_string(first_sample);
         std::cout << "Made it here V \n";
-                ofstream_ptrs.at(i)->write( &filecontent, channel_buff_size );
+                const char* filecontent = (const char *) filestr;
+        std::cout << "Made it here V \n";
+                ofstream_ptrs.at(i)->write( filecontent, channel_buff_size );
         std::cout << "Made it here V \n";
             }
         }
