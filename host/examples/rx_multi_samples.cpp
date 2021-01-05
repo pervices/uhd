@@ -192,7 +192,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         //receive a single packet
         size_t num_rx_samps = rx_stream->recv(
-            buff_ptrs, buff_ptrs.size() * samps_per_buff * buffer_sample_t, md, timeout
+            buff_ptrs, buff_ptrs.size() * samps_per_buff * sizeof(buffer_sample_t), md, timeout
         );
 
         //use a small timeout for subsequent packets
