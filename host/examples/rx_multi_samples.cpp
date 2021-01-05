@@ -207,7 +207,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     }
 
-    std::cout << "Made it here HELLO " + std::to_string(i) + "\n";
+    std::cout << "Made it here HELLO \n";
     if (num_acc_samps < total_num_samps){
         std::cerr << "Receive timeout before all samples received..." << std::endl;
     }
