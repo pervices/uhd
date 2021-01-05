@@ -226,7 +226,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         /* std::cout << "Made it here V \n"; */
         /*         buffer_sample_t* first_sample = &(channel_buff.front()); */
         std::cout << "Made it here V \n";
-                std::ostream os;
+                std::stringstream os("");
                 for (auto &sample : channel_buff) {
                     os << sample << " ";
                 }
