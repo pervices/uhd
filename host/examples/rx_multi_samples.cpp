@@ -220,7 +220,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         for (size_t i = 0; i < ofstream_ptrs.size(); i++) {
             if (ofstream_ptrs.at(i)->is_open()) {
                 std::cout << std::to_string(i) << "\n";
-                ofstream_ptrs.at(i)->write( (const char*)&(buffs.at(i).front()), channel_buff_size );
+                buffer_sample_t* first_sample = &(buffs.at(i).front());
+                const char* filecontent = (const char*)first_sample;
+                ofstream_ptrs.at(i)->write( filecontent, channel_buff_size );
             }
         }
 
