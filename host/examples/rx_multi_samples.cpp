@@ -34,6 +34,23 @@ void print_usage(){
     << std::endl;
 }
 
+std::vector<size_t> parse_channels(const uhd::usrp::multi_usrp::sptr & usrp, std::string raw_channel_list){
+    std::vector<std::string> channel_strings;
+    std::vector<size_t> channel_nums;
+    boost::split(channel_strings, raw_channel_list, boost::is_any_of("\"',"));
+
+    for(size_t ch = 0; ch < channel_strings.size(); ch++){
+        size_t chan = std::stoi(channel_strings[ch]);
+        if(chan >= usrp->get_rx_num_channels()){
+            throw std::runtime_error("Invalid channel(s) specified.");
+        } else {
+            channel_nums.push_back(std::stoi(channel_strings[ch]));
+        }
+    }
+
+    return channel_nums;
+}
+
 int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
@@ -113,16 +130,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //detect which channels to use
-    std::vector<std::string> channel_strings;
-    std::vector<size_t> channel_nums;
-    boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
-    for(size_t ch = 0; ch < channel_strings.size(); ch++){
-        size_t chan = std::stoi(channel_strings[ch]);
-        if(chan >= usrp->get_rx_num_channels()){
-            throw std::runtime_error("Invalid channel(s) specified.");
-        }
-        else channel_nums.push_back(std::stoi(channel_strings[ch]));
-    }
+    std::vector<size_t> channel_nums = parse_channels(usrp, channel_list);
+
+    /* std::vector<std::string> channel_strings; */
+    /* std::vector<size_t> channel_nums; */
+    /* boost::split(channel_strings, channel_list, boost::is_any_of("\"',")); */
+    /* for(size_t ch = 0; ch < channel_strings.size(); ch++){ */
+    /*     size_t chan = std::stoi(channel_strings[ch]); */
+    /*     if(chan >= usrp->get_rx_num_channels()){ */
+    /*         throw std::runtime_error("Invalid channel(s) specified."); */
+    /*     } else { */
+    /*         channel_nums.push_back(std::stoi(channel_strings[ch])); */
+    /*     } */
+    /* } */
 
     //create a receive streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
