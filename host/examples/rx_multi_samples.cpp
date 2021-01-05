@@ -19,7 +19,7 @@
 
 namespace po = boost::program_options;
 
-void print_usage(){
+void print_usage(po::options_description &desc){
     std::cout << boost::format("UHD RX Multi Samples %s") % desc << std::endl;
     std::cout <<
     "    This is a demonstration of how to receive aligned data from multiple channels.\n"
@@ -82,7 +82,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        print_usage();
+        print_usage(desc);
         return ~0;
     }
 
