@@ -232,7 +232,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 }
                 os << std::endl;
         std::cout << "Made it here V \n";
-                const char* filecontent = (char *) os.str();
+                const char* filecontent = (char *) os.str().c_str();
         std::cout << "Made it here V \n";
                 ofstream_ptrs.at(i)->write( filecontent, channel_buff_size );
         std::cout << "Made it here V \n";
