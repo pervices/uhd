@@ -67,13 +67,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     bool verbose = vm.count("dilv") == 0;
     bool null = vm.count("null") > 0;
-    std::cout << "Made it here 1\n";
 
     //create a usrp device
     std::cout << std::endl;
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    std::cout << "Made it here 2\n";
 
     //always select the subdevice first, the channel mapping affects the other settings
     if (vm.count("subdev")) usrp->set_rx_subdev_spec(subdev); //sets across all mboards
@@ -84,7 +82,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate/1e6) << std::endl;
     usrp->set_rx_rate(rate);
     std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate()/1e6) << std::endl << std::endl;
-    std::cout << "Made it here 3\n";
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if (sync == "now"){
@@ -110,7 +107,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         //sleep a bit while the slave locks its time to the master
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    std::cout << "Made it here 4\n";
 
     //detect which channels to use
     std::vector<std::string> channel_strings;
@@ -123,14 +119,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
         else channel_nums.push_back(std::stoi(channel_strings[ch]));
     }
-    std::cout << "Made it here 5\n";
 
     //create a receive streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
     uhd::stream_args_t stream_args("fc32"); //complex floats
     stream_args.channels = channel_nums;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-    std::cout << "Made it here 6\n";
 
     //setup streaming
     std::cout << std::endl;
@@ -142,7 +136,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     stream_cmd.stream_now = false;
     stream_cmd.time_spec = uhd::time_spec_t(seconds_in_future);
     rx_stream->issue_stream_cmd(stream_cmd); //tells all channels to stream
-    std::cout << "Made it here 7\n";
 
     //meta-data will be filled in by recv()
     uhd::rx_metadata_t md;
@@ -152,7 +145,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::vector<std::complex<float> > > buffs(
         usrp->get_rx_num_channels(), std::vector<std::complex<float> >(samps_per_buff)
     );
-    std::cout << "Made it here 8\n";
 
     //create a vector of pointers to point to each of the channel buffers
     std::vector<std::complex<float> *> buff_ptrs;
@@ -161,7 +153,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
-    std::cout << "Made it here 9\n";
     std::string filename;
     std::vector<std::ofstream *> ofstream_ptrs;
     size_t nfiles = usrp->get_rx_num_channels();
@@ -173,7 +164,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    std::cout << "Made it here 10\n";
+    std::cout << "Made it here 1\n";
     size_t num_acc_samps = 0; //number of accumulated samples
     while(num_acc_samps < total_num_samps){
         //receive a single packet
@@ -200,10 +191,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         for (size_t i = 0; i < ofstream_ptrs.size(); ++i) {
             std::ofstream* ofstream_ptr = ofstream_ptrs.at(i);
-            if ((*ofstream_ptr).is_open()) {
-                (*ofstream_ptr).write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
+            if (ofstream_ptr->is_open()) {
+                ofstream_ptr->write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
             }
         }
+        std::cout << "Made it here 2 \n";
 
     }
 
@@ -212,7 +204,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cerr << "Receive timeout before all samples received..." << std::endl;
     }
 
-    std::cout << "Made it here 11\n";
+    std::cout << "Made it here 2\n";
     for (size_t i = 0; i < ofstream_ptrs.size(); ++i) {
         std::ofstream* ofstream_ptr = ofstream_ptrs.at(i);
         if ((*ofstream_ptr).is_open()) {
@@ -220,7 +212,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    std::cout << "Made it here 12\n";
+    std::cout << "Made it here 3\n";
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
