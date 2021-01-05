@@ -153,7 +153,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_metadata_t md;
 
     //allocate buffers to receive with samples (one buffer per channel)
-    typedef std::vector<std::complex<float>> channel_buffer_t;
+    typedef std::complex<float> buffer_sample_t;
+    typedef std::vector<buffer_sample_t> channel_buffer_t;
     const size_t samps_per_buff = rx_stream->get_max_num_samps();
     const size_t num_channels = usrp->get_rx_num_channels();
     std::vector<channel_buffer_t> buffs(
@@ -161,9 +162,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     );
 
     //create a vector of pointers to point to each of the channel buffers
-    /* std::vector<std::complex<float> *> buff_ptrs; */
-    /* for (size_t i = 0; i < buffs.size(); i++) buff_ptrs.push_back(&(buffs[i].front())); */
-    std::vector<std::complex<float> *> buff_ptrs;
+    std::vector<buffer_sample_t *> buff_ptrs;
     for (auto &channel_buff : buffs){
         buff_ptrs.push_back(&(channel_buff.front()));
     }
@@ -209,10 +208,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         num_acc_samps += num_rx_samps;
 
 
+        const size_t channel_buff_size = num_rx_samps * sizeof(buffer_sample_t);
         for (size_t i = 0; i < ofstream_ptrs.size(); i++) {
             if (ofstream_ptrs.at(i)->is_open()) {
                 std::cout << std::to_string(i) << "\n";
-                ofstream_ptrs.at(i)->write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
+                ofstream_ptrs.at(i)->write( (const char*)buff_ptrs.at(i), channel_buff_size );
             }
         }
 
