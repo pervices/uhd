@@ -48,6 +48,7 @@ std::vector<size_t> parse_channels(const uhd::usrp::multi_usrp::sptr & usrp, std
         }
     }
 
+    std::cout << "parsed list of channels " << raw_channel_list << "\n";
     return channel_nums;
 }
 
@@ -129,24 +130,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    //detect which channels to use
-    std::vector<size_t> channel_nums = parse_channels(usrp, channel_list);
-
-    /* std::vector<std::string> channel_strings; */
-    /* std::vector<size_t> channel_nums; */
-    /* boost::split(channel_strings, channel_list, boost::is_any_of("\"',")); */
-    /* for(size_t ch = 0; ch < channel_strings.size(); ch++){ */
-    /*     size_t chan = std::stoi(channel_strings[ch]); */
-    /*     if(chan >= usrp->get_rx_num_channels()){ */
-    /*         throw std::runtime_error("Invalid channel(s) specified."); */
-    /*     } else { */
-    /*         channel_nums.push_back(std::stoi(channel_strings[ch])); */
-    /*     } */
-    /* } */
-
     //create a receive streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
     uhd::stream_args_t stream_args("fc32"); //complex floats
+    std::vector<size_t> channel_nums = parse_channels(usrp, channel_list);
     stream_args.channels = channel_nums;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
@@ -165,17 +152,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_metadata_t md;
 
     //allocate buffers to receive with samples (one buffer per channel)
+    typedef channel_buffer_t = std::vector<std::complex<float>>;
     const size_t samps_per_buff = rx_stream->get_max_num_samps();
-    std::vector<std::vector<std::complex<float> > > buffs(
-        usrp->get_rx_num_channels(), std::vector<std::complex<float> >(samps_per_buff)
+    const size_t num_channels = usrp->get_rx_num_channels();
+    std::vector<channel_buffer_t> buffs(
+       num_channels, channel_buffer_t(samps_per_buff)
     );
 
     //create a vector of pointers to point to each of the channel buffers
+    /* std::vector<std::complex<float> *> buff_ptrs; */
+    /* for (size_t i = 0; i < buffs.size(); i++) buff_ptrs.push_back(&(buffs[i].front())); */
     std::vector<std::complex<float> *> buff_ptrs;
-    for (size_t i = 0; i < buffs.size(); i++) buff_ptrs.push_back(&buffs[i].front());
-
-    //the first call to recv() will block this many seconds before receiving
-    double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
+    for (auto &channel_buff : buffs){
+        buff_ptrs.push_back(&(channel_buff.front()));
+    }
 
     std::string filename;
     std::vector<std::ofstream *> ofstream_ptrs;
@@ -188,10 +178,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
+    //the first call to recv() will block this many seconds before receiving
+    double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
+
     std::cout << "Made it here 1\n";
 
     size_t num_acc_samps = 0; //number of accumulated samples
-    while(num_acc_samps < total_num_samps){
+    while(not stop_signal_called and num_acc_samps < total_num_samps){
         //receive a single packet
         size_t num_rx_samps = rx_stream->recv(
             buff_ptrs, samps_per_buff, md, timeout
