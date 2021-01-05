@@ -164,7 +164,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a vector of pointers to point to each of the channel buffers
     std::vector<std::complex<float> *> buff_ptrs;
-    for (size_t i = 0; i < buffs.size(); ++i) buff_ptrs.push_back(&buffs[i].front());
+    for (size_t i = 0; i < buffs.size(); i++) buff_ptrs.push_back(&buffs[i].front());
 
     //the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
