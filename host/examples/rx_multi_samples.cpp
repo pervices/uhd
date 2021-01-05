@@ -189,16 +189,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         num_acc_samps += num_rx_samps;
 
-        for (auto &it: ofstream_ptrs) {
-            if(it->is_open()){
+
+        for (size_t i = 0; i < ofstream_ptrs.size(); i++) {
+            if (ofstream_ptrs.at(i)->is_open()) {
+                std::cout << std::string(i) << "\n";
+                ofstream_ptrs.at(i)->write( (const char*)buff_ptrs[i], num_rx_samps * sizeof(std::complex<float>) );
             }
         }
 
-        /* /1* for (size_t i = 0; i < ofstream_ptrs.size(); i++) { *1/ */
-        /*     if (ofstream_ptrs.at(i)->is_open()) { */
-                /* ofstream_ptrs.at(i)->write( (const char*)&(buff_ptrs[i]), num_rx_samps * sizeof(std::complex<float>) ); */
-        /*     } */
-        /* } */
         std::cout << "Made it here 2 \n";
 
     }
