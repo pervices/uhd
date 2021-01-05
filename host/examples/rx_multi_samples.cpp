@@ -153,7 +153,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_metadata_t md;
 
     //allocate buffers to receive with samples (one buffer per channel)
-    typedef channel_buffer_t std::vector<std::complex<float>>;
+    typedef std::vector<std::complex<float>> channel_buff_t;
     const size_t samps_per_buff = rx_stream->get_max_num_samps();
     const size_t num_channels = usrp->get_rx_num_channels();
     std::vector<channel_buffer_t> buffs(
