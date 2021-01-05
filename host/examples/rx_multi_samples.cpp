@@ -232,7 +232,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                     os << sample << " ";
                 }
                 os << std::endl;
-                filestr += os;
+                filestr += os.str();
         std::cout << "Made it here V \n";
                 const char* filecontent = (const char *) filestr;
         std::cout << "Made it here V \n";
