@@ -19,6 +19,21 @@
 
 namespace po = boost::program_options;
 
+void print_usage(){
+    std::cout << boost::format("UHD RX Multi Samples %s") % desc << std::endl;
+    std::cout <<
+    "    This is a demonstration of how to receive aligned data from multiple channels.\n"
+    "    This example can receive from multiple DSPs, multiple motherboards, or both.\n"
+    "    The MIMO cable or PPS can be used to synchronize the configuration. See --sync\n"
+    "\n"
+    "    Specify --subdev to select multiple channels per motherboard.\n"
+    "      Ex: --subdev=\"0:A 0:B\" to get 2 channels on a Basic RX.\n"
+    "\n"
+    "    Specify --args to select multiple motherboards in a configuration.\n"
+    "      Ex: --args=\"addr0=192.168.10.2, addr1=192.168.10.3\"\n"
+    << std::endl;
+}
+
 int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
@@ -50,18 +65,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        std::cout << boost::format("UHD RX Multi Samples %s") % desc << std::endl;
-        std::cout <<
-        "    This is a demonstration of how to receive aligned data from multiple channels.\n"
-        "    This example can receive from multiple DSPs, multiple motherboards, or both.\n"
-        "    The MIMO cable or PPS can be used to synchronize the configuration. See --sync\n"
-        "\n"
-        "    Specify --subdev to select multiple channels per motherboard.\n"
-        "      Ex: --subdev=\"0:A 0:B\" to get 2 channels on a Basic RX.\n"
-        "\n"
-        "    Specify --args to select multiple motherboards in a configuration.\n"
-        "      Ex: --args=\"addr0=192.168.10.2, addr1=192.168.10.3\"\n"
-        << std::endl;
+        print_usage();
         return ~0;
     }
 
@@ -165,6 +169,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::cout << "Made it here 1\n";
+
     size_t num_acc_samps = 0; //number of accumulated samples
     while(num_acc_samps < total_num_samps){
         //receive a single packet
