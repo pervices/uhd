@@ -181,8 +181,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; //timeout (delay before receive + padding)
 
-    std::cout << "Made it here 1\n";
-
     size_t num_acc_samps = 0; //number of accumulated samples
     while(num_acc_samps < total_num_samps){
         //receive a single packet
@@ -229,24 +227,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    std::cout <<"Made it HERE " << std::endl;
-
     if (num_acc_samps < total_num_samps){
         std::cerr << "Receive timeout before all samples received..." << std::endl;
     }
 
     std::cout <<"Made it HERE " << std::endl;
 
+    int i = 0;
     for (auto &ofstream_ptr : ofstream_ptrs) {
         if(ofstream_ptr->is_open()){
+            std::cout << "iter " << i << std::endl;
             ofstream_ptr->close();
+            i++;
         }
     }
-    /* for (size_t i = 0; i < ofstream_ptrs.size(); ++i) { */
-    /*     if (ofstream_ptrs.at(i)->is_open()) { */
-    /*         ofstream_ptrs.at(i)->close(); */
-    /*     } */
-    /* } */
 
     std::cout <<"Made it HERE " << std::endl;
 
