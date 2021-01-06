@@ -215,11 +215,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         const size_t channel_buff_size = num_rx_samps * sizeof(buffer_sample_t);
 
-        std::cout << "ofstream size :" << std::to_string(ofstream_ptrs.size()) << " "; 
-        std::cout << "buffs size :" << std::to_string(buffs.size()) << "\n"; 
         for (size_t i = 0; i < ofstream_ptrs.size(); i++) {
             if (ofstream_ptrs.at(i)->is_open()) {
-                std::cout << std::to_string(i) << "\n";
                 channel_buffer_t channel_buff = buffs.at(i);
                 std::stringstream os("");
                 for (auto &sample : channel_buff) {
@@ -231,6 +228,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             }
         }
     }
+
     std::cout <<"Made it HERE " << std::endl;
 
     if (num_acc_samps < total_num_samps){
@@ -238,11 +236,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::cout <<"Made it HERE " << std::endl;
-    for (size_t i = 0; i < ofstream_ptrs.size(); ++i) {
-        if (ofstream_ptrs.at(i)->is_open()) {
-            ofstream_ptrs.at(i)->close();
+
+    for (auto &ofstream_ptr : ofstream_ptrs) {
+        if(ofstream_ptr->is_open()){
+            ofstream_ptr->close();
         }
     }
+    /* for (size_t i = 0; i < ofstream_ptrs.size(); ++i) { */
+    /*     if (ofstream_ptrs.at(i)->is_open()) { */
+    /*         ofstream_ptrs.at(i)->close(); */
+    /*     } */
+    /* } */
 
     std::cout <<"Made it HERE " << std::endl;
 
