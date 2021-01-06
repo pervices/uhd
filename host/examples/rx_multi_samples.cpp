@@ -20,6 +20,9 @@
 
 namespace po = boost::program_options;
 
+typedef std::complex<float> buffer_sample_t;
+typedef std::vector<buffer_sample_t> channel_buffer_t;
+
 void print_usage(po::options_description &desc){
     std::cout << boost::format("UHD RX Multi Samples %s") % desc << std::endl;
     std::cout <<
@@ -51,6 +54,16 @@ std::vector<size_t> parse_channels(const uhd::usrp::multi_usrp::sptr & usrp, std
 
     std::cout << "parsed list of channels " << raw_channel_list << "\n";
     return channel_nums;
+}
+
+const char* get_printable_buffer(channel_buffer_t channel_buffer){
+    std::stringstream ss("");
+    for (buffer_sample_t &sample : channel_buff) {
+        ss << sample << " ";
+    }
+    ss << std::endl;
+    const char* filecontent = (char *) ss.str().c_str();
+    return filecontent;
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
@@ -153,8 +166,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::rx_metadata_t md;
 
     //allocate buffers to receive with samples (one buffer per channel)
-    typedef std::complex<float> buffer_sample_t;
-    typedef std::vector<buffer_sample_t> channel_buffer_t;
     const size_t samps_per_buff = rx_stream->get_max_num_samps();
     const size_t num_channels = usrp->get_rx_num_channels();
     std::vector<channel_buffer_t> buffs(
@@ -188,11 +199,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             buff_ptrs, samps_per_buff, md, timeout
         );
 
-        //receive a single packet
-        /* size_t num_rx_samps = rx_stream->recv( */
-        /*     buff_ptrs, buff_ptrs.size() * samps_per_buff * sizeof(buffer_sample_t), md, timeout */
-        /* ); */
-
         //use a small timeout for subsequent packets
         timeout = 0.1;
 
@@ -209,7 +215,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ) % num_rx_samps % md.time_spec.get_full_secs() % md.time_spec.get_frac_secs() << std::endl;
 
         num_acc_samps += num_rx_samps;
-
 
         const size_t channel_buff_size = num_rx_samps * sizeof(buffer_sample_t);
 
