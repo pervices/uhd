@@ -174,7 +174,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a vector of pointers to point to each of the channel buffers
     std::vector<buffer_sample_t *> buff_ptrs;
-    for (auto &channel_buff : buffs){
+    for (channel_buffer_t &channel_buff : buffs){
         buff_ptrs.push_back(&(channel_buff.front()));
     }
 
@@ -220,13 +220,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         for (size_t i = 0; i < ofstream_ptrs.size(); i++) {
             if (ofstream_ptrs.at(i)->is_open()) {
-                channel_buffer_t channel_buff = buffs.at(i);
-                std::stringstream os("");
-                for (auto &sample : channel_buff) {
-                    os << sample << " ";
-                }
-                os << std::endl;
-                const char* filecontent = (char *) os.str().c_str();
+                const char* filecontent = get_printable_buffer(buffs.at(i));
                 ofstream_ptrs.at(i)->write( filecontent, channel_buff_size );
             }
         }
@@ -242,6 +236,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for (auto &ofstream_ptr : ofstream_ptrs) {
         if(ofstream_ptr->is_open()){
             std::cout << "iter " << i << std::endl;
+            ofstream_ptr->write( std::endl, sizeof(const char) );
             ofstream_ptr->close();
             i++;
         }
