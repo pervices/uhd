@@ -61,7 +61,6 @@ const char* get_printable_buffer(channel_buffer_t channel_buffer){
     for (buffer_sample_t &sample : channel_buffer) {
         ss << sample << " ";
     }
-    ss << std::endl;
     const char* filecontent = (char *) ss.str().c_str();
     return filecontent;
 }
@@ -236,8 +235,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     for (auto &ofstream_ptr : ofstream_ptrs) {
         if(ofstream_ptr->is_open()){
             std::cout << "iter " << i << std::endl;
-            const char* endline = std::endl.c_str();
-            ofstream_ptr->write( endline, sizeof(char) );
+            std::stringstream endline("");
+            ss << std::endl;
+            ofstream_ptr->write( endline.str().c_str(), sizeof(char) );
             ofstream_ptr->close();
             i++;
         }
