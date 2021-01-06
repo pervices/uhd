@@ -58,7 +58,7 @@ std::vector<size_t> parse_channels(const uhd::usrp::multi_usrp::sptr & usrp, std
 
 const char* get_printable_buffer(channel_buffer_t channel_buffer){
     std::stringstream ss("");
-    for (buffer_sample_t &sample : channel_buff) {
+    for (buffer_sample_t &sample : channel_buffer) {
         ss << sample << " ";
     }
     ss << std::endl;
