@@ -236,7 +236,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         if(ofstream_ptr->is_open()){
             std::cout << "iter " << i << std::endl;
             std::stringstream endline("");
-            ss << std::endl;
+            endline << std::endl;
             ofstream_ptr->write( endline.str().c_str(), sizeof(char) );
             ofstream_ptr->close();
             i++;
