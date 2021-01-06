@@ -185,15 +185,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     size_t num_acc_samps = 0; //number of accumulated samples
     while(num_acc_samps < total_num_samps){
-        /* //receive a single packet */
-        /* size_t num_rx_samps = rx_stream->recv( */
-        /*     buff_ptrs, samps_per_buff, md, timeout */
-        /* ); */
-
         //receive a single packet
         size_t num_rx_samps = rx_stream->recv(
-            buff_ptrs, buff_ptrs.size() * samps_per_buff * sizeof(buffer_sample_t), md, timeout
+            buff_ptrs, samps_per_buff, md, timeout
         );
+
+        //receive a single packet
+        /* size_t num_rx_samps = rx_stream->recv( */
+        /*     buff_ptrs, buff_ptrs.size() * samps_per_buff * sizeof(buffer_sample_t), md, timeout */
+        /* ); */
 
         //use a small timeout for subsequent packets
         timeout = 0.1;
@@ -219,43 +219,32 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "buffs size :" << std::to_string(buffs.size()) << "\n"; 
         for (size_t i = 0; i < ofstream_ptrs.size(); i++) {
             if (ofstream_ptrs.at(i)->is_open()) {
-        std::cout << "Made it here V \n";
                 std::cout << std::to_string(i) << "\n";
-        std::cout << "Made it here V \n";
                 channel_buffer_t channel_buff = buffs.at(i);
-        /* std::cout << "Made it here V \n"; */
-        /*         buffer_sample_t* first_sample = &(channel_buff.front()); */
-        std::cout << "Made it here V \n";
                 std::stringstream os("");
                 for (auto &sample : channel_buff) {
                     os << sample << " ";
                 }
                 os << std::endl;
-        std::cout << "Made it here V \n";
                 const char* filecontent = (char *) os.str().c_str();
-        std::cout << "Made it here V \n";
                 ofstream_ptrs.at(i)->write( filecontent, channel_buff_size );
-        std::cout << "Made it here V \n";
             }
         }
-
-        std::cout << "Made it here 2 \n";
-
     }
+    std::cout <<"Made it HERE " << std::endl;
 
-    std::cout << "Made it here HELLO \n";
     if (num_acc_samps < total_num_samps){
         std::cerr << "Receive timeout before all samples received..." << std::endl;
     }
 
-    std::cout << "Made it here 2\n";
+    std::cout <<"Made it HERE " << std::endl;
     for (size_t i = 0; i < ofstream_ptrs.size(); ++i) {
         if (ofstream_ptrs.at(i)->is_open()) {
             ofstream_ptrs.at(i)->close();
         }
     }
 
-    std::cout << "Made it here 3\n";
+    std::cout <<"Made it HERE " << std::endl;
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
