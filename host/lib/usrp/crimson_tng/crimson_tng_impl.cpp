@@ -257,7 +257,7 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
 time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
 	if ( false ) {
-	} else if ( "time/clk/cur_time" == req ) {
+	} else if ( "time/clk/set_time" == req ) {
 		return get_time_now();
 	} else if ( "time/clk/pps" == req ) {
 		return uhd::time_spec_t( get_time_now().get_full_secs() );
@@ -269,12 +269,12 @@ time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
 	}
 }
 void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value ) {
-	if ( "time/clk/cur_time" == key ) {
+	if ( "time/clk/set_time" == key ) {
 		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
 		stop_bm();
 	}
 	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
-	if ( "time/clk/cur_time" == key ) {
+	if ( "time/clk/set_time" == key ) {
 		start_bm();
 	}
 
@@ -1003,7 +1003,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2);
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
-    TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
+    TREE_CREATE_RW(time_path / "now", "time/clk/set_time", time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
