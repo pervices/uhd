@@ -1285,6 +1285,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // loop for all TX chains
     for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/CRIMSON_TNG_DSP_PER_RFE + 'a'));
+        std::string lc_udp  = boost::lexical_cast<std::string>((char)(dspno/4 + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno/CRIMSON_TNG_DSP_PER_RFE + 'A'));
 		std::string chan    = "Channel_" + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
 		// std::string chan    = "Channel_" + num;
@@ -1425,23 +1426,16 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 
 		// Link settings
-		/*TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_num+"/link/vita_en"  , std::string, string);
-        if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
-		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch0port"     , std::string, string);
-        } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 1) {
-		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch1port"     , std::string, string);
-        } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 2) {
-		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch3port"     , std::string, string);
-        } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 3) {
-		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch4port"     , std::string, string);
-        }*/
-        		TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_num+"/link/vita_en"  , std::string, string);
-        if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
-		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch0port"     , std::string, string);
-        } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 1) {
-		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch1port"     , std::string, string);
+		TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_udp+"/link/vita_en"  , std::string, string);
+        if (dspno % 4 == 0) {
+		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_udp+"/link/ch0port"     , std::string, string);
+        } else if (dspno % 4 == 1) {
+		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_udp+"/link/ch1port"     , std::string, string);
+        } else if (dspno % 4 == 2) {
+		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_udp+"/link/ch3port"     , std::string, string);
+        } else if (dspno % 4 == 3) {
+		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_udp+"/link/ch4port"     , std::string, string);
         }
-		TREE_CREATE_RW(tx_link_path / "iface"           , "tx_"+lc_num+"/link/iface"    , std::string, string);
 
 
 		zero_copy_xport_params zcxp;
