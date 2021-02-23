@@ -1397,24 +1397,25 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
                 TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch0freq"            , double, double);
                 TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac0freq"           , double, double);
                 break;
-            case 1 :
+            /* case 1 :
                 TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch1fpga_nco"               , double, double);
                 TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch1fpga_nco"               , double, double);
                 TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch1freq"            , double, double);
                 TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac0freq"           , double, double);
-                break;
-            case 2 :
+                break; */
+            // case 2 :
+            case 1 :
                 TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch3fpga_nco"               , double, double);
                 TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch3fpga_nco"               , double, double);
                 TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch3freq"            , double, double);
                 TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac1freq"           , double, double);
                 break;
-            case 3 :
+            /* case 3 :
                 TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch4fpga_nco"               , double, double);
                 TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch4fpga_nco"               , double, double);
                 TREE_CREATE_RW(tx_fe_path  / "chnco"                , "tx_"+lc_num+"/rf/dac/nco/ch4freq"            , double, double);
                 TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac1freq"           , double, double);
-                break;
+                break; */
         }
 #else
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value"   , "tx_"+lc_num+"/dsp/nco_adj", double, double);
@@ -1424,7 +1425,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 
 		// Link settings
-		TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_num+"/link/vita_en"  , std::string, string);
+		/*TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_num+"/link/vita_en"  , std::string, string);
         if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
 		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch0port"     , std::string, string);
         } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 1) {
@@ -1433,6 +1434,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch3port"     , std::string, string);
         } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 3) {
 		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch4port"     , std::string, string);
+        }*/
+        		TREE_CREATE_RW(tx_link_path / "vita_en"         , "tx_"+lc_num+"/link/vita_en"  , std::string, string);
+        if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
+		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch0port"     , std::string, string);
+        } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 1) {
+		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch3port"     , std::string, string);
         }
 		TREE_CREATE_RW(tx_link_path / "iface"           , "tx_"+lc_num+"/link/iface"    , std::string, string);
 
@@ -1506,7 +1513,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 #ifdef PV_TATE
 		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_0 B:Channel_0 C:Channel_0 D:Channel_0 E:Channel_0 F:Channel_0 G:Channel_0 H:Channel_0 I:Channel_0 J:Channel_0 K:Channel_0 L:Channel_0 M:Channel_0 N:Channel_0 O:Channel_0 P:Channel_0" ));
 		// _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_0 A:Channel_1 A:Channel_2 A:Channel_3 B:Channel_0 B:Channel_1 B:Channel_2 B:Channel_3 C:Channel_0 C:Channel_1 C:Channel_2 C:Channel_3 D:Channel_0 D:Channel_1 D:Channel_2 D:Channel_3 E:Channel_0 E:Channel_1 E:Channel_2 E:Channel_3 F:Channel_0 F:Channel_1 F:Channel_2 F:Channel_3 G:Channel_0 G:Channel_1 G:Channel_2 G:Channel_3 H:Channel_0 H:Channel_1 H:Channel_2 H:Channel_3 I:Channel_0 I:Channel_1 I:Channel_2 I:Channel_3 J:Channel_0 J:Channel_1 J:Channel_2 J:Channel_3 K:Channel_0 K:Channel_1 K:Channel_2 K:Channel_3 L:Channel_0 L:Channel_1 L:Channel_2 L:Channel_3 M:Channel_0 M:Channel_1 M:Channel_2 M:Channel_3 N:Channel_0 N:Channel_1 N:Channel_2 N:Channel_3 O:Channel_0 O:Channel_1 O:Channel_2 O:Channel_3 P:Channel_0 P:Channel_1 P:Channel_2 P:Channel_3" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_0 A:Channel_1 A:Channel_2 A:Channel_3 B:Channel_0 B:Channel_1 B:Channel_2 B:Channel_3 C:Channel_0 C:Channel_1 C:Channel_2 C:Channel_3 D:Channel_0 D:Channel_1 D:Channel_2 D:Channel_3 E:Channel_0 E:Channel_1 E:Channel_2 E:Channel_3 F:Channel_0 F:Channel_1 F:Channel_2 F:Channel_3 G:Channel_0 G:Channel_1 G:Channel_2 G:Channel_3 H:Channel_0 H:Channel_1 H:Channel_2 H:Channel_3 I:Channel_0 I:Channel_1 I:Channel_2 I:Channel_3 J:Channel_0 J:Channel_1 J:Channel_2 J:Channel_3 K:Channel_0 K:Channel_1 K:Channel_2 K:Channel_3 L:Channel_0 L:Channel_1 L:Channel_2 L:Channel_3 M:Channel_0 M:Channel_1 M:Channel_2 M:Channel_3 N:Channel_0 N:Channel_1 N:Channel_2 N:Channel_3 O:Channel_0 O:Channel_1 O:Channel_2 O:Channel_3 P:Channel_0 P:Channel_1 P:Channel_2 P:Channel_3" ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_0 A:Channel_1 B:Channel_0 B:Channel_1 C:Channel_0 C:Channel_1 D:Channel_0 D:Channel_1 E:Channel_0 E:Channel_1 F:Channel_0 F:Channel_1 G:Channel_0 G:Channel_1 H:Channel_0 H:Channel_1 I:Channel_0 I:Channel_1 J:Channel_0 J:Channel_1 K:Channel_0 K:Channel_1 L:Channel_0 L:Channel_1 M:Channel_0 M:Channel_1 N:Channel_0 N:Channel_1 O:Channel_0 O:Channel_1 P:Channel_0 P:Channel_1 " ));
 #else
 		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
 		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
@@ -1592,13 +1599,13 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 #ifdef PV_TATE
-    if (chan < 16) {
+    if (chan < 8) {
         sfp = "sfpa";
-    } else if (chan < 32) {
+    } else if (chan < 16) {
         sfp = "sfpb";
-    } else if (chan < 48) {
+    } else if (chan < 24) {
         sfp = "sfpc";
-    } else if (chan < 64) {
+    } else if (chan < 32) {
         sfp = "sfpd";
     }
 #else
