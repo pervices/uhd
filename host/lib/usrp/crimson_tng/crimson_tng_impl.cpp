@@ -1287,7 +1287,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/CRIMSON_TNG_DSP_PER_RFE + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno/CRIMSON_TNG_DSP_PER_RFE + 'A'));
 		std::string chan    = "Channel_" + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
-         UHD_LOGGER_INFO("CRIMSON_IMPL") << num << " and " << chan << std::endl;
 		// std::string chan    = "Channel_" + num;
 
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num / "tx_codecs" / chan;
