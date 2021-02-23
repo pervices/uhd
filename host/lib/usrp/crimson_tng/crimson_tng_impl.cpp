@@ -1439,7 +1439,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
 		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch0port"     , std::string, string);
         } else if (dspno % CRIMSON_TNG_DSP_PER_RFE == 1) {
-		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch3port"     , std::string, string);
+		    TREE_CREATE_RW(tx_link_path / "port"            , "tx_"+lc_num+"/link/ch1port"     , std::string, string);
         }
 		TREE_CREATE_RW(tx_link_path / "iface"           , "tx_"+lc_num+"/link/iface"    , std::string, string);
 
