@@ -44,7 +44,7 @@ namespace uhd {
 namespace transport {
 namespace sph {
 
-#define MAX_CHANNELS 64
+#define MAX_CHANNELS 32
 
 /***********************************************************************
  * Super send packet handler

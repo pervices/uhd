@@ -704,8 +704,8 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
 
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
-    set_double( "tx_" + std::string( 1, 'a' + (dsp/4) ) + "/dsp/rate", rate_ );
-    double rate = get_double( "tx_" + std::string( 1, 'a' + (dsp/4) ) + "/dsp/rate" );
+    set_double( "tx_" + std::string( 1, 'a' + (dsp/CRIMSON_TNG_DSP_PER_RFE) ) + "/dsp/rate", rate_ );
+    double rate = get_double( "tx_" + std::string( 1, 'a' + (dsp/CRIMSON_TNG_DSP_PER_RFE) ) + "/dsp/rate" );
 
 	boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
         boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
