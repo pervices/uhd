@@ -504,7 +504,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
 #ifdef PV_TATE
-        if (tokens[2] != "tate") break;
+        if (tokens[2] != "cyan_p1hdr32t") break;
 #else
         if (tokens[2] != "crimson_tng") break;
 #endif
