@@ -121,6 +121,21 @@ UHD_ADD_TEST(cyan_16t_test cyan_16t_test)
 UHD_INSTALL(TARGETS cyan_16t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
 endif(ENABLE_CYAN_16T)
 
+if(ENABLE_CYAN_P1HDR16T)
+# Cannot call into cyan_p1hdr16t_impl.o that is in libuhd.so due to default visibility=hidden
+# so it is necessary to link it into the executable before the shared library is linked in
+add_executable(cyan_p1hdr16t_test
+    cyan_p1hdr16t_test.cpp
+    ${CMAKE_SOURCE_DIR}/lib/usrp/cyan_p1hdr16t/cyan_p1hdr16t_impl.cpp
+    ${CMAKE_SOURCE_DIR}/lib/usrp/cyan_p1hdr16t/io_p1hdrimpl.cpp
+    ${CMAKE_SOURCE_DIR}/lib/usrp/cyan_p1hdr16t/cyan_p1hdr16t_iface.cpp
+)
+target_link_libraries(cyan_p1hdr16t_test uhd ${Boost_LIBRARIES})
+UHD_ADD_TEST(cyan_p1hdr16t_test cyan_p1hdr16t_test)
+UHD_INSTALL(TARGETS cyan_p1hdr16t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+endif(ENABLE_CYAN_P1HDR16T)
+
+
 if(ENABLE_CYAN_64T)
 # Cannot call into cyan_64t_impl.o that is in libuhd.so due to default visibility=hidden
 # so it is necessary to link it into the executable before the shared library is linked in
