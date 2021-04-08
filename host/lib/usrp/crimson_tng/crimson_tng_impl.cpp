@@ -1593,13 +1593,13 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 #ifdef PV_TATE
-    if (chan < 8) {
+    if (chan < 2) {
         sfp = "sfpa";
-    } else if (chan < 16) {
+    } else if (chan < 4) {
         sfp = "sfpb";
-    } else if (chan < 24) {
+    } else if (chan < 6) {
         sfp = "sfpc";
-    } else if (chan < 32) {
+    } else if (chan < 8) {
         sfp = "sfpd";
     }
 #else
