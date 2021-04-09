@@ -2237,8 +2237,8 @@ public:
             try
             {
 
-                UHD_LOGGER_INFO( "multi_usrp: " ) << "db_name: " << db_name << " mboard: " << mboard << std::endl;
                 const std::string db_name = _tree->list(mb_root(mboard) / "dboards").at(0);
+                UHD_LOGGER_INFO( "multi_usrp: " ) << "db_name: " << db_name << " mboard: " << mboard << std::endl;
                 const std::string fe_name = _tree->list(mb_root(mboard) / "dboards" / db_name / "tx_frontends").at(0);
                 spec.push_back(subdev_spec_pair_t(db_name, fe_name));
                 _tree->access<subdev_spec_t>(mb_root(mboard) / "tx_subdev_spec").set(spec);
