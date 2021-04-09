@@ -214,6 +214,7 @@ void x300_radio_ctrl_impl::set_fe_cmd_time(const time_spec_t &time, const size_t
 
 void x300_radio_ctrl_impl::set_tx_antenna(const std::string &ant, const size_t chan)
 {
+    UHD_LOGGER_INFO( "RDB set tx antenna" ) << "ant =" << ant << " chan : " << chan << std::endl;
     _tree->access<std::string>(
         fs_path("dboards" / _radio_slot / "tx_frontends" / _tx_fe_map.at(chan).db_fe_name / "antenna" / "value")
     ).set(ant);
@@ -221,6 +222,7 @@ void x300_radio_ctrl_impl::set_tx_antenna(const std::string &ant, const size_t c
 
 std::string x300_radio_ctrl_impl::get_tx_antenna(const size_t chan)
 {
+    UHD_LOGGER_INFO( "RDB get tx antenna" ) << "ant =" << ant << " chan : " << chan << std::endl;
     return _tree->access<std::string>(
         fs_path("dboards" / _radio_slot / "tx_frontends" / _tx_fe_map.at(chan).db_fe_name / "antenna" / "value")
     ).get();
@@ -242,6 +244,7 @@ std::string x300_radio_ctrl_impl::get_rx_antenna(const size_t chan)
 
 double x300_radio_ctrl_impl::set_tx_frequency(const double freq, const size_t chan)
 {
+    UHD_LOGGER_INFO( "RDB set tx freq" ) << "ant =" << ant << " chan : " << chan << std::endl;
     return _tree->access<double>(
         fs_path("dboards" / _radio_slot / "tx_frontends" / _tx_fe_map.at(chan).db_fe_name / "freq" / "value")
     ).set(freq).get();
@@ -249,6 +252,7 @@ double x300_radio_ctrl_impl::set_tx_frequency(const double freq, const size_t ch
 
 double x300_radio_ctrl_impl::get_tx_frequency(const size_t chan)
 {
+    UHD_LOGGER_INFO( "RDB get tx freq" ) << "ant =" << ant << " chan : " << chan << std::endl;
     return _tree->access<double>(
         fs_path("dboards" / _radio_slot / "tx_frontends" / _tx_fe_map.at(chan).db_fe_name / "freq" / "value")
     ).get();
@@ -285,6 +289,7 @@ double x300_radio_ctrl_impl::get_rx_bandwidth(const size_t chan)
 double x300_radio_ctrl_impl::set_tx_gain(const double gain, const size_t chan)
 {
     //TODO: This is extremely hacky!
+    UHD_LOGGER_INFO( "RDB set tx gain" ) << "radio slot= " << _radio_slot << " chan : " << chan << std::endl;
     fs_path path("dboards" / _radio_slot / "tx_frontends" / _tx_fe_map.at(chan).db_fe_name / "gains");
     std::vector<std::string> gain_stages = _tree->list(path);
     if (gain_stages.size() == 1) {
@@ -712,6 +717,7 @@ void x300_radio_ctrl_impl::setup_radio(
             break;
         }
         _tx_fe_map[tx_chan].db_fe_name = fe;
+        UHD_LOGGER_INFO( "RDB get tx frontends" ) << "fe = " << fe << " db_path : " << db_path << std::endl;
         const fs_path fe_path(db_path / "tx_frontends" / fe);
         const std::string conn = _tree->access<std::string>(fe_path / "connection").get();
         _tx_fe_map[tx_chan].core->set_mux(conn);
@@ -741,6 +747,7 @@ void x300_radio_ctrl_impl::setup_radio(
     const fs_path db_tx_fe_path = db_path / "tx_frontends";
     if (not _tx_fe_map.empty()) {
         for (size_t i = 0; i < _get_num_radios(); i++) {
+            UHD_LOGGER_INFO( "RDB blind frontends corrections" ) << "i = " << i << " db_tx_fe_path : " << db_tx_fe_path << std::endl;
             if (_tree->exists(db_tx_fe_path / _tx_fe_map[i].db_fe_name / "freq" / "value")) {
                 _tree->access<double>(db_tx_fe_path / _tx_fe_map[i].db_fe_name / "freq" / "value")
                         .add_coerced_subscriber(boost::bind(&x300_radio_ctrl_impl::set_tx_fe_corrections, this, db_path,
@@ -1266,6 +1273,8 @@ bool x300_radio_ctrl_impl::check_radio_config()
 
     const fs_path tx_fe_path = fs_path("dboards" / _radio_slot / "tx_frontends");
     for (size_t chan = 0; chan < _num_tx_channels; chan++) {
+
+        UHD_LOGGER_INFO( "helpers" ) << "chan= " << chan << " db_fe_name : " << db_fe_name << std::endl;
         if (_tree->exists(tx_fe_path / _tx_fe_map.at(chan).db_fe_name / "enabled")) {
             const bool chan_active = _is_streamer_active(uhd::TX_DIRECTION, chan);
             if (chan_active) {
