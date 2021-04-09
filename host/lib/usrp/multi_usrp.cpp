@@ -3101,7 +3101,7 @@ private:
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
             const std::string db_name     = boost::lexical_cast<std::string>((char)(chan/2 + 'A'));
             const std::string sd_name     = "Channel_" + std::to_string(chan%2);
-            UHD_LOGGER_INFO( "multi_usrp2: " ) << "db_name: " << db_name << " sd_name: " << sd.name << std::endl;
+            UHD_LOGGER_INFO( "multi_usrp3: " ) << "db_name: " << db_name << " sd_name: " << sd_name << std::endl;
             return mb_root(mcp.mboard) / "dboards" / db_name / "tx_frontends" / sd_name;
             // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / sd_name;
             // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / spec.sd_name;
