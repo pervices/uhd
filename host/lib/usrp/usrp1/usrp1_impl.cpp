@@ -1,4 +1,4 @@
-//
+, update dsp freq//
 // Copyright 2010-2012,2014 Ettus Research LLC
 // Copyright 2018 Ettus Research, a National Instruments Company
 //
@@ -382,6 +382,7 @@ usrp1_impl::usrp1_impl(const device_addr_t &device_addr){
             _rx_subdev_spec = subdev_spec_t(db + ":" + _tree->list(mb_path / "dboards" / db / "rx_frontends").at(0));
         }
         if (tx_db_eeprom.id != dboard_id_t::none() or _tx_subdev_spec.empty()){
+            UHD_LOGGER_INFO( "usrp1_impl" ) << "mb_path: " << mb_path << " and dbg= " << db << std::endl;
             _tx_subdev_spec = subdev_spec_t(db + ":" + _tree->list(mb_path / "dboards" / db / "tx_frontends").at(0));
         }
     }

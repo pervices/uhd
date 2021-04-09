@@ -455,6 +455,7 @@ void usrp1_impl::update_tx_subdev_spec(const uhd::usrp::subdev_spec_t &spec){
     //set the mux and set the number of tx channels
     std::vector<mapping_pair_t> mapping;
     for(const subdev_spec_pair_t &pair:  spec){
+        UHD_LOGGER_INFO( "usrp1/io_impl.cpp:" ) << "pair.db_name: " << pair.db_name << " pair.sd_name: " << pair.sd_name << std::endl;
         const std::string conn = _tree->access<std::string>(str(boost::format(
             "/mboards/0/dboards/%s/tx_frontends/%s/connection"
         ) % pair.db_name % pair.sd_name)).get();
@@ -574,6 +575,7 @@ double usrp1_impl::update_rx_dsp_freq(const size_t dspno, const double freq_){
 double usrp1_impl::update_tx_dsp_freq(const size_t dspno, const double freq){
     const subdev_spec_pair_t pair = _tx_subdev_spec.at(dspno);
 
+    UHD_LOGGER_INFO( "usrp1/io_impl.cpp, update dsp freq:" ) << "pair.db_name: " << pair.db_name << " pair.sd_name: " << pair.sd_name << std::endl;
     //determine the connection type and hence, the sign
     const std::string conn = _tree->access<std::string>(str(boost::format(
         "/mboards/0/dboards/%s/tx_frontends/%s/connection"

@@ -333,6 +333,7 @@ void usrp2_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev
     validate_subdev_spec(_tree, spec, "tx", which_mb);
 
     //set the mux for this spec
+    UHD_LOGGER_INFO( "usrp2 io_impl " ) << "db_name: " << spec[0].db_name << " sd_name: " << spec[0].sd_name << std::endl;
     const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
     _mbc[which_mb].tx_fe->set_mux(conn);
 
