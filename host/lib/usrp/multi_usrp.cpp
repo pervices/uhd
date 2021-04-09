@@ -2236,6 +2236,8 @@ public:
         {
             try
             {
+
+                UHD_LOGGER_INFO( "multi_usrp: " ) << "db_name: " << db_name << " mboard: " << mboard << std::endl;
                 const std::string db_name = _tree->list(mb_root(mboard) / "dboards").at(0);
                 const std::string fe_name = _tree->list(mb_root(mboard) / "dboards" / db_name / "tx_frontends").at(0);
                 spec.push_back(subdev_spec_pair_t(db_name, fe_name));
@@ -3049,6 +3051,8 @@ private:
         try
         {
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
+
+            UHD_LOGGER_INFO( "multi_usrp2: " ) << "db_name: " << spec.db_name << " mboard: " << mcp.mboard << std::endl;
             return mb_root(mcp.mboard) / "tx_frontends" / spec.db_name;
         }
         catch(const std::exception &e)
@@ -3097,6 +3101,7 @@ private:
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
             const std::string db_name     = boost::lexical_cast<std::string>((char)(chan/2 + 'A'));
             const std::string sd_name     = "Channel_" + std::to_string(chan%2);
+            UHD_LOGGER_INFO( "multi_usrp2: " ) << "db_name: " << db_name << " sd_name: " << sd.name << std::endl;
             return mb_root(mcp.mboard) / "dboards" / db_name / "tx_frontends" / sd_name;
             // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / sd_name;
             // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / spec.sd_name;
