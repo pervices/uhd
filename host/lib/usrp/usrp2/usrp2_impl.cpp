@@ -755,6 +755,7 @@ usrp2_impl::usrp2_impl(const device_addr_t &_device_addr) :
             _tree->subtree(mb_path / "dboards/A")
         );
 
+        UHD_LOGGER_INFO( "DB TX FE PATH" ) << "Found, mb_path:  " << mb_path << " and " <<  std::endl;
         //bind frontend corrections to the dboard freq props
         const fs_path db_tx_fe_path = mb_path / "dboards" / "A" / "tx_frontends";
         for(const std::string &name:  _tree->list(db_tx_fe_path)){
