@@ -827,6 +827,7 @@ public:
         //----------- tx side of life ----------------------------------
         for (size_t m = 0, chan = 0; m < get_num_mboards(); m++){
             for (; chan < (m + 1)*get_tx_subdev_spec(m).size(); chan++){
+                UHD_LOGGER_INFO( "multi_usrp4: " ) << "chan: " << chan << " m =  " << m << std::endl;
                 buff += str(boost::format(
                     "  TX Channel: %u\n"
                     "    TX DSP: %s\n"
