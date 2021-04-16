@@ -573,7 +573,6 @@ usrp2_impl::usrp2_impl(const device_addr_t &_device_addr) :
         const fs_path rx_fe_path = mb_path / "rx_frontends" / "A";
         const fs_path tx_fe_path = mb_path / "tx_frontends" / "A";
 
-        UHD_LOGGER_INFO( "usrp2_impl" ) << "tx_fe_path: " << tx_fe_path << std::endl;
         _tree->create<std::complex<double> >(rx_fe_path / "dc_offset" / "value")
             .set_coercer(boost::bind(&rx_frontend_core_200::set_dc_offset, _mbc[mb].rx_fe, _1))
             .set(std::complex<double>(0.0, 0.0));
@@ -756,7 +755,6 @@ usrp2_impl::usrp2_impl(const device_addr_t &_device_addr) :
             _tree->subtree(mb_path / "dboards/A")
         );
 
-        UHD_LOGGER_INFO( "DB TX FE PATH" ) << "Found, mb_path:  " << mb_path << " and " <<  std::endl;
         //bind frontend corrections to the dboard freq props
         const fs_path db_tx_fe_path = mb_path / "dboards" / "A" / "tx_frontends";
         for(const std::string &name:  _tree->list(db_tx_fe_path)){

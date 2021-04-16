@@ -1291,7 +1291,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		//std::string chan    = "Channel_" + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
 		// std::string chan    = "Channel_" + num;
 
-        UHD_LOGGER_INFO( "TX_LOOP" ) << "Found crimson_tng at " << dspno << " and " << chan << " and " << num <<  std::endl;
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num / "tx_codecs" / chan;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
 		const fs_path db_path       = mb_path / "dboards" / num;

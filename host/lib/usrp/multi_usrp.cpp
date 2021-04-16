@@ -827,7 +827,6 @@ public:
         //----------- tx side of life ----------------------------------
         for (size_t m = 0, chan = 0; m < get_num_mboards(); m++){
             for (; chan < (m + 1)*get_tx_subdev_spec(m).size(); chan++){
-                UHD_LOGGER_INFO( "multi_usrp4: " ) << "chan: " << chan << " m =  " << m << std::endl;
                 buff += str(boost::format(
                     "  TX Channel: %u\n"
                     "    TX DSP: %s\n"
@@ -2239,7 +2238,6 @@ public:
             {
 
                 const std::string db_name = _tree->list(mb_root(mboard) / "dboards").at(0);
-                UHD_LOGGER_INFO( "multi_usrp: " ) << "db_name: " << db_name << " mboard: " << mboard << std::endl;
                 const std::string fe_name = _tree->list(mb_root(mboard) / "dboards" / db_name / "tx_frontends").at(0);
                 spec.push_back(subdev_spec_pair_t(db_name, fe_name));
                 _tree->access<subdev_spec_t>(mb_root(mboard) / "tx_subdev_spec").set(spec);
@@ -3053,7 +3051,6 @@ private:
         {
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
 
-            UHD_LOGGER_INFO( "multi_usrp2: " ) << "db_name: " << spec.db_name << " mboard: " << mcp.mboard << std::endl;
             return mb_root(mcp.mboard) / "tx_frontends" / spec.db_name;
         }
         catch(const std::exception &e)
@@ -3102,7 +3099,6 @@ private:
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
             const std::string db_name     = boost::lexical_cast<std::string>((char)(chan + 'A'));
             const std::string sd_name     = "Channel_" + std::to_string(chan);
-            UHD_LOGGER_INFO( "multi_usrp3: " ) << "db_name: " << db_name << " sd_name: " << sd_name << std::endl;
             return mb_root(mcp.mboard) / "dboards" / db_name / "tx_frontends" / sd_name;
             // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / sd_name;
             // return mb_root(mcp.mboard) / "dboards" / spec.db_name / "tx_frontends" / spec.sd_name;

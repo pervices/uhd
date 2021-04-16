@@ -1865,7 +1865,6 @@ fs_path multi_crimson_tng::tx_rf_fe_root(const size_t chan) {
     if (chan > CRIMSON_TX_CHANNELS) 	channel = 0;
     else				channel = chan;
 
-    UHD_LOGGER_INFO( "multi_crimson_tng: " ) << "channel : " << channel << " tx_frontends : " << chan_to_string(chan) << std::endl;
     return mb_root(0) / "dboards" / chan_to_alph(channel) / "tx_frontends" / chan_to_string(channel);
 }
 
