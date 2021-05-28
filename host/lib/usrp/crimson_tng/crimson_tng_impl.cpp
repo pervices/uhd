@@ -901,6 +901,7 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
     device::register_device(&crimson_tng_find, &crimson_tng_make, device::USRP);
 }
 
+UHD_LOGGER_INFO( "RDB2: " ) << "yes " << " ok " << std::endl;
 /***********************************************************************
  * Structors
  **********************************************************************/
@@ -1017,6 +1018,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     TREE_CREATE_ST("/name", std::string, "Crimson_TNG Device");
 
+    UHD_LOGGER_INFO( "RDB0: " ) << "yes " << " ok " << std::endl;
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
@@ -1130,6 +1132,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
+    UHD_LOGGER_INFO( "RDB1: " ) << "yes " << " ok " << std::endl;
     for( size_t dspno = 0; dspno < CRIMSON_TNG_RX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
