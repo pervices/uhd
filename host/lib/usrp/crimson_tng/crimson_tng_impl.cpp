@@ -1150,6 +1150,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
 
         //RDB TATE RX:
+        UHD_LOGGER_INFO( "RDB: " ) << "dpnco: " << lc_num << " = lc_num " << std::endl;
         TREE_CREATE_RW(rx_fe_path  / "dpnco" , "rx_"+lc_num+"/rf/dac/nco/dac0freq" , double, double);
 
         // RX Triggers
