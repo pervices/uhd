@@ -1136,7 +1136,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		std::string chan    = "Channel_0";// + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
 
 		const fs_path rx_codec_path = mb_path / "rx_codecs" / num;
-		const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / chan;
+		const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / chan; //  =  /mboards/0/dboards/A/rx_frontends/Channel_0/
 		const fs_path db_path       = mb_path / "dboards" / num;
 		const fs_path rx_dsp_path   = mb_path / "rx_dsps" / dspno;
 		const fs_path rx_link_path  = mb_path / "rx_link" / dspno;
@@ -1148,6 +1148,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
 		_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
+
+        //RDB TATE RX:
+        TREE_CREATE_RW(rx_fe_path  / "dpnco" , "rx_"+lc_num+"/rf/dac/nco/dac0freq" , double, double);
 
         // RX Triggers
         TREE_CREATE_RW(rx_path / dspno / "/trigger/sma_mode"       , "rx_" + lc_num + "/trigger/sma_mode"       , std::string, string);
