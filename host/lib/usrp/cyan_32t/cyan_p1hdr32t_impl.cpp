@@ -22,7 +22,7 @@
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
-#include "crimson_tng_impl.hpp"
+#include "cyan_p1hdr32t_impl.hpp"
 
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_stream_zero_copy.hpp"
@@ -74,7 +74,7 @@ void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char deli
 }
 
 // base wrapper that calls the simple UDP interface to get messages to and from Crimson
-std::string crimson_tng_impl::get_string(std::string req) {
+std::string cyan_p1hdr32t_impl::get_string(std::string req) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -84,10 +84,10 @@ std::string crimson_tng_impl::get_string(std::string req) {
 	// peek (read) back the data
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
-	if (ret == "TIMEOUT") 	throw uhd::runtime_error("crimson_tng_impl::get_string - UDP resp. timed out: " + req);
+	if (ret == "TIMEOUT") 	throw uhd::runtime_error("cyan_p1hdr32t_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
-void crimson_tng_impl::set_string(const std::string pre, std::string data) {
+void cyan_p1hdr32t_impl::set_string(const std::string pre, std::string data) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -98,43 +98,43 @@ void crimson_tng_impl::set_string(const std::string pre, std::string data) {
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
 	if (ret == "TIMEOUT" || ret == "ERROR")
-		throw uhd::runtime_error("crimson_tng_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
+		throw uhd::runtime_error("cyan_p1hdr32t_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
 	else
 		return;
 }
 
 // wrapper for type <double> through the ASCII Crimson interface
-double crimson_tng_impl::get_double(std::string req) {
+double cyan_p1hdr32t_impl::get_double(std::string req) {
 	try { return boost::lexical_cast<double>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void crimson_tng_impl::set_double(const std::string pre, double data){
+void cyan_p1hdr32t_impl::set_double(const std::string pre, double data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <bool> through the ASCII Crimson interface
-bool crimson_tng_impl::get_bool(std::string req) {
+bool cyan_p1hdr32t_impl::get_bool(std::string req) {
 	try { return boost::lexical_cast<bool>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void crimson_tng_impl::set_bool(const std::string pre, bool data){
+void cyan_p1hdr32t_impl::set_bool(const std::string pre, bool data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <int> through the ASCII Crimson interface
-int crimson_tng_impl::get_int(std::string req) {
+int cyan_p1hdr32t_impl::get_int(std::string req) {
 	try { return boost::lexical_cast<int>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void crimson_tng_impl::set_int(const std::string pre, int data){
+void cyan_p1hdr32t_impl::set_int(const std::string pre, int data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-mboard_eeprom_t crimson_tng_impl::get_mboard_eeprom(std::string req) {
+mboard_eeprom_t cyan_p1hdr32t_impl::get_mboard_eeprom(std::string req) {
 	(void)req;
 	mboard_eeprom_t temp;
 	temp["name"]     = get_string("fpga/about/name");
@@ -142,7 +142,7 @@ mboard_eeprom_t crimson_tng_impl::get_mboard_eeprom(std::string req) {
 	temp["serial"]   = get_string("fpga/about/serial");
 	return temp;
 }
-void crimson_tng_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
+void cyan_p1hdr32t_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
 	(void)pre;
 	(void)data;
 	// no eeprom settings on Crimson
@@ -150,7 +150,7 @@ void crimson_tng_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t 
 }
 
 // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
-dboard_eeprom_t crimson_tng_impl::get_dboard_eeprom(std::string req) {
+dboard_eeprom_t cyan_p1hdr32t_impl::get_dboard_eeprom(std::string req) {
 	(void)req;
 	dboard_eeprom_t temp;
 	//temp.id       = dboard_id_t( boost::lexical_cast<boost::uint16_t>(get_string("product,get,serial")) );
@@ -158,7 +158,7 @@ dboard_eeprom_t crimson_tng_impl::get_dboard_eeprom(std::string req) {
 	//temp.revision = get_string("product,get,hw_version");
 	return temp;
 }
-void crimson_tng_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
+void cyan_p1hdr32t_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
 	(void)pre;
 	(void)data;
 	// no eeprom settings on Crimson
@@ -166,12 +166,12 @@ void crimson_tng_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t 
 }
 
 // wrapper for type <sensor_value_t> through the ASCII Crimson interface
-sensor_value_t crimson_tng_impl::get_sensor_value(std::string req) {
+sensor_value_t cyan_p1hdr32t_impl::get_sensor_value(std::string req) {
 	(void)req;
 	// no sensors on Crimson
 	return sensor_value_t("NA", "0", "NA");
 }
-void crimson_tng_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
+void cyan_p1hdr32t_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
 	(void)pre;
 	(void)data;
 	// no sensors on Crimson
@@ -179,23 +179,23 @@ void crimson_tng_impl::set_sensor_value(const std::string pre, sensor_value_t da
 }
 
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
-meta_range_t crimson_tng_impl::get_meta_range(std::string req) {
+meta_range_t cyan_p1hdr32t_impl::get_meta_range(std::string req) {
 	(void)req;
 	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
 }
-void crimson_tng_impl::set_meta_range(const std::string pre, meta_range_t data) {
+void cyan_p1hdr32t_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	(void)pre;
 	(void)data;
 	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
-std::complex<double>  crimson_tng_impl::get_complex_double(std::string req) {
+std::complex<double>  cyan_p1hdr32t_impl::get_complex_double(std::string req) {
 	(void)req;
 	std::complex<double> temp;
 	return temp;
 }
-void crimson_tng_impl::set_complex_double(const std::string pre, std::complex<double> data) {
+void cyan_p1hdr32t_impl::set_complex_double(const std::string pre, std::complex<double> data) {
 	(void)pre;
 	(void)data;
 	return;
@@ -211,14 +211,14 @@ static size_t pre_to_ch( const std::string & pre ) {
 	return ch;
 }
 
-stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
+stream_cmd_t cyan_p1hdr32t_impl::get_stream_cmd(std::string req) {
 	(void)req;
 	// XXX: @CF: 20180214: stream_cmd is basically a write-only property, but we have to return a dummy variable of some kind
 	stream_cmd_t::stream_mode_t mode = stream_cmd_t::STREAM_MODE_START_CONTINUOUS;
 	stream_cmd_t temp = stream_cmd_t(mode);
 	return temp;
 }
-void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
+void cyan_p1hdr32t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
 
 	const size_t ch = pre_to_ch( pre );
 	const uhd::time_spec_t now = get_time_now();
@@ -244,7 +244,7 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
-time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
+time_spec_t cyan_p1hdr32t_impl::get_time_spec(std::string req) {
 	if ( false ) {
 	} else if ( "time/clk/cur_time" == req ) {
 		return get_time_now();
@@ -257,7 +257,7 @@ time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
 		return temp;
 	}
 }
-void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value ) {
+void cyan_p1hdr32t_impl::set_time_spec( const std::string key, time_spec_t value ) {
 	if ( "time/clk/cur_time" == key ) {
 		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
 		stop_bm();
@@ -275,7 +275,7 @@ void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value )
     }
 }
 
-user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
+user_reg_t cyan_p1hdr32t_impl::get_user_reg(std::string req) {
 
     (void) req;
 
@@ -283,11 +283,11 @@ user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
     return user_reg_t(0, 0);
 }
 
-void crimson_tng_impl::send_gpio_burst_req(const gpio_burst_req& req) {
+void cyan_p1hdr32t_impl::send_gpio_burst_req(const gpio_burst_req& req) {
 	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
-void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
+void cyan_p1hdr32t_impl::set_user_reg(const std::string key, user_reg_t value) {
 
     (void) key;
 
@@ -432,7 +432,7 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     }
 }
 
-void crimson_tng_impl::set_properties_from_addr() {
+void cyan_p1hdr32t_impl::set_properties_from_addr() {
 
 	static const std::string crimson_prop_prefix( "crimson:" );
 	static const std::vector<std::string> blacklist { "crimson:sob" };
@@ -473,7 +473,7 @@ void crimson_tng_impl::set_properties_from_addr() {
  * Discovery over the udp transport
  **********************************************************************/
 // This find function will be called if a hint is passed onto the find function
-static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
+static device_addrs_t cyan_p1hdr32t_find_with_addr(const device_addr_t &hint)
 {
 	uhd::time_spec_t then, now;
 
@@ -506,7 +506,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
 #ifdef PV_TATE
         if (tokens[2] != "cyan_p1hdr32t") break;
 #else
-        if (tokens[2] != "crimson_tng") break;
+        if (tokens[2] != "cyan_p1hdr32t") break;
 #endif
 
         device_addr_t new_addr;
@@ -521,7 +521,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
             (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
-            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found crimson_tng at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
+            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found cyan_p1hdr32t at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
             addrs.push_back(new_addr);
         }
     }
@@ -530,7 +530,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
 }
 
 // This is the core find function that will be called when uhd:device find() is called because this is registered
-static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
+static device_addrs_t cyan_p1hdr32t_find(const device_addr_t &hint_)
 {
     //handle the multi-device discovery
     device_addrs_t hints = separate_device_addr(hint_);
@@ -540,7 +540,7 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
         std::string error_msg;
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
-            device_addrs_t found_devices_i = crimson_tng_find(hint_i);
+            device_addrs_t found_devices_i = cyan_p1hdr32t_find(hint_i);
             if (found_devices_i.size() != 1) error_msg += str(boost::format(
                 "Could not resolve device hint \"%s\" to a single device."
             ) % hint_i.to_string());
@@ -561,7 +561,7 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
 #ifdef PV_TATE
     if (hint.has_key("type") and hint["type"] != "tate") return addrs;
 #else
-    if (hint.has_key("type") and hint["type"] != "crimson_tng") return addrs;
+    if (hint.has_key("type") and hint["type"] != "cyan_p1hdr32t") return addrs;
 #endif
 
     //use the address given
@@ -570,7 +570,7 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
         device_addrs_t reply_addrs;
         try
         {
-            reply_addrs = crimson_tng_find_with_addr(hint);
+            reply_addrs = cyan_p1hdr32t_find_with_addr(hint);
         }
         catch(const std::exception &ex)
         {
@@ -582,7 +582,7 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
-            device_addrs_t new_addrs = crimson_tng_find_with_addr(reply_addr);
+            device_addrs_t new_addrs = cyan_p1hdr32t_find_with_addr(reply_addr);
             addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
         }
         return addrs;
@@ -602,7 +602,7 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
             new_hint["addr"] = if_addrs.bcast;
 
             //call discover with the new hint and append results
-            device_addrs_t new_addrs = crimson_tng_find(new_hint);
+            device_addrs_t new_addrs = cyan_p1hdr32t_find(new_hint);
             addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
         }
     }
@@ -633,7 +633,7 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
-void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
+void cyan_p1hdr32t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
 
     typedef boost::tuple<bool, bool, bool, bool> inst_t;
     static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
@@ -675,12 +675,12 @@ void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd,
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
 }
 
-void crimson_tng_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
+void cyan_p1hdr32t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
 	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
+void cyan_p1hdr32t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 
 	time_diff_req pkt;
 
@@ -694,7 +694,7 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
-void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
+void cyan_p1hdr32t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
 
 	time_diff_req pkt;
 
@@ -710,7 +710,7 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
-bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
+bool cyan_p1hdr32t_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	size_t r;
 
@@ -727,7 +727,7 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 	return true;
 }
 
-bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
+bool cyan_p1hdr32t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 
 	size_t r;
 
@@ -747,7 +747,7 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
-void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
+void cyan_p1hdr32t_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
 	static const double sp = 0.0;
 
@@ -762,7 +762,7 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 	}
 }
 
-void crimson_tng_impl::start_bm() {
+void cyan_p1hdr32t_impl::start_bm() {
 
 	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
 
@@ -795,7 +795,7 @@ void crimson_tng_impl::start_bm() {
 	}
 }
 
-void crimson_tng_impl::stop_bm() {
+void cyan_p1hdr32t_impl::stop_bm() {
 
 	if ( _bm_thread_running ) {
 
@@ -805,12 +805,12 @@ void crimson_tng_impl::stop_bm() {
 	}
 }
 
-bool crimson_tng_impl::time_diff_converged() {
+bool cyan_p1hdr32t_impl::time_diff_converged() {
 	return _time_diff_converged;
 }
 
 // the buffer monitor thread
-void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
+void cyan_p1hdr32t_impl::bm_thread_fn( cyan_p1hdr32t_impl *dev ) {
 
 	dev->_bm_thread_running = true;
 
@@ -887,18 +887,18 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
  * Make
  **********************************************************************/
 // Returns a pointer to the Crimson device, casted to the UHD base class
-static device::sptr crimson_tng_make(const device_addr_t &device_addr)
+static device::sptr cyan_p1hdr32t_make(const device_addr_t &device_addr)
 {
-    return device::sptr(new crimson_tng_impl(device_addr));
+    return device::sptr(new cyan_p1hdr32t_impl(device_addr));
 }
 
 // This is the core function that registers itself with uhd::device base class. The base device class
 // will have a reference to all the registered devices and upon device find/make it will loop through
 // all the registered devices' find and make functions.
-UHD_STATIC_BLOCK(register_crimson_tng_device)
+UHD_STATIC_BLOCK(register_cyan_p1hdr32t_device)
 {
 	set_log_level( uhd::log::severity_level::info );
-    device::register_device(&crimson_tng_find, &crimson_tng_make, device::USRP);
+    device::register_device(&cyan_p1hdr32t_find, &cyan_p1hdr32t_make, device::USRP);
 }
 
 /***********************************************************************
@@ -908,21 +908,21 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.add_desired_subscriber(boost::bind(&crimson_tng_impl::set_ ## HANDLER, this, (PROP), _1))	\
-		.set_publisher(boost::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.add_desired_subscriber(boost::bind(&cyan_p1hdr32t_impl::set_ ## HANDLER, this, (PROP), _1))	\
+		.set_publisher(boost::bind(&cyan_p1hdr32t_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.publish  (boost::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.publish  (boost::bind(&cyan_p1hdr32t_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
-crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
+cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 :
 	device_addr( _device_addr ),
 	_time_diff( 0 ),
@@ -983,7 +983,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     static const size_t mbi = 0;
     static const std::string mb = std::to_string( mbi );
     // Makes the UDP comm connection
-    _mbc[mb].iface = crimson_tng_iface::make(
+    _mbc[mb].iface = cyan_p1hdr32t_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
 			BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
@@ -1027,8 +1027,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 #endif
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
-    _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&crimson_tng_impl::update_rx_subdev_spec, this, mb, _1));
-    _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&crimson_tng_impl::update_tx_subdev_spec, this, mb, _1));
+    _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_p1hdr32t_impl::update_rx_subdev_spec, this, mb, _1));
+    _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_p1hdr32t_impl::update_tx_subdev_spec, this, mb, _1));
 
     TREE_CREATE_ST(mb_path / "vendor", std::string, "Per Vices");
     TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
@@ -1238,8 +1238,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
 			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_rx_samp_rate, this, mb, (size_t) dspno, _1))
-			.set_publisher(boost::bind(&crimson_tng_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
+			.add_desired_subscriber(boost::bind(&cyan_p1hdr32t_impl::update_rx_samp_rate, this, mb, (size_t) dspno, _1))
+			.set_publisher(boost::bind(&cyan_p1hdr32t_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
@@ -1383,8 +1383,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
 			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&crimson_tng_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
-			.set_publisher(boost::bind(&crimson_tng_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
+			.add_desired_subscriber(boost::bind(&cyan_p1hdr32t_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
+			.set_publisher(boost::bind(&cyan_p1hdr32t_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value"                 , "tx_"+lc_num+"/dsp/rate"                      ,  double, double);
 		TREE_CREATE_RW(tx_dsp_path / "rstreq"                       , "tx_"+lc_num+"/dsp/rstreq"                    , double, double);
@@ -1562,12 +1562,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	}
 }
 
-crimson_tng_impl::~crimson_tng_impl(void)
+cyan_p1hdr32t_impl::~cyan_p1hdr32t_impl(void)
 {
        stop_bm();
 }
 
-bool crimson_tng_impl::is_bm_thread_needed() {
+bool cyan_p1hdr32t_impl::is_bm_thread_needed() {
 	bool r = true;
 
 #ifndef __APPLE__ // eventually use something like HAVE_PROGRAM_INVOCATION_NAME
@@ -1591,7 +1591,7 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 	return r;
 }
 
-void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
+void cyan_p1hdr32t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 #ifdef PV_TATE
     if (chan < 8) {
         sfp = "sfpa";

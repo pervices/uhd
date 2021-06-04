@@ -25,26 +25,26 @@
 #include <boost/function.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <string>
-#include "crimson_tng_fw_common.h"
+#include "cyan_p1hdr32t_fw_common.h"
 
 namespace uhd {
 
 /*!
- * The crimson_tng interface class:
+ * The cyan_p1hdr32t interface class:
  * Provides a set of functions to UDP implementation layer.
  */
-class crimson_tng_iface : public uhd::wb_iface
+class cyan_p1hdr32t_iface : public uhd::wb_iface
 {
 public:
-    typedef boost::shared_ptr<crimson_tng_iface> sptr;
+    typedef boost::shared_ptr<cyan_p1hdr32t_iface> sptr;
     /*!
-     * Make a new crimson_tng interface with the control transport.
+     * Make a new cyan_p1hdr32t interface with the control transport.
      * \param ctrl_transport the udp transport object
-     * \return a new crimson_tng interface object
+     * \return a new cyan_p1hdr32t interface object
      */
-    crimson_tng_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    cyan_p1hdr32t_iface(uhd::transport::udp_simple::sptr ctrl_transport);
 
-    static crimson_tng_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    static cyan_p1hdr32t_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
     // Send/write a data packet (string), null terminated
     virtual void poke_str(std::string data);

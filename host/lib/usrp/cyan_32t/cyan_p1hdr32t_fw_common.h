@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 /*!
- * Structs and constants for crimson_tng communication.
+ * Structs and constants for cyan_p1hdr32t communication.
  * This header is shared by the firmware and host code.
  * Therefore, this header may only contain valid C code.
  */
