@@ -23,8 +23,8 @@
 
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
-#include "crimson_tng_impl.hpp"
-#include "crimson_tng_fw_common.h"
+#include "cyan_p1hdr32t_impl.hpp"
+#include "cyan_p1hdr32t_fw_common.h"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/exception.hpp>
@@ -88,17 +88,17 @@ std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
 }
 
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
-class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer {
+class cyan_p1hdr32t_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
 	typedef boost::function<void(void)> onfini_type;
 
-	crimson_tng_recv_packet_streamer(const size_t max_num_samps)
+	cyan_p1hdr32t_recv_packet_streamer(const size_t max_num_samps)
 	: sph::recv_packet_streamer( max_num_samps )
 	{
         _max_num_samps = max_num_samps;
     }
 
-	virtual ~crimson_tng_recv_packet_streamer() {
+	virtual ~cyan_p1hdr32t_recv_packet_streamer() {
 		teardown();
 	}
 
@@ -152,13 +152,13 @@ private:
     std::vector<eprops_type> _eprops;
 };
 
-static std::vector<boost::weak_ptr<crimson_tng_recv_packet_streamer>> allocated_rx_streamers;
+static std::vector<boost::weak_ptr<cyan_p1hdr32t_recv_packet_streamer>> allocated_rx_streamers;
 static void shutdown_lingering_rx_streamers() {
 	// This is required as a workaround, because the relevent destructurs are not called
 	// when you close the top block in gnu radio. Unsolved mystery for the time being.
 	for( auto & rx: allocated_rx_streamers ) {
 		if ( ! rx.expired() ) {
-			boost::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = rx.lock();
+			boost::shared_ptr<cyan_p1hdr32t_recv_packet_streamer> my_streamer = rx.lock();
 			if ( my_streamer ) {
 				my_streamer->teardown();
 			}
@@ -171,7 +171,7 @@ static void shutdown_lingering_rx_streamers() {
 // XXX: @CF: 20180227: We need this for several reasons
 // 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
 // 2) to wrap sph::send_packet_streamer::send() and use our existing flow control algorithm
-class crimson_tng_send_packet_streamer : public sph::send_packet_streamer {
+class cyan_p1hdr32t_send_packet_streamer : public sph::send_packet_streamer {
 public:
 
 	typedef boost::function<void(void)> onfini_type;
@@ -179,7 +179,7 @@ public:
 	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
 	typedef boost::function<bool(async_metadata_t&)> async_pusher_type;
 
-	crimson_tng_send_packet_streamer( const size_t max_num_samps )
+	cyan_p1hdr32t_send_packet_streamer( const size_t max_num_samps )
 	:
 		sph::send_packet_streamer( max_num_samps ),
 		_first_call_to_send( true ),
@@ -192,7 +192,7 @@ public:
 	{
 	}
 
-	virtual ~crimson_tng_send_packet_streamer() {
+	virtual ~cyan_p1hdr32t_send_packet_streamer() {
 		teardown();
 	}
 
@@ -318,8 +318,8 @@ public:
 
     static managed_send_buffer::sptr get_send_buff( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
 
-        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
-            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+        boost::shared_ptr<cyan_p1hdr32t_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<cyan_p1hdr32t_send_packet_streamer>( tx_streamer.lock() );
 
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
@@ -337,15 +337,15 @@ public:
 
     static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
-        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
-            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+        boost::shared_ptr<cyan_p1hdr32t_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<cyan_p1hdr32t_send_packet_streamer>( tx_streamer.lock() );
 
         my_streamer->check_fc_update(chan, nsamps);
     }
     
     static bool check_flow_control(boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
-        boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
-            boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>( tx_streamer.lock() );
+        boost::shared_ptr<cyan_p1hdr32t_send_packet_streamer> my_streamer =
+            boost::dynamic_pointer_cast<cyan_p1hdr32t_send_packet_streamer>( tx_streamer.lock() );
 
         return my_streamer->check_fc_condition( chan, timeout);
     }
@@ -407,7 +407,7 @@ public:
             }
 
 			//spawn a new viking to raid the send hoardes
-			_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
+			_pillage_thread = std::thread( cyan_p1hdr32t_send_packet_streamer::send_viking_loop, this );
 			_pillaging = true;
 		}
 	}
@@ -525,7 +525,7 @@ private:
      * - update over / underflow counters
      * - put async message packets into queue
      **********************************************************************/
-	static void send_viking_loop( crimson_tng_send_packet_streamer *self ) {
+	static void send_viking_loop( cyan_p1hdr32t_send_packet_streamer *self ) {
 		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
 
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
@@ -633,13 +633,13 @@ private:
 	}
 };
 
-static std::vector<boost::weak_ptr<crimson_tng_send_packet_streamer>> allocated_tx_streamers;
+static std::vector<boost::weak_ptr<cyan_p1hdr32t_send_packet_streamer>> allocated_tx_streamers;
 static void shutdown_lingering_tx_streamers() {
 	// This is required as a workaround, because the relevent destructurs are not called
 	// when you close the top block in gnu radio. Unsolved mystery for the time being.
 	for( auto & tx: allocated_tx_streamers ) {
 		if ( ! tx.expired() ) {
-			boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = tx.lock();
+			boost::shared_ptr<cyan_p1hdr32t_send_packet_streamer> my_streamer = tx.lock();
 			if ( my_streamer ) {
 				my_streamer->teardown();
 			}
@@ -657,7 +657,7 @@ static const size_t vrt_send_header_offset_words32 = 0;
  * io impl details (internal to this file)
  * - alignment buffer
  **********************************************************************/
-struct crimson_tng_impl::io_impl{
+struct cyan_p1hdr32t_impl::io_impl{
 
     io_impl(void):
         async_msg_fifo(1000/*messages deep*/)
@@ -677,7 +677,7 @@ struct crimson_tng_impl::io_impl{
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-void crimson_tng_impl::io_init(void){
+void cyan_p1hdr32t_impl::io_init(void){
 
 	// TODO: @CF: 20180301: move time diff code into io_impl
 	_io_impl = UHD_PIMPL_MAKE(io_impl, ());
@@ -689,33 +689,33 @@ void crimson_tng_impl::io_init(void){
     }
 }
 
-void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
+void cyan_p1hdr32t_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
 
     set_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
     double rate = get_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
 
-    boost::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer =
-        boost::dynamic_pointer_cast<crimson_tng_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
+    boost::shared_ptr<cyan_p1hdr32t_recv_packet_streamer> my_streamer =
+        boost::dynamic_pointer_cast<cyan_p1hdr32t_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
     my_streamer->set_tick_rate( CRIMSON_TNG_DSP_CLOCK_RATE );
 }
 
-void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
+void cyan_p1hdr32t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
     set_double( "tx_" + std::string( 1, 'a' + (dsp/CRIMSON_TNG_DSP_PER_RFE) ) + "/dsp/rate", rate_ );
     double rate = get_double( "tx_" + std::string( 1, 'a' + (dsp/CRIMSON_TNG_DSP_PER_RFE) ) + "/dsp/rate" );
 
-	boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
-        boost::dynamic_pointer_cast<crimson_tng_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
+	boost::shared_ptr<cyan_p1hdr32t_send_packet_streamer> my_streamer =
+        boost::dynamic_pointer_cast<cyan_p1hdr32t_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
     my_streamer->set_tick_rate( CRIMSON_TNG_DSP_CLOCK_RATE );
 }
 
-void crimson_tng_impl::update_rates(void){
+void cyan_p1hdr32t_impl::update_rates(void){
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
@@ -740,7 +740,7 @@ void crimson_tng_impl::update_rates(void){
     }
 }
 
-void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
+void cyan_p1hdr32t_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
     fs_path root = "/mboards/" + which_mb + "/dboards";
 
     //sanity checking
@@ -761,7 +761,7 @@ void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const 
     for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].rx_chan_occ;
 }
 
-void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
+void cyan_p1hdr32t_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
     fs_path root = "/mboards/" + which_mb + "/dboards";
 
     //sanity checking
@@ -789,7 +789,7 @@ static void tx_pwr_off( boost::weak_ptr<uhd::property_tree> tree, std::string pa
 /***********************************************************************
  * Async Data
  **********************************************************************/
-bool crimson_tng_impl::recv_async_msg(
+bool cyan_p1hdr32t_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
     boost::this_thread::disable_interruption di; //disable because the wait can throw
@@ -799,7 +799,7 @@ bool crimson_tng_impl::recv_async_msg(
 /***********************************************************************
  * Receive streamer
  **********************************************************************/
-rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args_){
+rx_streamer::sptr cyan_p1hdr32t_impl::get_rx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
@@ -822,7 +822,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     const size_t spp = args.args.cast<size_t>("spp", bpp/bpi);
 
     //make the new streamer given the samples per packet
-    boost::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = boost::make_shared<crimson_tng_recv_packet_streamer>(spp);
+    boost::shared_ptr<cyan_p1hdr32t_recv_packet_streamer> my_streamer = boost::make_shared<cyan_p1hdr32t_recv_packet_streamer>(spp);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -888,7 +888,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                     &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], _1
                 ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, boost::bind(
-                    &crimson_tng_impl::set_stream_cmd, this, scmd_pre, _1));
+                    &cyan_p1hdr32t_impl::set_stream_cmd, this, scmd_pre, _1));
                 my_streamer->set_on_fini(chan_i, boost::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
                 _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
                 break;
@@ -1061,7 +1061,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 #endif
 }
 
-tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args_){
+tx_streamer::sptr cyan_p1hdr32t_impl::get_tx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
@@ -1085,19 +1085,19 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
 
     //make the new streamer given the samples per packet
-    crimson_tng_send_packet_streamer::timenow_type timenow_ = boost::bind( & crimson_tng_impl::get_time_now, this );
+    cyan_p1hdr32t_send_packet_streamer::timenow_type timenow_ = boost::bind( & cyan_p1hdr32t_impl::get_time_now, this );
     std::vector<uhd::transport::zero_copy_if::sptr> xports;
     for( auto & i: args.channels ) {
         xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
-    boost::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = boost::make_shared<crimson_tng_send_packet_streamer>( spp );
+    boost::shared_ptr<cyan_p1hdr32t_send_packet_streamer> my_streamer = boost::make_shared<cyan_p1hdr32t_send_packet_streamer>( spp );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
     my_streamer->set_enable_trailer( false );
 
-    my_streamer->set_time_now(boost::bind(&crimson_tng_impl::get_time_now,this));
+    my_streamer->set_time_now(boost::bind(&cyan_p1hdr32t_impl::get_time_now,this));
 
     //set the converter
     uhd::convert::id_type id;
@@ -1130,14 +1130,14 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 boost::weak_ptr<uhd::tx_streamer> my_streamerp = my_streamer;
 
                 my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                    &crimson_tng_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
+                    &cyan_p1hdr32t_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
                 ));
 
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
-                    &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
+                    &cyan_p1hdr32t_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
                 ));
                 my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
-                    &crimson_tng_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
+                    &cyan_p1hdr32t_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
                 ));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
 

@@ -21,8 +21,8 @@
 
 IF(ENABLE_CRIMSON_TNG)
     LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_impl.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_iface.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_p1hdr32t_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_p1hdr32t_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
     )
 ENDIF(ENABLE_CRIMSON_TNG)
