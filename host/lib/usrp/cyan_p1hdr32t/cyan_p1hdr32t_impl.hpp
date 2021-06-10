@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CRIMSON_TNG_IMPL_HPP
-#define INCLUDED_CRIMSON_TNG_IMPL_HPP
+#ifndef INCLUDED_CYAN_P1HDR32_IMPL_HPP
+#define INCLUDED_CYAN_P1HDR32_IMPL_HPP
 
 #include <set>
 #include <vector>
@@ -25,7 +25,10 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
-#include "uhd/usrp/multi_cyan_p1hdr32t.hpp"
+#include "uhd/usrp/subdev_spec.hpp"
+#include "uhd/utils/pimpl.hpp"
+#include "uhd/types/ranges.hpp"
+#include "uhd/types/sensors.hpp"
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
