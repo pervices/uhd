@@ -260,11 +260,11 @@ public:
             if ( metadata.time_spec < now + default_sob ) {
                 metadata.time_spec = now + default_sob;
                 #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "UHD::CRIMSON_TNG::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
+                std::cout << "UHD::CYAN_P1HDR32T::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CRIMSON_TNG_DSP_CLOCK_RATE ) << std::endl;
+            std::cout << "UHD::CYAN_P1HDR32T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_P1HDR32T_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -302,7 +302,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CRIMSON_TNG_DSP_CLOCK_RATE ) << std::endl;
+            std::cout << "UHD::CYAN_P1HDR32T::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CYAN_P1HDR32T_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -375,7 +375,7 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CRIMSON_TNG_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CYAN_P1HDR32T_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -616,7 +616,7 @@ private:
 
 			const auto t1 = std::chrono::high_resolution_clock::now();
 			const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-			const long long usloop = 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6;
+			const long long usloop = 1.0 / (double)CYAN_P1HDR32T_UPDATE_PER_SEC * 1e6;
 			const long long usdelay = usloop - us;
 
 #ifdef DEBUG_FC
@@ -684,8 +684,8 @@ void cyan_p1hdr32t_impl::io_init(void){
 
     //allocate streamer weak ptrs containers
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
-        _mbc[mb].rx_streamers.resize( CRIMSON_TNG_RX_CHANNELS );
-        _mbc[mb].tx_streamers.resize( CRIMSON_TNG_TX_CHANNELS );
+        _mbc[mb].rx_streamers.resize( CYAN_P1HDR32T_RX_CHANNELS );
+        _mbc[mb].tx_streamers.resize( CYAN_P1HDR32T_TX_CHANNELS );
     }
 }
 
@@ -699,20 +699,20 @@ void cyan_p1hdr32t_impl::update_rx_samp_rate(const std::string &mb, const size_t
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CRIMSON_TNG_DSP_CLOCK_RATE );
+    my_streamer->set_tick_rate( CYAN_P1HDR32T_DSP_CLOCK_RATE );
 }
 
 void cyan_p1hdr32t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
-    set_double( "tx_" + std::string( 1, 'a' + (dsp/CRIMSON_TNG_DSP_PER_RFE) ) + "/dsp/rate", rate_ );
-    double rate = get_double( "tx_" + std::string( 1, 'a' + (dsp/CRIMSON_TNG_DSP_PER_RFE) ) + "/dsp/rate" );
+    set_double( "tx_" + std::string( 1, 'a' + (dsp/CYAN_P1HDR32T_DSP_PER_RFE) ) + "/dsp/rate", rate_ );
+    double rate = get_double( "tx_" + std::string( 1, 'a' + (dsp/CYAN_P1HDR32T_DSP_PER_RFE) ) + "/dsp/rate" );
 
 	boost::shared_ptr<cyan_p1hdr32t_send_packet_streamer> my_streamer =
         boost::dynamic_pointer_cast<cyan_p1hdr32t_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CRIMSON_TNG_DSP_CLOCK_RATE );
+    my_streamer->set_tick_rate( CYAN_P1HDR32T_DSP_CLOCK_RATE );
 }
 
 void cyan_p1hdr32t_impl::update_rates(void){
@@ -957,7 +957,7 @@ rx_streamer::sptr cyan_p1hdr32t_impl::get_rx_stream(const uhd::stream_args_t &ar
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 1.0 / CRIMSON_TNG_DSP_CLOCK_RATE;
+	static constexpr double tick_period_ps = 1.0 / CYAN_P1HDR32T_DSP_CLOCK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
@@ -1019,7 +1019,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
 	uint32_t lvl = (rsp.header & 0xffff)*128;
-	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
+	pcnt = (double)lvl / CYAN_P1HDR32T_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
@@ -1122,7 +1122,7 @@ tx_streamer::sptr cyan_p1hdr32t_impl::get_tx_stream(const uhd::stream_args_t &ar
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
-                std::string name = std::string( 1, ('A' + chan/CRIMSON_TNG_DSP_PER_RFE)) + std::to_string (chan%CRIMSON_TNG_DSP_PER_RFE);
+                std::string name = std::string( 1, ('A' + chan/CYAN_P1HDR32T_DSP_PER_RFE)) + std::to_string (chan%CYAN_P1HDR32T_DSP_PER_RFE);
                 my_streamer->set_channel_name(chan_i, name);
 
                 my_streamer->set_on_fini(chan_i, boost::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );

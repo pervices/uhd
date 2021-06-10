@@ -480,7 +480,7 @@ static device_addrs_t cyan_p1hdr32t_find_with_addr(const device_addr_t &hint)
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
+        hint["addr"], BOOST_STRINGIZE(CYAN_P1HDR32T_FW_COMMS_UDP_PORT));
 
     then = uhd::get_system_time();
 
@@ -489,7 +489,7 @@ static device_addrs_t cyan_p1hdr32t_find_with_addr(const device_addr_t &hint)
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
-    char buff[CRIMSON_TNG_FW_COMMS_MTU] = {};
+    char buff[CYAN_P1HDR32T_FW_COMMS_MTU] = {};
 
     for(
 		float to = 0.2;
@@ -574,11 +574,11 @@ static device_addrs_t cyan_p1hdr32t_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CYAN_P1HDR32T Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CYAN_P1HDR32T Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -615,7 +615,7 @@ static device_addrs_t cyan_p1hdr32t_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 1.0 / CRIMSON_TNG_DSP_CLOCK_RATE * 1e9;
+static constexpr double tick_period_ns = 1.0 / CYAN_P1HDR32T_DSP_CLOCK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
@@ -815,8 +815,8 @@ void cyan_p1hdr32t_impl::bm_thread_fn( cyan_p1hdr32t_impl *dev ) {
 	dev->_bm_thread_running = true;
 
     int xg_intf = 0;
-	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
-	std::vector<size_t> fifo_lvl( CRIMSON_TNG_TX_CHANNELS );
+	const uhd::time_spec_t T( 1.0 / (double) CYAN_P1HDR32T_UPDATE_PER_SEC );
+	std::vector<size_t> fifo_lvl( CYAN_P1HDR32T_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
 	uhd::time_spec_t crimson_now;
 	struct timespec req, rem;
@@ -932,7 +932,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 	_bm_thread_should_exit( false ),
     _command_time()
 {
-    _type = device::CRIMSON_TNG;
+    _type = device::CYAN_P1HDR32T;
     device_addr = _device_addr;
 
     //setup the dsp transport hints (default to a large recv buff)
@@ -948,7 +948,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_P1HDR32T_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
@@ -986,7 +986,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     _mbc[mb].iface = cyan_p1hdr32t_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
-			BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
+			BOOST_STRINGIZE( CYAN_P1HDR32T_FW_COMMS_UDP_PORT )
 		)
     );
 
@@ -1108,7 +1108,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 #endif
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_DSP_CLOCK_RATE );
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_P1HDR32T_DSP_CLOCK_RATE );
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
@@ -1120,7 +1120,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
-    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CRIMSON_TNG_EXT_CLK_RATE);
+    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CYAN_P1HDR32T_EXT_CLK_RATE);
     TREE_CREATE_ST(mb_path / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(mb_path / "time_source"  / "output", bool, true);
 
@@ -1130,10 +1130,10 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
-    for( size_t dspno = 0; dspno < CRIMSON_TNG_RX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < CYAN_P1HDR32T_RX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
-		std::string chan    = "Channel_0";// + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
+		std::string chan    = "Channel_0";// + std::to_string(dspno % CYAN_P1HDR32T_DSP_PER_RFE);
 
 		const fs_path rx_codec_path = mb_path / "rx_codecs" / num;
 		const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / chan;
@@ -1172,11 +1172,11 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, CYAN_P1HDR32T_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( CYAN_P1HDR32T_MASTER_CLOCK_RATE / 2.0, CYAN_P1HDR32T_MASTER_CLOCK_RATE / 2.0 ) );
 
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CYAN_P1HDR32T_FREQ_RANGE_START, CYAN_P1HDR32T_FREQ_RANGE_STOP, CYAN_P1HDR32T_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1188,9 +1188,9 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, 15e6 );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+			meta_range_t(CYAN_P1HDR32T_FREQ_RANGE_START, CYAN_P1HDR32T_FREQ_RANGE_STOP, CYAN_P1HDR32T_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t(CRIMSON_TNG_RF_RX_GAIN_RANGE_START, CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
+			meta_range_t(CYAN_P1HDR32T_RF_RX_GAIN_RANGE_START, CYAN_P1HDR32T_RF_RX_GAIN_RANGE_STOP, CYAN_P1HDR32T_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
@@ -1217,21 +1217,21 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
                 default:
 #endif
                     TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t(CYAN_P1HDR32T_DSP_FREQ_RANGE_START, CYAN_P1HDR32T_DSP_FREQ_RANGE_STOP, CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			break;
 #ifndef PV_TATE
                 case 'C':
 		case 'D':
 			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP  / 2, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP  / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP , CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+				meta_range_t(CYAN_P1HDR32T_DSP_FREQ_RANGE_START, CYAN_P1HDR32T_DSP_FREQ_RANGE_STOP , CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
+				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			break;
 #endif
 		}
@@ -1262,7 +1262,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_P1HDR32T_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = 0;
 		zcxp.recv_frame_size = bpp;
@@ -1283,11 +1283,11 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     }
 
     // loop for all TX chains
-    for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/CRIMSON_TNG_DSP_PER_RFE + 'a'));
+    for( int dspno = 0; dspno < CYAN_P1HDR32T_TX_CHANNELS; dspno++ ) {
+		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno/CYAN_P1HDR32T_DSP_PER_RFE + 'a'));
         std::string lc_udp  = boost::lexical_cast<std::string>((char)(dspno/4 + 'a'));
-		std::string num     = boost::lexical_cast<std::string>((char)(dspno/CRIMSON_TNG_DSP_PER_RFE + 'A'));
-		std::string chan    = "Channel_" + std::to_string(dspno % CRIMSON_TNG_DSP_PER_RFE);
+		std::string num     = boost::lexical_cast<std::string>((char)(dspno/CYAN_P1HDR32T_DSP_PER_RFE + 'A'));
+		std::string chan    = "Channel_" + std::to_string(dspno % CYAN_P1HDR32T_DSP_PER_RFE);
 		// std::string chan    = "Channel_" + num;
 
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num / "tx_codecs" / chan;
@@ -1328,10 +1328,10 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "name"                          , std::string                                   , "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value"           , double                                        , CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range"           , meta_range_t                                  , meta_range_t( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0, CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value"           , double                                        , CYAN_P1HDR32T_MASTER_CLOCK_RATE / 2.0 );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range"           , meta_range_t                                  , meta_range_t( CYAN_P1HDR32T_MASTER_CLOCK_RATE / 2.0, CYAN_P1HDR32T_MASTER_CLOCK_RATE / 2.0 ) );
 
-		TREE_CREATE_ST(tx_fe_path / "freq"                          , meta_range_t                                  , meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "freq"                          , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_FREQ_RANGE_START, CYAN_P1HDR32T_FREQ_RANGE_STOP, CYAN_P1HDR32T_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value"           , std::complex<double>                          , std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value"          , std::complex<double>                          , std::complex<double>(0.0, 0.0));
@@ -1341,8 +1341,8 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset"                 , bool                                          , false);
 		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value"           , "tx_"+lc_num+"/rf/dac/nco"                    , double, double);
 
-		TREE_CREATE_ST(tx_fe_path / "freq" / "range"                , meta_range_t                                  , meta_range_t(CRIMSON_TNG_FREQ_RANGE_START, CRIMSON_TNG_FREQ_RANGE_STOP, CRIMSON_TNG_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(tx_fe_path / "gain" / "range"                , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RF_TX_GAIN_RANGE_START, CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "freq" / "range"                , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_FREQ_RANGE_START, CYAN_P1HDR32T_FREQ_RANGE_STOP, CYAN_P1HDR32T_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(tx_fe_path / "gain" / "range"                , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RF_TX_GAIN_RANGE_START, CYAN_P1HDR32T_RF_TX_GAIN_RANGE_STOP, CYAN_P1HDR32T_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value"               , "tx_"+lc_num+"/rf/freq/val"                   , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains"                         , std::string                                   , "gain" );
@@ -1352,7 +1352,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/band"                       , int, int);
 
 #ifdef PV_TATE
-        if (dspno % CRIMSON_TNG_DSP_PER_RFE == 0) {
+        if (dspno % CYAN_P1HDR32T_DSP_PER_RFE == 0) {
 #endif
 		// these are phony properties for Crimson
 		TREE_CREATE_ST(db_path / "tx_eeprom"                        , dboard_eeprom_t                               , dboard_eeprom_t());
@@ -1367,16 +1367,16 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 #ifdef PV_TATE
                 default:
 #endif
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_DSP_FREQ_RANGE_START, CYAN_P1HDR32T_DSP_FREQ_RANGE_STOP, CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			break;
 #ifndef PV_TATE
 		case 'C':
 		case 'D':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CRIMSON_TNG_DSP_FREQ_RANGE_START, CRIMSON_TNG_DSP_FREQ_RANGE_STOP, CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2, CRIMSON_TNG_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_DSP_FREQ_RANGE_START, CYAN_P1HDR32T_DSP_FREQ_RANGE_STOP, CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP));
+			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			break;
 #endif
 		}
@@ -1391,7 +1391,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 #ifdef PV_TATE
         // To understand this better, review the structure of the DAC. It has 6 channels and 2 datapaths.
         // Note: ch2 and ch5 are unused.
-        switch (dspno % CRIMSON_TNG_DSP_PER_RFE) {
+        switch (dspno % CYAN_P1HDR32T_DSP_PER_RFE) {
             case 0 :
                 TREE_CREATE_RW(tx_dsp_path / "freq" / "value"       , "tx_"+lc_num+"/dsp/ch0fpga_nco"               , double, double);
                 TREE_CREATE_RW(tx_dsp_path / "nco"                  , "tx_"+lc_num+"/dsp/ch0fpga_nco"               , double, double);
@@ -1445,11 +1445,11 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_P1HDR32T_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = bpp;
 		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_send_frames = CYAN_P1HDR32T_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
 		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;
@@ -1548,10 +1548,10 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 			0.0, // desired set point is 0.0s error
 			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
+			2.0 / (double)CYAN_P1HDR32T_UPDATE_PER_SEC
 		);
 
-		_time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+		_time_diff_pidc.set_error_filter_length( CYAN_P1HDR32T_UPDATE_PER_SEC );
 
 		// XXX: @CF: 20170720: coarse to fine for convergence
 		// we coarsely lock on at first, to ensure the class instantiates properly

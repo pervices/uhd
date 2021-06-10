@@ -269,4 +269,4 @@ private:
 }
 }
 
-#endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
+#endif /* INCLUDED_CYAN_P1HDR32T_IMPL_HPP */
