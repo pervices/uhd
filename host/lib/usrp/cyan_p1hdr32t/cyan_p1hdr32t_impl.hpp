@@ -25,6 +25,7 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
+#include "uhd/usrp/multi_cyan_p1hdr32t.hpp"
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
