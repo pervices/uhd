@@ -74,17 +74,17 @@
 #define CYAN_P1HDR32T_RATE_RANGE_STOP		CYAN_P1HDR32T_MASTER_CLOCK_RATE
 #define CYAN_P1HDR32T_FREQ_RANGE_STOP		18000000000.0
 
-// Cyan_p1hdr_32t DSP Freq Settings
+// Crimson DSP Freq Settings
 #define CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP	        1.0
 
-// Cyan_p1hdr_32t Rate Settings
+// Crimson Rate Settings
 #define CYAN_P1HDR32T_RATE_RANGE_STEP		1.0
 
-// Cyan_p1hdr_32t Freq Settings
+// Crimson Freq Settings
 #define CYAN_P1HDR32T_FREQ_RANGE_START	0
 #define CYAN_P1HDR32T_FREQ_RANGE_STEP		1.0
 
-// Cyan_p1hdr_32t Ext Ref Clock
+// Crimson Ext Ref Clock
 #define CYAN_P1HDR32T_EXT_CLK_RATE		10000000	// only 10 MHz input sources allowed
 
 #define CYAN_P1HDR32T_FW_COMMS_FLAGS_ACK        (1 << 0)
@@ -92,21 +92,21 @@
 #define CYAN_P1HDR32T_FW_COMMS_FLAGS_POKE32     (1 << 2)
 #define CYAN_P1HDR32T_FW_COMMS_FLAGS_PEEK32     (1 << 3)
 
-// Cyan_p1hdr_32t min MTU size (typical ethernet frame)
+// Crimson min MTU size (typical ethernet frame)
 #define CYAN_P1HDR32T_MIN_MTU		1500
-// Cyan_p1hdr_32t max MTU size (jumbo ethernet frame is 9000 bytes)
+// Crimson max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_P1HDR32T_MAX_MTU		9000
 
-// Cyan_p1hdr_32t Flowcontrol Update Per Second
+// Crimson Flowcontrol Update Per Second
 #define CYAN_P1HDR32T_UPDATE_PER_SEC	100
 #define CYAN_P1HDR32T_SS_FIFOLVL_THRESHOLD 107421875
 
-// Cyan_p1hdr_32t Buffer Size
+// Crimson Buffer Size
 //#define CYAN_P1HDR32T_BUFF_SIZE	(1024*140*512/32)
 //#define CYAN_P1HDR32T_BUFF_SIZE	(1024*9000*(8/512)*16)
 #define CYAN_P1HDR32T_BUFF_SIZE	(2048*140*512/32)
 
-// Cyan_p1hdr_32t RF Settings
+// Crimson RF Settings
 #define CYAN_P1HDR32T_RF_TX_GAIN_RANGE_START	0.0
 #define CYAN_P1HDR32T_RF_TX_GAIN_RANGE_STOP	31.75
 #define CYAN_P1HDR32T_RF_TX_GAIN_RANGE_STEP	0.25
@@ -116,7 +116,7 @@
 #define CYAN_P1HDR32T_RF_RX_GAIN_RANGE_STOP	83.25
 #define CYAN_P1HDR32T_RF_RX_GAIN_RANGE_STEP	0.25
 
-// Cyan_p1hdr_32t VITA settings
+// Crimson VITA settings
 #define CYAN_P1HDR32T_VITA_HDR_TYPE	0x1
 
 #define CYAN_P1HDR32T_VITA_HDR
