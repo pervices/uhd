@@ -91,7 +91,7 @@ namespace usrp {
 class cyan_p1hdr32t_impl : public uhd::device
 {
 public:
-    // shared pointer to the Crimson device
+    // shared pointer to the Cyan_p1hdr_32t device
     typedef boost::shared_ptr<cyan_p1hdr32t_impl> sptr;
 
     // This is the core constructor to be called when a cyan_p1hdr32t device is found
@@ -135,43 +135,43 @@ private:
     std::string get_string(std::string req);
     void set_string(const std::string pre, std::string data);
 
-    // wrapper for type <double> through the ASCII Crimson interface
+    // wrapper for type <double> through the ASCII Cyan_p1hdr_32t interface
     double get_double(std::string req);
     void set_double(const std::string pre, double data);
 
-    // wrapper for type <bool> through the ASCII Crimson interface
+    // wrapper for type <bool> through the ASCII Cyan_p1hdr_32t interface
     bool get_bool(std::string req);
     void set_bool(const std::string pre, bool data);
 
-    // wrapper for type <int> through the ASCII Crimson interface
+    // wrapper for type <int> through the ASCII Cyan_p1hdr_32t interface
     int get_int(std::string req);
     void set_int(const std::string pre, int data);
 
-    // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
+    // wrapper for type <mboard_eeprom_t> through the ASCII Cyan_p1hdr_32t interface
     uhd::usrp::mboard_eeprom_t get_mboard_eeprom(std::string req);
     void set_mboard_eeprom(const std::string pre, uhd::usrp::mboard_eeprom_t data);
 
-    // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
+    // wrapper for type <dboard_eeprom_t> through the ASCII Cyan_p1hdr_32t interface
     uhd::usrp::dboard_eeprom_t get_dboard_eeprom(std::string req);
     void set_dboard_eeprom(const std::string pre, uhd::usrp::dboard_eeprom_t data);
 
-    // wrapper for type <sensor_value_t> through the ASCII Crimson interface
+    // wrapper for type <sensor_value_t> through the ASCII Cyan_p1hdr_32t interface
     uhd::sensor_value_t get_sensor_value(std::string req);
     void set_sensor_value(const std::string pre, uhd::sensor_value_t data);
 
-    // wrapper for type <meta_range_t> through the ASCII Crimson interface
+    // wrapper for type <meta_range_t> through the ASCII Cyan_p1hdr_32t interface
     uhd::meta_range_t get_meta_range(std::string req);
     void set_meta_range(const std::string pre, uhd::meta_range_t data);
 
-    // wrapper for type <complex<double>> through the ASCII Crimson interface
+    // wrapper for type <complex<double>> through the ASCII Cyan_p1hdr_32t interface
     std::complex<double>  get_complex_double(std::string req);
     void set_complex_double(const std::string pre, std::complex<double> data);
 
-    // wrapper for type <stream_cmd_t> through the ASCII Crimson interface
+    // wrapper for type <stream_cmd_t> through the ASCII Cyan_p1hdr_32t interface
     uhd::stream_cmd_t get_stream_cmd(std::string req);
     void set_stream_cmd(const std::string pre, uhd::stream_cmd_t data);
 
-    // wrapper for type <time_spec_t> through the ASCII Crimson interface
+    // wrapper for type <time_spec_t> through the ASCII Cyan_p1hdr_32t interface
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
@@ -180,10 +180,10 @@ private:
 
     void set_user_reg(const std::string key, user_reg_t value);
 
-    // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
+    // set arbitrary cyan_p1hdr_32t properties from dev_addr_t using mappings of the form "cyan_p1hdr_32t:key" => "val"
     void set_properties_from_addr();
 
-    // private pointer to the UDP interface, this is the path to send commands to Crimson
+    // private pointer to the UDP interface, this is the path to send commands to Cyan_p1hdr_32t
     //uhd::cyan_p1hdr32t_iface::sptr _iface;
     std::mutex _iface_lock;
 
@@ -193,19 +193,19 @@ private:
 
 	/// UDP endpoint that receives our Time Diff packets
     std::array<uhd::transport::udp_simple::sptr, NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface;
-	/** PID controller that rejects differences between Crimson's clock and the host's clock.
+	/** PID controller that rejects differences between Cyan_p1hdr_32t's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
-	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
+	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Cyan_p1hdr_32t.
 	 *  -> The Control Variable of the controller (the output) is the required compensation for the host
 	 *     such that the error is forced to zero.
-	 *     => Crimson Time Now := Host Time Now + CV
+	 *     => Cyan_p1hdr_32t Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
     double _time_diff;
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
-    void time_diff_send( const uhd::time_spec_t & crimson_now );
-    void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
+    void time_diff_send( const uhd::time_spec_t & cyan_p1hdr_32t_now );
+    void time_diff_send( const uhd::time_spec_t & cyan_p1hdr_32t_now , int xg_intf);
     bool time_diff_recv( time_diff_resp & td );
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );

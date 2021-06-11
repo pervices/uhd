@@ -73,7 +73,7 @@ void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char deli
 	return;
 }
 
-// base wrapper that calls the simple UDP interface to get messages to and from Crimson
+// base wrapper that calls the simple UDP interface to get messages to and from Cyan_p1hdr_32t
 std::string cyan_p1hdr32t_impl::get_string(std::string req) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
@@ -94,7 +94,7 @@ void cyan_p1hdr32t_impl::set_string(const std::string pre, std::string data) {
 	// format the string and poke (write)
 	_mbc[ "0" ].iface -> poke_str("set," + pre + "," + data);
 
-	// peek (read) anyways for error check, since Crimson will reply back
+	// peek (read) anyways for error check, since Cyan_p1hdr_32t will reply back
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
 	if (ret == "TIMEOUT" || ret == "ERROR")
@@ -103,7 +103,7 @@ void cyan_p1hdr32t_impl::set_string(const std::string pre, std::string data) {
 		return;
 }
 
-// wrapper for type <double> through the ASCII Crimson interface
+// wrapper for type <double> through the ASCII Cyan_p1hdr_32t interface
 double cyan_p1hdr32t_impl::get_double(std::string req) {
 	try { return boost::lexical_cast<double>( get_string(req) );
 	} catch (...) { return 0; }
@@ -113,7 +113,7 @@ void cyan_p1hdr32t_impl::set_double(const std::string pre, double data){
 	} catch (...) { }
 }
 
-// wrapper for type <bool> through the ASCII Crimson interface
+// wrapper for type <bool> through the ASCII Cyan_p1hdr_32t interface
 bool cyan_p1hdr32t_impl::get_bool(std::string req) {
 	try { return boost::lexical_cast<bool>( get_string(req) );
 	} catch (...) { return 0; }
@@ -123,7 +123,7 @@ void cyan_p1hdr32t_impl::set_bool(const std::string pre, bool data){
 	} catch (...) { }
 }
 
-// wrapper for type <int> through the ASCII Crimson interface
+// wrapper for type <int> through the ASCII Cyan_p1hdr_32t interface
 int cyan_p1hdr32t_impl::get_int(std::string req) {
 	try { return boost::lexical_cast<int>( get_string(req) );
 	} catch (...) { return 0; }
@@ -133,7 +133,7 @@ void cyan_p1hdr32t_impl::set_int(const std::string pre, int data){
 	} catch (...) { }
 }
 
-// wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
+// wrapper for type <mboard_eeprom_t> through the ASCII Cyan_p1hdr_32t interface
 mboard_eeprom_t cyan_p1hdr32t_impl::get_mboard_eeprom(std::string req) {
 	(void)req;
 	mboard_eeprom_t temp;
@@ -145,11 +145,11 @@ mboard_eeprom_t cyan_p1hdr32t_impl::get_mboard_eeprom(std::string req) {
 void cyan_p1hdr32t_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
 	(void)pre;
 	(void)data;
-	// no eeprom settings on Crimson
+	// no eeprom settings on Cyan_p1hdr_32t
 	return;
 }
 
-// wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
+// wrapper for type <dboard_eeprom_t> through the ASCII Cyan_p1hdr_32t interface
 dboard_eeprom_t cyan_p1hdr32t_impl::get_dboard_eeprom(std::string req) {
 	(void)req;
 	dboard_eeprom_t temp;
@@ -161,35 +161,35 @@ dboard_eeprom_t cyan_p1hdr32t_impl::get_dboard_eeprom(std::string req) {
 void cyan_p1hdr32t_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
 	(void)pre;
 	(void)data;
-	// no eeprom settings on Crimson
+	// no eeprom settings on Cyan_p1hdr_32t
 	return;
 }
 
-// wrapper for type <sensor_value_t> through the ASCII Crimson interface
+// wrapper for type <sensor_value_t> through the ASCII Cyan_p1hdr_32t interface
 sensor_value_t cyan_p1hdr32t_impl::get_sensor_value(std::string req) {
 	(void)req;
-	// no sensors on Crimson
+	// no sensors on Cyan_p1hdr_32t
 	return sensor_value_t("NA", "0", "NA");
 }
 void cyan_p1hdr32t_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
 	(void)pre;
 	(void)data;
-	// no sensors on Crimson
+	// no sensors on Cyan_p1hdr_32t
 	return;
 }
 
-// wrapper for type <meta_range_t> through the ASCII Crimson interface
+// wrapper for type <meta_range_t> through the ASCII Cyan_p1hdr_32t interface
 meta_range_t cyan_p1hdr32t_impl::get_meta_range(std::string req) {
 	(void)req;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, Cyan_p1hdr_32t does not support range settings");
 }
 void cyan_p1hdr32t_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	(void)pre;
 	(void)data;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, Cyan_p1hdr_32t does not support range settings");
 }
 
-// wrapper for type <complex<double>> through the ASCII Crimson interface
+// wrapper for type <complex<double>> through the ASCII Cyan_p1hdr_32t interface
 std::complex<double>  cyan_p1hdr32t_impl::get_complex_double(std::string req) {
 	(void)req;
 	std::complex<double> temp;
@@ -242,8 +242,8 @@ void cyan_p1hdr32t_impl::set_stream_cmd( const std::string pre, const stream_cmd
 	send_rx_stream_cmd_req( rx_stream_cmd );
 }
 
-// wrapper for type <time_spec_t> through the ASCII Crimson interface
-// we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
+// wrapper for type <time_spec_t> through the ASCII Cyan_p1hdr_32t interface
+// we should get back time in the form "12345.6789" from Cyan_p1hdr_32t, where it is seconds elapsed relative to Cyan_p1hdr_32t bootup.
 time_spec_t cyan_p1hdr32t_impl::get_time_spec(std::string req) {
 	if ( false ) {
 	} else if ( "time/clk/cur_time" == req ) {
@@ -390,11 +390,11 @@ if(address == 7) {
 
 void cyan_p1hdr32t_impl::set_properties_from_addr() {
 
-	static const std::string crimson_prop_prefix( "crimson:" );
-	static const std::vector<std::string> blacklist { "crimson:sob" };
+	static const std::string cyan_p1hdr_32t_prop_prefix( "cyan_p1hdr_32t:" );
+	static const std::vector<std::string> blacklist { "cyan_p1hdr_32t:sob" };
 
 	for( auto & prop: device_addr.keys() ) {
-		if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
+		if ( 0 == prop.compare( 0, cyan_p1hdr_32t_prop_prefix.length(), cyan_p1hdr_32t_prop_prefix ) ) {
 
 			bool is_blacklisted = false;
 			for( auto & e: blacklist ) {
@@ -406,16 +406,16 @@ void cyan_p1hdr32t_impl::set_properties_from_addr() {
 				continue;
 			}
 
-			std::string key = prop.substr( crimson_prop_prefix.length() );
+			std::string key = prop.substr( cyan_p1hdr_32t_prop_prefix.length() );
 			std::string expected_string = device_addr[ prop ];
 
 			set_string( key, expected_string );
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
+				UHD_LOGGER_ERROR("CYAN_P1HDR32T_IMPL")
 					<< __func__ << "(): "
-					<< "Setting Crimson property failed: "
+					<< "Setting Cyan_p1hdr_32t property failed: "
 					<< "key: '"<< key << "', "
 					<< "expected val: '" << expected_string << "', "
 					<< "actual val: '" << actual_string  << "'"
@@ -473,7 +473,7 @@ static device_addrs_t cyan_p1hdr32t_find_with_addr(const device_addr_t &hint)
             (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
-            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found cyan_p1hdr32t at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
+            //UHD_LOGGER_INFO( "CYAN_P1HDR32T_IMPL" ) << "Found cyan_p1hdr32t at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
             addrs.push_back(new_addr);
         }
     }
@@ -522,11 +522,11 @@ if (hint.has_key("type") and hint["type"] != "tate") return addrs;
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CYAN_P1HDR32T Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("CYAN_P1HDR32T_IMPL") << "CYAN_P1HDR32T Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CYAN_P1HDR32T Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("CYAN_P1HDR32T_IMPL") << "CYAN_P1HDR32T Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -562,7 +562,7 @@ if (hint.has_key("type") and hint["type"] != "tate") return addrs;
  * Buffer Management / Time Diff
  */
 
-// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
+// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Cyan_p1hdr_32t's absolute time)
 static constexpr double tick_period_ns = 1.0 / CYAN_P1HDR32T_DSP_CLOCK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
@@ -628,28 +628,28 @@ void cyan_p1hdr32t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void cyan_p1hdr32t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
+void cyan_p1hdr32t_impl::time_diff_send( const uhd::time_spec_t & cyan_p1hdr_32t_now ) {
 
 	time_diff_req pkt;
 
 	// Input to Process (includes feedback from PID Controller)
 	make_time_diff_packet(
 		pkt,
-		crimson_now
+		cyan_p1hdr_32t_now
 	);
 
     // By default send over SFPA
 	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
-void cyan_p1hdr32t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
+void cyan_p1hdr32t_impl::time_diff_send( const uhd::time_spec_t & cyan_p1hdr_32t_now, int xg_intf) {
 
 	time_diff_req pkt;
 
 	// Input to Process (includes feedback from PID Controller)
 	make_time_diff_packet(
 		pkt,
-		crimson_now
+		cyan_p1hdr_32t_now
 	);
 
     if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
@@ -733,10 +733,10 @@ void cyan_p1hdr32t_impl::start_bm() {
 			time_now = uhd::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+				UHD_LOGGER_ERROR("CYAN_P1HDR32T_IMPL")
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Cyan_p1hdr_32t?"
 					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Cyan_p1hdr_32t?" );
 			}
 			usleep( 100000 );
 		}
@@ -766,7 +766,7 @@ void cyan_p1hdr32t_impl::bm_thread_fn( cyan_p1hdr32t_impl *dev ) {
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_P1HDR32T_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CYAN_P1HDR32T_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
-	uhd::time_spec_t crimson_now;
+	uhd::time_spec_t cyan_p1hdr_32t_now;
 	struct timespec req, rem;
 
 	double time_diff;
@@ -800,9 +800,9 @@ void cyan_p1hdr32t_impl::bm_thread_fn( cyan_p1hdr32t_impl *dev ) {
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
 		now = uhd::get_system_time();
-		crimson_now = now + time_diff;
+		cyan_p1hdr_32t_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now, xg_intf );
+		dev->time_diff_send( cyan_p1hdr_32t_now, xg_intf );
 		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
 			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
 			continue;
@@ -815,7 +815,7 @@ void cyan_p1hdr32t_impl::bm_thread_fn( cyan_p1hdr32t_impl *dev ) {
 			now = uhd::get_system_time();
 
 			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CRIMSON_IMPL" )
+				UHD_LOGGER_INFO( "CYAN_P1HDR32T_IMPL" )
 					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
 					<< std::endl;
 			}
@@ -834,7 +834,7 @@ void cyan_p1hdr32t_impl::bm_thread_fn( cyan_p1hdr32t_impl *dev ) {
 /***********************************************************************
  * Make
  **********************************************************************/
-// Returns a pointer to the Crimson device, casted to the UHD base class
+// Returns a pointer to the Cyan_p1hdr_32t device, casted to the UHD base class
 static device::sptr cyan_p1hdr32t_make(const device_addr_t &device_addr)
 {
     return device::sptr(new cyan_p1hdr32t_impl(device_addr));
@@ -919,8 +919,8 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 //        device_addr["recv_frame_size"] = boost::lexical_cast<std::string>(mtu.recv_mtu);
 //        device_addr["send_frame_size"] = boost::lexical_cast<std::string>(mtu.send_mtu);
 //
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
+//        UHD_LOGGER_INFO("CYAN_P1HDR32T_IMPL") << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
+//        UHD_LOGGER_INFO("CYAN_P1HDR32T_IMPL") << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
 //    }
 //    catch(const uhd::not_implemented_error &){
 //        //just ignore this error, makes older fw work...
@@ -940,7 +940,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 
     // TODO make transports for each RX/TX chain
     // TODO check if locked already
-    // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
+    // TODO lock the Cyan_p1hdr_32t device to this process, this will prevent the Cyan_p1hdr_32t device being used by another program
 
     // Property paths
     const fs_path mb_path   = "/mboards/0";
@@ -951,7 +951,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     std::string lc_num;
 
     // Create the file tree of properties.
-    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
+    // Cyan_p1hdr_32t only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
@@ -963,7 +963,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options").set(clock_source_options);
 
-    TREE_CREATE_ST("/name", std::string, "Crimson_TNG Device");
+    TREE_CREATE_ST("/name", std::string, "Cyan_p1hdr_32t_TNG Device");
 
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
@@ -1065,7 +1065,7 @@ static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 
     TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t( "Reference", true, "unlocked", "locked" ) );
 
-    // No GPSDO support on Crimson
+    // No GPSDO support on Cyan_p1hdr_32t
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
@@ -1103,7 +1103,7 @@ static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 		// Channel Stream Status
 		TREE_CREATE_RW(rx_path / dspno / "stream", "rx_"+lc_num+"/stream", std::string, string);
 
-		// Codecs, phony properties for Crimson
+		// Codecs, phony properties for Cyan_p1hdr_32t
 		TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
 		TREE_CREATE_ST(rx_codec_path / "name", std::string, "RX Codec");
 
@@ -1142,7 +1142,7 @@ static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 		// RF receiver LNA
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "lna", "rx_"+lc_num+"/rf/freq/lna" , int, int);
 
-		// these are phony properties for Crimson
+		// these are phony properties for Cyan_p1hdr_32t
 		TREE_CREATE_ST(db_path / "rx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 		TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
 
@@ -1246,7 +1246,7 @@ static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 		// Power status
 		TREE_CREATE_RW(tx_path / dspno / "pwr"                      , "tx_"+lc_num+"/pwr"                           , std::string, string);
 
-		// Codecs, phony properties for Crimson
+		// Codecs, phony properties for Cyan_p1hdr_32t
 		TREE_CREATE_RW(tx_codec_path / "gains"                      , "tx_"+lc_num+"/dsp/gain"                      , int, int);
 		TREE_CREATE_ST(tx_codec_path / "name"                       , std::string                                   , "TX Codec");
 
@@ -1278,7 +1278,7 @@ static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/band"                       , int, int);
 
         if (dspno % CYAN_P1HDR32T_DSP_PER_RFE == 0) {
-		// these are phony properties for Crimson
+		// these are phony properties for Cyan_p1hdr_32t
 		TREE_CREATE_ST(db_path / "tx_eeprom"                        , dboard_eeprom_t                               , dboard_eeprom_t());
         }
 
@@ -1439,8 +1439,8 @@ static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 		time_spec_t ts = uhd::get_system_time();
 		_streamer_start_time = ts.get_real_secs();
 
-		// The problem is that this class does not hold a multi_crimson instance
-		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
+		// The problem is that this class does not hold a multi_cyan_p1hdr_32t instance
+		//Dont set time. Cyan_p1hdr_32t can compensate from 0. Set time will only be used for GPS
 
 		// Tyreus-Luyben tuned PID controller
 		_time_diff_pidc = uhd::pidc_tl(
