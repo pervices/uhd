@@ -33,10 +33,9 @@
 #include "uhd/transport/udp_zero_copy.hpp"
 
 #include "cyan_p1hdr32t_iface.hpp"
-#include "flow_control.hpp"
-#include "pidc.hpp"
-
-#include "system_time.hpp"
+#include "../crimson_tng/flow_control.hpp"
+#include "../crimson_tng/pidc.hpp"
+#include "../crimson_tng/system_time.hpp"
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
