@@ -294,13 +294,8 @@ void cyan_p1hdr32t_impl::set_user_reg(const std::string key, user_reg_t value) {
     const uint8_t  address = value.first;
     const uint64_t setting = (uint64_t) value.second;
 
-#ifdef PV_TATE
-    static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
-    static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
-#else
-    static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0};
-    static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0};
-#endif
+static uint64_t pins[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
+static uint64_t mask[NUMBER_OF_GPIO_REGS] = {0x0, 0x0};
 
 
     // Sanity check to make sure that user is not exceeding legal GPIO range
@@ -322,69 +317,49 @@ void cyan_p1hdr32t_impl::set_user_reg(const std::string key, user_reg_t value) {
     }
 
     const uint64_t all = 0x00000000FFFFFFFF;
-#ifdef PV_TATE
-    // Note: pins and mask will be treated as big-endian later on, so address == 0 -> pins[1]
-    // Clearing first 32-bits
-    if(address == 0) pins[1] &= ~(all << 0x00);
-    if(address == 1) mask[1] &= ~(all << 0x00);
-    // Clearing second 32-bits
-    if(address == 2) pins[1] &= ~(all << 0x20);
-    if(address == 3) mask[1] &= ~(all << 0x20);
-    // Clearing first 32-bits
-    if(address == 4) pins[0] &= ~(all << 0x00);
-    if(address == 5) mask[0] &= ~(all << 0x00);
-    // Clearing second 32-bits
-    if(address == 6) pins[0] &= ~(all << 0x20);
-    if(address == 7) mask[0] &= ~(all << 0x20);
 
-    // Setting first 32-bits
-    if(address == 0) pins[1] |= (setting << 0x00);
-    if(address == 1) mask[1] |= (setting << 0x00);
-    // Setting second 32-bits
-    if(address == 2) pins[1] |= (setting << 0x20);
-    if(address == 3) mask[1] |= (setting << 0x20);
-    // Setting first 32-bits
-    if(address == 4) pins[0] |= (setting << 0x00);
-    if(address == 5) mask[0] |= (setting << 0x00);
-    // Setting second 32-bits
-    if(address == 6) pins[0] |= (setting << 0x20);
-    if(address == 7) mask[0] |= (setting << 0x20);
+// Note: pins and mask will be treated as big-endian later on, so address == 0 -> pins[1]
+// Clearing first 32-bits
+if(address == 0) pins[1] &= ~(all << 0x00);
+if(address == 1) mask[1] &= ~(all << 0x00);
+// Clearing second 32-bits
+if(address == 2) pins[1] &= ~(all << 0x20);
+if(address == 3) mask[1] &= ~(all << 0x20);
+// Clearing first 32-bits
+if(address == 4) pins[0] &= ~(all << 0x00);
+if(address == 5) mask[0] &= ~(all << 0x00);
+// Clearing second 32-bits
+if(address == 6) pins[0] &= ~(all << 0x20);
+if(address == 7) mask[0] &= ~(all << 0x20);
+// Setting first 32-bits
+if(address == 0) pins[1] |= (setting << 0x00);
+if(address == 1) mask[1] |= (setting << 0x00);
+// Setting second 32-bits
+if(address == 2) pins[1] |= (setting << 0x20);
+if(address == 3) mask[1] |= (setting << 0x20);
+// Setting first 32-bits
+if(address == 4) pins[0] |= (setting << 0x00);
+if(address == 5) mask[0] |= (setting << 0x00);
+// Setting second 32-bits
+if(address == 6) pins[0] |= (setting << 0x20);
+if(address == 7) mask[0] |= (setting << 0x20);
 
-    if(address > 7)
-        std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
-#else
-    // Clearing first 32-bits
-    if(address == 0) pins[0] &= ~(all << 0x00);
-    if(address == 1) mask[0] &= ~(all << 0x00);
-    // Clearing second 32-bits
-    if(address == 2) pins[0] &= ~(all << 0x20);
-    if(address == 3) mask[0] &= ~(all << 0x20);
-
-    // Setting first 32-bits
-    if(address == 0) pins[0] |= (setting << 0x00);
-    if(address == 1) mask[0] |= (setting << 0x00);
-    // Setting second 32-bits
-    if(address == 2) pins[0] |= (setting << 0x20);
-    if(address == 3) mask[0] |= (setting << 0x20);
-
-    if(address > 3)
-        std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
-#endif
+if(address > 7)
+    std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
 
 
     // Ship if address 3 was written to.
-#ifdef PV_TATE
-    if(address == 7) {
-        gpio_burst_req pkt;
-	    pkt.header = (((uint64_t) 0x3) << 32) + (((uint64_t) 0x1) << 16);
-        pkt.pins[1] = pins[1];
-        pkt.mask[1] = mask[1];
-        pkt.pins[0] = pins[0];
-        pkt.mask[0] = mask[0];
-        pkt.tv_sec = _command_time.get_full_secs();
-        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
+if(address == 7) {
+    gpio_burst_req pkt;
+    pkt.header = (((uint64_t) 0x3) << 32) + (((uint64_t) 0x1) << 16);
+    pkt.pins[1] = pins[1];
+    pkt.mask[1] = mask[1];
+    pkt.pins[0] = pins[0];
+    pkt.mask[0] = mask[0];
+    pkt.tv_sec = _command_time.get_full_secs();
+    pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
 
-#ifdef DEBUG_COUT
+    #ifdef DEBUG_COUT
         std::printf(
             "SHIPPING(set_user_reg):\n"
             "0x%016lX\n"
@@ -394,34 +369,15 @@ void cyan_p1hdr32t_impl::set_user_reg(const std::string key, user_reg_t value) {
             "0x%016lX\n"
             "0x%016lX\n"
             "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[1], pkt.pins[0], pkt.mask[1], pkt.mask[0]);
-#endif
-#else
-    if(address == 3) {
-        gpio_burst_req pkt;
-	    pkt.header = ((uint64_t) 0x3) << 32;
-        pkt.pins[0] = pins[0];
-        pkt.mask[0] = mask[0];
-        pkt.tv_sec = _command_time.get_full_secs();
-        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
-
-#ifdef DEBUG_COUT
-        std::printf(
-            "SHIPPING(set_user_reg):\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins[0], pkt.mask[0]);
-#endif
-#endif
+    #endif
 
         boost::endian::native_to_big_inplace(pkt.header);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
-#ifdef PV_TATE
+
         boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[1]);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[1]);
-#endif
+
         boost::endian::native_to_big_inplace((uint64_t&) pkt.pins[0]);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.mask[0]);
         #ifdef DEBUG_COUT
@@ -503,11 +459,7 @@ static device_addrs_t cyan_p1hdr32t_find_with_addr(const device_addr_t &hint)
         tng_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
-#ifdef PV_TATE
-        if (tokens[2] != "cyan_p1hdr32t") break;
-#else
-        if (tokens[2] != "cyan_p1hdr32t") break;
-#endif
+    if (tokens[2] != "cyan_p1hdr32t") break;
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
@@ -558,11 +510,7 @@ static device_addrs_t cyan_p1hdr32t_find(const device_addr_t &hint_)
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
 
-#ifdef PV_TATE
-    if (hint.has_key("type") and hint["type"] != "tate") return addrs;
-#else
-    if (hint.has_key("type") and hint["type"] != "cyan_p1hdr32t") return addrs;
-#endif
+if (hint.has_key("type") and hint["type"] != "tate") return addrs;
 
     //use the address given
     if (hint.has_key("addr"))
@@ -1020,11 +968,8 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
-#ifdef PV_TATE
-    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 };
-#else
-    static const std::vector<size_t> default_map { 0, 1, 2, 3 };
-#endif
+static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 };
+
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_p1hdr32t_impl::update_rx_subdev_spec, this, mb, _1));
@@ -1048,14 +993,12 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
-#ifdef PV_TATE
     TREE_CREATE_RW(mb_path / "sfpc/ip_addr",  "fpga/link/sfpc/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpc/mac_addr", "fpga/link/sfpc/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpc/pay_len",  "fpga/link/sfpc/pay_len",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpd/ip_addr",  "fpga/link/sfpd/ip_addr",  std::string, string);
     TREE_CREATE_RW(mb_path / "sfpd/mac_addr", "fpga/link/sfpd/mac_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "sfpd/pay_len",  "fpga/link/sfpd/pay_len",  std::string, string);
-#endif
 
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
@@ -1067,10 +1010,8 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "fpga/board/rstreq_all_dsp", "fpga/board/rstreq_all_dsp", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
-#ifdef PV_TATE
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
-#endif
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
@@ -1100,12 +1041,10 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
-#ifdef PV_TATE
     TREE_CREATE_RW(mb_path / "link" / "sfpc" / "ip_addr",  "fpga/link/sfpc/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
-#endif
 
     // This is the master clock rate
     TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_P1HDR32T_DSP_CLOCK_RATE );
@@ -1213,9 +1152,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
-#ifdef PV_TATE
                 default:
-#endif
                     TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
 				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
@@ -1223,17 +1160,6 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
 				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			break;
-#ifndef PV_TATE
-                case 'C':
-		case 'D':
-			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP  / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t(CYAN_P1HDR32T_DSP_FREQ_RANGE_START, CYAN_P1HDR32T_DSP_FREQ_RANGE_STOP , CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
-			break;
-#endif
 		}
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
@@ -1351,34 +1277,20 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 		// RF band
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band"                 , "tx_"+lc_num+"/rf/band"                       , int, int);
 
-#ifdef PV_TATE
         if (dspno % CYAN_P1HDR32T_DSP_PER_RFE == 0) {
-#endif
 		// these are phony properties for Crimson
 		TREE_CREATE_ST(db_path / "tx_eeprom"                        , dboard_eeprom_t                               , dboard_eeprom_t());
-#ifdef PV_TATE
         }
-#endif
 
 		// DSPs
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
-#ifdef PV_TATE
                 default:
-#endif
 			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_DSP_FREQ_RANGE_START, CYAN_P1HDR32T_DSP_FREQ_RANGE_STOP, CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP));
 			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP, CYAN_P1HDR32T_RATE_RANGE_STEP));
 			break;
-#ifndef PV_TATE
-		case 'C':
-		case 'D':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range"           , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_DSP_FREQ_RANGE_START, CYAN_P1HDR32T_DSP_FREQ_RANGE_STOP, CYAN_P1HDR32T_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range"             , meta_range_t                                  , meta_range_t(CYAN_P1HDR32T_RATE_RANGE_START, CYAN_P1HDR32T_RATE_RANGE_STOP / 2, CYAN_P1HDR32T_RATE_RANGE_STEP));
-			break;
-#endif
 		}
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
@@ -1388,7 +1300,6 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value"                 , "tx_"+lc_num+"/dsp/rate"                      ,  double, double);
 		TREE_CREATE_RW(tx_dsp_path / "rstreq"                       , "tx_"+lc_num+"/dsp/rstreq"                    , double, double);
-#ifdef PV_TATE
         // To understand this better, review the structure of the DAC. It has 6 channels and 2 datapaths.
         // Note: ch2 and ch5 are unused.
         switch (dspno % CYAN_P1HDR32T_DSP_PER_RFE) {
@@ -1418,11 +1329,6 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
                 TREE_CREATE_RW(tx_fe_path  / "dpnco"                , "tx_"+lc_num+"/rf/dac/nco/dac1freq"           , double, double);
                 break; */
         }
-#else
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value"   , "tx_"+lc_num+"/dsp/nco_adj", double, double);
-		TREE_CREATE_RW(tx_dsp_path / "nco"              , "tx_"+lc_num+"/dsp/nco_adj", double, double);
-		TREE_CREATE_RW(tx_fe_path / "nco"               , "tx_"+lc_num+"/rf/dac/nco", double, double);
-#endif
 
 
 		// Link settings
@@ -1477,9 +1383,7 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 
 	const fs_path cm_path  = mb_path / "cm";
 
-#ifdef PV_TATE
 	_tree->access<int>(mb_path / "fpga/board/rstreq_all_dsp").set(1);
-#endif
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
@@ -1504,14 +1408,9 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-#ifdef PV_TATE
 		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_0 B:Channel_0 C:Channel_0 D:Channel_0 E:Channel_0 F:Channel_0 G:Channel_0 H:Channel_0 I:Channel_0 J:Channel_0 K:Channel_0 L:Channel_0 M:Channel_0 N:Channel_0 O:Channel_0 P:Channel_0" ));
 		// _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_0 A:Channel_1 A:Channel_2 A:Channel_3 B:Channel_0 B:Channel_1 B:Channel_2 B:Channel_3 C:Channel_0 C:Channel_1 C:Channel_2 C:Channel_3 D:Channel_0 D:Channel_1 D:Channel_2 D:Channel_3 E:Channel_0 E:Channel_1 E:Channel_2 E:Channel_3 F:Channel_0 F:Channel_1 F:Channel_2 F:Channel_3 G:Channel_0 G:Channel_1 G:Channel_2 G:Channel_3 H:Channel_0 H:Channel_1 H:Channel_2 H:Channel_3 I:Channel_0 I:Channel_1 I:Channel_2 I:Channel_3 J:Channel_0 J:Channel_1 J:Channel_2 J:Channel_3 K:Channel_0 K:Channel_1 K:Channel_2 K:Channel_3 L:Channel_0 L:Channel_1 L:Channel_2 L:Channel_3 M:Channel_0 M:Channel_1 M:Channel_2 M:Channel_3 N:Channel_0 N:Channel_1 N:Channel_2 N:Channel_3 O:Channel_0 O:Channel_1 O:Channel_2 O:Channel_3 P:Channel_0 P:Channel_1 P:Channel_2 P:Channel_3" ));
 		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_0 A:Channel_1 B:Channel_0 B:Channel_1 C:Channel_0 C:Channel_1 D:Channel_0 D:Channel_1 E:Channel_0 E:Channel_1 F:Channel_0 F:Channel_1 G:Channel_0 G:Channel_1 H:Channel_0 H:Channel_1 I:Channel_0 I:Channel_1 J:Channel_0 J:Channel_1 K:Channel_0 K:Channel_1 L:Channel_0 L:Channel_1 M:Channel_0 M:Channel_1 N:Channel_0 N:Channel_1 O:Channel_0 O:Channel_1 P:Channel_0 P:Channel_1 " ));
-#else
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-#endif
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 
@@ -1592,7 +1491,6 @@ bool cyan_p1hdr32t_impl::is_bm_thread_needed() {
 }
 
 void cyan_p1hdr32t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
-#ifdef PV_TATE
     if (chan < 8) {
         sfp = "sfpa";
     } else if (chan < 16) {
@@ -1602,18 +1500,6 @@ void cyan_p1hdr32t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const s
     } else if (chan < 32) {
         sfp = "sfpd";
     }
-#else
-	switch( chan ) {
-        case 0:
-	case 2:
-		sfp = "sfpa";
-		break;
-	case 1:
-	case 3:
-		sfp = "sfpb";
-		break;
-	}
-#endif
 	const std::string chan_str( 1, 'A' + chan );
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path prop_path = mb_path / "tx_link";
