@@ -231,7 +231,7 @@ public:
         uhd::time_spec_t now = get_time_now();
 
         if ( ! metadata.start_of_burst ) {
-            //std::cout << "metadata.time_spec: " << metadata.time_spec << " cyan_p1hdr_32t_now: " << now << std::endl << std::flush;
+            //std::cout << "metadata.time_spec: " << metadata.time_spec << " crimson_now: " << now << std::endl << std::flush;
             metadata.has_time_spec = false;
             metadata.time_spec = 0.0;
         }
@@ -807,7 +807,7 @@ rx_streamer::sptr cyan_p1hdr32t_impl::get_rx_stream(const uhd::stream_args_t &ar
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Cyan_p1hdr_32t TNG RX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -843,7 +843,7 @@ rx_streamer::sptr cyan_p1hdr32t_impl::get_rx_stream(const uhd::stream_args_t &ar
         my_streamer->set_scale_factor( 1.0 );
     }
 
-    // XXX: @CF: 20180424: Also nasty.. if cyan_p1hdr_32t did not shut down properly last time
+    // XXX: @CF: 20180424: Also nasty.. if crimson did not shut down properly last time
     // then the "/*flush*/" below will not work unless we turn it off ahead of time.
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
@@ -900,7 +900,7 @@ rx_streamer::sptr cyan_p1hdr32t_impl::get_rx_stream(const uhd::stream_args_t &ar
     const size_t packets_per_sock_buff = size_t(50e6/_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size());
     my_streamer->set_alignment_failure_threshold(packets_per_sock_buff);
 
-    // XXX: @CF: 20170227: extra setup for cyan_p1hdr_32t
+    // XXX: @CF: 20170227: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -1069,7 +1069,7 @@ tx_streamer::sptr cyan_p1hdr32t_impl::get_tx_stream(const uhd::stream_args_t &ar
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16" && args.otw_format != "uc16"){
-        throw uhd::value_error("Cyan_p1hdr_32t TNG TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -1155,7 +1155,7 @@ tx_streamer::sptr cyan_p1hdr32t_impl::get_tx_stream(const uhd::stream_args_t &ar
         }
     }
 
-    // XXX: @CF: 20170228: extra setup for cyan_p1hdr_32t
+    // XXX: @CF: 20170228: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
