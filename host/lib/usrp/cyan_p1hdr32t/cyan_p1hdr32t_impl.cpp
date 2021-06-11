@@ -33,6 +33,15 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
+namespace link_cyan_p1hdr32t {
+    const int num_links = 4;
+    const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
+    const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2","10.10.12.2","10.10.13.2"};
+    const char *names[num_links] = { "QSFP+A", "QSFP+B", "QSFP+C", "QSFP+D"};
+
+    const char mtu_ref[8] = {'9','0','0','0'};
+}
+
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
@@ -880,8 +889,43 @@ cyan_p1hdr32t_impl::cyan_p1hdr32t_impl(const device_addr_t &_device_addr)
 	_bm_thread_should_exit( false ),
     _command_time()
 {
+
     _type = device::CYAN_P1HDR32T;
     device_addr = _device_addr;
+
+    // CHECK CONNECTIVITY TO CYAN
+    char cmd[128];
+    int check;
+    std::string data;
+    FILE * stream;
+    char buffer[256];
+
+    // FOR EACH INTERFACE
+    for (int j = 0; j < link_cyan_p1hdr32t::num_links; j++) {
+        // CHECK PING
+        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_p1hdr32t::addrs[j]); 
+        check = system(cmd);
+        if (check!=0){
+            UHD_LOG_WARNING("UHD", "Ping failed for " << link_cyan_p1hdr32t::addrs[j] << ", please check " << link_cyan_p1hdr32t::names[j]);
+        }
+        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_p1hdr32t::subnets[j]);
+        stream = popen(cmd, "r");
+        if (stream) {
+            while(!feof(stream))
+                if (fgets(buffer, 256, stream) != NULL) data.append(buffer);
+                    pclose(stream);
+        }
+        // CHECK MTU
+        check = 0;
+        for (int i =0; i < 4; i++) {
+            if (link_cyan_p1hdr32t::mtu_ref[i] != buffer[i+4]) {
+                check ++;
+            }
+        }
+        if (check != 0) {
+            UHD_LOG_WARNING("UHD", "MTU not set to recomended value of " << link_cyan_p1hdr32t::mtu_ref <<  " for subnet " << link_cyan_p1hdr32t::subnets[j] << " may impact data sent over " << link_cyan_p1hdr32t::names[j]);
+        }
+    }
 
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){
