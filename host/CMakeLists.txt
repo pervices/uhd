@@ -19,6 +19,9 @@ endif(POLICY CMP0048)
 project(UHD CXX C)
 enable_testing()
 
+set(CMAKE_C_FLAGS "-fPIC")
+set(CMAKE_CXX_FLAGS "-fPIC")
+
 #make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
@@ -118,12 +121,6 @@ if(CI_PV_ENABLE MATCHES ON)
     MESSAGE("CI PV ENABLED")
     ADD_DEFINITIONS(-DBUFFER_LVL_DEBUG)
 endif(CI_PV_ENABLE)
-
-option(PV_TATE  "TATE" ON)
-if(PV_TATE MATCHES ON)
-    MESSAGE("TATE ENABLED")
-    ADD_DEFINITIONS(-DPV_TATE)
-endif(PV_TATE)
 
 ########################################################################
 # Per Vices CI Build CONFIG

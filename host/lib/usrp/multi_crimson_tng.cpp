@@ -43,6 +43,9 @@
 #include "crimson_tng/crimson_tng_fw_common.h"
 #include "crimson_tng/crimson_tng_impl.hpp"
 
+#define CRIMSON_MASTER_CLOCK_RATE	400000000
+#define CRIMSON_RX_CHANNELS 16
+#define CRIMSON_TX_CHANNELS 16
 using namespace uhd;
 using namespace uhd::usrp;
 
