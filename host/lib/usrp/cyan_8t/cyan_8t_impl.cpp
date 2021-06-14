@@ -58,7 +58,7 @@ namespace asio = boost::asio;
  **********************************************************************/
 
 // seperates the input data into the vector tokens based on delim
-void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
+static void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 	int i = 0;
 	while (data[i]) {
 		std::string token = "";

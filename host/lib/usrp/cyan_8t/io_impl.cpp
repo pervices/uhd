@@ -82,7 +82,7 @@ namespace pt = boost::posix_time;
  * helpers
  **********************************************************************/
 
-std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
+static std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
 	os << std::fixed << std::setprecision( 6 ) << ts.get_real_secs();
 	return os;
 }
