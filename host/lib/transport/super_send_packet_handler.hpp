@@ -28,7 +28,10 @@
 #include <condition_variable>
 #include <sys/socket.h>
 
-#include "../usrp/crimson_tng/crimson_tng_fw_common.h"
+//#include "../usrp/crimson_tng/crimson_tng_fw_common.h"
+#ifndef FIXME_BUFF_SIZE
+#define FIXME_BUFF_SIZE  (32768*2)
+#endif
 #include <cmath>
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -44,7 +47,7 @@ namespace uhd {
 namespace transport {
 namespace sph {
 
-#define MAX_CHANNELS 32
+#define MAX_CHANNELS 64
 
 /***********************************************************************
  * Super send packet handler
@@ -394,7 +397,7 @@ public:
         const size_t final_length = ((nsamps_per_buff-1)%_max_samples_per_packet)+1;
         const double fc_buff_size_limit_percentage = (aggregate_samp_rate > 640000000) ? 0.05 :
                                                      (aggregate_samp_rate > 320000000) ? 0.10 : 0.15;
-        const size_t flow_control_limit = CRIMSON_TNG_BUFF_SIZE*fc_buff_size_limit_percentage;
+        const size_t flow_control_limit = FIXME_BUFF_SIZE*fc_buff_size_limit_percentage;
         const size_t flow_control_passes = ceil(nsamps_per_buff/flow_control_limit);
 
         //loop through the following fragment indexes
