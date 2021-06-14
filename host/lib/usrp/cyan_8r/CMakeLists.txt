@@ -19,10 +19,10 @@
 # This file included, use CMake directory variables
 ########################################################################
 
-IF(ENABLE_CYAN_P1HDR16T)
+IF(ENABLE_CYAN_8R)
     LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_p1hdr16t_impl.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_p1hdr16t_iface.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_8r_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_8r_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
     )
-ENDIF(ENABLE_CYAN_P1HDR16T)
+ENDIF(ENABLE_CYAN_8R)

@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CYAN_P1HDR16T_IFACE_HPP
-#define INCLUDED_CYAN_P1HDR16T_IFACE_HPP
+#ifndef INCLUDED_CYAN_8R_IFACE_HPP
+#define INCLUDED_CYAN_8R_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
 #include <uhd/types/serial.hpp>
@@ -25,26 +25,26 @@
 #include <boost/function.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <string>
-#include "cyan_p1hdr16t_fw_common.h"
+#include "cyan_8r_fw_common.h"
 
 namespace uhd {
 
 /*!
- * The cyan_p1hdr16t interface class:
+ * The cyan_8r interface class:
  * Provides a set of functions to UDP implementation layer.
  */
-class cyan_p1hdr16t_iface : public uhd::wb_iface
+class cyan_8r_iface : public uhd::wb_iface
 {
 public:
-    typedef boost::shared_ptr<cyan_p1hdr16t_iface> sptr;
+    typedef boost::shared_ptr<cyan_8r_iface> sptr;
     /*!
-     * Make a new cyan_p1hdr16t interface with the control transport.
+     * Make a new cyan_8r interface with the control transport.
      * \param ctrl_transport the udp transport object
-     * \return a new cyan_p1hdr16t interface object
+     * \return a new cyan_8r interface object
      */
-    cyan_p1hdr16t_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    cyan_8r_iface(uhd::transport::udp_simple::sptr ctrl_transport);
 
-    static cyan_p1hdr16t_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    static cyan_8r_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
     // Send/write a data packet (string), null terminated
     virtual void poke_str(std::string data);
@@ -69,9 +69,9 @@ private:
     boost::uint32_t _protocol_compat;
 
     // buffer for in and out
-    char _buff[ CYAN_P1HDR16T_MAX_MTU ];
+    char _buff[ CYAN_8R_MAX_MTU ];
 };
 
 }
 
-#endif /* INCLUDED_CYAN_P1HDR16T_IFACE_HPP */
+#endif /* INCLUDED_CYAN_8R_IFACE_HPP */
