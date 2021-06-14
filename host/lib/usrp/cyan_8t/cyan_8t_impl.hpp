@@ -25,7 +25,10 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
-#include "uhd/usrp/multi_cyan_8t.hpp"
+#include "uhd/usrp/subdev_spec.hpp"
+#include "uhd/utils/pimpl.hpp"
+#include "uhd/types/ranges.hpp"
+#include "uhd/types/sensors.hpp"
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
