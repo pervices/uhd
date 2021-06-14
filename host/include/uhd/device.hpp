@@ -40,6 +40,7 @@ public:
         USRP,
         CLOCK,
         CRIMSON_TNG,
+	CYAN_8R,
         CYAN_16T,
         CYAN_P1HDR16T,
         CYAN_64T,
