@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CRIMSON_TNG_IFACE_HPP
-#define INCLUDED_CRIMSON_TNG_IFACE_HPP
+#ifndef INCLUDED_CYAN_8T_IFACE_HPP
+#define INCLUDED_CYAN_8T_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
 #include <uhd/types/serial.hpp>
@@ -25,26 +25,26 @@
 #include <boost/function.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <string>
-#include "crimson_tng_fw_common.h"
+#include "cyan_8t_fw_common.h"
 
 namespace uhd {
 
 /*!
- * The crimson_tng interface class:
+ * The cyan_8t interface class:
  * Provides a set of functions to UDP implementation layer.
  */
-class crimson_tng_iface : public uhd::wb_iface
+class cyan_8t_iface : public uhd::wb_iface
 {
 public:
-    typedef boost::shared_ptr<crimson_tng_iface> sptr;
+    typedef boost::shared_ptr<cyan_8t_iface> sptr;
     /*!
-     * Make a new crimson_tng interface with the control transport.
+     * Make a new cyan_8t interface with the control transport.
      * \param ctrl_transport the udp transport object
-     * \return a new crimson_tng interface object
+     * \return a new cyan_8t interface object
      */
-    crimson_tng_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    cyan_8t_iface(uhd::transport::udp_simple::sptr ctrl_transport);
 
-    static crimson_tng_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    static cyan_8t_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
     // Send/write a data packet (string), null terminated
     virtual void poke_str(std::string data);
@@ -69,9 +69,9 @@ private:
     boost::uint32_t _protocol_compat;
 
     // buffer for in and out
-    char _buff[ CRIMSON_TNG_MAX_MTU ];
+    char _buff[ CYAN_8T_MAX_MTU ];
 };
 
 }
 
-#endif /* INCLUDED_CRIMSON_TNG_IFACE_HPP */
+#endif /* INCLUDED_CYAN_8T_IFACE_HPP */

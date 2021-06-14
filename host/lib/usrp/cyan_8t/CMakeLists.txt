@@ -19,10 +19,10 @@
 # This file included, use CMake directory variables
 ########################################################################
 
-IF(ENABLE_CRIMSON_TNG)
+IF(ENABLE_CYAN_8T)
     LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_impl.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/crimson_tng_iface.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_8t_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_8t_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
     )
-ENDIF(ENABLE_CRIMSON_TNG)
+ENDIF(ENABLE_CYAN_8T)

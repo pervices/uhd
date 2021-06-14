@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CRIMSON_TNG_IMPL_HPP
-#define INCLUDED_CRIMSON_TNG_IMPL_HPP
+#ifndef INCLUDED_CYAN_8T_IMPL_HPP
+#define INCLUDED_CYAN_8T_IMPL_HPP
 
 #include <set>
 #include <vector>
@@ -25,11 +25,11 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
-#include "uhd/usrp/multi_crimson_tng.hpp"
+#include "uhd/usrp/multi_cyan_8t.hpp"
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "crimson_tng_iface.hpp"
+#include "cyan_8t_iface.hpp"
 #include "flow_control.hpp"
 #include "pidc.hpp"
 
@@ -92,15 +92,15 @@ struct rx_stream_cmd {
 namespace uhd {
 namespace usrp {
 
-class crimson_tng_impl : public uhd::device
+class cyan_8t_impl : public uhd::device
 {
 public:
     // shared pointer to the Crimson device
-    typedef boost::shared_ptr<crimson_tng_impl> sptr;
+    typedef boost::shared_ptr<cyan_8t_impl> sptr;
 
-    // This is the core constructor to be called when a crimson_tng device is found
-    crimson_tng_impl(const uhd::device_addr_t &);
-    ~crimson_tng_impl(void);
+    // This is the core constructor to be called when a cyan_8t device is found
+    cyan_8t_impl(const uhd::device_addr_t &);
+    ~cyan_8t_impl(void);
 
     // pointers to the streams for the device
     // these functions are defined in io_impl.cpp
@@ -188,7 +188,7 @@ private:
     void set_properties_from_addr();
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
-    //uhd::crimson_tng_iface::sptr _iface;
+    //uhd::cyan_8t_iface::sptr _iface;
     std::mutex _iface_lock;
 
 	/**
@@ -229,11 +229,11 @@ private:
 
     time_spec_t _command_time;
 
-	static void bm_thread_fn( crimson_tng_impl *dev );
+	static void bm_thread_fn( cyan_8t_impl *dev );
 	bool is_bm_thread_needed();
 
     struct mb_container_type{
-        crimson_tng_iface::sptr iface;
+        cyan_8t_iface::sptr iface;
         std::vector<boost::weak_ptr<uhd::rx_streamer> > rx_streamers;
         std::vector<boost::weak_ptr<uhd::tx_streamer> > tx_streamers;
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
@@ -266,4 +266,4 @@ private:
 }
 }
 
-#endif /* INCLUDED_CRIMSON_TNG_IMPL_HPP */
+#endif /* INCLUDED_CYAN_8T_IMPL_HPP */
