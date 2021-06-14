@@ -1498,26 +1498,18 @@ void cyan_8r_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t 
 	switch( chan ) {
 	case 0:
 	case 1:
+		sfp = "sfpa";
+		break;
 	case 2:
 	case 3:
-		sfp = "sfpa";
+		sfp = "sfpb";
 		break;
 	case 4:
 	case 5:
-	case 6:
-	case 7:
-		sfp = "sfpb";
-		break;
-	case 8:
-	case 9:
-	case 10:
-	case 11:
 		sfp = "sfpc";
 		break;
-	case 12:
-	case 13:
-	case 14:
-	case 15:
+	case 6:
+	case 7:
 		sfp = "sfpd";
 		break;
 	}
