@@ -1010,7 +1010,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
-    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, };
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_8r_impl::update_rx_subdev_spec, this, mb, _1));
@@ -1412,8 +1412,8 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I J:Channel_J K:Channel_K L:Channel_L M:Channel_M N:Channel_N O:Channel_O P:Channel_P" ));
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H" ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H" ));
 
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
@@ -1605,6 +1605,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 	enum {
 		LOW_BAND,
+        MID_BAND,
 		HIGH_BAND,
 	};
 
@@ -1645,11 +1646,14 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 				// in low band, we only use the DSP to tune
 				target_rf_freq = 0;
 				break;
-			case HIGH_BAND:
+			case MID_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
+            case HIGH_BAND://TODO create calculation for high band (this one is for midband
+                throw uhd::not_implemented_error("High band for cyan_8r not implemented yet");
+                break;
 			}
 		break;
 
