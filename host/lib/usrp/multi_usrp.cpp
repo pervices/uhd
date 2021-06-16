@@ -2931,5 +2931,7 @@ multi_usrp::~multi_usrp(void){
  **********************************************************************/
 multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
     UHD_LOGGER_TRACE("MULTI_USRP") << "multi_usrp::make with args " << dev_addr.to_pp_string() ;
+    //Doug 2021-6-16: tracing where it fails
+    std::cout << "make fails after here" << std::endl
     return sptr(new multi_usrp_impl(dev_addr));
 }

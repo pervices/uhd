@@ -289,9 +289,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << std::endl;
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
 
-    std::cout << "The program reach my point 1" << std::endl;
+    std::cout << "The example fails after here" << std::endl;
+    //Doug 2021-6-16: The program fails in the next line
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    std::cout << "The program reach my point 2" << std::endl;
+    std::cout << "The example fails before here" << std::endl;
 
     //Lock mboard clocks
     usrp->set_clock_source(ref);
