@@ -61,8 +61,8 @@
 #define CYAN_8R_DEFAULT_IP_ETH3_10G        (10 << 24 | 10 << 16 | 13  << 8  | 2 << 0)
 #define CYAN_8R_DEFAULT_NETMASK_ETH3_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
-#define CYAN_8R_MASTER_CLOCK_RATE	        400000000
-#define CYAN_8R_DSP_CLOCK_RATE              100000000
+#define CYAN_8R_MASTER_CLOCK_RATE	        1000000000
+#define CYAN_8R_DSP_CLOCK_RATE              250000000
 #define CYAN_8R_SAMPS_PER_DSP_TICK  4
 #define CYAN_8R_RX_CHANNELS 8
 #define CYAN_8R_TX_CHANNELS 8 //TODO: add warning to user if they try to use tx on and r variant
