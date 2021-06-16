@@ -225,6 +225,9 @@ bool check_locked_sensor(
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
+
+    std::cout << "The program reach my point 2" << std::endl;
+
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
@@ -274,6 +277,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             << std::endl;
         return ~0;
     }
+
+    std::cout << "The program reach my point 1" << std::endl;
 
     bool bw_summary = vm.count("progress") > 0;
     bool stats = vm.count("stats") > 0;
