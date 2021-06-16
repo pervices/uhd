@@ -226,8 +226,6 @@ bool check_locked_sensor(
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
 
-    std::cout << "The program reach my point 2" << std::endl;
-
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
@@ -293,6 +291,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << std::endl;
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+
+    std::cout << "The program reach my point 2" << std::endl;
 
     //Lock mboard clocks
     usrp->set_clock_source(ref);
