@@ -385,13 +385,11 @@ static double derive_freq_from_xx_subdev_and_dsp(
 class multi_usrp_impl : public multi_usrp{
 public:
     multi_usrp_impl(const device_addr_t &addr){
-        std::cout << "Creating device test point 1" << std::endl;
+        std::cout << "Creating multi fails after here" << std::endl;
         _dev = device::make(addr, device::USRP);
-        std::cout << "Creating device test point 2" << std::endl;
+        std::cout << "Creating multi fails before here" << std::endl;
         _tree = _dev->get_tree();
-        std::cout << "Creating device test point 3" << std::endl;
         _is_device3 = bool(boost::dynamic_pointer_cast<uhd::device3>(_dev));
-        std::cout << "Creating device test point 4" << std::endl;
 
         if (is_device3() and not addr.has_key("recover_mb_eeprom")) {
             _legacy_compat = rfnoc::legacy_compat::make(get_device3(), addr);
@@ -2934,10 +2932,8 @@ multi_usrp::~multi_usrp(void){
  * The Make Function
  **********************************************************************/
 multi_usrp::sptr multi_usrp::make(const device_addr_t &dev_addr){
-    //Doug 2021-6-16: tracing where it fails
-    std::cout << "make fails after here" << std::endl;
     UHD_LOGGER_TRACE("MULTI_USRP") << "multi_usrp::make with args " << dev_addr.to_pp_string() ;
     //Doug 2021-6-16: tracing where it fails
-    std::cout << "make fails before here" << std::endl;
+    std::cout << "make fails after here" << std::endl;
     return sptr(new multi_usrp_impl(dev_addr));
 }
