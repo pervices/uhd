@@ -276,8 +276,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    std::cout << "The program reach my point 1" << std::endl;
-
     bool bw_summary = vm.count("progress") > 0;
     bool stats = vm.count("stats") > 0;
     bool null = vm.count("null") > 0;
@@ -291,8 +289,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << std::endl;
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
 
-    std::cout << "The program reach my point 2" << std::endl;
+    std::cout << "The program reach my point 1" << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+    std::cout << "The program reach my point 2" << std::endl;
 
     //Lock mboard clocks
     usrp->set_clock_source(ref);
