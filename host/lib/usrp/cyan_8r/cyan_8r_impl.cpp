@@ -1435,10 +1435,11 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
         _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
     }
 
+    std::cout <<"is_nm_needed" << std::endl;
 
 	_bm_thread_needed = is_bm_thread_needed();
 	if ( _bm_thread_needed ) {
-
+        std::cout <<"entering_bm" << std::endl;
 		//Initialize "Time Diff" mechanism before starting flow control thread
 		time_spec_t ts = uhd::get_system_time();
 		_streamer_start_time = ts.get_real_secs();
@@ -1463,6 +1464,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 		start_bm();
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
+	std::cout <<"exit_bm" << std::endl;
 }
 
 cyan_8r_impl::~cyan_8r_impl(void)
