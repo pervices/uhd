@@ -732,7 +732,7 @@ void cyan_8r_impl::start_bm() {
         std::cout <<"time_diff converged false" << std::endl;
 		_time_diff_converged = false;
 
-        int DEBUG_start_time = uhd::get_system_time();
+        int DEBUG_start_time = uhd::get_system_time().get_real_secs;
 		for(
 			time_spec_t time_then = uhd::get_system_time(),
 				time_now = time_then
