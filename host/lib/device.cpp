@@ -126,6 +126,8 @@ device_addrs_t device::find(const device_addr_t &hint, device_filter_t filter){
  * Make
  **********************************************************************/
 device::sptr device::make(const device_addr_t &hint, device_filter_t filter, size_t which){
+    std::cout << "Making device fails after here" << std::endl;
+
     boost::mutex::scoped_lock lock(_device_mutex);
 
     typedef boost::tuple<device_addr_t, make_t> dev_addr_make_t;
@@ -186,6 +188,8 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
         hash_to_device[dev_hash] = dev;
         return dev;
     }
+
+    std::cout <<"Making device fails before here" << std::endl;
 }
 
 uhd::property_tree::sptr
