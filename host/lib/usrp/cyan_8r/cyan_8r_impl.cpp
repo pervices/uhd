@@ -739,9 +739,9 @@ void cyan_8r_impl::start_bm() {
 				;
 			time_now = uhd::get_system_time()
 		) {
+            std::cout<< "Time_now: " << time_now.get_real_secs() << ", Time then: " << time_then.get_real_secs() << std::endl;
             //Doug 2021-06-17: this loop is reached
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-                std::cout<< "Time_now: " << time_now.get_real_secs() << ", Time then: " << time_then.get_real_secs() << std::endl;
 				UHD_LOGGER_ERROR("CRIMSON_IMPL")
 					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
 					<< std::endl;
