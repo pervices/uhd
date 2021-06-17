@@ -134,10 +134,13 @@ namespace uhd {
 		}
 
 		bool is_converged( const double time ) {
+            std::cout << "Checking if converged" << std::endl;
 
 			double filtered_error;
 
 			filtered_error = abs(error_filter.get_average());
+
+            std::cout << "Filter error: " << filtered_error << std::endl;
 
 			if ( filtered_error >= 1000000 ) {
 				if ( time - last_status_time >= 1 ) {
