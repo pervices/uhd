@@ -156,7 +156,7 @@ namespace uhd {
 				return false;
 			}*/
 
-            print_pid_status( time, cv, filtered_error )//remove when done debugging
+            print_pid_status( time, cv, filtered_error );//remove when done debugging
 
 			if ( time - last_status_time >= 1 ) {
 				print_pid_status( time, cv, filtered_error );
