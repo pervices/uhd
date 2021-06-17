@@ -186,9 +186,8 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
         // always be applied, see also get_usrp_args()
         // Then, create and register a new device.
         device::sptr dev = maker(prefs::get_usrp_args(dev_addr));
-        std::cout <<"TP1" << std::endl;
+        std::cout <<"Making device fails before here" << std::endl;
         hash_to_device[dev_hash] = dev;
-        std::cout <<"Making device fails after here" << std::endl;
         return dev;
     }
 

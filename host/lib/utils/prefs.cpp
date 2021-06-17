@@ -81,6 +81,7 @@ config_parser& uhd::prefs::get_uhd_config()
 device_addr_t uhd::prefs::get_usrp_args(
     const uhd::device_addr_t &user_args
 ) {
+    std::cout << "Getting USRP args fails after here" << std::endl;
     device_addr_t usrp_args;
     const std::vector<std::string> keys_to_update_from = {
         "type",
@@ -88,14 +89,20 @@ device_addr_t uhd::prefs::get_usrp_args(
         "serial"
     };
 
+    std::cout << "TP1" << std::endl;
+
     for (const auto& key : keys_to_update_from) {
         update_from_key(key, user_args.get(key, ""), usrp_args);
     }
+
+    std::cout << "TP2" << std::endl;
 
     // Finally, copy over the original user args:
     for (const auto &user_key : user_args.keys()) {
         usrp_args[user_key] = user_args[user_key];
     }
+
+    std::cout << "Getting USRP args fails before here" << std::endl;
 
     return usrp_args;
 }
