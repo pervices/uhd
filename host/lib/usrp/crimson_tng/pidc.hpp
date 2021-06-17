@@ -75,9 +75,13 @@ namespace uhd {
 			double e_1 = e;
 
 			if ( std::abs( dt ) < 1e-9 || dt < 0 ) {
+
+                std::cout << "No changes to pid controller made" << std::endl;
 				// when dt is incredibly small (or negative) do not perform any updates
 				return cv;
 			}
+
+			std::cout << "PID controller is being updated" << std::endl;
 
 			this->sp = sp;
 			e = sp - pv;
