@@ -729,6 +729,7 @@ void cyan_8r_impl::start_bm() {
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
 
+        std::cout <<"time_diff converged false" << std::endl;
 		_time_diff_converged = false;
 		for(
 			time_spec_t time_then = uhd::get_system_time(),
@@ -738,6 +739,7 @@ void cyan_8r_impl::start_bm() {
 				;
 			time_now = uhd::get_system_time()
 		) {
+            std::cout<< "Reaches clock synchronization check loop" << std::endl;
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				UHD_LOGGER_ERROR("CRIMSON_IMPL")
 					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
@@ -1439,7 +1441,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 
 	_bm_thread_needed = is_bm_thread_needed();
 	if ( _bm_thread_needed ) {
-        std::cout <<"entering_bm" << std::endl;
+        std::cout <<"entering nm_needed" << std::endl;
 		//Initialize "Time Diff" mechanism before starting flow control thread
 		time_spec_t ts = uhd::get_system_time();
 		_streamer_start_time = ts.get_real_secs();
@@ -1464,7 +1466,6 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 		start_bm();
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
-	std::cout <<"exit_bm" << std::endl;
 }
 
 cyan_8r_impl::~cyan_8r_impl(void)
