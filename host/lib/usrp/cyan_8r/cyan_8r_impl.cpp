@@ -710,6 +710,8 @@ void cyan_8r_impl::time_diff_process( const time_diff_resp & tdr, const uhd::tim
 	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
 	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
 
+    std::cout << "cv: " << cv << std::endl;
+
 	// For SoB, record the instantaneous time difference + compensation
 	if ( _time_diff_converged ) {
 		time_diff_set( cv );
@@ -732,7 +734,6 @@ void cyan_8r_impl::start_bm() {
         std::cout <<"time_diff converged false" << std::endl;
 		_time_diff_converged = false;
 
-        int DEBUG_start_time = uhd::get_system_time().get_real_secs();
 		for(
 			time_spec_t time_then = uhd::get_system_time(),
 				time_now = time_then
@@ -741,7 +742,6 @@ void cyan_8r_impl::start_bm() {
 				;
 			time_now = uhd::get_system_time()
 		) {
-            std::cout<< "Time_now: " << time_now.get_real_secs() - DEBUG_start_time << ", Time then: " << time_then.get_real_secs() - DEBUG_start_time << std::endl;
             //Doug 2021-06-17: this loop is reached
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				UHD_LOGGER_ERROR("CRIMSON_IMPL")
