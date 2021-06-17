@@ -741,7 +741,7 @@ void cyan_8r_impl::start_bm() {
 		) {
             //Doug 2021-06-17: this loop is reached
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-                std::cout<< "Time_now: " << time_now << ", Time then: " << time_then << std::endl;
+                std::cout<< "Time_now: " << (int)time_now << ", Time then: " << (int)time_then << std::endl;
 				UHD_LOGGER_ERROR("CRIMSON_IMPL")
 					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
 					<< std::endl;
