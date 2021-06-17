@@ -708,6 +708,7 @@ void cyan_8r_impl::time_diff_process( const time_diff_resp & tdr, const uhd::tim
 	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
 	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
+    std::cout << "pv: " << pv << std::endl;
     std::cout << "cv: " << cv << std::endl;
 	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
 
@@ -817,7 +818,6 @@ void cyan_8r_impl::bm_thread_fn( cyan_8r_impl *dev ) {
 			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
 			continue;
         }
-        std::cout << "tdr: " << tdr.tv_sec << std::endl;
 		dev->time_diff_process( tdr, now );
 		//dev->fifo_update_process( tdr );
 
