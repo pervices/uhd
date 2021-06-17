@@ -145,16 +145,16 @@ namespace uhd {
 
 			filtered_error = abs(error_filter.get_average());
 
-            //std::cout << "Filter error: " << filtered_error << std::endl;
+            std::cout << "Filter error: " << filtered_error << std::endl;
 
-			if ( filtered_error >= 1000000 ) {
+			/*if ( filtered_error >= 1000000 ) {//commented out by Doug 2021-06-17
 				if ( time - last_status_time >= 1 ) {
 					print_pid_diverged();
 					print_pid_status( time, cv, filtered_error );
 				}
 				reset( sp, time );
 				return false;
-			}
+			}*/
 
 			if ( time - last_status_time >= 1 ) {
 				print_pid_status( time, cv, filtered_error );
