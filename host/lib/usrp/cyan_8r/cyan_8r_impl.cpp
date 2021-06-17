@@ -731,6 +731,8 @@ void cyan_8r_impl::start_bm() {
 
         std::cout <<"time_diff converged false" << std::endl;
 		_time_diff_converged = false;
+
+        int DEBUG_start_time = uhd::get_system_time();
 		for(
 			time_spec_t time_then = uhd::get_system_time(),
 				time_now = time_then
@@ -739,7 +741,7 @@ void cyan_8r_impl::start_bm() {
 				;
 			time_now = uhd::get_system_time()
 		) {
-            std::cout<< "Time_now: " << time_now.get_real_secs() << ", Time then: " << time_then.get_real_secs() << std::endl;
+            std::cout<< "Time_now: " << time_now.get_real_secs() - DEBUG_start_time << ", Time then: " << time_then.get_real_secs() - DEBUG_start_time << std::endl;
             //Doug 2021-06-17: this loop is reached
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				UHD_LOGGER_ERROR("CRIMSON_IMPL")
