@@ -7,6 +7,7 @@
  #endif
 #endif
 
+#define DEBUG_PIDC//remove this define when done
 #ifdef DEBUG_PIDC
 #include <iostream>
 #include <iomanip>
