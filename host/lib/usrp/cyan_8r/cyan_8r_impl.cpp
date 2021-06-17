@@ -771,7 +771,6 @@ bool cyan_8r_impl::time_diff_converged() {
 void cyan_8r_impl::bm_thread_fn( cyan_8r_impl *dev ) {
 
 	dev->_bm_thread_running = true;
-
     int xg_intf = 0;
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_8R_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CYAN_8R_TX_CHANNELS );
@@ -818,7 +817,7 @@ void cyan_8r_impl::bm_thread_fn( cyan_8r_impl *dev ) {
 			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
 			continue;
         }
-        std::cout << "tdr: " << tdr << std::endl;
+        std::cout << "tdr: " << tdr.tv_sec << std::endl;
 		dev->time_diff_process( tdr, now );
 		//dev->fifo_update_process( tdr );
 
