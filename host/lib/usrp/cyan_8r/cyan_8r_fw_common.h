@@ -100,7 +100,7 @@
 #define CYAN_8R_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
-#define CYAN_8R_BUFF_SIZE	(65536*4)
+#define CYAN_8R_BUFF_SIZE	(2048*140*512/32)
 
 // Crimson RF Settings
 #define CYAN_8R_RF_TX_GAIN_RANGE_START	0.0
