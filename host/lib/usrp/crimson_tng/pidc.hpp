@@ -139,7 +139,7 @@ namespace uhd {
 		}
 
 		bool is_converged( const double time ) {
-            //std::cout << "Checking if converged" << std::endl;
+            std::cout << "Checking if converged" << std::endl;
 
 			double filtered_error;
 
