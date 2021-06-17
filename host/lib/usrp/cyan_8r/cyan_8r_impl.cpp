@@ -812,6 +812,8 @@ void cyan_8r_impl::bm_thread_fn( cyan_8r_impl *dev ) {
 		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
+        std::cout << "now - crimson_now: " << (now-crimson_now).get_real_secs() << std::endl;
+
 		dev->time_diff_send( crimson_now, xg_intf );
 		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
 			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
