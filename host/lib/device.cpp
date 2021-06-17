@@ -147,12 +147,16 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
         }
     }
 
+    std::cout <<"TP1" << std::endl;
+
     //check that we found any devices
     if (dev_addr_makers.size() == 0){
         throw uhd::key_error(str(
             boost::format("No devices found for ----->\n%s") % hint.to_pp_string()
         ));
     }
+
+    std::cout <<"TP2" << std::endl;
 
     //check that the which index is valid
     if (dev_addr_makers.size() <= which){
@@ -161,11 +165,15 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
         ));
     }
 
+    std::cout <<"TP3" << std::endl;
+
     //create a unique hash for the device address
     device_addr_t dev_addr; make_t maker;
     boost::tie(dev_addr, maker) = dev_addr_makers.at(which);
     size_t dev_hash = hash_device_addr(dev_addr);
     UHD_LOGGER_TRACE("UHD") << boost::format("Device hash: %u") % dev_hash ;
+
+    std::cout <<"TP4" << std::endl;
 
     //copy keys that were in hint but not in dev_addr
     //this way, we can pass additional transport arguments
@@ -173,14 +181,18 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
         if (not dev_addr.has_key(key)) dev_addr[key] = hint[key];
     }
 
+    std::cout <<"TP5" << std::endl;
+
     //map device address hash to created devices
     static uhd::dict<size_t, boost::weak_ptr<device> > hash_to_device;
 
     //try to find an existing device
     if (hash_to_device.has_key(dev_hash) and not hash_to_device[dev_hash].expired()){
+        std::cout <<"TP6" << std::endl;
         return hash_to_device[dev_hash].lock();
     }
     else {
+        std::cout <<"TP7" << std::endl;
         // Add keys from the config files (note: the user-defined keys will
         // always be applied, see also get_usrp_args()
         // Then, create and register a new device.
@@ -189,7 +201,6 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
         return dev;
     }
 
-    std::cout <<"Making device fails before here" << std::endl;
 }
 
 uhd::property_tree::sptr
