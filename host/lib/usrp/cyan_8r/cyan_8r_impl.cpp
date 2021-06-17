@@ -710,8 +710,6 @@ void cyan_8r_impl::time_diff_process( const time_diff_resp & tdr, const uhd::tim
 	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
 	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
 
-    std::cout << "cv: " << cv << std::endl;
-
 	// For SoB, record the instantaneous time difference + compensation
 	if ( _time_diff_converged ) {
 		time_diff_set( cv );
