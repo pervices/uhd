@@ -790,6 +790,7 @@ void cyan_8r_impl::bm_thread_fn( cyan_8r_impl *dev ) {
 	dev->time_diff_recv( tdr, xg_intf );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
+    double DEBUG_CONVGERENCE_START_TIME = now.get_real_secs();
 	for(
 		now = uhd::get_system_time(),
 			then = now + T
@@ -801,7 +802,7 @@ void cyan_8r_impl::bm_thread_fn( cyan_8r_impl *dev ) {
 		then += T,
 			now = uhd::get_system_time()
 	) {
-        std::cout << "Current time difference: " << dt << std::endl;
+        std::cout << "Current time difference: " << dt.get_real_secs()-DEBUG_CONVGERENCE_START_TIME << std::endl;
 		dt = then - now;
 		if ( dt > 0.0 ) {
 			req.tv_sec = dt.get_full_secs();
