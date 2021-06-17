@@ -700,6 +700,8 @@ bool cyan_8r_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 	return true;
 }
 
+int old_pv = 0;//debug only remove when done
+
 /// SoB Time Diff: feed the time diff error back into out control system
 void cyan_8r_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
@@ -709,6 +711,8 @@ void cyan_8r_impl::time_diff_process( const time_diff_resp & tdr, const uhd::tim
 
 	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
     std::cout << "pv: " << pv << std::endl;
+    std::cout << "pv_change: " << pv-old_pv << std::endl;
+    old_pv=pv;
     std::cout << "cv: " << cv << std::endl;
 	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
 
