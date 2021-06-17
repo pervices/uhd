@@ -7,7 +7,7 @@
  #endif
 #endif
 
-#define DEBUG_PIDC//remove this define when done
+//#define DEBUG_PIDC//remove this define when done
 #ifdef DEBUG_PIDC
 #include <iostream>
 #include <iomanip>
@@ -135,13 +135,13 @@ namespace uhd {
 		}
 
 		bool is_converged( const double time ) {
-            std::cout << "Checking if converged" << std::endl;
+            //std::cout << "Checking if converged" << std::endl;
 
 			double filtered_error;
 
 			filtered_error = abs(error_filter.get_average());
 
-            std::cout << "Filter error: " << filtered_error << std::endl;
+            //std::cout << "Filter error: " << filtered_error << std::endl;
 
 			if ( filtered_error >= 1000000 ) {
 				if ( time - last_status_time >= 1 ) {

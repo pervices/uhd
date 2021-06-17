@@ -802,7 +802,7 @@ void cyan_8r_impl::bm_thread_fn( cyan_8r_impl *dev ) {
 			now = uhd::get_system_time()
 	) {
 		dt = then - now;
-        std::cout << "Current time difference: " << dt.get_real_secs() << std::endl;
+        std::cout << "Diff: " << dt.get_real_secs() << std::endl;
 		if ( dt > 0.0 ) {
 			req.tv_sec = dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
