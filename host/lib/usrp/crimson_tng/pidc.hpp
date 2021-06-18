@@ -41,7 +41,7 @@ namespace uhd {
 			Kp( Kp ),
 			Ki( Ki ),
 			Kd( Kd ),
-			e( max_error_for_divergence ),
+			e( DEFAULT_MAX_ERROR_FOR_DIVERGENCE ),
 			i( 0.0 ),
 			// initialize the control variable to be equal to the set point, so error is initially zero
 			cv( 0.0 ),
