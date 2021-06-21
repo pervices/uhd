@@ -20,6 +20,7 @@
 
 #include <stdlib.h>
 
+#include<iostream>
 #include <iomanip>
 #include <mutex>
 
