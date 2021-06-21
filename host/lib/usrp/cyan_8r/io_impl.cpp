@@ -805,6 +805,7 @@ bool cyan_8r_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr cyan_8r_impl::get_rx_stream(const uhd::stream_args_t &args_){
+    std::cout << "Getting rx stream" << std::endl;
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
