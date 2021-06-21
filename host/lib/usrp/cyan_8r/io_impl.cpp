@@ -115,6 +115,7 @@ public:
     }
 
     size_t recv(
+        std::cout << "Cyan io_impl recv" << std::endl;
         const rx_streamer::buffs_type &buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t &metadata,
