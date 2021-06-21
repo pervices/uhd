@@ -1061,14 +1061,14 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(time_path / "sw_version", "time/about/sw_ver", std::string, string);
 
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
-    TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 322MHz BW and DC-6GHz each");
+    TREE_CREATE_ST(rx_path / "spec",   std::string, "8 RX RF chains, 500MHz BW and DC-18GHz each");
     TREE_CREATE_RW(rx_path / "id",         "rx_a/about/id",     std::string, string);
     TREE_CREATE_RW(rx_path / "serial",     "rx_a/about/serial", std::string, string);
     TREE_CREATE_RW(rx_path / "fw_version", "rx_a/about/fw_ver", std::string, string);
     TREE_CREATE_RW(rx_path / "sw_version", "rx_a/about/sw_ver", std::string, string);
 
     TREE_CREATE_ST(tx_path / "name", std::string, "TX Board");
-    TREE_CREATE_ST(tx_path / "spec", std::string, "4 TX RF chains, 322MHz BW and DC-6GHz each");
+    TREE_CREATE_ST(tx_path / "spec", std::string, "N/A");
     TREE_CREATE_RW(tx_path / "id",         "tx_a/about/id",     std::string, string);
     TREE_CREATE_RW(tx_path / "serial",     "tx_a/about/serial", std::string, string);
     TREE_CREATE_RW(tx_path / "fw_version", "tx_a/about/fw_ver", std::string, string);
