@@ -906,42 +906,42 @@ rx_streamer::sptr cyan_8r_impl::get_rx_stream(const uhd::stream_args_t &args_){
     const size_t packets_per_sock_buff = size_t(50e6/_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size());
     my_streamer->set_alignment_failure_threshold(packets_per_sock_buff);
 
-    // XXX: @CF: 20170227: extra setup for crimson
-    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
-        const size_t chan = args.channels[chan_i];
-        size_t num_chan_so_far = 0;
-        BOOST_FOREACH(const std::string &mb, _mbc.keys()){
-            num_chan_so_far += _mbc[mb].rx_chan_occ;
-            if (chan < num_chan_so_far){
-
-                // XXX: @CF: this is so nasty..
-                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
-                const fs_path mb_path   = "/mboards/" + mb;
-                const fs_path rx_path   = mb_path / "rx";
-                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
-                const fs_path rx_link_path  = mb_path / "rx_link" / chan;
-                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
-
-                _tree->access<std::string>(rx_path / chan / "stream").set("0");
-                // vita enable
-                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
-
-                // power on the channel
-                _tree->access<std::string>(rx_path / chan / "pwr").set("1");
-                // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-                //usleep( 500000 );
-                // stream enable
-                _tree->access<std::string>(rx_path / chan / "stream").set("1");
-
-// FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
-#define _update( t, p ) \
-    _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
-
-                _update( int, rx_fe_path / "freq" / "band" );
-            }
-        }
-    }
+//     // XXX: @CF: 20170227: extra setup for crimson
+//     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+//         const size_t chan = args.channels[chan_i];
+//         size_t num_chan_so_far = 0;
+//         BOOST_FOREACH(const std::string &mb, _mbc.keys()){
+//             num_chan_so_far += _mbc[mb].rx_chan_occ;
+//             if (chan < num_chan_so_far){
+//
+//                 // XXX: @CF: this is so nasty..
+//                 const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+//                 std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+//                 const fs_path mb_path   = "/mboards/" + mb;
+//                 const fs_path rx_path   = mb_path / "rx";
+//                 const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
+//                 const fs_path rx_link_path  = mb_path / "rx_link" / chan;
+//                 const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
+//
+//                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
+//                 // vita enable
+//                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+//
+//                 // power on the channel
+//                 _tree->access<std::string>(rx_path / chan / "pwr").set("1");
+//                 // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
+//                 //usleep( 500000 );
+//                 // stream enable
+//                 _tree->access<std::string>(rx_path / chan / "stream").set("1");
+//
+// // FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
+// #define _update( t, p ) \
+//     _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
+//
+//                 _update( int, rx_fe_path / "freq" / "band" );
+//             }
+//         }
+//     }
 
     //sets all tick and samp rates on this streamer
     this->update_rates();
