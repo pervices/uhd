@@ -930,7 +930,7 @@ rx_streamer::sptr cyan_8r_impl::get_rx_stream(const uhd::stream_args_t &args_){
                 // power on the channel
                 _tree->access<std::string>(rx_path / chan / "pwr").set("1");
                 // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-                //usleep( 500000 );
+                usleep( 500000 );
                 // stream enable
                 _tree->access<std::string>(rx_path / chan / "stream").set("1");
 
