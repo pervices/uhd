@@ -66,7 +66,7 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.time_spec = uhd::time_spec_t();
 
     //std::cout << "Commenting out issuing stream command" << std::endl;
-    std::cout << "Checking if only this command will make it run" << std::endl
+    std::cout << "Checking if only this command will make it run" << std::endl;
     rx_stream->issue_stream_cmd(stream_cmd);
     std::exit(0);
 
