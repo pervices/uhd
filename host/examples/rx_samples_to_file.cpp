@@ -65,8 +65,9 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
-    std::cout << "Commenting out issuing stream command" << std::endl;
-    //rx_stream->issue_stream_cmd(stream_cmd);
+    //std::abort();
+
+    rx_stream->issue_stream_cmd(stream_cmd);
 
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
@@ -155,17 +156,12 @@ template<typename samp_type> void recv_to_file(
         }
     }
 
-    std::abort();
-
     const auto actual_stop_time = std::chrono::steady_clock::now();
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
 
-    //lower bracket for extra 32len
-
+    //stops receiving data
     rx_stream->issue_stream_cmd(stream_cmd);
-
-    //lower bracket for extra 32len
 
     if (outfile.is_open()) {
         outfile.close();
