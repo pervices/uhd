@@ -161,7 +161,9 @@ template<typename samp_type> void recv_to_file(
 
     std::exit(0);
 
-    rx_stream->issue_stream_cmd(stream_cmd);
+    //lower bracket for extra 32len
+
+    //rx_stream->issue_stream_cmd(stream_cmd);
 
     //lower bracket for extra 32len
 
