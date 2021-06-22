@@ -155,11 +155,12 @@ template<typename samp_type> void recv_to_file(
         }
     }
 
-    std::exit(0);
     const auto actual_stop_time = std::chrono::steady_clock::now();
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
+
+    std::exit(0);
 
     if (outfile.is_open()) {
         outfile.close();
