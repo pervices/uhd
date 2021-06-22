@@ -19,6 +19,7 @@
 #include <complex>
 #include <thread>
 #include <chrono>
+#include <stdlib.h>
 
 namespace po = boost::program_options;
 
@@ -66,6 +67,8 @@ template<typename samp_type> void recv_to_file(
 
     std::cout << "Commenting out issuing stream command" << std::endl;
     //rx_stream->issue_stream_cmd(stream_cmd);
+
+    std::exit(0);
 
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
