@@ -78,7 +78,7 @@ template<typename samp_type> void recv_to_file(
     auto last_update = start_time;
     unsigned long long last_update_samps = 0;
 
-    std::exit(0);
+    //upper bracket for extra 32len
 
     // Run this loop until either time expired (if a duration was given), until
     // the requested number of samples were collected (if such a number was
@@ -154,6 +154,8 @@ template<typename samp_type> void recv_to_file(
             }
         }
     }
+
+    std::exit(0);
     const auto actual_stop_time = std::chrono::steady_clock::now();
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
