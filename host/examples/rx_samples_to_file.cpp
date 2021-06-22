@@ -64,7 +64,7 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
-    std::cout << "Commenting out issuing stream command" std::endl;
+    std::cout << "Commenting out issuing stream command" << std::endl;
     rx_stream->issue_stream_cmd(stream_cmd);
 
     typedef std::map<size_t,size_t> SizeMap;
