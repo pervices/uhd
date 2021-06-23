@@ -44,7 +44,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         ("help", "help message")
         ("path", po::value<std::string>(&path)->default_value(""), "The path for the value in the UHD state tree to set")
         ("value", po::value<std::string>(&value)->default_value(""), "The value the variable it to be set to")
-
+    ;
     //print the help message
     if (vm.count("help")) {
         std::cout << boost::format("UHD set value at path %s") % desc << std::endl;
