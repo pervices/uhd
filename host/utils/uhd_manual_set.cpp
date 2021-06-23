@@ -23,7 +23,7 @@ namespace
 
         std::string new_value;
         usrp->get_tree_value(path, value);
-        std<<cout << "The value is now: " << new_value << std::endl;
+        std::cout << "The value is now: " << new_value << std::endl;
 
     }
 
