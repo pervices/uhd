@@ -23,7 +23,7 @@ namespace
         std::cout << "Set to: " << value << std::endl;
 
         std::string new_value;
-        usrp->get_tree_value(path, value);
+        usrp->get_tree_value(path, new_value);
         std::cout << "The value is now: " << new_value << std::endl;
 
     }
