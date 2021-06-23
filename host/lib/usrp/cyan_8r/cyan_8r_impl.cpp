@@ -1478,6 +1478,7 @@ bool cyan_8r_impl::is_bm_thread_needed() {
 		"uhd_find_devices",
 		"uhd_usrp_probe",
         "uhd_manual_set",
+        "test_set_get_path_value",
         "uhd_manual_get",
 	};
 
@@ -1793,4 +1794,3 @@ double cyan_8r_impl::get_tx_freq(size_t chan) {
 	}
 	return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
-
