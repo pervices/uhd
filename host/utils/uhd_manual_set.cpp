@@ -41,7 +41,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "help message")
-        ("path", po::path<std::string>(&path)->default_value(""), "The path for the value in the UHD state tree to set")
+        ("path", po::value<std::string>(&path)->default_value(""), "The path for the value in the UHD state tree to set")
         ("value", po::value<std::string>(&value)->default_value(""), "The value the variable it to be set to")
 
     //print the help message
