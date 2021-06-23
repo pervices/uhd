@@ -55,6 +55,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         return ~0;
     }
 
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
 
     set_at_path(usrp, path, value);
