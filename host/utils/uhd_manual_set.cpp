@@ -45,6 +45,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         ("path", po::value<std::string>(&path)->default_value(""), "The path for the value in the UHD state tree to set")
         ("value", po::value<std::string>(&value)->default_value(""), "The value the variable it to be set to")
     ;
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
     //print the help message
     if (vm.count("help")) {
         std::cout << boost::format("UHD set value at path %s") % desc << std::endl;
@@ -54,10 +59,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
             << std::endl;
         return ~0;
     }
-
-    po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);
 
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
 
