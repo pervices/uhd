@@ -16,7 +16,7 @@ namespace
         //gets the value from the state tree
         std::string value;
         usrp->get_tree_value(path, value);
-        std::cout << "Value: " << old_value << std::endl;
+        std::cout << "Value: " << value << std::endl;
     }
 
 }
