@@ -1477,6 +1477,8 @@ bool cyan_8r_impl::is_bm_thread_needed() {
 	static const std::vector<std::string> utils {
 		"uhd_find_devices",
 		"uhd_usrp_probe",
+        "uhd_manual_set",
+        "uhd_manual_get",
 	};
 
 	// see `man 3 program_invocation_short_name'
