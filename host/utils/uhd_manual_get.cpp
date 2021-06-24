@@ -8,7 +8,7 @@ namespace po = boost::program_options;
 namespace
 {
 
-    void set_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path)
+    void get_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path)
     {
         std::cout << __FUNCTION__ << std::endl;
 
@@ -52,7 +52,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
 
-    set_at_path(usrp, path);
+    get_at_path(usrp, path);
 
     std::cout << "Done" << std::endl;
 
