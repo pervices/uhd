@@ -12,7 +12,7 @@ set(util_runtime_sources
     uhd_config_info.cpp
     uhd_find_devices.cpp
     uhd_manual_set.cpp
-    uhd_manual_set.cpp
+    uhd_manual_get.cpp
     uhd_usrp_probe.cpp
     uhd_image_loader.cpp
     uhd_cal_rx_iq_balance.cpp
