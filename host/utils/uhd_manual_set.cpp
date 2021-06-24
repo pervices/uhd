@@ -28,7 +28,7 @@ namespace
 
     }
 
-    void set_int_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, int value)
+    void set_int_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, std::string value)
     {
         std::cout << __FUNCTION__ << std::endl;
 
@@ -40,15 +40,15 @@ namespace
         std::cout << "Old value: " << old_value << std::endl;
 
         usrp->set_tree_value(path, value);
-        std::cout << "Set to: " << value << std::endl;
+        std::cout << "Set to: " << std::stoi(value) << std::endl;
 
-        std::string new_value;
+        int new_value;
         usrp->get_tree_value(path, new_value);
         std::cout << "The value is now: " << new_value << std::endl;
 
     }
 
-    void set_double_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, double value)
+    void set_double_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, std::string value)
     {
         std::cout << __FUNCTION__ << std::endl;
 
@@ -60,9 +60,9 @@ namespace
         std::cout << "Old value: " << old_value << std::endl;
 
         usrp->set_tree_value(path, value);
-        std::cout << "Set to: " << value << std::endl;
+        std::cout << "Set to: " << std::stod(value) << std::endl;
 
-        std::string new_value;
+        double new_value;
         usrp->get_tree_value(path, new_value);
         std::cout << "The value is now: " << new_value << std::endl;
 
