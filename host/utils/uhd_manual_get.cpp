@@ -28,7 +28,7 @@ namespace
         usrp->get_tree_value(path, value);
         std::cout << "Value: " << value << std::endl;
     }
-    void get_string_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path)
+    void get_double_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path)
     {
         std::cout << __FUNCTION__ << std::endl;
 
