@@ -60,6 +60,8 @@ namespace
         std::cout << "Old value: " << old_value << std::endl;
 
         usrp->set_tree_value(path, value);
+        double tmp = std::stod(value);
+        std::cout << "Value: " << tmp << std::endl;
         std::cout << "Set to: " << std::stod(value) << std::endl;
 
         double new_value;
