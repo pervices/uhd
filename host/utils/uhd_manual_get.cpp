@@ -72,6 +72,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     }
 
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
+    std::cout << "Path: " << path << " Type: " << type << std::endl;
 
     if(type.compare("double")==0) get_double_at_path(usrp, path);
     else if (type.compare("int")==0) get_int_at_path(usrp, path);
