@@ -39,7 +39,7 @@ namespace
         usrp->get_tree_value(path, old_value);
         std::cout << "Old value: " << old_value << std::endl;
 
-        usrp->set_tree_value(path, value);
+        usrp->set_tree_value(path, std::stoi(value));
         std::cout << "Set to: " << std::stoi(value) << std::endl;
 
         int new_value;
@@ -59,9 +59,7 @@ namespace
         usrp->get_tree_value(path, old_value);
         std::cout << "Old value: " << old_value << std::endl;
 
-        usrp->set_tree_value(path, value);
-        double tmp = std::stod(value);
-        std::cout << "Value: " << tmp << std::endl;
+        usrp->set_tree_value(path, std::stod(value));
         std::cout << "Set to: " << std::stod(value) << std::endl;
 
         double new_value;
