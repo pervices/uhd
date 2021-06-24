@@ -8,7 +8,7 @@ namespace po = boost::program_options;
 namespace
 {
 
-    void set_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, std::string value)
+    void set_string_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, std::string value)
     {
         std::cout << __FUNCTION__ << std::endl;
 
@@ -28,6 +28,46 @@ namespace
 
     }
 
+    void set_int_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, std::string value)
+    {
+        std::cout << __FUNCTION__ << std::endl;
+
+        std::cout << "Setting value at: " << path << std::endl;
+
+        //gets the old value from the state tree
+        int old_value;
+        usrp->get_tree_value(path, old_value);
+        std::cout << "Old value: " << old_value << std::endl;
+
+        usrp->set_tree_value(path, std::stoi(value));
+        std::cout << "Set to: " << std::stoi(value) << std::endl;
+
+        int new_value;
+        usrp->get_tree_value(path, new_value);
+        std::cout << "The value is now: " << new_value << std::endl;
+
+    }
+
+    void set_double_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path, std::string value)
+    {
+        std::cout << __FUNCTION__ << std::endl;
+
+        std::cout << "Setting value at: " << path << std::endl;
+
+        //gets the old value from the state tree
+        double old_value;
+        usrp->get_tree_value(path, old_value);
+        std::cout << "Old value: " << old_value << std::endl;
+
+        usrp->set_tree_value(path, std::stod(value));
+        std::cout << "Set to: " << std::stod(value) << std::endl;
+
+        double new_value;
+        usrp->get_tree_value(path, new_value);
+        std::cout << "The value is now: " << new_value << std::endl;
+
+    }
+
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[])
@@ -36,7 +76,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string path, value;
+    std::string path, value, type;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -44,6 +84,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         ("help", "help message")
         ("path", po::value<std::string>(&path)->default_value(""), "The path for the value in the UHD state tree to set")
         ("value", po::value<std::string>(&value)->default_value(""), "The value the variable it to be set to")
+        ("type", po::value<std::string>(&type)->default_value("string"), "The data type of the variable to set")
     ;
 
     po::variables_map vm;
@@ -62,7 +103,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
 
-    set_at_path(usrp, path, value);
+    if(type.compare("double")==0) set_double_at_path(usrp, path, value);
+    else if (type.compare("int")==0) set_int_at_path(usrp, path, value);
+    else set_string_at_path(usrp, path, value);
 
     std::cout << "Done" << std::endl;
 
