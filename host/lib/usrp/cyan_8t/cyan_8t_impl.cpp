@@ -33,7 +33,7 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
-namespace link_cyan_p1hdr32t {
+namespace link_cyan_8t {
     const int num_links = 4;
     const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
     const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2","10.10.12.2","10.10.13.2"};
@@ -897,14 +897,14 @@ cyan_8t_impl::cyan_8t_impl(const device_addr_t &_device_addr)
     char buffer[256];
 
     // FOR EACH INTERFACE
-    for (int j = 0; j < link_cyan_p1hdr32t::num_links; j++) {
+    for (int j = 0; j < link_cyan_8t::num_links; j++) {
         // CHECK PING
-        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_p1hdr32t::addrs[j]); 
+        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_8t::addrs[j]); 
         check = system(cmd);
         if (check!=0){
-            UHD_LOG_WARNING("UHD", "Ping failed for " << link_cyan_p1hdr32t::addrs[j] << ", please check " << link_cyan_p1hdr32t::names[j]);
+            UHD_LOG_WARNING("UHD", "Ping failed for " << link_cyan_8t::addrs[j] << ", please check " << link_cyan_8t::names[j]);
         }
-        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_p1hdr32t::subnets[j]);
+        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_8t::subnets[j]);
         stream = popen(cmd, "r");
         if (stream) {
             while(!feof(stream))
@@ -914,12 +914,12 @@ cyan_8t_impl::cyan_8t_impl(const device_addr_t &_device_addr)
         // CHECK MTU
         check = 0;
         for (int i =0; i < 4; i++) {
-            if (link_cyan_p1hdr32t::mtu_ref[i] != buffer[i+4]) {
+            if (link_cyan_8t::mtu_ref[i] != buffer[i+4]) {
                 check ++;
             }
         }
         if (check != 0) {
-            UHD_LOG_WARNING("UHD", "MTU not set to recomended value of " << link_cyan_p1hdr32t::mtu_ref <<  " for subnet " << link_cyan_p1hdr32t::subnets[j] << " may impact data sent over " << link_cyan_p1hdr32t::names[j]);
+            UHD_LOG_WARNING("UHD", "MTU not set to recomended value of " << link_cyan_8t::mtu_ref <<  " for subnet " << link_cyan_8t::subnets[j] << " may impact data sent over " << link_cyan_8t::names[j]);
         }
     }
 
