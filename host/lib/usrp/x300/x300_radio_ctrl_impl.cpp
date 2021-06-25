@@ -1266,6 +1266,8 @@ bool x300_radio_ctrl_impl::check_radio_config()
 
     const fs_path tx_fe_path = fs_path("dboards" / _radio_slot / "tx_frontends");
     for (size_t chan = 0; chan < _num_tx_channels; chan++) {
+
+        UHD_LOGGER_INFO( "helpers" ) << "chan= " << chan << " db_fe_name : " << db_fe_name << std::endl;
         if (_tree->exists(tx_fe_path / _tx_fe_map.at(chan).db_fe_name / "enabled")) {
             const bool chan_active = _is_streamer_active(uhd::TX_DIRECTION, chan);
             if (chan_active) {

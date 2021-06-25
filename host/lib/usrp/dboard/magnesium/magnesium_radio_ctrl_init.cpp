@@ -215,6 +215,7 @@ void magnesium_radio_ctrl_impl::_init_frontend_subtree(
     UHD_LOG_TRACE(unique_id(),
         "Adding non-RFNoC block properties for channel " << chan_idx <<
         " to prop tree path " << tx_fe_path << " and " << rx_fe_path);
+
     // TX Standard attributes
     subtree->create<std::string>(tx_fe_path / "name")
         .set(str(boost::format("Magnesium")))
