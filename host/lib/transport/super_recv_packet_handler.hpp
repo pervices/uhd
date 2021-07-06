@@ -27,6 +27,7 @@
 #include <vector>
 
 // Included for debugging
+#define UHD_TXRX_DEBUG_PRINTS
 #ifdef UHD_TXRX_DEBUG_PRINTS
 #include <boost/format.hpp>
 #include <boost/thread/thread.hpp>
