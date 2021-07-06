@@ -93,7 +93,8 @@ template<typename samp_type> void recv_to_file(
              std::cout << boost::format("Timeout while streaming") << std::endl;
              //break;
              continue;
-         }
+         } else std::cout << boost::format("Not a timeout while streaming") << std::endl;
+
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
             if (overflow_message) {
                 overflow_message = false;
