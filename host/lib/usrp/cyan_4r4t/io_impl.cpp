@@ -391,9 +391,11 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
+            //DWFP
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CYAN_4R4T_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
+		//DWF
 		sphc::send_packet_handler::resize(size);
     }
 
@@ -522,6 +524,7 @@ private:
 		// Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
 		req.tv_nsec = dt.get_frac_secs()*1e9;
+        //DWF
 		nanosleep( &req, &rem );
 
 		return true;
@@ -708,12 +711,14 @@ void cyan_4r4t_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
+    //DWF
     my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
 }
 
 void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
     set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
+    //DWFP
     double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
 
 	boost::shared_ptr<cyan_4r4t_send_packet_streamer> my_streamer =
@@ -721,6 +726,7 @@ void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
+    //DWF
     my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
 }
 
@@ -966,7 +972,8 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 2.0 / CYAN_4R4T_MASTER_CLOCK_RATE;
+    //DWFC
+	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_MASTER_CLOCK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
