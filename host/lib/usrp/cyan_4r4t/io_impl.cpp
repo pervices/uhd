@@ -25,7 +25,7 @@
 
 #include "../../transport/super_recv_packet_handler.hpp"
 // TODO: fix flow control for crimson and switch back to using
-// #include "../../transport/super_send_packet_handler.hpp"
+#include "../../transport/super_send_packet_handler.hpp"
 // Remember to uncomment function definitions and bind callbacks 
 // for update_fc_send_count and check_flow_control in this file
 // and change all references to sphc back to sph
@@ -395,12 +395,12 @@ public:
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CYAN_4R4T_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
-		//DWF
-		sphc::send_packet_handler::resize(size);
+		//DWC
+		sph::send_packet_handler::resize(size);
     }
 
     void set_samp_rate(const double rate){
-        sphc::send_packet_handler::set_samp_rate( rate );
+        sph::send_packet_handler::set_samp_rate( rate );
         _samp_rate = rate;
         uhd::time_spec_t now = get_time_now();
         for( auto & ep: _eprops ) {
