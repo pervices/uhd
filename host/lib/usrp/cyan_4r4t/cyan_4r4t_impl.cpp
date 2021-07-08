@@ -1602,6 +1602,7 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	static const double lo_step = CYAN_4R4T_LO_STEPSIZE;
 
 	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
+    //DWFP
 	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CYAN_4R4T_BW_QUARTER ? 'A' : 'C';
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
@@ -1659,7 +1660,7 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
-
+    //DWF: this needs to have all bands added, 64t calls them low, high, and super low
 	enum {
 		LOW_BAND,
 		HIGH_BAND,
@@ -1683,6 +1684,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 	// kb #3689, for phase coherency, we must set the DAC NCO to 0
 	if ( TX_SIGN == xx_sign ) {
+        //DWFP: 64t calls it chnco
 		rf_fe_subtree->access<double>("nco").set( 0.0 );
 	}
 
@@ -1705,6 +1707,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 		case tune_request_t::POLICY_MANUAL:
 			target_rf_freq = rf_range.clip( tune_request.rf_freq );
+            //DWFP
 			break;
 
 		case tune_request_t::POLICY_NONE:
@@ -1716,6 +1719,8 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	//------------------------------------------------------------------
 	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+
+    //DWFP
 
 	//------------------------------------------------------------------
 	//-- Set the DSP frequency depending upon the DSP frequency policy.
