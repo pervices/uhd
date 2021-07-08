@@ -495,11 +495,11 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CYAN_4R4T Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("CYAN_4R4T") << "CYAN_4R4T Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CYAN_4R4T Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("CYAN_4R4T") << "CYAN_4R4T Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -977,11 +977,9 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
-#ifdef PV_TATE
-    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-#else
+
     static const std::vector<size_t> default_map { 0, 1, 2, 3 };
-#endif
+
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_impl::update_rx_subdev_spec, this, mb, _1));
@@ -1121,6 +1119,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
+        //DWF
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4T_BW_FULL );
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4T_BW_FULL, (double) CYAN_4R4T_BW_FULL ) );
 
@@ -1157,19 +1156,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
 
 		// DSPs
-		switch( dspno + 'A' ) {
-		case 'A':
-		case 'B':
-                case 'C':
-		case 'D':
-			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CYAN_4R4T_RATE_RANGE_START, (double) CYAN_4R4T_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_RATE_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CYAN_4R4T_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_FULL, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
-			break;
-		}
+		TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
+			meta_range_t((double) CYAN_4R4T_RATE_RANGE_START, (double) CYAN_4R4T_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_RATE_RANGE_STEP));
+		TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
+			meta_range_t((double) CYAN_4R4T_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
+			meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_FULL, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
 			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
