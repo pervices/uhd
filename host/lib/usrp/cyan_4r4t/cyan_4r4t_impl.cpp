@@ -34,7 +34,7 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
-namespace link_crimson {
+namespace link_cyan_4r4t {
     const int num_links = 2;
     const char *subnets[num_links] = { "10.10.10.", "10.10.11."};
     const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2"};
@@ -69,7 +69,7 @@ namespace asio = boost::asio;
  **********************************************************************/
 
 // seperates the input data into the vector tokens based on delim
-void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
+static void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 	int i = 0;
 	while (data[i]) {
 		std::string token = "";
@@ -821,14 +821,14 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     char buffer[256];
 
     // FOR EACH INTERFACE
-    for (int j = 0; j < link_crimson::num_links; j++) {
+    for (int j = 0; j < link_cyan_4r4t::num_links; j++) {
         // CHECK PING
-        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_crimson::addrs[j]); 
+        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_4r4t::addrs[j]); 
         check = system(cmd);
         if (check!=0){
-            UHD_LOG_WARNING("PING", "Failed for " << link_crimson::addrs[j] << ", please check " << link_crimson::names[j]);
+            UHD_LOG_WARNING("PING", "Failed for " << link_cyan_4r4t::addrs[j] << ", please check " << link_cyan_4r4t::names[j]);
         }
-        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_crimson::subnets[j]); 
+        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_4r4t::subnets[j]); 
         stream = popen(cmd, "r");
         if (stream) {
             while(!feof(stream))
@@ -838,12 +838,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         // CHECK MTU
         check = 0;
         for (int i =0; i < 4; i++) {
-            if (link_crimson::mtu_ref[i] != buffer[i+4]) {
+            if (link_cyan_4r4t::mtu_ref[i] != buffer[i+4]) {
                 check ++;
             }
         }
         if (check != 0) {
-            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_crimson::mtu_ref <<  " for subnet " << link_crimson::subnets[j] << " may impact data sent over " << link_crimson::names[j]);
+            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_4r4t::mtu_ref <<  " for subnet " << link_cyan_4r4t::subnets[j] << " may impact data sent over " << link_cyan_4r4t::names[j]);
         }
     }
 
