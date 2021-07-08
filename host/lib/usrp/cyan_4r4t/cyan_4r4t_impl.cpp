@@ -145,7 +145,6 @@ void cyan_4r4t_impl::set_int(const std::string pre, int data){
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-//DWFC
 uhd::usrp::mboard_eeprom_t cyan_4r4t_impl::get_mboard_eeprom(std::string req) {
 	(void)req;
 	mboard_eeprom_t temp;
@@ -258,7 +257,6 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
 time_spec_t cyan_4r4t_impl::get_time_spec(std::string req) {
 	if ( false ) {
-        //DWFC
 	} else if ( "time/clk/cur_time" == req ) {
 		return get_time_now();
 	} else if ( "time/clk/pps" == req ) {
@@ -271,13 +269,11 @@ time_spec_t cyan_4r4t_impl::get_time_spec(std::string req) {
 	}
 }
 void cyan_4r4t_impl::set_time_spec( const std::string key, time_spec_t value ) {
-    //DWFC
 	if ( "time/clk/cur_time" == key ) {
 		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
 		stop_bm();
 	}
 	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
-    //DWFC
 	if ( "time/clk/cur_time" == key ) {
 		start_bm();
 	}
@@ -299,7 +295,6 @@ user_reg_t cyan_4r4t_impl::get_user_reg(std::string req) {
 }
 
 void cyan_4r4t_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-    //DWFC
 	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
@@ -1118,7 +1113,6 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
-        //DWF
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4T_BW_FULL );
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4T_BW_FULL, (double) CYAN_4R4T_BW_FULL ) );
 
@@ -1212,10 +1206,9 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     for( int dspno = 0; dspno < CYAN_4R4T_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
-        //DWF
 		std::string chan    = "Channel_" + num;
 
-        //DWF
+        //DWFP
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
 		const fs_path db_path       = mb_path / "dboards" / num;
@@ -1286,27 +1279,13 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 
 		// DSPs
-        //DWF
-		switch( dspno + 'A' ) {
-		case 'A':
-		case 'B':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CYAN_4R4T_RATE_RANGE_START, (double) CYAN_4R4T_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CYAN_4R4T_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_FULL, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
-			break;
-		case 'C':
-		case 'D':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CYAN_4R4T_RATE_RANGE_START, (double) CYAN_4R4T_RATE_RANGE_STOP_QUARTER, (double) CYAN_4R4T_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CYAN_4R4T_DSP_FREQ_RANGE_START_QUARTER, (double) CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER, (double) CYAN_4R4T_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_QUARTER, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
-			break;
-		}
+
+		TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
+			meta_range_t((double) CYAN_4R4T_RATE_RANGE_START, (double) CYAN_4R4T_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_RATE_RANGE_STEP));
+		TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
+			meta_range_t((double) CYAN_4R4T_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STEP));
+		TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
+			meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_FULL, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
 			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
@@ -1315,7 +1294,6 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
-        //DWF
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
@@ -1475,7 +1453,6 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 
 void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
-    //DWFP: there was something similar to this that required wierd mapping
 	switch( chan ) {
 	case 0:
 		sfp = "sfpa";
@@ -1601,7 +1578,6 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 	static const double lo_step = CYAN_4R4T_LO_STEPSIZE;
 
 	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-    //DWFP
 	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CYAN_4R4T_BW_QUARTER ? 'A' : 'C';
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
@@ -1683,7 +1659,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 	// kb #3689, for phase coherency, we must set the DAC NCO to 0
 	if ( TX_SIGN == xx_sign ) {
-        //DWFP: 64t calls it chnco
 		rf_fe_subtree->access<double>("nco").set( 0.0 );
 	}
 
@@ -1706,7 +1681,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
 		case tune_request_t::POLICY_MANUAL:
 			target_rf_freq = rf_range.clip( tune_request.rf_freq );
-            //DWFP
 			break;
 
 		case tune_request_t::POLICY_NONE:
@@ -1718,8 +1692,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	//------------------------------------------------------------------
 	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
-
-    //DWFP
 
 	//------------------------------------------------------------------
 	//-- Set the DSP frequency depending upon the DSP frequency policy.

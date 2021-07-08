@@ -89,19 +89,17 @@
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_STEP	0.25
 
 // Ranges from, 0dB to 83.25dB
-//DWF
-#define CYAN_4R4T_RF_RX_GAIN_RANGE_START	0.0
-#define CYAN_4R4T_RF_RX_GAIN_RANGE_STOP	83.25
-#define CYAN_4R4T_RF_RX_GAIN_RANGE_STEP	0.25
+#define CYAN_4R4T_RF_RX_GAIN_RANGE_START -6
+#define CYAN_4R4T_RF_RX_GAIN_RANGE_STOP	 26
+#define CYAN_4R4T_RF_RX_GAIN_RANGE_STEP	 1
 
 // Cyan_4r4t Clk Settings
 #define CYAN_4R4T_MASTER_CLOCK_RATE	1000000000
 #define CYAN_4R4T_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Crimson Tuning Range Settings
 #define CYAN_4R4T_FREQ_RANGE_START	0
-//DWFC
 #define CYAN_4R4T_FREQ_RANGE_STOP	18000000000.0
-#define CYAN_4R4T_FREQ_RANGE_STEP	1
+#define CYAN_4R4T_FREQ_RANGE_STEP	1.0
 //Crimson LO Tuning Range Step Size
 #define CYAN_4R4T_LO_STEPSIZE         25000000
 #define CYAN_4R4T_LO_GUARDBAND	5000000
@@ -126,7 +124,7 @@
 #define CYAN_4R4T_ADC_FREQ_RANGE_STEP	        1.0
 
 // There's a lower limit on the DC component we can pass. This is just an approximation.
-//DWF
+//DWFP
 #define CYAN_4R4T_DC_LOWERLIMIT	3000000
 #define CYAN_4R4T_FM_LOWERLIMIT	86900000
 #define CYAN_4R4T_FM_UPPERLIMIT	107900000
