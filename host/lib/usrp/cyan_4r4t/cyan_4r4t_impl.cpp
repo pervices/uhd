@@ -1010,6 +1010,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
+    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
 
     TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
