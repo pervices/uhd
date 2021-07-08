@@ -35,10 +35,10 @@
 #include "../../transport/super_send_packet_handler.hpp"
 
 namespace link_cyan_4r4t {
-    const int num_links = 2;
-    const char *subnets[num_links] = { "10.10.10.", "10.10.11."};
-    const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2"};
-    const char *names[num_links] = { "SFP+A", "SFP+B"};
+    const int num_links = 4;
+    const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
+    const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2","10.10.12.2","10.10.13.2"};
+    const char *names[num_links] = { "QSFP+A", "QSFP+B", "QSFP+C", "QSFP+D"};
 
     const char mtu_ref[8] = {'9','0','0','0'};
 }
