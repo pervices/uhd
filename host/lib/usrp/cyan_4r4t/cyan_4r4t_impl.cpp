@@ -299,7 +299,7 @@ user_reg_t cyan_4r4t_impl::get_user_reg(std::string req) {
 }
 
 void cyan_4r4t_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-	_time_diff_iface->send(boost::asio::const_buffer(&req, sizeof(req)));
+	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
 void cyan_4r4t_impl::set_user_reg(const std::string key, user_reg_t value) {
