@@ -198,7 +198,9 @@ private:
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
+    void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
     bool time_diff_recv( time_diff_resp & tdr );
+    bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
     void fifo_update_process( const time_diff_resp & tdr );
 

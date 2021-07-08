@@ -145,7 +145,7 @@ void cyan_4r4t_impl::set_int(const std::string pre, int data){
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-//DWFP
+//DWFC
 uhd::usrp::mboard_eeprom_t cyan_4r4t_impl::get_mboard_eeprom(std::string req) {
 	(void)req;
 	mboard_eeprom_t temp;
