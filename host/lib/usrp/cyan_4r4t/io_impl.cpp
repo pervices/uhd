@@ -972,8 +972,7 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-    //DWFC
-	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_MASTER_CLOCK_RATE;
+	static constexpr double tick_period_ps = 2.0 / CYAN_4R4T_MASTER_CLOCK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
@@ -1032,12 +1031,13 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint16_t lvl = rsp.header & 0xffff;
+    //DWFC
+	uint32_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
-    static uint16_t last[4];
-    static uint16_t curr[4];
+    static uint32_t last[4];
+    static uint32_t curr[4];
     last[channel] = curr[channel];
     curr[channel] = lvl;
 
@@ -1049,8 +1049,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
         std::printf("%10u\t", last[2] - curr[2]);
         std::printf("%10u\t", last[3] - curr[3]);
 
-        const uint16_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
-        const uint16_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
+        const uint32_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
+        const uint32_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
         std::printf("%10u\t", max - min);
         std::printf("\n");
     }
