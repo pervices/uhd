@@ -75,11 +75,12 @@
 #define CYAN_4R4T_MAX_MTU		9000
 
 // Crimson Flowcontrol Update Per Second
+//DWF
 #define CYAN_4R4T_UPDATE_PER_SEC	100
 #define CYAN_4R4T_SS_FIFOLVL_THRESHOLD 107421875
 
-// Crimson Buffer Size
-#define CYAN_4R4T_BUFF_SIZE	65536
+// Cyan_4r4t Buffer Size
+#define CYAN_4R4T_BUFF_SIZE	2048*140*512/32
 
 // Crimson RF Settings
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_START	0.0
