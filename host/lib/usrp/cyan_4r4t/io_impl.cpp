@@ -24,7 +24,12 @@
 #include <mutex>
 
 #include "../../transport/super_recv_packet_handler.hpp"
-#include "../../transport/super_send_packet_handler.hpp"
+// TODO: fix flow control for crimson and switch back to using
+// #include "../../transport/super_send_packet_handler.hpp"
+// Remember to uncomment function definitions and bind callbacks 
+// for update_fc_send_count and check_flow_control in this file
+// and change all references to sphc back to sph
+#include "../../transport/super_send_packet_handler_crimson.hpp"
 #include "cyan_4r4t_impl.hpp"
 #include "cyan_4r4t_fw_common.h"
 #include <uhd/utils/log.hpp>
@@ -86,7 +91,7 @@ namespace pt = boost::posix_time;
  * helpers
  **********************************************************************/
 
-static std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
+std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
 	os << std::fixed << std::setprecision( 6 ) << ts.get_real_secs();
 	return os;
 }
@@ -174,8 +179,8 @@ static void shutdown_lingering_rx_streamers() {
 
 // XXX: @CF: 20180227: We need this for several reasons
 // 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
-// 2) to wrap sph::send_packet_streamer::send() and use our existing flow control algorithm
-class cyan_4r4t_send_packet_streamer : public sph::send_packet_streamer {
+// 2) to wrap sphc::send_packet_streamer::send() and use our existing flow control algorithm
+class cyan_4r4t_send_packet_streamer : public sphc::send_packet_streamer {
 public:
 
 	typedef boost::function<void(void)> onfini_type;
@@ -185,7 +190,7 @@ public:
 
 	cyan_4r4t_send_packet_streamer( const size_t max_num_samps )
 	:
-		sph::send_packet_streamer( max_num_samps ),
+		sphc::send_packet_streamer( max_num_samps ),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
@@ -206,7 +211,6 @@ public:
 			if ( ep.on_fini ) {
 				ep.on_fini();
 			}
-			std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
 		}
 		_eprops.clear();
 	}
@@ -225,7 +229,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        global::udp_retry = false;
+        global::udp_retry = true;
         
         static const double default_sob = 1.0;
 
@@ -270,7 +274,7 @@ public:
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CYAN_4R4T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
+            std::cout << "UHD::CYAN_4R4T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -292,8 +296,7 @@ public:
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
         // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
       //  std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
-        // _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
-        _actual_num_samps = nsamps_per_buff;
+        _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
         //for( auto & ep: _eprops ) {
 
@@ -308,7 +311,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CYAN_4R4T::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
+            std::cout << "UHD::CYAN_4R4T::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -321,7 +324,7 @@ public:
 
         return r;
     }
-
+    
     static managed_send_buffer::sptr get_send_buff( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
 
         boost::shared_ptr<cyan_4r4t_send_packet_streamer> my_streamer =
@@ -330,23 +333,23 @@ public:
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
         //wait on flow control w/ timeout
-        // if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
+        if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
         //Last thing we do is update our buffer model with sent data
         //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
-        // my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
+        my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
-
+/* These functions not defined while using super_send_packet_handler_crimson
     static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
         boost::shared_ptr<cyan_4r4t_send_packet_streamer> my_streamer =
             boost::dynamic_pointer_cast<cyan_4r4t_send_packet_streamer>( tx_streamer.lock() );
 
-        my_streamer->check_fc_update(chan, nsamps);
+        my_streamer->check_fc_update( chan, nsamps);
     }
     
     static bool check_flow_control(boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
@@ -355,7 +358,7 @@ public:
 
         return my_streamer->check_fc_condition( chan, timeout);
     }
-
+*/
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
@@ -384,11 +387,11 @@ public:
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CYAN_4R4T_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
-		sph::send_packet_handler::resize(size);
+		sphc::send_packet_handler::resize(size);
     }
 
     void set_samp_rate(const double rate){
-        sph::send_packet_handler::set_samp_rate( rate );
+        sphc::send_packet_handler::set_samp_rate( rate );
         _samp_rate = rate;
         uhd::time_spec_t now = get_time_now();
         for( auto & ep: _eprops ) {
@@ -430,7 +433,6 @@ public:
 		}
 	}
 
-
 private:
 	bool _first_call_to_send;
     size_t _max_num_samps;
@@ -443,7 +445,7 @@ private:
     timenow_type _time_now;
     std::mutex _mutex;
 
-    // extended per-channel properties, beyond what is available in sph::send_packet_handler::xport_chan_props_type
+    // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
     struct eprops_type{
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
@@ -477,7 +479,7 @@ private:
         _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
-
+    
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -510,16 +512,10 @@ private:
 		if(dt <= 0.0)
 			return true;
 
-		// // Otherwise, delay.
+		// Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
 		req.tv_nsec = dt.get_frac_secs()*1e9;
-		// nanosleep( &req, &rem );
-        if (req.tv_sec == 0 && req.tv_nsec < 10000) {
-            // If there is less than 10 us, then send
-            return true;
-        } else {
-            return false;
-        }
+		nanosleep( &req, &rem );
 
 		return true;
     }
@@ -705,7 +701,7 @@ void cyan_4r4t_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_4R4T_DSP_CLOCK_RATE );
+    my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
 }
 
 void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -718,7 +714,7 @@ void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_4R4T_DSP_CLOCK_RATE );
+    my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
 }
 
 void cyan_4r4t_impl::update_rates(void){
@@ -895,8 +891,7 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
                 ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, boost::bind(
                     &cyan_4r4t_impl::set_stream_cmd, this, scmd_pre, _1));
-		//disabled since the unit cannot currently turn parts back on
-                //my_streamer->set_on_fini(chan_i, boost::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
+                my_streamer->set_on_fini(chan_i, boost::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
                 _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
@@ -964,7 +959,7 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_DSP_CLOCK_RATE;
+	static constexpr double tick_period_ps = 2.0 / CYAN_4R4T_MASTER_CLOCK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
@@ -997,13 +992,11 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	for( size_t tries = 0; tries < 1; tries++ ) {
 		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 		if ( sizeof( req ) != r ) {
-            std::cout << "WARNING: XXX: SSSSend get FIFO level failed\n";
 			continue;
 		}
 
 		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
 		if ( sizeof( rsp ) != r ) {
-            std::cout << "WARNING: XXX: RRRReceive get FIFO level failed\n";
 			continue;
 		}
 
@@ -1025,12 +1018,12 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint32_t lvl = (rsp.header & 0xffff) << 2;
+	uint16_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
-    static uint32_t last[4];
-    static uint32_t curr[4];
+    static uint16_t last[4];
+    static uint16_t curr[4];
     last[channel] = curr[channel];
     curr[channel] = lvl;
 
@@ -1042,8 +1035,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
         std::printf("%10u\t", last[2] - curr[2]);
         std::printf("%10u\t", last[3] - curr[3]);
 
-        const uint32_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
-        const uint32_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
+        const uint16_t min = std::min(curr[0], std::min(curr[1], std::min(curr[2], curr[3])));
+        const uint16_t max = std::max(curr[0], std::max(curr[1], std::max(curr[2], curr[3])));
         std::printf("%10u\t", max - min);
         std::printf("\n");
     }
@@ -1075,7 +1068,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16" && args.otw_format != "uc16"){
+    if (args.otw_format != "sc16"){
         throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
     }
 
@@ -1139,14 +1132,16 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                     &cyan_4r4t_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
                 ));
 
+                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
+/* These functions not defined while using super_send_packet_handler_crimson
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &cyan_4r4t_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
                 ));
+                
                 my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
                     &cyan_4r4t_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
                 ));
-                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
-
+*/
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));

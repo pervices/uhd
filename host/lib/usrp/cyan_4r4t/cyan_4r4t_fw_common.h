@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 /*!
- * Structs and constants for crimson_tng communication.
+ * Structs and constants for cyan_4r4t communication.
  * This header is shared by the firmware and host code.
  * Therefore, this header may only contain valid C code.
  */
@@ -41,49 +41,19 @@
 
 #define CYAN_4R4T_DEFAULT_MAC_ADDR_0         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff}
 #define CYAN_4R4T_DEFAULT_MAC_ADDR_1         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33}
-#define CYAN_4R4T_DEFAULT_MAC_ADDR_2         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xaa}
-#define CYAN_4R4T_DEFAULT_MAC_ADDR_3         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x22}
 
 #define CYAN_4R4T_DEFAULT_GATEWAY            (192 << 24 | 168 << 16 | 10  << 8  | 1 << 0)
 
 #define CYAN_4R4T_DEFAULT_IP_ETH0_1G         (192 << 24 | 168 << 16 | 10  << 8  | 2 << 0)
+#define CYAN_4R4T_DEFAULT_IP_ETH0_10G        (192 << 24 | 168 << 16 | 30  << 8  | 2 << 0)
+#define CYAN_4R4T_DEFAULT_IP_ETH1_10G        (192 << 24 | 168 << 16 | 40  << 8  | 2 << 0)
+
 #define CYAN_4R4T_DEFAULT_NETMASK_ETH0_1G    (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_4R4T_DEFAULT_IP_ETH0_10G        (10 << 24 | 10 << 16 | 10  << 8  | 2 << 0)
 #define CYAN_4R4T_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_4R4T_DEFAULT_IP_ETH1_10G        (10 << 24 | 10 << 16 | 11  << 8  | 2 << 0)
 #define CYAN_4R4T_DEFAULT_NETMASK_ETH1_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
-#define CYAN_4R4T_DEFAULT_IP_ETH2_10G        (10 << 24 | 10 << 16 | 12  << 8  | 2 << 0)
-#define CYAN_4R4T_DEFAULT_NETMASK_ETH2_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_4R4T_DEFAULT_IP_ETH3_10G        (10 << 24 | 10 << 16 | 13  << 8  | 2 << 0)
-#define CYAN_4R4T_DEFAULT_NETMASK_ETH3_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_4R4T_MASTER_CLOCK_RATE	        1000000000
-#define CYAN_4R4T_DSP_CLOCK_RATE              250000000
-#define CYAN_4R4T_SAMPS_PER_DSP_TICK  4
 #define CYAN_4R4T_RX_CHANNELS 4
 #define CYAN_4R4T_TX_CHANNELS 4
-#define CYAN_4R4T_DSP_FREQ_RANGE_START (-(CYAN_4R4T_MASTER_CLOCK_RATE/2))
-#define CYAN_4R4T_DSP_FREQ_RANGE_STOP	CYAN_4R4T_MASTER_CLOCK_RATE/2
-#define CYAN_4R4T_RATE_RANGE_START	CYAN_4R4T_MASTER_CLOCK_RATE/65536
-#define CYAN_4R4T_RATE_RANGE_STOP		CYAN_4R4T_MASTER_CLOCK_RATE
-#define CYAN_4R4T_FREQ_RANGE_STOP		18000000000.0
-
-// Crimson DSP Freq Settings
-#define CYAN_4R4T_DSP_FREQ_RANGE_STEP	        1.0
-
-// Crimson Rate Settings
-#define CYAN_4R4T_RATE_RANGE_STEP		1.0
-
-// Crimson Freq Settings
-#define CYAN_4R4T_FREQ_RANGE_START	0
-#define CYAN_4R4T_FREQ_RANGE_STEP		1.0
-
-// Crimson Ext Ref Clock
-#define CYAN_4R4T_EXT_CLK_RATE		10000000	// only 10 MHz input sources allowed
 
 #define CYAN_4R4T_FW_COMMS_FLAGS_ACK        (1 << 0)
 #define CYAN_4R4T_FW_COMMS_FLAGS_ERROR      (1 << 1)
@@ -100,7 +70,7 @@
 #define CYAN_4R4T_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
-#define CYAN_4R4T_BUFF_SIZE	(2048*140*512/32)
+#define CYAN_4R4T_BUFF_SIZE	65536
 
 // Crimson RF Settings
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_START	0.0
@@ -111,6 +81,53 @@
 #define CYAN_4R4T_RF_RX_GAIN_RANGE_START	0.0
 #define CYAN_4R4T_RF_RX_GAIN_RANGE_STOP	83.25
 #define CYAN_4R4T_RF_RX_GAIN_RANGE_STEP	0.25
+
+// Crimson Clk Settings
+#define CYAN_4R4T_MASTER_CLOCK_RATE	325000000
+#define CYAN_4R4T_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
+// Crimson Tuning Range Settings
+#define CYAN_4R4T_FREQ_RANGE_START	0
+#define CYAN_4R4T_FREQ_RANGE_STOP	6000000000.0
+#define CYAN_4R4T_FREQ_RANGE_STEP	1
+//Crimson LO Tuning Range Step Size
+#define CYAN_4R4T_LO_STEPSIZE         25000000
+#define CYAN_4R4T_LO_GUARDBAND	5000000
+#define CYAN_4R4T_LO_OFFSET           25000000
+
+// Crimson Sample Rate Settings
+#define CYAN_4R4T_RATE_RANGE_START	CYAN_4R4T_MASTER_CLOCK_RATE/65536
+#define CYAN_4R4T_RATE_RANGE_STOP_FULL	CYAN_4R4T_MASTER_CLOCK_RATE
+#define CYAN_4R4T_RATE_RANGE_STOP_QUARTER     CYAN_4R4T_MASTER_CLOCK_RATE/4.0
+#define CYAN_4R4T_RATE_RANGE_STEP	1.0
+
+// All ADCs and DACs take complex sample at 325MSPS,
+// and so all share a static front end bandwidth of 325MHz
+// However, for user throughput, DACs A/B have a max user complex samplerate of
+// 162.5MSPS, and DACs C/D have 81.25MSPS due to backhaul bandwidth limitations
+// and FPGA transciever clocking limitaions.
+#define CYAN_4R4T_ADC_BW                  CYAN_4R4T_MASTER_CLOCK_RATE/2.0
+#define CYAN_4R4T_ADC_FREQ_RANGE_ROLLOFF      0.8*CYAN_4R4T_ADC_BW
+#define CYAN_4R4T_BW_FULL                 CYAN_4R4T_RATE_RANGE_STOP_FULL/2.0
+#define CYAN_4R4T_BW_QUARTER              CYAN_4R4T_RATE_RANGE_STOP_QUARTER
+#define CYAN_4R4T_BW_RANGE_STEP	1.0
+#define CYAN_4R4T_ADC_FREQ_RANGE_STEP	        1.0
+
+// There's a lower limit on the DC component we can pass. This is just an approximation.
+#define CYAN_4R4T_DC_LOWERLIMIT	3000000
+#define CYAN_4R4T_FM_LOWERLIMIT	86900000
+#define CYAN_4R4T_FM_UPPERLIMIT	107900000
+
+// Crimson DSP Freq Settings
+// NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
+#define CYAN_4R4T_DSP_BW_START    0
+#define CYAN_4R4T_DSP_BW_STOP_FULL            CYAN_4R4T_BW_FULL
+#define CYAN_4R4T_DSP_BW_STOP_QUARTER         CYAN_4R4T_BW_QUARTER
+#define CYAN_4R4T_DSP_BW_STEPSIZE     1.0
+#define CYAN_4R4T_DSP_FREQ_RANGE_START_FULL	-CYAN_4R4T_RATE_RANGE_STOP_FULL/2.0
+#define CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL	CYAN_4R4T_RATE_RANGE_STOP_FULL/2.0
+#define CYAN_4R4T_DSP_FREQ_RANGE_START_QUARTER	-CYAN_4R4T_RATE_RANGE_STOP_QUARTER/2.0
+#define CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER	CYAN_4R4T_RATE_RANGE_STOP_QUARTER/2.0
+#define CYAN_4R4T_DSP_FREQ_RANGE_STEP	1.0
 
 // Crimson VITA settings
 #define CYAN_4R4T_VITA_HDR_TYPE	0x1

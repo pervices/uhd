@@ -109,7 +109,7 @@ std::string cyan_4r4t_iface::peek_str( float timeout_s ) {
 }
 
 std::string cyan_4r4t_iface::peek_str() {
-	return peek_str( 8.000 );
+	return peek_str( 6.250 );
 }
 
 /***********************************************************************

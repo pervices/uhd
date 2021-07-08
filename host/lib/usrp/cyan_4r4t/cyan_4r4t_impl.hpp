@@ -25,10 +25,7 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
-#include "uhd/usrp/subdev_spec.hpp"
-#include "uhd/utils/pimpl.hpp"
-#include "uhd/types/ranges.hpp"
-#include "uhd/types/sensors.hpp"
+#include "uhd/usrp/multi_usrp.hpp"
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
@@ -39,11 +36,6 @@
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
-// Tate has 80 GPIO signals and requires two 64-bit registers
-#define NUMBER_OF_GPIO_SIGNALS 80
-#define NUMBER_OF_GPIO_REGS 2
-#define NUMBER_OF_XG_CONTROL_INTF 4
-
 namespace uhd {
 namespace usrp {
 
@@ -52,8 +44,8 @@ struct gpio_burst_req {
 	uint64_t header; // Frame 1
 	int64_t tv_sec;  // Frame 2
 	int64_t tv_psec; // Frame 2
-	uint64_t pins[NUMBER_OF_GPIO_REGS];   // Frame N
-	uint64_t mask[NUMBER_OF_GPIO_REGS];   // Frame N
+	uint64_t pins;   // Frame 3
+	uint64_t mask;   // Frame 3
 };
 #pragma pack(pop)
 
@@ -191,7 +183,7 @@ private:
 	 */
 
 	/// UDP endpoint that receives our Time Diff packets
-    std::array<uhd::transport::udp_simple::sptr, NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface;
+	uhd::transport::udp_simple::sptr _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -204,9 +196,7 @@ private:
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
-    void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
-    bool time_diff_recv( time_diff_resp & td );
-    bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
+    bool time_diff_recv( time_diff_resp & tdr );
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
     void fifo_update_process( const time_diff_resp & tdr );
 
