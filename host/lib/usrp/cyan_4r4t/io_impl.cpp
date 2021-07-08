@@ -211,6 +211,7 @@ public:
 			if ( ep.on_fini ) {
 				ep.on_fini();
 			}
+			std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
 		}
 		_eprops.clear();
 	}
@@ -229,6 +230,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        //DWFP
         global::udp_retry = true;
         
         static const double default_sob = 1.0;
