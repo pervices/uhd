@@ -299,6 +299,7 @@ user_reg_t cyan_4r4t_impl::get_user_reg(std::string req) {
 }
 
 void cyan_4r4t_impl::send_gpio_burst_req(const gpio_burst_req& req) {
+    //DWFC
 	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
@@ -603,7 +604,7 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 }
 
 void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
+	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
@@ -617,14 +618,50 @@ void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 		crimson_now
 	);
 
-	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+    // By default send over SFPA
+	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+}
+
+void cyan_64t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
+
+	time_diff_req pkt;
+
+	// Input to Process (includes feedback from PID Controller)
+	make_time_diff_packet(
+		pkt,
+		crimson_now
+	);
+
+    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
+        throw runtime_error( "XG Control interface offset out of bound!" );
+    }
+	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
 bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	size_t r;
 
-	r = _time_diff_iface->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+	r = _time_diff_iface[0]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+
+	if ( 0 == r ) {
+		return false;
+	}
+
+	boost::endian::big_to_native_inplace( tdr.tv_sec );
+	boost::endian::big_to_native_inplace( tdr.tv_tick );
+
+	return true;
+}
+
+bool cyan_64t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
+
+	size_t r;
+
+    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
+        throw runtime_error( "XG Control interface offset out of bound!" );
+    }
+	r = _time_diff_iface[xg_intf]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
 
 	if ( 0 == r ) {
 		return false;
@@ -1362,12 +1399,13 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 //        }
     }
 
-	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
-	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
-	std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfpa" / "ip_addr" ).get();
-	std::string time_diff_port = std::to_string( sfpa_port );
-	_time_diff_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
-
+	for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
+        std::string xg_intf = std::string(1, char('a' + i));
+        int sfp_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string time_diff_port = std::to_string( sfp_port );
+        _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
+    }
 
 	_bm_thread_needed = is_bm_thread_needed();
 	if ( _bm_thread_needed ) {
