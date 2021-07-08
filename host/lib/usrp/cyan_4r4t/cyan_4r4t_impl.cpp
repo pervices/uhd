@@ -776,10 +776,11 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 		crimson_now = now + time_diff;
 
 		dev->time_diff_send( crimson_now, xg_intf );
-		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
-			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
-			continue;
-        }
+        //The warning will be triggered during normal operation, so has been commented out
+ 		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
+ 			//std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
+ 			continue;
+         }
 		dev->time_diff_process( tdr, now );
 		//dev->fifo_update_process( tdr );
 
