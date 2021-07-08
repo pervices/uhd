@@ -622,7 +622,7 @@ void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
-void cyan_64t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
+void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
 
 	time_diff_req pkt;
 
@@ -654,7 +654,7 @@ bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr ) {
 	return true;
 }
 
-bool cyan_64t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
+bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 
 	size_t r;
 

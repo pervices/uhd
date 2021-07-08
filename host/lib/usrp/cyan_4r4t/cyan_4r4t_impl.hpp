@@ -34,6 +34,8 @@
 #include "../crimson_tng/pidc.hpp"
 #include "../crimson_tng/system_time.hpp"
 
+#define NUMBER_OF_XG_CONTROL_INTF 4
+
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
 namespace uhd {
@@ -183,7 +185,7 @@ private:
 	 */
 
 	/// UDP endpoint that receives our Time Diff packets
-	uhd::transport::udp_simple::sptr _time_diff_iface;
+	std::array<uhd::transport::udp_simple::sptr,NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
