@@ -231,7 +231,7 @@ public:
         const double timeout
     ){
         //DWFP
-        global::udp_retry = true;
+        global::udp_retry = false;
         
         static const double default_sob = 1.0;
 
@@ -276,7 +276,6 @@ public:
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            //DWFC
             std::cout << "UHD::CYAN_4R4T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
@@ -299,7 +298,7 @@ public:
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
         // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
         // std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
-        //DWFP
+
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
         //for( auto & ep: _eprops ) {
@@ -337,20 +336,18 @@ public:
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
         //wait on flow control w/ timeout
-        //DWFP
-        if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
+        //if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
         //Last thing we do is update our buffer model with sent data
         //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
-        //DWFP
-        my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
+
+        //my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
 
-    //DWFC
     static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
         boost::shared_ptr<cyan_4r4t_send_packet_streamer> my_streamer =
@@ -391,11 +388,9 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-            //DWFP
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CYAN_4R4T_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CYAN_4R4T_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
-		//DWC
 		sph::send_packet_handler::resize(size);
     }
 
@@ -524,8 +519,14 @@ private:
 		// Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
 		req.tv_nsec = dt.get_frac_secs()*1e9;
-        //DWF
-		nanosleep( &req, &rem );
+        //DWFC
+		// nanosleep( &req, &rem );
+        if (req.tv_sec == 0 && req.tv_nsec < 10000) {
+            // If there is less than 10 us, then send
+            return true;
+        } else {
+            return false;
+        }
 
 		return true;
     }
@@ -711,14 +712,12 @@ void cyan_4r4t_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    //DWF
     my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
 }
 
 void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
     set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
-    //DWFP
     double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
 
 	boost::shared_ptr<cyan_4r4t_send_packet_streamer> my_streamer =
@@ -726,7 +725,6 @@ void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    //DWF
     my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
 }
 
@@ -1031,7 +1029,6 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-    //DWFC
 	uint32_t lvl = rsp.header & 0xffff;
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
 
@@ -1137,7 +1134,6 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
-                //DWFP
                 my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
                 my_streamer->set_on_fini(chan_i, boost::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
@@ -1149,7 +1145,6 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
-                //DWFC
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &cyan_4r4t_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
                 ));
