@@ -1213,8 +1213,10 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     for( int dspno = 0; dspno < CYAN_4R4T_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+        //DWF
 		std::string chan    = "Channel_" + num;
 
+        //DWF
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
 		const fs_path db_path       = mb_path / "dboards" / num;
@@ -1266,7 +1268,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
                //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
-                TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4T_LO_OFFSET );
+        //DWFP
+        TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4T_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t((double) CYAN_4R4T_FREQ_RANGE_START, (double) CYAN_4R4T_FREQ_RANGE_STOP, (double) CYAN_4R4T_FREQ_RANGE_STEP));
@@ -1284,6 +1287,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 
 		// DSPs
+        //DWF
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
@@ -1312,6 +1316,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
+        //DWF
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
@@ -1471,14 +1476,19 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 
 void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
+    //DWFP: there was something similar to this that required wierd mapping
 	switch( chan ) {
 	case 0:
-	case 2:
 		sfp = "sfpa";
 		break;
 	case 1:
+        sfp = "sfpb";
+        break;
+    case 2:
+        sfp = "sfpc";
+        break;
 	case 3:
-		sfp = "sfpb";
+		sfp = "sfpd";
 		break;
 	}
 
