@@ -145,6 +145,7 @@ void cyan_4r4t_impl::set_int(const std::string pre, int data){
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
+//DWFP
 mboard_eeprom_t cyan_4r4t_impl::get_mboard_eeprom(std::string req) {
 	(void)req;
 	mboard_eeprom_t temp;
@@ -257,7 +258,8 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
 time_spec_t cyan_4r4t_impl::get_time_spec(std::string req) {
 	if ( false ) {
-	} else if ( "time/clk/set_time" == req ) {
+        //DWFC
+	} else if ( "time/clk/cur_time" == req ) {
 		return get_time_now();
 	} else if ( "time/clk/pps" == req ) {
 		return uhd::time_spec_t( get_time_now().get_full_secs() );
@@ -269,12 +271,14 @@ time_spec_t cyan_4r4t_impl::get_time_spec(std::string req) {
 	}
 }
 void cyan_4r4t_impl::set_time_spec( const std::string key, time_spec_t value ) {
-	if ( "time/clk/set_time" == key ) {
+    //DWFC
+	if ( "time/clk/cur_time" == key ) {
 		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
 		stop_bm();
 	}
 	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
-	if ( "time/clk/set_time" == key ) {
+    //DWFC
+	if ( "time/clk/cur_time" == key ) {
 		start_bm();
 	}
 
