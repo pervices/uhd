@@ -25,7 +25,7 @@
 
 #include "../../transport/super_recv_packet_handler.hpp"
 // TODO: fix flow control for crimson and switch back to using
-// #include "../../transport/super_send_packet_handler.hpp"
+#include "../../transport/super_send_packet_handler.hpp"
 // Remember to uncomment function definitions and bind callbacks 
 // for update_fc_send_count and check_flow_control in this file
 // and change all references to sphc back to sph
@@ -180,7 +180,7 @@ static void shutdown_lingering_rx_streamers() {
 // XXX: @CF: 20180227: We need this for several reasons
 // 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
 // 2) to wrap sphc::send_packet_streamer::send() and use our existing flow control algorithm
-class cyan_4r4t_send_packet_streamer : public sphc::send_packet_streamer {
+class cyan_4r4t_send_packet_streamer : public sph::send_packet_streamer {
 public:
 
 	typedef boost::function<void(void)> onfini_type;
@@ -190,7 +190,7 @@ public:
 
 	cyan_4r4t_send_packet_streamer( const size_t max_num_samps )
 	:
-		sphc::send_packet_streamer( max_num_samps ),
+		sph::send_packet_streamer( max_num_samps ),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
@@ -395,12 +395,12 @@ public:
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CYAN_4R4T_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
-		//DWF
-		sphc::send_packet_handler::resize(size);
+		//DWC
+		sph::send_packet_handler::resize(size);
     }
 
     void set_samp_rate(const double rate){
-        sphc::send_packet_handler::set_samp_rate( rate );
+        sph::send_packet_handler::set_samp_rate( rate );
         _samp_rate = rate;
         uhd::time_spec_t now = get_time_now();
         for( auto & ep: _eprops ) {
