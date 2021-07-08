@@ -142,7 +142,7 @@ int cyan_4r4t_impl::get_int(std::string req) {
 void cyan_4r4t_impl::set_int(const std::string pre, int data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
-}0000
+}
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
 //DWFP
