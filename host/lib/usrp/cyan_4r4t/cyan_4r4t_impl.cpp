@@ -536,7 +536,6 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-//DWFC
 static constexpr double tick_period_ns = 2.0 / CYAN_4R4T_MASTER_CLOCK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
