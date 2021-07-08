@@ -110,7 +110,8 @@ std::string cyan_4r4t_iface::peek_str( float timeout_s ) {
 
 std::string cyan_4r4t_iface::peek_str() {
     //DWFP
-	return peek_str( 6.250 );
+    //Increasing this variable to see if it reduces timeouts
+	return peek_str( 15 );
 }
 
 /***********************************************************************
