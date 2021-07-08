@@ -1082,6 +1082,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
+    //DWFP
     if (args.otw_format != "sc16"){
         throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
     }
@@ -1136,6 +1137,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
             num_chan_so_far += _mbc[mb].tx_chan_occ;
             if (chan < num_chan_so_far){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
+                //DWFP
                 my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
                 my_streamer->set_on_fini(chan_i, boost::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
@@ -1147,7 +1149,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
-/* These functions not defined while using super_send_packet_handler_crimson
+                //DWFC
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &cyan_4r4t_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
                 ));
@@ -1155,7 +1157,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
                     &cyan_4r4t_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
                 ));
-*/
+
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
