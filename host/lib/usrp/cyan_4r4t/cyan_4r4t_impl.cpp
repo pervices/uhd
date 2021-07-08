@@ -706,7 +706,7 @@ void cyan_4r4t_impl::start_bm() {
 			time_now = uhd::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
+				UHD_LOGGER_ERROR("CYAN_4R4T_IMPL")
 					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
 					<< std::endl;
 				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
@@ -735,6 +735,7 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 
 	dev->_bm_thread_running = true;
 
+    int xg_intf = 0;
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_4R4T_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CYAN_4R4T_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
@@ -747,8 +748,8 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 
 	//Gett offset
 	now = uhd::get_system_time();
-	dev->time_diff_send( now );
-	dev->time_diff_recv( tdr );
+	dev->time_diff_send( now, xg_intf );
+	dev->time_diff_recv( tdr, xg_intf );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -774,10 +775,11 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now );
-		if ( ! dev->time_diff_recv( tdr ) ) {
+		dev->time_diff_send( crimson_now, xg_intf );
+		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
+			std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
 			continue;
-		}
+        }
 		dev->time_diff_process( tdr, now );
 		//dev->fifo_update_process( tdr );
 
@@ -786,11 +788,18 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 			now = uhd::get_system_time();
 
 			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CRIMSON_IMPL" )
+				UHD_LOGGER_INFO( "CYAN_4R4T_IMPL" )
 					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
 					<< std::endl;
 			}
 #endif
+        // At every iteration, loop through different interfaces so that we
+        // have an average of the time diffs through different interfaces!
+        if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
+            xg_intf++;
+        } else {
+            xg_intf = 0;
+        }
 	}
 	dev->_bm_thread_running = false;
 }
