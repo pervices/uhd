@@ -34,7 +34,7 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
-namespace ling_cyan_4r4t {
+namespace link_cyan_4r4t {
     const int num_links = 2;
     const char *subnets[num_links] = { "10.10.10.", "10.10.11."};
     const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2"};
@@ -821,14 +821,14 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     char buffer[256];
 
     // FOR EACH INTERFACE
-    for (int j = 0; j < ling_cyan_4r4t::num_links; j++) {
+    for (int j = 0; j < link_cyan_4r4t::num_links; j++) {
         // CHECK PING
-        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",ling_cyan_4r4t::addrs[j]); 
+        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_4r4t::addrs[j]); 
         check = system(cmd);
         if (check!=0){
-            UHD_LOG_WARNING("PING", "Failed for " << ling_cyan_4r4t::addrs[j] << ", please check " << ling_cyan_4r4t::names[j]);
+            UHD_LOG_WARNING("PING", "Failed for " << link_cyan_4r4t::addrs[j] << ", please check " << link_cyan_4r4t::names[j]);
         }
-        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",ling_cyan_4r4t::subnets[j]); 
+        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_4r4t::subnets[j]); 
         stream = popen(cmd, "r");
         if (stream) {
             while(!feof(stream))
@@ -838,12 +838,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         // CHECK MTU
         check = 0;
         for (int i =0; i < 4; i++) {
-            if (ling_cyan_4r4t::mtu_ref[i] != buffer[i+4]) {
+            if (link_cyan_4r4t::mtu_ref[i] != buffer[i+4]) {
                 check ++;
             }
         }
         if (check != 0) {
-            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << ling_cyan_4r4t::mtu_ref <<  " for subnet " << ling_cyan_4r4t::subnets[j] << " may impact data sent over " << ling_cyan_4r4t::names[j]);
+            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_4r4t::mtu_ref <<  " for subnet " << link_cyan_4r4t::subnets[j] << " may impact data sent over " << link_cyan_4r4t::names[j]);
         }
     }
 
