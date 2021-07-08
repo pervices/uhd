@@ -276,7 +276,8 @@ public:
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CYAN_4R4T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
+            //DWFC
+            std::cout << "UHD::CYAN_4R4T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -297,7 +298,8 @@ public:
 
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
         // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
-      //  std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
+        // std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
+        //DWFP
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
         //for( auto & ep: _eprops ) {
@@ -335,6 +337,7 @@ public:
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
         //wait on flow control w/ timeout
+        //DWFP
         if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
 
         //get a buffer from the transport w/ timeout
@@ -342,10 +345,12 @@ public:
 
         //Last thing we do is update our buffer model with sent data
         //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
+        //DWFP
         my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
-/* These functions not defined while using super_send_packet_handler_crimson
+
+    //DWFC
     static void update_fc_send_count( boost::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
         boost::shared_ptr<cyan_4r4t_send_packet_streamer> my_streamer =
@@ -360,7 +365,7 @@ public:
 
         return my_streamer->check_fc_condition( chan, timeout);
     }
-*/
+
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
