@@ -431,11 +431,8 @@ static device_addrs_t cyan_4r4t_find_with_addr(const device_addr_t &hint)
         tng_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
-#ifdef PV_TATE
-        if (tokens[2] != "tate") break;
-#else
+
         if (tokens[2] != "cyan_4r4t") break;
-#endif
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
@@ -486,11 +483,7 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
 
-#ifdef PV_TATE
-    if (hint.has_key("type") and hint["type"] != "tate") return addrs;
-#else
     if (hint.has_key("type") and hint["type"] != "cyan_4r4t") return addrs;
-#endif
 
     //use the address given
     if (hint.has_key("addr"))
@@ -543,7 +536,8 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 2.0 / CYAN_4R4T_MASTER_CLOCK_RATE * 1e9;
+//DWFC
+static constexpr double tick_period_ns = 1.0 / CYAN_4R4T_MASTER_CLOCK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
