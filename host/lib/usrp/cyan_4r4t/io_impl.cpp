@@ -180,7 +180,7 @@ static void shutdown_lingering_rx_streamers() {
 // XXX: @CF: 20180227: We need this for several reasons
 // 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
 // 2) to wrap sphc::send_packet_streamer::send() and use our existing flow control algorithm
-class cyan_4r4t_send_packet_streamer : public sphc::send_packet_streamer {
+class cyan_4r4t_send_packet_streamer : public sph::send_packet_streamer {
 public:
 
 	typedef boost::function<void(void)> onfini_type;
