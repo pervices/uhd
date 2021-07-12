@@ -734,6 +734,9 @@ void cyan_4r4t_impl::update_rates(void){
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
 
+        std::cout << "T3" << std::endl;
+        std::exit(1);
+
         //and now that the tick rate is set, init the host rates to something
         BOOST_FOREACH(const std::string &name, _tree->list(root / "rx_dsps")){
             // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
@@ -753,7 +756,6 @@ void cyan_4r4t_impl::update_rates(void){
         }
     }
     std::cout << "T5" << std::endl;
-    std::exit(1);
 }
 
 void cyan_4r4t_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
