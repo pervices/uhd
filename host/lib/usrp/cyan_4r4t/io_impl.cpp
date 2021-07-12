@@ -729,12 +729,9 @@ void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
 }
 
 void cyan_4r4t_impl::update_rates(void){
-    std::cout << "T1" << std::endl;
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
-
-        std::cout << "T3" << std::endl;
 
         //and now that the tick rate is set, init the host rates to something
         BOOST_FOREACH(const std::string &name, _tree->list(root / "rx_dsps")){
@@ -742,12 +739,10 @@ void cyan_4r4t_impl::update_rates(void){
             // if the current application does not require rx, then we should not enable it
             // just checking for power is not a great way to do this, but it mostly works
             if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
-                //T3.5
-                //_tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
+                //This lines is what is causeing JESD links to go down 2021-07-12
+                _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
             }
         }
-        std::cout << "T4" << std::endl;
-        std::exit(1);
 
         BOOST_FOREACH(const std::string &name, _tree->list(root / "tx_dsps")){
             // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
