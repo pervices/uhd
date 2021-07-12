@@ -1645,7 +1645,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
-	int band = select_band( clipped_requested_freq, bw );
+	int band = select_band( clipped_requested_freq );
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy

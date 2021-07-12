@@ -166,6 +166,6 @@ enum {
     LOW_BAND,
     MID_BAND,
     HIGH_BAND,
-}
+};
 
 #endif /* INCLUDED_CYAN_4R4T_FW_COMMON_H */
