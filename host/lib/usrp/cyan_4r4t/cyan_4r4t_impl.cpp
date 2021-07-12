@@ -1483,8 +1483,10 @@ constexpr double RX_SIGN = +1.0;
 constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
-	return freq + bw / 2.0 >= dsp_range.stop();
+static int select_band( const double freq ) {
+	if( freq > CYAN_4R4T_MID_HIGH_BARRIER ) return HIGH_BAND;
+    if( freq > CYAN_4R4T_LOW_MID_BARRIER ) return MID_BAND;
+    return LOW_BAND;
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
@@ -1634,11 +1636,6 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
-    //DWF: this needs to have all bands added, 64t calls them low, high, and super low
-	enum {
-		LOW_BAND,
-		HIGH_BAND,
-	};
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
@@ -1648,7 +1645,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
-	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
+	int band = select_band( clipped_requested_freq, bw );
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
