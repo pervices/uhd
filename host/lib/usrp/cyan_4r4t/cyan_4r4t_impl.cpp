@@ -1382,9 +1382,6 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 //        }
     }
 
-    std::cout << "T1.5" << std::endl;
-    std::exit(1);
-
 	for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
         int sfp_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();

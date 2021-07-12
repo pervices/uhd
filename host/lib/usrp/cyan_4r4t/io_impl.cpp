@@ -740,7 +740,7 @@ void cyan_4r4t_impl::update_rates(void){
             // just checking for power is not a great way to do this, but it mostly works
             if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
                 //This lines is what is causeing JESD links to go down 2021-07-12
-                _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
+                //_tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
             }
         }
 
@@ -753,7 +753,6 @@ void cyan_4r4t_impl::update_rates(void){
             }
         }
     }
-    std::cout << "T5" << std::endl;
 }
 
 void cyan_4r4t_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
