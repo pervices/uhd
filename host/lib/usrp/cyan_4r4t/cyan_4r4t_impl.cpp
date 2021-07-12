@@ -1358,7 +1358,6 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	this->io_init();
 
     std::cout << "T1" << std::endl;
-    std::exit(1);
 
     //do some post-init tasks
     this->update_rates();
@@ -1387,7 +1386,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 //        }
     }
 
-    std::cout << "T0.5" << std::endl;
+    std::cout << "T1.5" << std::endl;
     std::exit(1);
 
 	for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
