@@ -158,4 +158,14 @@
 				( CYAN_4R4T_VITA_TLR_E      << 7) |\
 				( CYAN_4R4T_VITA_TLR_PCKCNT << 0) )
 
+// Constants to determine which frequency band to use
+#define CYAN_4R4T_LOW_MID_BARRIER 500000000
+#define CYAN_4R4T_MID_HIGH_BARRIER 6000000000
+
+enum {
+    LOW_BAND = 1,
+    MID_BAND = 2,
+    HIGH_BAND = 3,
+};
+
 #endif /* INCLUDED_CYAN_4R4T_FW_COMMON_H */
