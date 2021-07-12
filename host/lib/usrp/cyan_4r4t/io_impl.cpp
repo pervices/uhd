@@ -692,9 +692,6 @@ struct cyan_4r4t_impl::io_impl{
  **********************************************************************/
 void cyan_4r4t_impl::io_init(void){
 
-    std::cout << "T1.125" << std::endl;
-    std::exit(1);
-
 	// TODO: @CF: 20180301: move time diff code into io_impl
 	_io_impl = UHD_PIMPL_MAKE(io_impl, ());
 
@@ -732,6 +729,8 @@ void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
 }
 
 void cyan_4r4t_impl::update_rates(void){
+    std::cout << "T1.125" << std::endl;
+    std::exit(1);
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
