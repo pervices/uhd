@@ -1670,9 +1670,9 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 				// in low band, we only use the DSP to tune
 				target_rf_freq = 0;
 				break;
-			case HIGH_BAND:
+			case MID_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
-				// in high band, we use the LO for most of the shift, and use the DSP for the difference
+				// in mid band, we use the LO for most of the shift, and use the DSP for the difference
 				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
 				break;
 			}
