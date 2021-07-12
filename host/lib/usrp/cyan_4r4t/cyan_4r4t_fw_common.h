@@ -163,9 +163,9 @@
 #define CYAN_4R4T_MID_HIGH_BARRIER 6000000000
 
 enum {
-    LOW_BAND,
-    MID_BAND,
-    HIGH_BAND,
+    LOW_BAND = 1,
+    MID_BAND = 2,
+    HIGH_BAND = 3,
 };
 
 #endif /* INCLUDED_CYAN_4R4T_FW_COMMON_H */

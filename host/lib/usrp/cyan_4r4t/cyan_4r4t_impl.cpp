@@ -1642,10 +1642,13 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
 	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
+    //DW 20210712: I have not modified this for 4r4t, the clipped frequency result may be wrong
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
 	int band = select_band( clipped_requested_freq );
+
+    std::cout << "Band: " << band << std::endl;
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
