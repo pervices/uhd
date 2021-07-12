@@ -687,8 +687,7 @@ void cyan_4r4t_impl::start_bm() {
 
 	if ( ! _bm_thread_running ) {
 
-        std::cout << "T1" << std::endl;
-        std::exit(1);
+        std::cout << "T2" << std::endl;
 
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
@@ -729,7 +728,6 @@ bool cyan_4r4t_impl::time_diff_converged() {
 
 // the buffer monitor thread
 void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
-    std::cout << "T2" << std::endl;
 
 	dev->_bm_thread_running = true;
 
@@ -1358,6 +1356,9 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
 
 	this->io_init();
+
+    std::cout << "T1" << std::endl;
+    std::exit(1);
 
     //do some post-init tasks
     this->update_rates();
