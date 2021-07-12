@@ -1355,12 +1355,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 	this->io_init();
 
-    std::cout << "T1" << std::endl;
-
     //do some post-init tasks
     this->update_rates();
-    std::cout << "T1.25" << std::endl;
-    std::exit(1);
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 

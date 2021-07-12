@@ -729,8 +729,7 @@ void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
 }
 
 void cyan_4r4t_impl::update_rates(void){
-    std::cout << "T1.125" << std::endl;
-    std::exit(1);
+    std::cout << "T1" << std::endl;
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
@@ -753,6 +752,8 @@ void cyan_4r4t_impl::update_rates(void){
             }
         }
     }
+    std::cout << "T5" << std::endl;
+    std::exit(1);
 }
 
 void cyan_4r4t_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
