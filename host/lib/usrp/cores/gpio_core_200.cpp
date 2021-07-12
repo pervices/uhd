@@ -105,13 +105,10 @@ private:
     }
 
     void update(void){
-        std::cout << "T1" << std::endl;
-        std::exit(1);
         update(gpio_atr::ATR_REG_IDLE);
         update(gpio_atr::ATR_REG_TX_ONLY);
         update(gpio_atr::ATR_REG_RX_ONLY);
         update(gpio_atr::ATR_REG_FULL_DUPLEX);
-        std::cout << "T5" << std::endl;
     }
 
     void update(const atr_reg_t atr){
