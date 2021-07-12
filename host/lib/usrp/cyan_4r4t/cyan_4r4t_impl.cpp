@@ -687,8 +687,6 @@ void cyan_4r4t_impl::start_bm() {
 
 	if ( ! _bm_thread_running ) {
 
-        std::cout << "T2" << std::endl;
-
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
 
@@ -1361,6 +1359,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
     //do some post-init tasks
     this->update_rates();
+    std::cout << "T1.25" << std::endl;
+    std::exit(1);
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 
