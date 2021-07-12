@@ -742,7 +742,8 @@ void cyan_4r4t_impl::update_rates(void){
             // if the current application does not require rx, then we should not enable it
             // just checking for power is not a great way to do this, but it mostly works
             if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
-                _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
+                //T3.5
+                //_tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
             }
         }
         std::cout << "T4" << std::endl;
