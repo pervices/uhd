@@ -735,7 +735,6 @@ void cyan_4r4t_impl::update_rates(void){
         _tree->access<double>(root / "tick_rate").update();
 
         std::cout << "T3" << std::endl;
-        std::exit(1);
 
         //and now that the tick rate is set, init the host rates to something
         BOOST_FOREACH(const std::string &name, _tree->list(root / "rx_dsps")){
@@ -746,6 +745,9 @@ void cyan_4r4t_impl::update_rates(void){
                 _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
             }
         }
+        std::cout << "T4" << std::endl;
+        std::exit(1);
+
         BOOST_FOREACH(const std::string &name, _tree->list(root / "tx_dsps")){
             // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
             // if the current application does not require tx, then we should not enable it
