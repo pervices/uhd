@@ -687,6 +687,9 @@ void cyan_4r4t_impl::start_bm() {
 
 	if ( ! _bm_thread_running ) {
 
+        std::cout << "T1" << std::endl;
+        std::exit(1);
+
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
 
@@ -726,8 +729,7 @@ bool cyan_4r4t_impl::time_diff_converged() {
 
 // the buffer monitor thread
 void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
-    std::cout << "T1" << std::endl;
-    std::exit(1);
+    std::cout << "T2" << std::endl;
 
 	dev->_bm_thread_running = true;
 
@@ -747,7 +749,6 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 	dev->time_diff_send( now, xg_intf );
 	dev->time_diff_recv( tdr, xg_intf );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
-    std::cout << "T2" << std::endl;
 	for(
 		now = uhd::get_system_time(),
 			then = now + T
