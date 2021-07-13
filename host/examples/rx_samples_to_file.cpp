@@ -91,6 +91,7 @@ template<typename samp_type> void recv_to_file(
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
+            std::cout << num_total_samps << "samples received before timeout" << std::endl;
             break;
         }
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
