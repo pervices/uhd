@@ -1485,9 +1485,12 @@ constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static int select_band( const double freq ) {
-	if( freq > CYAN_4R4T_MID_HIGH_BARRIER ) return HIGH_BAND;
-    if( freq > CYAN_4R4T_LOW_MID_BARRIER ) return MID_BAND;
-    return LOW_BAND;
+	if( freq >= CYAN_4R4T_MID_HIGH_BARRIER )
+        return HIGH_BAND;
+    else if( freq >= CYAN_4R4T_LOW_MID_BARRIER )
+        return MID_BAND;
+    else
+        return LOW_BAND;
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
