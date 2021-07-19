@@ -41,7 +41,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("lo-freq", po::value<double>(&lo_freq)->default_value(0), "To amount to shift the signal's frequency down using the lo mixer")
         ("dsp-freq", po::value<double>(&dsp_freq)->default_value(0), "The amount to shift the signal's frequency using the cordic mixer. Can be negative")
-        ("gain", po::value<std::string>(&gain)->default_value(0), "Gain for the Rx RF chain")
+        ("gain", po::value<double>(&gain)->default_value(0), "Gain for the Rx RF chain")
         ("execfile", po::value<std::string>(&exec_file)->default_value(""), "The file that should be run immediately prior to the device starting to stream data.")
     ;
     po::variables_map vm;
