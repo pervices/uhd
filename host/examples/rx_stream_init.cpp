@@ -35,7 +35,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming samples")
-        ("sync", po::value<std::string>(&sync)->default_value("now"), "synchronization method: now, pps, mimo")
+        ("sync", po::value<std::string>(&sync)->default_value("now"), "synchronization method: now, pps")
         ("subdev", po::value<std::string>(&subdev), "subdev spec (homogeneous across motherboards)")
         ("dilv", "specify to disable inner-loop verbose")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
@@ -88,19 +88,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         usrp->set_time_source("external");
         usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
         std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
-    }
-    else if (sync == "mimo"){
-        UHD_ASSERT_THROW(usrp->get_num_mboards() == 2);
-
-        //make mboard 1 a slave over the MIMO Cable
-        usrp->set_clock_source("mimo", 1);
-        usrp->set_time_source("mimo", 1);
-
-        //set time on the master (mboard 0)
-        usrp->set_time_now(uhd::time_spec_t(0.0), 0);
-
-        //sleep a bit while the slave locks its time to the master
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    } else {
+        std::cerr << boost::format("Invalid synchronization method\n")
+        throw std::runtime_error(error);
     }
 
     //detect which channels to use
