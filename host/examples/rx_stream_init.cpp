@@ -22,10 +22,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, sync, subdev, channel_list;
+    std::string args, sync, subdev, channel_list, exec_file;
     double seconds_in_future;
     size_t total_num_samps;
-    double rate;
+    double rate, lo-freq, dsp-freq, gain;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -39,6 +39,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("subdev", po::value<std::string>(&subdev), "subdev spec (homogeneous across motherboards)")
         ("dilv", "specify to disable inner-loop verbose")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("lo-freq", po::value<double>(&lo_freq)->default_value(0), "To amount to shift the signal's frequency down using the lo mixer")
+        ("dsp-freq", po::value<double>(&dsp_freq)->default_value(0), "The amount to shift the signal's frequency using the cordic mixer. Can be negative")
+        ("gain", po::value<std::string>(&gain)->default_value(0), "Gain for the Rx RF chain")
+        ("exec_file", po::value<std::string>(&exec_file)->default_value(""), "The file that should be run immediately prior to the device starting to stream data."
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -89,7 +93,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
         std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
     } else {
-        std::cerr << boost::format("Invalid synchronization method\n")
+        std::cerr << boost::format("Invalid synchronization method\n");
         throw std::runtime_error(error);
     }
 
