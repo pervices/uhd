@@ -25,7 +25,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string args, sync, subdev, channel_list, exec_file;
     double seconds_in_future;
     size_t total_num_samps;
-    double rate, lo-freq, dsp-freq, gain;
+    double rate, lo_freq, dsp_freq, gain;
 
     //setup the program options
     po::options_description desc("Allowed options");
