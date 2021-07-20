@@ -769,9 +769,9 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now, xg_intf );
+		dev->time_diff_send( crimson_now );
         //The warning will be triggered during normal operation, so has been commented out
- 		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
+ 		if ( ! dev->time_diff_recv( tdr ) ) {
  			//std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
  			continue;
          }
@@ -790,7 +790,8 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 #endif
         // At every iteration, loop through different interfaces so that we
         // have an average of the time diffs through different interfaces!
-        if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
+        //Note: this has been changed to only use one port
+        if (xg_intf < 1) {
             xg_intf++;
         } else {
             xg_intf = 0;
