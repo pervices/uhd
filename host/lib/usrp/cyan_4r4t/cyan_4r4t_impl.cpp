@@ -742,8 +742,8 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 
 	//Gett offset
 	now = uhd::get_system_time();
-	dev->time_diff_send( now, xg_intf );
-	dev->time_diff_recv( tdr, xg_intf );
+	dev->time_diff_send( now );
+	dev->time_diff_recv( tdr );
 	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
