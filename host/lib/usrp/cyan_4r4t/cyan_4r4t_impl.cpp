@@ -1047,7 +1047,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_4R4T_MASTER_CLOCK_RATE / 2);
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
-    TREE_CREATE_RW(time_path / "now", "time/clk/set_time", time_spec_t, time_spec);
+    TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
