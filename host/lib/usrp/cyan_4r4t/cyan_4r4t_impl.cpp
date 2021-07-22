@@ -1453,7 +1453,7 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 
 void cyan_4r4t_impl::get_rx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
-	switch( chan ) {ping
+	switch( chan ) {
 	case 0:
 		sfp = "sfpa";
 		break;

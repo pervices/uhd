@@ -254,6 +254,8 @@ private:
     double get_tx_freq(size_t chan = 0);
 
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
+
+    static void get_rx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
 };
 
 }
