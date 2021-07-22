@@ -1451,6 +1451,35 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 	return r;
 }
 
+void cyan_4r4t_impl::get_rx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
+
+	switch( chan ) {ping
+	case 0:
+		sfp = "sfpa";
+		break;
+	case 1:
+        sfp = "sfpb";
+        break;
+    case 2:
+        sfp = "sfpc";
+        break;
+	case 3:
+		sfp = "sfpd";
+		break;
+	}
+
+	const std::string chan_str( 1, 'A' + chan );
+	const fs_path mb_path   = "/mboards/0";
+	const fs_path prop_path = mb_path / "rx_link";
+
+	const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
+
+	std::stringstream udp_port_ss( udp_port_str );
+	udp_port_ss >> udp_port;
+
+	ip_addr = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
+}
+
 void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	switch( chan ) {
