@@ -790,11 +790,11 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 #endif
         // At every iteration, loop through different interfaces so that we
         // have an average of the time diffs through different interfaces!
-        if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
+        /*if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
             xg_intf++;
         } else {
             xg_intf = 0;
-        }
+        }*/
 	}
 	dev->_bm_thread_running = false;
 }
