@@ -251,7 +251,7 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 
     //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
     //This relies on the server to provide it
-    size_t jesd_num = cyan_4r4t_impl::get_rx_jesd_num(channel);
+    size_t jesd_num = cyan_4r4t_impl::get_rx_jesd_num(ch);
 
 	make_rx_stream_cmd_packet( stream_cmd, now, jesd_num, rx_stream_cmd );
 
