@@ -257,8 +257,6 @@ private:
 
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
 
-    static void get_rx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
-
     int get_rx_xg_intf(int channel);
 
     int get_rx_jesd_num(int channel);
