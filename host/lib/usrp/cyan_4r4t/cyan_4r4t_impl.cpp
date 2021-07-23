@@ -1473,7 +1473,7 @@ int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
     std::string sfp = tree->access<std::string>( rx_link_path / "iface" ).get();
     std::cout << "Attempting to use sfp port: " << sfp << std::endl;
     int xg_intf = sfp.back() - 'a';
-    std::cout << "sfp port number: " << xg_intf << std::endl"
+    std::cout << "sfp port number: " << xg_intf << std::endl;
     return xg_intf;
 }
 
