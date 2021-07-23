@@ -565,7 +565,7 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 
     //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
     //This relies on the server to provide it
-    const size_t jesd_num = get_rx_jesd_num((int) channel);
+    size_t jesd_num = get_rx_jesd_num(size_t channel);
 
     static const uint8_t channel_bits = 16;
     static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
