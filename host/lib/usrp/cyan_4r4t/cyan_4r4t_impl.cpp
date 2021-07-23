@@ -565,7 +565,7 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 
     //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
     //This relies on the server to provide it
-    const size_t jesd_num = get_rx_jesd_num(channel);
+    const size_t jesd_num = get_rx_jesd_num((int) channel);
 
     static const uint8_t channel_bits = 16;
     static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
@@ -1472,7 +1472,7 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 }
 
 //gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
-static int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
+int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
