@@ -68,7 +68,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     bool verbose = vm.count("dilv") == 0;
 
-    std::string pre_run_cmd = "./" + pre_exec_file;
+    const char * pre_run_cmd = ("./" + pre_exec_file).c_str();
     if(!pre_exec_file.empty()) {
         system(pre_run_cmd);
     }
