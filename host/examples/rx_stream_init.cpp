@@ -98,6 +98,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         usrp->set_time_source("external");
         usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
         std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
+    }
     else {
         throw std::runtime_error(str(
             boost::format("Invalid synchronization method \"%s\"")
