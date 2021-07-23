@@ -1472,7 +1472,7 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
-    std::string jesd_num = _tree->access<std::string>( rx_link_path / "jesd_num" ).get();
+    int jesd_num = _tree->access<std::string>( rx_link_path / "jesd_num" ).get();
     std::cout << "Attempting to set jesd num: " << jesd_num << std::endl;
     return jesd_num;
 }
