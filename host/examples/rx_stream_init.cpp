@@ -22,7 +22,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, sync, subdev, channel_list, exec_file;
+    std::string args, sync, subdev, channel_list, pre_exec_file, post_exec_file;
     double seconds_in_future;
     size_t total_num_samps;
     double rate, lo_freq, dsp_freq, gain;
@@ -42,7 +42,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("lo-freq", po::value<double>(&lo_freq)->default_value(0), "To amount to shift the signal's frequency down using the lo mixer")
         ("dsp-freq", po::value<double>(&dsp_freq)->default_value(0), "The amount to shift the signal's frequency using the cordic mixer. Can be negative")
         ("gain", po::value<double>(&gain)->default_value(0), "Gain for the Rx RF chain")
-        ("execfile", po::value<std::string>(&exec_file)->default_value(""), "The file that should be run immediately prior to the device starting to stream data.")
+        ("preexecfile", po::value<std::string>(&pre_exec_file)->default_value(""), "The file that should be run immediately prior to the device starting to stream data.")
+        ("postexecfile", po::value<std::string>(&post_exec_file)->default_value(""), "The file that should be run finishing streaming data.")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -66,6 +67,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     bool verbose = vm.count("dilv") == 0;
+
+    if(!pre_exec_file.empty()) {
+        system("./" + pre_exec_file);
+    }
 
     //create a usrp device
     std::cout << std::endl;
@@ -92,7 +97,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         usrp->set_time_source("external");
         usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
         std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
-    } else {
+    else {
         throw std::runtime_error(str(
             boost::format("Invalid synchronization method \"%s\"")
             % sync
