@@ -553,6 +553,9 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 }
 
 void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
+    //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
+    //This relies on the server to provide it
+    size_t jesd_num = cyan_4r4t_impl::get_rx_jesd_num(channel);
 
     typedef boost::tuple<bool, bool, bool, bool> inst_t;
     static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
@@ -562,10 +565,6 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
         (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(false, false, true,  false))
         (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(false, true,  true,  false))
     ;
-
-    //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
-    //This relies on the server to provide it
-    size_t jesd_num = cyan_4r4t_impl::get_rx_jesd_num(channel);
 
     static const uint8_t channel_bits = 16;
     static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
