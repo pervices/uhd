@@ -571,7 +571,7 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
     static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
 
     // XXX: @CF: 20180404: header should be 0x10001
-	pkt.header = ( 0x1 << channel_bits ) | ( get_rx_jesd_num & channel_mask );
+	pkt.header = ( 0x1 << channel_bits ) | (jesd_num & channel_mask );
 
     //setup the instruction flag values
     bool inst_reload, inst_chain, inst_samps, inst_stop;
@@ -1472,7 +1472,7 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 }
 
 //gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
-int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
+static int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
