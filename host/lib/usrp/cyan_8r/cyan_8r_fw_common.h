@@ -61,8 +61,8 @@
 #define CYAN_8R_DEFAULT_IP_ETH3_10G        (10 << 24 | 10 << 16 | 13  << 8  | 2 << 0)
 #define CYAN_8R_DEFAULT_NETMASK_ETH3_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
-#define CYAN_8R_RX_CHANNELS 4
-#define CYAN_8R_TX_CHANNELS 4
+#define CYAN_8R_RX_CHANNELS 8
+#define CYAN_8R_TX_CHANNELS 0
 
 #define CYAN_8R_FW_COMMS_FLAGS_ACK        (1 << 0)
 #define CYAN_8R_FW_COMMS_FLAGS_ERROR      (1 << 1)
