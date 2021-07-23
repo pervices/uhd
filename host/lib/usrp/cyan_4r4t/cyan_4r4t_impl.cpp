@@ -251,9 +251,7 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 
 	make_rx_stream_cmd_packet( stream_cmd, now, ch, rx_stream_cmd );
 
-    int channel = 1;//placeholder value for testing
-
-    int xg_intf = cyan_4r4t_impl::get_rx_xg_intf(channel);
+    int xg_intf = cyan_4r4t_impl::get_rx_xg_intf(ch);
 
 	send_rx_stream_cmd_req( rx_stream_cmd, xg_intf );
 }
@@ -564,11 +562,16 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
         (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(false, false, true,  false))
         (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(false, true,  true,  false))
     ;
+
+    //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
+    //This relies on the server to provide it
+    const size_t jesd_num = get_rx_jesd_num(channel);
+
     static const uint8_t channel_bits = 16;
     static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
 
     // XXX: @CF: 20180404: header should be 0x10001
-	pkt.header = ( 0x1 << channel_bits ) | ( channel & channel_mask );
+	pkt.header = ( 0x1 << channel_bits ) | ( get_rx_jesd_num & channel_mask );
 
     //setup the instruction flag values
     bool inst_reload, inst_chain, inst_samps, inst_stop;
@@ -1473,7 +1476,7 @@ int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
-    std::cout << "Attempting to set jesd num: " << jesd_num << std::endl;
+    std::cout << "Attempting to get jesd num: " << jesd_num << std::endl;
     return jesd_num;
 }
 
@@ -1486,35 +1489,6 @@ int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
     int xg_intf = sfp.back() - 'a';
     std::cout << "sfp port number: " << xg_intf << std::endl;
     return xg_intf;
-}
-
-void cyan_4r4t_impl::get_rx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
-
-	switch( chan ) {
-	case 0:
-		sfp = "sfpa";
-		break;
-	case 1:
-        sfp = "sfpb";
-        break;
-    case 2:
-        sfp = "sfpc";
-        break;
-	case 3:
-		sfp = "sfpd";
-		break;
-	}
-
-	const std::string chan_str( 1, 'A' + chan );
-	const fs_path mb_path   = "/mboards/0";
-	const fs_path prop_path = mb_path / "rx_link";
-
-	const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
-
-	std::stringstream udp_port_ss( udp_port_str );
-	udp_port_ss >> udp_port;
-
-	ip_addr = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
 }
 
 void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
