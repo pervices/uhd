@@ -1190,6 +1190,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_link_path / "port",    "rx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
 
+        TREE_CREATE_RW(rx_link_path / "jesd_num",   "rx_"+lc_num+"/link/jesd_num",   int, int);
+
 		zero_copy_xport_params zcxp;
 		udp_zero_copy::buff_params bp;
 
@@ -1464,6 +1466,26 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 #endif
 
 	return r;
+}
+
+//gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
+int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
+    const fs_path mb_path   = "/mboards/0";
+    const fs_path rx_link_path  = mb_path / "rx_link" / channel;
+    std::string jesd_num = _tree->access<std::string>( rx_link_path / "jesd_num" ).get();
+    std::cout << "Attempting to set jesd num: " << jesd_num << std::endl;
+    return jesd_num;
+}
+
+//gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
+int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
+    const fs_path mb_path   = "/mboards/0";
+    const fs_path rx_link_path  = mb_path / "rx_link" / channel;
+    std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
+    std::cout << "Attempting to use sfp port: " << sfp << std::endl;
+    int xg_intf = sfp.back() - 'a';
+    std::cout << "sfp port number: " << xg_intf << std::endl;
+    return xg_intf;
 }
 
 //gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
