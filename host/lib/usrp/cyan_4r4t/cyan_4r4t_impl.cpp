@@ -592,11 +592,21 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 }
 
 void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
+    UHD_LOG_WARNING("STREAM_CMD", "No sfp for specified for streaming command, defaulting to %s", names[0]);
+	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
+}
+
+void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_intf) {
+
+    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
+        throw runtime_error( "XG Control interface offset out of bound!" );
+    }
+
 	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
+void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now,  ) {
 
 	time_diff_req pkt;
 
