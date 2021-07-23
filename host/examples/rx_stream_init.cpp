@@ -181,5 +181,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 
+    const char * post_run_cmd = ("./" + post_exec_file).c_str();
+    if(!post_exec_file.empty()) {
+        system(post_run_cmd);
+    }
+
     return EXIT_SUCCESS;
 }
