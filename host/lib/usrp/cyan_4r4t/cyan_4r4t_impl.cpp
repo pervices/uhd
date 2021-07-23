@@ -251,13 +251,17 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 
     //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
     //This relies on the server to provide it
-    std::cout << "Getting jesd_num" << std::endl;
     size_t jesd_num = cyan_4r4t_impl::get_rx_jesd_num(ch);
+#ifdef DEBUG_COUT
+    std::cout << "Creating packet with jesd_num: " << jesd_num << std::endl;
+#endif
 
 	make_rx_stream_cmd_packet( stream_cmd, now, jesd_num, rx_stream_cmd );
 
-    std::cout << "Getting interface_num" << std::endl;
     int xg_intf = cyan_4r4t_impl::get_rx_xg_intf(ch);
+#ifdef DEBUG_COUT
+    std::cout << "Sending packet on interface: " << xg_intf << std::endl;
+#endif
 
 	send_rx_stream_cmd_req( rx_stream_cmd, xg_intf );
 }
@@ -1477,7 +1481,6 @@ int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
-    std::cout << "Attempting to get jesd num: " << jesd_num << std::endl;
     return jesd_num;
 }
 
@@ -1486,9 +1489,7 @@ int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
-    std::cout << "Attempting to use sfp port: " << sfp << std::endl;
     int xg_intf = sfp.back() - 'a';
-    std::cout << "sfp port number: " << xg_intf << std::endl;
     return xg_intf;
 }
 
