@@ -606,7 +606,7 @@ void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now,  ) {
+void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 
 	time_diff_req pkt;
 
