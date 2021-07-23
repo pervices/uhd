@@ -261,7 +261,7 @@ private:
 
     int get_rx_xg_intf(int channel);
 
-    static int get_rx_jesd_num(int channel);
+    int get_rx_jesd_num(int channel);
 };
 
 }
