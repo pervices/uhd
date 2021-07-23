@@ -1488,17 +1488,6 @@ int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
     return xg_intf;
 }
 
-//gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
-int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
-    const fs_path mb_path   = "/mboards/0";
-    const fs_path rx_link_path  = mb_path / "rx_link" / channel;
-    std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
-    std::cout << "Attempting to use sfp port: " << sfp << std::endl;
-    int xg_intf = sfp.back() - 'a';
-    std::cout << "sfp port number: " << xg_intf << std::endl;
-    return xg_intf;
-}
-
 void cyan_4r4t_impl::get_rx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	switch( chan ) {
