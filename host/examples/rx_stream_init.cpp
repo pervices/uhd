@@ -67,10 +67,10 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.time_spec = uhd::time_spec_t();
 
     //runs pre-exec before starting the program
-    const char * pre_run_cmd = ("./" + pre_exec_file).c_str();
+    /*const char * pre_run_cmd = ("./" + pre_exec_file).c_str();
     if(!pre_exec_file.empty()) {
         system(pre_run_cmd);
-    }
+    }*/
 
     rx_stream->issue_stream_cmd(stream_cmd);
 
