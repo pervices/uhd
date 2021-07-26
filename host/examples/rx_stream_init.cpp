@@ -38,7 +38,8 @@ template<typename samp_type> void recv_to_file(
     bool stats = false,
     bool null = false,
     bool enable_size_map = false,
-    bool continue_on_bad_packet = false
+    bool continue_on_bad_packet = false,
+    double rate
 ){
     unsigned long long num_total_samps = 0;
     //create a receive streamer
@@ -63,6 +64,13 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.num_samps = size_t(num_requested_samples);
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
+
+    //runs pre-exec before starting the program
+    const char * pre_run_cmd = ("./" + pre_exec_file).c_str();
+    if(!pre_exec_file.empty()) {
+        system(pre_run_cmd);
+    }
+
     rx_stream->issue_stream_cmd(stream_cmd);
 
     typedef std::map<size_t,size_t> SizeMap;
@@ -75,107 +83,32 @@ template<typename samp_type> void recv_to_file(
     auto last_update = start_time;
     unsigned long long last_update_samps = 0;
 
-    // Run this loop until either time expired (if a duration was given), until
-    // the requested number of samples were collected (if such a number was
-    // given), or until Ctrl-C was pressed.
-    while (not stop_signal_called
-            and (num_requested_samples != num_total_samps
-                 or num_requested_samples == 0)
-            and (time_requested == 0.0
-                 or std::chrono::steady_clock::now() <= stop_time)
-            ) {
-        const auto now = std::chrono::steady_clock::now();
+    rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
 
-        size_t num_rx_samps =
-            rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
-
-        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-            std::cout << boost::format("Timeout while streaming") << std::endl;
-            std::cout << num_total_samps << "samples received before timeout" << std::endl;
-            break;
+    if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
+            std::cerr << boost::format("First packet timed out. It is likely that no data will be received") << std::endl;
         }
-        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW){
-            if (overflow_message) {
-                overflow_message = false;
-                std::cerr << boost::format(
-                    "Got an overflow indication. Please consider the following:\n"
-                    "  Your write medium must sustain a rate of %fMB/s.\n"
-                    "  Dropped samples will not be written to the file.\n"
-                    "  Please modify this example for your purposes.\n"
-                    "  This message will not appear again.\n"
-                ) % (usrp->get_rx_rate(channel)*sizeof(samp_type)/1e6);
-            }
+
+    if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
+        std::string error = str(boost::format("Receiver error: %s") % md.strerror());
+        if (continue_on_bad_packet){
+            std::cerr << error << std::endl;
             continue;
         }
-        if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
-            std::string error = str(boost::format("Receiver error: %s") % md.strerror());
-            if (continue_on_bad_packet){
-                std::cerr << error << std::endl;
-                continue;
-            }
-            else
-                throw std::runtime_error(error);
-        }
-
-        if (enable_size_map) {
-            SizeMap::iterator it = mapSizes.find(num_rx_samps);
-            if (it == mapSizes.end())
-                mapSizes[num_rx_samps] = 0;
-            mapSizes[num_rx_samps] += 1;
-        }
-
-        num_total_samps += num_rx_samps;
-
-        if (outfile.is_open()) {
-            outfile.write(
-                (const char*)&buff.front(),
-                num_rx_samps*sizeof(samp_type)
-            );
-        }
-
-        if (bw_summary) {
-            last_update_samps += num_rx_samps;
-            const auto time_since_last_update = now - last_update;
-            if (time_since_last_update > std::chrono::seconds(1)) {
-                const double time_since_last_update_s =
-                    std::chrono::duration<double>(time_since_last_update).count();
-                const double rate =
-                    double(last_update_samps) / time_since_last_update_s;
-                std::cout << "\t" << (rate/1e6) << " Msps" << std::endl;
-                last_update_samps = 0;
-                last_update = now;
-            }
-        }
+        else
+            throw std::runtime_error(error);
     }
-    const auto actual_stop_time = std::chrono::steady_clock::now();
+
+    //waits for samples to be received
+    if(num_requested_samples > 0) {
+        std::this_thread::sleep_for(std::chrono::seconds(num_requested_samples/rate + 1));
+    } else if(time_requested>0) {
+        std::this_thread::sleep_for(std::chrono::seconds(time_requested));
+    }
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
-    if (outfile.is_open()) {
-        outfile.close();
-    }
-
-    if (stats) {
-        std::cout << std::endl;
-        const double actual_duration_seconds =
-            std::chrono::duration<float>(actual_stop_time - start_time).count();
-
-        std::cout
-            << boost::format("Received %d samples in %f seconds")
-               % num_total_samps
-               % actual_duration_seconds
-            << std::endl;
-        const double rate = (double)num_total_samps / actual_duration_seconds;
-        std::cout << (rate/1e6) << " Msps" << std::endl;
-
-        if (enable_size_map) {
-            std::cout << std::endl;
-            std::cout << "Packet size map (bytes: count)" << std::endl;
-            for (SizeMap::iterator it = mapSizes.begin(); it != mapSizes.end(); it++)
-                std::cout << it->first << ":\t" << it->second << std::endl;
-        }
-    }
 }
 
 typedef std::function<uhd::sensor_value_t(const std::string&)> get_sensor_fn_t;
@@ -252,9 +185,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8, sc16 or s16)")
-        ("progress", "periodically display short-term bandwidth")
-        ("stats", "show average bandwidth on exit")
-        ("sizemap", "track packet size and display breakdown on exit")
+        //("progress", "periodically display short-term bandwidth")
+        //("stats", "show average bandwidth on exit")
+        //("sizemap", "track packet size and display breakdown on exit")
         ("null", "run without writing to file")
         ("continue", "don't abort on a bad packet")
         ("skip-lo", "skip checking LO lock status")
@@ -280,12 +213,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             << "This application streams data from a single channel of a USRP device to a file.\n"
             << std::endl;
         return ~0;
-    }
-
-    //runs the a specified exe before  running th rest of the program
-    const char * pre_run_cmd = ("./" + pre_exec_file).c_str();
-    if(!pre_exec_file.empty()) {
-        system(pre_run_cmd);
     }
 
     bool bw_summary = vm.count("progress") > 0;
