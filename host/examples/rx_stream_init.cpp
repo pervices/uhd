@@ -262,10 +262,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("int-n", "tune USRP with integer-N tuning")
 
         //stuff added for rx_stream
-        ("lo-freq", po::value<double>(&lo_freq)->default_value(0), "To amount to shift the signal's frequency down using the lo mixer")
-        ("dsp-freq", po::value<double>(&dsp_freq)->default_value(0), "The amount to shift the signal's frequency using the cordic mixer. Can be negative")
-        ("preexecfile", po::value<std::string>(&pre_exec_file)->default_value(""), "The file that should be run immediately prior to the device starting to stream data.")
-        ("postexecfile", po::value<std::string>(&post_exec_file)->default_value(""), "The file that should be run finishing streaming data.")
+        ("lo-freq", po::value<double>(&lo_freq), "To amount to shift the signal's frequency down using the lo mixer")
+        ("dsp-freq", po::value<double>(&dsp_freq), "The amount to shift the signal's frequency using the cordic mixer. Can be negative")
+        ("preexecfile", po::value<std::string>(&pre_exec_file), "The file that should be run immediately prior to the device starting to stream data.")
+        ("postexecfile", po::value<std::string>(&post_exec_file), "The file that should be run finishing streaming data.")
 
     ;
     po::variables_map vm;
