@@ -95,7 +95,7 @@ template<typename samp_type> void recv_to_file(
     //waits for samples to be received
     if(num_requested_samples > 0) {
         //This line could be optimized to minimize floating point rounding errors
-        std::this_thread::sleep_for(std::chrono::microseconds((int)((num_requested_samples/rate + 1)*(1e6)));
+        std::this_thread::sleep_for(std::chrono::microseconds((int)((num_requested_samples/rate + 1)*(1e6))));
     } else if(time_requested>0) {
         std::this_thread::sleep_for(std::chrono::microseconds((int)(time_requested*1e6)));
     }
