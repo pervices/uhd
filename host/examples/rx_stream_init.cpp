@@ -319,6 +319,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     usrp->set_rx_rate(rate, channel);
     std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate(channel)/1e6) << std::endl << std::endl;
 
+    //set the center frequency
+    if (vm.count("lo-freq") vm.count("dsp-freq")) { //with default of 0.0 this will always be true
+        double freq = lo_freq+dsp_freq;
+        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+        uhd::tune_request_t tune_request(dsp_freq, lo_freq, null);
+        if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
+        usrp->set_rx_freq(tune_request, channel);
+        std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
+    } else {
+        std::cerr << "Please specify a dsp and lo frequency" << std::endl;
+    }
+
     //set the rf gain
     if (vm.count("gain")) {
         std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;

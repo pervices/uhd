@@ -37,6 +37,20 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
     /* NOP */
 }
 
+//dummy is there to avoid an overload conflict with the target_freq and lo_off version
+tune_request_t::tune_request_t(double target_dsp_freq, double target_lo_freq, bool dummy):
+    target_freq(target_dsp_freq, target_lo_freq),
+    rf_freq_policy(POLICY_MANUAL),
+    rf_freq(target_freq),
+    rf_ch_freq(0.0),
+    rf_dp_freq(0.0),
+    lo_freq(target_lo_freq),
+    dsp_freq_policy(POLICY_MANUAL),
+    dsp_freq(target_dsp_freq)
+{
+    /* NOP */
+}
+
 tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf_dp_freq, double lo_off, double dsp_freq ):
     target_freq(target_freq),
     rf_freq_policy(POLICY_MANUAL),
