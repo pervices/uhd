@@ -240,7 +240,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
         ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to write binary samples to")
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
-        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
+        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("duration", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
         ("time", po::value<double>(&total_time), "(DEPRECATED) will go away soon! Use --duration instead")
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
@@ -280,6 +280,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             << "This application streams data from a single channel of a USRP device to a file.\n"
             << std::endl;
         return ~0;
+    }
+
+    //runs the a specified exe before  running th rest of the program
+    const char * pre_run_cmd = ("./" + pre_exec_file).c_str();
+    if(!pre_exec_file.empty()) {
+        system(pre_run_cmd);
     }
 
     bool bw_summary = vm.count("progress") > 0;
@@ -387,7 +393,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //finished
-    std::cout << std::endl << "Done!" << std::endl << std::endl;
+    std::cout << std::endl << "Running post exec!" << std::endl << std::endl;
+
+    const char * post_run_cmd = ("./" + post_exec_file).c_str();
+    if(!post_exec_file.empty()) {
+        system(post_run_cmd);
+    }
+
+    std::cout << std::endl << "Done" << std::endl << std::endl;
 
     return EXIT_SUCCESS;
 }
