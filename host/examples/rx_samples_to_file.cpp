@@ -38,10 +38,7 @@ template<typename samp_type> void recv_to_file(
     bool stats = false,
     bool null = false,
     bool enable_size_map = false,
-    bool continue_on_bad_packet = false,
-    double rate,
-    std::string pre_exec_file,
-    std::string post_exec_file
+    bool continue_on_bad_packet = false
 ){
     unsigned long long num_total_samps = 0;
     //create a receive streamer
@@ -378,7 +375,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
 #define recv_to_file_args(format) \
-    (usrp, format, wirefmt, channel, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet, rate, pre_exec_file, post_exec_file)
+    (usrp, format, wirefmt, channel, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet)
     //recv to file
     if (wirefmt == "s16") {
         if (type == "double") recv_to_file<double>recv_to_file_args("f64");
