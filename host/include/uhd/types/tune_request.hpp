@@ -49,6 +49,7 @@ namespace uhd{
          * \param lo_off the LO offset frequency in Hz
          * \param dsp_freq the target frequency of FPGA DSP
          */
+
         tune_request_t(double target_freq, double rf_ch_freq, double rf_dp_freq, double lo_off, double dsp_freq);
 
         //! Policy options for tunable elements in the RF chain.
