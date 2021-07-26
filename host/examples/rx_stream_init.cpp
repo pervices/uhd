@@ -39,8 +39,8 @@ template<typename samp_type> void recv_to_file(
     bool null = false,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
-    double rate,
-    std::string pre_exec_file
+    double rate = 0,
+    std::string pre_exec_file = ""
 ){
     unsigned long long num_total_samps = 0;
     //create a receive streamer
@@ -101,7 +101,8 @@ template<typename samp_type> void recv_to_file(
 
     //waits for samples to be received
     if(num_requested_samples > 0) {
-        std::this_thread::sleep_for(std::chrono::microseconds((num_requested_samples/rate + 1)*1e6));
+        //This line could be optimized to minimize floating point rounding errors
+        std::this_thread::sleep_for(std::chrono::microseconds((int)((num_requested_samples/rate + 1)*(1e6)));
     } else if(time_requested>0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(time_requested/1000));
     }
