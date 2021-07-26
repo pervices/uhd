@@ -93,7 +93,6 @@ template<typename samp_type> void recv_to_file(
         std::string error = str(boost::format("Receiver error: %s") % md.strerror());
         if (continue_on_bad_packet){
             std::cerr << error << std::endl;
-            continue;
         }
         else
             throw std::runtime_error(error);
