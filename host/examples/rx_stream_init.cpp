@@ -262,8 +262,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("int-n", "tune USRP with integer-N tuning")
 
         //stuff added for rx_stream
-        ("lo-freq", po::value<double>(&lo_freq), "To amount to shift the signal's frequency down using the lo mixer")
-        ("dsp-freq", po::value<double>(&dsp_freq), "The amount to shift the signal's frequency using the cordic mixer. Can be negative")
+        ("lo-freq", po::value<double>(&lo_freq), "To amount to shift the signal's frequency down using the lo mixer. The sum of dsp and lo must be greater than the minimum frequency of the second lowest band for lo to work")
+        ("dsp-freq", po::value<double>(&dsp_freq), "The amount to shift the signal's frequency using the cordic mixer. A positive value shift the frequency down")
         ("preexecfile", po::value<std::string>(&pre_exec_file), "The file that should be run immediately prior to the device starting to stream data.")
         ("postexecfile", po::value<std::string>(&post_exec_file), "The file that should be run finishing streaming data.")
 
@@ -320,6 +320,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("lo-freq") && vm.count("dsp-freq")) { //with default of 0.0 this will always be true
         double freq = lo_freq+dsp_freq;
         std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+        //The way that tune request parameters work does not match their names
+        //Inspect how the code that uses tune requests (tune.cpp) actually interacts with *impl.cpp
         uhd::tune_request_t tune_request(dsp_freq+lo_freq, lo_freq, 0, 0, -dsp_freq);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_rx_freq(tune_request, channel);
