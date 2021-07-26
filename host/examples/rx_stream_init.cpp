@@ -77,10 +77,6 @@ template<typename samp_type> void recv_to_file(
     typedef std::map<size_t,size_t> SizeMap;
     SizeMap mapSizes;
 
-    // Track time and samps between updating the BW summary
-    auto last_update = start_time;
-    unsigned long long last_update_samps = 0;
-
     rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
 
     if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
