@@ -252,7 +252,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8, sc16 or s16)")
-        ("setup", po::value<double>(&setup_time)->default_value(1.0), "seconds of setup time")
         ("progress", "periodically display short-term bandwidth")
         ("stats", "show average bandwidth on exit")
         ("sizemap", "track packet size and display breakdown on exit")
@@ -266,6 +265,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("dsp-freq", po::value<double>(&dsp_freq), "The amount to shift the signal's frequency using the cordic mixer. A positive value shift the frequency down")
         ("preexecfile", po::value<std::string>(&pre_exec_file), "The file that should be run immediately prior to the device starting to stream data.")
         ("postexecfile", po::value<std::string>(&post_exec_file), "The file that should be run finishing streaming data.")
+        ("secs", po::value<double>(&setup_time)->default_value(5.0), "seconds of setup time")
 
     ;
     po::variables_map vm;
