@@ -320,7 +320,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate(channel)/1e6) << std::endl << std::endl;
 
     //set the center frequency
-    if (vm.count("lo-freq") vm.count("dsp-freq")) { //with default of 0.0 this will always be true
+    if (vm.count("lo-freq") && vm.count("dsp-freq")) { //with default of 0.0 this will always be true
         double freq = lo_freq+dsp_freq;
         std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
         uhd::tune_request_t tune_request(dsp_freq, lo_freq);
