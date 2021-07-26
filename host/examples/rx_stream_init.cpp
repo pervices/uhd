@@ -101,9 +101,9 @@ template<typename samp_type> void recv_to_file(
 
     //waits for samples to be received
     if(num_requested_samples > 0) {
-        std::this_thread::sleep_for(std::chrono::seconds(num_requested_samples/rate + 1));
+        std::this_thread::sleep_for(std::chrono::microseconds((num_requested_samples/rate + 1))*1e6);
     } else if(time_requested>0) {
-        std::this_thread::sleep_for(std::chrono::seconds(time_requested));
+        std::this_thread::sleep_for(std::chrono::milliseconds(time_requested/1000));
     }
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
