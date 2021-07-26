@@ -323,12 +323,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("lo-freq") vm.count("dsp-freq")) { //with default of 0.0 this will always be true
         double freq = lo_freq+dsp_freq;
         std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(dsp_freq, lo_freq, null);
+        uhd::tune_request_t tune_request(dsp_freq, lo_freq);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_rx_freq(tune_request, channel);
         std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
     } else {
-        std::cerr << "Please specify a dsp and lo frequency" << std::endl;
+        std::cerr << "Please specify a dsp shift and lo frequency" << std::endl;
     }
 
     //set the rf gain
