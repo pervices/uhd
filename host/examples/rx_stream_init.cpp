@@ -47,6 +47,17 @@ template<typename samp_type> void recv_to_file(
     std::vector<size_t> channel_nums;
     channel_nums.push_back(channel);
     stream_args.channels = channel_nums;
+
+    int pre_pid = 0;
+
+    if(!pre_exec_file.empty()) {
+        std::cout << "Launching pre" << std::endl;
+
+        int pre_pid = run_exec(pre_exec_file);
+
+        std::cout << boost::format("PID: %f") % pre_pid << std::endl;
+    }
+
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     uhd::rx_metadata_t md;
@@ -60,16 +71,6 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.num_samps = size_t(num_requested_samples);
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
-
-    int pre_pid = 0;
-
-    if(!pre_exec_file.empty()) {
-        std::cout << "Launching pre" << std::endl;
-
-        int pre_pid = run_exec(pre_exec_file);
-
-        std::cout << boost::format("PID: %f") % pre_pid << std::endl;
-    }
 
     rx_stream->issue_stream_cmd(stream_cmd);
 
