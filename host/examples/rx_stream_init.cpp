@@ -65,7 +65,7 @@ template<typename samp_type> void recv_to_file(
     int pre_pid = 0;
 
     if(!pre_exec_file.empty()) {
-        int pre_pid = run_exec(pre_exec_file);
+        pre_pid = run_exec(pre_exec_file);
     }
 
     rx_stream->issue_stream_cmd(stream_cmd);
