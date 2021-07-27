@@ -44,7 +44,7 @@ template<typename samp_type> void recv_to_file(
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
     double rate = 0,
-    std::string pre_exec_file = "";
+    std::string pre_exec_file = ""
 ){
     unsigned long long num_total_samps = 0;
     //create a receive streamer
