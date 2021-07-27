@@ -216,6 +216,7 @@ int run_exec(std::string argument) {
                 break;
             }
             std::cout << args[n] << std::endl;
+            n++;
         }
         return 0;
     }
