@@ -375,13 +375,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         else throw std::runtime_error("Unknown type " + type);
     }
 
-    const char * post_run_cmd = ("./" + post_exec_file).c_str();
-    std::cout << std::endl << "Running post exec" << std::endl << std::endl;
-    if(!post_exec_file.empty()) {
-        system(post_run_cmd);
-    }
+    //launches post exec and waits for it to finish
+    int post_pid = 0;
 
-    std::cout << std::endl << "Done" << std::endl << std::endl;
+    if(!post_exec_file.empty()) {
+        post_pid = run_exec(pre_exec_file);
+    }
+    int status;
+    waitpid(post_pid, &status, 0);
 
     return EXIT_SUCCESS;
 }
