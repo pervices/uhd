@@ -27,7 +27,6 @@ namespace po = boost::program_options;
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
-void extract_args(char *args[], std::string argument);
 void run_exec(std::string argument);
 
 template<typename samp_type> void recv_to_file(
@@ -71,14 +70,6 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
-//     int pre_pid;
-//     //runs pre-exec before starting the program
-//     if(!pre_exec_file.empty()) {
-//         char *args[] = {};
-//         extract_args(args, pre_exec_file);
-//         //const char *const_args[] = args;
-//         pre_pid = execvp(args[0], args);
-//     }
     run_exec(pre_exec_file);
 
     rx_stream->issue_stream_cmd(stream_cmd);
@@ -161,51 +152,7 @@ bool check_locked_sensor(
     return true;
 }
 
-//converts the string the would be used to run a bash script directly to a collection of arguments
-void extract_args(char *args[], std::string argument) {
-    std::vector<std::string> args_builder{};
-
-    std::string arg_builder = "";
-
-    bool is_escaped = false;
-
-    bool is_in_quotes = false;
-
-    for(int n = 0; n <argument.length(); n++) {
-        if(is_escaped) {
-            arg_builder.push_back(argument.at(n));
-            is_escaped = false;
-        } else if(argument.at(n)=='\\') {
-            is_escaped = true;
-        } else if(argument.at(n)=='\"') {
-            if(is_escaped) {
-                arg_builder.push_back(argument.at(n));
-            } else {
-                is_in_quotes = !is_in_quotes;
-            }
-        } else if(argument.at(n)==' ' && !(is_escaped||is_in_quotes)) {
-            args_builder.push_back(arg_builder);
-            arg_builder = "";
-        }
-        else {
-            arg_builder.push_back(argument.at(n));
-        }
-    }
-
-    if(!arg_builder.empty()) {
-        args_builder.push_back(arg_builder);
-    }
-
-    *args = new char[args_builder.size()+1];
-
-    for(int n = 0; n <args_builder.size(); n++) {
-        args[n] = new char[args_builder[n].size()+1];
-        std::strcpy(args[n], args_builder[n].c_str());
-    }
-
-    args[args_builder.size()] = NULL;
-}
-
+//pass this a the string that would be used if launching the program from the command line
 void run_exec(std::string argument) {
     std::vector<std::string> args_builder{};
 
