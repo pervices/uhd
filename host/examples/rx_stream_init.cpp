@@ -98,9 +98,7 @@ template<typename samp_type> void recv_to_file(
     }
 
     if(pre_pid != 0) {
-        std::cout << "Killing pre" << std::endl;
         kill(pre_pid, SIGTERM);
-        std::cout << "Killed pre" << std::endl;
         int status;
         waitpid(pre_pid, &status, 0);
     }
@@ -391,7 +389,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //std::this_thread::sleep_for(std::chrono::seconds(5));
     //makes sure the other process has had a chance to run
     //do{
-    //    waitpid(post_pid, &status, 0);
+    waitpid(post_pid, &status, 0);
     //} while
 
     return EXIT_SUCCESS;
