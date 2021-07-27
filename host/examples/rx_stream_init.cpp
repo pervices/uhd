@@ -204,10 +204,10 @@ void extract_args(char *args, std::string argument) {
     args_builder.push_back(NULL);
 
     std::vector<char*> char_ptr(args_builder.size());
-    for(int n = 0; n < args_builder.size()) {
+    for(int n = 0; n < args_builder.length(); n++) {
         char_ptr[n] = args_builder[n].data();
     }
-    args = char_ptr.data();
+    *args = char_ptr.data();
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
