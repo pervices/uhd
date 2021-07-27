@@ -35,7 +35,7 @@ template<typename samp_type> void recv_to_file(
     const std::string &wire_format,
     const size_t &channel,
     size_t samps_per_buff,
-    size_t num_requested_samples = 0;
+    size_t num_requested_samples = 0,
     double time_requested = 0.0,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
