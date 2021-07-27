@@ -381,8 +381,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(!post_exec_file.empty()) {
         post_pid = run_exec(post_exec_file);
     }
-    int status;
-    waitpid(post_pid, &status, 0);
+    int status = 0;
+    //makes sure the other process has had a chance to run
+    while (status ==0){
+        waitpid(post_pid, &status, 0);
+    }
 
     return EXIT_SUCCESS;
 }
