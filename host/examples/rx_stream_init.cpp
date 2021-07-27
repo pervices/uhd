@@ -194,13 +194,21 @@ void extract_args(char *args[], std::string argument) {
         args_builder.push_back(arg_builder);
     }
 
-    args_builder.push_back(NULL);
+//    args_builder.push_back(NULL);
 
-    std::vector<char*> char_ptr(args_builder.size());
-    for(int n = 0; n < args_builder.size(); n++) {
-        char_ptr[n] = args_builder[n].data();
+//     std::vector<char*> char_ptr(args_builder.size());
+//     for(int n = 0; n < args_builder.size(); n++) {
+//         char_ptr[n] = args_builder[n].data();
+//     }
+//     args = char_ptr.data();
+
+    *args = new char[args_builder.size()+1];
+
+    for(int n = 0; n <args_builder.size(); n++) {
+        args[n]=args_builder[n].c_str();
     }
-    args = char_ptr.data();
+
+    args[args_builder.size()] = NULL;
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
