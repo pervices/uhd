@@ -249,7 +249,7 @@ void run_exec(std::string argument) {
 
     args[args_builder.size()] = NULL;
 
-    execvp(args[0], args)
+    execvp(args[0], args);
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
