@@ -72,7 +72,7 @@ template<typename samp_type> void recv_to_file(
 
     int pre_pid;
     //runs pre-exec before starting the program
-    if(!pre_exec.empty()) {
+    if(!pre_exec_file.empty()) {
         char *args;
         extract_args(args, pre_exec_file);
         const char *const_args = args;
@@ -167,7 +167,7 @@ bool check_locked_sensor(
 }
 
 //converts the string the would be used to run a bash script directly to a collection of arguments
-void extract_args(char *args[], std::string argument) {
+void extract_args(char *args, std::string argument) {
     std::vector<std::string> args_builder{};
 
     std::string arg_builder = "";
