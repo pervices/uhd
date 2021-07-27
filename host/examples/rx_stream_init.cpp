@@ -98,7 +98,9 @@ template<typename samp_type> void recv_to_file(
     }
 
     if(pre_pid != 0) {
+        std::cout << "Killing pre" << std::endl;
         kill(pre_pid, SIGTERM);
+        std::cout << "Killed pre" << std::endl;
         int status;
         waitpid(pre_pid, &status, 0);
     }
