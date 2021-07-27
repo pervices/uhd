@@ -39,14 +39,12 @@ template<typename samp_type> void recv_to_file(
     unsigned long long num_requested_samples,
     double time_requested = 0.0,
     bool bw_summary = false,
-    bool stats = false,
     bool null = false,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
     double rate = 0,
     std::string pre_exec_file = ""
 ){
-    unsigned long long num_total_samps = 0;
     //create a receive streamer
     uhd::stream_args_t stream_args(cpu_format,wire_format);
     std::vector<size_t> channel_nums;
@@ -59,7 +57,6 @@ template<typename samp_type> void recv_to_file(
     std::ofstream outfile;
     if (not null)
         outfile.open(file.c_str(), std::ofstream::binary);
-    bool overflow_message = true;
 
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
@@ -228,10 +225,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8, sc16 or s16)")
-        //("progress", "periodically display short-term bandwidth")
-        //("stats", "show average bandwidth on exit")
-        //("sizemap", "track packet size and display breakdown on exit")
-        ("null", "run without writing to file")
         ("continue", "don't abort on a bad packet")
         ("skip-lo", "skip checking LO lock status")
         ("int-n", "tune USRP with integer-N tuning")
@@ -258,9 +251,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    bool bw_summary = vm.count("progress") > 0;
-    bool stats = vm.count("stats") > 0;
-    bool null = vm.count("null") > 0;
     bool enable_size_map = vm.count("sizemap") > 0;
     bool continue_on_bad_packet = vm.count("continue") > 0;
 
@@ -360,7 +350,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
 #define recv_to_file_args(format) \
-    (usrp, format, wirefmt, channel, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
+    (usrp, format, wirefmt, channel, file, spb, total_num_samps, total_time, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
     //recv to file
     if (wirefmt == "s16") {
         if (type == "double") recv_to_file<double>recv_to_file_args("f64");
