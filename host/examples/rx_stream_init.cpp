@@ -209,7 +209,8 @@ int run_exec(std::string argument) {
         std::cout << "Launching file: " << args[0] << std::endl;
         execvp(args[0], args);
         std::cout << "Failed to launch: " << args[0] << std::endl;
-        for(int n = 1; n <args.size(); n++) {
+        int n = 0;
+        while (true) {
             if(args[n]==NULL) {
                 std::cout << "Args null terminated" << std::endl;
                 break;
