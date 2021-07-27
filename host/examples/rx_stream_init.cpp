@@ -98,7 +98,6 @@ template<typename samp_type> void recv_to_file(
     }
 
     if(pre_pid != 0) {
-        std::cout << "Stopping pre exec" <<std::endl;
         kill(pre_pid, SIGTERM);
         int status;
         waitpid(pre_pid, &status, 0);
