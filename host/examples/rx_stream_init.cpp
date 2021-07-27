@@ -204,16 +204,11 @@ int run_exec(std::string argument) {
     int child_pid = fork();
 
     if(child_pid == 0) {
-        std::cout << "Failed to launch: " << args[0] << std::endl;
-    }
-
-    if(child_pid == 0) {
-        std::cout << "Child pid: " << child_pid << std::endl;
         execvp(args[0], args);
-        std::cout << "Failed to start child procress" << std::endl;
         return 0;
     }
     else {
+        std::cout << "Child pid: " << child_pid << std::endl;
         return child_pid;
     }
 }
