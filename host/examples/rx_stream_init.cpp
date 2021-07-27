@@ -47,6 +47,7 @@ template<typename samp_type> void recv_to_file(
     std::vector<size_t> channel_nums;
     channel_nums.push_back(channel);
     stream_args.channels = channel_nums;
+
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     uhd::rx_metadata_t md;
@@ -64,11 +65,7 @@ template<typename samp_type> void recv_to_file(
     int pre_pid = 0;
 
     if(!pre_exec_file.empty()) {
-        std::cout << "Launching pre" << std::endl;
-
-        int pre_pid = run_exec(pre_exec_file);
-
-        std::cout << boost::format("PID: %f") % pre_pid << std::endl;
+        pre_pid = run_exec(pre_exec_file);
     }
 
     rx_stream->issue_stream_cmd(stream_cmd);
@@ -200,7 +197,15 @@ int run_exec(std::string argument) {
 
     args[args_builder.size()] = NULL;
 
-    return execvp(args[0], args);
+    int child_pid = fork();
+
+    if(child_pid == 0) {
+        execvp(args[0], args);
+        return 0;
+    }
+    else {
+        return child_pid;
+    }
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
