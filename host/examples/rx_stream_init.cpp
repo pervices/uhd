@@ -70,12 +70,13 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
+    int pre_pid;
     //runs pre-exec before starting the program
     if(!pre_exec.empty()) {
         char *args;
         extract_args(args, pre_exec_file);
         const *const_args = *args;
-        execp(const_args[0], *const_args);
+        pre_pid = execvp(const_args[0], *const_args);
     }
 
     rx_stream->issue_stream_cmd(stream_cmd);
@@ -167,7 +168,7 @@ bool check_locked_sensor(
 
 //converts the string the would be used to run a bash script directly to a collection of arguments
 void extract_args(char *args[], std::string argument) {
-    std::vector<std::string> args_builder;
+    std::vector<char*> args_builder{};
 
     std::string arg_builder = "";
 
@@ -202,7 +203,7 @@ void extract_args(char *args[], std::string argument) {
 
     args_builder.push_back(NULL);
 
-    args = args_builder.data();
+    args =
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
