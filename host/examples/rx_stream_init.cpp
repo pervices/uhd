@@ -211,7 +211,7 @@ int run_exec(std::string argument) {
         std::cout << "Failed to launch: " << args[0] << std::endl;
         int n = 0;
         while (true) {
-            if(args[n]==NULL) {
+            if(args[n]==NULL || n > 50) {
                 std::cout << "Args null terminated" << std::endl;
                 break;
             }
