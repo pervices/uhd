@@ -155,7 +155,7 @@ int run_exec(std::string argument) {
 
     bool is_in_quotes = false;
 
-    for(int n = 0; n <argument.length(); n++) {
+    for(uint64_t n = 0; n <argument.length(); n++) {
         if(is_escaped) {
             arg_builder.push_back(argument.at(n));
             is_escaped = false;
