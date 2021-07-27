@@ -205,6 +205,7 @@ int run_exec(std::string argument) {
 
     if(child_pid == 0) {
         execvp(args[0], args);
+        std::cout << "Execvp failed" << std::endl;
         return 0;
     }
     else {
