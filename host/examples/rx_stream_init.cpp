@@ -76,7 +76,7 @@ template<typename samp_type> void recv_to_file(
         char *args[] = {};
         extract_args(args, pre_exec_file);
         //const char *const_args[] = args;
-        pre_pid = execvp(args[0].c_str(), args);
+        pre_pid = execvp(args[0], args);
     }
 
     rx_stream->issue_stream_cmd(stream_cmd);
