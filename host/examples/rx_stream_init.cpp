@@ -384,6 +384,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(!post_exec_file.empty()) {
         post_pid = run_exec(post_exec_file);
     }
+    std::cout << "Post pid: " << post_pid;
     int status = 0;
     std::this_thread::sleep_for(std::chrono::microseconds((int)(1e6)));
     //makes sure the other process has had a chance to run
