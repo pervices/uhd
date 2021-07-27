@@ -240,7 +240,7 @@ void run_exec(std::string argument) {
         args_builder.push_back(arg_builder);
     }
 
-    char *args[] = new char[args_builder.size()+1];
+    char *args[args_builder.size()+1];
 
     for(int n = 0; n <args_builder.size(); n++) {
         args[n] = new char[args_builder[n].size()+1];
