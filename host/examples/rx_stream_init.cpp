@@ -182,7 +182,7 @@ int run_exec(std::string argument) {
 
     char *args[args_builder.size()+1];
 
-    for(int n = 0; n <args_builder.size(); n++) {
+    for(uint64_t n = 0; n <args_builder.size(); n++) {
         args[n] = new char[args_builder[n].size()+1];
         std::strcpy(args[n], args_builder[n].c_str());
     }
