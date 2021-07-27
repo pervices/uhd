@@ -34,12 +34,8 @@ template<typename samp_type> void recv_to_file(
     const std::string &cpu_format,
     const std::string &wire_format,
     const size_t &channel,
-    const std::string &file,
     size_t samps_per_buff,
-    unsigned long long num_requested_samples,
     double time_requested = 0.0,
-    bool bw_summary = false,
-    bool null = false,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
     double rate = 0,
@@ -350,7 +346,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
 #define recv_to_file_args(format) \
-    (usrp, format, wirefmt, channel, file, spb, total_num_samps, total_time, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
+    (usrp, format, wirefmt, channel spb, total_time, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
     //recv to file
     if (wirefmt == "s16") {
         if (type == "double") recv_to_file<double>recv_to_file_args("f64");
