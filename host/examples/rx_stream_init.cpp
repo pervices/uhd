@@ -27,7 +27,7 @@ namespace po = boost::program_options;
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
-void extract_args(char *args[], std::string argument);
+void extract_args(char *args, std::string argument);
 
 template<typename samp_type> void recv_to_file(
     uhd::usrp::multi_usrp::sptr usrp,
