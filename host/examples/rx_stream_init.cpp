@@ -189,7 +189,7 @@ void extract_args(char *args[], std::string argument) {
                 is_in_quotes = !is_in_quotes;
             }
         } else if(argument.at(n)==' ' && !(is_escaped||is_in_quotes)) {
-            args_builder.push_back(arg_builder);
+            args_builder.push_back(&arg_builder);
             arg_builder = "";
         }
         else {
@@ -198,12 +198,12 @@ void extract_args(char *args[], std::string argument) {
     }
 
     if(!arg_builder.empty()) {
-        args_builder.push_back(*arg_builder);
+        args_builder.push_back(&arg_builder);
     }
 
     args_builder.push_back(NULL);
 
-    args =
+    args = = arg_builder.data();
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
