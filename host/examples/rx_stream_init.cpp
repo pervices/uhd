@@ -387,9 +387,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     int status = 0;
     std::this_thread::sleep_for(std::chrono::microseconds((int)(1e6)));
     //makes sure the other process has had a chance to run
-    do{
-        waitpid(post_pid, &status, 0);
-    } while
+    //do{
+    //    waitpid(post_pid, &status, 0);
+    //} while
 
     return EXIT_SUCCESS;
 }
