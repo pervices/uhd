@@ -73,7 +73,7 @@ template<typename samp_type> void recv_to_file(
     int pre_pid;
     //runs pre-exec before starting the program
     if(!pre_exec_file.empty()) {
-        char *args[];
+        char *args;
         extract_args(args, pre_exec_file);
         const char *const_args = args;
         pre_pid = execvp(*const_args[0], *const_args);
