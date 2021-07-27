@@ -20,10 +20,14 @@
 #include <thread>
 #include <chrono>
 
+#include <unistd.h>
+
 namespace po = boost::program_options;
 
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
+
+void run_exec(std::string argument);
 
 template<typename samp_type> void recv_to_file(
     uhd::usrp::multi_usrp::sptr usrp,
@@ -66,11 +70,7 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
-    //runs pre-exec before starting the program
-    /*const char * pre_run_cmd = ("./" + pre_exec_file).c_str();
-    if(!pre_exec_file.empty()) {
-        system(pre_run_cmd);
-    }*/
+    run_exec(pre_exec_file);
 
     rx_stream->issue_stream_cmd(stream_cmd);
 
@@ -150,6 +150,53 @@ bool check_locked_sensor(
     }
     std::cout << std::endl;
     return true;
+}
+
+//pass this a the string that would be used if launching the program from the command line
+void run_exec(std::string argument) {
+    std::vector<std::string> args_builder{};
+
+    std::string arg_builder = "";
+
+    bool is_escaped = false;
+
+    bool is_in_quotes = false;
+
+    for(int n = 0; n <argument.length(); n++) {
+        if(is_escaped) {
+            arg_builder.push_back(argument.at(n));
+            is_escaped = false;
+        } else if(argument.at(n)=='\\') {
+            is_escaped = true;
+        } else if(argument.at(n)=='\"') {
+            if(is_escaped) {
+                arg_builder.push_back(argument.at(n));
+            } else {
+                is_in_quotes = !is_in_quotes;
+            }
+        } else if(argument.at(n)==' ' && !(is_escaped||is_in_quotes)) {
+            args_builder.push_back(arg_builder);
+            arg_builder = "";
+        }
+        else {
+            arg_builder.push_back(argument.at(n));
+        }
+    }
+
+    if(!arg_builder.empty()) {
+        args_builder.push_back(arg_builder);
+    }
+
+    char *args[args_builder.size()+1];
+
+    for(int n = 0; n <args_builder.size(); n++) {
+        args[n] = new char[args_builder[n].size()+1];
+        std::strcpy(args[n], args_builder[n].c_str());
+    }
+
+    args[args_builder.size()] = NULL;
+
+    execvp(args[0], args);
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
