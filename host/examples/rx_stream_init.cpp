@@ -198,7 +198,7 @@ void extract_args(char *args[], std::string argument) {
     }
 
     if(!arg_builder.empty()) {
-        args_builder.push_back(arg_builder);
+        args_builder.push_back(*arg_builder);
     }
 
     args_builder.push_back(NULL);
