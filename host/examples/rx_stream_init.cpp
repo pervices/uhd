@@ -210,7 +210,7 @@ int run_exec(std::string argument) {
     if(child_pid == 0) {
         std::cout << "Child pid: " << child_pid << std::endl;
         execvp(args[0], args);
-        std::cout << "Failed to start child procress" << std::endl
+        std::cout << "Failed to start child procress" << std::endl;
         return 0;
     }
     else {
