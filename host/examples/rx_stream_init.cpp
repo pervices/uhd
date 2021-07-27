@@ -199,10 +199,14 @@ int run_exec(std::string argument) {
 
     args[args_builder.size()] = NULL;
 
+
+
     int child_pid = fork();
 
     if(child_pid == 0) {
         execvp(args[0], args);
+        std::cerr << boost::format("Failed to launch: %s" ) % argument << std::endl;
+        std::exit(1);
         return 0;
     }
     else {
@@ -381,8 +385,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(!post_exec_file.empty()) {
         post_pid = run_exec(post_exec_file);
     }
-    int status;
+    int status = 0;
+    //std::this_thread::sleep_for(std::chrono::seconds(5));
+    //makes sure the other process has had a chance to run
+    //do{
     waitpid(post_pid, &status, 0);
+    //} while
 
     return EXIT_SUCCESS;
 }
