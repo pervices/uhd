@@ -35,6 +35,7 @@ template<typename samp_type> void recv_to_file(
     const std::string &wire_format,
     const size_t &channel,
     size_t samps_per_buff,
+    size_t num_requested_samples = 0;
     double time_requested = 0.0,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
@@ -208,7 +209,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("duration", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
-        ("time", po::value<double>(&total_time), "(DEPRECATED) will go away soon! Use --duration instead")
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<double>(&rate)->default_value(1e6), "rate of incoming samples")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
@@ -343,7 +343,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
 #define recv_to_file_args(format) \
-    (usrp, format, wirefmt, channel, spb, total_time, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
+    (usrp, format, wirefmt, channel, spb, total_num_samps, total_time, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
     //recv to file
     if (wirefmt == "s16") {
         if (type == "double") recv_to_file<double>recv_to_file_args("f64");
