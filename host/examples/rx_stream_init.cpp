@@ -27,7 +27,7 @@ namespace po = boost::program_options;
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
-void extract_args(char *args, std::string argument);
+void extract_args(char *args[], std::string argument);
 
 template<typename samp_type> void recv_to_file(
     uhd::usrp::multi_usrp::sptr usrp,
@@ -160,7 +160,7 @@ bool check_locked_sensor(
 }
 
 //converts the string the would be used to run a bash script directly to a collection of arguments
-void extract_args(char *args, std::string argument) {
+void extract_args(char *args[], std::string argument) {
     std::vector<std::string> args_builder{};
 
     std::string arg_builder = "";
@@ -197,10 +197,10 @@ void extract_args(char *args, std::string argument) {
     args_builder.push_back(NULL);
 
     std::vector<char*> char_ptr(args_builder.size());
-    for(int n = 0; n < args_builder.length(); n++) {
+    for(int n = 0; n < args_builder.size(); n++) {
         char_ptr[n] = args_builder[n].data();
     }
-    *args = char_ptr.data();
+    args = char_ptr.data();
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
