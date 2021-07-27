@@ -205,8 +205,7 @@ void extract_args(char *args[], std::string argument) {
     *args = new char[args_builder.size()+1];
 
     for(int n = 0; n <args_builder.size(); n++) {
-        args[n]=args_builder[n].c_str();
-        args[n] =char[args_builder[n].size()+1];
+        args[n] = char[args_builder[n].size()+1];
         std::strcpy(args[n], args_builder[n]);
     }
 
