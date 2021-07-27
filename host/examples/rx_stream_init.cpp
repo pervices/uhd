@@ -201,11 +201,21 @@ int run_exec(std::string argument) {
 
     args[args_builder.size()] = NULL;
 
+
+
     int child_pid = fork();
 
     if(child_pid == 0) {
         std::cout << "Launching file: " << args[0] << std::endl;
         execvp(args[0], args);
+        std::cout << "Failed to launch: " << args[0] << std::endl;
+        for(int n = 1; n <args.size(); n++) {
+            if(args[n]==NULL) {
+                std::cout << "Args null terminated" << std::endl;
+                break;
+            }
+            std::cout << args[n] << std::endl;
+        }
         return 0;
     }
     else {
