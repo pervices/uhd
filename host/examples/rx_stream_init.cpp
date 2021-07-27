@@ -34,19 +34,14 @@ template<typename samp_type> void recv_to_file(
     const std::string &cpu_format,
     const std::string &wire_format,
     const size_t &channel,
-    const std::string &file,
     size_t samps_per_buff,
-    unsigned long long num_requested_samples,
+    size_t num_requested_samples = 0,
     double time_requested = 0.0,
-    bool bw_summary = false,
-    bool stats = false,
-    bool null = false,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
     double rate = 0,
     std::string pre_exec_file = ""
 ){
-    unsigned long long num_total_samps = 0;
     //create a receive streamer
     uhd::stream_args_t stream_args(cpu_format,wire_format);
     std::vector<size_t> channel_nums;
@@ -56,10 +51,6 @@ template<typename samp_type> void recv_to_file(
 
     uhd::rx_metadata_t md;
     std::vector<samp_type> buff(samps_per_buff);
-    std::ofstream outfile;
-    if (not null)
-        outfile.open(file.c_str(), std::ofstream::binary);
-    bool overflow_message = true;
 
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
@@ -100,7 +91,10 @@ template<typename samp_type> void recv_to_file(
         std::this_thread::sleep_for(std::chrono::microseconds((int)(time_requested*1e6)));
     }
 
-    kill(pre_pid, SIGTERM);
+    if(pre_pid != 0) {
+        std::cout << "Stopping pre exec" <<std::endl;
+        kill(pre_pid, SIGTERM);
+    }
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
@@ -164,7 +158,7 @@ int run_exec(std::string argument) {
 
     bool is_in_quotes = false;
 
-    for(int n = 0; n <argument.length(); n++) {
+    for(uint64_t n = 0; n <argument.length(); n++) {
         if(is_escaped) {
             arg_builder.push_back(argument.at(n));
             is_escaped = false;
@@ -191,7 +185,7 @@ int run_exec(std::string argument) {
 
     char *args[args_builder.size()+1];
 
-    for(int n = 0; n <args_builder.size(); n++) {
+    for(uint64_t n = 0; n <args_builder.size(); n++) {
         args[n] = new char[args_builder[n].size()+1];
         std::strcpy(args[n], args_builder[n].c_str());
     }
@@ -218,7 +212,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("duration", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
-        ("time", po::value<double>(&total_time), "(DEPRECATED) will go away soon! Use --duration instead")
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<double>(&rate)->default_value(1e6), "rate of incoming samples")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
@@ -228,10 +221,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8, sc16 or s16)")
-        //("progress", "periodically display short-term bandwidth")
-        //("stats", "show average bandwidth on exit")
-        //("sizemap", "track packet size and display breakdown on exit")
-        ("null", "run without writing to file")
         ("continue", "don't abort on a bad packet")
         ("skip-lo", "skip checking LO lock status")
         ("int-n", "tune USRP with integer-N tuning")
@@ -258,9 +247,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    bool bw_summary = vm.count("progress") > 0;
-    bool stats = vm.count("stats") > 0;
-    bool null = vm.count("null") > 0;
     bool enable_size_map = vm.count("sizemap") > 0;
     bool continue_on_bad_packet = vm.count("continue") > 0;
 
@@ -360,7 +346,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
 #define recv_to_file_args(format) \
-    (usrp, format, wirefmt, channel, file, spb, total_num_samps, total_time, bw_summary, stats, null, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
+    (usrp, format, wirefmt, channel, spb, total_num_samps, total_time, enable_size_map, continue_on_bad_packet, rate, pre_exec_file)
     //recv to file
     if (wirefmt == "s16") {
         if (type == "double") recv_to_file<double>recv_to_file_args("f64");
