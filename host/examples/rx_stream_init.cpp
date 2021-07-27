@@ -99,13 +99,6 @@ template<typename samp_type> void recv_to_file(
             throw std::runtime_error(error);
     }
 
-
-
-
-    if(!pre_exec_file.empty()) {
-        execvp(pre_exec_args[0], pre_exec_args);
-    }
-
     //waits for samples to be received
     if(num_requested_samples > 0) {
         //This line could be optimized to minimize floating point rounding errors
