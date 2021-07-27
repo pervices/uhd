@@ -168,7 +168,7 @@ bool check_locked_sensor(
 
 //converts the string the would be used to run a bash script directly to a collection of arguments
 void extract_args(char *args[], std::string argument) {
-    std::vector<char*> args_builder{};
+    std::vector<std::string> args_builder{};
 
     std::string arg_builder = "";
 
@@ -189,7 +189,7 @@ void extract_args(char *args[], std::string argument) {
                 is_in_quotes = !is_in_quotes;
             }
         } else if(argument.at(n)==' ' && !(is_escaped||is_in_quotes)) {
-            args_builder.push_back(&arg_builder);
+            args_builder.push_back(arg_builder);
             arg_builder = "";
         }
         else {
@@ -198,12 +198,16 @@ void extract_args(char *args[], std::string argument) {
     }
 
     if(!arg_builder.empty()) {
-        args_builder.push_back(&arg_builder);
+        args_builder.push_back(arg_builder);
     }
 
     args_builder.push_back(NULL);
 
-    args = = arg_builder.data();
+    vector<char*> char_ptr(args_builder.size());
+    for(int n = 0; n < args_builder.size()) {
+        char_ptr[n] = args_builder[n].data();
+    }
+    args = char_ptr.data();
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
