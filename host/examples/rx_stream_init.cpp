@@ -204,10 +204,12 @@ int run_exec(std::string argument) {
     int child_pid = fork();
 
     if(child_pid == getpid()) {
+        std::cout << "Starting child process" <<std::endl;
         execvp(args[0], args);
         return 0;
     }
     else {
+        std::cout << "Continuing process" <<std::endl;
         return child_pid;
     }
 }
