@@ -379,7 +379,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     int post_pid = 0;
 
     if(!post_exec_file.empty()) {
-        post_pid = run_exec(pre_exec_file);
+        post_pid = run_exec(post_exec_file);
     }
     int status;
     waitpid(post_pid, &status, 0);
