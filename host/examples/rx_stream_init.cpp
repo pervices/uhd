@@ -378,6 +378,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //launches post exec and waits for it to finish
     int post_pid = 0;
 
+    std::cout << "Runing post exec: " << post_exec_file << std::endl;
     if(!post_exec_file.empty()) {
         post_pid = run_exec(post_exec_file);
     }
