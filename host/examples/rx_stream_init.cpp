@@ -204,14 +204,8 @@ int run_exec(std::string argument) {
     int child_pid = fork();
 
     if(child_pid == 0) {
+        std::cout << "Launching file: " << args[0] << std::endl;
         execvp(args[0], args);
-        if (execvp(args[0], args) < 0)
-            {
-                int err = errno;
-                fprintf(stderr, "%s\n", explain_errno_execvp(err, args[0], args));
-                exit(EXIT_FAILURE);
-            }
-        }
         return 0;
     }
     else {
