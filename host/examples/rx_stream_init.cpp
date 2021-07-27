@@ -21,6 +21,7 @@
 #include <chrono>
 
 #include <unistd.h>
+#include <sys/wait.h>
 
 namespace po = boost::program_options;
 
