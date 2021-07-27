@@ -70,7 +70,7 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
-    run_exec(pre_exec_file);
+    int pre_pid = run_exec(pre_exec_file);
 
     rx_stream->issue_stream_cmd(stream_cmd);
 
@@ -99,6 +99,8 @@ template<typename samp_type> void recv_to_file(
     } else if(time_requested>0) {
         std::this_thread::sleep_for(std::chrono::microseconds((int)(time_requested*1e6)));
     }
+
+    kill(pre_pid, SIGTERM);
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
@@ -153,7 +155,7 @@ bool check_locked_sensor(
 }
 
 //pass this a the string that would be used if launching the program from the command line
-void run_exec(std::string argument) {
+int run_exec(std::string argument) {
     std::vector<std::string> args_builder{};
 
     std::string arg_builder = "";
@@ -196,7 +198,7 @@ void run_exec(std::string argument) {
 
     args[args_builder.size()] = NULL;
 
-    execvp(args[0], args);
+    return execvp(args[0], args);
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
