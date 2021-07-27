@@ -200,7 +200,14 @@ int run_exec(std::string argument) {
 
     args[args_builder.size()] = NULL;
 
-    return execvp(args[0], args);
+    int old_pid = getpid()
+    int new_pid = fork();
+
+    if(old_pid == new_pid) return new_pid;
+    else {
+        execvp(args[0], args);
+        return;
+    }
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
