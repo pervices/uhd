@@ -21,6 +21,7 @@
 #include <chrono>
 
 #include <unistd.h>
+#include <sys/wait.h>
 
 namespace po = boost::program_options;
 
@@ -97,8 +98,9 @@ template<typename samp_type> void recv_to_file(
     }
 
     if(pre_pid != 0) {
-        std::cout << "Stopping pre exec" <<std::endl;
         kill(pre_pid, SIGTERM);
+        int status;
+        waitpid(pre_pid, &status, 0);
     }
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
