@@ -50,9 +50,6 @@ template<typename samp_type> void recv_to_file(
 
     uhd::rx_metadata_t md;
     std::vector<samp_type> buff(samps_per_buff);
-    std::ofstream outfile;
-    if (not null)
-        outfile.open(file.c_str(), std::ofstream::binary);
 
     //setup streaming
     uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
