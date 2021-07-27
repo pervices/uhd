@@ -203,7 +203,7 @@ int run_exec(std::string argument) {
 
     int child_pid = fork();
 
-    if(child_pid == getpid()) {
+    if(child_pid == 0) {
         std::cout << "Starting child process" <<std::endl;
         execvp(args[0], args);
         return 0;
