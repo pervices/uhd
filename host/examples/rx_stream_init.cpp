@@ -61,7 +61,13 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
-    int pre_pid = run_exec(pre_exec_file);
+    if(!pre_exec_file.empty()) {
+        std::cout << "Launching pre" << std::endl;
+
+        int pre_pid = run_exec(pre_exec_file);
+
+        std::cout << boost::format("PID: %f") % pre_pid << std::endl;
+    }
 
     rx_stream->issue_stream_cmd(stream_cmd);
 
