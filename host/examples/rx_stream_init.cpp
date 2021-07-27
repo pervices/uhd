@@ -200,13 +200,14 @@ int run_exec(std::string argument) {
 
     args[args_builder.size()] = NULL;
 
-    int old_pid = getpid()
+    //old pid is the parent's pid (this program), new pid is the pid of the child process to run pre exec
+    int old_pid = getpid();
     int new_pid = fork();
 
     if(old_pid == new_pid) return new_pid;
     else {
         execvp(args[0], args);
-        return;
+        return 0;
     }
 }
 
