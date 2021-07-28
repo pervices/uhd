@@ -1259,7 +1259,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
 
 		// Actual frequency values
-		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
+		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/lo_freq", double, double);
 
 		// Power status
 		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
@@ -1312,7 +1312,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 			meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_FULL, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
-			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
+// 			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
 			.add_desired_subscriber(boost::bind(&cyan_4r4t_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
 			.set_publisher(boost::bind(&cyan_4r4t_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
 
@@ -1321,7 +1321,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/ch0fpga_nco", double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
-		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
+		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/ch0fpga_nco", double, double);
 		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
 		// Link settings
