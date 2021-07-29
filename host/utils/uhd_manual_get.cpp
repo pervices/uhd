@@ -16,6 +16,7 @@ namespace
         //gets the value from the state tree
         std::string value;
         usrp->get_tree_value(path, value);
+        std::cout << "Value: " << value << std::endl;
 
     }
     void get_int_at_path(uhd::usrp::multi_usrp::sptr& usrp, std::string path)
