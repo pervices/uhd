@@ -77,10 +77,6 @@ struct tune_lo_and_dsp_test_fixture {
 		switch( channel ) {
 		case 'A':
 		case 'B':
-#ifdef PV_TATE
-                default:
-#endif
-
 			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
 				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
@@ -88,7 +84,6 @@ struct tune_lo_and_dsp_test_fixture {
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
 				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
-#ifndef PV_TATE
 		case 'C':
 		case 'D':
 			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
@@ -98,7 +93,6 @@ struct tune_lo_and_dsp_test_fixture {
 			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
 				meta_range_t(CRIMSON_TNG_RATE_RANGE_START, CRIMSON_TNG_RATE_RANGE_STOP / 2.0, CRIMSON_TNG_RATE_RANGE_STEP));
 			break;
-#endif
 		}
 
 		TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate",    double, double);

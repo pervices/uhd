@@ -426,11 +426,7 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
         tng_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
-#ifdef PV_TATE
-        if (tokens[2] != "tate") break;
-#else
         if (tokens[2] != "crimson_tng") break;
-#endif
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
@@ -481,11 +477,7 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
 
-#ifdef PV_TATE
-    if (hint.has_key("type") and hint["type"] != "tate") return addrs;
-#else
     if (hint.has_key("type") and hint["type"] != "crimson_tng") return addrs;
-#endif
 
     //use the address given
     if (hint.has_key("addr"))
@@ -932,11 +924,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
-#ifdef PV_TATE
-    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-#else
+
     static const std::vector<size_t> default_map { 0, 1, 2, 3 };
-#endif
+
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&crimson_tng_impl::update_rx_subdev_spec, this, mb, _1));

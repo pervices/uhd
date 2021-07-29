@@ -1575,14 +1575,8 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 
 	static const double lo_step = 25e6;
 
-        const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-        #ifdef PV_TATE
+    const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
 	const char channel = 'A';
-        #endif
-
-        #ifndef PV_TATE
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > (CYAN_64T_MASTER_CLOCK_RATE / 4.0) ? 'A' : 'C';
-        #endif
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
