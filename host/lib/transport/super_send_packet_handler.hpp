@@ -34,6 +34,8 @@
 #endif
 #include <cmath>
 
+#define UHD_TXRX_DEBUG_PRINTS
+
 #ifdef UHD_TXRX_DEBUG_PRINTS
 // Included for debugging
 #include <boost/format.hpp>
