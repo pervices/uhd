@@ -95,6 +95,7 @@
 
 // Cyan_4r4t Clk Settings
 #define CYAN_4R4T_MASTER_CLOCK_RATE	1000000000
+#define CYAN_4R4T_DSP_CLOCK_RATE CYAN_4R4T_MASTER_CLOCK_RATE/2
 #define CYAN_4R4T_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Crimson Tuning Range Settings
 #define CYAN_4R4T_FREQ_RANGE_START	0
