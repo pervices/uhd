@@ -1848,20 +1848,3 @@ double cyan_4r4t_impl::get_tx_freq(size_t chan) {
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
 
-void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
-
-    if ( multi_usrp::ALL_CHANS != chan ) {
-
-        //const fs_path mb_path   = "/mboards/0";
-
-
-        std::cout << "chan: " << chan << std::endl;
-        //const fs_path tx_fe_path = mb_path / "dboards" / num / "tx_frontends" / chan;
-        //_tree->access<double>(multi_usrp::tx_rf_fe_root(chan)/ "gain" / "value").set(gain);
-        return;
-        }
-    for (size_t c = 0; c < CYAN_4R4T_TX_CHANNELS; c++){
-        set_tx_gain(gain, name, c);
-    }
-}
-
