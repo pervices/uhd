@@ -1852,8 +1852,12 @@ void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
 
     if ( ALL_CHANS != chan ) {
 
-        const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
-        _tree->access<double>(tx_fe_path(chan) / "gain" / "value").set(gain);
+        //const fs_path mb_path   = "/mboards/0";
+
+
+
+        //const fs_path tx_fe_path = mb_path / "dboards" / num / "tx_frontends" / chan;
+        _tree->access<double>(tx_fe_path(chan)/ "gain" / "value").set(gain);
         return;
         }
     for (size_t c = 0; c < CYAN_4R4T_TX_CHANNELS; c++){
