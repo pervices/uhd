@@ -1854,7 +1854,7 @@ void set_tx_gain(double gain, const std::string &name, size_t chan){
         _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
         return;
         }
-    for (size_t c = 0; c < get_tx_num_channels(); c++){
+    for (size_t c = 0; c < CYAN_4R4T_TX_CHANNELS; c++){
         set_tx_gain(gain, name, c);
     }
 }
