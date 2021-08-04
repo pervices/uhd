@@ -1828,3 +1828,34 @@ double cyan_64t_impl::get_tx_freq(size_t chan) {
 	}
 	return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
+
+void cyan_64t_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
+	};
+
+    if ( multi_usrp::ALL_CHANS != chan ) {
+        (void)name;
+
+        double MAX_GAIN = 31.75;
+        double MIN_GAIN = 0;
+
+        if         (gain > MAX_GAIN) gain = MAX_GAIN;
+        else if (gain < MIN_GAIN) gain = MIN_GAIN;
+
+        gain = round(gain / 0.25);
+        //if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
+            _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+        //} else {
+        //    _tree->access<double>( cm_root() / "tx/gain/val").set(gain);
+        //}
+        return;
+    }
+    for (size_t c = 0; c < CYAN_64T_TX_CHANNELS; c++){
+        set_tx_gain(gain, name, c);
+    }
+}

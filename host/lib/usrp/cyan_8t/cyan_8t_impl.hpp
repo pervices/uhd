@@ -256,6 +256,7 @@ private:
 
 
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
+    void set_tx_gain(double gain, const std::string &name, size_t chan);
 };
 
 }
