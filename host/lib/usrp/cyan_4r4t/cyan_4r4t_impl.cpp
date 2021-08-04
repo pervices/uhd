@@ -1850,7 +1850,7 @@ double cyan_4r4t_impl::get_tx_freq(size_t chan) {
 
 void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
 
-    if ( ALL_CHANS != chan ) {
+    if ( multi_usrp::ALL_CHANS != chan ) {
 
         //const fs_path mb_path   = "/mboards/0";
 
