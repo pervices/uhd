@@ -2044,7 +2044,6 @@ public:
         return _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get();
     }
 
-    // XXX: @CF: 20180418: stop-gap until moved to server
     void set_tx_gain(double gain, const std::string &name, size_t chan){
 
         get_device()->set_tx_gain(gain, name, chan);
