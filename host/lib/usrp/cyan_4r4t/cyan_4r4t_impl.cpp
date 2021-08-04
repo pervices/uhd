@@ -1858,6 +1858,8 @@ void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
 	};
 
     if ( multi_usrp::ALL_CHANS != chan ) {
+        (void) name;
+
         _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
         return;
     }
