@@ -25,6 +25,7 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
+#include "uhd/usrp/multi_usrp.hpp"
 #include "uhd/usrp/subdev_spec.hpp"
 #include "uhd/utils/pimpl.hpp"
 #include "uhd/types/ranges.hpp"
@@ -260,6 +261,7 @@ private:
     double get_tx_freq(size_t chan = 0);
 
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
+    void set_tx_gain(double gain, const std::string &name, size_t chan);
 };
 
 }

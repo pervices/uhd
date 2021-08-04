@@ -2044,30 +2044,10 @@ public:
         return _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get();
     }
 
-    // XXX: @CF: 20180418: stop-gap until moved to server
     void set_tx_gain(double gain, const std::string &name, size_t chan){
 
-        if ( ALL_CHANS != chan ) {
-            (void)name;
+        get_device()->set_tx_gain(gain, name, chan);
 
-            double MAX_GAIN = 31.75;
-            double MIN_GAIN = 0;
-
-            if         (gain > MAX_GAIN) gain = MAX_GAIN;
-            else if (gain < MIN_GAIN) gain = MIN_GAIN;
-
-            gain = round(gain / 0.25);
-
-            //if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-                _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
-            //} else {
-            //    _tree->access<double>( cm_root() / "tx/gain/val").set(gain);
-            //}
-            return;
-        }
-        for (size_t c = 0; c < get_tx_num_channels(); c++){
-            set_tx_gain(gain, name, c);
-        }
     }
 
 //    void set_tx_gain(double gain, const std::string &name, size_t chan){
