@@ -2623,7 +2623,7 @@ public:
         }
     }
 
-private:
+public:
     device::sptr _dev;
     property_tree::sptr _tree;
     bool _is_device3;
