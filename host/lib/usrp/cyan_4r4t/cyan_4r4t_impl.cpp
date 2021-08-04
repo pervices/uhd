@@ -1514,7 +1514,6 @@ void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_
 	const fs_path prop_path = mb_path / "tx_link";
 
     sfp = tree->access<std::string>(prop_path / std::to_string( chan ) / "iface").get();
-    std::cout << "SFP: " << sfp << std::endl;
 
 	const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
 
@@ -1863,3 +1862,4 @@ double cyan_4r4t_impl::get_tx_freq(size_t chan) {
         }
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
+
