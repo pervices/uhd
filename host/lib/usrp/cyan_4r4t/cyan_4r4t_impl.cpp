@@ -1494,24 +1494,27 @@ int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
 
 void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
-	switch( chan ) {
-	case 0:
-		sfp = "sfpa";
-		break;
-	case 1:
-        sfp = "sfpb";
-        break;
-    case 2:
-        sfp = "sfpc";
-        break;
-	case 3:
-		sfp = "sfpd";
-		break;
-	}
+// 	switch( chan ) {
+// 	case 0:
+// 		sfp = "sfpa";
+// 		break;
+// 	case 1:
+//         sfp = "sfpb";
+//         break;
+//     case 2:
+//         sfp = "sfpc";
+//         break;
+// 	case 3:
+// 		sfp = "sfpd";
+// 		break;
+// 	}
 
 	const std::string chan_str( 1, 'A' + chan );
 	const fs_path mb_path   = "/mboards/0";
 	const fs_path prop_path = mb_path / "tx_link";
+
+    sfp = tree->access<std::string>(prop_path / std::to_string( chan ) / "iface").get();
+    std::cout << "SFP: " << sfp << std::endl;
 
 	const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
 
