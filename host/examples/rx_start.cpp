@@ -260,5 +260,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         else if (type == "short") recv_to_file<std::complex<short> >recv_to_file_args("sc16");
         else throw std::runtime_error("Unknown type " + type);
     }
+
+    std::abort();
+
     return EXIT_SUCCESS;
 }
