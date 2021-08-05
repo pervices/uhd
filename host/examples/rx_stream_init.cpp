@@ -206,6 +206,11 @@ int run_exec(std::string argument) {
     if(child_pid == 0) {
         execvp(args[0], args);
         std::cerr << boost::format("Failed to launch: %s" ) % args[0] << std::endl;
+        int n = 0;
+        while(args[n]!=NULL) {
+            std::cout << args[n] << std::endl;
+            n++;
+        }
         std::exit(1);
         return 0;
     }
