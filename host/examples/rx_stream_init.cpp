@@ -251,8 +251,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         //stuff added for rx_stream
         ("lo-freq", po::value<double>(&lo_freq), "To amount to shift the signal's frequency down using the lo mixer. The sum of dsp and lo must be greater than the minimum frequency of the second lowest band for lo to work")
         ("dsp-freq", po::value<double>(&dsp_freq), "The amount to shift the signal's frequency using the cordic mixer. A positive value shift the frequency down")
-        ("preexecfile", po::value<std::string>(&pre_exec_file), "The file that should start immediately prior to the device starting to stream data.")
-        ("postexecfile", po::value<std::string>(&post_exec_file), "The file that should be run after finishing streaming data.")
+        ("preexecfile", po::value<std::string>(&pre_exec_file), "The file that should start immediately prior to the device starting to stream data. Must specify the path (ie starting with ./, ~/, /)")
+        ("postexecfile", po::value<std::string>(&post_exec_file), "The file that should be run after finishing streaming data. Must specify the path (ie starting with ./, ~/, /)")
         ("secs", po::value<double>(&setup_time)->default_value(5.0), "seconds of setup time")
 
     ;
