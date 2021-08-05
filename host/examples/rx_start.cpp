@@ -246,11 +246,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    if (total_num_samps == 0){
-        std::signal(SIGINT, &sig_int_handler);
-        std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
-    }
-
 #define recv_to_file_args(format) \
     (usrp, format, wirefmt, channel, spb, enable_size_map, continue_on_bad_packet, rate)
     //recv to file
