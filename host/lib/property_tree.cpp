@@ -109,6 +109,7 @@ public:
     }
 
     std::vector<std::string> list(const fs_path &path_) const{
+        std::cout << "List" << std::endl;
         const fs_path path = _root / path_;
         boost::mutex::scoped_lock lock(_guts->mutex);
 
@@ -135,6 +136,7 @@ public:
     }
 
     boost::shared_ptr<void> &_access(const fs_path &path_) const{
+        std::cout << "Access" << std::endl;
         const fs_path path = _root / path_;
         boost::mutex::scoped_lock lock(_guts->mutex);
 
