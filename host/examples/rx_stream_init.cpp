@@ -208,7 +208,7 @@ int run_exec(std::string argument) {
         std::cerr << boost::format("Failed to launch: %s" ) % args[0] << std::endl;
         int n = 0;
         while(args[n]!=NULL) {
-            std::out << args[n] << std::endl;
+            std::cout << args[n] << std::endl;
             n++;
         }
         std::exit(1);
