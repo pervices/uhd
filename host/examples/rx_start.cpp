@@ -36,8 +36,6 @@ template<typename samp_type> void recv_to_file(
     const std::string &wire_format,
     const size_t &channel,
     size_t samps_per_buff,
-    size_t num_requested_samples = 0,
-    double time_requested = 0.0,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
     double rate = 0
@@ -53,12 +51,8 @@ template<typename samp_type> void recv_to_file(
     uhd::rx_metadata_t md;
     std::vector<samp_type> buff(samps_per_buff);
 
-    //setup streaming
-    uhd::stream_cmd_t stream_cmd((num_requested_samples == 0)?
-        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
-        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
-    );
-    stream_cmd.num_samps = size_t(num_requested_samples);
+     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
+
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
 
@@ -117,8 +111,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
     std::string args, type, ant, subdev, ref, wirefmt;
-    size_t channel, total_num_samps, spb;
-    double rate, gain, bw, total_time, setup_time, lo_freq, dsp_freq;
+    size_t channel, spb;
+    double rate, gain, bw, setup_time, lo_freq, dsp_freq;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -126,8 +120,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
-        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
-        ("duration", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive. Noted: preexec will be stopped at the end of the duration. If preexec has its own set duration and does post processing, make sure this is set to be long enough for preexec to finish.")
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<double>(&rate)->default_value(1e6), "rate of incoming samples")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
@@ -254,13 +246,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    if (total_num_samps == 0){
-        std::signal(SIGINT, &sig_int_handler);
-        std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
-    }
-
 #define recv_to_file_args(format) \
-    (usrp, format, wirefmt, channel, spb, total_num_samps, total_time, enable_size_map, continue_on_bad_packet, rate)
+    (usrp, format, wirefmt, channel, spb, enable_size_map, continue_on_bad_packet, rate)
     //recv to file
     if (wirefmt == "s16") {
         if (type == "double") recv_to_file<double>recv_to_file_args("f64");
