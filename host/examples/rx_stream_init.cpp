@@ -218,7 +218,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, file, type, ant, subdev, ref, wirefmt, pre_exec_file, post_exec_file;
+    std::string args, type, ant, subdev, ref, wirefmt, pre_exec_file, post_exec_file;
     size_t channel, total_num_samps, spb;
     double rate, gain, bw, total_time, setup_time, lo_freq, dsp_freq;
 
@@ -227,7 +227,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     desc.add_options()
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
-        ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to write binary samples to")
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(10000), "total number of samples to receive")
         ("duration", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
@@ -247,8 +246,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         //stuff added for rx_stream
         ("lo-freq", po::value<double>(&lo_freq), "To amount to shift the signal's frequency down using the lo mixer. The sum of dsp and lo must be greater than the minimum frequency of the second lowest band for lo to work")
         ("dsp-freq", po::value<double>(&dsp_freq), "The amount to shift the signal's frequency using the cordic mixer. A positive value shift the frequency down")
-        ("preexecfile", po::value<std::string>(&pre_exec_file), "The file that should be run immediately prior to the device starting to stream data.")
-        ("postexecfile", po::value<std::string>(&post_exec_file), "The file that should be run finishing streaming data.")
+        ("preexecfile", po::value<std::string>(&pre_exec_file), "The file that should start immediately prior to the device starting to stream data.")
+        ("postexecfile", po::value<std::string>(&post_exec_file), "The file that should be run after finishing streaming data.")
         ("secs", po::value<double>(&setup_time)->default_value(5.0), "seconds of setup time")
 
     ;
@@ -258,10 +257,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD RX samples to file %s") % desc << std::endl;
+        std::cout << boost::format("UHD RX stream init %s") % desc << std::endl;
         std::cout
             << std::endl
-            << "This application streams data from a single channel of a USRP device to a file.\n"
+            << "This application streams data from a single channel of a USRP device, and launches programs to process it.\n"
             << std::endl;
         return ~0;
     }
