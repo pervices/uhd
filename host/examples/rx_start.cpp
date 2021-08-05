@@ -51,7 +51,7 @@ template<typename samp_type> void recv_to_file(
     uhd::rx_metadata_t md;
     std::vector<samp_type> buff(samps_per_buff);
 
-    uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
 
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
