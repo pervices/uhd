@@ -40,7 +40,7 @@ template<typename samp_type> void recv_to_file(
     double time_requested = 0.0,
     bool enable_size_map = false,
     bool continue_on_bad_packet = false,
-    double rate = 0,
+    double rate = 0
 ){
     //create a receive streamer
     uhd::stream_args_t stream_args(cpu_format,wire_format);
