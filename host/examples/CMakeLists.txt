@@ -14,6 +14,7 @@ set(example_sources
     rx_multi_samples.cpp
     rx_stream_init.cpp
     rx_start.cpp
+    rx_stop.cpp
     rx_samples_to_file.cpp
     rx_samples_to_udp.cpp
     rx_timed_samples.cpp
