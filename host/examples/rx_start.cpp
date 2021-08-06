@@ -261,5 +261,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         else throw std::runtime_error("Unknown type " + type);
     }
 
+    //start streaming. THis method is different from the conventional method
+    usrp.get_tree()->access("/mboards/0/rf" /chan / "/force_stream").set(1);
+
     return EXIT_SUCCESS;
 }
