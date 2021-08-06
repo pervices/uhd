@@ -262,7 +262,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //start streaming. THis method is different from the conventional method
-    usrp.get_tree()->access("/mboards/0/rf" /chan / "/force_stream").set(1);
+    usrp->set_tree_value("/mboards/0/rf" / channel / "/force_stream", 1);
 
     return EXIT_SUCCESS;
 }
