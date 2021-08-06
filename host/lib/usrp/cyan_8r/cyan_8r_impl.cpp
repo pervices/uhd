@@ -1122,6 +1122,9 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_dir"        , "rx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_pol"        , "rx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
 
+        //Force stream start by writing to register
+        TREE_CREATE_RW(rx_path / dspno / "/force_stream"        , "rx_" + lc_num + "/force_stream"        , int, int);
+
 		// Power status
 		TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
 
