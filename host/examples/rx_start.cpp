@@ -41,22 +41,22 @@ template<typename samp_type> void recv_to_file(
     double rate = 0
 ){
     //create a receive streamer
-    uhd::stream_args_t stream_args(cpu_format,wire_format);
-    std::vector<size_t> channel_nums;
-    channel_nums.push_back(channel);
-    stream_args.channels = channel_nums;
-
-    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-
-    uhd::rx_metadata_t md;
-    std::vector<samp_type> buff(samps_per_buff);
-
-     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
-
-    stream_cmd.stream_now = true;
-    stream_cmd.time_spec = uhd::time_spec_t();
-
-    rx_stream->issue_stream_cmd(stream_cmd);
+//     uhd::stream_args_t stream_args(cpu_format,wire_format);
+//     std::vector<size_t> channel_nums;
+//     channel_nums.push_back(channel);
+//     stream_args.channels = channel_nums;
+//
+//     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
+//
+//     uhd::rx_metadata_t md;
+//     std::vector<samp_type> buff(samps_per_buff);
+//
+//      uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
+//
+//     stream_cmd.stream_now = true;
+//     stream_cmd.time_spec = uhd::time_spec_t();
+//
+//     rx_stream->issue_stream_cmd(stream_cmd);
 }
 
 typedef std::function<uhd::sensor_value_t(const std::string&)> get_sensor_fn_t;
@@ -260,8 +260,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         else if (type == "short") recv_to_file<std::complex<short> >recv_to_file_args("sc16");
         else throw std::runtime_error("Unknown type " + type);
     }
-
-    std::abort();
 
     return EXIT_SUCCESS;
 }
