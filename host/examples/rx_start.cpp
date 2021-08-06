@@ -263,7 +263,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if (vm.count("rate")) {
         std::cout << boost::format("Setting RX Rate: %f") % rate << std::endl;
-        usrp->set_rx_rate(gain, channel);
+        usrp->set_rx_rate(rate, channel);
         std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_rate(channel) << std::endl << std::endl;
     }
 
