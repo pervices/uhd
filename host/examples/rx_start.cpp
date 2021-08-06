@@ -262,7 +262,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //start streaming. THis method is different from the conventional method
-    usrp->set_tree_value("/mboards/0/rf" / channel / "/force_stream", 1);
+    const fs_path mb_path   = "/mboards/0";
+    const fs_path rx_path   = mb_path / "rx";
+    usrp->set_tree_value(rx_path / channel / "/force_stream", 1);
 
     return EXIT_SUCCESS;
 }
