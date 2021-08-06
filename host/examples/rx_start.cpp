@@ -261,6 +261,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         else throw std::runtime_error("Unknown type " + type);
     }
 
+    if (vm.count("rate")) {
+        std::cout << boost::format("Setting RX Rate: %f") % rate << std::endl;
+        usrp->set_rx_rate(gain, channel);
+        std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_gain(channel) << std::endl << std::endl;
+    }
+
     //start streaming. THis method is different from the conventional method
     std::string path_buffer = "/mboards/0/rx/";
     path_buffer.append(std::to_string(channel));
