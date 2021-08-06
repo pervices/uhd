@@ -263,7 +263,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //start streaming. THis method is different from the conventional method
     std::string path_buffer = "/mboards/0/rx/";
-    path_buffer.push_back(channel+'a');
+    path_buffer.append(std::to_string(channel);
     path_buffer.append("/force_stream");
     usrp->set_tree_value(path_buffer, 1);
 
