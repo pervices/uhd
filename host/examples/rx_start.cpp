@@ -264,7 +264,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("rate")) {
         std::cout << boost::format("Setting RX Rate: %f") % rate << std::endl;
         usrp->set_rx_rate(gain, channel);
-        std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_gain(channel) << std::endl << std::endl;
+        std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_rate(channel) << std::endl << std::endl;
     }
 
     //start streaming. THis method is different from the conventional method
