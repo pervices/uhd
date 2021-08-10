@@ -936,6 +936,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
     TREE_CREATE_RW(mb_path / "id",         "fpga/about/id",     std::string, string);
     TREE_CREATE_RW(mb_path / "serial",     "fpga/about/serial", std::string, string);
+    TREE_CREATE_RW(mb_path / "server_version", "fpga/about/server_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "sw_version", "fpga/about/sw_ver", std::string, string);
@@ -1045,6 +1046,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_mode"       , "rx_" + lc_num + "/trigger/ufl_mode"       , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_dir"        , "rx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_pol"        , "rx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
+
+
+		// About information
+		TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
+		TREE_CREATE_RW(rx_path / dspno / "hw_version", "rx_"+lc_num+"/about/hw_ver", std::string, string);
+		TREE_CREATE_RW(rx_path / dspno / "sw_version", "rx_"+lc_num+"/about/sw_ver", std::string, string);
 
 		// Power status
 		TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
@@ -1185,6 +1192,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"        , "tx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"        , "tx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
+
+		// About information
+		TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
+		TREE_CREATE_RW(tx_path / dspno / "hw_version", "tx_"+lc_num+"/about/hw_ver", std::string, string);
+		TREE_CREATE_RW(tx_path / dspno / "sw_version", "tx_"+lc_num+"/about/sw_ver", std::string, string);
 
 		// Actual frequency values
 		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
