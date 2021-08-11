@@ -1819,3 +1819,100 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
         set_tx_gain(gain, name, c);
     }
 }
+
+void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
+
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto rx_dsp_root = [&](size_t chan) -> std::string {
+		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
+	};
+	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
+	};
+
+    if ( multi_usrp::ALL_CHANS != chan ) {
+
+        (void) name;
+
+        double atten_val = 0;
+        double gain_val = 0;
+        double lna_val = 0;
+
+        gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
+        gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
+
+        if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+            // Low-Band
+
+            double low_band_gain = gain > 31.5 ? 31.5 : gain;
+
+            if ( low_band_gain != gain ) {
+                boost::format rf_lo_message(
+                    "  The RF Low Band does not support the requested gain:\n"
+                    "    Requested RF Low Band gain: %f dB\n"
+                    "    Actual RF Low Band gain: %f dB\n"
+                );
+                rf_lo_message % gain % low_band_gain;
+                std::string results_string = rf_lo_message.str();
+                UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
+            }
+
+            // PMA is off (+0dB)
+            lna_val = 0;
+            // BFP is off (+0dB)
+            // PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
+            atten_val = 31.75;
+            // LMH is adjusted from 0dB to 31.5dB
+            gain_val = low_band_gain;
+
+        } else {
+
+        // High-Band
+        if ( false ) {
+            } else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
+                // PMA is off (+0dB)
+                lna_val = 0;
+                // BFP is on (+20dB)
+                // PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
+                atten_val = 31.75;
+                // LMH is adjusted from 0dB to 31.5dB
+                gain_val = gain;
+            } else if ( 31.5 < gain && gain <= 63.25 ) {
+                // PMA is off (+0dB)
+                lna_val = 0;
+                // BFP is on (+20dB)
+                // PE437 is adjusted from -31.75 dB to 0dB
+                atten_val = 63.25 - gain;
+                // LMH is maxed (+31.5dB)
+                gain_val = 31.5;
+            } else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
+                // PMA is on (+20dB)
+                lna_val = 20;
+                // BFP is on (+20dB)
+                // PE437 is adjusted from -20 dB to 0dB
+                atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
+                // LMH is maxed (+31.5dB)
+                gain_val = 31.5;
+            }
+        }
+
+        int lna_bypass_enable = 0 == lna_val ? 1 : 0;
+        _tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
+
+        //if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
+            _tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+            _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+        //} else {
+        //	_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
+        //	_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
+        //}
+        return;
+    }
+
+    for (size_t c = 0; c < CRIMSON_TNG_RX_CHANNELS; c++){
+        set_rx_gain( gain, name, c );
+    }
+}

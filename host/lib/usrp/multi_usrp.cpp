@@ -1501,120 +1501,13 @@ public:
     /**************************************************************************
      * Gain control
      *************************************************************************/
-	#include "crimson_tng/crimson_tng_fw_common.h"
+
     void set_rx_gain(double gain, const std::string &name, size_t chan) {
 
-    	if ( ALL_CHANS != chan ) {
+    get_device()->set_rx_gain(gain, name, chan);
 
-    		(void) name;
-
-    		double atten_val = 0;
-    		double gain_val = 0;
-    		double lna_val = 0;
-
-    		gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
-    		gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
-
-    		if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
-    			// Low-Band
-
-    			double low_band_gain = gain > 31.5 ? 31.5 : gain;
-
-    			if ( low_band_gain != gain ) {
-    				boost::format rf_lo_message(
-    					"  The RF Low Band does not support the requested gain:\n"
-    					"    Requested RF Low Band gain: %f dB\n"
-    					"    Actual RF Low Band gain: %f dB\n"
-    				);
-    				rf_lo_message % gain % low_band_gain;
-    				std::string results_string = rf_lo_message.str();
-    				UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
-    			}
-
-    			// PMA is off (+0dB)
-    			lna_val = 0;
-    			// BFP is off (+0dB)
-    			// PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
-    			atten_val = 31.75;
-    			// LMH is adjusted from 0dB to 31.5dB
-    			gain_val = low_band_gain;
-
-    		} else {
-    			// High-Band
-
-    			if ( false ) {
-    			} else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
-    				// PMA is off (+0dB)
-    				lna_val = 0;
-    				// BFP is on (+20dB)
-    				// PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
-    				atten_val = 31.75;
-    				// LMH is adjusted from 0dB to 31.5dB
-    				gain_val = gain;
-    			} else if ( 31.5 < gain && gain <= 63.25 ) {
-    				// PMA is off (+0dB)
-    				lna_val = 0;
-    				// BFP is on (+20dB)
-    				// PE437 is adjusted from -31.75 dB to 0dB
-    				atten_val = 63.25 - gain;
-    				// LMH is maxed (+31.5dB)
-    				gain_val = 31.5;
-    			} else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
-    				// PMA is on (+20dB)
-    				lna_val = 20;
-    				// BFP is on (+20dB)
-    				// PE437 is adjusted from -20 dB to 0dB
-    				atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
-    				// LMH is maxed (+31.5dB)
-    				gain_val = 31.5;
-    			}
-    		}
-
-    		int lna_bypass_enable = 0 == lna_val ? 1 : 0;
-    		_tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
-
-    		//if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
-    			_tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-    			_tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
-    		//} else {
-    		//	_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
-    		//	_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
-    		//}
-    		return;
-    	}
-
-        for (size_t c = 0; c < get_rx_num_channels(); c++){
-            set_rx_gain( gain, name, c );
-        }
     }
 
-//    void set_rx_gain(double gain, const std::string &name, size_t chan){
-//        /* Check if any AGC mode is enable and if so warn the user */
-//        if (chan != ALL_CHANS) {
-//            if (_tree->exists(rx_rf_fe_root(chan) / "gain" / "agc")) {
-//                bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
-//                if(agc) {
-//                    UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
-//                }
-//            }
-//        } else {
-//            for (size_t c = 0; c < get_rx_num_channels(); c++){
-//                if (_tree->exists(rx_rf_fe_root(c) / "gain" / "agc")) {
-//                    bool agc = _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable").get();
-//                    if(agc) {
-//                        UHD_LOGGER_WARNING("MULTI_USRP") << "AGC enabled for this channel. Setting will be ignored." ;
-//                    }
-//                }
-//            }
-//        }
-//        /* Apply gain setting.
-//         * If device is in AGC mode it will ignore the setting. */
-//        try {
-//            return rx_gain_group(chan)->set_value(gain, name);
-//        } catch (uhd::key_error &) {
-//            THROW_GAIN_NAME_ERROR(name,chan,rx);
-//        }
-//    }
 
     void set_rx_gain_profile(const std::string& profile, const size_t chan){
         if (chan != ALL_CHANS) {
