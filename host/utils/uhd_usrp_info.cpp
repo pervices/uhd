@@ -171,7 +171,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         for(uint8_t chan = 0; chan < 64; chan++) {
             try {
                 std::cout << std::string("\trx(" + std::to_string(chan) + "): ").c_str() << get_from_tree(tree, i, std::string("rx/" + std::to_string(chan) + "/fw_version").c_str()) << std::endl;
-            } catch (const uhd::lookup_error) {
+            } catch (const uhd::lookup_error&) {
+                all_rx_found = true;
+            } catch (const uhd::runtime_error&) {
                 all_rx_found = true;
             }
             if(all_rx_found) break;
