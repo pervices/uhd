@@ -1452,7 +1452,9 @@ cyan_4r4t_impl::~cyan_4r4t_impl(void)
 bool cyan_4r4t_impl::is_bm_thread_needed() {
 	bool r = true;
 
-#ifndef __APPLE__ // eventually use something like HAVE_PROGRAM_INVOCATION_NAME
+//commenting out this will result in all buffer mangement stuff not running
+//This is commented out for use on the ubuntu only
+//#ifndef __APPLE__ // eventually use something like HAVE_PROGRAM_INVOCATION_NAME
 	static const std::vector<std::string> utils {
 		"uhd_find_devices",
 		"uhd_usrp_probe",
@@ -1472,7 +1474,7 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 		}
 	}
 
-#endif
+//#endif
 
 	return r;
 }
