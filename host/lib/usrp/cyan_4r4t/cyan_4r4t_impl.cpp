@@ -1458,6 +1458,8 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 		"uhd_usrp_probe",
         "uhd_manual_set",
         "uhd_manual_get",
+        "rx_start",
+        "rx_stop",
 	};
 
 	// see `man 3 program_invocation_short_name'
