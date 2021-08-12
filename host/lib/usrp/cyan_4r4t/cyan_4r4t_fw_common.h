@@ -75,7 +75,6 @@
 #define CYAN_4R4T_MAX_MTU		9000
 
 // Crimson Flowcontrol Update Per Second
-//DWF
 #define CYAN_4R4T_UPDATE_PER_SEC	100
 #define CYAN_4R4T_SS_FIFOLVL_THRESHOLD 107421875
 
@@ -83,14 +82,14 @@
 #define CYAN_4R4T_BUFF_SIZE	2048*140*512/32
 
 // Crimson RF Settings
-//DWF
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_START	0.0
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_STOP	31.75
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_STEP	0.25
 
 // Ranges from, 0dB to 83.25dB
+//Note the range varies depending on band
 #define CYAN_4R4T_RF_RX_GAIN_RANGE_START -6
-#define CYAN_4R4T_RF_RX_GAIN_RANGE_STOP	 26
+#define CYAN_4R4T_RF_RX_GAIN_RANGE_STOP	 33
 #define CYAN_4R4T_RF_RX_GAIN_RANGE_STEP	 1
 
 // Cyan_4r4t Clk Settings
