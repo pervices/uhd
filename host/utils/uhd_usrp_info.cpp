@@ -154,14 +154,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         try {
         std::cout << "Server Version : " << get_from_tree(tree, i, "server_version")
                   << std::endl;
-        } catch (const uhd::lookup_error) {
+        } catch (const uhd::lookup_error&) {
             std::cout << "Server version lookup not implemented" << std::endl;
         }
 
         try {
         std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version")
                   << std::endl;
-        } catch (const uhd::lookup_error) {
+        } catch (const uhd::lookup_error&) {
             std::cout << "FPGA version lookup not implemented" << std::endl;
         }
 
@@ -171,70 +171,42 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         for(uint8_t chan = 0; chan < 64; chan++) {
             try {
                 std::cout << std::string("\trx(" + std::to_string(chan) + "): ").c_str() << get_from_tree(tree, i, std::string("rx/" + std::to_string(chan) + "/fw_version").c_str()) << std::endl;
-            } catch (const uhd::lookup_error&) {
-                all_rx_found = true;
-            } catch (const uhd::runtime_error&) {
+            } catch (...) {
                 all_rx_found = true;
             }
             if(all_rx_found) break;
         }
+
+        bool all_tx_found = false;
         for(uint8_t chan = 0; chan < 64; chan++) {
-            std::cout << std::string("\ttx(%u): ", chan).c_str() << get_from_tree(tree, i, std::string("tx/%u/fw_version", chan).c_str()) << std::endl;
+            try {
+                std::cout << std::string("\ttx(%u): ", chan).c_str() << get_from_tree(tree, i, std::string("tx/%u/fw_version", chan).c_str()) << std::endl;
+            } catch (...) {
+                all_tx_found = true;
+            }
+            if(all_tx_found) break;
         }
 
-        if (vm.count("networking") || vm.count("all")) {
-            std::cout << "Device Address : " << std::endl;
-            std::cout << "\tManagement IP: " << device_address << std::endl;
-            std::cout << "\tSFP A IP     : " << get_from_tree(tree, i, "sfpa/ip_addr")
+        try {
+            if (vm.count("networking") || vm.count("all")) {
+                std::cout << "Device Address : " << std::endl;
+                std::cout << "\tManagement IP: " << device_address << std::endl;
+                std::cout << "\tSFP A IP     : " << get_from_tree(tree, i, "sfpa/ip_addr")
                       << std::endl;
-            std::cout << "\tSFP B IP     : " << get_from_tree(tree, i, "sfpb/ip_addr")
-                      << std::endl;
+                std::cout << "\tSFP B IP     : " << get_from_tree(tree, i, "sfpb/ip_addr")
+                        << std::endl;
+            }
+        } catch (...) {
+            std::cout << "Unable to get all network info" << std::endl;
         }
 
-        if (vm.count("time") || vm.count("all")) {
-            std::cout << "Time (fpga/gps_time) : " << get_from_tree_int(tree, i,"gps_time") << std::endl;
-            std::cout << "Time (time/curr_time): " << get_from_tree_int(tree, i,"time/now") << std::endl;
-        }
-
-        if (vm.count("lock") || vm.count("all")) {
-            std::cout << "TODO: provide the PLL lock status for Rx/Tx/time and if we are "
-                         "using internal/external reference\n";
-        }
-
-        if (vm.count("boards") || vm.count("all")) {
-            std::cout << "TODO: RFE frontend status of each board\n";
-            std::cout << "Rx Board A" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/A/rx_frontends/Channel_A/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/A/rx_frontends/Channel_A/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/A/rx_frontends/Channel_A/gain/value") << std::endl;
-            std::cout << "Rx Board B" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/B/rx_frontends/Channel_B/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/B/rx_frontends/Channel_B/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/B/rx_frontends/Channel_B/gain/value") << std::endl;
-            std::cout << "Rx Board C" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/C/rx_frontends/Channel_C/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/C/rx_frontends/Channel_C/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/C/rx_frontends/Channel_C/gain/value") << std::endl;
-            std::cout << "Rx Board D" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/D/rx_frontends/Channel_D/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/D/rx_frontends/Channel_D/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/D/rx_frontends/Channel_D/gain/value") << std::endl;
-            std::cout << "Tx Board A" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/A/tx_frontends/Channel_A/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/A/tx_frontends/Channel_A/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/A/tx_frontends/Channel_A/gain/value") << std::endl;
-            std::cout << "Tx Board B" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/B/tx_frontends/Channel_B/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/B/tx_frontends/Channel_B/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/B/tx_frontends/Channel_B/gain/value") << std::endl;
-            std::cout << "Tx Board C" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/C/tx_frontends/Channel_C/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/C/tx_frontends/Channel_C/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/C/tx_frontends/Channel_C/gain/value") << std::endl;
-            std::cout << "Tx Board D" << std::endl;
-            std::cout << "    RF Band: " << get_from_tree_double(tree, i,"dboards/D/tx_frontends/Channel_D/freq/band") << std::endl;
-            std::cout << "    RF Freq: " << get_from_tree_double(tree, i,"dboards/D/tx_frontends/Channel_D/freq/value") << std::endl;
-            std::cout << "    RF Gain: " << get_from_tree_double(tree, i,"dboards/D/tx_frontends/Channel_D/gain/value") << std::endl;
+        try {
+            if (vm.count("time") || vm.count("all")) {
+                std::cout << "Time (fpga/gps_time) : " << get_from_tree_int(tree, i,"gps_time") << std::endl;
+                std::cout << "Time (time/curr_time): " << get_from_tree_int(tree, i,"time/now") << std::endl;
+            }
+        } catch (...) {
+            std::cout << "Unable to get all time info" << std::endl;
         }
 
         i++;
