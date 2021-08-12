@@ -90,7 +90,7 @@
 
 // Ranges from, 0dB to 83.25dB
 #define CYAN_8R_RF_RX_GAIN_RANGE_START -6
-#define CYAN_8R_RF_RX_GAIN_RANGE_STOP	 26
+#define CYAN_8R_RF_RX_GAIN_RANGE_STOP	 33
 #define CYAN_8R_RF_RX_GAIN_RANGE_STEP	 1
 
 // Cyan_4r4t Clk Settings

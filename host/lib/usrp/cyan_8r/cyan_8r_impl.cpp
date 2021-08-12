@@ -1866,3 +1866,42 @@ double cyan_8r_impl::get_tx_freq(size_t chan) {
         }
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
+
+void cyan_8r_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
+
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto rx_dsp_root = [&](size_t chan) -> std::string {
+		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
+	};
+	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
+	};
+    auto rx_codec_path = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/rx_codecs/" + letter;
+	};
+
+    if ( multi_usrp::ALL_CHANS != chan ) {
+
+        (void) name;
+
+        //the server handles setting the bypassable amp based off of gain
+        _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain );
+        double actual_rf_gain = _tree->access<int>(rx_rf_fe_root(chan) / "gain" / "value").get();
+
+        _tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( actual_rf_gain - gain );
+        double actual_atten = _tree->access<int>(rx_rf_fe_root(chan) / "atten" / "value").get();
+
+        _tree->access<double>( rx_codec_path(chan) / "gains").set( (actual_rf_gain - actual_atten) - gain );
+        double actual_dsp_gain = _tree->access<int>(rx_codec_path(chan) / "gains").get();
+
+        return;
+    }
+
+    for (size_t c = 0; c < CYAN_8R_RX_CHANNELS; c++){
+        set_rx_gain( gain, name, c );
+    }
+}
