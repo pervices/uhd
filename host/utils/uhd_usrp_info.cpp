@@ -150,15 +150,31 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
 
         std::cout << "Device Type    : " << device_type << std::endl;
+
+        try {
         std::cout << "Server Version : " << get_from_tree(tree, i, "server_version")
                   << std::endl;
+        } catch (const uhd::lookup_error) {
+            std::cout << "Server version lookup not implemented" << std::endl;
+        }
+
+        try {
         std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version")
                   << std::endl;
+        } catch (const uhd::lookup_error) {
+            std::cout << "FPGA version lookup not implemented" << std::endl;
+        }
 
         std::cout << "Board MCU revision: " << std::endl;
         std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
+        bool all_rx_found = false;
         for(uint8_t chan = 0; chan < 64; chan++) {
-            std::cout << std::string("\trx(%u): ", chan).c_str() << get_from_tree(tree, i, std::string("rx/%u/fw_version", chan).c_str()) << std::endl;
+            try {
+                std::cout << std::string("\trx(" + std::to_string(chan) + "): ").c_str() << get_from_tree(tree, i, std::string("rx/" + std::to_string(chan) + "/fw_version").c_str()) << std::endl;
+            } catch (const uhd::lookup_error) {
+                all_rx_found = true;
+            }
+            if(all_rx_found) break;
         }
         for(uint8_t chan = 0; chan < 64; chan++) {
             std::cout << std::string("\ttx(%u): ", chan).c_str() << get_from_tree(tree, i, std::string("tx/%u/fw_version", chan).c_str()) << std::endl;
