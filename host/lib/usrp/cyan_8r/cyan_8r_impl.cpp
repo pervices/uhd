@@ -1479,8 +1479,7 @@ bool cyan_8r_impl::is_bm_thread_needed() {
 	}
 
 //#endif
-
-	return r;
+	return false;
 }
 
 //gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
