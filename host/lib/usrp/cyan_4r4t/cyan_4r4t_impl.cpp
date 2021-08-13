@@ -992,6 +992,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
+    std::cout << "T350" << std::endl;
+
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "time_source" / "options").set(time_sources);
 
@@ -1103,6 +1105,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
+
+    std::cout << "T360" << std::endl;
 
     // loop for all RX chains
     for( size_t dspno = 0; dspno < CYAN_4R4T_RX_CHANNELS; dspno++ ) {
@@ -1381,6 +1385,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		);
     }
 
+    std::cout << "T370" << std::endl;
+
 	const fs_path cm_path  = mb_path / "cm";
 
 	// Common Mode
@@ -1392,7 +1398,11 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
 	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/fpga_nco", double, double);
 
+    std::cout << "T380" << std::endl;
+
 	this->io_init();
+
+    std::cout << "T390" << std::endl;
 
     //do some post-init tasks
     this->update_rates();
@@ -1421,6 +1431,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 //        }
     }
 
+    std::cout << "T400" << std::endl;
+
 	for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
         int sfp_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
@@ -1429,8 +1441,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
     }
 
+    std::cout << "T410" << std::endl;
+
 	_bm_thread_needed = is_bm_thread_needed();
 	if ( _bm_thread_needed ) {
+
+        std::cout << "T420" << std::endl;
 
 		//Initialize "Time Diff" mechanism before starting flow control thread
 		time_spec_t ts = uhd::get_system_time();
@@ -1447,15 +1463,22 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 			2.0 / (double)CYAN_4R4T_UPDATE_PER_SEC
 		);
 
+        std::cout << "T430" << std::endl
+
 		_time_diff_pidc.set_error_filter_length( CYAN_4R4T_UPDATE_PER_SEC );
 
 		// XXX: @CF: 20170720: coarse to fine for convergence
 		// we coarsely lock on at first, to ensure the class instantiates properly
 		// and then switch to a finer error tolerance
 		_time_diff_pidc.set_max_error_for_convergence( 100e-6 );
+
+        std::cout << "T440" << std::endl
 		start_bm();
+        std::cout << "T445" << std::endl
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
+
+ 	std::cout << "T450" << std::endl;
 }
 
 cyan_4r4t_impl::~cyan_4r4t_impl(void)
