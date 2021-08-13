@@ -42,9 +42,12 @@ device_addr_t::device_addr_t(const std::string &args){
 }
 
 device_addr_t::device_addr_t(const std::map<std::string, std::string> &info) {
+    std::cout << "T35" << std::endl;
     for (auto& t : info) {
+        std::cout << "T36" << std::endl;
         this->set(t.first, t.second);
     }
+    std::cout << "T39" << std::endl;
 }
 
 std::string device_addr_t::to_pp_string(void) const{
