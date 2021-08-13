@@ -184,13 +184,17 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
 
     //try to find an existing device
     if (hash_to_device.has_key(dev_hash) and not hash_to_device[dev_hash].expired()){
+        std::cout << "T31" << std::endl;
         return hash_to_device[dev_hash].lock();
     }
     else {
+        std::cout << "T32" << std::endl;
         // Add keys from the config files (note: the user-defined keys will
         // always be applied, see also get_usrp_args()
         // Then, create and register a new device.
         device::sptr dev = maker(prefs::get_usrp_args(dev_addr));
+        std::cout << "T33" << std::endl;
+        std::cout << "T34" << std::endl;
         hash_to_device[dev_hash] = dev;
         return dev;
     }
