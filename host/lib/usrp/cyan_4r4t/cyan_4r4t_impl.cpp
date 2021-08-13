@@ -1229,10 +1229,14 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	    ;
 		const size_t bpp = CYAN_4R4T_MAX_MTU - ip_udp_size;
 
+        std::cout << "T363" << std::endl;
+
 		zcxp.send_frame_size = 0;
 		zcxp.recv_frame_size = bpp;
 		zcxp.num_send_frames = 0;
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
+
+        std::cout << "T364" << std::endl;
 
 		_mbc[mb].rx_dsp_xports.push_back(
 			udp_stream_zero_copy::make(
