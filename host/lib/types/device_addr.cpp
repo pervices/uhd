@@ -12,6 +12,7 @@
 #include <boost/regex.hpp>
 #include <stdexcept>
 #include <sstream>
+#include <iostream>
 
 using namespace uhd;
 
