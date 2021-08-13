@@ -1219,14 +1219,23 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(rx_link_path / "jesd_num",   "rx_"+lc_num+"/link/jesd_num",   int, int);
 
         std::cout << "T362" << std::endl;
+        std::cout << "T362.1" << std::endl;
 
 		zero_copy_xport_params zcxp;
+
+        std::cout << "T362.2" << std::endl;
+
 		udp_zero_copy::buff_params bp;
+
+        std::cout << "T32.3" << std::endl;
 
 	    static const size_t ip_udp_size = 0
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
+
+        std::cout << "T362.4" << std::endl;
+
 		const size_t bpp = CYAN_4R4T_MAX_MTU - ip_udp_size;
 
         std::cout << "T363" << std::endl;
