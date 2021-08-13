@@ -1218,6 +1218,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
         TREE_CREATE_RW(rx_link_path / "jesd_num",   "rx_"+lc_num+"/link/jesd_num",   int, int);
 
+        std::cout << "T362" << std::endl;
+
 		zero_copy_xport_params zcxp;
 		udp_zero_copy::buff_params bp;
 
@@ -1244,6 +1246,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 			)
 		);
     }
+
+    std::cout << "T365" << std::endl;
 
     // loop for all TX chains
     for( int dspno = 0; dspno < CYAN_4R4T_TX_CHANNELS; dspno++ ) {
