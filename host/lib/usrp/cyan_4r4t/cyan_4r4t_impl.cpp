@@ -1247,17 +1247,22 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
         std::cout << "T364" << std::endl;
 
-		_mbc[mb].rx_dsp_xports.push_back(
-			udp_stream_zero_copy::make(
-				_tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-				std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-				"127.0.0.1",
-				1,
-				zcxp,
-				bp,
-				device_addr
-			)
-		);
+        try {
+
+            _mbc[mb].rx_dsp_xports.push_back(
+                udp_stream_zero_copy::make(
+                    _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
+                    std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
+                    "127.0.0.1",
+                    1,
+                    zcxp,
+                    bp,
+                    device_addr
+                )
+            );
+        } catch (...) {
+            UHD_LOGGER_ERROR("CYAN_4R4T") << "Unable to bing ip adress, certain features may not work. \n IP: " << rx_link_path / "ip_dest" ).get() << << " Port: " << _tree->access<std::string>( rx_link_path / "port" ).get() << std::endl;
+        }
     }
 
     std::cout << "T365" << std::endl;
