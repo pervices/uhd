@@ -1217,17 +1217,21 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 		zcxp.num_send_frames = 0;
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
-		_mbc[mb].rx_dsp_xports.push_back(
-			udp_stream_zero_copy::make(
-				_tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-				std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-				"127.0.0.1",
-				1,
-				zcxp,
-				bp,
-				device_addr
-			)
-		);
+        try {
+
+            _mbc[mb].rx_dsp_xports.push_back(
+                udp_stream_zero_copy::make(
+                    _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
+                    std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
+                    "127.0.0.1",
+                    1,
+                    zcxp,
+                    bp,
+                    device_addr
+                )
+            );
+        } catch ( ... ) {
+        }UHD_LOGGER_ERROR("CYAN_8R") << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
     }
 
     // loop for all TX chains
