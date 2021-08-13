@@ -128,6 +128,8 @@ device_addrs_t device::find(const device_addr_t &hint, device_filter_t filter){
 device::sptr device::make(const device_addr_t &hint, device_filter_t filter, size_t which){
     boost::mutex::scoped_lock lock(_device_mutex);
 
+    std::cout << "T1" std::endl;
+
     typedef boost::tuple<device_addr_t, make_t> dev_addr_make_t;
     std::vector<dev_addr_make_t> dev_addr_makers;
 
@@ -144,6 +146,8 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
             UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what() ;
         }
     }
+
+    std::cout << "T10" std::endl;
 
     //check that we found any devices
     if (dev_addr_makers.size() == 0){
@@ -165,6 +169,8 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
     size_t dev_hash = hash_device_addr(dev_addr);
     UHD_LOGGER_TRACE("UHD") << boost::format("Device hash: %u") % dev_hash ;
 
+    std::cout << "T20" std::endl;
+
     //copy keys that were in hint but not in dev_addr
     //this way, we can pass additional transport arguments
     for(const std::string &key:  hint.keys()){
@@ -173,6 +179,8 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
 
     //map device address hash to created devices
     static uhd::dict<size_t, boost::weak_ptr<device> > hash_to_device;
+
+    std::cout << "T30" std::endl;
 
     //try to find an existing device
     if (hash_to_device.has_key(dev_hash) and not hash_to_device[dev_hash].expired()){
@@ -186,6 +194,7 @@ device::sptr device::make(const device_addr_t &hint, device_filter_t filter, siz
         hash_to_device[dev_hash] = dev;
         return dev;
     }
+    std::cout << "T40" std::endl;
 }
 
 uhd::property_tree::sptr
