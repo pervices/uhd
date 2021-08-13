@@ -909,6 +909,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         }
     }
 
+    std::cout << "T300" << std::endl;
+
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){
         #if defined(UHD_PLATFORM_MACOS) || defined(UHD_PLATFORM_BSD)
@@ -925,7 +927,11 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
     }
 
+    std::cout << "T310" << std::endl;
+
     device_addrs_t device_args = separate_device_addr(device_addr);
+
+    std::cout << "T320" << std::endl;
 
     // XXX: @CF: 20180227: we need the property tree to extract actual values from hardware
     //extract the user's requested MTU size or default
@@ -956,6 +962,9 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
     static const size_t mbi = 0;
     static const std::string mb = std::to_string( mbi );
+
+    std::cout << "T330" << std::endl;
+
     // Makes the UDP comm connection
     _mbc[mb].iface = cyan_4r4t_iface::make(
 		udp_simple::make_connected(
@@ -963,6 +972,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 			BOOST_STRINGIZE( CYAN_4R4T_FW_COMMS_UDP_PORT )
 		)
     );
+
+    std::cout << "T340" << std::endl;
 
     // TODO make transports for each RX/TX chain
     // TODO check if locked already
