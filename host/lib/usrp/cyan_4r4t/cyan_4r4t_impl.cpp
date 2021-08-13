@@ -1463,7 +1463,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 			2.0 / (double)CYAN_4R4T_UPDATE_PER_SEC
 		);
 
-        std::cout << "T430" << std::endl
+        std::cout << "T430" << std::endl;
 
 		_time_diff_pidc.set_error_filter_length( CYAN_4R4T_UPDATE_PER_SEC );
 
@@ -1472,9 +1472,9 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		// and then switch to a finer error tolerance
 		_time_diff_pidc.set_max_error_for_convergence( 100e-6 );
 
-        std::cout << "T440" << std::endl
+        std::cout << "T440" << std::endl;
 		start_bm();
-        std::cout << "T445" << std::endl
+        std::cout << "T445" << std::endl;
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
 
