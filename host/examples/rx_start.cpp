@@ -107,6 +107,9 @@ bool check_locked_sensor(
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[]){
+
+    std::cout << "T-10" << std::endl;
+
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
@@ -143,6 +146,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
+    std::cout << "T-7" << std::endl;
+
     //print the help message
     if (vm.count("help")) {
         std::cout << boost::format("UHD RX stream init %s") % desc << std::endl;
@@ -158,6 +163,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if (enable_size_map)
         std::cout << "Packet size tracking enabled - will only recv one packet at a time!" << std::endl;
+
+    std::cout << "T-2" << std::endl;
 
     //create a usrp device
     std::cout << std::endl;
