@@ -386,7 +386,7 @@ class multi_usrp_impl : public multi_usrp{
 public:
     multi_usrp_impl(const device_addr_t &addr){
         _dev = device::make(addr, device::USRP);
-        std:cout << "T50" << std::endl;
+        std::cout << "T50" << std::endl;
         _tree = _dev->get_tree();
         _is_device3 = bool(boost::dynamic_pointer_cast<uhd::device3>(_dev));
 
