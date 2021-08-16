@@ -1904,12 +1904,9 @@ void cyan_4r4t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
 
         //the server handles setting the bypassable amp based off of gain
         _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain );
-        double actual_rf_gain = _tree->access<int>(rx_rf_fe_root(chan) / "gain" / "value").get();
+        double actual_rf_gain = _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 
-        _tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( actual_rf_gain - gain );
-        double actual_atten = _tree->access<int>(rx_rf_fe_root(chan) / "atten" / "value").get();
-
-        _tree->access<double>( rx_codec_path(chan) / "gains").set( (actual_rf_gain - actual_atten) - gain );
+        _tree->access<double>( rx_codec_path(chan) / "gains").set( (actual_rf_gain) - gain );
         double actual_dsp_gain = _tree->access<int>(rx_codec_path(chan) / "gains").get();
 
         return;
