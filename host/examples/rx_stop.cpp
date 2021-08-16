@@ -79,15 +79,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, type, ant, subdev, ref, wirefmt;
-    size_t channel, spb;
+    std::string args, type, ant, subdev, ref, wirefmt, channel_list;
+    size_t spb;
     double rate, gain, bw, setup_time, lo_freq, dsp_freq;
 
     //setup the program options
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "help message")
-        ("channel", po::value<size_t>(&channel)->default_value(0), "which channel to use")
+        ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
 
     ;
     po::variables_map vm;
@@ -117,11 +117,46 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
+    //detect which channels to use
+    std::vector<size_t> channel_nums;
+    size_t start_index = 0;;
+    while(start_index < channel_list.size()) {
+        while(channel_list[start_index] < '0' && channel_list[start_index] > '9') {
+            start_index++;
+            if(start_index == channel_list.size()) {
+                break;
+            }
+        }
+        int stop_index = start_index;
+        while(channel_list[stop_index] >= '0' && channel_list[stop_index] <= '9') {
+            stop_index++;
+            if(stop_index==channel_list.size()) {
+                break;
+            }
+        }
+        if(stop_index>start_index) {
+            size_t channel = std::stoi(channel_list.substr(start_index, stop_index));
+            if(channel >= usrp->get_rx_num_channels()){
+                std::string error_msg = "Invalid channel specified: ";
+                error_msg.append(std::to_string(channel));
+                throw std::runtime_error(error_msg);
+            } else {
+                channel_nums.push_back(channel);
+            }
+        } else {
+            break;
+        }
+        start_index = stop_index;
+
+    }
+
     //start streaming. THis method is different from the conventional method
-    std::string path_buffer = "/mboards/0/rx/";
-    path_buffer.append(std::to_string(channel));
-    path_buffer.append("/force_stream");
-    usrp->set_tree_value(path_buffer, 0);
+    for(int n =0; n <channel_nums.size();n++) {
+        std::string path_buffer = "/mboards/0/rx/";
+        path_buffer.append(std::to_string(channel_nums[n]));
+        path_buffer.append("/force_stream");
+        usrp->set_tree_value(path_buffer, 0);
+    }
 
     return EXIT_SUCCESS;
 }

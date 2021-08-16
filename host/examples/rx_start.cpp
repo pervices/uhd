@@ -13,6 +13,7 @@
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 #include <iostream>
 #include <fstream>
 #include <csignal>
@@ -29,35 +30,6 @@ static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
 int run_exec(std::string argument);
-
-template<typename samp_type> void recv_to_file(
-    uhd::usrp::multi_usrp::sptr usrp,
-    const std::string &cpu_format,
-    const std::string &wire_format,
-    const size_t &channel,
-    size_t samps_per_buff,
-    bool enable_size_map = false,
-    bool continue_on_bad_packet = false,
-    double rate = 0
-){
-    //create a receive streamer
-//     uhd::stream_args_t stream_args(cpu_format,wire_format);
-//     std::vector<size_t> channel_nums;
-//     channel_nums.push_back(channel);
-//     stream_args.channels = channel_nums;
-//
-//     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-//
-//     uhd::rx_metadata_t md;
-//     std::vector<samp_type> buff(samps_per_buff);
-//
-//      uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
-//
-//     stream_cmd.stream_now = true;
-//     stream_cmd.time_spec = uhd::time_spec_t();
-//
-//     rx_stream->issue_stream_cmd(stream_cmd);
-}
 
 typedef std::function<uhd::sensor_value_t(const std::string&)> get_sensor_fn_t;
 
@@ -110,8 +82,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, type, ant, subdev, ref, wirefmt;
-    size_t channel, spb;
+    std::string args, type, ant, subdev, ref, wirefmt, channel_list;
+    size_t spb;
     double rate, gain, bw, setup_time, lo_freq, dsp_freq;
 
     //setup the program options
@@ -125,7 +97,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
-        ("channel", po::value<size_t>(&channel)->default_value(0), "which channel to use")
+        ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8, sc16 or s16)")
@@ -164,6 +136,40 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
+    //detect which channels to use
+    std::vector<size_t> channel_nums;
+    size_t start_index = 0;;
+    while(start_index < channel_list.size()) {
+        while(channel_list[start_index] < '0' || channel_list[start_index] > '9') {
+            start_index++;
+            if(start_index == channel_list.size()) {
+                break;
+            }
+        }
+        int stop_index = start_index;
+        while(channel_list[stop_index] >= '0' && channel_list[stop_index] <= '9') {
+            stop_index++;
+            if(stop_index==channel_list.size()) {
+                break;
+            }
+        }
+
+        if(stop_index>start_index) {
+
+            size_t channel = std::stoi(channel_list.substr(start_index, stop_index));
+            if(channel >= usrp->get_rx_num_channels()){
+                std::string error_msg = "Invalid channel specified: ";
+                error_msg.append(std::to_string(channel));
+                throw std::runtime_error(error_msg);
+            } else {
+                channel_nums.push_back(channel);
+            }
+        } else {
+            break;
+        }
+        start_index = stop_index;
+    }
+
     //Lock mboard clocks
     usrp->set_clock_source(ref);
 
@@ -178,16 +184,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
+
     //set the center frequency
     if (vm.count("lo-freq") && vm.count("dsp-freq")) { //with default of 0.0 this will always be true
-        double freq = lo_freq+dsp_freq;
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        //The way that tune request parameters work does not match their names
-        //Inspect how the code that uses tune requests (tune.cpp) actually interacts with *impl.cpp
-        uhd::tune_request_t tune_request(dsp_freq+lo_freq, lo_freq, 0, 0, -dsp_freq);
-        if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
-        usrp->set_rx_freq(tune_request, channel);
-        std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
+        for(int n = 0; n < channel_nums.size(); n++) {
+            size_t channel = channel_nums[n];
+            double freq = lo_freq+dsp_freq;
+            std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+            //The way that tune request parameters work does not match their names
+            //Inspect how the code that uses tune requests (tune.cpp) actually interacts with *impl.cpp
+            uhd::tune_request_t tune_request(dsp_freq+lo_freq, lo_freq, 0, 0, -dsp_freq);
+            if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
+            usrp->set_rx_freq(tune_request, channel);
+            std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
+        }
     } else {
         std::cerr << "Please specify a dsp shift and lo frequency" << std::endl;
         return ~0;
@@ -195,20 +205,31 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //set the rf gain
     if (vm.count("gain")) {
-        std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
-        usrp->set_rx_gain(gain, channel);
-        std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel) << std::endl << std::endl;
+        for(int n = 0; n < channel_nums.size(); n++) {
+            size_t channel = channel_nums[n];
+            std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+            usrp->set_rx_gain(gain, channel);
+            std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel) << std::endl << std::endl;
+        }
     }
 
     //set the IF filter bandwidth
     if (vm.count("bw")) {
-        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw/1e6) << std::endl;
-        usrp->set_rx_bandwidth(bw, channel);
-        std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
+        for(int n = 0; n < channel_nums.size(); n++) {
+            size_t channel = channel_nums[n];
+            std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw/1e6) << std::endl;
+            usrp->set_rx_bandwidth(bw, channel);
+            std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
+        }
     }
 
     //set the antenna
-    if (vm.count("ant")) usrp->set_rx_antenna(ant, channel);
+    if (vm.count("ant")) {
+        for(int n = 0; n < channel_nums.size(); n++) {
+            size_t channel = channel_nums[n];
+            usrp->set_rx_antenna(ant, channel);
+        }
+    }
 
     std::this_thread::sleep_for(
         std::chrono::milliseconds(int64_t(1000 * setup_time))
@@ -216,62 +237,56 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //check Ref and LO Lock detect
     if (not vm.count("skip-lo")){
-        check_locked_sensor(
-            usrp->get_rx_sensor_names(channel),
-            "lo_locked",
-            [usrp,channel](const std::string& sensor_name){
-                return usrp->get_rx_sensor(sensor_name, channel);
-            },
-            setup_time
-        );
-        if (ref == "mimo") {
+        for(int n = 0; n < channel_nums.size(); n++) {
+            size_t channel = channel_nums[n];
             check_locked_sensor(
-                usrp->get_mboard_sensor_names(0),
-                "mimo_locked",
-                [usrp](const std::string& sensor_name){
-                    return usrp->get_mboard_sensor(sensor_name);
+                usrp->get_rx_sensor_names(channel),
+                "lo_locked",
+                [usrp,channel](const std::string& sensor_name){
+                    return usrp->get_rx_sensor(sensor_name, channel);
                 },
                 setup_time
             );
+            if (ref == "mimo") {
+                check_locked_sensor(
+                    usrp->get_mboard_sensor_names(0),
+                    "mimo_locked",
+                    [usrp](const std::string& sensor_name){
+                        return usrp->get_mboard_sensor(sensor_name);
+                    },
+                    setup_time
+                );
+            }
+            if (ref == "external") {
+                check_locked_sensor(
+                    usrp->get_mboard_sensor_names(0),
+                    "ref_locked",
+                    [usrp](const std::string& sensor_name){
+                        return usrp->get_mboard_sensor(sensor_name);
+                    },
+                    setup_time
+                );
+            }
         }
-        if (ref == "external") {
-            check_locked_sensor(
-                usrp->get_mboard_sensor_names(0),
-                "ref_locked",
-                [usrp](const std::string& sensor_name){
-                    return usrp->get_mboard_sensor(sensor_name);
-                },
-                setup_time
-            );
-        }
-    }
-
-#define recv_to_file_args(format) \
-    (usrp, format, wirefmt, channel, spb, enable_size_map, continue_on_bad_packet, rate)
-    //recv to file
-    if (wirefmt == "s16") {
-        if (type == "double") recv_to_file<double>recv_to_file_args("f64");
-        else if (type == "float") recv_to_file<float>recv_to_file_args("f32");
-        else if (type == "short") recv_to_file<short>recv_to_file_args("s16");
-        else throw std::runtime_error("Unknown type " + type);
-    } else {
-        if (type == "double") recv_to_file<std::complex<double> >recv_to_file_args("fc64");
-        else if (type == "float") recv_to_file<std::complex<float> >recv_to_file_args("fc32");
-        else if (type == "short") recv_to_file<std::complex<short> >recv_to_file_args("sc16");
-        else throw std::runtime_error("Unknown type " + type);
     }
 
     if (vm.count("rate")) {
-        std::cout << boost::format("Setting RX Rate: %f") % rate << std::endl;
-        usrp->set_rx_rate(rate, channel);
-        std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_rate(channel) << std::endl << std::endl;
+        for(int n = 0; n < channel_nums.size(); n++) {
+            size_t channel = channel_nums[n];
+            std::cout << boost::format("Setting RX Rate: %f") % rate << std::endl;
+            usrp->set_rx_rate(rate, channel);
+            std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_rate(channel) << std::endl << std::endl;
+        }
     }
 
     //start streaming. THis method is different from the conventional method
-    std::string path_buffer = "/mboards/0/rx/";
-    path_buffer.append(std::to_string(channel));
-    path_buffer.append("/force_stream");
-    usrp->set_tree_value(path_buffer, 1);
+    for(int n = 0; n <channel_nums.size(); n ++) {
+        size_t channel = channel_nums[n];
+        std::string path_buffer = "/mboards/0/rx/";
+        path_buffer.append(std::to_string(channel));
+        path_buffer.append("/force_stream");
+        usrp->set_tree_value(path_buffer, 1);
+    }
 
     return EXIT_SUCCESS;
 }
