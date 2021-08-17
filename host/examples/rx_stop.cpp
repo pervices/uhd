@@ -118,10 +118,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //detect which channels to use
+    //detect which channels to use
     std::vector<size_t> channel_nums;
     size_t start_index = 0;;
     while(start_index < channel_list.size()) {
-        while(channel_list[start_index] < '0' && channel_list[start_index] > '9') {
+        while(channel_list[start_index] < '0' || channel_list[start_index] > '9') {
             start_index++;
             if(start_index == channel_list.size()) {
                 break;
@@ -134,7 +135,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 break;
             }
         }
+
         if(stop_index>start_index) {
+
             size_t channel = std::stoi(channel_list.substr(start_index, stop_index));
             if(channel >= usrp->get_rx_num_channels()){
                 std::string error_msg = "Invalid channel specified: ";
@@ -147,7 +150,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             break;
         }
         start_index = stop_index;
-
     }
 
     //start streaming. THis method is different from the conventional method
