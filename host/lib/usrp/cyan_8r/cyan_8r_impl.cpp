@@ -995,7 +995,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
 
-    static const std::vector<size_t> default_map { 0, 1, 2, 3 };
+    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7 };
 
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
@@ -1401,7 +1401,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H" ));
 		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
