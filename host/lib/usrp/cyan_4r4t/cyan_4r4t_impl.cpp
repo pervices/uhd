@@ -1498,6 +1498,7 @@ int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
 
 //gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
 int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
+    std::cout << "channel: " << channel << std::endl;
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
