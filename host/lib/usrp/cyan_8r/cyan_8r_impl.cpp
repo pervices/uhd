@@ -255,7 +255,6 @@ void cyan_8r_impl::set_stream_cmd( const std::string pre, const stream_cmd_t str
 #ifdef DEBUG_COUT
     std::cout << "Creating packet with jesd_num: " << jesd_num << std::endl;
 #endif
-
 	make_rx_stream_cmd_packet( stream_cmd, now, jesd_num, rx_stream_cmd );
 
     int xg_intf = cyan_8r_impl::get_rx_xg_intf(ch);
