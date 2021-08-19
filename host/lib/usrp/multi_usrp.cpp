@@ -648,6 +648,8 @@ public:
                 ) % m % time_0.get_real_secs() % m % time_i.get_real_secs();
             }
         }
+
+        std::cout << "Finished syncing pps" << std::endl;
     }
 
     bool get_time_synchronized(void){
