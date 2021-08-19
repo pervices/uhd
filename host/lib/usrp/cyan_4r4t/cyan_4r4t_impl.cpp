@@ -259,6 +259,8 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 #endif
 
     std::cout << "jesd_num: " << jesd_num << std::endl;
+    std::cout << "seeing if setting jesd_num to 1 changes anything" << std::endl;
+    jesd_num = 1;
 
 	make_rx_stream_cmd_packet( stream_cmd, now, jesd_num, rx_stream_cmd );
 
