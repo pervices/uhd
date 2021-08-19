@@ -231,7 +231,9 @@ stream_cmd_t cyan_4r4t_impl::get_stream_cmd(std::string req) {
 }
 void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
 
+    std::cout << "pre: " << pre << std::endl;
 	const size_t ch = pre_to_ch( pre );
+    std::cout << "ch: " << ch << std::endl;
 	const uhd::time_spec_t now = get_time_now();
 #ifdef DEBUG_COUT
     std::cout
