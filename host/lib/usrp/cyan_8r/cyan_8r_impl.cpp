@@ -615,7 +615,7 @@ void cyan_8r_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_in
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
 
-    std::cout << "xg_intf: " << xg_inf << std::endl;
+    std::cout << "xg_intf: " << xg_intf << std::endl;
 
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
