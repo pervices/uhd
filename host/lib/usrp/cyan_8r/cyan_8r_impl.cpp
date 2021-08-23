@@ -1492,6 +1492,7 @@ int cyan_8r_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
+    std::cout << "jesd_num: " << jesd_num;
     return jesd_num;
 }
 
