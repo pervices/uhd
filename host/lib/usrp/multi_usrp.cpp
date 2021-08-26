@@ -1584,33 +1584,13 @@ public:
 
     // get RX frontend gain on specified channel
     double get_rx_gain(const std::string &name, size_t chan){
-
-    	(void)name;
-    	(void)chan;
-
-    	double r;
-
-    	bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
-        double lna_val = lna_bypass_enable ? 0 : 20;
-        double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
-        double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
-
-    	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
-    		r = gain_val;
-    	} else {
-    		r = 31.75 - atten_val + lna_val + gain_val; // maximum is 83.25
-    	}
-
-        return r;
+        
+        try {
+        return get_device()->get_rx_gain(name, chan);
+        } catch (uhd::key_error &) {
+            THROW_GAIN_NAME_ERROR(name,chan,rx);
+        }
     }
-
-//    double get_rx_gain(const std::string &name, size_t chan){
-//        try {
-//            return rx_gain_group(chan)->get_value(name);
-//        } catch (uhd::key_error &) {
-//            THROW_GAIN_NAME_ERROR(name,chan,rx);
-//        }
-//    }
 
     double get_normalized_rx_gain(size_t chan)
     {

@@ -818,7 +818,7 @@ rx_streamer::sptr cyan_8r_impl::get_rx_stream(const uhd::stream_args_t &args_){
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_8R_DEBUG_NAME_S "RX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -1078,7 +1078,7 @@ tx_streamer::sptr cyan_8r_impl::get_tx_stream(const uhd::stream_args_t &args_){
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_8R_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
