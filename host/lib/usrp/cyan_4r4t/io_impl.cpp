@@ -195,8 +195,8 @@ public:
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
-		_pillaging( false ),
-		_blessbless( false ) // icelandic (viking) for bye
+		_streaming( false ),
+		_stop_streaming( false ) // icelandic (viking) for bye
 
 	{
 	}
@@ -206,7 +206,7 @@ public:
 	}
 
 	void teardown() {
-		retreat();
+		stop_streaming();
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -309,7 +309,7 @@ public:
 
         now = get_time_now();
 
-        pillage();
+        start_packet_streamer_thread();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -321,7 +321,7 @@ public:
             am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
-            retreat();
+            stop_streaming();
         } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         return r;
@@ -405,11 +405,12 @@ public:
     }
 
     //create a new viking thread for each zc if (skryke!!)
-	void pillage() {
+    //starts the tx packet streamer, I think. This section all has viking names so I might be wrong and it might be rx
+	void start_packet_streamer_thread() {
 		// probably should also (re)start the "bm thread", which currently just manages time diff
 		std::lock_guard<std::mutex> lck( _mutex );
-		if ( ! _pillaging ) {
-			_blessbless = false;
+		if ( ! _streaming ) {
+			_stop_streaming = false;
 
             // Assuming pillage is called for each send(), and thus each stacked command,
             // the buffer level must be set to zero else flow control will crash since it thinks
@@ -419,19 +420,19 @@ public:
             }
 
 			//spawn a new viking to raid the send hoardes
-			_pillage_thread = std::thread( cyan_4r4t_send_packet_streamer::send_viking_loop, this );
-			_pillaging = true;
+			_streamer_thread = std::thread( cyan_4r4t_send_packet_streamer::send_viking_loop, this );
+			_streaming = true;
 		}
 	}
 
-	void retreat() {
+	void stop_streaming() {
 		// probably should also stop the "bm thread", which currently just manages time diff
 		std::lock_guard<std::mutex> lock( _mutex );
-		if ( _pillaging ) {
-			_blessbless = true;
-			if ( _pillage_thread.joinable() ) {
-				_pillage_thread.join();
-				_pillaging = false;
+		if ( _streaming ) {
+			_stop_streaming = true;
+			if ( _streamer_thread.joinable() ) {
+				_streamer_thread.join();
+				_streaming = false;
 			}
 		}
 	}
@@ -441,9 +442,9 @@ private:
     size_t _max_num_samps;
     size_t _actual_num_samps;
     double _samp_rate;
-    bool _pillaging;
-    bool _blessbless;
-    std::thread _pillage_thread;
+    bool _streaming;
+    bool _stop_streaming;
+    std::thread _streamer_thread;
     async_pusher_type async_pusher;
     timenow_type _time_now;
     std::mutex _mutex;
@@ -542,7 +543,7 @@ private:
 
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
 
-		for( ; ! self->_blessbless; ) {
+		for( ; ! self->_stop_streaming; ) {
 
 			const auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -578,7 +579,7 @@ private:
 					continue;
 				}
 
-				if ( self->_blessbless ) {
+				if ( self->_stop_streaming ) {
 					break;
 				}
 
@@ -1190,7 +1191,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
 	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
 	}
-    //my_streamer->pillage();
+    //my_streamer->start_packet_streamer_thread();
 
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );
