@@ -271,11 +271,11 @@ public:
             if ( metadata.time_spec < now + default_sob ) {
                 metadata.time_spec = now + default_sob;
                 #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "UHD::CYAN_4R4T::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
+                std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CYAN_4R4T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
+            std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -313,7 +313,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CYAN_4R4T::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -819,7 +819,7 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Cyan 4r4t RX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_errorCYAN_4R4T_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -1079,7 +1079,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Cyan 4r4t TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_4R4T_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size

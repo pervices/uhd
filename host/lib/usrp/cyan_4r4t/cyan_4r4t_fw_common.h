@@ -158,6 +158,10 @@
 #define CYAN_4R4T_LOW_MID_BARRIER 500000000
 #define CYAN_4R4T_MID_HIGH_BARRIER 6000000000
 
+//the device name to get used in print messages
+#define CYAN_4R4T_DEBUG_NAME_S "Cyan 4r4t"
+#define CYAN_4R4T_DEBUG_NAME_C "CYAN_4R4T"
+
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
     LOW_BAND = 0,

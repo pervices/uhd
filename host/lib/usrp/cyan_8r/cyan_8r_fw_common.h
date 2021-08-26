@@ -158,6 +158,10 @@
 #define CYAN_8R_LOW_MID_BARRIER 500000000
 #define CYAN_8R_MID_HIGH_BARRIER 6000000000
 
+//the device name to get used in print messages
+#define CYAN_8R_DEBUG_NAME_S "Cyan 8r"
+#define CYAN_8R_DEBUG_NAME_C "CYAN_8R"
+
 enum {
     LOW_BAND = 0,
     MID_BAND = 1,
