@@ -212,6 +212,7 @@ void cyan_4r4t_impl::set_complex_double(const std::string pre, std::complex<doub
 	return;
 }
 
+//figures out the channel number from the rx stream path
 static size_t pre_to_ch( const std::string & pre ) {
 	char x = -1;
 	if ( 1 != sscanf( pre.c_str(), "rx_%c/stream", & x) ) {
@@ -222,6 +223,7 @@ static size_t pre_to_ch( const std::string & pre ) {
 	return ch;
 }
 
+//creates a start stream command (but does not set all of its properties)
 stream_cmd_t cyan_4r4t_impl::get_stream_cmd(std::string req) {
 	(void)req;
 	// XXX: @CF: 20180214: stream_cmd is basically a write-only property, but we have to return a dummy variable of some kind
@@ -229,6 +231,8 @@ stream_cmd_t cyan_4r4t_impl::get_stream_cmd(std::string req) {
 	stream_cmd_t temp = stream_cmd_t(mode);
 	return temp;
 }
+
+//creates the stream cmd packet to be send over the sfp ports
 void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
 
 	const size_t ch = pre_to_ch( pre );
@@ -250,7 +254,10 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
     //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
-    //This relies on the server to provide it
+    //Inside the stream packet there is an argument for channel
+    //The channel argument is actually the jesd number relative to the sfp port
+    //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
+    //4r4t only has one channel per port so it
     size_t jesd_num = cyan_4r4t_impl::get_rx_jesd_num(ch);
 #ifdef DEBUG_COUT
     std::cout << "Creating packet with jesd_num: " << jesd_num << std::endl;
@@ -299,6 +306,7 @@ void cyan_4r4t_impl::set_time_spec( const std::string key, time_spec_t value ) {
     }
 }
 
+//TODO: implement the ability for users to access registers
 user_reg_t cyan_4r4t_impl::get_user_reg(std::string req) {
 
     (void) req;
@@ -307,10 +315,12 @@ user_reg_t cyan_4r4t_impl::get_user_reg(std::string req) {
     return user_reg_t(0, 0);
 }
 
+
 void cyan_4r4t_impl::send_gpio_burst_req(const gpio_burst_req& req) {
 	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
+//TODO: implement the ability for users to access registers
 void cyan_4r4t_impl::set_user_reg(const std::string key, user_reg_t value) {
 
     (void) key;
@@ -604,11 +614,13 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
 }
 
+//sends a stream command over sfp port 0
 void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
     UHD_LOG_WARNING("STREAM_CMD", "No sfp for specified for streaming command, defaulting to " << link_cyan_4r4t::names[0]);
 	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
+//sends a stream command over the specified sfp port (xg_intf = 0 means sfpa, =1 means spfb)
 void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_intf) {
 
     if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
@@ -700,19 +712,24 @@ void cyan_4r4t_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 	}
 }
 
+//performs clock synchronization
 void cyan_4r4t_impl::start_bm() {
 
 	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
 
+    //checks if the current task is excempt from need clock synchronization
 	if ( ! _bm_thread_needed ) {
 		return;
 	}
 
+	//checks if clock synchronization is already being done
 	if ( ! _bm_thread_running ) {
 
 		_bm_thread_should_exit = false;
+        //starts the thread that synchronizes the clocks
 		_bm_thread = std::thread( bm_thread_fn, this );
 
+        //waits until the clocks converge
 		_time_diff_converged = false;
 		for(
 			time_spec_t time_then = uhd::get_system_time(),
@@ -733,6 +750,7 @@ void cyan_4r4t_impl::start_bm() {
 	}
 }
 
+//stops clock synchronization
 void cyan_4r4t_impl::stop_bm() {
 
 	if ( _bm_thread_running ) {
@@ -743,19 +761,24 @@ void cyan_4r4t_impl::stop_bm() {
 	}
 }
 
+//checks if the clocks are synchronized
 bool cyan_4r4t_impl::time_diff_converged() {
 	return _time_diff_converged;
 }
 
-// the buffer monitor thread
+//Synchronizes clocks, this function should be run in its own thread
+//When calling it verify that it is not already running (_bm_thread_running)
 void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 
 	dev->_bm_thread_running = true;
 
+    //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;
+    
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_4R4T_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CYAN_4R4T_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
+    //the predicted time on the unit
 	uhd::time_spec_t crimson_now;
 	struct timespec req, rem;
 
@@ -763,7 +786,7 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 
 	struct time_diff_resp tdr;
 
-	//Gett offset
+	//Get offset
 	now = uhd::get_system_time();
 	dev->time_diff_send( now, xg_intf );
 	dev->time_diff_recv( tdr, xg_intf );
@@ -825,7 +848,7 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 /***********************************************************************
  * Make
  **********************************************************************/
-// Returns a pointer to the Crimson device, casted to the UHD base class
+// Returns a pointer to the SDR device, casted to the UHD base class
 static device::sptr cyan_4r4t_make(const device_addr_t &device_addr)
 {
     return device::sptr(new cyan_4r4t_impl(device_addr));
@@ -1218,8 +1241,10 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
 
+        //Attempts to bind the ips associated with the ip ports
+        //It is neccessary for maximum performance when receiving using uhd
+        //However if uhd is only being used to start the stream and something else is handling actually receiving the data this error can be ignored
         try {
-
             _mbc[mb].rx_dsp_xports.push_back(
                 udp_stream_zero_copy::make(
                     _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
@@ -1236,7 +1261,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         }
     }
 
-    // loop for all TX chains
+    // initializes all TX chains
     for( int dspno = 0; dspno < CYAN_4R4T_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
@@ -1458,9 +1483,12 @@ cyan_4r4t_impl::~cyan_4r4t_impl(void)
        stop_bm();
 }
 
+//figures out if clock synchronization is needed
+//TODO: change it so that uhd takes and argument when started that says whether or not to use clock synchronization
 bool cyan_4r4t_impl::is_bm_thread_needed() {
 	bool r = true;
 
+    //The list of programs that don't need clock synchronization
 #ifndef __APPLE__ // eventually use something like HAVE_PROGRAM_INVOCATION_NAME
 	static const std::vector<std::string> utils {
 		"uhd_find_devices",
@@ -1486,7 +1514,9 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 	return r;
 }
 
-//gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
+//gets the jesd number to be used in creating stream command packets
+//Note: these are relative to the sfp port
+//i.e. 0 for all channels in 4r4t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
 int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
@@ -1494,7 +1524,8 @@ int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
     return jesd_num;
 }
 
-//gets the xg_intf number based off of channel. Assumes sfp for letting is always lower case, and goes a=0,b=1...
+//the number corresponding to each sfp port
+//i.e. sfpa==0, sfpb==1...
 int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
@@ -1503,6 +1534,8 @@ int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
     return xg_intf;
 }
 
+//figures out which ip address, udp port, and sfp port to use
+//Only tree and chan are actual arguments, the rest are to store the calculated values
 void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	const std::string chan_str( 1, 'A' + chan );
@@ -1678,6 +1711,7 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
+//calculates and sets the band, nco, and lo shift
 static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
@@ -1685,7 +1719,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
 	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
-    //DW 20210712: I have not modified this for 4r4t, the clipped frequency result may be wrong
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
@@ -1897,21 +1930,25 @@ void cyan_4r4t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
 		auto letter = std::string(1, 'A' + chan);
 		return mb_root(0) + "/rx_codecs/" + letter;
 	};
-
+    //If only one channel is selected sets the values in the state tree for gain, otherwise calls this function for each channel individually
     if ( multi_usrp::ALL_CHANS != chan ) {
 
         (void) name;
 
-        //the server handles setting the bypassable amp based off of gain
+        //sets gain in the rf chain (variable amplifier, variable attenuator, bypassable amplifier
+        //currently deciding how to combine them is calculated on the server. On older versions UHD determined how to adjust them
         _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain );
         double actual_rf_gain = _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 
+        //Uses the dsp gain to make up the difference if the rf chain is unable to get the desired gain
+        //The dsp gain is purely a digital transform, it does not actually improve the data (unlike in the rf chain). It should only be used if the rf chain can't provide the required gain
         _tree->access<double>( rx_codec_path(chan) / "gains").set( (actual_rf_gain) - gain );
         double actual_dsp_gain = _tree->access<int>(rx_codec_path(chan) / "gains").get();
 
         return;
     }
-
+    
+    //calls this function for each channel individually
     for (size_t c = 0; c < CYAN_4R4T_RX_CHANNELS; c++){
         set_rx_gain( gain, name, c );
     }
