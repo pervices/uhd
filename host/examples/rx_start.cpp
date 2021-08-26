@@ -207,9 +207,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("gain")) {
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+            std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % channel % gain << std::endl;
             usrp->set_rx_gain(gain, channel);
-            std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Gain: %f dB...") % channel % usrp->get_rx_gain(channel) << std::endl << std::endl;
         }
     }
 
@@ -217,9 +217,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("bw")) {
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw/1e6) << std::endl;
+            std::cout << boost::format("Setting ch%i RX Bandwidth: %f MHz...") % channel % (bw/1e6) << std::endl;
             usrp->set_rx_bandwidth(bw, channel);
-            std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Bandwidth: %f MHz...") % channel % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
         }
     }
 
@@ -273,9 +273,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("rate")) {
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting RX Rate: %f") % rate << std::endl;
+            std::cout << boost::format("Setting ch%i RX Rate: %f") % channel % rate << std::endl;
             usrp->set_rx_rate(rate, channel);
-            std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_rate(channel) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Rate: %f") % channel % usrp->get_rx_rate(channel) << std::endl << std::endl;
         }
     }
 
