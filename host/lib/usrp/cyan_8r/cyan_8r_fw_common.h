@@ -75,7 +75,6 @@
 #define CYAN_8R_MAX_MTU		9000
 
 // Crimson Flowcontrol Update Per Second
-//DWF
 #define CYAN_8R_UPDATE_PER_SEC	100
 #define CYAN_8R_SS_FIFOLVL_THRESHOLD 107421875
 
@@ -83,7 +82,6 @@
 #define CYAN_8R_BUFF_SIZE	2048*140*512/32
 
 // Crimson RF Settings
-//DWF
 #define CYAN_8R_RF_TX_GAIN_RANGE_START	0.0
 #define CYAN_8R_RF_TX_GAIN_RANGE_STOP	31.75
 #define CYAN_8R_RF_TX_GAIN_RANGE_STEP	0.25
@@ -125,19 +123,16 @@
 #define CYAN_8R_ADC_FREQ_RANGE_STEP	        1.0
 
 // There's a lower limit on the DC component we can pass. This is just an approximation.
-//DWFP
 #define CYAN_8R_DC_LOWERLIMIT	3000000
 #define CYAN_8R_FM_LOWERLIMIT	86900000
 #define CYAN_8R_FM_UPPERLIMIT	107900000
 
 // Crimson DSP Freq Settings
 // NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
-//DWF
 #define CYAN_8R_DSP_BW_START    0
 #define CYAN_8R_DSP_BW_STOP_FULL            CYAN_8R_BW_FULL
 #define CYAN_8R_DSP_BW_STOP_QUARTER         CYAN_8R_BW_QUARTER
 #define CYAN_8R_DSP_BW_STEPSIZE     1.0
-//DWF
 #define CYAN_8R_DSP_FREQ_RANGE_START_FULL	-CYAN_8R_RATE_RANGE_STOP_FULL/2.0
 #define CYAN_8R_DSP_FREQ_RANGE_STOP_FULL	CYAN_8R_RATE_RANGE_STOP_FULL/2.0
 #define CYAN_8R_DSP_FREQ_RANGE_START_QUARTER	-CYAN_8R_RATE_RANGE_STOP_QUARTER/2.0

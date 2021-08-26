@@ -230,7 +230,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        //DWFP
         global::udp_retry = false;
         
         static const double default_sob = 1.0;
@@ -519,7 +518,6 @@ private:
 		// Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
 		req.tv_nsec = dt.get_frac_secs()*1e9;
-        //DWFC
 		// nanosleep( &req, &rem );
         if (req.tv_sec == 0 && req.tv_nsec < 10000) {
             // If there is less than 10 us, then send
@@ -1079,7 +1077,6 @@ tx_streamer::sptr cyan_8r_impl::get_tx_stream(const uhd::stream_args_t &args_){
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    //DWFP
     if (args.otw_format != "sc16"){
         throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
     }
