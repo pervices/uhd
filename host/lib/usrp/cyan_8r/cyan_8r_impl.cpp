@@ -1904,3 +1904,18 @@ void cyan_8r_impl::set_rx_gain(double gain, const std::string &name, size_t chan
         set_rx_gain( gain, name, c );
     }
 }
+
+double cyan_8r_impl::get_rx_gain(const std::string &name, size_t chan) {
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto rx_dsp_root = [&](size_t chan) -> std::string {
+		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
+	};
+	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
+	};
+    
+    return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
+}

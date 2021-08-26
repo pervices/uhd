@@ -262,6 +262,7 @@ private:
     int get_rx_jesd_num(int channel);
     void set_tx_gain(double gain, const std::string &name, size_t chan);
     void set_rx_gain(double gain, const std::string &name, size_t chan);
+    double get_rx_gain(const std::string &name, size_t chan);
 };
 
 }

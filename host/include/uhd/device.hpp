@@ -182,6 +182,13 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
 
     }
+    
+    virtual double get_rx_gain(const std::string &name, size_t chan){
+
+        (void) name;
+        throw std::runtime_error("concrete classes are expected to override this method");
+
+    }
 
 protected:
     uhd::property_tree::sptr _tree;
