@@ -230,7 +230,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        //DWFP
         global::udp_retry = false;
         
         static const double default_sob = 1.0;
