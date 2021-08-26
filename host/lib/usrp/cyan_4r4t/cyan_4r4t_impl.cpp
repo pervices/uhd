@@ -1267,7 +1267,6 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
 
-        //DWFP
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
 		const fs_path db_path       = mb_path / "dboards" / num;

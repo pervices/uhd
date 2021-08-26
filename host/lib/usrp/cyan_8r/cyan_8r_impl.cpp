@@ -1240,7 +1240,6 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
 
-        //DWFP
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
 		const fs_path db_path       = mb_path / "dboards" / num;
@@ -1292,7 +1291,6 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
                //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
-        //DWFP
         TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_8R_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
