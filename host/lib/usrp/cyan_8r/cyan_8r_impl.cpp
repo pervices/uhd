@@ -192,12 +192,12 @@ void cyan_8r_impl::set_sensor_value(const std::string pre, sensor_value_t data) 
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
 meta_range_t cyan_8r_impl::get_meta_range(std::string req) {
 	(void)req;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, Cyan 8r does not support range settings");
 }
 void cyan_8r_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	(void)pre;
 	(void)data;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, Cyan 8r does not support range settings");
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
@@ -393,9 +393,9 @@ void cyan_8r_impl::set_properties_from_addr() {
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
+				UHD_LOGGER_ERROR("CYAN_8R_IMPL")
 					<< __func__ << "(): "
-					<< "Setting Crimson property failed: "
+					<< "Setting Cyan 8r property failed: "
 					<< "key: '"<< key << "', "
 					<< "expected val: '" << expected_string << "', "
 					<< "actual val: '" << actual_string  << "'"
@@ -724,9 +724,9 @@ void cyan_8r_impl::start_bm() {
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				UHD_LOGGER_ERROR("CYAN_8R_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Cyan_8r?"
 					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Cyan_8r?" );
 			}
 			usleep( 100000 );
 		}

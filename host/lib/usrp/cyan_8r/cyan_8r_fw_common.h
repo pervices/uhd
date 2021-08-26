@@ -69,19 +69,19 @@
 #define CYAN_8R_FW_COMMS_FLAGS_POKE32     (1 << 2)
 #define CYAN_8R_FW_COMMS_FLAGS_PEEK32     (1 << 3)
 
-// Crimson min MTU size (typical ethernet frame)
+// Cyan 8r min MTU size (typical ethernet frame)
 #define CYAN_8R_MIN_MTU		1500
-// Crimson max MTU size (jumbo ethernet frame is 9000 bytes)
+// Cyan 8r max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_8R_MAX_MTU		9000
 
-// Crimson Flowcontrol Update Per Second
+//Cyan 8r Flowcontrol Update Per Second
 #define CYAN_8R_UPDATE_PER_SEC	100
 #define CYAN_8R_SS_FIFOLVL_THRESHOLD 107421875
 
-// Cyan_4r4t Buffer Size
+// Cyan 8r Buffer Size
 #define CYAN_8R_BUFF_SIZE	2048*140*512/32
 
-// Crimson RF Settings
+// Cyan 8r RF Settings
 #define CYAN_8R_RF_TX_GAIN_RANGE_START	0.0
 #define CYAN_8R_RF_TX_GAIN_RANGE_STOP	31.75
 #define CYAN_8R_RF_TX_GAIN_RANGE_STEP	0.25

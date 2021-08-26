@@ -192,12 +192,12 @@ void cyan_4r4t_impl::set_sensor_value(const std::string pre, sensor_value_t data
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
 meta_range_t cyan_4r4t_impl::get_meta_range(std::string req) {
 	(void)req;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, Cyan 4r4t does not support range settings");
 }
 void cyan_4r4t_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	(void)pre;
 	(void)data;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, Cyan 4r4t does not support range settings");
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
@@ -403,9 +403,9 @@ void cyan_4r4t_impl::set_properties_from_addr() {
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
+				UHD_LOGGER_ERROR("CYAN_4R4T_IMPL")
 					<< __func__ << "(): "
-					<< "Setting Crimson property failed: "
+					<< "Setting Cyan 4r4t property failed: "
 					<< "key: '"<< key << "', "
 					<< "expected val: '" << expected_string << "', "
 					<< "actual val: '" << actual_string  << "'"
@@ -741,9 +741,9 @@ void cyan_4r4t_impl::start_bm() {
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
 				UHD_LOGGER_ERROR("CYAN_4R4T_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Cyan 4r4t?"
 					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Cyan 4r4t?" );
 			}
 			usleep( 100000 );
 		}
@@ -1000,7 +1000,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     std::string lc_num;
 
     // Create the file tree of properties.
-    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
+    // Cyan 4r4t only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
@@ -1012,7 +1012,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options").set(clock_source_options);
 
-    TREE_CREATE_ST("/name", std::string, "Crimson_TNG Device");
+    TREE_CREATE_ST("/name", std::string, "Cyan 4r4t Device");
 
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
