@@ -1586,7 +1586,7 @@ public:
     double get_rx_gain(const std::string &name, size_t chan){
         
         try {
-        get_device()->set_rx_gain(gain, name, chan);
+        return get_device()->get_rx_gain(name, chan);
         } catch (uhd::key_error &) {
             THROW_GAIN_NAME_ERROR(name,chan,rx);
         }
