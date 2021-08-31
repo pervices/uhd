@@ -1924,6 +1924,17 @@ double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
 
     double r;
 
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto rx_dsp_root = [&](size_t chan) -> std::string {
+		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
+	};
+	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
+	};
+
     bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
     double lna_val = lna_bypass_enable ? 0 : 20;
     double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
