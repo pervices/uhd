@@ -69,21 +69,19 @@
 #define CYAN_8R_FW_COMMS_FLAGS_POKE32     (1 << 2)
 #define CYAN_8R_FW_COMMS_FLAGS_PEEK32     (1 << 3)
 
-// Crimson min MTU size (typical ethernet frame)
+// Cyan 8r min MTU size (typical ethernet frame)
 #define CYAN_8R_MIN_MTU		1500
-// Crimson max MTU size (jumbo ethernet frame is 9000 bytes)
+// Cyan 8r max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_8R_MAX_MTU		9000
 
-// Crimson Flowcontrol Update Per Second
-//DWF
+//Cyan 8r Flowcontrol Update Per Second
 #define CYAN_8R_UPDATE_PER_SEC	100
 #define CYAN_8R_SS_FIFOLVL_THRESHOLD 107421875
 
-// Cyan_4r4t Buffer Size
+// Cyan 8r Buffer Size
 #define CYAN_8R_BUFF_SIZE	2048*140*512/32
 
-// Crimson RF Settings
-//DWF
+// Cyan 8r RF Settings
 #define CYAN_8R_RF_TX_GAIN_RANGE_START	0.0
 #define CYAN_8R_RF_TX_GAIN_RANGE_STOP	31.75
 #define CYAN_8R_RF_TX_GAIN_RANGE_STEP	0.25
@@ -125,19 +123,16 @@
 #define CYAN_8R_ADC_FREQ_RANGE_STEP	        1.0
 
 // There's a lower limit on the DC component we can pass. This is just an approximation.
-//DWFP
 #define CYAN_8R_DC_LOWERLIMIT	3000000
 #define CYAN_8R_FM_LOWERLIMIT	86900000
 #define CYAN_8R_FM_UPPERLIMIT	107900000
 
 // Crimson DSP Freq Settings
 // NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
-//DWF
 #define CYAN_8R_DSP_BW_START    0
 #define CYAN_8R_DSP_BW_STOP_FULL            CYAN_8R_BW_FULL
 #define CYAN_8R_DSP_BW_STOP_QUARTER         CYAN_8R_BW_QUARTER
 #define CYAN_8R_DSP_BW_STEPSIZE     1.0
-//DWF
 #define CYAN_8R_DSP_FREQ_RANGE_START_FULL	-CYAN_8R_RATE_RANGE_STOP_FULL/2.0
 #define CYAN_8R_DSP_FREQ_RANGE_STOP_FULL	CYAN_8R_RATE_RANGE_STOP_FULL/2.0
 #define CYAN_8R_DSP_FREQ_RANGE_START_QUARTER	-CYAN_8R_RATE_RANGE_STOP_QUARTER/2.0
@@ -162,6 +157,10 @@
 // Constants to determine which frequency band to use
 #define CYAN_8R_LOW_MID_BARRIER 500000000
 #define CYAN_8R_MID_HIGH_BARRIER 6000000000
+
+//the device name to get used in print messages
+#define CYAN_8R_DEBUG_NAME_S "Cyan 8r"
+#define CYAN_8R_DEBUG_NAME_C "CYAN_8R"
 
 enum {
     LOW_BAND = 0,

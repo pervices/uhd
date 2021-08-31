@@ -190,13 +190,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             double freq = lo_freq+dsp_freq;
-            std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+            std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel % (freq/1e6) << std::endl;
             //The way that tune request parameters work does not match their names
             //Inspect how the code that uses tune requests (tune.cpp) actually interacts with *impl.cpp
             uhd::tune_request_t tune_request(dsp_freq+lo_freq, lo_freq, 0, 0, -dsp_freq);
             if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
             usrp->set_rx_freq(tune_request, channel);
-            std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % channel % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
         }
     } else {
         std::cerr << "Please specify a dsp shift and lo frequency" << std::endl;
@@ -207,9 +207,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("gain")) {
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+            std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % channel % gain << std::endl;
             usrp->set_rx_gain(gain, channel);
-            std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Gain: %f dB...") % channel % usrp->get_rx_gain(channel) << std::endl << std::endl;
         }
     }
 
@@ -217,9 +217,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("bw")) {
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw/1e6) << std::endl;
+            std::cout << boost::format("Setting ch%i RX Bandwidth: %f MHz...") % channel % (bw/1e6) << std::endl;
             usrp->set_rx_bandwidth(bw, channel);
-            std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Bandwidth: %f MHz...") % channel % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
         }
     }
 
@@ -273,9 +273,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("rate")) {
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting RX Rate: %f") % rate << std::endl;
+            std::cout << boost::format("Setting ch%i RX Rate: %f") % channel % rate << std::endl;
             usrp->set_rx_rate(rate, channel);
-            std::cout << boost::format("Actual RX Rate: %f") % usrp->get_rx_rate(channel) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Rate: %f") % channel % usrp->get_rx_rate(channel) << std::endl << std::endl;
         }
     }
 

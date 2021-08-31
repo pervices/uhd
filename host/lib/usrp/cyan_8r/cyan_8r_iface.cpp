@@ -109,7 +109,6 @@ std::string cyan_8r_iface::peek_str( float timeout_s ) {
 }
 
 std::string cyan_8r_iface::peek_str() {
-    //DWFC
 	return peek_str( 8 );
 }
 

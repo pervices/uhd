@@ -195,8 +195,8 @@ public:
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
-		_pillaging( false ),
-		_blessbless( false ) // icelandic (viking) for bye
+		_streaming( false ),
+		_stop_streaming( false ) // icelandic (viking) for bye
 
 	{
 	}
@@ -206,7 +206,7 @@ public:
 	}
 
 	void teardown() {
-		retreat();
+		stop_streaming();
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -230,7 +230,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        //DWFP
         global::udp_retry = false;
         
         static const double default_sob = 1.0;
@@ -272,11 +271,11 @@ public:
             if ( metadata.time_spec < now + default_sob ) {
                 metadata.time_spec = now + default_sob;
                 #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "UHD::CYAN_4R4T::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
+                std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CYAN_4R4T::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
+            std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -310,11 +309,11 @@ public:
 
         now = get_time_now();
 
-        pillage();
+        start_packet_streamer_thread();
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CYAN_4R4T::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -322,7 +321,7 @@ public:
             am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
-            retreat();
+            stop_streaming();
         } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
 
         return r;
@@ -406,11 +405,12 @@ public:
     }
 
     //create a new viking thread for each zc if (skryke!!)
-	void pillage() {
+    //starts the tx packet streamer, I think. This section all has viking names so I might be wrong and it might be rx
+	void start_packet_streamer_thread() {
 		// probably should also (re)start the "bm thread", which currently just manages time diff
 		std::lock_guard<std::mutex> lck( _mutex );
-		if ( ! _pillaging ) {
-			_blessbless = false;
+		if ( ! _streaming ) {
+			_stop_streaming = false;
 
             // Assuming pillage is called for each send(), and thus each stacked command,
             // the buffer level must be set to zero else flow control will crash since it thinks
@@ -420,19 +420,19 @@ public:
             }
 
 			//spawn a new viking to raid the send hoardes
-			_pillage_thread = std::thread( cyan_4r4t_send_packet_streamer::send_viking_loop, this );
-			_pillaging = true;
+			_streamer_thread = std::thread( cyan_4r4t_send_packet_streamer::send_viking_loop, this );
+			_streaming = true;
 		}
 	}
 
-	void retreat() {
+	void stop_streaming() {
 		// probably should also stop the "bm thread", which currently just manages time diff
 		std::lock_guard<std::mutex> lock( _mutex );
-		if ( _pillaging ) {
-			_blessbless = true;
-			if ( _pillage_thread.joinable() ) {
-				_pillage_thread.join();
-				_pillaging = false;
+		if ( _streaming ) {
+			_stop_streaming = true;
+			if ( _streamer_thread.joinable() ) {
+				_streamer_thread.join();
+				_streaming = false;
 			}
 		}
 	}
@@ -442,9 +442,9 @@ private:
     size_t _max_num_samps;
     size_t _actual_num_samps;
     double _samp_rate;
-    bool _pillaging;
-    bool _blessbless;
-    std::thread _pillage_thread;
+    bool _streaming;
+    bool _stop_streaming;
+    std::thread _streamer_thread;
     async_pusher_type async_pusher;
     timenow_type _time_now;
     std::mutex _mutex;
@@ -519,7 +519,6 @@ private:
 		// Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
 		req.tv_nsec = dt.get_frac_secs()*1e9;
-        //DWFC
 		// nanosleep( &req, &rem );
         if (req.tv_sec == 0 && req.tv_nsec < 10000) {
             // If there is less than 10 us, then send
@@ -543,7 +542,7 @@ private:
 
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
 
-		for( ; ! self->_blessbless; ) {
+		for( ; ! self->_stop_streaming; ) {
 
 			const auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -579,7 +578,7 @@ private:
 					continue;
 				}
 
-				if ( self->_blessbless ) {
+				if ( self->_stop_streaming ) {
 					break;
 				}
 
@@ -820,7 +819,7 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_4R4T_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -1079,9 +1078,8 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    //DWFP
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_4R4T_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -1191,7 +1189,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
 	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
 	}
-    //my_streamer->pillage();
+    //my_streamer->start_packet_streamer_thread();
 
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );

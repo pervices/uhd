@@ -192,12 +192,12 @@ void cyan_8r_impl::set_sensor_value(const std::string pre, sensor_value_t data) 
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
 meta_range_t cyan_8r_impl::get_meta_range(std::string req) {
 	(void)req;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_8R_DEBUG_NAME_S "does not support range settings");
 }
 void cyan_8r_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	(void)pre;
 	(void)data;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_8R_DEBUG_NAME_S " does not support range settings");
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
@@ -393,9 +393,9 @@ void cyan_8r_impl::set_properties_from_addr() {
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
+				UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C "_IMPL")
 					<< __func__ << "(): "
-					<< "Setting Crimson property failed: "
+					<< "Setting " CYAN_8R_DEBUG_NAME_S " property failed: "
 					<< "key: '"<< key << "', "
 					<< "expected val: '" << expected_string << "', "
 					<< "actual val: '" << actual_string  << "'"
@@ -503,11 +503,11 @@ static device_addrs_t cyan_8r_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CYAN_8R") << "CYAN_8R Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C) << CYAN_8R_DEBUG_NAME_C " Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CYAN_8R") << "CYAN_8R Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C) << CYAN_8R_DEBUG_NAME_C " Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -725,10 +725,10 @@ void cyan_8r_impl::start_bm() {
 			time_now = uhd::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR("CYAN_8R_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+				UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C "_IMPL")
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_8R_DEBUG_NAME_S "?"
 					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_8R_DEBUG_NAME_S "?" );
 			}
 			usleep( 100000 );
 		}
@@ -1233,7 +1233,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
                 )
             );
         } catch ( ... ) {
-        }UHD_LOGGER_ERROR("CYAN_8R") << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+        }UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
     }
 
     // loop for all TX chains
@@ -1242,7 +1242,6 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
 
-        //DWFP
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
 		const fs_path db_path       = mb_path / "dboards" / num;
@@ -1294,7 +1293,6 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
                //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
-        //DWFP
         TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_8R_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
@@ -1908,4 +1906,19 @@ void cyan_8r_impl::set_rx_gain(double gain, const std::string &name, size_t chan
     for (size_t c = 0; c < CYAN_8R_RX_CHANNELS; c++){
         set_rx_gain( gain, name, c );
     }
+}
+
+double cyan_8r_impl::get_rx_gain(const std::string &name, size_t chan) {
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto rx_dsp_root = [&](size_t chan) -> std::string {
+		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
+	};
+	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
+	};
+    
+    return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 }
