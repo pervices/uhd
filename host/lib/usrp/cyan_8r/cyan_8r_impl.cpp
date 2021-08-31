@@ -1233,7 +1233,8 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
                 )
             );
         } catch ( ... ) {
-        }UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+            UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+        }
     }
 
     // loop for all TX chains
@@ -1241,6 +1242,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
+
 
 		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
 		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
@@ -1293,6 +1295,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
                //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
+
         TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_8R_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
