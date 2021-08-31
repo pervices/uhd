@@ -1918,23 +1918,22 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
 }
 
 double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
-    get_device()->set_tx_gain(gain, name, chan);
 
-    	(void)name;
-    	(void)chan;
+    (void)name;
+    (void)chan;
 
-    	double r;
+    double r;
 
-    	bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
-        double lna_val = lna_bypass_enable ? 0 : 20;
-        double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
-        double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
+    bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
+    double lna_val = lna_bypass_enable ? 0 : 20;
+    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
+    double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
-    	if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
-    		r = gain_val;
-    	} else {
-    		r = 31.75 - atten_val + lna_val + gain_val; // maximum is 83.25
-    	}
+    if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
+        r = gain_val;
+    } else {
+        r = 31.75 - atten_val + lna_val + gain_val; // maximum is 83.25
+    }
 
-        return r;
+    return r;
 }
