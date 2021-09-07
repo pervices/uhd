@@ -1820,6 +1820,22 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
     }
 }
 
+double crimson_tng_impl::get_tx_gain(const std::string &name, size_t chan) {
+
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
+	};
+
+    (void)name;
+
+    return round(_tree->access<double>(tx_rf_fe_root(chan) / "gain"  / "value").get() / 4);
+}
+
+
 void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
     auto mb_root = [&](size_t mboard) -> std::string {

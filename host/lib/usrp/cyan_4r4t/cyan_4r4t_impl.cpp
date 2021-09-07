@@ -1909,8 +1909,18 @@ void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
     for (size_t c = 0; c < CYAN_4R4T_TX_CHANNELS; c++){
         set_tx_gain(gain, name, c);
     }
+}
 
+double cyan_4r4t_impl::get_tx_gain(const std::string &name, size_t chan) {
+    auto mb_root = [&](size_t mboard) -> std::string {
+		return "/mboards/" + std::to_string(mboard);
+	};
+	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
+		auto letter = std::string(1, 'A' + chan);
+		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
+	};
 
+    return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
 
 void cyan_4r4t_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {

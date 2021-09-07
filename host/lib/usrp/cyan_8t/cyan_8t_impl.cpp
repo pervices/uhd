@@ -1584,6 +1584,12 @@ void cyan_8t_impl::set_tx_gain(double gain, const std::string &name, size_t chan
     }
 }
 
+double cyan_8t_impl::get_tx_gain(const std::string &name, size_t chan) {
+    //TODO: implement get_tx_gain
+    //due to an old bug get_tx_gain would always return 0, this keeps that behaviour
+    return 0;
+}
+
 double cyan_8t_impl::get_rx_gain(const std::string &name, size_t chan) {
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);

@@ -1987,10 +1987,11 @@ public:
 
 
     double get_tx_gain(const std::string &name, size_t chan){
+
         try {
-            return tx_gain_group(chan)->get_value(name);
+            return get_device()->get_tx_gain(name, chan);
         } catch (uhd::key_error &) {
-            THROW_GAIN_NAME_ERROR(name,chan,tx);
+            THROW_GAIN_NAME_ERROR(name,chan,rx);
         }
     }
 
