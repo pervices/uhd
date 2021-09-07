@@ -1094,7 +1094,6 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
-
     // loop for all RX chains
     for( size_t dspno = 0; dspno < CYAN_8R_RX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
@@ -1236,7 +1235,6 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
             UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
         }
     }
-
     // loop for all TX chains
     for( int dspno = 0; dspno < CYAN_8R_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
@@ -1377,9 +1375,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 			)
 		);
     }
-
 	const fs_path cm_path  = mb_path / "cm";
-
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
@@ -1393,6 +1389,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 
     //do some post-init tasks
     this->update_rates();
+
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 
@@ -1405,7 +1402,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 //        }
 
 		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "" ));
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 
