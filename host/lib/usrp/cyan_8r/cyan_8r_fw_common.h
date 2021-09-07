@@ -162,6 +162,9 @@
 #define CYAN_8R_DEBUG_NAME_S "Cyan 8r"
 #define CYAN_8R_DEBUG_NAME_C "CYAN_8R"
 
+#define CYAN_8R_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H"
+#define CYAN_8R_SUBDEV_SPEC_TX ""
+
 enum {
     LOW_BAND = 0,
     MID_BAND = 1,
