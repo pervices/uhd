@@ -162,6 +162,9 @@
 #define CYAN_4R4T_DEBUG_NAME_S "Cyan 4r4t"
 #define CYAN_4R4T_DEBUG_NAME_C "CYAN_4R4T"
 
+#define CYAN_4R4T_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
+#define CYAN_4R4T_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
+
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
     LOW_BAND = 0,

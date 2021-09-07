@@ -1426,8 +1426,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( CYAN_4R4T_SUBDEV_SPEC_RX ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( CYAN_4R4T_SUBDEV_SPEC_TX ));
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 

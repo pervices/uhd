@@ -731,22 +731,26 @@ void cyan_4r4t_impl::update_rates(void){
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
-
-        //and now that the tick rate is set, init the host rates to something
-        BOOST_FOREACH(const std::string &name, _tree->list(root / "rx_dsps")){
-            // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
-            // if the current application does not require rx, then we should not enable it
-            // just checking for power is not a great way to do this, but it mostly works
-            if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
-                _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
+        if(CYAN_4R4T_RX_CHANNELS > 0) {
+            //and now that the tick rate is set, init the host rates to something
+            BOOST_FOREACH(const std::string &name, _tree->list(root / "rx_dsps")){
+                // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
+                // if the current application does not require rx, then we should not enable it
+                // just checking for power is not a great way to do this, but it mostly works
+                if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
+                    _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
+                }
             }
         }
-        BOOST_FOREACH(const std::string &name, _tree->list(root / "tx_dsps")){
-            // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
-            // if the current application does not require tx, then we should not enable it
-            // just checking for power is not a great way to do this, but it mostly works
-            if ( "1" == _tree->access<std::string>( root / "tx" / name / "pwr").get() ) {
-                _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
+
+        if(CYAN_4R4T_TX_CHANNELS > 0) {
+            BOOST_FOREACH(const std::string &name, _tree->list(root / "tx_dsps")){
+                // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
+                // if the current application does not require tx, then we should not enable it
+                // just checking for power is not a great way to do this, but it mostly works
+                if ( "1" == _tree->access<std::string>( root / "tx" / name / "pwr").get() ) {
+                    _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
+                }
             }
         }
     }
