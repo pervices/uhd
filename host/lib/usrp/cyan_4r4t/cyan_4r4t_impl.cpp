@@ -1029,6 +1029,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
     TREE_CREATE_RW(mb_path / "id",         "fpga/about/id",     std::string, string);
     TREE_CREATE_RW(mb_path / "serial",     "fpga/about/serial", std::string, string);
+    TREE_CREATE_RW(mb_path / "server_version", "fpga/about/server_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "sw_version", "fpga/about/sw_ver", std::string, string);
