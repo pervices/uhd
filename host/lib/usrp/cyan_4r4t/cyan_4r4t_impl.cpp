@@ -1258,7 +1258,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
                 )
             );
         } catch (...) {
-            UHD_LOGGER_ERROR(CYAN_4R4T_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+            UHD_LOGGER_WARNING(CYAN_4R4T_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
         }
     }
 

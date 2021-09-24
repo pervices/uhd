@@ -1233,7 +1233,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
                 )
             );
         } catch ( ... ) {
-            UHD_LOGGER_ERROR(CYAN_8R_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+            UHD_LOGGER_WARNING(CYAN_8R_DEBUG_NAME_C) << "Unable to bind ip adress, performance may be negatively impacted.\n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
         }
     }
     // loop for all TX chains
