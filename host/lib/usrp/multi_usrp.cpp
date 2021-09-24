@@ -1023,7 +1023,7 @@ public:
             }
             catch(const std::exception &e)
             {
-                throw uhd::index_error(str(boost::format("multi_usrp::get_rx_subdev_spec(%u) failed to make default spec - %s") % mboard % e.what()));
+                UHD_LOGGER_INFO("MULTI_USRP") << "No rx front ends detected: " << spec.to_pp_string();
             }
             UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default RX front end spec: " << spec.to_pp_string();
         }
@@ -1831,7 +1831,6 @@ public:
 
     subdev_spec_t get_tx_subdev_spec(size_t mboard)
     {
-
         subdev_spec_t spec = _tree->access<subdev_spec_t>(mb_root(mboard) / "tx_subdev_spec").get();
         if (spec.empty())
         {
@@ -1844,7 +1843,7 @@ public:
             }
             catch(const std::exception &e)
             {
-                throw uhd::index_error(str(boost::format("multi_usrp::get_tx_subdev_spec(%u) failed to make default spec - %s") % mboard % e.what()));
+                UHD_LOGGER_INFO("MULTI_USRP") << "No tx front ends detected: " << spec.to_pp_string();
             }
             UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default TX front end spec: " << spec.to_pp_string();
         }
