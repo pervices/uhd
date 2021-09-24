@@ -16,6 +16,16 @@
 using namespace uhd;
 using namespace uhd::usrp;
 
+#if 1
+  #ifndef DEBUG_SUBDEV
+  #define DEBUG_SUBDEV
+  #endif
+#endif
+
+#ifdef DEBUG_SUBDEV
+#include <iostream>
+#endif
+
 #define pair_tokenizer(inp) \
     boost::tokenizer<boost::char_separator<char> > \
     (inp, boost::char_separator<char>(" "))
@@ -42,6 +52,9 @@ bool subdev_spec_pair_t::operator!=(const subdev_spec_pair_t &other){
 }
 
 subdev_spec_t::subdev_spec_t(const std::string &markup){
+#ifdef DEBUG_SUBDEV
+    std::cout << __func__ << " parameter: markup: " << markup << std::endl;
+#endif
     for(const std::string &pair:  pair_tokenizer(markup)){
         if (pair.empty()) continue;
         std::vector<std::string> db_sd; boost::split(db_sd, pair, boost::is_any_of(":"));
