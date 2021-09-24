@@ -1020,12 +1020,12 @@ public:
                 const std::string fe_name = _tree->list(mb_root(mboard) / "dboards" / db_name / "rx_frontends").at(0);
                 spec.push_back(subdev_spec_pair_t(db_name, fe_name));
                 _tree->access<subdev_spec_t>(mb_root(mboard) / "rx_subdev_spec").set(spec);
+                UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default RX front end spec: " << spec.to_pp_string();
             }
             catch(const std::exception &e)
             {
-                UHD_LOGGER_INFO("MULTI_USRP") << "No rx front ends detected: " << spec.to_pp_string();
+                UHD_LOGGER_INFO("MULTI_USRP") << "No rx front ends detected";
             }
-            UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default RX front end spec: " << spec.to_pp_string();
         }
         return spec;
     }
@@ -1840,12 +1840,12 @@ public:
                 const std::string fe_name = _tree->list(mb_root(mboard) / "dboards" / db_name / "tx_frontends").at(0);
                 spec.push_back(subdev_spec_pair_t(db_name, fe_name));
                 _tree->access<subdev_spec_t>(mb_root(mboard) / "tx_subdev_spec").set(spec);
+                UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default TX front end spec: " << spec.to_pp_string();
             }
             catch(const std::exception &e)
             {
-                UHD_LOGGER_INFO("MULTI_USRP") << "No tx front ends detected: " << spec.to_pp_string();
+                UHD_LOGGER_INFO("MULTI_USRP") << "No tx front ends detected";
             }
-            UHD_LOGGER_INFO("MULTI_USRP") << "Selecting default TX front end spec: " << spec.to_pp_string();
         }
         return spec;
     }

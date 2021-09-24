@@ -16,7 +16,7 @@
 using namespace uhd;
 using namespace uhd::usrp;
 
-#if 1
+#if 0
   #ifndef DEBUG_SUBDEV
   #define DEBUG_SUBDEV
   #endif
