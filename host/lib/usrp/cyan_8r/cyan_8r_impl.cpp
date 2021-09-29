@@ -1898,9 +1898,6 @@ void cyan_8r_impl::set_rx_gain(double gain, const std::string &name, size_t chan
         _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain );
         double actual_rf_gain = _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 
-        _tree->access<double>( rx_codec_path(chan) / "gains").set( (actual_rf_gain) - gain );
-        double actual_dsp_gain = _tree->access<int>(rx_codec_path(chan) / "gains").get();
-
         return;
     }
 

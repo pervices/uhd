@@ -1950,11 +1950,6 @@ void cyan_4r4t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
         _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain );
         double actual_rf_gain = _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 
-        //Uses the dsp gain to make up the difference if the rf chain is unable to get the desired gain
-        //The dsp gain is purely a digital transform, it does not actually improve the data (unlike in the rf chain). It should only be used if the rf chain can't provide the required gain
-        _tree->access<double>( rx_codec_path(chan) / "gains").set( (actual_rf_gain) - gain );
-        double actual_dsp_gain = _tree->access<int>(rx_codec_path(chan) / "gains").get();
-
         return;
     }
     
