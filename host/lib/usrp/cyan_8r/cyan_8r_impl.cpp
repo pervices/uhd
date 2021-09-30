@@ -544,7 +544,7 @@ static device_addrs_t cyan_8r_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 2.0 / CYAN_8R_MASTER_CLOCK_RATE * 1e9;
+static constexpr double tick_period_ns = 1.0 / CYAN_8R_TICK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
@@ -1069,7 +1069,7 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_8R_MASTER_CLOCK_RATE / 2);
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_8R_TICK_RATE);
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
