@@ -34,8 +34,8 @@
 #include <iostream>
 #include <inttypes.h>
 #include <uhd/utils/platform.hpp>
-#include "cyan_4r4t_fw_common.h"
-#include "cyan_4r4t_iface.hpp"
+#include "cyan_4r4t_3g_fw_common.h"
+#include "cyan_4r4t_3g_iface.hpp"
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -45,7 +45,7 @@ static uint32_t seq = 1;
 /***********************************************************************
  * Structors
  **********************************************************************/
-cyan_4r4t_iface::cyan_4r4t_iface(udp_simple::sptr ctrl_transport):
+cyan_4r4t_3g_iface::cyan_4r4t_3g_iface(udp_simple::sptr ctrl_transport):
     _ctrl_transport(ctrl_transport),
     _ctrl_seq_num(0),
     _protocol_compat(0)
@@ -56,18 +56,18 @@ cyan_4r4t_iface::cyan_4r4t_iface(udp_simple::sptr ctrl_transport):
 /***********************************************************************
  * Peek and Poke
  **********************************************************************/
-// Never call this function by itself, always call through cyan_4r4t_impl::get/set()
+// Never call this function by itself, always call through cyan_4r4t_3g_impl::get/set()
 // else it will mess up the protocol with the sequencing and will contian no error checks.
-void cyan_4r4t_iface::poke_str(std::string data) {
+void cyan_4r4t_3g_iface::poke_str(std::string data) {
     // populate the command string with sequence number
     data = data.insert(0, (boost::lexical_cast<std::string>(seq++) + ","));
     _ctrl_transport->send( boost::asio::buffer(data, data.length()) );
     return;
 }
 
-// Never call this function by itself, always call through cyan_4r4t_impl::get/set(),
+// Never call this function by itself, always call through cyan_4r4t_3g_impl::get/set(),
 // else it will mess up the protocol with the sequencing and will contian no error checks.
-std::string cyan_4r4t_iface::peek_str( float timeout_s ) {
+std::string cyan_4r4t_3g_iface::peek_str( float timeout_s ) {
     uint32_t iseq;
     std::vector<std::string> tokens;
     uint8_t tries = 0;
@@ -108,21 +108,21 @@ std::string cyan_4r4t_iface::peek_str( float timeout_s ) {
     }
 }
 
-std::string cyan_4r4t_iface::peek_str() {
+std::string cyan_4r4t_3g_iface::peek_str() {
 	return peek_str( 8 );
 }
 
 /***********************************************************************
- * Public make function for cyan_4r4t interface
+ * Public make function for cyan_4r4t_3g interface
  **********************************************************************/
-cyan_4r4t_iface::sptr cyan_4r4t_iface::make(udp_simple::sptr ctrl_transport){
-    return cyan_4r4t_iface::sptr(new cyan_4r4t_iface(ctrl_transport));
+cyan_4r4t_3g_iface::sptr cyan_4r4t_3g_iface::make(udp_simple::sptr ctrl_transport){
+    return cyan_4r4t_3g_iface::sptr(new cyan_4r4t_3g_iface(ctrl_transport));
 }
 
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-void cyan_4r4t_iface::parse(std::vector<std::string> &tokens, char* data, const char delim) {
+void cyan_4r4t_3g_iface::parse(std::vector<std::string> &tokens, char* data, const char delim) {
 	int i = 0;
 	while (data[i]) {
 		std::string token = "";

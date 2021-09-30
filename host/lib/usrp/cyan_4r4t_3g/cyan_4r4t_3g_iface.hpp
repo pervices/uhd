@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CYAN_4R4T_IFACE_HPP
-#define INCLUDED_CYAN_4R4T_IFACE_HPP
+#ifndef INCLUDED_CYAN_4R4R_3G_IFACE_HPP
+#define INCLUDED_CYAN_4R4R_3G_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
 #include <uhd/types/serial.hpp>
@@ -25,26 +25,26 @@
 #include <boost/function.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <string>
-#include "cyan_4r4t_fw_common.h"
+#include "cyan_4r4t_3g_fw_common.h"
 
 namespace uhd {
 
 /*!
- * The cyan_4r4t interface class:
+ * The cyan_4r4t_3g interface class:
  * Provides a set of functions to UDP implementation layer.
  */
-class cyan_4r4t_iface : public uhd::wb_iface
+class cyan_4r4t_3g_iface : public uhd::wb_iface
 {
 public:
-    typedef boost::shared_ptr<cyan_4r4t_iface> sptr;
+    typedef boost::shared_ptr<cyan_4r4t_3g_iface> sptr;
     /*!
-     * Make a new cyan_4r4t interface with the control transport.
+     * Make a new cyan_4r4t_3g interface with the control transport.
      * \param ctrl_transport the udp transport object
-     * \return a new cyan_4r4t interface object
+     * \return a new cyan_4r4t_3g interface object
      */
-    cyan_4r4t_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    cyan_4r4t_3g_iface(uhd::transport::udp_simple::sptr ctrl_transport);
 
-    static cyan_4r4t_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    static cyan_4r4t_3g_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
     // Send/write a data packet (string), null terminated
     virtual void poke_str(std::string data);
@@ -69,9 +69,9 @@ private:
     boost::uint32_t _protocol_compat;
 
     // buffer for in and out
-    char _buff[ CYAN_4R4T_MAX_MTU ];
+    char _buff[ CYAN_4R4R_3G_MAX_MTU ];
 };
 
 }
 
-#endif /* INCLUDED_CYAN_4R4T_IFACE_HPP */
+#endif /* INCLUDED_CYAN_4R4R_3G_IFACE_HPP */

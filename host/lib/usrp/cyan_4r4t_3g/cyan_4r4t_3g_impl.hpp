@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CYAN_4R4T_IMPL_HPP
-#define INCLUDED_CYAN_4R4T_IMPL_HPP
+#ifndef INCLUDED_CYAN_4R4R_3G_IMPL_HPP
+#define INCLUDED_CYAN_4R4R_3G_IMPL_HPP
 
 #include <set>
 #include <vector>
@@ -29,7 +29,7 @@
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "cyan_4r4t_iface.hpp"
+#include "cyan_4r4t_3g_iface.hpp"
 #include "../crimson_tng/flow_control.hpp"
 #include "../crimson_tng/pidc.hpp"
 #include "../crimson_tng/system_time.hpp"
@@ -81,15 +81,15 @@ struct rx_stream_cmd {
 namespace uhd {
 namespace usrp {
 
-class cyan_4r4t_impl : public uhd::device
+class cyan_4r4t_3g_impl : public uhd::device
 {
 public:
     // shared pointer to the Crimson device
-    typedef boost::shared_ptr<cyan_4r4t_impl> sptr;
+    typedef boost::shared_ptr<cyan_4r4t_3g_impl> sptr;
 
-    // This is the core constructor to be called when a cyan_4r4t device is found
-    cyan_4r4t_impl(const uhd::device_addr_t &);
-    ~cyan_4r4t_impl(void);
+    // This is the core constructor to be called when a cyan_4r4t_3g device is found
+    cyan_4r4t_3g_impl(const uhd::device_addr_t &);
+    ~cyan_4r4t_3g_impl(void);
 
     // pointers to the streams for the device
     // these functions are defined in io_impl.cpp
@@ -179,7 +179,7 @@ private:
     void set_properties_from_addr();
 
     // private pointer to the UDP interface, this is the path to send commands to Crimson
-    //uhd::cyan_4r4t_iface::sptr _iface;
+    //uhd::cyan_4r4t_3g_iface::sptr _iface;
     std::mutex _iface_lock;
 
 	/**
@@ -220,11 +220,11 @@ private:
 
     time_spec_t _command_time;
 
-	static void bm_thread_fn( cyan_4r4t_impl *dev );
+	static void bm_thread_fn( cyan_4r4t_3g_impl *dev );
 	bool is_bm_thread_needed();
 
     struct mb_container_type{
-        cyan_4r4t_iface::sptr iface;
+        cyan_4r4t_3g_iface::sptr iface;
         std::vector<boost::weak_ptr<uhd::rx_streamer> > rx_streamers;
         std::vector<boost::weak_ptr<uhd::tx_streamer> > tx_streamers;
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
@@ -269,4 +269,4 @@ private:
 }
 }
 
-#endif /* INCLUDED_CYAN_4R4T_IMPL_HPP */
+#endif /* INCLUDED_CYAN_4R4R_3G_IMPL_HPP */

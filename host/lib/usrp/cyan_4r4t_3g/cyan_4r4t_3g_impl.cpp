@@ -22,8 +22,8 @@
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
-#include "cyan_4r4t_impl.hpp"
-#include "cyan_4r4t_fw_common.h"
+#include "cyan_4r4t_3g_impl.hpp"
+#include "cyan_4r4t_3g_fw_common.h"
 
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_stream_zero_copy.hpp"
@@ -34,7 +34,7 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
-namespace link_cyan_4r4t {
+namespace link_cyan_4r4t_3g {
     const int num_links = 4;
     const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
     const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2","10.10.12.2","10.10.13.2"};
@@ -85,7 +85,7 @@ static void tng_csv_parse(std::vector<std::string> &tokens, char* data, const ch
 }
 
 // base wrapper that calls the simple UDP interface to get messages to and from Crimson
-std::string cyan_4r4t_impl::get_string(std::string req) {
+std::string cyan_4r4t_3g_impl::get_string(std::string req) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -95,10 +95,10 @@ std::string cyan_4r4t_impl::get_string(std::string req) {
 	// peek (read) back the data
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
-	if (ret == "TIMEOUT") 	throw uhd::runtime_error("cyan_4r4t_impl::get_string - UDP resp. timed out: " + req);
+	if (ret == "TIMEOUT") 	throw uhd::runtime_error("cyan_4r4t_3g_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
-void cyan_4r4t_impl::set_string(const std::string pre, std::string data) {
+void cyan_4r4t_3g_impl::set_string(const std::string pre, std::string data) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -109,43 +109,43 @@ void cyan_4r4t_impl::set_string(const std::string pre, std::string data) {
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
 	if (ret == "TIMEOUT" || ret == "ERROR")
-		throw uhd::runtime_error("cyan_4r4t_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
+		throw uhd::runtime_error("cyan_4r4t_3g_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
 	else
 		return;
 }
 
 // wrapper for type <double> through the ASCII Crimson interface
-double cyan_4r4t_impl::get_double(std::string req) {
+double cyan_4r4t_3g_impl::get_double(std::string req) {
 	try { return boost::lexical_cast<double>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void cyan_4r4t_impl::set_double(const std::string pre, double data){
+void cyan_4r4t_3g_impl::set_double(const std::string pre, double data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <bool> through the ASCII Crimson interface
-bool cyan_4r4t_impl::get_bool(std::string req) {
+bool cyan_4r4t_3g_impl::get_bool(std::string req) {
 	try { return boost::lexical_cast<bool>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void cyan_4r4t_impl::set_bool(const std::string pre, bool data){
+void cyan_4r4t_3g_impl::set_bool(const std::string pre, bool data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <int> through the ASCII Crimson interface
-int cyan_4r4t_impl::get_int(std::string req) {
+int cyan_4r4t_3g_impl::get_int(std::string req) {
 	try { return boost::lexical_cast<int>( get_string(req) );
 	} catch (...) { return 0; }
 }
-void cyan_4r4t_impl::set_int(const std::string pre, int data){
+void cyan_4r4t_3g_impl::set_int(const std::string pre, int data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
 	} catch (...) { }
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-uhd::usrp::mboard_eeprom_t cyan_4r4t_impl::get_mboard_eeprom(std::string req) {
+uhd::usrp::mboard_eeprom_t cyan_4r4t_3g_impl::get_mboard_eeprom(std::string req) {
 	(void)req;
 	mboard_eeprom_t temp;
 	temp["name"]     = get_string("fpga/about/name");
@@ -153,7 +153,7 @@ uhd::usrp::mboard_eeprom_t cyan_4r4t_impl::get_mboard_eeprom(std::string req) {
 	temp["serial"]   = get_string("fpga/about/serial");
 	return temp;
 }
-void cyan_4r4t_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
+void cyan_4r4t_3g_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
 	(void)pre;
 	(void)data;
 	// no eeprom settings on Crimson
@@ -161,7 +161,7 @@ void cyan_4r4t_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t da
 }
 
 // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
-dboard_eeprom_t cyan_4r4t_impl::get_dboard_eeprom(std::string req) {
+dboard_eeprom_t cyan_4r4t_3g_impl::get_dboard_eeprom(std::string req) {
 	(void)req;
 	dboard_eeprom_t temp;
 	//temp.id       = dboard_id_t( boost::lexical_cast<boost::uint16_t>(get_string("product,get,serial")) );
@@ -169,7 +169,7 @@ dboard_eeprom_t cyan_4r4t_impl::get_dboard_eeprom(std::string req) {
 	//temp.revision = get_string("product,get,hw_version");
 	return temp;
 }
-void cyan_4r4t_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
+void cyan_4r4t_3g_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
 	(void)pre;
 	(void)data;
 	// no eeprom settings on Crimson
@@ -177,12 +177,12 @@ void cyan_4r4t_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t da
 }
 
 // wrapper for type <sensor_value_t> through the ASCII Crimson interface
-sensor_value_t cyan_4r4t_impl::get_sensor_value(std::string req) {
+sensor_value_t cyan_4r4t_3g_impl::get_sensor_value(std::string req) {
 	(void)req;
 	// no sensors on Crimson
 	return sensor_value_t("NA", "0", "NA");
 }
-void cyan_4r4t_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
+void cyan_4r4t_3g_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
 	(void)pre;
 	(void)data;
 	// no sensors on Crimson
@@ -190,23 +190,23 @@ void cyan_4r4t_impl::set_sensor_value(const std::string pre, sensor_value_t data
 }
 
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
-meta_range_t cyan_4r4t_impl::get_meta_range(std::string req) {
+meta_range_t cyan_4r4t_3g_impl::get_meta_range(std::string req) {
 	(void)req;
-	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4T_DEBUG_NAME_S " does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4R_3G_DEBUG_NAME_S " does not support range settings");
 }
-void cyan_4r4t_impl::set_meta_range(const std::string pre, meta_range_t data) {
+void cyan_4r4t_3g_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	(void)pre;
 	(void)data;
-	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4T_DEBUG_NAME_S " does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4R_3G_DEBUG_NAME_S " does not support range settings");
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
-std::complex<double>  cyan_4r4t_impl::get_complex_double(std::string req) {
+std::complex<double>  cyan_4r4t_3g_impl::get_complex_double(std::string req) {
 	(void)req;
 	std::complex<double> temp;
 	return temp;
 }
-void cyan_4r4t_impl::set_complex_double(const std::string pre, std::complex<double> data) {
+void cyan_4r4t_3g_impl::set_complex_double(const std::string pre, std::complex<double> data) {
 	(void)pre;
 	(void)data;
 	return;
@@ -224,7 +224,7 @@ static size_t pre_to_ch( const std::string & pre ) {
 }
 
 //creates a start stream command (but does not set all of its properties)
-stream_cmd_t cyan_4r4t_impl::get_stream_cmd(std::string req) {
+stream_cmd_t cyan_4r4t_3g_impl::get_stream_cmd(std::string req) {
 	(void)req;
 	// XXX: @CF: 20180214: stream_cmd is basically a write-only property, but we have to return a dummy variable of some kind
 	stream_cmd_t::stream_mode_t mode = stream_cmd_t::STREAM_MODE_START_CONTINUOUS;
@@ -233,7 +233,7 @@ stream_cmd_t cyan_4r4t_impl::get_stream_cmd(std::string req) {
 }
 
 //creates the stream cmd packet to be send over the sfp ports
-void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
+void cyan_4r4t_3g_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
 
 	const size_t ch = pre_to_ch( pre );
 	const uhd::time_spec_t now = get_time_now();
@@ -258,14 +258,14 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
     //The channel argument is actually the jesd number relative to the sfp port
     //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
     //4r4t only has one channel per port so it
-    size_t jesd_num = cyan_4r4t_impl::get_rx_jesd_num(ch);
+    size_t jesd_num = cyan_4r4t_3g_impl::get_rx_jesd_num(ch);
 #ifdef DEBUG_COUT
     std::cout << "Creating packet with jesd_num: " << jesd_num << std::endl;
 #endif
 
 	make_rx_stream_cmd_packet( stream_cmd, now, jesd_num, rx_stream_cmd );
 
-    int xg_intf = cyan_4r4t_impl::get_rx_xg_intf(ch);
+    int xg_intf = cyan_4r4t_3g_impl::get_rx_xg_intf(ch);
 #ifdef DEBUG_COUT
     std::cout << "Sending packet on interface: " << xg_intf << std::endl;
 #endif
@@ -275,7 +275,7 @@ void cyan_4r4t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 
 // wrapper for type <time_spec_t> through the ASCII Crimson interface
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
-time_spec_t cyan_4r4t_impl::get_time_spec(std::string req) {
+time_spec_t cyan_4r4t_3g_impl::get_time_spec(std::string req) {
 	if ( false ) {
 	} else if ( "time/clk/cur_time" == req ) {
 		return get_time_now();
@@ -288,7 +288,7 @@ time_spec_t cyan_4r4t_impl::get_time_spec(std::string req) {
 		return temp;
 	}
 }
-void cyan_4r4t_impl::set_time_spec( const std::string key, time_spec_t value ) {
+void cyan_4r4t_3g_impl::set_time_spec( const std::string key, time_spec_t value ) {
 	if ( "time/clk/cur_time" == key ) {
 		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
 		stop_bm();
@@ -307,7 +307,7 @@ void cyan_4r4t_impl::set_time_spec( const std::string key, time_spec_t value ) {
 }
 
 //TODO: implement the ability for users to access registers
-user_reg_t cyan_4r4t_impl::get_user_reg(std::string req) {
+user_reg_t cyan_4r4t_3g_impl::get_user_reg(std::string req) {
 
     (void) req;
 
@@ -316,12 +316,12 @@ user_reg_t cyan_4r4t_impl::get_user_reg(std::string req) {
 }
 
 
-void cyan_4r4t_impl::send_gpio_burst_req(const gpio_burst_req& req) {
+void cyan_4r4t_3g_impl::send_gpio_burst_req(const gpio_burst_req& req) {
 	_time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
 //TODO: implement the ability for users to access registers
-void cyan_4r4t_impl::set_user_reg(const std::string key, user_reg_t value) {
+void cyan_4r4t_3g_impl::set_user_reg(const std::string key, user_reg_t value) {
 
     (void) key;
 
@@ -378,7 +378,7 @@ void cyan_4r4t_impl::set_user_reg(const std::string key, user_reg_t value) {
     }
 }
 
-void cyan_4r4t_impl::set_properties_from_addr() {
+void cyan_4r4t_3g_impl::set_properties_from_addr() {
 
 	static const std::string crimson_prop_prefix( "crimson:" );
 	static const std::vector<std::string> blacklist { "crimson:sob" };
@@ -403,9 +403,9 @@ void cyan_4r4t_impl::set_properties_from_addr() {
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR(CYAN_4R4T_DEBUG_NAME_C "_IMPL")
+				UHD_LOGGER_ERROR(CYAN_4R4R_3G_DEBUG_NAME_C "_IMPL")
 					<< __func__ << "(): "
-					<< "Setting " CYAN_4R4T_DEBUG_NAME_S "  property failed: "
+					<< "Setting " CYAN_4R4R_3G_DEBUG_NAME_S "  property failed: "
 					<< "key: '"<< key << "', "
 					<< "expected val: '" << expected_string << "', "
 					<< "actual val: '" << actual_string  << "'"
@@ -419,14 +419,14 @@ void cyan_4r4t_impl::set_properties_from_addr() {
  * Discovery over the udp transport
  **********************************************************************/
 // This find function will be called if a hint is passed onto the find function
-static device_addrs_t cyan_4r4t_find_with_addr(const device_addr_t &hint)
+static device_addrs_t cyan_4r4t_3g_find_with_addr(const device_addr_t &hint)
 {
 	uhd::time_spec_t then, now;
 
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CYAN_4R4T_FW_COMMS_UDP_PORT));
+        hint["addr"], BOOST_STRINGIZE(CYAN_4R4R_3G_FW_COMMS_UDP_PORT));
 
     then = uhd::get_system_time();
 
@@ -435,7 +435,7 @@ static device_addrs_t cyan_4r4t_find_with_addr(const device_addr_t &hint)
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
-    char buff[CYAN_4R4T_FW_COMMS_MTU] = {};
+    char buff[CYAN_4R4R_3G_FW_COMMS_MTU] = {};
 
     for(
 		float to = 0.2;
@@ -450,7 +450,7 @@ static device_addrs_t cyan_4r4t_find_with_addr(const device_addr_t &hint)
         if (tokens.size() < 3) break;
         if (tokens[1].c_str()[0] == CMD_ERROR) break;
 
-        if (tokens[2] != "cyan_4r4t") break;
+        if (tokens[2] != "cyan_4r4t_3g") break;
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
@@ -464,7 +464,7 @@ static device_addrs_t cyan_4r4t_find_with_addr(const device_addr_t &hint)
             (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
             (not hint.has_key("product") or hint["product"] == new_addr["product"])
         ){
-            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found cyan_4r4t at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
+            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found cyan_4r4t_3g at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
             addrs.push_back(new_addr);
         }
     }
@@ -473,7 +473,7 @@ static device_addrs_t cyan_4r4t_find_with_addr(const device_addr_t &hint)
 }
 
 // This is the core find function that will be called when uhd:device find() is called because this is registered
-static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
+static device_addrs_t cyan_4r4t_3g_find(const device_addr_t &hint_)
 {
     //handle the multi-device discovery
     device_addrs_t hints = separate_device_addr(hint_);
@@ -483,7 +483,7 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
         std::string error_msg;
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
-            device_addrs_t found_devices_i = cyan_4r4t_find(hint_i);
+            device_addrs_t found_devices_i = cyan_4r4t_3g_find(hint_i);
             if (found_devices_i.size() != 1) error_msg += str(boost::format(
                 "Could not resolve device hint \"%s\" to a single device."
             ) % hint_i.to_string());
@@ -501,7 +501,7 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
 
-    if (hint.has_key("type") and hint["type"] != "cyan_4r4t") return addrs;
+    if (hint.has_key("type") and hint["type"] != "cyan_4r4t_3g") return addrs;
 
     //use the address given
     if (hint.has_key("addr"))
@@ -509,19 +509,19 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
         device_addrs_t reply_addrs;
         try
         {
-            reply_addrs = cyan_4r4t_find_with_addr(hint);
+            reply_addrs = cyan_4r4t_3g_find_with_addr(hint);
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CYAN_4R4T") << "CYAN_4R4T Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("CYAN_4R4R_3G") << "CYAN_4R4R_3G Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CYAN_4R4T") << "CYAN_4R4T Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("CYAN_4R4R_3G") << "CYAN_4R4R_3G Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
-            device_addrs_t new_addrs = cyan_4r4t_find_with_addr(reply_addr);
+            device_addrs_t new_addrs = cyan_4r4t_3g_find_with_addr(reply_addr);
             addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
         }
         return addrs;
@@ -541,7 +541,7 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
             new_hint["addr"] = if_addrs.bcast;
 
             //call discover with the new hint and append results
-            device_addrs_t new_addrs = cyan_4r4t_find(new_hint);
+            device_addrs_t new_addrs = cyan_4r4t_3g_find(new_hint);
             addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
         }
     }
@@ -554,7 +554,7 @@ static device_addrs_t cyan_4r4t_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 1.0 / CYAN_4R4T_TICK_RATE * 1e9;
+static constexpr double tick_period_ns = 1.0 / CYAN_4R4R_3G_TICK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
@@ -572,7 +572,7 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
-void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t jesd_num, uhd::usrp::rx_stream_cmd & pkt ) {
+void cyan_4r4t_3g_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t jesd_num, uhd::usrp::rx_stream_cmd & pkt ) {
     typedef boost::tuple<bool, bool, bool, bool> inst_t;
     static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
                                                             //reload, chain, samps, stop
@@ -615,13 +615,13 @@ void cyan_4r4t_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 }
 
 //sends a stream command over sfp port 0
-void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-    UHD_LOG_WARNING("STREAM_CMD", "No sfp for specified for streaming command, defaulting to " << link_cyan_4r4t::names[0]);
+void cyan_4r4t_3g_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
+    UHD_LOG_WARNING("STREAM_CMD", "No sfp for specified for streaming command, defaulting to " << link_cyan_4r4t_3g::names[0]);
 	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 //sends a stream command over the specified sfp port (xg_intf = 0 means sfpa, =1 means spfb)
-void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_intf) {
+void cyan_4r4t_3g_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_intf) {
 
     if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
         throw runtime_error( "XG Control interface offset out of bound!" );
@@ -631,7 +631,7 @@ void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
+void cyan_4r4t_3g_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 
 	time_diff_req pkt;
 
@@ -645,7 +645,7 @@ void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
-void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
+void cyan_4r4t_3g_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
 
 	time_diff_req pkt;
 
@@ -661,7 +661,7 @@ void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int x
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
-bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr ) {
+bool cyan_4r4t_3g_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	size_t r;
 
@@ -677,7 +677,7 @@ bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr ) {
 	return true;
 }
 
-bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
+bool cyan_4r4t_3g_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 
 	size_t r;
 
@@ -697,7 +697,7 @@ bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
-void cyan_4r4t_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
+void cyan_4r4t_3g_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
 	static const double sp = 0.0;
 
@@ -713,7 +713,7 @@ void cyan_4r4t_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 }
 
 //performs clock synchronization
-void cyan_4r4t_impl::start_bm() {
+void cyan_4r4t_3g_impl::start_bm() {
 
 	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
 
@@ -740,10 +740,10 @@ void cyan_4r4t_impl::start_bm() {
 			time_now = uhd::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR(CYAN_4R4T_DEBUG_NAME_C "_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4T_DEBUG_NAME_S "?"
+				UHD_LOGGER_ERROR(CYAN_4R4R_3G_DEBUG_NAME_C "_IMPL")
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4R_3G_DEBUG_NAME_S "?"
 					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4T_DEBUG_NAME_S"?" );
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4R_3G_DEBUG_NAME_S"?" );
 			}
 			usleep( 100000 );
 		}
@@ -751,7 +751,7 @@ void cyan_4r4t_impl::start_bm() {
 }
 
 //stops clock synchronization
-void cyan_4r4t_impl::stop_bm() {
+void cyan_4r4t_3g_impl::stop_bm() {
 
 	if ( _bm_thread_running ) {
 
@@ -762,21 +762,21 @@ void cyan_4r4t_impl::stop_bm() {
 }
 
 //checks if the clocks are synchronized
-bool cyan_4r4t_impl::time_diff_converged() {
+bool cyan_4r4t_3g_impl::time_diff_converged() {
 	return _time_diff_converged;
 }
 
 //Synchronizes clocks, this function should be run in its own thread
 //When calling it verify that it is not already running (_bm_thread_running)
-void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
+void cyan_4r4t_3g_impl::bm_thread_fn( cyan_4r4t_3g_impl *dev ) {
 
 	dev->_bm_thread_running = true;
 
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;
     
-	const uhd::time_spec_t T( 1.0 / (double) CYAN_4R4T_UPDATE_PER_SEC );
-	std::vector<size_t> fifo_lvl( CYAN_4R4T_TX_CHANNELS );
+	const uhd::time_spec_t T( 1.0 / (double) CYAN_4R4R_3G_UPDATE_PER_SEC );
+	std::vector<size_t> fifo_lvl( CYAN_4R4R_3G_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
     //the predicted time on the unit
 	uhd::time_spec_t crimson_now;
@@ -829,7 +829,7 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 			now = uhd::get_system_time();
 
 			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CYAN_4R4T_IMPL" )
+				UHD_LOGGER_INFO( "CYAN_4R4R_3G_IMPL" )
 					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
 					<< std::endl;
 			}
@@ -849,18 +849,18 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
  * Make
  **********************************************************************/
 // Returns a pointer to the SDR device, casted to the UHD base class
-static device::sptr cyan_4r4t_make(const device_addr_t &device_addr)
+static device::sptr cyan_4r4t_3g_make(const device_addr_t &device_addr)
 {
-    return device::sptr(new cyan_4r4t_impl(device_addr));
+    return device::sptr(new cyan_4r4t_3g_impl(device_addr));
 }
 
 // This is the core function that registers itself with uhd::device base class. The base device class
 // will have a reference to all the registered devices and upon device find/make it will loop through
 // all the registered devices' find and make functions.
-UHD_STATIC_BLOCK(register_cyan_4r4t_device)
+UHD_STATIC_BLOCK(register_cyan_4r4t_3g_device)
 {
 	set_log_level( uhd::log::severity_level::info );
-    device::register_device(&cyan_4r4t_find, &cyan_4r4t_make, device::USRP);
+    device::register_device(&cyan_4r4t_3g_find, &cyan_4r4t_3g_make, device::USRP);
 }
 
 /***********************************************************************
@@ -870,21 +870,21 @@ UHD_STATIC_BLOCK(register_cyan_4r4t_device)
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.add_desired_subscriber(boost::bind(&cyan_4r4t_impl::set_ ## HANDLER, this, (PROP), _1))	\
-		.set_publisher(boost::bind(&cyan_4r4t_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.add_desired_subscriber(boost::bind(&cyan_4r4t_3g_impl::set_ ## HANDLER, this, (PROP), _1))	\
+		.set_publisher(boost::bind(&cyan_4r4t_3g_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.publish  (boost::bind(&cyan_4r4t_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.publish  (boost::bind(&cyan_4r4t_3g_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
-cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
+cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 :
 	device_addr( _device_addr ),
 	_time_diff( 0 ),
@@ -894,7 +894,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	_bm_thread_should_exit( false ),
     _command_time()
 {
-    _type = device::CYAN_4R4T;
+    _type = device::CYAN_4R4R_3G;
     device_addr = _device_addr;
 
 
@@ -906,14 +906,14 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     char buffer[256];
 
     // FOR EACH INTERFACE
-    for (int j = 0; j < link_cyan_4r4t::num_links; j++) {
+    for (int j = 0; j < link_cyan_4r4t_3g::num_links; j++) {
         // CHECK PING
-        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_4r4t::addrs[j]); 
+        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_4r4t_3g::addrs[j]); 
         check = system(cmd);
         if (check!=0){
-            UHD_LOG_WARNING("PING", "Failed for " << link_cyan_4r4t::addrs[j] << ", please check " << link_cyan_4r4t::names[j]);
+            UHD_LOG_WARNING("PING", "Failed for " << link_cyan_4r4t_3g::addrs[j] << ", please check " << link_cyan_4r4t_3g::names[j]);
         }
-        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_4r4t::subnets[j]); 
+        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_4r4t_3g::subnets[j]); 
         stream = popen(cmd, "r");
         if (stream) {
             while(!feof(stream))
@@ -923,12 +923,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
         // CHECK MTU
         check = 0;
         for (int i =0; i < 4; i++) {
-            if (link_cyan_4r4t::mtu_ref[i] != buffer[i+4]) {
+            if (link_cyan_4r4t_3g::mtu_ref[i] != buffer[i+4]) {
                 check ++;
             }
         }
         if (check != 0) {
-            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_4r4t::mtu_ref <<  " for subnet " << link_cyan_4r4t::subnets[j] << " may impact data sent over " << link_cyan_4r4t::names[j]);
+            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_4r4t_3g::mtu_ref <<  " for subnet " << link_cyan_4r4t_3g::subnets[j] << " may impact data sent over " << link_cyan_4r4t_3g::names[j]);
         }
     }
 
@@ -945,7 +945,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_4R4R_3G_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
@@ -980,10 +980,10 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     static const size_t mbi = 0;
     static const std::string mb = std::to_string( mbi );
     // Makes the UDP comm connection
-    _mbc[mb].iface = cyan_4r4t_iface::make(
+    _mbc[mb].iface = cyan_4r4t_3g_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
-			BOOST_STRINGIZE( CYAN_4R4T_FW_COMMS_UDP_PORT )
+			BOOST_STRINGIZE( CYAN_4R4R_3G_FW_COMMS_UDP_PORT )
 		)
     );
 
@@ -1012,7 +1012,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options").set(clock_source_options);
 
-    TREE_CREATE_ST("/name", std::string, CYAN_4R4T_DEBUG_NAME_S " Device");
+    TREE_CREATE_ST("/name", std::string, CYAN_4R4R_3G_DEBUG_NAME_S " Device");
 
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
@@ -1022,8 +1022,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
-    _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_impl::update_rx_subdev_spec, this, mb, _1));
-    _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_impl::update_tx_subdev_spec, this, mb, _1));
+    _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_rx_subdev_spec, this, mb, _1));
+    _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_tx_subdev_spec, this, mb, _1));
 
     TREE_CREATE_ST(mb_path / "vendor", std::string, "Per Vices");
     TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
@@ -1090,7 +1090,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_4R4T_TICK_RATE);
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_4R4R_3G_TICK_RATE);
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
@@ -1108,7 +1108,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
-    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CYAN_4R4T_EXT_CLK_RATE);
+    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CYAN_4R4R_3G_EXT_CLK_RATE);
     TREE_CREATE_ST(mb_path / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(mb_path / "time_source"  / "output", bool, true);
 
@@ -1118,7 +1118,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
-    for( size_t dspno = 0; dspno < CYAN_4R4T_RX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < CYAN_4R4R_3G_RX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1163,11 +1163,11 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4T_BW_FULL );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4T_BW_FULL, (double) CYAN_4R4T_BW_FULL ) );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4R_3G_BW_FULL );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4R_3G_BW_FULL, (double) CYAN_4R4R_3G_BW_FULL ) );
 
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_FREQ_RANGE_START, (double) CYAN_4R4T_FREQ_RANGE_STOP, (double) CYAN_4R4T_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1176,12 +1176,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
-		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4T_LO_OFFSET );
+		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4R_3G_LO_OFFSET );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_FREQ_RANGE_START, (double) CYAN_4R4T_FREQ_RANGE_STOP, (double) CYAN_4R4T_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_RF_RX_GAIN_RANGE_START, (double) CYAN_4R4T_RF_RX_GAIN_RANGE_STOP, (double) CYAN_4R4T_RF_RX_GAIN_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_RF_RX_GAIN_RANGE_START, (double) CYAN_4R4R_3G_RF_RX_GAIN_RANGE_STOP, (double) CYAN_4R4R_3G_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
@@ -1200,16 +1200,16 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 		// DSPs
 		TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_RATE_RANGE_START, (double) CYAN_4R4T_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_RATE_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_RATE_RANGE_START, (double) CYAN_4R4R_3G_RATE_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_RATE_RANGE_STEP));
 		TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-			meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_FULL, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
+			meta_range_t((double) CYAN_4R4R_3G_DSP_BW_START, (double) CYAN_4R4R_3G_DSP_BW_STOP_FULL, (double) CYAN_4R4R_3G_DSP_BW_STEPSIZE));
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
 			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&cyan_4r4t_impl::update_rx_samp_rate, this, mb, (size_t) dspno, _1))
-			.set_publisher(boost::bind(&cyan_4r4t_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
+			.add_desired_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_rx_samp_rate, this, mb, (size_t) dspno, _1))
+			.set_publisher(boost::bind(&cyan_4r4t_3g_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
@@ -1234,7 +1234,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CYAN_4R4T_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_4R4R_3G_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = 0;
 		zcxp.recv_frame_size = bpp;
@@ -1258,12 +1258,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
                 )
             );
         } catch (...) {
-            UHD_LOGGER_WARNING(CYAN_4R4T_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+            UHD_LOGGER_WARNING(CYAN_4R4R_3G_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
         }
     }
 
     // initializes all TX chains
-    for( int dspno = 0; dspno < CYAN_4R4T_TX_CHANNELS; dspno++ ) {
+    for( int dspno = 0; dspno < CYAN_4R4R_3G_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1306,11 +1306,11 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4T_BW_FULL );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4T_BW_FULL, (double) CYAN_4R4T_BW_FULL ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4R_3G_BW_FULL );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4R_3G_BW_FULL, (double) CYAN_4R4R_3G_BW_FULL ) );
 
 		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_FREQ_RANGE_START, (double) CYAN_4R4T_FREQ_RANGE_STOP, (double) CYAN_4R4T_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1319,12 +1319,12 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
 
-        TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4T_LO_OFFSET );
+        TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4R_3G_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_FREQ_RANGE_START, (double) CYAN_4R4T_FREQ_RANGE_STOP, (double) CYAN_4R4T_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_RF_TX_GAIN_RANGE_START, (double) CYAN_4R4T_RF_TX_GAIN_RANGE_STOP, (double) CYAN_4R4T_RF_TX_GAIN_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_RF_TX_GAIN_RANGE_START, (double) CYAN_4R4R_3G_RF_TX_GAIN_RANGE_STOP, (double) CYAN_4R4R_3G_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/lo_freq" , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
@@ -1339,16 +1339,16 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		// DSPs
 
 		TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_RATE_RANGE_START, (double) CYAN_4R4T_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_RATE_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_RATE_RANGE_START, (double) CYAN_4R4R_3G_RATE_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_RATE_RANGE_STEP));
 		TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4T_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_DSP_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4R_3G_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-			meta_range_t((double) CYAN_4R4T_DSP_BW_START, (double) CYAN_4R4T_DSP_BW_STOP_FULL, (double) CYAN_4R4T_DSP_BW_STEPSIZE));
+			meta_range_t((double) CYAN_4R4R_3G_DSP_BW_START, (double) CYAN_4R4R_3G_DSP_BW_STOP_FULL, (double) CYAN_4R4R_3G_DSP_BW_STEPSIZE));
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
 // 			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&cyan_4r4t_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
-			.set_publisher(boost::bind(&cyan_4r4t_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
+			.add_desired_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
+			.set_publisher(boost::bind(&cyan_4r4t_3g_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
@@ -1371,11 +1371,11 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CYAN_4R4T_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_4R4R_3G_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = bpp;
 		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_send_frames = CYAN_4R4R_3G_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
 		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;
@@ -1427,8 +1427,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( CYAN_4R4T_SUBDEV_SPEC_RX ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( CYAN_4R4T_SUBDEV_SPEC_TX ));
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( CYAN_4R4R_3G_SUBDEV_SPEC_RX ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( CYAN_4R4R_3G_SUBDEV_SPEC_TX ));
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 
@@ -1464,10 +1464,10 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 			0.0, // desired set point is 0.0s error
 			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CYAN_4R4T_UPDATE_PER_SEC
+			2.0 / (double)CYAN_4R4R_3G_UPDATE_PER_SEC
 		);
 
-		_time_diff_pidc.set_error_filter_length( CYAN_4R4T_UPDATE_PER_SEC );
+		_time_diff_pidc.set_error_filter_length( CYAN_4R4R_3G_UPDATE_PER_SEC );
 
 		// XXX: @CF: 20170720: coarse to fine for convergence
 		// we coarsely lock on at first, to ensure the class instantiates properly
@@ -1478,14 +1478,14 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	}
 }
 
-cyan_4r4t_impl::~cyan_4r4t_impl(void)
+cyan_4r4t_3g_impl::~cyan_4r4t_3g_impl(void)
 {
        stop_bm();
 }
 
 //figures out if clock synchronization is needed
 //TODO: change it so that uhd takes and argument when started that says whether or not to use clock synchronization
-bool cyan_4r4t_impl::is_bm_thread_needed() {
+bool cyan_4r4t_3g_impl::is_bm_thread_needed() {
 	bool r = true;
 
     //The list of programs that don't need clock synchronization
@@ -1517,7 +1517,7 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
 //gets the jesd number to be used in creating stream command packets
 //Note: these are relative to the sfp port
 //i.e. 0 for all channels in 4r4t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
-int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
+int cyan_4r4t_3g_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
@@ -1526,7 +1526,7 @@ int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
 
 //the number corresponding to each sfp port
 //i.e. sfpa==0, sfpb==1...
-int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
+int cyan_4r4t_3g_impl::get_rx_xg_intf(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
@@ -1536,7 +1536,7 @@ int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
 
 //figures out which ip address, udp port, and sfp port to use
 //Only tree and chan are actual arguments, the rest are to store the calculated values
-void cyan_4r4t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
+void cyan_4r4t_3g_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	const std::string chan_str( 1, 'A' + chan );
 	const fs_path mb_path   = "/mboards/0";
@@ -1557,9 +1557,9 @@ constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static int select_band( const double freq ) {
-	if( freq >= CYAN_4R4T_MID_HIGH_BARRIER )
+	if( freq >= CYAN_4R4R_3G_MID_HIGH_BARRIER )
         return HIGH_BAND;
-    else if( freq >= CYAN_4R4T_LOW_MID_BARRIER )
+    else if( freq >= CYAN_4R4R_3G_LOW_MID_BARRIER )
         return MID_BAND;
     else
         return LOW_BAND;
@@ -1609,17 +1609,17 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 					                                           H = A + B + C + D
 	 */
 	static const std::vector<freq_range_t> AB_regions {
-		freq_range_t( CYAN_4R4T_DC_LOWERLIMIT, (CYAN_4R4T_LO_STEPSIZE-CYAN_4R4T_LO_GUARDBAND) ), // A
-		//freq_range_t( -(CYAN_4R4T_LO_STEPSIZE-CYAN_4R4T_LO_GUARDBAND), -CYAN_4R4T_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CYAN_4R4T_LO_STEPSIZE+CYAN_4R4T_LO_GUARDBAND), CYAN_4R4T_FM_LOWERLIMIT ), // B
-		//freq_range_t( -CYAN_4R4T_FM_LOWERLIMIT,-(CYAN_4R4T_LO_STEPSIZE+CYAN_4R4T_LO_GUARDBAND) ), // -B
-		freq_range_t( (CYAN_4R4T_LO_STEPSIZE+CYAN_4R4T_LO_GUARDBAND), CYAN_4R4T_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
-		//freq_range_t( -CYAN_4R4T_ADC_FREQ_RANGE_ROLLOFF, -(CYAN_4R4T_LO_STEPSIZE+CYAN_4R4T_LO_GUARDBAND) ), // -F
-		freq_range_t( CYAN_4R4T_DC_LOWERLIMIT, CYAN_4R4T_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
-		//freq_range_t( -CYAN_4R4T_ADC_FREQ_RANGE_ROLLOFF, -CYAN_4R4T_DC_LOWERLIMIT ), // -G
-		freq_range_t( CYAN_4R4T_DC_LOWERLIMIT, CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
-		//freq_range_t( -CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL, -CYAN_4R4T_DC_LOWERLIMIT ), // -H
-		freq_range_t( CYAN_4R4T_DSP_FREQ_RANGE_START_FULL, CYAN_4R4T_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
+		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, (CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND) ), // A
+		//freq_range_t( -(CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND), -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -A
+		freq_range_t( (CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND), CYAN_4R4R_3G_FM_LOWERLIMIT ), // B
+		//freq_range_t( -CYAN_4R4R_3G_FM_LOWERLIMIT,-(CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND) ), // -B
+		freq_range_t( (CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND), CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
+		//freq_range_t( -CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF, -(CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND) ), // -F
+		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
+		//freq_range_t( -CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF, -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -G
+		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
+		//freq_range_t( -CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL, -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -H
+		freq_range_t( CYAN_4R4R_3G_DSP_FREQ_RANGE_START_FULL, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
@@ -1642,20 +1642,20 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
                            C = A + B (includes LO)
 	 */
 	static const std::vector<freq_range_t> CD_regions {
-		freq_range_t( CYAN_4R4T_DC_LOWERLIMIT, (CYAN_4R4T_LO_STEPSIZE-CYAN_4R4T_LO_GUARDBAND) ), // +A
-		//freq_range_t( -(CYAN_4R4T_LO_STEPSIZE-CYAN_4R4T_LO_GUARDBAND), -CYAN_4R4T_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CYAN_4R4T_LO_STEPSIZE+CYAN_4R4T_LO_GUARDBAND), CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER ), // B
-		//freq_range_t( -CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER, -(CYAN_4R4T_LO_STEPSIZE+CYAN_4R4T_LO_GUARDBAND) ), // -B
-		freq_range_t( CYAN_4R4T_DC_LOWERLIMIT, CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
-		//freq_range_t( -CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER, -CYAN_4R4T_DC_LOWERLIMIT ), // -C
-		freq_range_t( CYAN_4R4T_DSP_FREQ_RANGE_START_QUARTER, CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
+		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, (CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND) ), // +A
+		//freq_range_t( -(CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND), -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -A
+		freq_range_t( (CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND), CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // B
+		//freq_range_t( -CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER, -(CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND) ), // -B
+		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
+		//freq_range_t( -CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER, -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -C
+		freq_range_t( CYAN_4R4R_3G_DSP_FREQ_RANGE_START_QUARTER, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
-	static const double lo_step = CYAN_4R4T_LO_STEPSIZE;
+	static const double lo_step = CYAN_4R4R_3G_LO_STEPSIZE;
 
 	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CYAN_4R4T_BW_QUARTER ? 'A' : 'C';
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CYAN_4R4R_3G_BW_QUARTER ? 'A' : 'C';
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
@@ -1807,7 +1807,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	return tune_result;
 }
 
-uhd::tune_result_t cyan_4r4t_impl::set_rx_freq(
+uhd::tune_result_t cyan_4r4t_3g_impl::set_rx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {
 	auto mb_root = [&](size_t mboard) -> std::string {
@@ -1829,7 +1829,7 @@ uhd::tune_result_t cyan_4r4t_impl::set_rx_freq(
 
 }
 
-double cyan_4r4t_impl::get_rx_freq(size_t chan) {
+double cyan_4r4t_3g_impl::get_rx_freq(size_t chan) {
 	auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
 	};
@@ -1849,7 +1849,7 @@ double cyan_4r4t_impl::get_rx_freq(size_t chan) {
         return cur_lo_freq - cur_dsp_nco;
 }
 
-uhd::tune_result_t cyan_4r4t_impl::set_tx_freq(
+uhd::tune_result_t cyan_4r4t_3g_impl::set_tx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {
 	auto mb_root = [&](size_t mboard) -> std::string {
@@ -1871,7 +1871,7 @@ uhd::tune_result_t cyan_4r4t_impl::set_tx_freq(
 
 }
 
-double cyan_4r4t_impl::get_tx_freq(size_t chan) {
+double cyan_4r4t_3g_impl::get_tx_freq(size_t chan) {
 	auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
 	};
@@ -1891,7 +1891,7 @@ double cyan_4r4t_impl::get_tx_freq(size_t chan) {
         }
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
-void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
+void cyan_4r4t_3g_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
 
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
@@ -1907,12 +1907,12 @@ void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
         _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
         return;
     }
-    for (size_t c = 0; c < CYAN_4R4T_TX_CHANNELS; c++){
+    for (size_t c = 0; c < CYAN_4R4R_3G_TX_CHANNELS; c++){
         set_tx_gain(gain, name, c);
     }
 }
 
-double cyan_4r4t_impl::get_tx_gain(const std::string &name, size_t chan) {
+double cyan_4r4t_3g_impl::get_tx_gain(const std::string &name, size_t chan) {
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
 	};
@@ -1924,7 +1924,7 @@ double cyan_4r4t_impl::get_tx_gain(const std::string &name, size_t chan) {
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
 
-void cyan_4r4t_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
+void cyan_4r4t_3g_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
@@ -1954,12 +1954,12 @@ void cyan_4r4t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
     }
     
     //calls this function for each channel individually
-    for (size_t c = 0; c < CYAN_4R4T_RX_CHANNELS; c++){
+    for (size_t c = 0; c < CYAN_4R4R_3G_RX_CHANNELS; c++){
         set_rx_gain( gain, name, c );
     }
 }
 
-double cyan_4r4t_impl::get_rx_gain(const std::string &name, size_t chan) {
+double cyan_4r4t_3g_impl::get_rx_gain(const std::string &name, size_t chan) {
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
 	};
