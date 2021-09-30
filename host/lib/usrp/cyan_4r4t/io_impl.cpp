@@ -711,7 +711,7 @@ void cyan_4r4t_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
+    my_streamer->set_tick_rate( CYAN_4R4T_TICK_RATE );
 }
 
 void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -724,7 +724,7 @@ void cyan_4r4t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_4R4T_MASTER_CLOCK_RATE / 2.0 );
+    my_streamer->set_tick_rate( CYAN_4R4T_TICK_RATE );
 }
 
 void cyan_4r4t_impl::update_rates(void){
@@ -973,7 +973,7 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 2.0 / CYAN_4R4T_MASTER_CLOCK_RATE;
+	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_TICK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
