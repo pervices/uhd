@@ -28,7 +28,10 @@ namespace po = boost::program_options;
  * Signal handlers
  **********************************************************************/
 static bool stop_signal_called = false;
-void sig_int_handler(int){stop_signal_called = true;}
+void sig_int_handler(int){
+    std::cout << "stop_signal_called" << std::endl;
+    stop_signal_called = true;
+}
 
 /***********************************************************************
  * Main function
