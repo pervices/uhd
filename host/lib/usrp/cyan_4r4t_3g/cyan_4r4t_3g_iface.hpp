@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CYAN_4R4R_3G_IFACE_HPP
-#define INCLUDED_CYAN_4R4R_3G_IFACE_HPP
+#ifndef INCLUDED_CYAN_4R4T_3G_IFACE_HPP
+#define INCLUDED_CYAN_4R4T_3G_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
 #include <uhd/types/serial.hpp>
@@ -69,9 +69,9 @@ private:
     boost::uint32_t _protocol_compat;
 
     // buffer for in and out
-    char _buff[ CYAN_4R4R_3G_MAX_MTU ];
+    char _buff[ CYAN_4R4T_3G_MAX_MTU ];
 };
 
 }
 
-#endif /* INCLUDED_CYAN_4R4R_3G_IFACE_HPP */
+#endif /* INCLUDED_CYAN_4R4T_3G_IFACE_HPP */

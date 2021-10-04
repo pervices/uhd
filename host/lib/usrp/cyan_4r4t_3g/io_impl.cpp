@@ -271,11 +271,11 @@ public:
             if ( metadata.time_spec < now + default_sob ) {
                 metadata.time_spec = now + default_sob;
                 #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "UHD::" CYAN_4R4R_3G_DEBUG_NAME_C "::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
+                std::cout << "UHD::" CYAN_4R4T_3G_DEBUG_NAME_C "::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::" CYAN_4R4R_3G_DEBUG_NAME_C "::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4R_3G_DSP_CLOCK_RATE ) << std::endl;
+            std::cout << "UHD::" CYAN_4R4T_3G_DEBUG_NAME_C "::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_3G_DSP_CLOCK_RATE ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -313,7 +313,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::" CYAN_4R4R_3G_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::" CYAN_4R4T_3G_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -387,7 +387,7 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CYAN_4R4R_3G_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CYAN_4R4T_3G_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -628,7 +628,7 @@ private:
 
 			const auto t1 = std::chrono::high_resolution_clock::now();
 			const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-			const long long usloop = 1.0 / (double)CYAN_4R4R_3G_UPDATE_PER_SEC * 1e6;
+			const long long usloop = 1.0 / (double)CYAN_4R4T_3G_UPDATE_PER_SEC * 1e6;
 			const long long usdelay = usloop - us;
 
 #ifdef DEBUG_FC
@@ -696,8 +696,8 @@ void cyan_4r4t_3g_impl::io_init(void){
 
     //allocate streamer weak ptrs containers
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
-        _mbc[mb].rx_streamers.resize( CYAN_4R4R_3G_RX_CHANNELS );
-        _mbc[mb].tx_streamers.resize( CYAN_4R4R_3G_TX_CHANNELS );
+        _mbc[mb].rx_streamers.resize( CYAN_4R4T_3G_RX_CHANNELS );
+        _mbc[mb].tx_streamers.resize( CYAN_4R4T_3G_TX_CHANNELS );
     }
 }
 
@@ -711,7 +711,7 @@ void cyan_4r4t_3g_impl::update_rx_samp_rate(const std::string &mb, const size_t 
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_4R4R_3G_TICK_RATE );
+    my_streamer->set_tick_rate( CYAN_4R4T_3G_TICK_RATE );
 }
 
 void cyan_4r4t_3g_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -724,14 +724,14 @@ void cyan_4r4t_3g_impl::update_tx_samp_rate(const std::string &mb, const size_t 
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_4R4R_3G_TICK_RATE );
+    my_streamer->set_tick_rate( CYAN_4R4T_3G_TICK_RATE );
 }
 
 void cyan_4r4t_3g_impl::update_rates(void){
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
-        if(CYAN_4R4R_3G_RX_CHANNELS > 0) {
+        if(CYAN_4R4T_3G_RX_CHANNELS > 0) {
             //and now that the tick rate is set, init the host rates to something
             BOOST_FOREACH(const std::string &name, _tree->list(root / "rx_dsps")){
                 // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
@@ -743,7 +743,7 @@ void cyan_4r4t_3g_impl::update_rates(void){
             }
         }
 
-        if(CYAN_4R4R_3G_TX_CHANNELS > 0) {
+        if(CYAN_4R4T_3G_TX_CHANNELS > 0) {
             BOOST_FOREACH(const std::string &name, _tree->list(root / "tx_dsps")){
                 // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
                 // if the current application does not require tx, then we should not enable it
@@ -823,7 +823,7 @@ rx_streamer::sptr cyan_4r4t_3g_impl::get_rx_stream(const uhd::stream_args_t &arg
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error(CYAN_4R4R_3G_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_4R4T_3G_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -973,7 +973,7 @@ rx_streamer::sptr cyan_4r4t_3g_impl::get_rx_stream(const uhd::stream_args_t &arg
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 1.0 / CYAN_4R4R_3G_TICK_RATE;
+	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_3G_TICK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
@@ -1033,7 +1033,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
 	uint32_t lvl = rsp.header & 0xffff;
-	pcnt = (double)lvl / CYAN_4R4R_3G_BUFF_SIZE;
+	pcnt = (double)lvl / CYAN_4R4T_3G_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
@@ -1083,7 +1083,7 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error(CYAN_4R4R_3G_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_4R4T_3G_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size

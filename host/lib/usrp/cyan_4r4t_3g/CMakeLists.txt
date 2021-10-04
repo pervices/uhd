@@ -19,10 +19,10 @@
 # This file included, use CMake directory variables
 ########################################################################
 
-IF(ENABLE_CYAN_4R4R_3G)
+IF(ENABLE_CYAN_4R4T_3G)
     LIBUHD_APPEND_SOURCES(
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_4r4t_3g_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_4r4t_3g_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
     )
-ENDIF(ENABLE_CYAN_4R4R_3G)
+ENDIF(ENABLE_CYAN_4R4T_3G)

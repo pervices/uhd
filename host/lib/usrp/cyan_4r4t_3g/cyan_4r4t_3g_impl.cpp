@@ -192,12 +192,12 @@ void cyan_4r4t_3g_impl::set_sensor_value(const std::string pre, sensor_value_t d
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
 meta_range_t cyan_4r4t_3g_impl::get_meta_range(std::string req) {
 	(void)req;
-	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4R_3G_DEBUG_NAME_S " does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4T_3G_DEBUG_NAME_S " does not support range settings");
 }
 void cyan_4r4t_3g_impl::set_meta_range(const std::string pre, meta_range_t data) {
 	(void)pre;
 	(void)data;
-	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4R_3G_DEBUG_NAME_S " does not support range settings");
+	throw uhd::not_implemented_error("set_meta_range not implemented, " CYAN_4R4T_3G_DEBUG_NAME_S " does not support range settings");
 }
 
 // wrapper for type <complex<double>> through the ASCII Crimson interface
@@ -403,9 +403,9 @@ void cyan_4r4t_3g_impl::set_properties_from_addr() {
 
 			std::string actual_string = get_string( key );
 			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR(CYAN_4R4R_3G_DEBUG_NAME_C "_IMPL")
+				UHD_LOGGER_ERROR(CYAN_4R4T_3G_DEBUG_NAME_C "_IMPL")
 					<< __func__ << "(): "
-					<< "Setting " CYAN_4R4R_3G_DEBUG_NAME_S "  property failed: "
+					<< "Setting " CYAN_4R4T_3G_DEBUG_NAME_S "  property failed: "
 					<< "key: '"<< key << "', "
 					<< "expected val: '" << expected_string << "', "
 					<< "actual val: '" << actual_string  << "'"
@@ -426,7 +426,7 @@ static device_addrs_t cyan_4r4t_3g_find_with_addr(const device_addr_t &hint)
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CYAN_4R4R_3G_FW_COMMS_UDP_PORT));
+        hint["addr"], BOOST_STRINGIZE(CYAN_4R4T_3G_FW_COMMS_UDP_PORT));
 
     then = uhd::get_system_time();
 
@@ -435,7 +435,7 @@ static device_addrs_t cyan_4r4t_3g_find_with_addr(const device_addr_t &hint)
 
     //loop for replies from the broadcast until it times out
     device_addrs_t addrs;
-    char buff[CYAN_4R4R_3G_FW_COMMS_MTU] = {};
+    char buff[CYAN_4R4T_3G_FW_COMMS_MTU] = {};
 
     for(
 		float to = 0.2;
@@ -513,11 +513,11 @@ static device_addrs_t cyan_4r4t_3g_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CYAN_4R4R_3G") << "CYAN_4R4R_3G Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("CYAN_4R4T_3G") << "CYAN_4R4T_3G Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CYAN_4R4R_3G") << "CYAN_4R4R_3G Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("CYAN_4R4T_3G") << "CYAN_4R4T_3G Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -554,7 +554,7 @@ static device_addrs_t cyan_4r4t_3g_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 1.0 / CYAN_4R4R_3G_TICK_RATE * 1e9;
+static constexpr double tick_period_ns = 1.0 / CYAN_4R4T_3G_TICK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
 	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
@@ -740,10 +740,10 @@ void cyan_4r4t_3g_impl::start_bm() {
 			time_now = uhd::get_system_time()
 		) {
 			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR(CYAN_4R4R_3G_DEBUG_NAME_C "_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4R_3G_DEBUG_NAME_S "?"
+				UHD_LOGGER_ERROR(CYAN_4R4T_3G_DEBUG_NAME_C "_IMPL")
+					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4T_3G_DEBUG_NAME_S "?"
 					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4R_3G_DEBUG_NAME_S"?" );
+				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_4R4T_3G_DEBUG_NAME_S"?" );
 			}
 			usleep( 100000 );
 		}
@@ -775,8 +775,8 @@ void cyan_4r4t_3g_impl::bm_thread_fn( cyan_4r4t_3g_impl *dev ) {
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;
     
-	const uhd::time_spec_t T( 1.0 / (double) CYAN_4R4R_3G_UPDATE_PER_SEC );
-	std::vector<size_t> fifo_lvl( CYAN_4R4R_3G_TX_CHANNELS );
+	const uhd::time_spec_t T( 1.0 / (double) CYAN_4R4T_3G_UPDATE_PER_SEC );
+	std::vector<size_t> fifo_lvl( CYAN_4R4T_3G_TX_CHANNELS );
 	uhd::time_spec_t now, then, dt;
     //the predicted time on the unit
 	uhd::time_spec_t crimson_now;
@@ -829,7 +829,7 @@ void cyan_4r4t_3g_impl::bm_thread_fn( cyan_4r4t_3g_impl *dev ) {
 			now = uhd::get_system_time();
 
 			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CYAN_4R4R_3G_IMPL" )
+				UHD_LOGGER_INFO( "CYAN_4R4T_3G_IMPL" )
 					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
 					<< std::endl;
 			}
@@ -894,7 +894,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 	_bm_thread_should_exit( false ),
     _command_time()
 {
-    _type = device::CYAN_4R4R_3G;
+    _type = device::CYAN_4R4T_3G;
     device_addr = _device_addr;
 
 
@@ -945,7 +945,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_4R4R_3G_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_4R4T_3G_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
@@ -983,7 +983,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     _mbc[mb].iface = cyan_4r4t_3g_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
-			BOOST_STRINGIZE( CYAN_4R4R_3G_FW_COMMS_UDP_PORT )
+			BOOST_STRINGIZE( CYAN_4R4T_3G_FW_COMMS_UDP_PORT )
 		)
     );
 
@@ -1012,7 +1012,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options").set(clock_source_options);
 
-    TREE_CREATE_ST("/name", std::string, CYAN_4R4R_3G_DEBUG_NAME_S " Device");
+    TREE_CREATE_ST("/name", std::string, CYAN_4R4T_3G_DEBUG_NAME_S " Device");
 
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
@@ -1090,7 +1090,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_4R4R_3G_TICK_RATE);
+    TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_4R4T_3G_TICK_RATE);
 
     TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     TREE_CREATE_RW(time_path / "now", "time/clk/cur_time", time_spec_t, time_spec);
@@ -1108,7 +1108,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
-    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CYAN_4R4R_3G_EXT_CLK_RATE);
+    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CYAN_4R4T_3G_EXT_CLK_RATE);
     TREE_CREATE_ST(mb_path / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(mb_path / "time_source"  / "output", bool, true);
 
@@ -1118,7 +1118,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
-    for( size_t dspno = 0; dspno < CYAN_4R4R_3G_RX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < CYAN_4R4T_3G_RX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1163,11 +1163,11 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
 	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4R_3G_BW_FULL );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4R_3G_BW_FULL, (double) CYAN_4R4R_3G_BW_FULL ) );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4T_3G_BW_FULL );
+		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4T_3G_BW_FULL, (double) CYAN_4R4T_3G_BW_FULL ) );
 
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_FREQ_RANGE_START, (double) CYAN_4R4T_3G_FREQ_RANGE_STOP, (double) CYAN_4R4T_3G_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1176,12 +1176,12 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
-		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4R_3G_LO_OFFSET );
+		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4T_3G_LO_OFFSET );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_FREQ_RANGE_START, (double) CYAN_4R4T_3G_FREQ_RANGE_STOP, (double) CYAN_4R4T_3G_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_RF_RX_GAIN_RANGE_START, (double) CYAN_4R4R_3G_RF_RX_GAIN_RANGE_STOP, (double) CYAN_4R4R_3G_RF_RX_GAIN_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_RF_RX_GAIN_RANGE_START, (double) CYAN_4R4T_3G_RF_RX_GAIN_RANGE_STOP, (double) CYAN_4R4T_3G_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
@@ -1200,11 +1200,11 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 
 		// DSPs
 		TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_RATE_RANGE_START, (double) CYAN_4R4R_3G_RATE_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_RATE_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_RATE_RANGE_START, (double) CYAN_4R4T_3G_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_3G_RATE_RANGE_STEP));
 		TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_3G_DSP_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_DSP_BW_START, (double) CYAN_4R4R_3G_DSP_BW_STOP_FULL, (double) CYAN_4R4R_3G_DSP_BW_STEPSIZE));
+			meta_range_t((double) CYAN_4R4T_3G_DSP_BW_START, (double) CYAN_4R4T_3G_DSP_BW_STOP_FULL, (double) CYAN_4R4T_3G_DSP_BW_STEPSIZE));
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
 			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
@@ -1234,7 +1234,7 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CYAN_4R4R_3G_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_4R4T_3G_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = 0;
 		zcxp.recv_frame_size = bpp;
@@ -1258,12 +1258,12 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
                 )
             );
         } catch (...) {
-            UHD_LOGGER_WARNING(CYAN_4R4R_3G_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+            UHD_LOGGER_WARNING(CYAN_4R4T_3G_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
         }
     }
 
     // initializes all TX chains
-    for( int dspno = 0; dspno < CYAN_4R4R_3G_TX_CHANNELS; dspno++ ) {
+    for( int dspno = 0; dspno < CYAN_4R4T_3G_TX_CHANNELS; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1306,11 +1306,11 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
 	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4R_3G_BW_FULL );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4R_3G_BW_FULL, (double) CYAN_4R4R_3G_BW_FULL ) );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_4R4T_3G_BW_FULL );
+		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_4R4T_3G_BW_FULL, (double) CYAN_4R4T_3G_BW_FULL ) );
 
 		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_FREQ_RANGE_START, (double) CYAN_4R4T_3G_FREQ_RANGE_STOP, (double) CYAN_4R4T_3G_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1319,12 +1319,12 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
 
-        TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4R_3G_LO_OFFSET );
+        TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_4R4T_3G_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_FREQ_RANGE_START, (double) CYAN_4R4R_3G_FREQ_RANGE_STOP, (double) CYAN_4R4R_3G_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_FREQ_RANGE_START, (double) CYAN_4R4T_3G_FREQ_RANGE_STOP, (double) CYAN_4R4T_3G_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_RF_TX_GAIN_RANGE_START, (double) CYAN_4R4R_3G_RF_TX_GAIN_RANGE_STOP, (double) CYAN_4R4R_3G_RF_TX_GAIN_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_RF_TX_GAIN_RANGE_START, (double) CYAN_4R4T_3G_RF_TX_GAIN_RANGE_STOP, (double) CYAN_4R4T_3G_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/lo_freq" , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
@@ -1339,11 +1339,11 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 		// DSPs
 
 		TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_RATE_RANGE_START, (double) CYAN_4R4R_3G_RATE_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_RATE_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_RATE_RANGE_START, (double) CYAN_4R4T_3G_RATE_RANGE_STOP_FULL, (double) CYAN_4R4T_3G_RATE_RANGE_STEP));
 		TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4R_3G_DSP_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_4R4T_3G_DSP_FREQ_RANGE_START_FULL, (double) CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_4R4T_3G_DSP_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-			meta_range_t((double) CYAN_4R4R_3G_DSP_BW_START, (double) CYAN_4R4R_3G_DSP_BW_STOP_FULL, (double) CYAN_4R4R_3G_DSP_BW_STEPSIZE));
+			meta_range_t((double) CYAN_4R4T_3G_DSP_BW_START, (double) CYAN_4R4T_3G_DSP_BW_STOP_FULL, (double) CYAN_4R4T_3G_DSP_BW_STEPSIZE));
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
 // 			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
@@ -1371,11 +1371,11 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 	    	+ 60 // IPv4 Header
 			+ 8  // UDP Header
 	    ;
-		const size_t bpp = CYAN_4R4R_3G_MAX_MTU - ip_udp_size;
+		const size_t bpp = CYAN_4R4T_3G_MAX_MTU - ip_udp_size;
 
 		zcxp.send_frame_size = bpp;
 		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CYAN_4R4R_3G_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_send_frames = CYAN_4R4T_3G_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
 		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;
@@ -1427,8 +1427,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( CYAN_4R4R_3G_SUBDEV_SPEC_RX ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( CYAN_4R4R_3G_SUBDEV_SPEC_TX ));
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( CYAN_4R4T_3G_SUBDEV_SPEC_RX ));
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( CYAN_4R4T_3G_SUBDEV_SPEC_TX ));
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 
@@ -1464,10 +1464,10 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 			0.0, // desired set point is 0.0s error
 			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CYAN_4R4R_3G_UPDATE_PER_SEC
+			2.0 / (double)CYAN_4R4T_3G_UPDATE_PER_SEC
 		);
 
-		_time_diff_pidc.set_error_filter_length( CYAN_4R4R_3G_UPDATE_PER_SEC );
+		_time_diff_pidc.set_error_filter_length( CYAN_4R4T_3G_UPDATE_PER_SEC );
 
 		// XXX: @CF: 20170720: coarse to fine for convergence
 		// we coarsely lock on at first, to ensure the class instantiates properly
@@ -1557,9 +1557,9 @@ constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static int select_band( const double freq ) {
-	if( freq >= CYAN_4R4R_3G_MID_HIGH_BARRIER )
+	if( freq >= CYAN_4R4T_3G_MID_HIGH_BARRIER )
         return HIGH_BAND;
-    else if( freq >= CYAN_4R4R_3G_LOW_MID_BARRIER )
+    else if( freq >= CYAN_4R4T_3G_LOW_MID_BARRIER )
         return MID_BAND;
     else
         return LOW_BAND;
@@ -1609,17 +1609,17 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 					                                           H = A + B + C + D
 	 */
 	static const std::vector<freq_range_t> AB_regions {
-		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, (CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND) ), // A
-		//freq_range_t( -(CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND), -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND), CYAN_4R4R_3G_FM_LOWERLIMIT ), // B
-		//freq_range_t( -CYAN_4R4R_3G_FM_LOWERLIMIT,-(CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND) ), // -B
-		freq_range_t( (CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND), CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
-		//freq_range_t( -CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF, -(CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND) ), // -F
-		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
-		//freq_range_t( -CYAN_4R4R_3G_ADC_FREQ_RANGE_ROLLOFF, -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -G
-		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
-		//freq_range_t( -CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL, -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -H
-		freq_range_t( CYAN_4R4R_3G_DSP_FREQ_RANGE_START_FULL, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
+		freq_range_t( CYAN_4R4T_3G_DC_LOWERLIMIT, (CYAN_4R4T_3G_LO_STEPSIZE-CYAN_4R4T_3G_LO_GUARDBAND) ), // A
+		//freq_range_t( -(CYAN_4R4T_3G_LO_STEPSIZE-CYAN_4R4T_3G_LO_GUARDBAND), -CYAN_4R4T_3G_DC_LOWERLIMIT ), // -A
+		freq_range_t( (CYAN_4R4T_3G_LO_STEPSIZE+CYAN_4R4T_3G_LO_GUARDBAND), CYAN_4R4T_3G_FM_LOWERLIMIT ), // B
+		//freq_range_t( -CYAN_4R4T_3G_FM_LOWERLIMIT,-(CYAN_4R4T_3G_LO_STEPSIZE+CYAN_4R4T_3G_LO_GUARDBAND) ), // -B
+		freq_range_t( (CYAN_4R4T_3G_LO_STEPSIZE+CYAN_4R4T_3G_LO_GUARDBAND), CYAN_4R4T_3G_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
+		//freq_range_t( -CYAN_4R4T_3G_ADC_FREQ_RANGE_ROLLOFF, -(CYAN_4R4T_3G_LO_STEPSIZE+CYAN_4R4T_3G_LO_GUARDBAND) ), // -F
+		freq_range_t( CYAN_4R4T_3G_DC_LOWERLIMIT, CYAN_4R4T_3G_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
+		//freq_range_t( -CYAN_4R4T_3G_ADC_FREQ_RANGE_ROLLOFF, -CYAN_4R4T_3G_DC_LOWERLIMIT ), // -G
+		freq_range_t( CYAN_4R4T_3G_DC_LOWERLIMIT, CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
+		//freq_range_t( -CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_FULL, -CYAN_4R4T_3G_DC_LOWERLIMIT ), // -H
+		freq_range_t( CYAN_4R4T_3G_DSP_FREQ_RANGE_START_FULL, CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
@@ -1642,20 +1642,20 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
                            C = A + B (includes LO)
 	 */
 	static const std::vector<freq_range_t> CD_regions {
-		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, (CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND) ), // +A
-		//freq_range_t( -(CYAN_4R4R_3G_LO_STEPSIZE-CYAN_4R4R_3G_LO_GUARDBAND), -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND), CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // B
-		//freq_range_t( -CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER, -(CYAN_4R4R_3G_LO_STEPSIZE+CYAN_4R4R_3G_LO_GUARDBAND) ), // -B
-		freq_range_t( CYAN_4R4R_3G_DC_LOWERLIMIT, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
-		//freq_range_t( -CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER, -CYAN_4R4R_3G_DC_LOWERLIMIT ), // -C
-		freq_range_t( CYAN_4R4R_3G_DSP_FREQ_RANGE_START_QUARTER, CYAN_4R4R_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
+		freq_range_t( CYAN_4R4T_3G_DC_LOWERLIMIT, (CYAN_4R4T_3G_LO_STEPSIZE-CYAN_4R4T_3G_LO_GUARDBAND) ), // +A
+		//freq_range_t( -(CYAN_4R4T_3G_LO_STEPSIZE-CYAN_4R4T_3G_LO_GUARDBAND), -CYAN_4R4T_3G_DC_LOWERLIMIT ), // -A
+		freq_range_t( (CYAN_4R4T_3G_LO_STEPSIZE+CYAN_4R4T_3G_LO_GUARDBAND), CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // B
+		//freq_range_t( -CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_QUARTER, -(CYAN_4R4T_3G_LO_STEPSIZE+CYAN_4R4T_3G_LO_GUARDBAND) ), // -B
+		freq_range_t( CYAN_4R4T_3G_DC_LOWERLIMIT, CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
+		//freq_range_t( -CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_QUARTER, -CYAN_4R4T_3G_DC_LOWERLIMIT ), // -C
+		freq_range_t( CYAN_4R4T_3G_DSP_FREQ_RANGE_START_QUARTER, CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 
-	static const double lo_step = CYAN_4R4R_3G_LO_STEPSIZE;
+	static const double lo_step = CYAN_4R4T_3G_LO_STEPSIZE;
 
 	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CYAN_4R4R_3G_BW_QUARTER ? 'A' : 'C';
+	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CYAN_4R4T_3G_BW_QUARTER ? 'A' : 'C';
 	const double bw = dsp_subtree->access<double>("/rate/value").get();
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
@@ -1907,7 +1907,7 @@ void cyan_4r4t_3g_impl::set_tx_gain(double gain, const std::string &name, size_t
         _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
         return;
     }
-    for (size_t c = 0; c < CYAN_4R4R_3G_TX_CHANNELS; c++){
+    for (size_t c = 0; c < CYAN_4R4T_3G_TX_CHANNELS; c++){
         set_tx_gain(gain, name, c);
     }
 }
@@ -1954,7 +1954,7 @@ void cyan_4r4t_3g_impl::set_rx_gain(double gain, const std::string &name, size_t
     }
     
     //calls this function for each channel individually
-    for (size_t c = 0; c < CYAN_4R4R_3G_RX_CHANNELS; c++){
+    for (size_t c = 0; c < CYAN_4R4T_3G_RX_CHANNELS; c++){
         set_rx_gain( gain, name, c );
     }
 }

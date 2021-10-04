@@ -15,8 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CYAN_4R4R_3G_IMPL_HPP
-#define INCLUDED_CYAN_4R4R_3G_IMPL_HPP
+#ifndef INCLUDED_CYAN_4R4T_3G_IMPL_HPP
+#define INCLUDED_CYAN_4R4T_3G_IMPL_HPP
 
 #include <set>
 #include <vector>
@@ -269,4 +269,4 @@ private:
 }
 }
 
-#endif /* INCLUDED_CYAN_4R4R_3G_IMPL_HPP */
+#endif /* INCLUDED_CYAN_4R4T_3G_IMPL_HPP */
