@@ -34,6 +34,9 @@ void sig_int_handler(int){
 #ifdef DEBUG_TX_WAVE
     std::cout << "stop_signal_called" << std::endl;
 #endif
+    while(true) {
+        std::this_thread::sleep_for(std::chrono::seconds(30));
+    }
     stop_signal_called = true;
 }
 
@@ -270,6 +273,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sending samples" << std::endl;
 #endif
+            //this statement will block until the data is sent
             //send the entire contents of the buffer
             num_acc_samps += tx_stream->send(buffs, buff.size(), md);
 #ifdef DEBUG_TX_WAVE

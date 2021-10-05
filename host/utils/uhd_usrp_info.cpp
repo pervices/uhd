@@ -41,7 +41,10 @@ std::string get_from_tree(
     uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
-    return tree->access<std::string>(path).get();
+    std::cout << "get_from_tree: " << path << std::endl;
+    std::string tmp = tree->access<std::string>(path).get();
+    std::cout << "result: " << tmp << std::endl;
+    return tmp;
 }
 
 std::string get_from_tree_int(
@@ -170,7 +173,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         bool all_rx_found = false;
         for(uint8_t chan = 0; chan < 64; chan++) {
             try {
-                std::cout << std::string("\trx(" + std::to_string(chan) + "): ").c_str() << get_from_tree(tree, i, std::string("rx/" + std::to_string(chan) + "/fw_version").c_str()) << std::endl;
+                std::string path = "rx//fw_version";
+                path.insert(3, 1, (char) (chan +'0'));
+                std::cout << std::string("\trx(" + std::to_string(chan) + "): ").c_str() << get_from_tree(tree, i, path.c_str()) << std::endl;
             } catch (...) {
                 all_rx_found = true;
             }
