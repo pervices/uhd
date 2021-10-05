@@ -22,6 +22,8 @@
 #include <chrono>
 #include <thread>
 
+#define DEBUG_TX_WAVE 1
+
 namespace po = boost::program_options;
 
 /***********************************************************************
@@ -29,7 +31,9 @@ namespace po = boost::program_options;
  **********************************************************************/
 static bool stop_signal_called = false;
 void sig_int_handler(int){
+#ifdef DEBUG_TX_WAVE
     std::cout << "stop_signal_called" << std::endl;
+#endif
     stop_signal_called = true;
 }
 
@@ -263,17 +267,29 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             for (size_t n = 0; n < buff.size(); n++){
                 buff[n] = wave_table(index += step);
             }
-
+#ifdef DEBUG_TX_WAVE
+            std::cout << "Sending samples" << std::endl;
+#endif
             //send the entire contents of the buffer
             num_acc_samps += tx_stream->send(buffs, buff.size(), md);
-
+#ifdef DEBUG_TX_WAVE
+            std::cout << "Sent samples" << std::endl;
+#endif
             md.start_of_burst = false;
             md.has_time_spec = false;
         }
-
+#ifdef DEBUG_TX_WAVE
+        std::cout << "Creating EOB packet" << std::endl;
+#endif
         //send a mini EOB packet
         md.end_of_burst = true;
+#ifdef DEBUG_TX_WAVE
+        std::cout << "Sending EOB packet" << std::endl;
+#endif
         tx_stream->send("", 0, md);
+#ifdef DEBUG_TX_WAVE
+        std::cout << "Sent EOB packet" << std::endl;
+#endif
     }
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
