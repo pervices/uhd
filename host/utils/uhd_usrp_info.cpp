@@ -42,9 +42,7 @@ std::string get_from_tree(
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
     std::cout << "get_from_tree: " << path << std::endl;
-    std::string tmp = tree->access<std::string>(path).get();
-    std::cout << "result: " << tmp << std::endl;
-    return tmp;
+    return tree->access<std::string>(path).get();
 }
 
 std::string get_from_tree_int(
