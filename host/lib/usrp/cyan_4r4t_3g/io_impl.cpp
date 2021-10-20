@@ -819,10 +819,10 @@ rx_streamer::sptr cyan_4r4t_3g_impl::get_rx_stream(const uhd::stream_args_t &arg
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
+    args.otw_format = args.otw_format.empty()? CYAN_4R4T_3G_OTW_RX : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16"){
+    if (args.otw_format != CYAN_4R4T_3G_OTW_RX){
         throw uhd::value_error(CYAN_4R4T_3G_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
 
@@ -1079,10 +1079,10 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
+    args.otw_format = args.otw_format.empty()? CYAN_4R4T_3G_OTW_TX : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16"){
+    if (args.otw_format != CYAN_4R4T_3G_OTW_TX){
         throw uhd::value_error(CYAN_4R4T_3G_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
 

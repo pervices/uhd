@@ -92,9 +92,10 @@
 #define CYAN_4R4T_3G_RF_RX_GAIN_RANGE_STEP	 1
 
 // Cyan 4r4t Clk Settings
-#define CYAN_4R4T_3G_MASTER_CLOCK_RATE	1000000000
-#define CYAN_4R4T_3G_DSP_CLOCK_RATE CYAN_4R4T_3G_MASTER_CLOCK_RATE/4
-#define CYAN_4R4T_3G_TICK_RATE CYAN_4R4T_3G_MASTER_CLOCK_RATE/4
+#define CYAN_4R4T_3G_MASTER_CLOCK_RATE	6000000000
+#define CYAN_4R4T_3G_SAMPLES_PER_CLOCK 8
+#define CYAN_4R4T_3G_DSP_CLOCK_RATE CYAN_4R4T_3G_MASTER_CLOCK_RATE/CYAN_4R4T_3G_SAMPLES_PER_CLOCK
+#define CYAN_4R4T_3G_TICK_RATE CYAN_4R4T_3G_MASTER_CLOCK_RATE/CYAN_4R4T_3G_SAMPLES_PER_CLOCK
 #define CYAN_4R4T_3G_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Cyan 4r4t Tuning Range Settings
 #define CYAN_4R4T_3G_FREQ_RANGE_START	0
@@ -156,15 +157,18 @@
 				( CYAN_4R4T_3G_VITA_TLR_PCKCNT << 0) )
 
 // Constants to determine which frequency band to use
-#define CYAN_4R4T_3G_LOW_MID_BARRIER 500000000
+#define CYAN_4R4T_3G_LOW_MID_BARRIER 1250000000
 #define CYAN_4R4T_3G_MID_HIGH_BARRIER 6000000000
 
 //the device name to get used in print messages
-#define CYAN_4R4T_3G_DEBUG_NAME_S "Cyan 4r4t"
+#define CYAN_4R4T_3G_DEBUG_NAME_S "Cyan 4r4t 3g"
 #define CYAN_4R4T_3G_DEBUG_NAME_C "CYAN_4R4T_3G"
 
 #define CYAN_4R4T_3G_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
 #define CYAN_4R4T_3G_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
+
+#define CYAN_4R4T_3G_OTW_RX "sc12"
+#define CYAN_4R4T_3G_OTW_TX "sc16"
 
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
