@@ -167,6 +167,7 @@
 #define CYAN_4R4T_3G_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
 #define CYAN_4R4T_3G_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
 
+//The cpu scale factor still needs to be changed in io_impl
 #define CYAN_4R4T_3G_OTW_RX "sc12"
 #define CYAN_4R4T_3G_OTW_TX "sc16"
 
