@@ -22,6 +22,8 @@
 
 namespace po = boost::program_options;
 
+#define SAMPES_TO_FILE_DEBUG
+
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
 
@@ -63,6 +65,11 @@ template<typename samp_type> void recv_to_file(
     stream_cmd.num_samps = size_t(num_requested_samples);
     stream_cmd.stream_now = true;
     stream_cmd.time_spec = uhd::time_spec_t();
+#ifdef SAMPES_TO_FILE_DEBUG
+    std::cout << "Press enter to issue start stream cmd" << std::endl;
+    std::string tmp42;
+    std::cin >> tmp42;
+#endif
     rx_stream->issue_stream_cmd(stream_cmd);
 
     typedef std::map<size_t,size_t> SizeMap;
