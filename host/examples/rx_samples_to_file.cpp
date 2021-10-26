@@ -22,7 +22,7 @@
 
 namespace po = boost::program_options;
 
-#define SAMPES_TO_FILE_DEBUG
+//#define SAMPES_TO_FILE_DEBUG
 
 static bool stop_signal_called = false;
 void sig_int_handler(int){stop_signal_called = true;}
