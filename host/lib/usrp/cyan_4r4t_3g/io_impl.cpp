@@ -855,7 +855,7 @@ rx_streamer::sptr cyan_4r4t_3g_impl::get_rx_stream(const uhd::stream_args_t &arg
     if ( false ) {
     } else if ( "fc32" == args.cpu_format ) {
         //very underconfident that this is correct
-        my_streamer->set_scale_factor((((double)1<<23)-1)/((double)((double)1<<31)-1));
+        my_streamer->set_scale_factor(((double)(1<<11)-1)/((double)(1<<22)-1));
     } else if ( "sc16" == args.cpu_format ) {
         my_streamer->set_scale_factor(((double)((1<<11)-1))/((double)((1<<15)-1)));
     } else if ( "sc12" == args.cpu_format ) {
