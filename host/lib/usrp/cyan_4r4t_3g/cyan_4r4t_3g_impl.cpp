@@ -60,7 +60,7 @@ namespace asio = boost::asio;
 
 //when enabled checking if the time is converged will always return true
 //useful for tests where the sfpa port used by clock synchronization is unusable
-#define CYAN_4R4T_3G_DIFF_BYPASS_DEBUG
+//#define CYAN_4R4T_3G_DIFF_BYPASS_DEBUG
 
 
 // This is a lock to prevent multiple threads from requesting commands from
