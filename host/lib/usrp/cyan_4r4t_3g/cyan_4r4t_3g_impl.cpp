@@ -58,6 +58,10 @@ namespace asio = boost::asio;
     #endif
 #endif
 
+//when enabled checking if the time is converged will always return true
+//useful for tests where the sfpa port used by clock synchronization is unusable
+#define CYAN_4R4T_3G_DIFF_BYPASS_DEBUG
+
 
 // This is a lock to prevent multiple threads from requesting commands from
 // the device at the same time. This is important in GNURadio, as they spawn
@@ -763,7 +767,11 @@ void cyan_4r4t_3g_impl::stop_bm() {
 
 //checks if the clocks are synchronized
 bool cyan_4r4t_3g_impl::time_diff_converged() {
+#ifdef CYAN_4R4T_3G_DIFF_BYPASS_DEBUG
+    return true;
+#else
 	return _time_diff_converged;
+#endif
 }
 
 //Synchronizes clocks, this function should be run in its own thread
