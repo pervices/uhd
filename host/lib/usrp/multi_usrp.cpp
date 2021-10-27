@@ -29,6 +29,8 @@
 #include <chrono>
 #include <thread>
 
+#define DEBUG_MULTI_USRP
+
 using namespace uhd;
 using namespace uhd::usrp;
 
@@ -410,7 +412,11 @@ public:
     }
 
     dict<std::string, std::string> get_usrp_rx_info(size_t chan){
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running: " << __func__ << std::endl;
+#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
+
         dict<std::string, std::string> usrp_info;
         const auto mb_eeprom =
             _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
@@ -683,6 +689,9 @@ public:
     }
 
     void issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running: " << __func__ << std::endl;
+#endif
         if (chan != ALL_CHANS){
             if (is_device3()) {
                 mboard_chan_pair mcp = rx_chan_to_mcp(chan);
@@ -2489,6 +2498,9 @@ private:
     };
 
     mboard_chan_pair rx_chan_to_mcp(size_t chan){
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running: " << __func__ << std::endl;
+#endif
         mboard_chan_pair mcp;
         mcp.chan = chan;
         for (mcp.mboard = 0; mcp.mboard < get_num_mboards(); mcp.mboard++){
@@ -2537,8 +2549,12 @@ private:
 
     fs_path rx_dsp_root(const size_t chan)
     {
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running " << __func__ << " for channel " << chan << std::endl;
+#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         if (is_device3()) {
+
             return _legacy_compat->rx_dsp_root(mcp.mboard, mcp.chan);
         }
 
@@ -2561,6 +2577,9 @@ private:
         {
             throw uhd::index_error(str(boost::format("multi_usrp::rx_dsp_root(%u) - mcp(%u) - %s") % chan % mcp.chan % e.what()));
         }
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "End of: " << __func__ << std::endl;
+#endif
     }
 
     fs_path tx_dsp_root(const size_t chan)
@@ -2592,6 +2611,9 @@ private:
 
     fs_path rx_fe_root(const size_t chan)
     {
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running: " << __func__ << std::endl;
+#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         if (is_device3()) {
             return _legacy_compat->rx_fe_root(mcp.mboard, mcp.chan);
@@ -2644,6 +2666,9 @@ private:
 
     fs_path rx_rf_fe_root(const size_t chan)
     {
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running: " << __func__ << std::endl;
+#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         try
         {
@@ -2671,6 +2696,9 @@ private:
     }
 
     gain_group::sptr rx_gain_group(size_t chan){
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running: " << __func__ << std::endl;
+#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
         gain_group::sptr gg = gain_group::make();
@@ -2700,6 +2728,9 @@ private:
     // Assumption is that all mboards use the same link
     // and that the rate sum is evenly distributed among the mboards
     bool _check_link_rate(const stream_args_t &args, bool is_tx) {
+#ifdef DEBUG_MULTI_USRP
+        std::cout << "Running: " << __func__ << std::endl;
+#endif
         bool link_rate_is_ok = true;
         size_t bytes_per_sample = convert::get_bytes_per_item(args.otw_format.empty() ? "sc16" : args.otw_format);
         double max_link_rate = 0;
