@@ -22,7 +22,7 @@
 #include <chrono>
 #include <thread>
 
-#define DEBUG_TX_WAVE 1
+//#define DEBUG_TX_WAVE 1
 
 namespace po = boost::program_options;
 
