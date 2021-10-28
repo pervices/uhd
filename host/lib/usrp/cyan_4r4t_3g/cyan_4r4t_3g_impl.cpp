@@ -1697,7 +1697,9 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 			}
 			candidate_lo += k * sign * lo_step;
 
-			const double candidate_nco = target_freq - candidate_lo;
+            //2021-10-28 for now we are only supporting a nco of 0, later the nco = 0 can be removed
+			//const double candidate_nco = target_freq - candidate_lo;
+            const double candidate_nco = 0;
 
 			//Ensure that the combined NCO offset and signal bw fall within candidate range;
 			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
