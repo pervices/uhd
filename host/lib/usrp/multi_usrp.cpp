@@ -29,7 +29,7 @@
 #include <chrono>
 #include <thread>
 
-#define DEBUG_MULTI_USRP
+//define DEBUG_MULTI_USRP
 
 using namespace uhd;
 using namespace uhd::usrp;
