@@ -61,7 +61,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
-        ("nsamps", po::value<uint64_t>(&total_num_samps)->default_value(0), "number of samples per stack command")
+        ("nsamps", po::value<uint64_t>(&total_num_samps)->default_value(0), "total number of samples to transmit")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
@@ -270,8 +270,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 break;
 
             //fill the buffer with the waveform
-            size_t n = 0;
-            for (n = 0; n < buff.size() &&  n + num_acc_samps <= total_num_samps; n++){
+            for (size_t n = 0; n < buff.size(); n++){
                 buff[n] = wave_table(index += step);
             }
 #ifdef DEBUG_TX_WAVE
@@ -279,7 +278,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #endif
             //this statement will block until the data is sent
             //send the entire contents of the buffer
-            num_acc_samps += tx_stream->send(buffs, n, md);
+            num_acc_samps += tx_stream->send(buffs, buff.size(), md);
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sent samples" << std::endl;
 #endif
