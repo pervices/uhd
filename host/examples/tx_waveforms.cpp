@@ -34,9 +34,6 @@ void sig_int_handler(int){
 #ifdef DEBUG_TX_WAVE
     std::cout << "stop_signal_called" << std::endl;
 #endif
-    while(true) {
-        std::this_thread::sleep_for(std::chrono::seconds(30));
-    }
     stop_signal_called = true;
 }
 
