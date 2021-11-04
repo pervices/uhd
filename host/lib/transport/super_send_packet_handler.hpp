@@ -306,7 +306,7 @@ public:
     /*******************************************************************
      * Send:
      * The entry point for the fast-path send calls.
-     * Dispatch into combinations of single packet send calls.
+//      * Dispatch into combinations of single packet send calls.
      ******************************************************************/
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &buffs,
@@ -445,7 +445,7 @@ public:
         }
 
         // end_time = std::chrono::high_resolution_clock::now();
-        // if (end_time > start_time) {
+//         // if (end_time > start_time) {
         //     elapsed.push_back(end_time-start_time);
         // }
         // start_time = std::chrono::high_resolution_clock::now();
@@ -651,8 +651,10 @@ private:
 
                         i++;
                     }
-
                     int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+#ifdef UHD_TXRX_DEBUG_PRINTS
+                    std::cout << "Sent " << number_of_messages << " using mmsg in " __func__ "." << std::endl;
+#endif
                     if (retval == -1) {
                         std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                         std::cout << "XXX: Must implement retry code!\n";
@@ -735,6 +737,9 @@ private:
                 }
 
                 int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+#ifdef UHD_TXRX_DEBUG_PRINTS
+                std::cout << "Sent " << number_of_messages << " using mmsg in " __func__ "." << std::endl;
+#endif
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                     std::cout << "XXX: Must implement retry code!\n";
