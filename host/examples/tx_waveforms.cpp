@@ -242,6 +242,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     usrp->set_time_now(0.0);
 
+    std::cout << "first: " << first << std::endl;
+
     for(double time = first; time <= last && !stop_signal_called; time += increment)
     {
         // Set up metadata. We start streaming a bit in the future
