@@ -223,6 +223,7 @@ public:
         return _max_num_samps;
     }
 
+    //send fucntion called by external programs
     size_t send(
         const tx_streamer::buffs_type &buffs,
         const size_t nsamps_per_buff,
@@ -231,7 +232,7 @@ public:
     ){
         global::udp_retry = true;
         
-        static const double default_sob = 1.0;
+        static const double default_sob = 0.0;
 
         size_t r = 0;
 
@@ -266,15 +267,38 @@ public:
                 metadata.time_spec = now + default_sob;
             }
         }
+
+        if(metadata.start_of_burst) {
+            std::cout << "io_impl send 3" << std::endl;
+            std::cout << "time_spec_full_secs: " << metadata.time_spec.get_full_secs() << std::endl;
+            std::cout << "time_spec_frac_secs: " << metadata.time_spec.get_frac_secs() << std::endl;
+            std::cout << "tick_rate: " << CRIMSON_TNG_MASTER_TICK_RATE << std::endl;
+            std::cout << "time_spec_to_ticks: " << metadata.time_spec.to_ticks(CRIMSON_TNG_MASTER_TICK_RATE) << std::endl;
+        }
+
         if ( metadata.start_of_burst ) {
+            if(metadata.start_of_burst) {
+                std::cout << "io_impl send 3.5" << std::endl;
+                std::cout << "time_spec: " << metadata.time_spec << std::endl;
+                std::cout << "now: " << now << std::endl;
+                std::cout << "default_sob: " << default_sob << std::endl;
+            }
             if ( metadata.time_spec < now + default_sob ) {
-                metadata.time_spec = now + default_sob;
+                //metadata.time_spec = now + default_sob;
                 #ifdef UHD_TXRX_DEBUG_PRINTS
                 std::cout << "UHD::CRIMSON_TNG::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
+            if(metadata.start_of_burst) {
+                std::cout << "io_impl send 4" << std::endl;
+                std::cout << "time_spec_full_secs: " << metadata.time_spec.get_full_secs() << std::endl;
+                std::cout << "time_spec_frac_secs: " << metadata.time_spec.get_frac_secs() << std::endl;
+                std::cout << "tick_rate: " << CRIMSON_TNG_MASTER_TICK_RATE << std::endl;
+                std::cout << "time_spec_to_ticks: " << metadata.time_spec.to_ticks(CRIMSON_TNG_MASTER_TICK_RATE) << std::endl;
+            }
+
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::CRIMSON_TNG::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CRIMSON_TNG_MASTER_TICK_RATE ) << std::endl;
             #endif
 
             for( auto & ep: _eprops ) {
@@ -311,7 +335,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CRIMSON_TNG_MASTER_TICK_RATE ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -701,7 +725,7 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_TICK_RATE );
 }
 
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -714,7 +738,7 @@ void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t d
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_CLOCK_RATE / 2.0 );
+    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_TICK_RATE );
 }
 
 void crimson_tng_impl::update_rates(void){
@@ -959,7 +983,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE;
+	static constexpr double tick_period_ps = 1.0 / CRIMSON_TNG_MASTER_TICK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {

@@ -250,10 +250,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.start_of_burst = true;
         md.end_of_burst   = false;
         md.has_time_spec  = true;
-        long int full_secs = (int) time;
-        long int tick_rate = 1000000000;
-        long int tick_count = (time-full_secs)*tick_rate;
-        md.time_spec = uhd::time_spec_t(time, tick_count, tick_rate);
+        md.time_spec = uhd::time_spec_t(time);
 
         //send data until the signal handler gets called
         //or if we accumulate the number of samples specified (unless it's 0)

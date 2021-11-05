@@ -84,6 +84,7 @@
 
 // Crimson Clk Settings
 #define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
+#define CRIMSON_TNG_MASTER_TICK_RATE	162500000
 #define CRIMSON_TNG_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Crimson Tuning Range Settings
 #define CRIMSON_TNG_FREQ_RANGE_START	0
