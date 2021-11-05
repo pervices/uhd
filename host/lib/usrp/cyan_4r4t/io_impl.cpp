@@ -313,7 +313,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( 162500000 ) << std::endl;
+            std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CYAN_4R4T_TICK_RATE ) << std::endl;
             #endif
 
             async_metadata_t am;
