@@ -269,24 +269,11 @@ public:
         }
 
         if ( metadata.start_of_burst ) {
-            if(metadata.start_of_burst) {
-                std::cout << "io_impl send 3.5" << std::endl;
-                std::cout << "time_spec: " << metadata.time_spec << std::endl;
-                std::cout << "now: " << now << std::endl;
-                std::cout << "default_sob: " << default_sob << std::endl;
-            }
             if ( metadata.time_spec < now + default_sob && _first_call_to_send ) {
                 //metadata.time_spec = now + default_sob;
                 #ifdef UHD_TXRX_DEBUG_PRINTS
                 std::cout << "UHD::CRIMSON_TNG::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
-            }
-            if(metadata.start_of_burst) {
-                std::cout << "io_impl send 4" << std::endl;
-                std::cout << "time_spec_full_secs: " << metadata.time_spec.get_full_secs() << std::endl;
-                std::cout << "time_spec_frac_secs: " << metadata.time_spec.get_frac_secs() << std::endl;
-                std::cout << "tick_rate: " << CRIMSON_TNG_MASTER_TICK_RATE << std::endl;
-                std::cout << "time_spec_to_ticks: " << metadata.time_spec.to_ticks(CRIMSON_TNG_MASTER_TICK_RATE) << std::endl;
             }
 
             #ifdef UHD_TXRX_DEBUG_PRINTS
