@@ -242,8 +242,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     usrp->set_time_now(0.0);
 
-    std::cout << "first: " << first << std::endl;
-
     for(double time = first; time <= last && !stop_signal_called; time += increment)
     {
         // Set up metadata. We start streaming a bit in the future
@@ -269,7 +267,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 break;
 
             //fill the buffer with the waveform
-            for (size_t n = 0; n < buff.size(); n++){
+            size_t n = 0;
+            for (n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
                 buff[n] = wave_table(index += step);
             }
 #ifdef DEBUG_TX_WAVE
@@ -277,7 +276,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #endif
             //this statement will block until the data is sent
             //send the entire contents of the buffer
-            num_acc_samps += tx_stream->send(buffs, buff.size(), md);
+            num_acc_samps += tx_stream->send(buffs, n, md);
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sent samples" << std::endl;
 #endif
