@@ -623,7 +623,7 @@ public:
         UHD_LOGGER_INFO("MULTI_USRP")
             << "    1) catch time transition at pps edge";
         auto end_time = std::chrono::steady_clock::now()
-                            + std::chrono::milliseconds(1100);
+                            + std::chrono::milliseconds(1500);
         time_spec_t time_start_last_pps = get_time_last_pps();
         while (time_start_last_pps == get_time_last_pps())
         {
