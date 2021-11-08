@@ -1362,15 +1362,15 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/ch0fpga_nco", double, double);
+		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/fpga_nco", double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
-		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/ch0fpga_nco", double, double);
-		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco/ch0freq", double, double);
+		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/fpga_nco", double, double);
+		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco/freq", double, double);
 
 		// Link settings
 		TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
-		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/ch0port",    std::string, string);
+		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
 
 
