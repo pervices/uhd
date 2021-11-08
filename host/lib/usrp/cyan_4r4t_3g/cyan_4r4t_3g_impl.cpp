@@ -1863,7 +1863,7 @@ double cyan_4r4t_3g_impl::get_rx_freq(size_t chan) {
 
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double cur_lo_freq = 0;
-        if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+        if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() > 0) {
             cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
         }
         return cur_lo_freq - cur_dsp_nco;
