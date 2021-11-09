@@ -23,6 +23,6 @@ IF(ENABLE_CYAN_4R4T)
     LIBUHD_APPEND_SOURCES(
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_4r4t_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_4r4t_iface.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_4r4t_io_impl.cpp
     )
 ENDIF(ENABLE_CYAN_4R4T)

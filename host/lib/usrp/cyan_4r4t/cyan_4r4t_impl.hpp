@@ -92,7 +92,7 @@ public:
     ~cyan_4r4t_impl(void);
 
     // pointers to the streams for the device
-    // these functions are defined in io_impl.cpp
+    // these functions are defined in cyan_4r4t_io_impl.cpp
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);
     virtual uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 
@@ -236,7 +236,7 @@ private:
     };
     uhd::dict<std::string, mb_container_type> _mbc;
 
-    UHD_PIMPL_DECL(io_impl) _io_impl;
+    UHD_PIMPL_DECL(cyan_4r4t_io_impl) _cyan_4r4t_io_impl;
     void io_init(void);
     //void update_tick_rate(const double rate);
     void update_rx_samp_rate(const std::string & mb, const size_t chan, const double rate);

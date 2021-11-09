@@ -673,21 +673,21 @@ static const size_t vrt_send_header_offset_words32 = 0;
  * io impl details (internal to this file)
  * - alignment buffer
  **********************************************************************/
-struct cyan_4r4t_impl::io_impl{
+struct cyan_4r4t_impl::cyan_4r4t_io_impl{
 
-    io_impl(void):
+    cyan_4r4t_io_impl(void):
         async_msg_fifo(1000/*messages deep*/)
     {
         /* NOP */
     }
 
-    ~io_impl(void){
+    ~cyan_4r4t_io_impl(void){
     }
 
     //methods and variables for the viking scourge
     bounded_buffer<async_metadata_t> async_msg_fifo;
 
-    // TODO: @CF: 20180301: move time diff code into io_impl
+    // TODO: @CF: 20180301: move time diff code into cyan_4r4t_io_impl
 };
 
 /***********************************************************************
@@ -695,8 +695,8 @@ struct cyan_4r4t_impl::io_impl{
  **********************************************************************/
 void cyan_4r4t_impl::io_init(void){
 
-	// TODO: @CF: 20180301: move time diff code into io_impl
-	_io_impl = UHD_PIMPL_MAKE(io_impl, ());
+	// TODO: @CF: 20180301: move time diff code into cyan_4r4t_io_impl
+	_cyan_4r4t_io_impl = UHD_PIMPL_MAKE(cyan_4r4t_io_impl, ());
 
     //allocate streamer weak ptrs containers
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
@@ -813,7 +813,7 @@ bool cyan_4r4t_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
     boost::this_thread::disable_interruption di; //disable because the wait can throw
-    return _io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
+    return _cyan_4r4t_io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
 }
 
 /***********************************************************************
@@ -1163,9 +1163,9 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
 
-                my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
+                my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_4r4t_io_impl->async_msg_fifo), _1, _2));
 
-                my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));
+                my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_4r4t_io_impl->async_msg_fifo), _1));
 
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;
