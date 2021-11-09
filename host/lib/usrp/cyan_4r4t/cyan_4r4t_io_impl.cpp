@@ -970,7 +970,7 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
-
+static size_t cntdoug = 0;
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_TICK_RATE;
@@ -1033,6 +1033,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
 	uint32_t lvl = rsp.header & 0xffff;
+    cntdoug++;
+    std::cout << "lvl: " << lvl << " cnt = " << cntdoug << std::endl;
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
