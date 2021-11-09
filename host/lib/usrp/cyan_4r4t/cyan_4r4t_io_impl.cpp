@@ -1032,9 +1032,17 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
+    //fifo level provided by FPGA
 	uint32_t lvl = rsp.header & 0xffff;
-    cntdoug++;
-    std::cout << "lvl: " << lvl << " cnt = " << cntdoug << std::endl;
+    //FPGA reports only 16 bits, but we can store 2048 packets in DDR,
+    //This would require 19 bits. FPGA reports only the 16 upper bits.
+    lvl = lvl *8;
+    //Now lvl is correct in terms of DDR locations used
+    //Each DDR Location can stores 512 bits = 16 samples.
+    //Lvl in terms of samples stored:
+    lvl = lvl*16;
+    //cntdoug++;
+    //std::cout << "lvl: " << lvl << " cnt = " << cntdoug << std::endl;
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
