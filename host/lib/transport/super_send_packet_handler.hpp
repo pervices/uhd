@@ -321,7 +321,7 @@ public:
         const size_t nsamps_per_buff,
         const uhd::tx_metadata_t &metadata,
         const double timeout,
-        const size_t buffer_size
+        const size_t magic_number
     ){
         //translate the metadata to vrt if packet info
         vrt::if_packet_info_t if_packet_info;
@@ -404,8 +404,8 @@ public:
 
         const size_t num_fragments = (nsamps_per_buff-1)/_max_samples_per_packet;
         const size_t final_length = ((nsamps_per_buff-1)%_max_samples_per_packet)+1;
-        const double fc_buff_size_limit_percentage = (aggregate_samp_rate > buffer_size) ? 0.05 :
-                                                     (aggregate_samp_rate > buffer_size/2) ? 0.10 : 0.15;
+        const double fc_buff_size_limit_percentage = (aggregate_samp_rate > magic_number) ? 0.05 :
+                                                     (aggregate_samp_rate > magic_number/2) ? 0.10 : 0.15;
         const size_t flow_control_limit = FIXME_BUFF_SIZE*fc_buff_size_limit_percentage;
         const size_t flow_control_passes = ceil(nsamps_per_buff/flow_control_limit);
 
