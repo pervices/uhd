@@ -242,7 +242,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     usrp->set_time_now(0.0);
 
-    for(double time = first; time <= last && !stop_signal_called; time += increment)
+    bool ignore_last = first > last;
+
+    for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
     {
         // Set up metadata. We start streaming a bit in the future
         // to allow MIMO operation:
