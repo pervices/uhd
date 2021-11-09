@@ -230,8 +230,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        std::abort();
-        std::cout << "T1" << std::endl;
         global::udp_retry = false;
         
         static const double default_sob = 1.0;
@@ -267,8 +265,6 @@ public:
                 #endif
                 metadata.has_time_spec = true;
                 metadata.time_spec = now + default_sob;
-            } else {
-                std::cout << "T5 ticks: " << metadata.time_spec.to_ticks(CYAN_4R4T_TICK_RATE) << std::endl;
             }
         }
         if ( metadata.start_of_burst ) {
