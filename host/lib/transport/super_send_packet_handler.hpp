@@ -707,6 +707,10 @@ private:
 #endif
                         // The time to send for this channel has not reached.
                         continue;
+                    } else {
+#ifdef FLOW_CONTROL_DEBUG
+                        std::cout << "Time to send" << std::endl;
+#endif
                     }
                     // It's time to send for this channel, mark it as serviced.
                     channels_serviced[chan] = 1;
