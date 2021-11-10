@@ -137,6 +137,11 @@ public:
             std::cout << __func__ << ": unlocked_start_of_burst_pending==false" << std::endl;
 #endif
             bl = unlocked_get_buffer_level( now );
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << "bl: " << bl << std::endl;
+            std::cout << "nominal_buffer_level: " << nominal_buffer_level << std::endl;
+            std::cout << "nominal_sample_rate: " << nominal_sample_rate << std::endl;
+#endif
             dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
         }
 
