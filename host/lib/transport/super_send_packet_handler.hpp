@@ -700,6 +700,9 @@ private:
             for (const auto & chan: channels) {
                 if (channels_serviced[chan] == 0) {
                     if (!(_props.at(chan).check_flow_control(timeout))) {
+#ifdef FLOW_CONTROL_DEBUG
+                        std::cout << "Not time to send yet" << std::endl;
+#endif
                         // The time to send for this channel has not reached.
                         continue;
                     }
