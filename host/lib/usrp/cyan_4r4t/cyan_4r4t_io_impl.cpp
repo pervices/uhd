@@ -79,6 +79,8 @@
   #endif
 #endif
 
+#define FLOW_CONTROL_DEBUG
+
 extern bool global::udp_retry;
 
 using namespace uhd;
@@ -498,6 +500,9 @@ private:
         then = now + dt;
 
         if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ ": returning false, search FLAG216" << std::endl;
+#endif
             return false;
         }
 
@@ -514,6 +519,9 @@ private:
 		// The time delta (dt) may be negative from the linear interpolator.
 		// In such a case, do not bother with the delay calculations and send right away.
 		if(dt <= 0.0)
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ ": returning true, search FLAG655" << std::endl;
+#endif
 			return true;
 
 		// Otherwise, delay.
@@ -522,8 +530,14 @@ private:
 		// nanosleep( &req, &rem );
         if (req.tv_sec == 0 && req.tv_nsec < 10000) {
             // If there is less than 10 us, then send
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ ": returning true, search FLAG150" << std::endl;
+#endif
             return true;
         } else {
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ ": returning false, search FLAG096" << std::endl;
+#endif
             return false;
         }
 
