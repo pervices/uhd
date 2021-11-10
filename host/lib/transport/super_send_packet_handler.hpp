@@ -43,6 +43,8 @@
 #include <fstream>
 #endif
 
+#define FLOW_CONTROL_DEBUG
+
 namespace uhd {
 namespace transport {
 namespace sph {
