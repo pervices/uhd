@@ -114,16 +114,26 @@ public:
 		std::lock_guard<std::mutex> _lock( lock );
 
         if ( BOOST_UNLIKELY( unlocked_start_of_burst_pending( now ) ) ) {
-
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": unlocked_start_of_burst_pending==true" << std::endl;
+#endif
             bl = unlocked_get_buffer_level( now );
 
             if ( nominal_buffer_level > bl ) {
                 dt = 0.0;
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": nominal_buffer_level greater than bl" << std::endl;
+#endif
             } else {
                 dt = sob_time - now;
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": nominal_buffer_level less than bl" << std::endl;
+#endif
             }
         } else {
-
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": unlocked_start_of_burst_pending==false" << std::endl;
+#endif
             bl = unlocked_get_buffer_level( now );
             dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
         }
