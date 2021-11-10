@@ -13,6 +13,9 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
+//#define FLOW_CONTROL_DEBUG
+#define BUFFER_DEBUG
+
 namespace uhd {
 
 class flow_control_nonlinear: virtual uhd::flow_control {
@@ -87,6 +90,9 @@ public:
 		return r;
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
+#ifdef BUFFER_DEBUG
+        std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 
 		std::lock_guard<std::mutex> _lock( lock );
 
@@ -94,6 +100,9 @@ public:
 		buffer_level_set_time = now;
 	}
 	void set_buffer_level_async( const size_t level ) {
+#ifdef BUFFER_DEBUG
+        std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 
 		ssize_t _level = level;
 
@@ -114,17 +123,32 @@ public:
 		std::lock_guard<std::mutex> _lock( lock );
 
         if ( BOOST_UNLIKELY( unlocked_start_of_burst_pending( now ) ) ) {
-
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": unlocked_start_of_burst_pending==true" << std::endl;
+#endif
             bl = unlocked_get_buffer_level( now );
 
             if ( nominal_buffer_level > bl ) {
                 dt = 0.0;
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": nominal_buffer_level greater than bl" << std::endl;
+#endif
             } else {
                 dt = sob_time - now;
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": nominal_buffer_level less than bl" << std::endl;
+#endif
             }
         } else {
-
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": unlocked_start_of_burst_pending==false" << std::endl;
+#endif
             bl = unlocked_get_buffer_level( now );
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << "bl: " << bl << std::endl;
+            std::cout << "nominal_buffer_level: " << nominal_buffer_level << std::endl;
+            std::cout << "nominal_sample_rate: " << nominal_sample_rate << std::endl;
+#endif
             dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
         }
 
@@ -215,12 +239,21 @@ protected:
 
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
+#ifdef DEBUG_FLOW_CONTROL
+        std::cout << __func__ << ": r: " << r << std::endl;
+#endif
 
 		// decrement the buffer level only when we are actively sending
 		if ( BOOST_LIKELY( ! unlocked_start_of_burst_pending( now ) ) ) {
 			uhd::time_spec_t a = buffer_level_set_time;
 			uhd::time_spec_t b = now;
 			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
+#ifdef DEBUG_FLOW_CONTROL
+            std::cout << __func__ << ": a: " << a.get_real_secs() << std::endl;
+            std::cout << __func__ << ": b: " << b.get_real_secs() << std::endl;
+            std::cout << __func__ << ": b-a " << (b.get_real_secs() - a.get_real_secs()) << std::endl;
+            std::cout << __func__ << ": nsamples_consumed: " << nsamples_consumed << std::endl;
+#endif
 			r -= nsamples_consumed;
 		}
 
@@ -229,15 +262,19 @@ protected:
 
 	void unlocked_set_buffer_level( const ssize_t level ) {
 
-//		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
-//			std::string msg =
-//				(
-//					boost::format( "Invalid buffer level %u / %u" )
-//					% level
-//					% buffer_size
-//				).str();
-//			throw uhd::value_error( msg );
-//		}
+// 		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
+// 			std::string msg =
+// 				(
+// 					boost::format( "Invalid buffer level %u / %u" )
+// 					% level
+// 					% buffer_size
+// 				).str();
+// 			throw uhd::value_error( msg );
+// 		}
+
+#ifdef BUFFER_DEBUG
+        std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 
 		buffer_level = level;
 	}

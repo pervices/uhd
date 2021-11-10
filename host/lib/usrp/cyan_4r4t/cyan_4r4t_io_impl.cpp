@@ -79,6 +79,9 @@
   #endif
 #endif
 
+//#define FLOW_CONTROL_DEBUG
+#define BUFFER_DEBUG
+
 extern bool global::udp_retry;
 
 using namespace uhd;
@@ -498,6 +501,13 @@ private:
         then = now + dt;
 
         if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
+#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+            std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
+            std::cout << "dt: " << dt << std::endl;
+            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_TICK_RATE) << std::endl;
+            std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
+            std::cout << "timout: " << timeout << std::endl;
+#endif
             return false;
         }
 
@@ -514,6 +524,9 @@ private:
 		// The time delta (dt) may be negative from the linear interpolator.
 		// In such a case, do not bother with the delay calculations and send right away.
 		if(dt <= 0.0)
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
+#endif
 			return true;
 
 		// Otherwise, delay.
@@ -522,8 +535,14 @@ private:
 		// nanosleep( &req, &rem );
         if (req.tv_sec == 0 && req.tv_nsec < 10000) {
             // If there is less than 10 us, then send
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": returning true, search FLAG150" << std::endl;
+#endif
             return true;
         } else {
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": returning false, search FLAG096" << std::endl;
+#endif
             return false;
         }
 
@@ -585,9 +604,16 @@ private:
 				now = self->get_time_now();
 
 				size_t level = level_pcnt * max_level;
+#ifdef BUFFER_DEBUG
+                std::cout << __func__ << ": max_level: " << max_level << std::endl;
+                std::cout << __func__ << ": level_pcnt: " << level_pcnt << std::endl;
+#endif
 
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
+#ifdef BUFFER_DEBUG
+                    std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 					fc->set_buffer_level( level, now );
 #ifdef DEBUG_FC
 				    std::printf("%10lu\t", level);
@@ -1043,7 +1069,15 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
     lvl = lvl*16;
     //cntdoug++;
     //std::cout << "lvl: " << lvl << " cnt = " << cntdoug << std::endl;
+
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
+
+#ifdef BUFFER_DEBUG
+    std::cout << __func__ << ": lvl: " << lvl << std::endl;
+    std::cout << __func__ << ": (double)lvl: " << ((double)lvl) << std::endl;
+    std::cout << __func__ << ": CYAN_4R4T_BUFF_SIZE: " << CYAN_4R4T_BUFF_SIZE << std::endl;
+    std::cout << __func__ << ": pcnt: " << pcnt << std::endl;
+#endif
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
