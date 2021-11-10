@@ -502,6 +502,8 @@ private:
         if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
 #ifdef FLOW_CONTROL_DEBUG
             std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
+            std::cout << "dt: " << dt << std::endl;
+            std::cout << "timout: " << timeout << std::endl;
 #endif
             return false;
         }
