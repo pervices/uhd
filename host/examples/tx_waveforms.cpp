@@ -237,6 +237,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         UHD_ASSERT_THROW(ref_locked.to_bool());
     }
 
+    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
+    std::string tmp;
+    std::cin >> tmp;
+
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
