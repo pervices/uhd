@@ -244,6 +244,7 @@ protected:
 #ifdef FLOW_CONTROL_DEBUG
             std::cout << __func__ << ": a: " << a.get_real_secs() << std::endl;
             std::cout << __func__ << ": b: " << b.get_real_secs() << std::endl;
+            std::cout << __func__ << ": a-b: " << (a.get_real_secs() - b.get_real_secs()) << std::endl;
             std::cout << __func__ << ": nsamples_consumed: " << nsamples_consumed << std::endl;
 #endif
 			r -= nsamples_consumed;
