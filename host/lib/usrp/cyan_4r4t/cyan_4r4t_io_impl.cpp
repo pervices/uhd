@@ -604,6 +604,10 @@ private:
 				now = self->get_time_now();
 
 				size_t level = level_pcnt * max_level;
+#ifdef BUFFER_DEBUG
+                std::cout << __func__ << ": max_level: " << max_level << std::endl;
+                std::cout << __func__ << ": level_pcnt: " << level_pcnt << std::endl;
+#endif
 
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
