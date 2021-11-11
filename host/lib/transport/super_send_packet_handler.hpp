@@ -481,6 +481,7 @@ private:
     size_t samps_per_buffer;
     std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
     std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> last_send = std::chrono::high_resolution_clock::now();
 
 
     vrt_packer_type _vrt_packer;
@@ -686,7 +687,7 @@ private:
     }
 
     UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
-        const double timeout = 0.1;
+        const double timeout = 0.05;
 
         // data structure to record which channels we have sent the data for
         // char channels_serviced[MAX_CHANNELS];
@@ -719,6 +720,12 @@ private:
                     // We've already sent the data for this channel; move on.
                     continue;
                 }
+
+                std::chrono::time_point<std::chrono::high_resolution_clock> this_send = std::chrono::high_resolution_clock::now();
+                std::cout << "Time between packets: " << std::chrono::duration_cast<std::chrono::microseconds>(this_send - last_send).count() << std::endl;
+                last_send = this_send;
+                //uhd::time_spec_t now = _props.at(chan).get_time_now();
+                //std::cout << " Buffer pcnt: " << _props.at(chan).flow_control->get_buffer_level_pcnt( now.get_real_secs() ) << std::endl;
 
                 const auto multi_msb = multi_msb_buffs.at(chan);
                 int number_of_messages = multi_msb.data_buffs.size();
