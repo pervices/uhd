@@ -13,7 +13,7 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
-//#define FLOW_CONTROL_DEBUG
+#define FLOW_CONTROL_DEBUG
 //#define BUFFER_DEBUG
 
 namespace uhd {
