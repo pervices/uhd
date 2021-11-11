@@ -13,6 +13,8 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
+#define FLOW_CONTROL_DEBUG
+
 namespace uhd {
 
 class flow_control_nonlinear: virtual uhd::flow_control {
