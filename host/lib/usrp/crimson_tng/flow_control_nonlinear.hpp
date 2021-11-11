@@ -89,6 +89,9 @@ public:
 		return r;
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
+#ifdef FLOW_CONTROL_DEBUG
+        std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 
 		std::lock_guard<std::mutex> _lock( lock );
 
@@ -96,6 +99,9 @@ public:
 		buffer_level_set_time = now;
 	}
 	void set_buffer_level_async( const size_t level ) {
+#ifdef FLOW_CONTROL_DEBUG
+        std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 
 		ssize_t _level = level;
 
