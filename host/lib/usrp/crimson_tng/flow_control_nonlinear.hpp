@@ -13,7 +13,7 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
-#define FLOW_CONTROL_DEBUG
+//#define FLOW_CONTROL_DEBUG
 //#define BUFFER_DEBUG
 
 namespace uhd {
@@ -22,7 +22,7 @@ class flow_control_nonlinear: virtual uhd::flow_control {
 
 public:
 
-	static constexpr double upper_margin_pcnt = 0.95;
+	static constexpr double upper_margin_pcnt = 0.50;//originally 0.95, changed for debugging purposes
 	static constexpr double lower_margin_pcnt = 0.10;
 
 	const size_t buffer_size;
