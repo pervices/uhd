@@ -13,8 +13,8 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
-//#define FLOW_CONTROL_DEBUG
-#define BUFFER_DEBUG
+#define FLOW_CONTROL_DEBUG
+//#define BUFFER_DEBUG
 
 namespace uhd {
 
@@ -90,9 +90,6 @@ public:
 		return r;
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
-#ifdef BUFFER_DEBUG
-        std::cout << __func__ << ": level: " << level << std::endl;
-#endif
 
 		std::lock_guard<std::mutex> _lock( lock );
 
@@ -100,9 +97,6 @@ public:
 		buffer_level_set_time = now;
 	}
 	void set_buffer_level_async( const size_t level ) {
-#ifdef BUFFER_DEBUG
-        std::cout << __func__ << ": level: " << level << std::endl;
-#endif
 
 		ssize_t _level = level;
 
@@ -144,12 +138,13 @@ public:
             std::cout << __func__ << ": unlocked_start_of_burst_pending==false" << std::endl;
 #endif
             bl = unlocked_get_buffer_level( now );
+            dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
 #ifdef FLOW_CONTROL_DEBUG
             std::cout << "bl: " << bl << std::endl;
             std::cout << "nominal_buffer_level: " << nominal_buffer_level << std::endl;
             std::cout << "nominal_sample_rate: " << nominal_sample_rate << std::endl;
+            std::cout << "dt: " << dt.get_real_secs() << std::endl;
 #endif
-            dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
         }
 
 		return dt;
@@ -271,10 +266,6 @@ protected:
 // 				).str();
 // 			throw uhd::value_error( msg );
 // 		}
-
-#ifdef BUFFER_DEBUG
-        std::cout << __func__ << ": level: " << level << std::endl;
-#endif
 
 		buffer_level = level;
 	}

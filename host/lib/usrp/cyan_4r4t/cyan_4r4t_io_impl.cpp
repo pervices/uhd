@@ -79,8 +79,8 @@
   #endif
 #endif
 
-//#define FLOW_CONTROL_DEBUG
-#define BUFFER_DEBUG
+#define FLOW_CONTROL_DEBUG
+//#define BUFFER_DEBUG
 
 extern bool global::udp_retry;
 
@@ -1071,13 +1071,6 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
     //std::cout << "lvl: " << lvl << " cnt = " << cntdoug << std::endl;
 
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
-
-#ifdef BUFFER_DEBUG
-    std::cout << __func__ << ": lvl: " << lvl << std::endl;
-    std::cout << __func__ << ": (double)lvl: " << ((double)lvl) << std::endl;
-    std::cout << __func__ << ": CYAN_4R4T_BUFF_SIZE: " << CYAN_4R4T_BUFF_SIZE << std::endl;
-    std::cout << __func__ << ": pcnt: " << pcnt << std::endl;
-#endif
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
