@@ -1074,6 +1074,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 #ifdef BUFFER_DEBUG
     std::cout << __func__ << ": lvl: " << lvl << std::endl;
+    std::cout << __func__ << ": (double)lvl: " << ((double)lvl) << std::endl;
     std::cout << __func__ << ": CYAN_4R4T_BUFF_SIZE: " << CYAN_4R4T_BUFF_SIZE << std::endl;
     std::cout << __func__ << ": pcnt: " << pcnt << std::endl;
 #endif
