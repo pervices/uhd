@@ -606,6 +606,9 @@ private:
 
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
+#ifdef LOW_CONTROL_DEBUG
+                    std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 					fc->set_buffer_level( level, now );
 #ifdef DEBUG_FC
 				    std::printf("%10lu\t", level);
