@@ -13,8 +13,6 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
-#define FLOW_CONTROL_DEBUG
-
 namespace uhd {
 
 class flow_control_nonlinear: virtual uhd::flow_control {
@@ -232,7 +230,7 @@ protected:
 
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
-#ifdef FLOW_CONTROL_DEBUG
+#ifdef DEBUG_FLOW_CONTROL
         std::cout << __func__ << ": r: " << r << std::endl;
 #endif
 
@@ -241,10 +239,10 @@ protected:
 			uhd::time_spec_t a = buffer_level_set_time;
 			uhd::time_spec_t b = now;
 			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
-#ifdef FLOW_CONTROL_DEBUG
+#ifdef DEBUG_FLOW_CONTROL
             std::cout << __func__ << ": a: " << a.get_real_secs() << std::endl;
             std::cout << __func__ << ": b: " << b.get_real_secs() << std::endl;
-            std::cout << __func__ << ": a-b: " << (a.get_real_secs() - b.get_real_secs()) << std::endl;
+            std::cout << __func__ << ": b-a " << (b.get_real_secs() - a.get_real_secs()) << std::endl;
             std::cout << __func__ << ": nsamples_consumed: " << nsamples_consumed << std::endl;
 #endif
 			r -= nsamples_consumed;
@@ -255,15 +253,19 @@ protected:
 
 	void unlocked_set_buffer_level( const ssize_t level ) {
 
-//		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
-//			std::string msg =
-//				(
-//					boost::format( "Invalid buffer level %u / %u" )
-//					% level
-//					% buffer_size
-//				).str();
-//			throw uhd::value_error( msg );
-//		}
+// 		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
+// 			std::string msg =
+// 				(
+// 					boost::format( "Invalid buffer level %u / %u" )
+// 					% level
+// 					% buffer_size
+// 				).str();
+// 			throw uhd::value_error( msg );
+// 		}
+
+#ifdef FLOW_CONTROL_DEBUG
+        std::cout << __func__ << ": level: " level << std::endl;
+#endif
 
 		buffer_level = level;
 	}
