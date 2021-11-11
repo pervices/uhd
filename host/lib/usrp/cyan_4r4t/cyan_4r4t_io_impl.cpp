@@ -1059,7 +1059,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
     //fifo level provided by FPGA
-	uint32_t lvl = rsp.header & 0xffff;
+	int64_t lvl = rsp.header & 0xffff;
     //FPGA reports only 16 bits, but we can store 2048 packets in DDR,
     //This would require 19 bits. FPGA reports only the 16 upper bits.
     lvl = lvl *8;
