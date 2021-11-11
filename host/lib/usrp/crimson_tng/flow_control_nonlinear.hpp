@@ -13,7 +13,8 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
-#define FLOW_CONTROL_DEBUG
+//#define FLOW_CONTROL_DEBUG
+#define BUFFER_DEBUG
 
 namespace uhd {
 
@@ -89,7 +90,7 @@ public:
 		return r;
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
-#ifdef FLOW_CONTROL_DEBUG
+#ifdef BUFFER_DEBUG
         std::cout << __func__ << ": level: " << level << std::endl;
 #endif
 
@@ -99,7 +100,7 @@ public:
 		buffer_level_set_time = now;
 	}
 	void set_buffer_level_async( const size_t level ) {
-#ifdef FLOW_CONTROL_DEBUG
+#ifdef BUFFER_DEBUG
         std::cout << __func__ << ": level: " << level << std::endl;
 #endif
 
@@ -271,7 +272,7 @@ protected:
 // 			throw uhd::value_error( msg );
 // 		}
 
-#ifdef FLOW_CONTROL_DEBUG
+#ifdef BUFFER_DEBUG
         std::cout << __func__ << ": level: " << level << std::endl;
 #endif
 
