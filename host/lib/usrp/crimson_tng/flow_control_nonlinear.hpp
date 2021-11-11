@@ -143,7 +143,7 @@ public:
             std::cout << "bl: " << bl << std::endl;
             std::cout << "nominal_buffer_level: " << nominal_buffer_level << std::endl;
             std::cout << "nominal_sample_rate: " << nominal_sample_rate << std::endl;
-            std::cout << "dt: " << dt << std::endl;
+            std::cout << "dt: " << dt.get_real_secs() << std::endl;
 #endif
         }
 
