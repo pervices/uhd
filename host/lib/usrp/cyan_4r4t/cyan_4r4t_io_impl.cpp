@@ -80,6 +80,7 @@
 #endif
 
 //#define FLOW_CONTROL_DEBUG
+#define BUFFER_DEBUG
 
 extern bool global::udp_retry;
 
@@ -606,7 +607,7 @@ private:
 
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
-#ifdef LOW_CONTROL_DEBUG
+#ifdef BUFFER_DEBUG
                     std::cout << __func__ << ": level: " << level << std::endl;
 #endif
 					fc->set_buffer_level( level, now );
