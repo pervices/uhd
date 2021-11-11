@@ -264,7 +264,7 @@ protected:
 // 		}
 
 #ifdef FLOW_CONTROL_DEBUG
-        std::cout << __func__ << ": level: " level << std::endl;
+        std::cout << __func__ << ": level: " << level << std::endl;
 #endif
 
 		buffer_level = level;
