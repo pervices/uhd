@@ -145,4 +145,10 @@
 				( CRIMSON_TNG_VITA_TLR_E      << 7) |\
 				( CRIMSON_TNG_VITA_TLR_PCKCNT << 0) )
 
+//The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
+enum BAND_DICT {
+    LOW_BAND = 0,
+    HIGH_BAND = 1,
+};
+
 #endif /* INCLUDED_CRIMSON_TNG_FW_COMMON_H */

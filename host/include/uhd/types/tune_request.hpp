@@ -49,6 +49,13 @@ namespace uhd{
          * \param lo_off the LO offset frequency in Hz
          * \param dsp_freq the target frequency of FPGA DSP
          */
+        tune_request_t(int band, double dsp_freq, double lo_off);
+        /*!
+         * Tune request for manually setting dsp nco and lo
+         * \param band the target frequency in Hz
+         * \param dsp_freq the target frequency of FPGA DSP
+         * \param lo_off the LO offset frequency in Hz
+         */
 
         tune_request_t(double target_freq, double rf_ch_freq, double rf_dp_freq, double lo_off, double dsp_freq);
 
@@ -135,6 +142,17 @@ namespace uhd{
          */
         device_addr_t args;
 
+        policy_t band_policy;
+        /*
+         * The policy used when selecting band
+         */
+
+        int band;
+        /*
+         * The numerical constants corresponding to each band are in the fw_commmon.h for each device,
+         * in and enum named BAND_DICT
+         * In the fw_common.h file for the device, then manual band slection has not been implemented
+         */
     };
 
 } //namespace uhd
