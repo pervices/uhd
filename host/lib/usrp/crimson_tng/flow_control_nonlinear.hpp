@@ -242,8 +242,8 @@ protected:
 			uhd::time_spec_t b = now;
 			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
 #ifdef FLOW_CONTROL_DEBUG
-            std::cout << __func__ << ": a: " << a << std::endl;
-            std::cout << __func__ << ": b: " << b << std::endl;
+            std::cout << __func__ << ": a: " << a.get_real_secs() << std::endl;
+            std::cout << __func__ << ": b: " << b.get_real_secs() << std::endl;
             std::cout << __func__ << ": nsamples_consumed: " << nsamples_consumed << std::endl;
 #endif
 			r -= nsamples_consumed;
