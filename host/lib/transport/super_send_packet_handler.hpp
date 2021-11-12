@@ -481,6 +481,7 @@ private:
     size_t samps_per_buffer;
     std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
     std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> last_send = std::chrono::high_resolution_clock::now();
 
 
     vrt_packer_type _vrt_packer;
@@ -719,6 +720,10 @@ private:
                     // We've already sent the data for this channel; move on.
                     continue;
                 }
+
+                std::chrono::time_point<std::chrono::high_resolution_clock> this_send = std::chrono::high_resolution_clock::now();
+                std::cout << "Time between packets: " <<this_send - last_send << std::endl;
+                last_send = this_send;
 
                 const auto multi_msb = multi_msb_buffs.at(chan);
                 int number_of_messages = multi_msb.data_buffs.size();
