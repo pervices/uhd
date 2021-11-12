@@ -236,9 +236,9 @@ protected:
 
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
-#ifdef DEBUG_FLOW_CONTROL
+//#ifdef DEBUG_FLOW_CONTROL
         std::cout << __func__ << ": buffer_level: " << r << std::endl;
-#endif
+//#endif
 
 		// decrement the buffer level only when we are actively sending
 		if ( BOOST_LIKELY( ! unlocked_start_of_burst_pending( now ) ) ) {
