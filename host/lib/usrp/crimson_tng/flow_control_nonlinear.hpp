@@ -237,7 +237,7 @@ protected:
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
 #ifdef DEBUG_FLOW_CONTROL
-        std::cout << __func__ << ": r: " << r << std::endl;
+        std::cout << __func__ << ": buffer_level: " << r << std::endl;
 #endif
 
 		// decrement the buffer level only when we are actively sending
