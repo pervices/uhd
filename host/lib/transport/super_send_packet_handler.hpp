@@ -721,12 +721,6 @@ private:
                     continue;
                 }
 
-                std::chrono::time_point<std::chrono::high_resolution_clock> this_send = std::chrono::high_resolution_clock::now();
-                std::cout << "Time between packets: " << std::chrono::duration_cast<std::chrono::microseconds>(this_send - last_send).count() << std::endl;
-                last_send = this_send;
-                //uhd::time_spec_t now = _props.at(chan).get_time_now();
-                //std::cout << " Buffer pcnt: " << _props.at(chan).flow_control->get_buffer_level_pcnt( now.get_real_secs() ) << std::endl;
-
                 const auto multi_msb = multi_msb_buffs.at(chan);
                 int number_of_messages = multi_msb.data_buffs.size();
                 mmsghdr msg[number_of_messages];

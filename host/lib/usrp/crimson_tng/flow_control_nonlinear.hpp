@@ -157,8 +157,10 @@ public:
 		uhd::time_spec_t then;
 
 		std::lock_guard<std::mutex> _lock( lock );
+#ifdef DEBUG_FLOW_CONTROL
         std::cout << __func__ << ": buffer_level 1: " << buffer_level << std::endl;
         std::cout << __func__ << ": nsamples_sent: " << nsamples_sent << std::endl;
+#ifdef DEBUG_FLOW_CONTROL
 
 		buffer_level += nsamples_sent;
 		buffer_level = unlocked_get_buffer_level( now );
@@ -240,21 +242,21 @@ protected:
 
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
-//#ifdef DEBUG_FLOW_CONTROL
+#ifdef DEBUG_FLOW_CONTROL
         std::cout << __func__ << ": buffer_level: " << r << std::endl;
-//#endif
+#endif
 
 		// decrement the buffer level only when we are actively sending
 		if ( BOOST_LIKELY( ! unlocked_start_of_burst_pending( now ) ) ) {
 			uhd::time_spec_t a = buffer_level_set_time;
 			uhd::time_spec_t b = now;
 			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
-//#ifdef DEBUG_FLOW_CONTROL
+#ifdef DEBUG_FLOW_CONTROL
             std::cout << __func__ << ": a: " << a.get_real_secs() << std::endl;
             std::cout << __func__ << ": b: " << b.get_real_secs() << std::endl;
             std::cout << __func__ << ": b-a " << (b.get_real_secs() - a.get_real_secs()) << std::endl;
             std::cout << __func__ << ": nsamples_consumed: " << nsamples_consumed << std::endl;
-//#endif
+#endif
 			r -= nsamples_consumed;
 		}
 
