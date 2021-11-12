@@ -157,6 +157,8 @@ public:
 		uhd::time_spec_t then;
 
 		std::lock_guard<std::mutex> _lock( lock );
+        std::cout << __func__ << ": buffer_level 1: " << buffer_level << std::endl;
+        std::cout << __func__ << ": nsamples_sent: " << nsamples_sent << std::endl;
 
 		buffer_level += nsamples_sent;
 		buffer_level = unlocked_get_buffer_level( now );
@@ -165,6 +167,8 @@ public:
 		} else {
 			buffer_level_set_time = now;
 		}
+
+		std::cout << __func__ << ": buffer_level 2: " << buffer_level << std::endl;
 
 #ifdef DEBUG_FLOW_CONTROL
 		// underflow
