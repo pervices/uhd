@@ -527,6 +527,7 @@ private:
 #ifdef FLOW_CONTROL_DEBUG
             std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
 #endif
+            std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
 			return true;
         }
 
@@ -547,7 +548,7 @@ private:
 //             return false;
 //         }
         bool tmp = (dt.get_full_secs() < timeout);
-        if(tmp)  std::cout << __func__ << ": : " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+        if(tmp)  std::cout << __func__ << ": R2: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
         return tmp;
     }
 

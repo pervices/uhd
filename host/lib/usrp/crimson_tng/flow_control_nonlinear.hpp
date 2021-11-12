@@ -140,10 +140,12 @@ public:
             bl = unlocked_get_buffer_level( now );
             dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
 #ifdef FLOW_CONTROL_DEBUG
-            std::cout << "bl: " << bl << std::endl;
-            std::cout << "nominal_buffer_level: " << nominal_buffer_level << std::endl;
-            std::cout << "nominal_sample_rate: " << nominal_sample_rate << std::endl;
-            std::cout << "dt: " << dt.get_real_secs() << std::endl;
+            if(dt.get_real_secs() <= 0) {
+                std::cout << "bl: " << bl << std::endl;
+                std::cout << "nominal_buffer_level: " << nominal_buffer_level << std::endl;
+                std::cout << "nominal_sample_rate: " << nominal_sample_rate << std::endl;
+                std::cout << "dt: " << dt.get_real_secs() << std::endl;
+            }
 #endif
         }
 
@@ -155,6 +157,10 @@ public:
 		uhd::time_spec_t then;
 
 		std::lock_guard<std::mutex> _lock( lock );
+#ifdef DEBUG_FLOW_CONTROL
+        std::cout << __func__ << ": buffer_level 1: " << buffer_level << std::endl;
+        std::cout << __func__ << ": nsamples_sent: " << nsamples_sent << std::endl;
+#endif
 
 		buffer_level += nsamples_sent;
 		buffer_level = unlocked_get_buffer_level( now );
@@ -163,6 +169,8 @@ public:
 		} else {
 			buffer_level_set_time = now;
 		}
+
+		std::cout << __func__ << ": buffer_level 2: " << buffer_level << std::endl;
 
 #ifdef DEBUG_FLOW_CONTROL
 		// underflow
@@ -235,7 +243,7 @@ protected:
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
 		ssize_t r = buffer_level;
 #ifdef DEBUG_FLOW_CONTROL
-        std::cout << __func__ << ": r: " << r << std::endl;
+        std::cout << __func__ << ": buffer_level: " << r << std::endl;
 #endif
 
 		// decrement the buffer level only when we are actively sending

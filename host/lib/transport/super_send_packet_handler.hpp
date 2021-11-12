@@ -43,7 +43,7 @@
 #include <fstream>
 #endif
 
-//#define FLOW_CONTROL_DEBUG
+#define FLOW_CONTROL_DEBUG
 
 namespace uhd {
 namespace transport {
@@ -703,9 +703,9 @@ private:
             for (const auto & chan: channels) {
                 if (channels_serviced[chan] == 0) {
                     if (!(_props.at(chan).check_flow_control(timeout))) {
-#ifdef FLOW_CONTROL_DEBUG
-                        std::cout << "Not time to send yet" << std::endl;
-#endif
+// #ifdef FLOW_CONTROL_DEBUG
+//                         std::cout << "Not time to send yet" << std::endl;
+// #endif
                         // The time to send for this channel has not reached.
                         continue;
                     } else {
@@ -720,12 +720,6 @@ private:
                     // We've already sent the data for this channel; move on.
                     continue;
                 }
-
-                std::chrono::time_point<std::chrono::high_resolution_clock> this_send = std::chrono::high_resolution_clock::now();
-                std::cout << "Time between packets: " << std::chrono::duration_cast<std::chrono::microseconds>(this_send - last_send).count() << std::endl;
-                last_send = this_send;
-                //uhd::time_spec_t now = _props.at(chan).get_time_now();
-                //std::cout << " Buffer pcnt: " << _props.at(chan).flow_control->get_buffer_level_pcnt( now.get_real_secs() ) << std::endl;
 
                 const auto multi_msb = multi_msb_buffs.at(chan);
                 int number_of_messages = multi_msb.data_buffs.size();
