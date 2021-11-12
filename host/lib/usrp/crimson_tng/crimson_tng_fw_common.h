@@ -67,7 +67,6 @@
 
 // Crimson Flowcontrol Update Per Second
 #define CRIMSON_TNG_UPDATE_PER_SEC	100
-#define CRIMSON_TNG_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
 #define CRIMSON_TNG_BUFF_SIZE	65536
