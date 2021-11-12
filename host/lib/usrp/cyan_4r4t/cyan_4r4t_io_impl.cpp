@@ -547,7 +547,7 @@ private:
 // #endif
 //             return false;
 //         }
-        return (dt.get_full_secs() < timout);
+        return (dt.get_full_secs() < timeout);
     }
 
     /***********************************************************************
