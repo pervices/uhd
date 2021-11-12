@@ -52,7 +52,7 @@
 
 #include "../crimson_tng/system_time.hpp"
 
-#if 1
+#if 0
   #ifndef UHD_TXRX_DEBUG_PRINTS
   #define UHD_TXRX_DEBUG_PRINTS
   #endif
@@ -547,7 +547,7 @@ private:
 // #endif
 //             return false;
 //         }
-        bool tmp = (dt.get_full_secs() < 0.1);
+        bool tmp = (dt.get_full_secs() < timeout);
         if(tmp)  std::cout << "buffer_level: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
         return tmp;
     }
