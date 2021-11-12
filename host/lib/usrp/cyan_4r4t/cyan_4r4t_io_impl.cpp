@@ -531,24 +531,23 @@ private:
 			return true;
         }
 
-		// Otherwise, delay.
-		req.tv_sec = (time_t) dt.get_full_secs();
-		req.tv_nsec = dt.get_frac_secs()*1e9;
-		// nanosleep( &req, &rem );
-        if (req.tv_sec == 0 && req.tv_nsec < 10000) {
-            // If there is less than 10 us, then send
-#ifdef FLOW_CONTROL_DEBUG
-            std::cout << __func__ << ": returning true, search FLAG150" << std::endl;
-#endif
-            return true;
-        } else {
-#ifdef FLOW_CONTROL_DEBUG
-            std::cout << __func__ << ": returning false, search FLAG096" << std::endl;
-#endif
-            return false;
-        }
-
-		return true;
+// 		// Otherwise, delay.
+// 		req.tv_sec = (time_t) dt.get_full_secs();
+// 		req.tv_nsec = dt.get_frac_secs()*1e9;
+// 		// nanosleep( &req, &rem );
+//         if (req.tv_sec == 0 && req.tv_nsec < 10000) {
+//             // If there is less than 10 us, then send
+// #ifdef FLOW_CONTROL_DEBUG
+//             std::cout << __func__ << ": returning true, search FLAG150" << std::endl;
+// #endif
+//             return true;
+//         } else {
+// #ifdef FLOW_CONTROL_DEBUG
+//             std::cout << __func__ << ": returning false, search FLAG096" << std::endl;
+// #endif
+//             return false;
+//         }
+        return (dt.get_full_secs < timout);
     }
 
     /***********************************************************************

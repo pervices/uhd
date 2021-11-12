@@ -687,7 +687,7 @@ private:
     }
 
     UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
-        const double timeout = 0.05;
+        const double timeout = 0.1;
 
         // data structure to record which channels we have sent the data for
         // char channels_serviced[MAX_CHANNELS];
