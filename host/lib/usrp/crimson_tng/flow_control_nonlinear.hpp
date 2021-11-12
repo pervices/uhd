@@ -139,12 +139,12 @@ public:
 #endif
             bl = unlocked_get_buffer_level( now );
             dt = ( bl - (double)nominal_buffer_level ) / nominal_sample_rate;
-//#ifdef FLOW_CONTROL_DEBUG
+#ifdef FLOW_CONTROL_DEBUG
             std::cout << "bl: " << bl << std::endl;
             std::cout << "nominal_buffer_level: " << nominal_buffer_level << std::endl;
             std::cout << "nominal_sample_rate: " << nominal_sample_rate << std::endl;
             std::cout << "dt: " << dt.get_real_secs() << std::endl;
-//#endif
+#endif
         }
 
 		return dt;
