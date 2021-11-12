@@ -233,6 +233,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        std::cout << "Timeout: " << timeout << std::endl;
         global::udp_retry = false;
         
         static const double default_sob = 1.0;
@@ -528,7 +529,7 @@ private:
             std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
 #endif
 			return true;
-}
+        }
 
 		// Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
