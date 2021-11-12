@@ -722,7 +722,7 @@ private:
                 }
 
                 std::chrono::time_point<std::chrono::high_resolution_clock> this_send = std::chrono::high_resolution_clock::now();
-                std::cout << "Time between packets: " << duration_cast<std::chrono::seconds>(this_send - last_send) << std::endl;
+                std::cout << "Time between packets: " << std::chrono::<std::chrono::seconds>(this_send - last_send) << std::endl;
                 last_send = this_send;
 
                 const auto multi_msb = multi_msb_buffs.at(chan);
