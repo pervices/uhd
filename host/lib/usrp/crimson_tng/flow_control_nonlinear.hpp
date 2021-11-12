@@ -245,12 +245,12 @@ protected:
 			uhd::time_spec_t a = buffer_level_set_time;
 			uhd::time_spec_t b = now;
 			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
-#ifdef DEBUG_FLOW_CONTROL
+//#ifdef DEBUG_FLOW_CONTROL
             std::cout << __func__ << ": a: " << a.get_real_secs() << std::endl;
             std::cout << __func__ << ": b: " << b.get_real_secs() << std::endl;
             std::cout << __func__ << ": b-a " << (b.get_real_secs() - a.get_real_secs()) << std::endl;
             std::cout << __func__ << ": nsamples_consumed: " << nsamples_consumed << std::endl;
-#endif
+//#endif
 			r -= nsamples_consumed;
 		}
 
