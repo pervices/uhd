@@ -548,7 +548,7 @@ private:
 //             return false;
 //         }
         bool tmp = (dt.get_full_secs() < timeout);
-        if(tmp)  std::cout << "buffer_level: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+        if(tmp)  std::cout << __func__ << ": buffer_level: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
         return tmp;
     }
 
