@@ -523,11 +523,12 @@ private:
 
 		// The time delta (dt) may be negative from the linear interpolator.
 		// In such a case, do not bother with the delay calculations and send right away.
-		if(dt <= 0.0)
+		if(dt <= 0.0) {
 #ifdef FLOW_CONTROL_DEBUG
             std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
 #endif
 			return true;
+}
 
 		// Otherwise, delay.
 		req.tv_sec = (time_t) dt.get_full_secs();
