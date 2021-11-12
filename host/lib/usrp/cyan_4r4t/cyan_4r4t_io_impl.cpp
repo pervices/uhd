@@ -233,7 +233,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        std::cout << "Timeout: " << timeout << std::endl;
         global::udp_retry = false;
         
         static const double default_sob = 1.0;
@@ -326,7 +325,7 @@ public:
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
             stop_streaming();
-        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
+        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
 
         return r;
     }
@@ -548,7 +547,7 @@ private:
 //             return false;
 //         }
         bool tmp = (dt.get_full_secs() < timeout);
-        if(tmp)  std::cout << __func__ << ": buffer_level: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+        if(tmp)  std::cout << __func__ << ": : " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
         return tmp;
     }
 
