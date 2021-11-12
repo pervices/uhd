@@ -598,7 +598,7 @@ private:
     }
 
     UHD_INLINE size_t send_multiple_packets_threaded(const std::vector<size_t> channels) {
-        const double timeout = 0.1;
+        const double timeout = 0;
         while (true) {
             // Wait until the controlling thread gives the green light
             std::unique_lock<std::mutex> guard(conversion_mutex);
