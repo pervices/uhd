@@ -26,6 +26,8 @@ uhd::tune_request_t uhd_tune_request_c_to_cpp(uhd_tune_request_t *tune_request_c
     tune_request_cpp.rf_freq = tune_request_c->rf_freq;
     tune_request_cpp.dsp_freq_policy = uhd::tune_request_t::policy_t(tune_request_c->dsp_freq_policy);
     tune_request_cpp.dsp_freq = tune_request_c->dsp_freq;
+    tune_request_cpp.band_policy = uhd::tune_request_t::policy_t(tune_request_c->band_policy);
+    tune_request_cpp.band = tune_request_c->band;
 
     std::string args_cpp = (tune_request_c->args) ? tune_request_c->args : std::string("");
     tune_request_cpp.args = uhd::device_addr_t(args_cpp);
