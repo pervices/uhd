@@ -19,9 +19,7 @@ tune_request_t::tune_request_t(double target_freq):
     rf_dp_freq(0.0),
     lo_freq(0.0),
     dsp_freq_policy(POLICY_AUTO),
-    dsp_freq(0.0),
-    band_policy(POLICY_AUTO),
-    band(0)
+    dsp_freq(0.0)
 {
     /* NOP */
 }
@@ -34,25 +32,7 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
     rf_dp_freq(0.0),
     lo_freq(0.0),
     dsp_freq_policy(POLICY_AUTO),
-    dsp_freq(0.0),
-    band_policy(POLICY_AUTO),
-    band(0)
-{
-    /* NOP */
-}
-
-//Note: this allows the user to select dsp and lo settings that may not be appropriate for the band
-tune_request_t::tune_request_t(int band, double dsp_freq, double lo_off):
-    target_freq(target_freq),
-    rf_freq_policy(POLICY_MANUAL),
-    rf_freq(dsp_freq + lo_off),
-    rf_ch_freq(0.0),
-    rf_dp_freq(0.0),
-    lo_freq(lo_off),
-    dsp_freq_policy(POLICY_MANUAL),
-    dsp_freq(dsp_freq),
-    band_policy(POLICY_MANUAL),
-    band(band)
+    dsp_freq(0.0)
 {
     /* NOP */
 }
@@ -65,9 +45,7 @@ tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf
     rf_dp_freq(rf_dp_freq),
     lo_freq(lo_off),
     dsp_freq_policy(POLICY_MANUAL),
-    dsp_freq(dsp_freq),
-    band_policy(POLICY_AUTO),
-    band(0)
+    dsp_freq(dsp_freq)
 {
     /* NOP */
 }
