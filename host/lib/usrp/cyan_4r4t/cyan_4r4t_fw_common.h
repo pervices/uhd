@@ -79,7 +79,7 @@
 #define CYAN_4R4T_SS_FIFOLVL_THRESHOLD 107421875
 
 // Cyan 4r4t Buffer Size
-#define CYAN_4R4T_BUFF_SIZE 2048*140*512/32
+#define CYAN_4R4T_BUFF_SIZE	2048*140*512/32
 
 // Cyan 4r4t RF Settings
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_START	0.0
@@ -167,7 +167,7 @@
 #define CYAN_4R4T_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
 
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
-enum BAND_DICT {
+enum {
     LOW_BAND = 0,
     MID_BAND = 1,
     HIGH_BAND = 2,

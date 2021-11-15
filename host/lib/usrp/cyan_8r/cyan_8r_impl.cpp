@@ -1713,20 +1713,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
-    int band;
-    switch (tune_request.band_policy){
-		case tune_request_t::POLICY_AUTO:
-			band = select_band( clipped_requested_freq );
-		break;
-
-		case tune_request_t::POLICY_MANUAL:
-			band = tune_request.band;
-			break;
-
-		case tune_request_t::POLICY_NONE:
-            band = 0;
-			break; //does not set
-	}
+	int band = select_band( clipped_requested_freq );
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
