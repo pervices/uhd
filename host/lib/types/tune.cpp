@@ -32,11 +32,7 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
     rf_freq(target_freq + lo_off),
     rf_ch_freq(0.0),
     rf_dp_freq(0.0),
-    lo_freq(0.0),
-    dsp_freq_policy(POLICY_AUTO),
-    dsp_freq(0.0),
-    band_policy(POLICY_AUTO),
-    band(0)
+    lo_freq(0.0)
 {
     /* NOP */
 }
