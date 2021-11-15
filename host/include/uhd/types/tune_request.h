@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 //! Policy options for tunable elements in the RF chain.
+//when changing this, remeber to also change policy_t in tune_request.hpp
 typedef enum {
     //! Do not set this argument, use current setting.
     UHD_TUNE_REQUEST_POLICY_NONE   = 78,
@@ -26,6 +27,7 @@ typedef enum {
 /*!
  * See uhd::tune_request_t for more details.
  */
+//when changing this, remeber to also change tune_request.hpp
 typedef struct {
     //! Target frequency for RF chain in Hz
     double target_freq;
@@ -37,6 +39,10 @@ typedef struct {
     uhd_tune_request_policy_t dsp_freq_policy;
     //! DSP frequency in Hz
     double dsp_freq;
+    //! Whether to use manual of automatic band selection
+    uhd_tune_request_policy_t band_policy;
+    //! Which band, BAND_DICT in fw_common.h for the corresponding constants
+    int band;
     //! Key-value pairs delimited by commas
     char* args;
 } uhd_tune_request_t;

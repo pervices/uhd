@@ -11,6 +11,7 @@
 #include <uhd/config.hpp>
 #include <uhd/types/device_addr.hpp>
 
+//when changing this, remeber to also change tune_request.h
 namespace uhd{
 
     /*!
@@ -60,6 +61,7 @@ namespace uhd{
         tune_request_t(double target_freq, double rf_ch_freq, double rf_dp_freq, double lo_off, double dsp_freq);
 
         //! Policy options for tunable elements in the RF chain.
+        //when changing this, remeber to also change uhd_tune_request_policy_t in tune_request.h
         enum policy_t {
             //! Do not set this argument, use current setting.
             POLICY_NONE   = int('N'),
