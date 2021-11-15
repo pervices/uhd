@@ -526,8 +526,8 @@ private:
 		if(dt <= 0.0) {
 #ifdef FLOW_CONTROL_DEBUG
             std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
-#endif
             std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+#ifdef FLOW_CONTROL_DEBUG
 			return true;
         }
 
