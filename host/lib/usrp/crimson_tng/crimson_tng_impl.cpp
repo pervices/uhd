@@ -758,6 +758,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 // Returns a pointer to the Crimson device, casted to the UHD base class
 static device::sptr crimson_tng_make(const device_addr_t &device_addr)
 {
+    std::cout << "F1" << std::endl;
     return device::sptr(new crimson_tng_impl(device_addr));
 }
 
