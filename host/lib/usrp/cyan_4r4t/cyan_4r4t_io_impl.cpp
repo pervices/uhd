@@ -390,7 +390,7 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CYAN_4R4T_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_4R4T_BUFF_PERCENT, CYAN_4R4T_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
