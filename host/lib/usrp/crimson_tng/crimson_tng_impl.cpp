@@ -1456,8 +1456,9 @@ constexpr double RX_SIGN = +1.0;
 constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
-	return freq + bw / 2.0 >= dsp_range.stop();
+static int is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
+	if(freq + bw / 2.0 >= dsp_range.stop()) return HIGH_BAND;
+    else return LOW_BAND;
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
@@ -1621,7 +1622,20 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
 	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
-	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
+    int band;
+    switch (tune_request.band_policy){
+		case tune_request_t::POLICY_AUTO:
+			band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
+		break;
+
+		case tune_request_t::POLICY_MANUAL:
+			band = tune_request.band;
+			break;
+
+		case tune_request_t::POLICY_NONE:
+            band = 0;
+			break; //does not set
+	}
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
