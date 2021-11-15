@@ -29,6 +29,8 @@ void export_tune()
         .def_readwrite("dsp_freq_policy", &tune_request_t::dsp_freq_policy)
         .def_readwrite("rf_freq"        , &tune_request_t::rf_freq        )
         .def_readwrite("dsp_freq"       , &tune_request_t::dsp_freq       )
+        .def_readwrite("rf_freq"        , &tune_request_t::band_policy    )
+        .def_readwrite("dsp_freq"       , &tune_request_t::band           )
         .def_readwrite("args"           , &tune_request_t::args           )
         ;
 
