@@ -13,7 +13,7 @@
 #define DEBUG_FLOW_CONTROL
 #endif
 
-//#define FLOW_CONTROL_DEBUG
+#define FLOW_CONTROL_DEBUG
 //#define BUFFER_DEBUG
 
 namespace uhd {
@@ -251,6 +251,7 @@ protected:
             std::cout << __func__ << ": a: " << a.get_real_secs() << std::endl;
             std::cout << __func__ << ": b: " << b.get_real_secs() << std::endl;
             std::cout << __func__ << ": b-a " << (b.get_real_secs() - a.get_real_secs()) << std::endl;
+            std::cout << __func__ << ": nominal_sample_rate: " << (nominal_sample_rate) << std::endl;
             std::cout << __func__ << ": nsamples_consumed: " << nsamples_consumed << std::endl;
 #endif
 			r -= nsamples_consumed;
