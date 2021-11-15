@@ -1614,6 +1614,8 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 		HIGH_BAND,
 	};
 
+    std::cout << "T1" << std::endl;
+
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
@@ -1715,6 +1717,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	tune_result.actual_rf_freq = actual_rf_freq;
 	tune_result.target_dsp_freq = target_dsp_freq;
 	tune_result.actual_dsp_freq = actual_dsp_freq;
+    std::cout << "T20" << std::endl;
 	return tune_result;
 }
 
