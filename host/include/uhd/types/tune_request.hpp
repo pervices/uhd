@@ -130,6 +130,18 @@ namespace uhd{
          */
         double dsp_freq;
 
+        policy_t band_policy;
+        /*
+         * Determine whether the user is specifying the band
+         */
+
+        int band;
+        /*
+         * The numerical constants corresponding to each band are in the fw_commmon.h for each device,
+         * in and enum named BAND_DICT
+         * In the fw_common.h file for the device, then manual band slection has not been implemented
+         */
+
         /*!
          * The args parameter is used to pass arbitrary key/value pairs.
          * Possible keys used by args (depends on implementation):
@@ -141,18 +153,6 @@ namespace uhd{
          * Possible options for this key: "integer" or "fractional".
          */
         device_addr_t args;
-
-        policy_t band_policy;
-        /*
-         * The policy used when selecting band
-         */
-
-        int band;
-        /*
-         * The numerical constants corresponding to each band are in the fw_commmon.h for each device,
-         * in and enum named BAND_DICT
-         * In the fw_common.h file for the device, then manual band slection has not been implemented
-         */
     };
 
 } //namespace uhd
