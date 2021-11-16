@@ -1363,7 +1363,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
         //Use this when setting the ncos in general
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"all_nco", double, double);
+		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+ "/dsp/all_nco", double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
 		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/fpga_nco", double, double);
