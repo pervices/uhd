@@ -1741,7 +1741,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	double target_rf_freq = 0.0;
 	double dsp_nco_shift = 0;
 
-	// kb #3689, for phase coherency, we must set the DAC NCO to 0
 	if ( TX_SIGN == xx_sign ) {
 		rf_fe_subtree->access<double>("nco").set( 0.0 );
 	}
@@ -1755,7 +1754,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 				// in low band, we only use the DSP to tune
 				target_rf_freq = 0;
 				break;
-            //DW 2021-07-12: we think that low and high band differences are managed by the mcu
+            //The differences between mid and high band are handled on the server
 			case MID_BAND:
             case HIGH_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
