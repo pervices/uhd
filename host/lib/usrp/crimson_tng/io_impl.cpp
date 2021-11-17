@@ -230,7 +230,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        std::cout << "Test" << std::endl;
         global::udp_retry = true;
         
         static const double default_sob = 1.0;
