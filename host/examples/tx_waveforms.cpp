@@ -239,6 +239,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
+    std::cout << "Type any letter then enter to continue" << std::endl;
     std::string tmp;
     std::cin >> tmp;
 
