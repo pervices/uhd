@@ -1362,14 +1362,13 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
-        //Use this when setting the ncos in general
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+ "/dsp/fpga_nco", double, double);
+        //interface for setting all ncos
+		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+ "/dsp/all_nco", double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
 		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/fpga_nco", double, double);
 
-        //accesses the interface function for all ncos
-        //right now, all nco need to be set at the same time since the DAC nco must be non 0, and the others must compensate for it
+        //accesses the interface function for all DAC ncos
 		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco/dacfreq", double, double);
 
 		// Link settings
@@ -1895,11 +1894,11 @@ double cyan_4r4t_impl::get_tx_freq(size_t chan) {
 		auto letter = std::string(1, 'A' + chan);
 		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter; 		
 	};
-        //The dac nco is not accessed directly, normally stuff should go thorugh all_nco
-        //Once a way of avoiding the issue where the dac nco must be non 0 (and other stuff set to compensate) it can be reverted
-        //double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-        //gets the frequency used by the interface nco property, note that this will be wrong if the ncos were set individually
+        //gets FPGA nco
         double cur_nco = _tree->access<double>(tx_dsp_root(chan) / "freq" / "value").get();
+        //gets DAC nco
+        cur_nco = _tree->access<double>(tx_dsp_root(chan) / "freq" / "value").get();
+        //The system does not currently use then channelizer nco, but if a future version begins using this it will need to be added
         double cur_lo_freq = 0;
         if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() != LOW_BAND) {
                 cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
