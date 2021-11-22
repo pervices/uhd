@@ -100,7 +100,7 @@
 #define CYAN_4R4T_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Cyan 4r4t Tuning Range Settings
 #define CYAN_4R4T_FREQ_RANGE_START	0
-#define CYAN_4R4T_FREQ_RANGE_STOP	18000000000.0
+#define CYAN_4R4T_FREQ_RANGE_STOP	20000000000.0
 #define CYAN_4R4T_FREQ_RANGE_STEP	1.0
 // Cyan 4r4t LO Tuning Range Step Size
 #define CYAN_4R4T_LO_STEPSIZE         25000000
