@@ -1746,12 +1746,16 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 		break;
 
 		case tune_request_t::POLICY_MANUAL:
-			target_rf_freq = rf_range.clip( tune_request.rf_freq );
+            // prevent use of mid band when a specific lo is requested
+            if(band == LOW_BAND && tune_request.rf_freq !=0) band = MID_BAND;
+			target_rf_freq = tune_request.rf_freq;
 			break;
 
 		case tune_request_t::POLICY_NONE:
 			break; //does not set
 	}
+
+	rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend

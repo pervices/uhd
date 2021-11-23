@@ -9,6 +9,12 @@
 #include <uhd/types/tune_result.hpp>
 #include <boost/format.hpp>
 
+//#define TUNE_DEBUG
+
+#ifdef TUNE_DEBUG
+    #include <iostream>
+#endif
+
 using namespace uhd;
 
 tune_request_t::tune_request_t(double target_freq):
@@ -30,11 +36,29 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
     rf_freq(target_freq + lo_off),
     rf_ch_freq(0.0),
     rf_dp_freq(0.0),
-    lo_freq(0.0),
+    lo_freq(lo_off),
     dsp_freq_policy(POLICY_AUTO),
     dsp_freq(0.0)
 {
     /* NOP */
+}
+
+/* dummy is used to create an overload  since there is already a constructor that uses two doubles */
+tune_request_t::tune_request_t(double dsp_freq, double lo_off, int dummy):
+    target_freq(lo_off + dsp_freq),
+    rf_freq_policy(POLICY_MANUAL),
+    rf_freq(lo_off),
+    rf_ch_freq(0.0),
+    rf_dp_freq(0.0),
+    lo_freq(lo_off),
+    dsp_freq_policy(POLICY_MANUAL),
+    dsp_freq(dsp_freq)
+{
+#ifdef TUNE_DEBUG
+    std::cout << "lo_off: " << lo_off << std::endl;
+    std::cout << "rf_freq: " << rf_freq << std::endl;
+    std::cout << "lo_freq: " << lo_freq << std::endl;
+#endif
 }
 
 tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf_dp_freq, double lo_off, double dsp_freq ):

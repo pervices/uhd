@@ -42,6 +42,15 @@ namespace uhd{
         tune_request_t(double target_freq, double lo_off);
 
         /*!
+         * Tune request specifying dsp and lo
+         * \param dsp_freq the target frequency of FPGA DSP
+         * \param lo_off the LO offset frequency in Hz
+         * \param dummy exists because an overload with 2 doubles already existed, does not do anything
+         */
+
+        tune_request_t(double dsp_freq, double lo_off, int dummy);
+
+        /*!
          * Fully manual tune request which supports multiple center frequencies.
          * \param target_freq the target frequency in Hz
          * \param rf_ch_freq the target frequency of DAC channelizer
