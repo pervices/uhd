@@ -1389,12 +1389,10 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
 	const fs_path cm_path  = mb_path / "cm";
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
-	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
 	TREE_CREATE_RW(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
 	TREE_CREATE_RW(cm_path / "rx/gain/val", "cm/rx/gain/val", double, double);
-	TREE_CREATE_RW(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
 	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
-	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
+	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/fpga_nco", double, double);
 
 	this->io_init();
 
