@@ -615,8 +615,6 @@ void cyan_8r_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_in
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
 
-    std::cout << "xg_intf: " << xg_intf << std::endl;
-
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
@@ -1499,7 +1497,6 @@ int cyan_8r_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
-    std::cout << "jesd_num: " << jesd_num;
     return jesd_num;
 }
 
