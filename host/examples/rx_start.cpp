@@ -197,7 +197,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("lo-freq") && vm.count("dsp-freq")) { //with default of 0.0 this will always be true
         for(int n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            double freq = lo_freq-dsp_freq;
+            double freq = lo_freq+dsp_freq;
             std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel % (freq/1e6) << std::endl;
             // the overload used required an extra argument to avoid conflict with a different constructor, the 0 does nothing else
             uhd::tune_request_t tune_request(-dsp_freq, lo_freq, 0);
