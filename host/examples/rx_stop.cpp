@@ -80,8 +80,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
     std::string args, type, ant, subdev, ref, wirefmt, channel_list;
-    size_t spb;
-    double rate, gain, bw, setup_time, lo_freq, dsp_freq;
 
     //setup the program options
     po::options_description desc("Allowed options");
