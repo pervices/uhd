@@ -486,7 +486,7 @@ private:
         #endif
 
         uhd::time_spec_t now, then, dt;
-		struct timespec req, rem;
+		struct timespec req;
 
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
@@ -523,22 +523,6 @@ private:
 			return true;
         }
 
-// 		// Otherwise, delay.
-// 		req.tv_sec = (time_t) dt.get_full_secs();
-// 		req.tv_nsec = dt.get_frac_secs()*1e9;
-// 		// nanosleep( &req, &rem );
-//         if (req.tv_sec == 0 && req.tv_nsec < 10000) {
-//             // If there is less than 10 us, then send
-// #ifdef FLOW_CONTROL_DEBUG
-//             std::cout << __func__ << ": returning true, search FLAG150" << std::endl;
-// #endif
-//             return true;
-//         } else {
-// #ifdef FLOW_CONTROL_DEBUG
-//             std::cout << __func__ << ": returning false, search FLAG096" << std::endl;
-// #endif
-//             return false;
-//         }
         bool tmp = (dt.get_full_secs() < timeout);
         if(tmp)  std::cout << __func__ << ": R2: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
         return tmp;
