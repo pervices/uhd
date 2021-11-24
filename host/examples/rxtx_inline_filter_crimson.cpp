@@ -82,6 +82,9 @@ static size_t choose_fir_filter_length( const double & a_db, const double & f_s,
 
 	return N;
 #else
+    (void) a_db;
+    (void) f_s;
+    (void) df;
 	//return 56;
 	return 18;
 #endif
@@ -433,6 +436,7 @@ static std::vector<size_t> parse_channels( const size_t & max, const std::string
 static bool should_break;
 /// simple signal handler to break the infinite loop in main()
 static void sighndlr( int x ) {
+    (void) x;
 	should_break = true;
 }
 
@@ -461,6 +465,9 @@ static void octave_fini( int status ) {
 
     DO() << "cleaning up Octave environment" << std::endl;
     clean_up_and_exit( status );
+#endif
+#ifndef LINK_WITH_OCTAVE
+    (void) status;
 #endif
 }
 
