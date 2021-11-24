@@ -101,7 +101,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8, sc16 or s16)")
-        ("continue", "don't abort on a bad packet")
         ("skip-lo", "skip checking LO lock status")
         ("int-n", "tune USRP with integer-N tuning")
 
@@ -126,7 +125,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     bool enable_size_map = vm.count("sizemap") > 0;
-    bool continue_on_bad_packet = vm.count("continue") > 0;
 
     if (enable_size_map)
         std::cout << "Packet size tracking enabled - will only recv one packet at a time!" << std::endl;
@@ -146,7 +144,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 break;
             }
         }
-        int stop_index = start_index;
+        size_t stop_index = start_index;
         while(channel_list[stop_index] >= '0' && channel_list[stop_index] <= '9') {
             stop_index++;
             if(stop_index==channel_list.size()) {
@@ -185,7 +183,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     if (vm.count("rate")) {
-        for(int n = 0; n < channel_nums.size(); n++) {
+        for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             std::cout << boost::format("Setting ch%i RX Rate: %f") % channel % rate << std::endl;
             usrp->set_rx_rate(rate, channel);
@@ -195,7 +193,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //set the center frequency
     if (vm.count("lo-freq") && vm.count("dsp-freq")) { //with default of 0.0 this will always be true
-        for(int n = 0; n < channel_nums.size(); n++) {
+        for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             double freq = lo_freq+dsp_freq;
             std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel % (freq/1e6) << std::endl;
@@ -212,7 +210,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //set the rf gain
     if (vm.count("gain")) {
-        for(int n = 0; n < channel_nums.size(); n++) {
+        for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % channel % gain << std::endl;
             usrp->set_rx_gain(gain, channel);
@@ -222,7 +220,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //set the IF filter bandwidth
     if (vm.count("bw")) {
-        for(int n = 0; n < channel_nums.size(); n++) {
+        for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             std::cout << boost::format("Setting ch%i RX Bandwidth: %f MHz...") % channel % (bw/1e6) << std::endl;
             usrp->set_rx_bandwidth(bw, channel);
@@ -232,7 +230,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //set the antenna
     if (vm.count("ant")) {
-        for(int n = 0; n < channel_nums.size(); n++) {
+        for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             usrp->set_rx_antenna(ant, channel);
         }
@@ -244,7 +242,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //check Ref and LO Lock detect
     if (not vm.count("skip-lo")){
-        for(int n = 0; n < channel_nums.size(); n++) {
+        for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             check_locked_sensor(
                 usrp->get_rx_sensor_names(channel),
@@ -278,7 +276,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //start streaming. THis method is different from the conventional method
-    for(int n = 0; n <channel_nums.size(); n ++) {
+    for(size_t n = 0; n <channel_nums.size(); n ++) {
         size_t channel = channel_nums[n];
         std::string path_buffer = "/mboards/0/rx/";
         path_buffer.append(std::to_string(channel));
