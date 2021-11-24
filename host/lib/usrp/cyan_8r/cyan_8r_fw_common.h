@@ -98,12 +98,8 @@
 #define CYAN_8R_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Crimson Tuning Range Settings
 #define CYAN_8R_FREQ_RANGE_START	0
-#define CYAN_8R_FREQ_RANGE_STOP	18000000000.0
+#define CYAN_8R_FREQ_RANGE_STOP	20000000000.0
 #define CYAN_8R_FREQ_RANGE_STEP	1.0
-//Crimson LO Tuning Range Step Size
-#define CYAN_8R_LO_STEPSIZE         25000000
-#define CYAN_8R_LO_GUARDBAND	5000000
-#define CYAN_8R_LO_OFFSET           25000000
 
 // Crimson Sample Rate Settings
 #define CYAN_8R_RATE_RANGE_START	(CYAN_8R_MASTER_CLOCK_RATE/65536)
@@ -140,6 +136,17 @@
 #define CYAN_8R_DSP_FREQ_RANGE_STOP_QUARTER	(CYAN_8R_RATE_RANGE_STOP_QUARTER/2.0)
 #define CYAN_8R_DSP_FREQ_RANGE_STEP	1.0
 
+//Cyan 8r LO Tuning Range Step Size
+#define CYAN_8R_LO_STEPSIZE         100000000
+#define CYAN_8R_LO_DIFF             250000000
+//UNDESIRABLE_LO_START contains
+#define CYAN_8R_UNDESIRABLE_LO_START {CYAN_8R_FM_LOWERLIMIT}
+#define CYAN_8R_UNDESIRABLE_LO_STOP {CYAN_8R_FM_UPPERLIMIT}
+#define CYAN_8R_MIN_LO CYAN_8R_LO_STEPSIZE
+#define CYAN_8R_MAX_LO CYAN_8R_FREQ_RANGE_STOP
+#define CYAN_8R_LO_GUARDBAND	5000000
+#define CYAN_8R_LO_OFFSET           25000000
+
 // Crimson VITA settings
 #define CYAN_8R_VITA_HDR_TYPE	0x1
 
@@ -156,8 +163,8 @@
 				( CYAN_8R_VITA_TLR_PCKCNT << 0) )
 
 // Constants to determine which frequency band to use
-#define CYAN_8R_LOW_MID_BARRIER 500000000
-#define CYAN_8R_MID_HIGH_BARRIER 6000000000
+#define CYAN_8R_LOW_MID_BARRIER 400000000
+#define CYAN_8R_MID_HIGH_BARRIER 5800000000
 
 //the device name to get used in print messages
 #define CYAN_8R_DEBUG_NAME_S "Cyan 8r"

@@ -1557,145 +1557,50 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-// XXX: @CF: 20180418: stop-gap until moved to server
-static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
+static double choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree ) {
+    //lo is unused in low band
+    if(band == LOW_BAND) return 0;
 
-	/*
-	 * Scenario 1) Channels A and B
-	 *
-	 * We want a shift such that the full bandwidth fits inside of one of the
-	 * dashed regions.
-	 *
-	 * Our margin around each sensitive area is 1 MHz on either side.
-	 *
-	 * In order of increasing bandwidth & minimal interference, our
-	 * preferences are
-	 *
-	 * Region A
-	 * Region B
-	 * Region F
-	 * Region G
-	 * Region H
-	 *
-	 * Region A is preferred because it exhibits the least attenuation. B is
-	 * preferred over C for that reason (and because it has a more bandwidth
-	 * than C). F is the next largest band and is preferred over E because
-	 * it avoids the LO fundamental, but it contains FM. G is the next-to-last
-	 * preference because it includes the LO and FM but has a very large
-	 * bandwidth. Finally, H is the catch-all. It suffers at high frequencies
-	 * due to the ADC filterbank, but includes the entirety of the spectrum.
-	 *
-	[--]-------------------[+]-----------------------+-------------------------+-----------[///////////+////////]---------------+------------[\\\\\\\\\\\+\\\\\\\\\\\\\\>
-	 | |                    |                                                              |                    |                            |                      |    f (MHz)
-	 0 2                    25                                                           87.9                  107.9                        137                    162.5
-	DC                 LO fundamental                                                               FM                                   ADC Cutoff            Max Samp Rate
-           A (21 MHz)                            B (60.9 MHz)                                                             C (27.1 Mhz)                 D (26.5 MHz)
-                           E = A + B (includes LO)                                                                     F = B + C (includes FM)
-					                                           G = A + B + C
-					                                           H = A + B + C + D
-	 */
-	static const std::vector<freq_range_t> AB_regions {
-		freq_range_t( CYAN_8R_DC_LOWERLIMIT, (CYAN_8R_LO_STEPSIZE-CYAN_8R_LO_GUARDBAND) ), // A
-		//freq_range_t( -(CYAN_8R_LO_STEPSIZE-CYAN_8R_LO_GUARDBAND), -CYAN_8R_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CYAN_8R_LO_STEPSIZE+CYAN_8R_LO_GUARDBAND), CYAN_8R_FM_LOWERLIMIT ), // B
-		//freq_range_t( -CYAN_8R_FM_LOWERLIMIT,-(CYAN_8R_LO_STEPSIZE+CYAN_8R_LO_GUARDBAND) ), // -B
-		freq_range_t( (CYAN_8R_LO_STEPSIZE+CYAN_8R_LO_GUARDBAND), CYAN_8R_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
-		//freq_range_t( -CYAN_8R_ADC_FREQ_RANGE_ROLLOFF, -(CYAN_8R_LO_STEPSIZE+CYAN_8R_LO_GUARDBAND) ), // -F
-		freq_range_t( CYAN_8R_DC_LOWERLIMIT, CYAN_8R_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
-		//freq_range_t( -CYAN_8R_ADC_FREQ_RANGE_ROLLOFF, -CYAN_8R_DC_LOWERLIMIT ), // -G
-		freq_range_t( CYAN_8R_DC_LOWERLIMIT, CYAN_8R_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
-		//freq_range_t( -CYAN_8R_DSP_FREQ_RANGE_STOP_FULL, -CYAN_8R_DC_LOWERLIMIT ), // -H
-		freq_range_t( CYAN_8R_DSP_FREQ_RANGE_START_FULL, CYAN_8R_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
-	};
-	/*
-	 * Scenario 2) Channels C and D
-	 *
-	 * Channels C & D only provide 1/4 the bandwidth of A & B due to silicon
-	 * limitations. This should be corrected in subsequent revisions of
-	 * Crimson.
-	 *
-	 * In order of increasing bandwidth & minimal interference, our
-	 * preferences are
-	 *
-	 * Region A
-	 * Region B
-	 * Region C
-	[--]-------------------[+]-----------------------+-------------------------+---->
-	 | |                    |                                                  |    f (MHz)
-	 0 2                    25                                               81.25
-	DC                 LO fundamental                                      Max Samp Rate
-           A (21 MHz)                            B (55.25 MHz)
-                           C = A + B (includes LO)
-	 */
-	static const std::vector<freq_range_t> CD_regions {
-		freq_range_t( CYAN_8R_DC_LOWERLIMIT, (CYAN_8R_LO_STEPSIZE-CYAN_8R_LO_GUARDBAND) ), // +A
-		//freq_range_t( -(CYAN_8R_LO_STEPSIZE-CYAN_8R_LO_GUARDBAND), -CYAN_8R_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CYAN_8R_LO_STEPSIZE+CYAN_8R_LO_GUARDBAND), CYAN_8R_DSP_FREQ_RANGE_STOP_QUARTER ), // B
-		//freq_range_t( -CYAN_8R_DSP_FREQ_RANGE_STOP_QUARTER, -(CYAN_8R_LO_STEPSIZE+CYAN_8R_LO_GUARDBAND) ), // -B
-		freq_range_t( CYAN_8R_DC_LOWERLIMIT, CYAN_8R_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
-		//freq_range_t( -CYAN_8R_DSP_FREQ_RANGE_STOP_QUARTER, -CYAN_8R_DC_LOWERLIMIT ), // -C
-		freq_range_t( CYAN_8R_DSP_FREQ_RANGE_START_QUARTER, CYAN_8R_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
-	};
-	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
+    double bad_range_start[] = CYAN_8R_UNDESIRABLE_LO_START;
+    double bad_range_stop[] = CYAN_8R_UNDESIRABLE_LO_START;
+    int num_bad_ranges = sizeof(bad_range_start) / sizeof(bad_range_start[0]);
 
-	static const double lo_step = CYAN_8R_LO_STEPSIZE;
+    bool is_good;
+    double candidate_lo;
+    //attempts to find the lo that is furthest above or below the target, that is possible while:
+    //dsp is capable of shifting it to the correct target
+    //it avoid bad output ranges (such as having an lo near fm)
+    for(int a = CYAN_8R_LO_DIFF; a >0; a-=CYAN_8R_LO_STEPSIZE) {
+        is_good = true;
+        candidate_lo = target_freq + a;
+        candidate_lo = round(candidate_lo/CYAN_8R_LO_STEPSIZE)*CYAN_8R_LO_STEPSIZE;
+        if(candidate_lo < CYAN_8R_MIN_LO) is_good = false;
+        if(candidate_lo < CYAN_8R_MAX_LO) is_good = false;
+        for (int b = 0; b < num_bad_ranges; b++) {
+            if(candidate_lo > bad_range_stop[b] && candidate_lo < bad_range_stop[b]) is_good = false;
+        }
+        if(is_good) return candidate_lo;
+        is_good = true;
+        //repeats for having the lo below the target
+        candidate_lo = target_freq - a;
+        candidate_lo = round(candidate_lo/CYAN_8R_LO_STEPSIZE)*CYAN_8R_LO_STEPSIZE;
+        if(candidate_lo < CYAN_8R_MIN_LO) is_good = false;
+        if(candidate_lo < CYAN_8R_MAX_LO) is_good = false;
+        for (int b = 0; b < num_bad_ranges; b++) {
+            if(candidate_lo > bad_range_stop[b] && candidate_lo < bad_range_stop[b]) is_good = false;
+        }
+        if(is_good) return candidate_lo;
+    }
 
-	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CYAN_8R_BW_QUARTER ? 'A' : 'C';
-	const double bw = dsp_subtree->access<double>("/rate/value").get();
-	const std::vector<freq_range_t> & regions =
-		( 'A' == channel || 'B' == channel )
-		? AB_regions
-		: CD_regions
-	;
-	const int K = (int) floor( abs( ( dsp_range.stop() - dsp_range.start() ) ) / lo_step );
+    //returns the lo with the highest different, ignoring bad ranges, only used if no suitable lo was found
+    if(target_freq + CYAN_8R_LO_DIFF < CYAN_8R_FREQ_RANGE_STOP) {
+        return target_freq + CYAN_8R_LO_DIFF;
+    }
+    else {
+        return target_freq + CYAN_8R_LO_DIFF;
+    }
 
-	for( int k = 0; k <= K; k++ ) {
-		for( double sign: { +1, -1 } ) {
-
-			double candidate_lo = target_freq;
-			if ( sign > 0 ) {
-				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
-				// above the target frequency
-				candidate_lo += lo_step - fmod( target_freq, lo_step );
-			} else {
-				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
-				// above the target frequency
-				candidate_lo -= fmod( target_freq, lo_step );
-			}
-			candidate_lo += k * sign * lo_step;
-
-			const double candidate_nco = target_freq - candidate_lo;
-
-			//Ensure that the combined NCO offset and signal bw fall within candidate range;
-			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
-
-			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
-			//the specified ranges (as they can't be negative).
-			//TBH: I'm not sure why this works right now, but it does.
-			for( const freq_range_t & _range: regions ) {
-				if ( range_contains( _range, candidate_range ) ) {
-					return candidate_nco;
-				}
-			}
-		}
-	}
-
-	// Under normal operating parameters, this should never happen because
-	// the last-choice _range in each of AB_regions and CD_regions is
-	// a catch-all for the entire DSP bandwidth. Hitting this scenario is
-	// equivalent to saying that the LO is incapable of up / down mixing
-	// the RF signal into the baseband domain.
-	throw runtime_error(
-		(
-			boost::format( "No suitable baseband region found: target_freq: %f, bw: %f, dsp_range: %s" )
-			% target_freq
-			% bw
-			% dsp_range.to_pp_string()
-		).str()
-	);
 }
-
 // XXX: @CF: 20180418: stop-gap until moved to server
 static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 
@@ -1733,9 +1638,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
             //DW 2021-07-12: we think that low and high band differences are managed by the mcu
 			case MID_BAND:
             case HIGH_BAND:
-				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
-				// in mid band, we use the LO for most of the shift, and use the DSP for the difference
-				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
+				target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree );
 				break;
 			}
 		break;
