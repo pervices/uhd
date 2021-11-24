@@ -1590,7 +1590,7 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
 
     int lo_diff_range;
     //finds out how for the lo should be from the target frequency
-    for(int lo_diff_range = 0; lo_diff_range < num_lo_diff_ranges; lo_diff_range++) {
+    for(lo_diff_range = 0; lo_diff_range < num_lo_diff_ranges; lo_diff_range++) {
         if(sample_rate < lo_diff_ranges[lo_diff_range]) break;
     }
 
