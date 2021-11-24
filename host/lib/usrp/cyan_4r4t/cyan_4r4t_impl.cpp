@@ -1582,44 +1582,31 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
 
-    double bad_range_start[] = CYAN_4R4T_UNDESIRABLE_LO_START;
-    double bad_range_stop[] = CYAN_4R4T_UNDESIRABLE_LO_START;
-    int num_bad_ranges = sizeof(bad_range_start) / sizeof(bad_range_start[0]);
+    const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
+    std::cout << "Sample rate: " << sample_rate << std::endl;
+    double lo_diffs[] = CYAN_4R4T_LO_DIFF;
+    double lo_diff_ranges[] = CYAN_4R4T_LO_DIFF_RANGE;
+    int num_lo_diff_ranges = sizeof(lo_diff_ranges) / sizeof(lo_diff_ranges[0]);
 
-    bool is_good;
-    double candidate_lo;
-    //attempts to find the lo that is furthest above or below the target, that is possible while:
-    //dsp is capable of shifting it to the correct target
-    //it avoid bad output ranges (such as having an lo near fm)
-    for(int a = CYAN_4R4T_LO_DIFF; a >0; a-=CYAN_4R4T_LO_STEPSIZE) {
-        is_good = true;
-        candidate_lo = target_freq + a;
-        candidate_lo = round(candidate_lo/CYAN_4R4T_LO_STEPSIZE)*CYAN_4R4T_LO_STEPSIZE;
-        if(candidate_lo < CYAN_4R4T_MIN_LO) is_good = false;
-        if(candidate_lo < CYAN_4R4T_MAX_LO) is_good = false;
-        for (int b = 0; b < num_bad_ranges; b++) {
-            if(candidate_lo > bad_range_stop[b] && candidate_lo < bad_range_stop[b]) is_good = false;
-        }
-        if(is_good) return candidate_lo;
-        is_good = true;
-        //repeats for having the lo below the target
-        candidate_lo = target_freq - a;
-        candidate_lo = round(candidate_lo/CYAN_4R4T_LO_STEPSIZE)*CYAN_4R4T_LO_STEPSIZE;
-        if(candidate_lo < CYAN_4R4T_MIN_LO) is_good = false;
-        if(candidate_lo < CYAN_4R4T_MAX_LO) is_good = false;
-        for (int b = 0; b < num_bad_ranges; b++) {
-            if(candidate_lo > bad_range_stop[b] && candidate_lo < bad_range_stop[b]) is_good = false;
-        }
-        if(is_good) return candidate_lo;
+    int lo_diff_range;
+    //finds out how for the lo should be from the target frequency
+    for(int lo_diff_range = 0; lo_diff_range < num_lo_diff_ranges; lo_diff_range++) {
+        if(sample_rate < lo_diff_ranges[lo_diff_range]) break;
     }
 
-    //returns the lo with the highest different, ignoring bad ranges, only used if no suitable lo was found
-    if(target_freq + CYAN_4R4T_LO_DIFF < CYAN_4R4T_FREQ_RANGE_STOP) {
-        return target_freq + CYAN_4R4T_LO_DIFF;
-    }
-    else {
-        return target_freq + CYAN_4R4T_LO_DIFF;
-    }
+    std::cout << "lo_diffs[lo_diff_range]: " << lo_diffs[lo_diff_range] << std::endl;
+
+
+    //los that are the hgihest distance from the target, while still being within lo_diff
+    double upper_target_lo = ((int)((target_freq + lo_diffs[lo_diff_range])/CYAN_4R4T_LO_STEPSIZE))*CYAN_4R4T_LO_STEPSIZE;
+    double lower_target_lo = ceil((target_freq - lo_diffs[lo_diff_range])/CYAN_4R4T_LO_STEPSIZE)*CYAN_4R4T_LO_STEPSIZE;
+
+    //returns the valid lo, if the other one is invalid
+    if(upper_target_lo > CYAN_4R4T_MAX_LO) return lower_target_lo;
+    else if (lower_target_lo < CYAN_4R4T_MIN_LO) return upper_target_lo;
+    //returns whichever of the los is further from the target
+    else if(upper_target_lo - target_freq > target_freq - lower_target_lo) return upper_target_lo;
+    else return lower_target_lo;
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
