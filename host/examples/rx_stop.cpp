@@ -126,7 +126,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 break;
             }
         }
-        int stop_index = start_index;
+        size_t stop_index = start_index;
         while(channel_list[stop_index] >= '0' && channel_list[stop_index] <= '9') {
             stop_index++;
             if(stop_index==channel_list.size()) {
@@ -151,7 +151,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //start streaming. THis method is different from the conventional method
-    for(int n =0; n <channel_nums.size();n++) {
+    for(size_t n = 0; n <channel_nums.size();n++) {
         std::string path_buffer = "/mboards/0/rx/";
         path_buffer.append(std::to_string(channel_nums[n]));
         path_buffer.append("/force_stream");
