@@ -59,9 +59,9 @@ namespace sph {
  * All channels are sent in unison in send().
  **********************************************************************/
 
-static bool time_comp(std::chrono::duration <double, std::micro> a, std::chrono::duration <double, std::micro> b) {
-    return (a.count() > b.count());
-}
+// static bool time_comp(std::chrono::duration <double, std::micro> a, std::chrono::duration <double, std::micro> b) {
+//     return (a.count() > b.count());
+// }
 
 class send_packet_handler{
 public:
