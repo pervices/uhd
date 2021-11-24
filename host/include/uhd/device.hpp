@@ -172,6 +172,7 @@ public:
 
     virtual void set_tx_gain(double gain, const std::string &name, size_t chan){
 
+        (void) gain;
         (void) name;
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
@@ -188,6 +189,7 @@ public:
 
     virtual void set_rx_gain(double gain, const std::string &name, size_t chan){
 
+        (void) gain;
         (void) name;
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
