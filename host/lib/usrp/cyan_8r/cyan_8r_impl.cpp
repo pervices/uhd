@@ -1551,12 +1551,6 @@ static int select_band( const double freq ) {
         return LOW_BAND;
 }
 
-// XXX: @CF: 20180418: stop-gap until moved to server
-// return true if b is a (not necessarily strict) subset of a
-static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
-	return b.start() >= a.start() && b.stop() <= a.stop();
-}
-
 static double choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree ) {
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
