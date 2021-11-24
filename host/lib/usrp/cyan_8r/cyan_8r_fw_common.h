@@ -144,8 +144,9 @@
 #define CYAN_8R_UNDESIRABLE_LO_STOP {CYAN_8R_FM_UPPERLIMIT}
 #define CYAN_8R_MIN_LO CYAN_8R_LO_STEPSIZE
 #define CYAN_8R_MAX_LO CYAN_8R_FREQ_RANGE_STOP
-#define CYAN_8R_LO_GUARDBAND	5000000
-#define CYAN_8R_LO_OFFSET           25000000
+
+#define CYAN_8R_LO_GUARDBAND	5000000 //probably no longer needed
+#define CYAN_8R_LO_OFFSET           25000000 //probably no longer neded
 
 // Crimson VITA settings
 #define CYAN_8R_VITA_HDR_TYPE	0x1

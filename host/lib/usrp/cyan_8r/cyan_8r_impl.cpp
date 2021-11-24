@@ -1635,7 +1635,7 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 				// in low band, we only use the DSP to tune
 				target_rf_freq = 0;
 				break;
-            //DW 2021-07-12: we think that low and high band differences are managed by the mcu
+            //The differences between mid and high band are handled on the server
 			case MID_BAND:
             case HIGH_BAND:
 				target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree );
