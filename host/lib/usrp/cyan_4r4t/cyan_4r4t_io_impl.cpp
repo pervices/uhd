@@ -90,15 +90,6 @@ using namespace uhd::transport;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-/***********************************************************************
- * helpers
- **********************************************************************/
-
-static std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
-	os << std::fixed << std::setprecision( 6 ) << ts.get_real_secs();
-	return os;
-}
-
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
 class cyan_4r4t_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
@@ -1000,7 +991,6 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
-static size_t cntdoug = 0;
 static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_TICK_RATE;

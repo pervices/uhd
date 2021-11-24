@@ -87,15 +87,6 @@ using namespace uhd::transport;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-/***********************************************************************
- * helpers
- **********************************************************************/
-
-static std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
-	os << std::fixed << std::setprecision( 6 ) << ts.get_real_secs();
-	return os;
-}
-
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
 class cyan_8r_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
