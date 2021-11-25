@@ -1583,7 +1583,6 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     if(band == LOW_BAND) return 0;
 
     const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
-    std::cout << "Sample rate: " << sample_rate << std::endl;
     double lo_diffs[] = CYAN_4R4T_LO_DIFF;
     double lo_diff_ranges[] = CYAN_4R4T_LO_DIFF_RANGE;
     int num_lo_diff_ranges = sizeof(lo_diff_ranges) / sizeof(lo_diff_ranges[0]);
@@ -1593,9 +1592,6 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     for(lo_diff_range = 0; lo_diff_range < num_lo_diff_ranges; lo_diff_range++) {
         if(sample_rate < lo_diff_ranges[lo_diff_range]) break;
     }
-
-    std::cout << "lo_diffs[lo_diff_range]: " << lo_diffs[lo_diff_range] << std::endl;
-
 
     //los that are the hgihest distance from the target, while still being within lo_diff
     double upper_target_lo = ((int)((target_freq + lo_diffs[lo_diff_range])/CYAN_4R4T_LO_STEPSIZE))*CYAN_4R4T_LO_STEPSIZE;
