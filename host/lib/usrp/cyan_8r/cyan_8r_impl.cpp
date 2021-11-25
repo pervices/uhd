@@ -1574,7 +1574,7 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     if(upper_target_lo > CYAN_8R_MAX_LO) return lower_target_lo;
     else if (lower_target_lo < CYAN_8R_MIN_LO) return upper_target_lo;
     //returns whichever of the los is further from the target
-    else if(upper_target_lo - target_freq > target_freq - lower_target_lo) return upper_target_lo;
+    else if(upper_target_lo - target_freq >= target_freq - lower_target_lo) return upper_target_lo;
     else return lower_target_lo;
 
 }
