@@ -23,7 +23,7 @@
 #include <thread>
 
 //#define DEBUG_TX_WAVE 1
-#define DEBUG_TX_WAVE_STEP 1
+//#define DEBUG_TX_WAVE_STEP 1
 
 namespace po = boost::program_options;
 
