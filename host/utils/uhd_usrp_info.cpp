@@ -169,25 +169,29 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << "Board MCU revision: " << std::endl;
         std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
         bool all_rx_found = false;
-        for(uint8_t chan = 0; chan < 64; chan++) {
+        size_t rx_chan = 0;
+        while(!all_rx_found) {
             try {
-                std::string path = "rx//fw_version";
-                path.insert(3, 1, (char) (chan +'0'));
-                std::cout << std::string("\trx(" + std::to_string(chan) + "): ").c_str() << get_from_tree(tree, i, path.c_str()) << std::endl;
+                char path[50];
+                sprintf(path, "rx/%lu/fw_version", rx_chan);
+                std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl;
             } catch (...) {
                 all_rx_found = true;
             }
-            if(all_rx_found) break;
+            rx_chan++;
         }
 
+        size_t tx_chan = 0;
         bool all_tx_found = false;
-        for(uint8_t chan = 0; chan < 64; chan++) {
+        while(!all_tx_found) {
             try {
-                std::cout << std::string("\ttx(%u): ", chan).c_str() << get_from_tree(tree, i, std::string("tx/%u/fw_version", chan).c_str()) << std::endl;
+                char path[50];
+                sprintf(path, "tx/%lu/fw_version", tx_chan);
+                std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl;
             } catch (...) {
                 all_tx_found = true;
             }
-            if(all_tx_found) break;
+            tx_chan++;
         }
 
         try {
