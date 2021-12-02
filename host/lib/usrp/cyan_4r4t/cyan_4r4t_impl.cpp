@@ -1588,21 +1588,29 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     int num_lo_diff_ranges = sizeof(lo_diff_ranges) / sizeof(lo_diff_ranges[0]);
 
     int lo_diff_range;
-    //finds out how for the lo should be from the target frequency
+    //finds out how far the lo should be from the target frequency
     for(lo_diff_range = 0; lo_diff_range < num_lo_diff_ranges; lo_diff_range++) {
         if(sample_rate < lo_diff_ranges[lo_diff_range]) break;
     }
 
     //los that are the hgihest distance from the target, while still being within lo_diff
-    double upper_target_lo = ((int)((target_freq + lo_diffs[lo_diff_range])/CYAN_4R4T_LO_STEPSIZE))*CYAN_4R4T_LO_STEPSIZE;
+    double upper_target_lo = ((int64_t)((target_freq + lo_diffs[lo_diff_range])/CYAN_4R4T_LO_STEPSIZE))*CYAN_4R4T_LO_STEPSIZE;
     double lower_target_lo = ceil((target_freq - lo_diffs[lo_diff_range])/CYAN_4R4T_LO_STEPSIZE)*CYAN_4R4T_LO_STEPSIZE;
 
     //returns the valid lo, if the other one is invalid
-    if(upper_target_lo > CYAN_4R4T_MAX_LO) return lower_target_lo;
-    else if (lower_target_lo < CYAN_4R4T_MIN_LO) return upper_target_lo;
+    if(upper_target_lo > CYAN_4R4T_MAX_LO) {
+        return lower_target_lo;
+    }
+    else if (lower_target_lo < CYAN_4R4T_MIN_LO) {
+        return upper_target_lo;
+    }
     //returns whichever of the los is further from the target
-    else if(upper_target_lo - target_freq >= target_freq - lower_target_lo) return upper_target_lo;
-    else return lower_target_lo;
+    else if(upper_target_lo - target_freq >= target_freq - lower_target_lo) {
+        return upper_target_lo;
+    }
+    else {
+        return lower_target_lo;
+    }
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server

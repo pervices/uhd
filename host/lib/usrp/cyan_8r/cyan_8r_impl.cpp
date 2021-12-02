@@ -1567,7 +1567,7 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     }
 
     //los that are the hgihest distance from the target, while still being within lo_diff
-    double upper_target_lo = ((int)((target_freq + lo_diffs[lo_diff_range])/CYAN_8R_LO_STEPSIZE))*CYAN_8R_LO_STEPSIZE;
+    double upper_target_lo = ((int64_t)((target_freq + lo_diffs[lo_diff_range])/CYAN_8R_LO_STEPSIZE))*CYAN_8R_LO_STEPSIZE;
     double lower_target_lo = ceil((target_freq - lo_diffs[lo_diff_range])/CYAN_8R_LO_STEPSIZE)*CYAN_8R_LO_STEPSIZE;
 
     //returns the valid lo, if the other one is invalid
