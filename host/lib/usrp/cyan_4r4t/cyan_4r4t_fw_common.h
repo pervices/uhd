@@ -141,11 +141,11 @@
 //Cyan 8r LO Tuning Range Step Size
 #define CYAN_4R4T_LO_STEPSIZE         100000000
 //sample rate will between 0 and CYAN_4R4T_LO_DIFF_RANGE_START[0] will result in the lo being a close to CYAN_4R4T_LO_DIFF[0] away from target frequency, while not excedding CYAN_4R4T_LO_DIFF[0]
-#define CYAN_4R4T_LO_DIFF             {200000000, 100000000}
-#define CYAN_4R4T_LO_DIFF_RANGE       {200000000, 500000000}
+//ranges go from previous number (inclusive to the maximum of the range -1)
+#define CYAN_4R4T_LO_DIFF             {200000000, 100000000, 0}
+#define CYAN_4R4T_LO_DIFF_RANGE       {200000000, 500000000, 1000000001}
 #define CYAN_4R4T_MIN_LO CYAN_4R4T_LO_STEPSIZE
 #define CYAN_4R4T_MAX_LO CYAN_4R4T_FREQ_RANGE_STOP
-
 #define CYAN_4R4T_LO_GUARDBAND	5000000 //probably no longer needed
 #define CYAN_4R4T_LO_OFFSET           25000000 //probably no longer neded
 
