@@ -12,7 +12,7 @@
 #include <uhd/rfnoc/block_ctrl.hpp>
 #include <uhd/rfnoc/radio_ctrl.hpp>
 #include <uhd/utils/math.hpp>
-#include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/program_options.hpp>
 #include <boost/thread.hpp>
