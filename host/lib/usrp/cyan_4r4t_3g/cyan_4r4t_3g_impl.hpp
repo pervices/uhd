@@ -92,7 +92,7 @@ public:
     ~cyan_4r4t_3g_impl(void);
 
     // pointers to the streams for the device
-    // these functions are defined in io_impl.cpp
+    // these functions are defined in cyan_4r4t_3g_io_impl.cpp
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);
     virtual uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 

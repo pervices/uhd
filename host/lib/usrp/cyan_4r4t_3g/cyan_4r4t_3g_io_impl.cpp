@@ -587,7 +587,7 @@ private:
 				std::printf("%10ld\t", uflow);
 #endif
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_io_impl.cpp
 					// async_metadata_t metadata;
 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
@@ -603,7 +603,7 @@ private:
 				std::printf("%10ld", oflow);
 #endif
 				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_io_impl.cpp
 					// async_metadata_t metadata;
 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
