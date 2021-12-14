@@ -1045,8 +1045,6 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
     //Each DDR Location can stores 512 bits = 16 samples.
     //Lvl in terms of samples stored:
     lvl = lvl*16;
-    //cntdoug++;
-    //std::cout << "lvl: " << lvl << " cnt = " << cntdoug << std::endl;
 
 	pcnt = (double)lvl / CYAN_4R4T_BUFF_SIZE;
 
