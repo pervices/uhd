@@ -236,7 +236,7 @@ private:
     };
     uhd::dict<std::string, mb_container_type> _mbc;
 
-    UHD_PIMPL_DECL(io_impl) _io_impl;
+    UHD_PIMPL_DECL(cyan_4r4t_3g_io_impl) _cyan_4r4t_3g_io_impl;
     void io_init(void);
     //void update_tick_rate(const double rate);
     void update_rx_samp_rate(const std::string & mb, const size_t chan, const double rate);

@@ -489,6 +489,13 @@ private:
         then = now + dt;
 
         if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
+#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+            std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
+            std::cout << "dt: " << dt << std::endl;
+            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_TICK_RATE) << std::endl;
+            std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
+            std::cout << "timout: " << timeout << std::endl;
+#endif
             return false;
         }
 
@@ -504,20 +511,17 @@ private:
 
 		// The time delta (dt) may be negative from the linear interpolator.
 		// In such a case, do not bother with the delay calculations and send right away.
-		if(dt <= 0.0)
+		if(dt <= 0.0) {
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
+            std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+#endif
 			return true;
-
-		// Otherwise, delay.
-		req.tv_sec = (time_t) dt.get_full_secs();
-		req.tv_nsec = dt.get_frac_secs()*1e9;
-        if (req.tv_sec == 0 && req.tv_nsec < 10000) {
-            // If there is less than 10 us, then send
-            return true;
-        } else {
-            return false;
         }
 
-		return true;
+        bool tmp = (dt.get_full_secs() < timeout);
+        if(tmp)  std::cout << __func__ << ": R2: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+        return tmp;
     }
 
     /***********************************************************************
@@ -587,7 +591,7 @@ private:
 				std::printf("%10ld\t", uflow);
 #endif
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_io_impl.cpp
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_cyan_4r4t_3g_io_impl.cpp
 					// async_metadata_t metadata;
 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
@@ -603,7 +607,7 @@ private:
 				std::printf("%10ld", oflow);
 #endif
 				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_io_impl.cpp
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_cyan_4r4t_3g_io_impl.cpp
 					// async_metadata_t metadata;
 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
@@ -659,15 +663,15 @@ static const size_t vrt_send_header_offset_words32 = 0;
  * io impl details (internal to this file)
  * - alignment buffer
  **********************************************************************/
-struct cyan_4r4t_3g_impl::io_impl{
+struct cyan_4r4t_3g_impl::cyan_4r4t_3g_io_impl{
 
-    io_impl(void):
+    cyan_4r4t_3g_io_impl(void):
         async_msg_fifo(1000/*messages deep*/)
     {
         /* NOP */
     }
 
-    ~io_impl(void){
+    ~cyan_4r4t_3g_io_impl(void){
     }
 
     //methods and variables for the viking scourge
@@ -682,7 +686,7 @@ struct cyan_4r4t_3g_impl::io_impl{
 void cyan_4r4t_3g_impl::io_init(void){
 
 	// TODO: @CF: 20180301: move time diff code into io_impl
-	_io_impl = UHD_PIMPL_MAKE(io_impl, ());
+	_cyan_4r4t_3g_io_impl = UHD_PIMPL_MAKE(cyan_4r4t_3g_io_impl, ());
 
     //allocate streamer weak ptrs containers
     BOOST_FOREACH(const std::string &mb, _mbc.keys()){
@@ -799,7 +803,7 @@ bool cyan_4r4t_3g_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
     boost::this_thread::disable_interruption di; //disable because the wait can throw
-    return _io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
+    return _cyan_4r4t_3g_io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
 }
 
 /***********************************************************************
@@ -1025,7 +1029,16 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_sec );
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
-	uint32_t lvl = rsp.header & 0xffff;
+    //fifo level provided by FPGA
+	int64_t lvl = rsp.header & 0xffff;
+    //FPGA reports only 16 bits, but we can store 2048 packets in DDR,
+    //This would require 19 bits. FPGA reports only the 16 upper bits.
+    lvl = lvl *8;
+    //Now lvl is correct in terms of DDR locations used
+    //Each DDR Location can stores 512 bits = 16 samples.
+    //Lvl in terms of samples stored:
+    lvl = lvl*16;
+
 	pcnt = (double)lvl / CYAN_4R4T_3G_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
@@ -1152,9 +1165,9 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
 
-                my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_io_impl->async_msg_fifo), _1, _2));
+                my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_4r4t_3g_io_impl->async_msg_fifo), _1, _2));
 
-                my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_io_impl->async_msg_fifo), _1));
+                my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_4r4t_3g_io_impl->async_msg_fifo), _1));
 
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;
