@@ -80,6 +80,8 @@
 
 // Cyan 4r4t Buffer Size
 #define CYAN_4R4T_3G_BUFF_SIZE	(2048*140*512/32)
+//how full the system shoudl try to keep the buffer
+#define CYAN_4R4T_3G_BUFF_PERCENT 0.7
 
 // Cyan 4r4t RF Settings
 #define CYAN_4R4T_3G_RF_TX_GAIN_RANGE_START	0.0
@@ -99,12 +101,8 @@
 #define CYAN_4R4T_3G_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Cyan 4r4t Tuning Range Settings
 #define CYAN_4R4T_3G_FREQ_RANGE_START	0
-#define CYAN_4R4T_3G_FREQ_RANGE_STOP	18000000000.0
+#define CYAN_4R4T_3G_FREQ_RANGE_STOP	20000000000.0
 #define CYAN_4R4T_3G_FREQ_RANGE_STEP	1.0
-// Cyan 4r4t LO Tuning Range Step Size
-#define CYAN_4R4T_3G_LO_STEPSIZE         25000000
-#define CYAN_4R4T_3G_LO_GUARDBAND	5000000
-#define CYAN_4R4T_3G_LO_OFFSET           25000000
 
 // Cyan 4r4t Sample Rate Settings
 #define CYAN_4R4T_3G_RATE_RANGE_START	(CYAN_4R4T_3G_MASTER_CLOCK_RATE/65536)
@@ -140,6 +138,17 @@
 #define CYAN_4R4T_3G_DSP_FREQ_RANGE_START_QUARTER	(-CYAN_4R4T_3G_RATE_RANGE_STOP_QUARTER/2.0)
 #define CYAN_4R4T_3G_DSP_FREQ_RANGE_STOP_QUARTER	(CYAN_4R4T_3G_RATE_RANGE_STOP_QUARTER/2.0)
 #define CYAN_4R4T_3G_DSP_FREQ_RANGE_STEP	1.0
+
+//Cyan 4r4t 3g LO Tuning Range Step Size
+#define CYAN_4R4T_3G_LO_STEPSIZE         100000000
+//sample rate will between 0 and CYAN_4R4T_3G_LO_DIFF_RANGE_START[0] will result in the lo being a close to CYAN_4R4T_3G_LO_DIFF[0] away from target frequency, while not excedding CYAN_4R4T_3G_LO_DIFF[0]
+//ranges go from previous number (inclusive to the maximum of the range -1)
+#define CYAN_4R4T_3G_LO_DIFF             {0}
+#define CYAN_4R4T_3G_LO_DIFF_RANGE       {3000000001}
+#define CYAN_4R4T_3G_MIN_LO CYAN_4R4T_3G_LO_STEPSIZE
+#define CYAN_4R4T_3G_MAX_LO CYAN_4R4T_3G_FREQ_RANGE_STOP
+#define CYAN_4R4T_3G_LO_GUARDBAND	5000000 //probably no longer needed
+#define CYAN_4R4T_3G_LO_OFFSET           25000000 //probably no longer neded
 
 //Cyan 4r4t VITA settings
 #define CYAN_4R4T_3G_VITA_HDR_TYPE	0x1

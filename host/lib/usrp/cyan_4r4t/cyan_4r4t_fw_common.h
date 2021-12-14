@@ -138,7 +138,7 @@
 #define CYAN_4R4T_DSP_FREQ_RANGE_STOP_QUARTER	(CYAN_4R4T_RATE_RANGE_STOP_QUARTER/2.0)
 #define CYAN_4R4T_DSP_FREQ_RANGE_STEP	1.0
 
-//Cyan 8r LO Tuning Range Step Size
+//Cyan 4r4t LO Tuning Range Step Size
 #define CYAN_4R4T_LO_STEPSIZE         100000000
 //sample rate will between 0 and CYAN_4R4T_LO_DIFF_RANGE_START[0] will result in the lo being a close to CYAN_4R4T_LO_DIFF[0] away from target frequency, while not excedding CYAN_4R4T_LO_DIFF[0]
 //ranges go from previous number (inclusive to the maximum of the range -1)
