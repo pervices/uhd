@@ -166,7 +166,7 @@
 				( CYAN_4R4T_3G_VITA_TLR_PCKCNT << 0) )
 
 // Constants to determine which frequency band to use
-#define CYAN_4R4T_3G_LOW_MID_BARRIER 1250000000
+#define CYAN_4R4T_3G_LOW_MID_BARRIER 800000000
 #define CYAN_4R4T_3G_MID_HIGH_BARRIER 6000000000
 
 //the device name to get used in print messages
