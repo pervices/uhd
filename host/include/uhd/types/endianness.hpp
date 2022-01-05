@@ -9,10 +9,12 @@
 #define INCLUDED_UHD_TYPES_ENDIANNESS_HPP
 
 #include <uhd/config.hpp>
+#include <boost/version.hpp>
 
 /******************************************************************************
  * Detect host endianness
  *****************************************************************************/
+
 #if BOOST_VERSION >= 105500
 
 #    include <boost/predef/other/endian.h>
