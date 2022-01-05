@@ -191,7 +191,7 @@ private:
 
     void set(const std::vector<Set> sets) const
     {
-        for(const auto set : sets)
+        for(const auto &set : sets)
         {
             usrp->set_tree_value(set.path, set.value);
             set.print();
@@ -201,7 +201,7 @@ private:
 
     void check(const std::vector<Set> sets) const
     {
-        for(const auto set : sets)
+        for(const auto &set : sets)
         {
             std::string value;
             // skip checking rstreq, since it is self-clearing
