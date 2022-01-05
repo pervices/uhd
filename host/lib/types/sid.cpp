@@ -19,6 +19,12 @@ sid_t::sid_t()
 {
 }
 
+sid_t::sid_t(const sid_t &sid)
+{
+    _sid = sid._sid;
+    _set = sid._set;
+}
+
 sid_t::sid_t(uint32_t sid)
     : _sid(sid), _set(true)
 {

@@ -76,6 +76,8 @@ namespace uhd {
     public:
         //! Create an unset SID
         sid_t();
+        //copy constructor
+        sid_t(const sid_t &sid);
         //! Create a sid_t object from a 32-Bit SID value
         sid_t(uint32_t sid);
         //! Create a sid_t object from its four components
