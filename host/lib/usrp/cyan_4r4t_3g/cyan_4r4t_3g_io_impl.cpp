@@ -79,6 +79,9 @@
   #endif
 #endif
 
+//#define FLOW_CONTROL_DEBUG
+//#define BUFFER_DEBUG
+
 extern bool global::udp_retry;
 
 using namespace uhd;
@@ -313,7 +316,7 @@ public:
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
             stop_streaming();
-        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
+        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
 
         return r;
     }
@@ -378,7 +381,8 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.7, CYAN_4R4T_3G_BUFF_SIZE );
+            // the nominal sample rate (first argument of make) is set later)
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_4R4T_3G_BUFF_PERCENT, CYAN_4R4T_3G_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -579,9 +583,16 @@ private:
 				now = self->get_time_now();
 
 				size_t level = level_pcnt * max_level;
+#ifdef BUFFER_DEBUG
+                std::cout << __func__ << ": max_level: " << max_level << std::endl;
+                std::cout << __func__ << ": level_pcnt: " << level_pcnt << std::endl;
+#endif
 
 				if ( ! fc->start_of_burst_pending( then ) ) {
 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
+#ifdef BUFFER_DEBUG
+                    std::cout << __func__ << ": level: " << level << std::endl;
+#endif
 					fc->set_buffer_level( level, now );
 #ifdef DEBUG_FC
 				    std::printf("%10lu\t", level);
@@ -591,7 +602,7 @@ private:
 				std::printf("%10ld\t", uflow);
 #endif
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_cyan_4r4t_3g_io_impl.cpp
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 					// async_metadata_t metadata;
 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
@@ -607,7 +618,7 @@ private:
 				std::printf("%10ld", oflow);
 #endif
 				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/cyan_4r4t_3g_cyan_4r4t_3g_io_impl.cpp
+					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 					// async_metadata_t metadata;
 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
 					metadata.channel = i;
@@ -677,7 +688,7 @@ struct cyan_4r4t_3g_impl::cyan_4r4t_3g_io_impl{
     //methods and variables for the viking scourge
     bounded_buffer<async_metadata_t> async_msg_fifo;
 
-    // TODO: @CF: 20180301: move time diff code into io_impl
+    // TODO: @CF: 20180301: move time diff code into cyan_4r4t_3g_io_impl
 };
 
 /***********************************************************************
