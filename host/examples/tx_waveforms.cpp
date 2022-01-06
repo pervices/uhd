@@ -25,6 +25,9 @@
 //#define DEBUG_TX_WAVE 1
 //#define DEBUG_TX_WAVE_STEP 1
 
+//wait for user to press cntrl c before closing
+#define DELAYED_EXIT
+
 namespace po = boost::program_options;
 
 /***********************************************************************
@@ -340,6 +343,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "Sent EOB packet" << std::endl;
 #endif
     }
+#ifdef DELAYED_EXIT
+//waits until told to stop before continuing (allows closing tasks to be delayed)
+    while(!stop_signal_called) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
+#endif
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
