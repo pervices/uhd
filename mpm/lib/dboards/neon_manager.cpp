@@ -9,7 +9,6 @@
 #include <mpm/spi/spi_iface.hpp>
 #include <mpm/spi/spi_regs_iface.hpp>
 #include <mpm/types/regs_iface.hpp>
-#include <boost/make_shared.hpp>
 #include <memory>
 
 using namespace mpm::dboards;
@@ -27,9 +26,9 @@ constexpr uint32_t AD9361_SPI_DATA_MASK  = 0x000000FF;
 constexpr uint32_t AD9361_SPI_DATA_SHIFT = 0;
 constexpr uint32_t AD9361_SPI_NUM_BITS   = 24;
 constexpr uint32_t AD9361_SPI_SPEED_HZ   = 2000000;
-constexpr int      AD9361_SPI_MODE       = 1;
+constexpr int AD9361_SPI_MODE            = 1;
 
-} // namespace /*anon*/
+} // namespace
 
 /*! MPM-style E320 SPI Iface for AD9361 CTRL
  *
@@ -37,10 +36,14 @@ constexpr int      AD9361_SPI_MODE       = 1;
 class e320_ad9361_io_spi : public ad9361_io
 {
 public:
-    e320_ad9361_io_spi(regs_iface::sptr regs_iface, uint32_t slave_num) :
-        _regs_iface(regs_iface), _slave_num(slave_num) { }
+    e320_ad9361_io_spi(regs_iface::sptr regs_iface, uint32_t slave_num)
+        : _regs_iface(regs_iface), _slave_num(slave_num)
+    {
+    }
 
-    ~e320_ad9361_io_spi() {/*nop*/}
+    ~e320_ad9361_io_spi()
+    { /*nop*/
+    }
 
     uint8_t peek8(uint32_t reg)
     {
@@ -57,23 +60,19 @@ private:
     uint32_t _slave_num;
 };
 
-neon_manager::neon_manager(const std::string &catalina_spidev)
+neon_manager::neon_manager(const std::string& catalina_spidev)
 {
     // Make the MPM-style low level SPI Regs iface
-    auto spi_iface =  mpm::spi::make_spi_regs_iface(
-        mpm::spi::spi_iface::make_spidev(catalina_spidev, AD9361_SPI_SPEED_HZ, AD9361_SPI_MODE),
+    auto spi_iface = mpm::spi::make_spi_regs_iface(
+        mpm::spi::spi_iface::make_spidev(
+            catalina_spidev, AD9361_SPI_SPEED_HZ, AD9361_SPI_MODE),
         AD9361_SPI_ADDR_SHIFT,
         AD9361_SPI_DATA_SHIFT,
         AD9361_SPI_READ_CMD,
         AD9361_SPI_WRITE_CMD);
     // Make the SPI interface
     auto spi_io_iface = std::make_shared<e320_ad9361_io_spi>(spi_iface, 0);
-    // Translate from a std shared_ptr to Boost (for legacy compatability)
-    auto spi_io_iface_boost = boost::shared_ptr<e320_ad9361_io_spi>(
-        spi_io_iface.get(),
-        [spi_io_iface](...) mutable { spi_io_iface.reset(); });
     // Make the actual Catalina Ctrl object
-    _catalina_ctrl = ad9361_ctrl::make_spi(
-        boost::make_shared<e320_ad9361_client_t>(),
-        spi_io_iface_boost);
+    _catalina_ctrl =
+        ad9361_ctrl::make_spi(std::make_shared<e320_ad9361_client_t>(), spi_io_iface);
 }

@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHDLIB_UTILS_NONCOPYABLE_HPP
-#define INCLUDED_UHDLIB_UTILS_NONCOPYABLE_HPP
+#pragma once
 
 #ifdef UHD_AVOID_BOOST
 
@@ -41,15 +40,11 @@ public:
 
 #else
 
-#    if BOOST_VERSION >= 105600
-#        include <boost/core/noncopyable.hpp>
-#    else
-#        include <boost/noncopyable.hpp>
-#    endif
+
+#    include <boost/core/noncopyable.hpp>
+
 namespace uhd {
 typedef boost::noncopyable noncopyable;
 }
 
 #endif
-
-#endif /* INCLUDED_UHDLIB_UTILS_NONCOPYABLE_HPP */

@@ -4,19 +4,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_USRP_DBOARD_BASE_HPP
-#define INCLUDED_UHD_USRP_DBOARD_BASE_HPP
+#pragma once
 
 #include <uhd/config.hpp>
 #include <uhd/property_tree.hpp>
-#include <uhd/utils/pimpl.hpp>
-#include <uhd/utils/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
-#include <uhd/usrp/dboard_id.hpp>
-#include <uhd/usrp/dboard_iface.hpp>
 #include <uhd/usrp/dboard_eeprom.hpp>
 
-namespace uhd{ namespace usrp{
+
+#include <uhd/usrp/dboard_id.hpp>
+#include <uhd/usrp/dboard_iface.hpp>
+#include <uhd/utils/noncopyable.hpp>
+#include <uhd/utils/pimpl.hpp>
+#include <memory>
+
+namespace uhd { namespace usrp {
 
 /*!
  * A daughter board dboard_base class for all dboards.
@@ -25,19 +26,19 @@ namespace uhd{ namespace usrp{
 class UHD_API dboard_base : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<dboard_base> sptr;
+    typedef std::shared_ptr<dboard_base> sptr;
     /*!
      * An opaque type for the dboard constructor args.
      * Derived classes should pass the args into the base class,
      * but should not deal with the internals of the args.
      */
-    typedef void * ctor_args_t;
+    typedef void* ctor_args_t;
 
-    //structors
+    // structors
     dboard_base(ctor_args_t);
     virtual ~dboard_base() {}
 
-    //post-construction initializer
+    // post-construction initializer
     virtual void initialize() {}
 
 protected:
@@ -58,41 +59,42 @@ private:
  * A xcvr daughter board implements rx and tx methods
  * Sub classes for xcvr boards should inherit this.
  */
-class UHD_API xcvr_dboard_base : public dboard_base{
+class UHD_API xcvr_dboard_base : public dboard_base
+{
 public:
     /*!
      * Create a new xcvr dboard object, override in subclasses.
      */
     xcvr_dboard_base(ctor_args_t);
-    virtual ~xcvr_dboard_base() {}
+    ~xcvr_dboard_base() override {}
 };
 
 /*!
  * A rx daughter board only implements rx methods.
  * Sub classes for rx-only boards should inherit this.
  */
-class UHD_API rx_dboard_base : public dboard_base{
+class UHD_API rx_dboard_base : public dboard_base
+{
 public:
     /*!
      * Create a new rx dboard object, override in subclasses.
      */
     rx_dboard_base(ctor_args_t);
-    virtual ~rx_dboard_base() {}
+    ~rx_dboard_base() override {}
 };
 
 /*!
  * A tx daughter board only implements tx methods.
  * Sub classes for rx-only boards should inherit this.
  */
-class UHD_API tx_dboard_base : public dboard_base{
+class UHD_API tx_dboard_base : public dboard_base
+{
 public:
     /*!
      * Create a new rx dboard object, override in subclasses.
      */
     tx_dboard_base(ctor_args_t);
-    virtual ~tx_dboard_base() {}
+    ~tx_dboard_base() override {}
 };
 
-}} //namespace
-
-#endif /* INCLUDED_UHD_USRP_DBOARD_BASE_HPP */
+}} // namespace uhd::usrp

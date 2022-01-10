@@ -10,12 +10,13 @@
 
 #include "usrp2_iface.hpp"
 #include <uhd/utils/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <vector>
 
-class usrp2_clock_ctrl : uhd::noncopyable{
+class usrp2_clock_ctrl : uhd::noncopyable
+{
 public:
-    typedef boost::shared_ptr<usrp2_clock_ctrl> sptr;
+    typedef std::shared_ptr<usrp2_clock_ctrl> sptr;
 
     virtual ~usrp2_clock_ctrl(void) = 0;
 
@@ -76,7 +77,7 @@ public:
      * \param enb true to enable
      */
     virtual void enable_external_ref(bool enb) = 0;
-    
+
     /*!
      * Enable/disable test clock output.
      * \param enb true to enable
@@ -88,7 +89,7 @@ public:
      * \param enb true to enable
      */
     virtual void enable_mimo_clock_out(bool enb) = 0;
-    
+
     /*!
      * Set the output delay of the mimo clock
      * Used to synchronise daisy-chained USRPs over the MIMO cable

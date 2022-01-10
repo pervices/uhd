@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2017 Ettus Research, A National Instruments Company
 #
@@ -44,7 +44,7 @@ power_down              4[6]        0       disabled, enabled
 pd_polarity             4[7]        1       negative, positive
 mux_logic               4[8]        1       1_8V, 3_3V
 ref_mode                4[9]        0       single, diff
-charge_pump_current     4[10:13]    0       0_30ma, 0_60ma, 0_90ma, 1_20ma, 1_50ma, 1_80ma, 2_10ma, 2_40ma, 2_70ma, 3_00ma, 3_30ma, 3_60ma, 3_90ma, 4_20ma, 4_50ma, 4_80ma
+charge_pump_current     4[10:13]    2       0_30ma, 0_60ma, 0_90ma, 1_20ma, 1_50ma, 1_80ma, 2_10ma, 2_40ma, 2_70ma, 3_00ma, 3_30ma, 3_60ma, 3_90ma, 4_20ma, 4_50ma, 4_80ma
 double_buff_div         4[14]       0       disabled, enabled
 r_counter_10_bit        4[15:24]    0
 reference_divide_by_2   4[25]       0       disabled, enabled
@@ -68,14 +68,14 @@ cp_bleed_current        6[13:20]    0
 rf_divider_select       6[21:23]    0       div1, div2, div4, div8, div16, div32, div64
 feedback_select         6[24]       0       divided, fundamental
 reg6_reserved2          6[25:28]    0xA
-negative_bleed          6[29]       0       disabled, enabled
+negative_bleed          6[29]       1       disabled, enabled
 gated_bleed             6[30]       0       disabled, enabled
 bleed_polarity          6[31]       0       negative, positive
 ########################################################################
 ## address 7
 ########################################################################
 ld_mode                 7[4]        0       frac_n, int_n
-frac_n_ld_precision     7[5:6]      0       5ns, 6ns, 8ns, 12ns
+frac_n_ld_precision     7[5:6]      0x3     5ns, 6ns, 8ns, 12ns
 loss_of_lock_mode       7[7]        0       disabled, enabled
 ld_cyc_count            7[8:9]      0       1024, 2048, 4096, 8192
 reg7_reserved0          7[10:24]    0x0
@@ -86,7 +86,7 @@ reg7_reserved2          7[28:31]    0x0
 ########################################################################
 ## address 8
 ########################################################################
-reg8_reserved0          8[4:31]     0x5559656
+reg8_reserved0          8[4:31]     0x102D042
 ########################################################################
 ## address 9
 ########################################################################

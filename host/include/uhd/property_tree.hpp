@@ -1,41 +1,41 @@
 //
 // Copyright 2011,2014-2016 Ettus Research
 // Copyright 2018 Ettus Research, a National Instruments Company
+// Copyright 2019 Ettus Research, a National Instruments Brand
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_PROPERTY_TREE_HPP
-#define INCLUDED_UHD_PROPERTY_TREE_HPP
+#pragma once
 
 #include <uhd/config.hpp>
 #include <uhd/utils/noncopyable.hpp>
-#include <boost/utility.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/function.hpp>
+#include <functional>
+#include <memory>
+#include <string>
 #include <vector>
 
-namespace uhd{
+namespace uhd {
 
 /*!
  * A templated property interface for holding the state
  * associated with a property in a uhd::property_tree
  * and registering callbacks when that value changes.
  *
- * A property is defined to have two separate vales:
+ * A property is defined to have two separate values:
  * - Desired value: Value requested by the user
  * - Coerced value: Value that was actually possible
  *                  given HW and other requirements
  *
  * By default, the desired and coerced values are
  * identical as long as the property is not coerced.
- * A property can be coerced in two way:
+ * A property can be coerced in two ways:
  * 1. Using a coercer: A callback function that takes
  *    in a desired value and produces a coerced value.
  *    A property must have *exactly one* coercer.
  * 2. Manual coercion: Manually calling the set_coerced
- *    API fnction to coerce the value of the propery. In
- *    order to use manual coercion, the propery must be
+ *    API function to coerce the value of the property. In
+ *    order to use manual coercion, the property must be
  *    created with the MANUAL_COERCE mode.
  * If the coerce mode for a property is AUTO_COERCE then
  * it always has a coercer. If the set_coercer API is
@@ -53,7 +53,7 @@ namespace uhd{
  * callback to get the value of the property. Calling
  * get on the property will always call the publisher and
  * the cached desired and coerced values are updated only
- * using set* calls. A preprty must have *at most one*
+ * using set* calls. A property must have *at most one*
  * publisher. It is legal to have both a coercer
  * and publisher for a property but the only way to access
  * the desired and coerced values in that case would be by
@@ -64,14 +64,15 @@ namespace uhd{
  * - T must have a copy constructor
  * - T must have an assignment operator
  */
-template <typename T> class property : uhd::noncopyable
+template <typename T>
+class property : uhd::noncopyable
 {
 public:
-    typedef boost::function<void(const T &)> subscriber_type;
-    typedef boost::function<T(void)> publisher_type;
-    typedef boost::function<T(const T &)> coercer_type;
+    typedef std::function<void(const T&)> subscriber_type;
+    typedef std::function<T(void)> publisher_type;
+    typedef std::function<T(const T&)> coercer_type;
 
-    virtual ~property<T>(void) = 0;
+    virtual ~property(void) = 0;
 
     /*!
      * Register a coercer into the property.
@@ -83,7 +84,7 @@ public:
      * \return a reference to this property for chaining
      * \throws uhd::assertion_error if called more than once
      */
-    virtual property<T> &set_coercer(const coercer_type &coercer) = 0;
+    virtual property<T>& set_coercer(const coercer_type& coercer) = 0;
 
     /*!
      * Register a publisher into the property.
@@ -95,7 +96,7 @@ public:
      * \return a reference to this property for chaining
      * \throws uhd::assertion_error if called more than once
      */
-    virtual property<T> &set_publisher(const publisher_type &publisher) = 0;
+    virtual property<T>& set_publisher(const publisher_type& publisher) = 0;
 
     /*!
      * Register a subscriber into the property.
@@ -106,7 +107,7 @@ public:
      * \param subscriber the subscriber callback function
      * \return a reference to this property for chaining
      */
-    virtual property<T> &add_desired_subscriber(const subscriber_type &subscriber) = 0;
+    virtual property<T>& add_desired_subscriber(const subscriber_type& subscriber) = 0;
 
     /*!
      * Register a subscriber into the property.
@@ -117,15 +118,15 @@ public:
      * \param subscriber the subscriber callback function
      * \return a reference to this property for chaining
      */
-    virtual property<T> &add_coerced_subscriber(const subscriber_type &subscriber) = 0;
+    virtual property<T>& add_coerced_subscriber(const subscriber_type& subscriber) = 0;
 
     /*!
-     * Update calls all subscribers w/ the current value.
+     * Calls all subscribers with the current value.
      *
      * \return a reference to this property for chaining
      * \throws uhd::assertion_error
      */
-    virtual property<T> &update(void) = 0;
+    virtual property<T>& update(void) = 0;
 
     /*!
      * Set the new value and call all the necessary subscribers.
@@ -139,7 +140,7 @@ public:
      * \return a reference to this property for chaining
      * \throws uhd::assertion_error
      */
-    virtual property<T> &set(const T &value) = 0;
+    virtual property<T>& set(const T& value) = 0;
 
     /*!
      * Set a coerced value and call all subscribers.
@@ -152,7 +153,7 @@ public:
      * \return a reference to this property for chaining
      * \throws uhd::assertion_error
      */
-    virtual property<T> &set_coerced(const T &value) = 0;
+    virtual property<T>& set_coerced(const T& value) = 0;
 
     /*!
      * Get the current value of this property.
@@ -182,7 +183,8 @@ public:
 };
 
 template <typename T>
-property<T>::~property(void){
+property<T>::~property(void)
+{
     /* NOP */
 }
 
@@ -193,16 +195,17 @@ property<T>::~property(void){
  * Notice: we do not declare UHD_API on the whole structure
  * because MSVC will do weird things with std::string and linking.
  */
-struct fs_path : std::string{
+struct fs_path : std::string
+{
     UHD_API fs_path(void);
-    UHD_API fs_path(const char *);
-    UHD_API fs_path(const std::string &);
+    UHD_API fs_path(const char*);
+    UHD_API fs_path(const std::string&);
     UHD_API std::string leaf(void) const;
     UHD_API fs_path branch_path(void) const;
 };
 
-UHD_API fs_path operator/(const fs_path &, const fs_path &);
-UHD_API fs_path operator/(const fs_path &, size_t);
+UHD_API fs_path operator/(const fs_path&, const fs_path&);
+UHD_API fs_path operator/(const fs_path&, size_t);
 
 /*!
  * The property tree provides a file system structure for accessing properties.
@@ -210,7 +213,7 @@ UHD_API fs_path operator/(const fs_path &, size_t);
 class UHD_API property_tree : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<property_tree> sptr;
+    typedef std::shared_ptr<property_tree> sptr;
 
     enum coerce_mode_t { AUTO_COERCE, MANUAL_COERCE };
 
@@ -220,36 +223,41 @@ public:
     static sptr make(void);
 
     //! Get a subtree with a new root starting at path
-    virtual sptr subtree(const fs_path &path) const = 0;
+    virtual sptr subtree(const fs_path& path) const = 0;
 
     //! Remove a property or directory (recursive)
-    virtual void remove(const fs_path &path) = 0;
+    virtual void remove(const fs_path& path) = 0;
 
     //! True if the path exists in the tree
-    virtual bool exists(const fs_path &path) const = 0;
+    virtual bool exists(const fs_path& path) const = 0;
 
     //! Get an iterable to all things in the given path
-    virtual std::vector<std::string> list(const fs_path &path) const = 0;
+    virtual std::vector<std::string> list(const fs_path& path) const = 0;
 
     //! Create a new property entry in the tree
-    template <typename T> property<T> &create(
-        const fs_path &path,
-        coerce_mode_t coerce_mode = AUTO_COERCE);
+    template <typename T>
+    property<T>& create(const fs_path& path, coerce_mode_t coerce_mode = AUTO_COERCE);
 
     //! Get access to a property in the tree
-    template <typename T> property<T> &access(const fs_path &path);
+    template <typename T>
+    property<T>& access(const fs_path& path);
+
+    //! Pop a property off the tree, and returns the property
+    template <typename T>
+    std::shared_ptr<property<T>> pop(const fs_path& path);
 
 private:
+    //! Internal pop function
+    virtual std::shared_ptr<void> _pop(const fs_path& path) = 0;
+
     //! Internal create property with wild-card type
-    virtual void _create(const fs_path &path, const boost::shared_ptr<void> &prop) = 0;
+    virtual void _create(const fs_path& path,
+        const std::shared_ptr<void>& prop) = 0;
 
     //! Internal access property with wild-card type
-    virtual boost::shared_ptr<void> &_access(const fs_path &path) const = 0;
-
+    virtual std::shared_ptr<void>& _access(const fs_path& path) const = 0;
 };
 
-} //namespace uhd
+} // namespace uhd
 
 #include <uhd/property_tree.ipp>
-
-#endif /* INCLUDED_UHD_PROPERTY_TREE_HPP */

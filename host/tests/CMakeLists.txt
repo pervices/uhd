@@ -2,7 +2,7 @@
 # Copyright 2010-2015 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -15,8 +15,7 @@ include(UHDUnitTest)
 ########################################################################
 set(test_common_SOURCEDIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 add_subdirectory(common)
-link_directories(test_common_SOURCEDIR)
-
+link_directories(${test_common_SOURCEDIR})
 
 ########################################################################
 # unit test suite
@@ -26,7 +25,11 @@ set(test_sources
     buffer_test.cpp
     byteswap_test.cpp
     cast_test.cpp
-    cal_container_test.cpp
+    cal_database_test.cpp
+    cal_data_iq_test.cpp
+    cal_data_gain_pwr_test.cpp
+    chdr_parse_test.cpp
+    cal_data_dsa_test.cpp
     chdr_test.cpp
     constrained_device_args_test.cpp
     convert_test.cpp
@@ -36,40 +39,44 @@ set(test_sources
     fp_compare_delta_test.cpp
     fp_compare_epsilon_test.cpp
     gain_group_test.cpp
+    interpolation_test.cpp
+    isatty_test.cpp
     log_test.cpp
     math_test.cpp
     narrow_cast_test.cpp
     property_test.cpp
     ranges_test.cpp
-    sid_t_test.cpp
+    rfnoc_node_test.cpp
+    scope_exit_test.cpp
     sensors_test.cpp
     soft_reg_test.cpp
     sph_recv_test.cpp
-# cfriedt: 20200819: Disabled because it is failing
-#    sph_send_test.cpp
+    sph_send_test.cpp
     subdev_spec_test.cpp
     time_spec_test.cpp
     tasks_test.cpp
     vrt_test.cpp
     expert_test.cpp
     fe_conn_test.cpp
+    link_test.cpp
+    rx_streamer_test.cpp
+    tx_streamer_test.cpp
+    block_id_test.cpp
+    rfnoc_property_test.cpp
+    multichan_register_iface_test.cpp
+)
+
+# Note: Python-based tests cannot have the same name as a C++-based test (i.e.,
+# only differ in the cpp/py file extension). If in doubt, prepend 'py'
+set(pytest_sources
+    pyranges_test.py
+    verify_fbs_test.py
+    pychdr_parse_test.py
+    uhd_image_downloader_test.py
 )
 
 #turn each test cpp file into an executable with an int main() function
 add_definitions(-DBOOST_TEST_DYN_LINK -DBOOST_TEST_MAIN)
-
-if(ENABLE_RFNOC)
-    list(APPEND test_sources
-        block_id_test.cpp
-        blockdef_test.cpp
-        device3_test.cpp
-        graph_search_test.cpp
-        node_connect_test.cpp
-        rate_node_test.cpp
-        stream_sig_test.cpp
-        tick_node_test.cpp
-    )
-endif(ENABLE_RFNOC)
 
 if(ENABLE_C_API)
     list(APPEND test_sources
@@ -82,16 +89,9 @@ if(ENABLE_C_API)
     )
 endif(ENABLE_C_API)
 
-include_directories("${CMAKE_SOURCE_DIR}/lib/include")
+include_directories("${UHD_SOURCE_DIR}/lib/include")
+include_directories("${UHD_BINARY_DIR}/lib/include")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/common")
-#for each source: build an executable, register it as a test
-foreach(test_source ${test_sources})
-    get_filename_component(test_name ${test_source} NAME_WE)
-    add_executable(${test_name} ${test_source})
-    target_link_libraries(${test_name} uhd uhd_test ${Boost_LIBRARIES})
-    UHD_ADD_TEST(${test_name} ${test_name})
-    UHD_INSTALL(TARGETS ${test_name} RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
-endforeach(test_source)
 
 if(ENABLE_CRIMSON_TNG)
 # Cannot call into crimson_tng_impl.o that is in libuhd.so due to default visibility=hidden
@@ -132,10 +132,8 @@ add_executable(cyan_p1hdr16t_test
 )
 target_link_libraries(cyan_p1hdr16t_test uhd ${Boost_LIBRARIES})
 UHD_ADD_TEST(cyan_p1hdr16t_test cyan_p1hdr16t_test)
-UHD_INSTALL(TARGETS cyan_p1hdr16t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
-endif(ENABLE_CYAN_P1HDR16T)
+UHD_INSTALL(TARGETS cyan_p1hdr16t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)endif(ENABLE_CYAN_P1HDR16T)
 
-dsgau
 if(ENABLE_CYAN_P1HDR32T)
 # Cannot call into cyan_p1hdr16t_impl.o that is in libuhd.so due to default visibility=hidden
 # so it is necessary to link it into the executable before the shared library is linked in

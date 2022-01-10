@@ -2,7 +2,7 @@
 # Copyright 2015 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 # Formatting
@@ -23,12 +23,13 @@ UHD_INSTALL(PROGRAMS
 macro(ADD_DEVTEST pattern filter devtype)
     message(STATUS "Adding ${devtype} device test target")
     add_custom_target("test_${pattern}"
-        ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_testsuite.py
+        ${RUNTIME_PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/run_testsuite.py
         "--src-dir" "${CMAKE_CURRENT_SOURCE_DIR}"
         "--devtest-pattern" "${pattern}"
-        "--device-filter" "${filter}"
+        "--args" "$$EXTRA_DEV_ARGS,type=${filter}"
         "--build-type" "${CMAKE_BUILD_TYPE}"
-        "--build-dir" "${CMAKE_BINARY_DIR}"
+        "--build-dir" "${UHD_BINARY_DIR}"
+        "--python-interp" "${RUNTIME_PYTHON_EXECUTABLE}"
         COMMENT "Running device test on all connected ${devtype} devices:"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     )
@@ -41,13 +42,16 @@ if(ENABLE_X300)
     ADD_DEVTEST("x3x0" "x300" "X3x0")
 endif(ENABLE_X300)
 if(ENABLE_E300)
-    ADD_DEVTEST("e3xx" "e3x0" "E3XX")
+    ADD_DEVTEST("e3xx" "e3xx" "E3XX")
 endif(ENABLE_E300)
 if(ENABLE_N300)
     ADD_DEVTEST("n3x0" "n3xx" "N3XX")
 endif(ENABLE_N300)
 if(ENABLE_E320)
     ADD_DEVTEST("e320" "e3xx" "E32x")
-endif(ENABLE_MPMD)
+endif(ENABLE_E320)
+if(ENABLE_X400)
+    ADD_DEVTEST("x4x0" "x4xx" "X4x0")
+endif(ENABLE_X400)
 # Formatting
 message(STATUS "")

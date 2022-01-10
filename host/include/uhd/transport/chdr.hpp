@@ -5,12 +5,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_TRANSPORT_CHDR_HPP
-#define INCLUDED_UHD_TRANSPORT_CHDR_HPP
+#pragma once
 
 #include <uhd/transport/vrt_if_packet.hpp>
 
-namespace uhd{ namespace transport{ namespace vrt{
+namespace uhd { namespace transport { namespace vrt {
 
 /*! \brief CHDR related function
  *
@@ -34,70 +33,57 @@ namespace uhd{ namespace transport{ namespace vrt{
  *
  * In the unpacker, these values will be set accordingly.
  */
-namespace chdr{
+namespace chdr {
 
-    //! The maximum number of 64-bit words in a CHDR header
-    static const size_t max_if_hdr_words64 = 2; // CHDR + tsf (fractional timestamp)
+//! The maximum number of 64-bit words in a CHDR header
+static const size_t max_if_hdr_words64 = 2; // CHDR + tsf (fractional timestamp)
 
-    /*!
-     * Pack a CHDR header from metadata (big endian format).
-     *
-     * See \ref vrt_pack_contract, but `link_type` is assumed to be
-     * `LINK_TYPE_CHDR`.
-     *
-     * \param packet_buff memory to write the packed vrt header
-     * \param if_packet_info the if packet info (read/write)
-     */
-    UHD_API void if_hdr_pack_be(
-        uint32_t *packet_buff,
-        if_packet_info_t &if_packet_info
-    );
+/*!
+ * Pack a CHDR header from metadata (big endian format).
+ *
+ * See \ref vrt_pack_contract, but `link_type` is assumed to be
+ * `LINK_TYPE_CHDR`.
+ *
+ * \param packet_buff memory to write the packed vrt header
+ * \param if_packet_info the if packet info (read/write)
+ */
+UHD_API void if_hdr_pack_be(uint32_t* packet_buff, if_packet_info_t& if_packet_info);
 
-    /*!
-     * Unpack a CHDR header to metadata (big endian format).
-     *
-     * See \ref vrt_unpack_contract, but `link_type` is assumed to be
-     * `LINK_TYPE_CHDR`.
-     *
-     * \param packet_buff memory to read the packed vrt header
-     * \param if_packet_info the if packet info (read/write)
-     */
-    UHD_API void if_hdr_unpack_be(
-        const uint32_t *packet_buff,
-        if_packet_info_t &if_packet_info
-    );
+/*!
+ * Unpack a CHDR header to metadata (big endian format).
+ *
+ * See \ref vrt_unpack_contract, but `link_type` is assumed to be
+ * `LINK_TYPE_CHDR`.
+ *
+ * \param packet_buff memory to read the packed vrt header
+ * \param if_packet_info the if packet info (read/write)
+ */
+UHD_API void if_hdr_unpack_be(
+    const uint32_t* packet_buff, if_packet_info_t& if_packet_info);
 
-    /*!
-     * Pack a CHDR header from metadata (little endian format).
-     *
-     * See \ref vrt_pack_contract, but `link_type` is assumed to be
-     * `LINK_TYPE_CHDR`.
-     *
-     * \param packet_buff memory to write the packed vrt header
-     * \param if_packet_info the if packet info (read/write)
-     */
-    UHD_API void if_hdr_pack_le(
-        uint32_t *packet_buff,
-        if_packet_info_t &if_packet_info
-    );
+/*!
+ * Pack a CHDR header from metadata (little endian format).
+ *
+ * See \ref vrt_pack_contract, but `link_type` is assumed to be
+ * `LINK_TYPE_CHDR`.
+ *
+ * \param packet_buff memory to write the packed vrt header
+ * \param if_packet_info the if packet info (read/write)
+ */
+UHD_API void if_hdr_pack_le(uint32_t* packet_buff, if_packet_info_t& if_packet_info);
 
-    /*!
-     * Unpack a CHDR header to metadata (little endian format).
-     *
-     * See \ref vrt_unpack_contract, but `link_type` is assumed to be
-     * `LINK_TYPE_CHDR`.
-     *
-     * \param packet_buff memory to read the packed vrt header
-     * \param if_packet_info the if packet info (read/write)
-     */
-    UHD_API void if_hdr_unpack_le(
-        const uint32_t *packet_buff,
-        if_packet_info_t &if_packet_info
-    );
+/*!
+ * Unpack a CHDR header to metadata (little endian format).
+ *
+ * See \ref vrt_unpack_contract, but `link_type` is assumed to be
+ * `LINK_TYPE_CHDR`.
+ *
+ * \param packet_buff memory to read the packed vrt header
+ * \param if_packet_info the if packet info (read/write)
+ */
+UHD_API void if_hdr_unpack_le(
+    const uint32_t* packet_buff, if_packet_info_t& if_packet_info);
 
-} //namespace chdr
+} // namespace chdr
 
-}}} //namespace uhd::transport::vrt
-
-#endif /* INCLUDED_UHD_TRANSPORT_CHDR_HPP */
-
+}}} // namespace uhd::transport::vrt

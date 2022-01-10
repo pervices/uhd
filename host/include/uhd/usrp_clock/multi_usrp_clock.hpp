@@ -5,18 +5,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_MULTI_USRP_CLOCK_HPP
-#define INCLUDED_UHD_MULTI_USRP_CLOCK_HPP
-
-#include <string>
-#include <vector>
+#pragma once
 
 #include <uhd/config.hpp>
 #include <uhd/device.hpp>
 #include <uhd/types/device_addr.hpp>
 #include <uhd/types/sensors.hpp>
+#include <string>
+#include <vector>
 
-namespace uhd{ namespace usrp_clock{
+namespace uhd { namespace usrp_clock {
 
 /*!
  * The Multi-USRP-Clock device class:
@@ -46,7 +44,7 @@ namespace uhd{ namespace usrp_clock{
 class UHD_API multi_usrp_clock : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<multi_usrp_clock> sptr;
+    typedef std::shared_ptr<multi_usrp_clock> sptr;
 
     virtual ~multi_usrp_clock(void) = 0;
 
@@ -55,7 +53,7 @@ public:
      * \param dev_addr the device address
      * \return a new Multi-USRP-Clock object
      */
-    static sptr make(const device_addr_t &dev_addr);
+    static sptr make(const device_addr_t& dev_addr);
 
     /*!
      * Return the underlying device.
@@ -82,7 +80,7 @@ public:
      * \param board the board index (0 to M-1)
      * \return a sensor value object
      */
-    virtual sensor_value_t get_sensor(const std::string &name, size_t board = 0) = 0;
+    virtual sensor_value_t get_sensor(const std::string& name, size_t board = 0) = 0;
 
     /*!
      * Get a list of possible USRP Clock sensor names.
@@ -92,7 +90,4 @@ public:
     virtual std::vector<std::string> get_sensor_names(size_t board = 0) = 0;
 };
 
-} //namespace
-} //namespace
-
-#endif /* INCLUDED_UHD_MULTI_USRP_CLOCK_HPP */
+}} // namespace uhd::usrp_clock

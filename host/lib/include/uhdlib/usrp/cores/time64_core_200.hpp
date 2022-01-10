@@ -5,23 +5,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_LIBUHD_USRP_TIME64_CORE_200_HPP
-#define INCLUDED_LIBUHD_USRP_TIME64_CORE_200_HPP
+#pragma once
 
 #include <uhd/config.hpp>
 #include <uhd/types/time_spec.hpp>
-#include <uhd/utils/noncopyable.hpp>
+
+
 #include <uhd/types/wb_iface.hpp>
+#include <uhd/utils/noncopyable.hpp>
 #include <boost/utility.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <string>
 #include <vector>
 
-class time64_core_200 : uhd::noncopyable{
+class time64_core_200 : uhd::noncopyable
+{
 public:
-    typedef boost::shared_ptr<time64_core_200> sptr;
+    typedef std::shared_ptr<time64_core_200> sptr;
 
-    struct readback_bases_type{
+    struct readback_bases_type
+    {
         size_t rb_hi_now, rb_lo_now;
         size_t rb_hi_pps, rb_lo_pps;
     };
@@ -29,9 +32,9 @@ public:
     virtual ~time64_core_200(void) = 0;
 
     //! makes a new time64 core from iface and slave base
-    static sptr make(
-        uhd::wb_iface::sptr iface, const size_t base,
-        const readback_bases_type &readback_bases,
+    static sptr make(uhd::wb_iface::sptr iface,
+        const size_t base,
+        const readback_bases_type& readback_bases,
         const size_t mimo_delay_cycles = 0 // 0 means no-mimo
     );
 
@@ -43,14 +46,12 @@ public:
 
     virtual uhd::time_spec_t get_time_last_pps(void) = 0;
 
-    virtual void set_time_now(const uhd::time_spec_t &time) = 0;
+    virtual void set_time_now(const uhd::time_spec_t& time) = 0;
 
-    virtual void set_time_next_pps(const uhd::time_spec_t &time) = 0;
+    virtual void set_time_next_pps(const uhd::time_spec_t& time) = 0;
 
-    virtual void set_time_source(const std::string &source) = 0;
+    virtual void set_time_source(const std::string& source) = 0;
 
     virtual std::vector<std::string> get_time_sources(void) = 0;
 
 };
-
-#endif /* INCLUDED_LIBUHD_USRP_TIME64_CORE_200_HPP */

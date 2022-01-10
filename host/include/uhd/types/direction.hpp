@@ -5,20 +5,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_TYPES_DIRECTION_HPP
-#define INCLUDED_UHD_TYPES_DIRECTION_HPP
+#pragma once
 
 namespace uhd {
 
-    enum direction_t {
-        //! Receive
-        RX_DIRECTION,
-        //! Transmit
-        TX_DIRECTION,
-        //! Duplex
-        DX_DIRECTION
-    };
+enum direction_t {
+    //! Receive
+    RX_DIRECTION,
+    //! Transmit
+    TX_DIRECTION,
+    //! Duplex
+    DX_DIRECTION
+};
 
-} //namespace uhd
-
-#endif /* INCLUDED_UHD_TYPES_DIRECTION_HPP */
+} // namespace uhd

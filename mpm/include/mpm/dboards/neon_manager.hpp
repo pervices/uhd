@@ -1,5 +1,6 @@
 //
 // Copyright 2018 Ettus Research, a National Instruments Company
+// Copyright 2019 Ettus Research, a National Instruments Brand
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
@@ -14,27 +15,32 @@
 #include <mutex>
 
 namespace mpm { namespace dboards {
-    class neon_manager// : public dboard_periph_manager
+class neon_manager // : public dboard_periph_manager
+{
+public:
+    neon_manager(const std::string& catalina_spidev);
+
+    /*! Return a reference to the radio chip controls
+     */
+    mpm::chips::ad9361_ctrl::sptr get_radio_ctrl()
     {
-    public:
-        neon_manager(const std::string &catalina_spidev);
+        return _catalina_ctrl;
+    }
 
-        /*! Return a reference to the radio chip controls
-         */
-        mpm::chips::ad9361_ctrl::sptr get_radio_ctrl(){ return _catalina_ctrl; }
-
-    private:
-        mpm::chips::ad9361_ctrl::sptr _catalina_ctrl;
-    };
+private:
+    mpm::chips::ad9361_ctrl::sptr _catalina_ctrl;
+};
 
 }}; /* namespace mpm::dboards */
 
 #ifdef LIBMPM_PYTHON
-void export_neon(){
-    LIBMPM_BOOST_PREAMBLE("dboards")
+void export_neon(py::module& top_module)
+{
     using namespace mpm::dboards;
-    bp::class_<mpm::dboards::neon_manager>("neon_manager", bp::init<std::string>())
-        .def("get_radio_ctrl", &mpm::dboards::neon_manager::get_radio_ctrl)
-    ;
+    auto m = top_module.def_submodule("dboards");
+
+    py::class_<mpm::dboards::neon_manager>(m, "neon_manager")
+        .def(py::init<std::string>())
+        .def("get_radio_ctrl", &mpm::dboards::neon_manager::get_radio_ctrl);
 }
 #endif

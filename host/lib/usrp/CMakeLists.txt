@@ -2,7 +2,7 @@
 # Copyright 2010-2015 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -18,6 +18,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/dboard_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gps_ctrl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/multi_usrp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multi_usrp_rfnoc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/subdev_spec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fe_connection.cpp
 )
@@ -31,13 +32,6 @@ if(ENABLE_C_API)
     )
 endif(ENABLE_C_API)
 
-if(ENABLE_GPSD)
-    LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/gpsd_iface.cpp
-    )
-    LIBUHD_APPEND_LIBS(${LIBGPS_LIBRARY})
-endif(ENABLE_GPSD)
-
 INCLUDE_SUBDIRECTORY(cores)
 INCLUDE_SUBDIRECTORY(dboard)
 INCLUDE_SUBDIRECTORY(crimson_tng)
@@ -50,12 +44,10 @@ INCLUDE_SUBDIRECTORY(cyan_p1hdr16t)
 INCLUDE_SUBDIRECTORY(cyan_p1hdr32t)
 INCLUDE_SUBDIRECTORY(cyan_64t)
 INCLUDE_SUBDIRECTORY(common)
-INCLUDE_SUBDIRECTORY(device3)
 INCLUDE_SUBDIRECTORY(mpmd)
 INCLUDE_SUBDIRECTORY(usrp1)
 INCLUDE_SUBDIRECTORY(usrp2)
 INCLUDE_SUBDIRECTORY(b100)
-INCLUDE_SUBDIRECTORY(e300)
 INCLUDE_SUBDIRECTORY(x300)
 INCLUDE_SUBDIRECTORY(b200)
-INCLUDE_SUBDIRECTORY(n230)
+INCLUDE_SUBDIRECTORY(x400)

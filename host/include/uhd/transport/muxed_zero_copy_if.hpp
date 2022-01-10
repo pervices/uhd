@@ -5,14 +5,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_LIBUHD_TRANSPORT_MUXED_ZERO_COPY_IF_HPP
-#define INCLUDED_LIBUHD_TRANSPORT_MUXED_ZERO_COPY_IF_HPP
+#pragma once
 
-#include <uhd/transport/zero_copy.hpp>
+
+
 #include <uhd/config.hpp>
-#include <boost/function.hpp>
+#include <uhd/transport/zero_copy.hpp>
 #include <uhd/utils/noncopyable.hpp>
 #include <stdint.h>
+#include <functional>
 
 namespace uhd { namespace transport {
 
@@ -28,7 +29,7 @@ namespace uhd { namespace transport {
 class muxed_zero_copy_if : private uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<muxed_zero_copy_if> sptr;
+    typedef std::shared_ptr<muxed_zero_copy_if> sptr;
 
     /*!
      * Function to classify the stream based on the payload.
@@ -40,7 +41,7 @@ public:
      * \param size number of bytes in the frame payload
      * \return stream number
      */
-    typedef boost::function<uint32_t(void* buff, size_t size)> stream_classifier_fn;
+    typedef std::function<uint32_t(void* buff, size_t size)> stream_classifier_fn;
 
     //! virtual dtor
     virtual ~muxed_zero_copy_if() {}
@@ -55,9 +56,9 @@ public:
     virtual size_t get_num_dropped_frames() const = 0;
 
     //! Make a new demuxer from a transport and parameters
-    static sptr make(zero_copy_if::sptr base_xport, stream_classifier_fn classify_fn, size_t max_streams);
+    static sptr make(zero_copy_if::sptr base_xport,
+        stream_classifier_fn classify_fn,
+        size_t max_streams);
 };
 
-}} //namespace uhd::transport
-
-#endif /* INCLUDED_LIBUHD_TRANSPORT_MUXED_ZERO_COPY_IF_HPP */
+}} // namespace uhd::transport

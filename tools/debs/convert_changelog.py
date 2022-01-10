@@ -28,7 +28,7 @@ import sys
 
 # Pass in first line of Debian changelog file, should contain last version
 def detect_last_version(line):
-    return convert_version_string(re.search("[0-9]+\.[0-9]+\.[0-9]", line).group(), False)
+    return convert_version_string(re.search("[0-9]+\.[0-9]+\.[0-9\.]+", line).group(), False)
 
 # "## 003.008.005" to "3.8.5" or vice versa
 def convert_version_string(version, to_debian=True):
@@ -40,12 +40,8 @@ def convert_version_string(version, to_debian=True):
     else:
         return "## {0}".format(".".join("{0:03d}".format(int(num)) for num in version.split(".")))
 
-#
-# The "trusty" string below doesn't need to be changed, even when Trusty loses support. The script
-# to upload packages replaces it anyway.
-#
 def get_header(version):
-    return "uhd ({0}-0ubuntu1) trusty; urgency=low\n\n".format(convert_version_string(version))
+    return "uhd ({0}-0ubuntu1) ubuntu_release; urgency=low\n\n".format(convert_version_string(version))
 
 def get_footer(uploader_name, uploader_email):
     return " -- {0} <{1}>  {2}\n\n".format(uploader_name, uploader_email, datetime.datetime.now().strftime("%a, %d %b %Y %I:%M:%S %Z-0800"))
@@ -77,7 +73,9 @@ if __name__ == "__main__":
     lines_in = f.readlines()
     f.close()
 
-    lines_out = []
+    f = open(options.output_file, "r")
+    lines_out = f.readlines()
+    f.close()
 
     g = open(options.output_file, "w")
 
@@ -109,9 +107,10 @@ if __name__ == "__main__":
             new_lines_out += ["  " + line]
     # Final footer
     new_lines_out += ["\n"]
-    new_lines_out += [get_footer(options.uploader_name, options.uploader_email)]
 
     new_lines_out += lines_out
+
+    g = open(options.output_file, "w")
     for line in new_lines_out:
         g.write(line)
     g.close()

@@ -5,8 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_USRP_H
-#define INCLUDED_UHD_USRP_H
+#pragma once
 
 #include <uhd/config.h>
 #include <uhd/error.h>
@@ -1019,6 +1018,80 @@ UHD_API uhd_error uhd_usrp_get_fe_tx_freq_range(
     uhd_meta_range_handle freq_range_out
 );
 
+//! Get a list of possible LO stage names
+/*
+ * See uhd::usrp::multi_usrp::get_tx_lo_names() for more details.
+ */
+UHD_API uhd_error uhd_usrp_get_tx_lo_names(
+    uhd_usrp_handle h,
+    size_t chan,
+    uhd_string_vector_handle *tx_lo_names_out
+);
+
+//! Set the LO source for the USRP device
+/*
+ * See uhd::usrp::multi_usrp::set_tx_lo_source() for more details.
+ */
+UHD_API uhd_error uhd_usrp_set_tx_lo_source(
+    uhd_usrp_handle h,
+    const char* src,
+    const char* name,
+    size_t chan
+);
+
+//! Get the currently set LO source
+UHD_API uhd_error uhd_usrp_get_tx_lo_source(
+    uhd_usrp_handle h,
+    const char* name,
+    size_t chan,
+    char* tx_lo_source_out,
+    size_t strbuffer_len
+);
+
+//! Get a list of possible LO sources
+UHD_API uhd_error uhd_usrp_get_tx_lo_sources(
+    uhd_usrp_handle h,
+    const char* name,
+    size_t chan,
+    uhd_string_vector_handle *tx_lo_sources_out
+);
+
+//! Set whether the LO used by the USRP device is exported
+/*
+ * See uhd::usrp::multi_usrp::set_tx_lo_enabled() for more details.
+ */
+UHD_API uhd_error uhd_usrp_set_tx_lo_export_enabled(
+    uhd_usrp_handle h,
+    bool enabled,
+    const char* name,
+    size_t chan
+);
+
+//! Returns true if the currently selected LO is being exported.
+UHD_API uhd_error uhd_usrp_get_tx_lo_export_enabled(
+    uhd_usrp_handle h,
+    const char* name,
+    size_t chan,
+    bool* result_out
+);
+
+//! Set the Tx LO frequency.
+UHD_API uhd_error uhd_usrp_set_tx_lo_freq(
+    uhd_usrp_handle h,
+    double freq,
+    const char* name,
+    size_t chan,
+    double* coerced_freq_out
+);
+
+//! Get the current Tx LO frequency.
+UHD_API uhd_error uhd_usrp_get_tx_lo_freq(
+    uhd_usrp_handle h,
+    const char* name,
+    size_t chan,
+    double* tx_lo_freq_out
+);
+
 //! Set the TX gain for the given channel and name
 UHD_API uhd_error uhd_usrp_set_tx_gain(
     uhd_usrp_handle h,
@@ -1164,41 +1237,6 @@ UHD_API uhd_error uhd_usrp_get_gpio_attr(
     uint32_t *attr_out
 );
 
-//! Enumerate the full paths of USRP registers available for read/write
-UHD_API uhd_error uhd_usrp_enumerate_registers(
-    uhd_usrp_handle h,
-    size_t mboard,
-    uhd_string_vector_handle *registers_out
-);
-
-//! Get more information about a low-level device register
-UHD_API uhd_error uhd_usrp_get_register_info(
-    uhd_usrp_handle h,
-    const char* path,
-    size_t mboard,
-    uhd_usrp_register_info_t *register_info_out
-);
-
-//! Write a low-level register field for a device register in the USRP hardware
-UHD_API uhd_error uhd_usrp_write_register(
-    uhd_usrp_handle h,
-    const char* path,
-    uint32_t field,
-    uint64_t value,
-    size_t mboard
-);
-
-//! Read a low-level register field from a device register in the USRP hardware
-UHD_API uhd_error uhd_usrp_read_register(
-    uhd_usrp_handle h,
-    const char* path,
-    uint32_t field,
-    size_t mboard,
-    uint64_t *value_out
-);
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* INCLUDED_UHD_USRP_H */

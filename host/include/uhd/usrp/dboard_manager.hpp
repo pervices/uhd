@@ -4,20 +4,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_USRP_DBOARD_MANAGER_HPP
-#define INCLUDED_UHD_USRP_DBOARD_MANAGER_HPP
+#pragma once
 
 #include <uhd/config.hpp>
 #include <uhd/property_tree.hpp>
 #include <uhd/usrp/dboard_base.hpp>
-#include <uhd/usrp/dboard_id.hpp>
+
 #include <uhd/usrp/dboard_eeprom.hpp>
+#include <uhd/usrp/dboard_id.hpp>
 #include <uhd/utils/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <string>
 #include <vector>
 
-namespace uhd{ namespace usrp{
+namespace uhd { namespace usrp {
 
 /*!
  * A daughter board subdev dboard_manager class.
@@ -27,46 +27,44 @@ namespace uhd{ namespace usrp{
 class UHD_API dboard_manager : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<dboard_manager> sptr;
+    typedef std::shared_ptr<dboard_manager> sptr;
 
-    //dboard constructor (each dboard should have a ::make with this signature)
-    typedef dboard_base::sptr(*dboard_ctor_t)(dboard_base::ctor_args_t);
+    // dboard constructor (each dboard should have a ::make with this signature)
+    typedef dboard_base::sptr (*dboard_ctor_t)(dboard_base::ctor_args_t);
 
     /*!
      * Register a rx or tx dboard into the system.
      * For single subdevice boards, omit subdev_names.
      * \param dboard_id the dboard id (rx or tx)
-     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one instance per subdev name)
-     * \param name the canonical name for the dboard represented
+     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one
+     * instance per subdev name) \param name the canonical name for the dboard represented
      * \param subdev_names the names of the subdevs on this dboard
-     * \param db_container_ctor the dboard container constructor function pointer (one instance per dboard)
+     * \param db_container_ctor the dboard container constructor function pointer (one
+     * instance per dboard)
      */
-    static void register_dboard(
-        const dboard_id_t &dboard_id,
+    static void register_dboard(const dboard_id_t& dboard_id,
         dboard_ctor_t db_subdev_ctor,
-        const std::string &name,
-        const std::vector<std::string> &subdev_names = std::vector<std::string>(1, "0"),
-        dboard_ctor_t db_container_ctor = NULL
-    );
+        const std::string& name,
+        const std::vector<std::string>& subdev_names = std::vector<std::string>(1, "0"),
+        dboard_ctor_t db_container_ctor              = NULL);
 
     /*!
      * Register an xcvr dboard into the system.
      * For single subdevice boards, omit subdev_names.
      * \param rx_dboard_id the rx unit dboard id
      * \param tx_dboard_id the tx unit dboard id
-     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one instance per subdev name)
-     * \param name the canonical name for the dboard represented
+     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one
+     * instance per subdev name) \param name the canonical name for the dboard represented
      * \param subdev_names the names of the subdevs on this dboard
-     * \param db_container_ctor the dboard container constructor function pointer (one instance per dboard)
+     * \param db_container_ctor the dboard container constructor function pointer (one
+     * instance per dboard)
      */
-    static void register_dboard(
-        const dboard_id_t &rx_dboard_id,
-        const dboard_id_t &tx_dboard_id,
+    static void register_dboard(const dboard_id_t& rx_dboard_id,
+        const dboard_id_t& tx_dboard_id,
         dboard_ctor_t db_subdev_ctor,
-        const std::string &name,
-        const std::vector<std::string> &subdev_names = std::vector<std::string>(1, "0"),
-        dboard_ctor_t db_container_ctor = NULL
-    );
+        const std::string& name,
+        const std::vector<std::string>& subdev_names = std::vector<std::string>(1, "0"),
+        dboard_ctor_t db_container_ctor              = NULL);
 
     /*!
      * Register a restricted rx or tx dboard into the system.
@@ -74,18 +72,17 @@ public:
      * For single subdevice boards, omit subdev_names.
      * The iface for a restricted board is not registered into the property tree.
      * \param dboard_id the dboard id (rx or tx)
-     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one instance per subdev name)
-     * \param name the canonical name for the dboard represented
+     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one
+     * instance per subdev name) \param name the canonical name for the dboard represented
      * \param subdev_names the names of the subdevs on this dboard
-     * \param db_container_ctor the dboard container constructor function pointer (one instance per dboard)
+     * \param db_container_ctor the dboard container constructor function pointer (one
+     * instance per dboard)
      */
-    static void register_dboard_restricted(
-        const dboard_id_t &dboard_id,
+    static void register_dboard_restricted(const dboard_id_t& dboard_id,
         dboard_ctor_t db_subdev_ctor,
-        const std::string &name,
-        const std::vector<std::string> &subdev_names = std::vector<std::string>(1, "0"),
-        dboard_ctor_t db_container_ctor = NULL
-    );
+        const std::string& name,
+        const std::vector<std::string>& subdev_names = std::vector<std::string>(1, "0"),
+        dboard_ctor_t db_container_ctor              = NULL);
 
     /*!
      * Register a restricted xcvr dboard into the system.
@@ -94,19 +91,18 @@ public:
      * The iface for a restricted board is not registered into the property tree.
      * \param rx_dboard_id the rx unit dboard id
      * \param tx_dboard_id the tx unit dboard id
-     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one instance per subdev name)
-     * \param name the canonical name for the dboard represented
+     * \param db_subdev_ctor the dboard sub-device constructor function pointer (one
+     * instance per subdev name) \param name the canonical name for the dboard represented
      * \param subdev_names the names of the subdevs on this dboard
-     * \param db_container_ctor the dboard container constructor function pointer (one instance per dboard)
+     * \param db_container_ctor the dboard container constructor function pointer (one
+     * instance per dboard)
      */
-    static void register_dboard_restricted(
-        const dboard_id_t &rx_dboard_id,
-        const dboard_id_t &tx_dboard_id,
+    static void register_dboard_restricted(const dboard_id_t& rx_dboard_id,
+        const dboard_id_t& tx_dboard_id,
         dboard_ctor_t db_subdev_ctor,
-        const std::string &name,
-        const std::vector<std::string> &subdev_names = std::vector<std::string>(1, "0"),
-        dboard_ctor_t db_container_ctor = NULL
-    );
+        const std::string& name,
+        const std::vector<std::string>& subdev_names = std::vector<std::string>(1, "0"),
+        dboard_ctor_t db_container_ctor              = NULL);
 
     /*!
      * Make a new dboard manager.
@@ -118,14 +114,12 @@ public:
      * \param defer_db_init initialising the daughterboards (DEPRECATED)
      * \return an sptr to the new dboard manager
      */
-    static sptr make(
-        dboard_id_t rx_dboard_id,
+    static sptr make(dboard_id_t rx_dboard_id,
         dboard_id_t tx_dboard_id,
         dboard_id_t gdboard_id,
         dboard_iface::sptr iface,
         property_tree::sptr subtree,
-        bool defer_db_init = false
-    );
+        bool defer_db_init = false);
 
     /*!
      * Make a new dboard manager.
@@ -137,14 +131,12 @@ public:
      * \param defer_db_init initialising the daughterboards (DEPRECATED)
      * \return an sptr to the new dboard manager
      */
-    static sptr make(
-        dboard_eeprom_t rx_eeprom,
+    static sptr make(dboard_eeprom_t rx_eeprom,
         dboard_eeprom_t tx_eeprom,
         dboard_eeprom_t gdb_eeprom,
         dboard_iface::sptr iface,
         property_tree::sptr subtree,
-        bool defer_db_init = false
-    );
+        bool defer_db_init = false);
 
     virtual ~dboard_manager() {}
 
@@ -166,6 +158,4 @@ public:
     virtual const std::vector<std::string>& get_tx_frontends() const = 0;
 };
 
-}} //namespace
-
-#endif /* INCLUDED_UHD_USRP_DBOARD_MANAGER_HPP */
+}} // namespace uhd::usrp

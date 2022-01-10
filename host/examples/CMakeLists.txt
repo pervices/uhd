@@ -2,7 +2,7 @@
 # Copyright 2010-2015 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -39,17 +39,14 @@ set(example_sources
     test_set_get_path_value.cpp
     test_tx_trigger.cpp
     test_udp_vita_header_send.cpp
+
+    rfnoc_nullsource_ce_rx.cpp
+    rfnoc_rx_to_file.cpp
+    rfnoc_radio_loopback.cpp
+    rfnoc_replay_samples_from_file.cpp
+    #benchmark_streamer.cpp
 )
 
-if(ENABLE_RFNOC)
-    list(APPEND
-        example_sources
-        rfnoc_nullsource_ce_rx.cpp
-        rfnoc_rx_to_file.cpp
-        rfnoc_radio_loopback.cpp
-        benchmark_streamer.cpp
-    )
-endif(ENABLE_RFNOC)
 
 if(ENABLE_OCTOCLOCK)
     list(APPEND example_sources test_clock_synch.cpp)

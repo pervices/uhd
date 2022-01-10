@@ -5,20 +5,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_UTILS_SOFT_REGISTER_HPP
-#define INCLUDED_UHD_UTILS_SOFT_REGISTER_HPP
+#pragma once
 
-#include <stdint.h>
-#include <uhd/utils/noncopyable.hpp>
-#include <uhd/types/wb_iface.hpp>
+
+
+
 #include <uhd/exception.hpp>
+#include <uhd/types/wb_iface.hpp>
 #include <uhd/utils/dirty_tracked.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/locks.hpp>
-#include <boost/unordered_map.hpp>
+#include <uhd/utils/noncopyable.hpp>
+#include <unordered_map>
 #include <boost/tokenizer.hpp>
-#include <boost/foreach.hpp>
+#include <cstdint>
 #include <list>
+#include <mutex>
 
 /*! \file soft_register.hpp
  * Utilities to access and index hardware registers.
@@ -43,7 +43,7 @@
 
 namespace uhd {
 
-//TODO: These hints were added to boost 1.53.
+// TODO: These hints were added to boost 1.53.
 
 /** \brief hint for the branch prediction */
 UHD_INLINE bool likely(bool expr)
@@ -53,7 +53,7 @@ UHD_INLINE bool likely(bool expr)
 #else
     return expr;
 #endif
-    }
+}
 
 /** \brief hint for the branch prediction */
 UHD_INLINE bool unlikely(bool expr)
@@ -75,28 +75,31 @@ UHD_INLINE bool unlikely(bool expr)
 typedef uint32_t soft_reg_field_t;
 
 namespace soft_reg_field {
-    UHD_INLINE size_t width(const soft_reg_field_t field) {
-        return (field & 0xFF);
-    }
+UHD_INLINE size_t width(const soft_reg_field_t field)
+{
+    return (field & 0xFF);
+}
 
-    UHD_INLINE size_t shift(const soft_reg_field_t field) {
-        return ((field >> 8) & 0xFF);
-    }
+UHD_INLINE size_t shift(const soft_reg_field_t field)
+{
+    return ((field >> 8) & 0xFF);
+}
 
-    template<typename data_t>
-    UHD_INLINE data_t mask(const soft_reg_field_t field) {
-        constexpr data_t ONE = static_cast<data_t>(1);
-        constexpr data_t ALL_ONES = ~static_cast<data_t>(0);
-        //Behavior for the left shift operation is undefined in C++
-        //if the shift amount is >= bitwidth of the datatype
-        //So we treat that as a special case with a branch predicition hint
-        if (likely((sizeof(data_t)*8) != width(field))) {
-            return ((ONE<<width(field))-ONE)<<shift(field);
-        } else {
-            return ALL_ONES<<shift(field);
-        }
+template <typename data_t>
+UHD_INLINE data_t mask(const soft_reg_field_t field)
+{
+    constexpr data_t ONE      = static_cast<data_t>(1);
+    constexpr data_t ALL_ONES = ~static_cast<data_t>(0);
+    // Behavior for the left shift operation is undefined in C++
+    // if the shift amount is >= bitwidth of the datatype
+    // So we treat that as a special case with a branch predicition hint
+    if (likely((sizeof(data_t) * 8) != width(field))) {
+        return ((ONE << width(field)) - ONE) << shift(field);
+    } else {
+        return ALL_ONES << shift(field);
     }
 }
+} // namespace soft_reg_field
 
 class soft_register_base : public uhd::noncopyable
 {
@@ -104,17 +107,18 @@ public:
     virtual ~soft_register_base() {}
 
     virtual void initialize(wb_iface& iface, bool sync = false) = 0;
-    virtual void flush() = 0;
-    virtual void refresh() = 0;
-    virtual size_t get_bitwidth() = 0;
-    virtual bool is_readable() = 0;
-    virtual bool is_writable() = 0;
+    virtual void flush()                                        = 0;
+    virtual void refresh()                                      = 0;
+    virtual size_t get_bitwidth()                               = 0;
+    virtual bool is_readable()                                  = 0;
+    virtual bool is_writable()                                  = 0;
 
     /*!
      * Cast the soft_register generic reference to a more specific type
      */
     template <typename soft_reg_t>
-    UHD_INLINE static soft_reg_t& cast(soft_register_base& reg) {
+    UHD_INLINE static soft_reg_t& cast(soft_register_base& reg)
+    {
         soft_reg_t* ptr = dynamic_cast<soft_reg_t*>(&reg);
         if (ptr) {
             return *ptr;
@@ -131,46 +135,53 @@ enum soft_reg_flush_mode_t { OPTIMIZED_FLUSH, ALWAYS_FLUSH };
  * Methods give convenient field-level access to soft-copy and the ability
  * to do read-modify-write operations.
  */
-template<typename reg_data_t, bool readable, bool writable>
-class UHD_API soft_register_t : public soft_register_base {
+template <typename reg_data_t, bool readable, bool writable>
+class UHD_API soft_register_t : public soft_register_base
+{
 public:
-    typedef boost::shared_ptr< soft_register_t<reg_data_t, readable, writable> > sptr;
+    typedef std::shared_ptr<soft_register_t<reg_data_t, readable, writable>> sptr;
 
-    //Reserved field. Represents all bits in the register.
-    UHD_DEFINE_SOFT_REG_FIELD(REGISTER, sizeof(reg_data_t)*8, 0);  //[WIDTH-1:0]
+    // Reserved field. Represents all bits in the register.
+    UHD_DEFINE_SOFT_REG_FIELD(REGISTER, sizeof(reg_data_t) * 8, 0); //[WIDTH-1:0]
 
     /*!
      * Generic constructor for all soft_register types
      */
-    soft_register_t(
-            wb_iface::wb_addr_type wr_addr,
-            wb_iface::wb_addr_type rd_addr,
-            soft_reg_flush_mode_t mode = ALWAYS_FLUSH):
-        _iface(NULL), _wr_addr(wr_addr), _rd_addr(rd_addr), _soft_copy(0), _flush_mode(mode)
-    {}
+    soft_register_t(wb_iface::wb_addr_type wr_addr,
+        wb_iface::wb_addr_type rd_addr,
+        soft_reg_flush_mode_t mode = ALWAYS_FLUSH)
+        : _iface(NULL)
+        , _wr_addr(wr_addr)
+        , _rd_addr(rd_addr)
+        , _soft_copy(0)
+        , _flush_mode(mode)
+    {
+    }
 
     /*!
      * Constructor for read-only, write-only registers and read-write registers
      * with rd_addr == wr_addr
      */
     explicit soft_register_t(
-            wb_iface::wb_addr_type addr,
-            soft_reg_flush_mode_t mode = ALWAYS_FLUSH):
-        _iface(NULL), _wr_addr(addr), _rd_addr(addr), _soft_copy(0), _flush_mode(mode)
-    {}
+        wb_iface::wb_addr_type addr, soft_reg_flush_mode_t mode = ALWAYS_FLUSH)
+        : _iface(NULL), _wr_addr(addr), _rd_addr(addr), _soft_copy(0), _flush_mode(mode)
+    {
+    }
 
     /*!
      * Initialize the register when the underlying bus is usable.
      * Can be optionally synced with hardware.
      * NOTE: Memory management of the iface is up to the caller
      */
-    UHD_INLINE void initialize(wb_iface& iface, bool sync = false)
+    UHD_INLINE void initialize(wb_iface& iface, bool sync = false) override
     {
         _iface = &iface;
 
-        //Synchronize with hardware. For RW register, flush THEN refresh.
-        if (sync && writable) flush();
-        if (sync && readable) refresh();
+        // Synchronize with hardware. For RW register, flush THEN refresh.
+        if (sync && writable)
+            flush();
+        if (sync && readable)
+            refresh();
     }
 
     /*!
@@ -180,8 +191,9 @@ public:
      */
     UHD_INLINE void set(const soft_reg_field_t field, const reg_data_t value)
     {
-        _soft_copy = (_soft_copy & ~soft_reg_field::mask<reg_data_t>(field)) |
-                     ((value << soft_reg_field::shift(field)) & soft_reg_field::mask<reg_data_t>(field));
+        _soft_copy = (_soft_copy & ~soft_reg_field::mask<reg_data_t>(field))
+                     | ((value << soft_reg_field::shift(field))
+                           & soft_reg_field::mask<reg_data_t>(field));
     }
 
     /*!
@@ -190,53 +202,54 @@ public:
      */
     UHD_INLINE reg_data_t get(const soft_reg_field_t field)
     {
-        return (_soft_copy & soft_reg_field::mask<reg_data_t>(field)) >> soft_reg_field::shift(field);
+        return (_soft_copy & soft_reg_field::mask<reg_data_t>(field))
+               >> soft_reg_field::shift(field);
     }
 
     /*!
      * Write the contents of the soft-copy to hardware.
      */
-    UHD_INLINE void flush()
+    UHD_INLINE void flush() override
     {
         if (writable && _iface) {
-            //If optimized flush then poke only if soft copy is dirty
-            //If flush mode is ALWAYS, the dirty flag should get optimized
-            //out by the compiler because it is never read
+            // If optimized flush then poke only if soft copy is dirty
+            // If flush mode is ALWAYS, the dirty flag should get optimized
+            // out by the compiler because it is never read
             if (_flush_mode == ALWAYS_FLUSH || _soft_copy.is_dirty()) {
-                if (get_bitwidth() <= 16) {
-                    _iface->poke16(_wr_addr, static_cast<uint16_t>(_soft_copy));
-                } else if (get_bitwidth() <= 32) {
+                if (get_bitwidth() <= 32) {
                     _iface->poke32(_wr_addr, static_cast<uint32_t>(_soft_copy));
                 } else if (get_bitwidth() <= 64) {
                     _iface->poke64(_wr_addr, static_cast<uint64_t>(_soft_copy));
                 } else {
-                    throw uhd::not_implemented_error("soft_register only supports up to 64 bits.");
+                    throw uhd::not_implemented_error(
+                        "soft_register only supports up to 64 bits.");
                 }
                 _soft_copy.mark_clean();
             }
         } else {
-            throw uhd::not_implemented_error("soft_register is not writable or uninitialized.");
+            throw uhd::not_implemented_error(
+                "soft_register is not writable or uninitialized.");
         }
     }
 
     /*!
      * Read the contents of the register from hardware and update the soft copy.
      */
-    UHD_INLINE void refresh()
+    UHD_INLINE void refresh() override
     {
         if (readable && _iface) {
-            if (get_bitwidth() <= 16) {
-                _soft_copy = static_cast<reg_data_t>(_iface->peek16(_rd_addr));
-            } else if (get_bitwidth() <= 32) {
+            if (get_bitwidth() <= 32) {
                 _soft_copy = static_cast<reg_data_t>(_iface->peek32(_rd_addr));
             } else if (get_bitwidth() <= 64) {
                 _soft_copy = static_cast<reg_data_t>(_iface->peek64(_rd_addr));
             } else {
-                throw uhd::not_implemented_error("soft_register only supports up to 64 bits.");
+                throw uhd::not_implemented_error(
+                    "soft_register only supports up to 64 bits.");
             }
             _soft_copy.mark_clean();
         } else {
-            throw uhd::not_implemented_error("soft_register is not readable or uninitialized.");
+            throw uhd::not_implemented_error(
+                "soft_register is not readable or uninitialized.");
         }
     }
 
@@ -261,7 +274,7 @@ public:
     /*!
      * Get bitwidth for this register
      */
-    UHD_INLINE size_t get_bitwidth()
+    UHD_INLINE size_t get_bitwidth() override
     {
         static const size_t BITS_IN_BYTE = 8;
         return sizeof(reg_data_t) * BITS_IN_BYTE;
@@ -270,7 +283,7 @@ public:
     /*!
      * Is the register readable?
      */
-    UHD_INLINE bool is_readable()
+    UHD_INLINE bool is_readable() override
     {
         return readable;
     }
@@ -278,85 +291,88 @@ public:
     /*!
      * Is the register writable?
      */
-    UHD_INLINE bool is_writable()
+    UHD_INLINE bool is_writable() override
     {
         return writable;
     }
 
 private:
-    wb_iface*                       _iface;
-    const wb_iface::wb_addr_type    _wr_addr;
-    const wb_iface::wb_addr_type    _rd_addr;
-    dirty_tracked<reg_data_t>       _soft_copy;
-    const soft_reg_flush_mode_t     _flush_mode;
+    wb_iface* _iface;
+    const wb_iface::wb_addr_type _wr_addr;
+    const wb_iface::wb_addr_type _rd_addr;
+    dirty_tracked<reg_data_t> _soft_copy;
+    const soft_reg_flush_mode_t _flush_mode;
 };
 
 /*!
  * A synchronized soft register object.
  * All operations in the synchronized register are serialized.
  */
-template<typename reg_data_t, bool readable, bool writable>
-class UHD_API soft_register_sync_t : public soft_register_t<reg_data_t, readable, writable> {
+template <typename reg_data_t, bool readable, bool writable>
+class UHD_API soft_register_sync_t
+    : public soft_register_t<reg_data_t, readable, writable>
+{
 public:
-    typedef boost::shared_ptr< soft_register_sync_t<reg_data_t, readable, writable> > sptr;
+    typedef std::shared_ptr<soft_register_sync_t<reg_data_t, readable, writable>> sptr;
 
-    soft_register_sync_t(
-            wb_iface::wb_addr_type wr_addr,
-            wb_iface::wb_addr_type rd_addr,
-            soft_reg_flush_mode_t mode = ALWAYS_FLUSH):
-        soft_register_t<reg_data_t, readable, writable>(wr_addr, rd_addr, mode), _mutex()
-    {}
+    soft_register_sync_t(wb_iface::wb_addr_type wr_addr,
+        wb_iface::wb_addr_type rd_addr,
+        soft_reg_flush_mode_t mode = ALWAYS_FLUSH)
+        : soft_register_t<reg_data_t, readable, writable>(wr_addr, rd_addr, mode)
+        , _mutex()
+    {
+    }
 
     explicit soft_register_sync_t(
-            wb_iface::wb_addr_type addr,
-            soft_reg_flush_mode_t mode = ALWAYS_FLUSH):
-        soft_register_t<reg_data_t, readable, writable>(addr, mode), _mutex()
-    {}
+        wb_iface::wb_addr_type addr, soft_reg_flush_mode_t mode = ALWAYS_FLUSH)
+        : soft_register_t<reg_data_t, readable, writable>(addr, mode), _mutex()
+    {
+    }
 
     UHD_INLINE void initialize(wb_iface& iface, bool sync = false)
     {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         soft_register_t<reg_data_t, readable, writable>::initialize(iface, sync);
     }
 
     UHD_INLINE void set(const soft_reg_field_t field, const reg_data_t value)
     {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         soft_register_t<reg_data_t, readable, writable>::set(field, value);
     }
 
     UHD_INLINE reg_data_t get(const soft_reg_field_t field)
     {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         return soft_register_t<reg_data_t, readable, writable>::get(field);
     }
 
     UHD_INLINE void flush()
     {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         soft_register_t<reg_data_t, readable, writable>::flush();
     }
 
     UHD_INLINE void refresh()
     {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         soft_register_t<reg_data_t, readable, writable>::refresh();
     }
 
     UHD_INLINE void write(const soft_reg_field_t field, const reg_data_t value)
     {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         soft_register_t<reg_data_t, readable, writable>::write(field, value);
     }
 
     UHD_INLINE reg_data_t read(const soft_reg_field_t field)
     {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
         return soft_register_t<reg_data_t, readable, writable>::read(field);
     }
 
 private:
-    boost::mutex _mutex;
+    std::mutex _mutex;
 };
 
 /*
@@ -366,32 +382,25 @@ private:
  * - soft_reg<bits>_<mode>_sync_t: Soft register object with a synchronized soft-copy.
  *                                 Thread safe but with memory/speed overhead.
  * where:
- * - <bits> = {16, 32 or 64}
+ * - <bits> = {32 or 64}
  * - <mode> = {wo(write-only), rw(read-write) or ro(read-only)}
  *
  */
 
-//16-bit shortcuts
-typedef soft_register_t<uint16_t, false, true>       soft_reg16_wo_t;
-typedef soft_register_t<uint16_t, true, false>       soft_reg16_ro_t;
-typedef soft_register_t<uint16_t, true, true>        soft_reg16_rw_t;
-typedef soft_register_sync_t<uint16_t, false, true>  soft_reg16_wo_sync_t;
-typedef soft_register_sync_t<uint16_t, true, false>  soft_reg16_ro_sync_t;
-typedef soft_register_sync_t<uint16_t, true, true>   soft_reg16_rw_sync_t;
-//32-bit shortcuts
-typedef soft_register_t<uint32_t, false, true>       soft_reg32_wo_t;
-typedef soft_register_t<uint32_t, true, false>       soft_reg32_ro_t;
-typedef soft_register_t<uint32_t, true, true>        soft_reg32_rw_t;
-typedef soft_register_sync_t<uint32_t, false, true>  soft_reg32_wo_sync_t;
-typedef soft_register_sync_t<uint32_t, true, false>  soft_reg32_ro_sync_t;
-typedef soft_register_sync_t<uint32_t, true, true>   soft_reg32_rw_sync_t;
-//64-bit shortcuts
-typedef soft_register_t<uint64_t, false, true>       soft_reg64_wo_t;
-typedef soft_register_t<uint64_t, true, false>       soft_reg64_ro_t;
-typedef soft_register_t<uint64_t, true, true>        soft_reg64_rw_t;
-typedef soft_register_sync_t<uint64_t, false, true>  soft_reg64_wo_sync_t;
-typedef soft_register_sync_t<uint64_t, true, false>  soft_reg64_ro_sync_t;
-typedef soft_register_sync_t<uint64_t, true, true>   soft_reg64_rw_sync_t;
+// 32-bit shortcuts
+typedef soft_register_t<uint32_t, false, true> soft_reg32_wo_t;
+typedef soft_register_t<uint32_t, true, false> soft_reg32_ro_t;
+typedef soft_register_t<uint32_t, true, true> soft_reg32_rw_t;
+typedef soft_register_sync_t<uint32_t, false, true> soft_reg32_wo_sync_t;
+typedef soft_register_sync_t<uint32_t, true, false> soft_reg32_ro_sync_t;
+typedef soft_register_sync_t<uint32_t, true, true> soft_reg32_rw_sync_t;
+// 64-bit shortcuts
+typedef soft_register_t<uint64_t, false, true> soft_reg64_wo_t;
+typedef soft_register_t<uint64_t, true, false> soft_reg64_ro_t;
+typedef soft_register_t<uint64_t, true, true> soft_reg64_rw_t;
+typedef soft_register_sync_t<uint64_t, false, true> soft_reg64_wo_sync_t;
+typedef soft_register_sync_t<uint64_t, true, false> soft_reg64_ro_sync_t;
+typedef soft_register_sync_t<uint64_t, true, true> soft_reg64_rw_sync_t;
 
 
 /*
@@ -420,12 +429,12 @@ typedef soft_register_sync_t<uint64_t, true, true>   soft_reg64_rw_sync_t;
     reg_obj.initialize(iface);
     reg_obj.write(example_reg_t::FIELD2, 0x1234);
 
-    example_reg_t::sptr reg_sptr = boost::make_shared<example_reg_t>();
+    example_reg_t::sptr reg_sptr = std::make_shared<example_reg_t>();
     reg_obj->initialize(iface);
     reg_obj->write(example_reg_t::FIELD2, 0x1234);
   }
 */
-}
+} // namespace uhd
 
 //==================================================================
 // Soft Register Map and Database Definition
@@ -433,14 +442,15 @@ typedef soft_register_sync_t<uint64_t, true, true>   soft_reg64_rw_sync_t;
 
 namespace uhd {
 
-class UHD_API soft_regmap_accessor_t {
+class UHD_API soft_regmap_accessor_t
+{
 public:
-    typedef boost::shared_ptr<soft_regmap_accessor_t> sptr;
+    typedef std::shared_ptr<soft_regmap_accessor_t> sptr;
 
-    virtual ~soft_regmap_accessor_t() {};
+    virtual ~soft_regmap_accessor_t(){};
     virtual soft_register_base& lookup(const std::string& path) const = 0;
-    virtual std::vector<std::string> enumerate() const = 0;
-    virtual const std::string& get_name() const = 0;
+    virtual std::vector<std::string> enumerate() const                = 0;
+    virtual const std::string& get_name() const                       = 0;
 };
 
 /*!
@@ -457,12 +467,15 @@ class UHD_API soft_regmap_t : public soft_regmap_accessor_t, public uhd::noncopy
 {
 public:
     soft_regmap_t(const std::string& name) : _name(name) {}
-    virtual ~soft_regmap_t() {};
+    ~soft_regmap_t() override{};
 
     /*!
      * Get the name of this register map
      */
-    virtual UHD_INLINE const std::string& get_name() const { return _name; }
+    UHD_INLINE const std::string& get_name() const override
+    {
+        return _name;
+    }
 
     /*!
      * Initialize all registers in this register map using a bus.
@@ -470,9 +483,10 @@ public:
      * The order of initialization is the same as the order in
      * which registers were added to the map.
      */
-    void initialize(wb_iface& iface, bool sync = false) {
-        boost::lock_guard<boost::mutex> lock(_mutex);
-        BOOST_FOREACH(soft_register_base* reg, _reglist) {
+    void initialize(wb_iface& iface, bool sync = false)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        for (soft_register_base* reg : _reglist) {
             reg->initialize(iface, sync);
         }
     }
@@ -482,9 +496,10 @@ public:
      * The order of writing is the same as the order in
      * which registers were added to the map.
      */
-    void flush() {
-        boost::lock_guard<boost::mutex> lock(_mutex);
-        BOOST_FOREACH(soft_register_base* reg, _reglist) {
+    void flush()
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        for (soft_register_base* reg : _reglist) {
             reg->flush();
         }
     }
@@ -494,9 +509,10 @@ public:
      * The order of reading is the same as the order in
      * which registers were added to the map.
      */
-    void refresh() {
-        boost::lock_guard<boost::mutex> lock(_mutex);
-        BOOST_FOREACH(soft_register_base* reg, _reglist) {
+    void refresh()
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        for (soft_register_base* reg : _reglist) {
             reg->refresh();
         }
     }
@@ -505,7 +521,8 @@ public:
      * Lookup a register object by name.
      * If a register with "name" is not found, runtime_error is thrown
      */
-    virtual soft_register_base& lookup(const std::string& name) const {
+    soft_register_base& lookup(const std::string& name) const override
+    {
         regmap_t::const_iterator iter = _regmap.find(name);
         if (iter != _regmap.end()) {
             return *(iter->second);
@@ -518,9 +535,10 @@ public:
      * Enumerate all the registers in this map.
      * Return fully qualified paths.
      */
-    virtual std::vector<std::string> enumerate() const {
+    std::vector<std::string> enumerate() const override
+    {
         std::vector<std::string> temp;
-        BOOST_FOREACH(const regmap_t::value_type& reg, _regmap) {
+        for (const regmap_t::value_type& reg : _regmap) {
             temp.push_back(_name + "/" + reg.first);
         }
         return temp;
@@ -528,32 +546,36 @@ public:
 
 protected:
     enum visibility_t {
-        PUBLIC,     //Is accessible through the soft_regmap_accessor_t interface
-        PRIVATE     //Is NOT accessible through the soft_regmap_accessor_t interface
+        PUBLIC, // Is accessible through the soft_regmap_accessor_t interface
+        PRIVATE // Is NOT accessible through the soft_regmap_accessor_t interface
     };
 
     /*!
      * Add a register to this map with an identifier "name" and visibility
      */
-    UHD_INLINE void add_to_map(soft_register_base& reg, const std::string& name, const visibility_t visible = PRIVATE) {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+    UHD_INLINE void add_to_map(soft_register_base& reg,
+        const std::string& name,
+        const visibility_t visible = PRIVATE)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
         if (visible == PUBLIC) {
-            //Only add to the map if this register is publicly visible
+            // Only add to the map if this register is publicly visible
             if (not _regmap.insert(regmap_t::value_type(name, &reg)).second) {
-                throw uhd::assertion_error("cannot add two registers with the same name to regmap: " + name);
+                throw uhd::assertion_error(
+                    "cannot add two registers with the same name to regmap: " + name);
             }
         }
         _reglist.push_back(&reg);
     }
 
 private:
-    typedef boost::unordered_map<std::string, soft_register_base*> regmap_t;
-    typedef std::list<soft_register_base*>                         reglist_t;
+    typedef std::unordered_map<std::string, soft_register_base*> regmap_t;
+    typedef std::list<soft_register_base*> reglist_t;
 
-    const std::string   _name;
-    regmap_t            _regmap;    //For lookups
-    reglist_t           _reglist;   //To maintain order
-    boost::mutex        _mutex;
+    const std::string _name;
+    regmap_t _regmap; // For lookups
+    reglist_t _reglist; // To maintain order
+    std::mutex _mutex;
 };
 
 
@@ -566,7 +588,7 @@ private:
 class UHD_API soft_regmap_db_t : public soft_regmap_accessor_t, public uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<soft_regmap_db_t> sptr;
+    typedef std::shared_ptr<soft_regmap_db_t> sptr;
 
     /*!
      * Use the default constructor if this is the top-level DB
@@ -581,21 +603,26 @@ public:
     /*!
      * Get the name of this register map
      */
-    const std::string& get_name() const { return _name; }
+    const std::string& get_name() const override
+    {
+        return _name;
+    }
 
     /*!
      * Add a regmap to this map with an identifier "name" and visibility
      */
-    void add(soft_regmap_t& regmap) {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+    void add(soft_regmap_t& regmap)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
         _regmaps.push_back(&regmap);
     }
 
     /*!
      * Add a level of regmap_db to this map with an identifier "name" and visibility
      */
-    void add(soft_regmap_db_t& db) {
-        boost::lock_guard<boost::mutex> lock(_mutex);
+    void add(soft_regmap_db_t& db)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
         if (&db == this) {
             throw uhd::assertion_error("cannot add regmap db to itself" + _name);
         } else {
@@ -613,34 +640,34 @@ public:
      * For example:
      *   radio0/spi_regmap/spi_control_reg
      */
-    soft_register_base& lookup(const std::string& path) const
+    soft_register_base& lookup(const std::string& path) const override
     {
-        //Turn the slash separated path string into tokens
+        // Turn the slash separated path string into tokens
         std::list<std::string> tokens;
-        BOOST_FOREACH(
-            const std::string& node,
-            boost::tokenizer< boost::char_separator<char> >(path, boost::char_separator<char>("/")))
-        {
+        for (const std::string& node : boost::tokenizer<boost::char_separator<char>>(
+                 path, boost::char_separator<char>("/"))) {
             tokens.push_back(node);
         }
-        if ((tokens.size() > 2 && tokens.front() == _name) ||   //If this is a nested DB
-            (tokens.size() > 1 && _name == "")) {               //If this is a top-level DB
-            if (_name != "") tokens.pop_front();
-            if (tokens.size() == 2) {                   //2 tokens => regmap/register path
-                BOOST_FOREACH(const soft_regmap_accessor_t* regmap, _regmaps) {
+        if ((tokens.size() > 2 && tokens.front() == _name) || // If this is a nested DB
+            (tokens.size() > 1 && _name.empty())) { // If this is a top-level DB
+            if (!_name.empty())
+                tokens.pop_front();
+            if (tokens.size() == 2) { // 2 tokens => regmap/register path
+                for (const soft_regmap_accessor_t* regmap : _regmaps) {
                     if (regmap->get_name() == tokens.front()) {
                         return regmap->lookup(tokens.back());
                     }
                 }
                 throw uhd::runtime_error("could not find register map: " + path);
-            } else if (not _regmap_dbs.empty()) {       //>2 tokens => <1 or more dbs>/regmap/register
-                //Reconstruct path from tokens
+            } else if (not _regmap_dbs
+                               .empty()) { //>2 tokens => <1 or more dbs>/regmap/register
+                // Reconstruct path from tokens
                 std::string newpath;
-                BOOST_FOREACH(const std::string& node, tokens) {
+                for (const std::string& node : tokens) {
                     newpath += ("/" + node);
                 }
-                //Dispatch path to hierarchical DB
-                BOOST_FOREACH(const soft_regmap_accessor_t* db, _regmap_dbs) {
+                // Dispatch path to hierarchical DB
+                for (const soft_regmap_accessor_t* db : _regmap_dbs) {
                     try {
                         return db->lookup(newpath.substr(1));
                     } catch (std::exception&) {
@@ -655,13 +682,14 @@ public:
     /*!
      * Enumerate the paths of all registers that this DB can access
      */
-    virtual std::vector<std::string> enumerate() const {
+    std::vector<std::string> enumerate() const override
+    {
         std::vector<std::string> paths;
-        BOOST_FOREACH(const soft_regmap_accessor_t* regmap, _regmaps) {
+        for (const soft_regmap_accessor_t* regmap : _regmaps) {
             const std::vector<std::string>& regs = regmap->enumerate();
             paths.insert(paths.end(), regs.begin(), regs.end());
         }
-        BOOST_FOREACH(const soft_regmap_accessor_t* db, _regmap_dbs) {
+        for (const soft_regmap_accessor_t* db : _regmap_dbs) {
             const std::vector<std::string>& regs = db->enumerate();
             paths.insert(paths.end(), regs.begin(), regs.end());
         }
@@ -671,12 +699,10 @@ public:
 private:
     typedef std::list<soft_regmap_accessor_t*> db_t;
 
-    const std::string   _name;
-    db_t                _regmaps;
-    db_t                _regmap_dbs;
-    boost::mutex        _mutex;
+    const std::string _name;
+    db_t _regmaps;
+    db_t _regmap_dbs;
+    std::mutex _mutex;
 };
 
-} //namespace uhd
-
-#endif /* INCLUDED_UHD_UTILS_SOFT_REGISTER_HPP */
+} // namespace uhd

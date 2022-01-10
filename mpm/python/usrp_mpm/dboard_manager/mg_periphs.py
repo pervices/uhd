@@ -29,7 +29,7 @@ class TCA6408(object):
     def __init__(self, i2c_dev):
         if i2c_dev is None:
             raise RuntimeError("Need to specify i2c device to use the TCA6408")
-        self._gpios = SysFSGPIO({'label': 'tca6408'}, 0xBF, 0xAA, 0xAA, i2c_dev)
+        self._gpios = SysFSGPIO({'device/name': 'tca6408'}, 0xBF, 0xAA, 0xAA, i2c_dev)
 
     def set(self, name, value=None):
         """
@@ -133,6 +133,7 @@ class MgCPLD(object):
         self.regs = regs
         self.poke16 = self.regs.poke16
         self.peek16 = self.regs.peek16
+        self.reset()
         signature = self.peek16(self.REG_SIGNATURE)
         if signature != self.CPLD_SIGNATURE:
             self.log.error(
@@ -188,7 +189,7 @@ class MgCPLD(object):
         'rx'.
         """
         mask = (1<<4) if which.lower() == 'tx' else 1
-        return bool(self.peek16(self.REG_LO_STATUS & mask))
+        return bool(self.peek16(self.REG_LO_STATUS) & mask)
 
     def reset_mykonos(self, keep_in_reset=False):
         """

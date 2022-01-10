@@ -1,94 +1,56 @@
 //
-// Copyright 2016 Ettus Research
-// Copyright 2018 Ettus Research, a National Instruments Company
+// Copyright 2020 Ettus Research, a National Instruments Brand
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_CAL_CONTAINER_HPP
-#define INCLUDED_UHD_CAL_CONTAINER_HPP
+#pragma once
 
 #include <uhd/config.hpp>
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/vector.hpp>
-#include <boost/serialization/string.hpp>
-#include <boost/serialization/map.hpp>
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/shared_ptr.hpp>
+#include <stdint.h>
+#include <memory>
+#include <vector>
+#include <string>
 
-namespace uhd {
-namespace cal {
+namespace uhd { namespace usrp { namespace cal {
 
-class base_container {
-public:
-    typedef std::map<std::string, std::string> metadata_t;
-    typedef boost::shared_ptr<base_container> sptr;
-};
-
-/*!
- * An interface for creating and managing a generic calibration
- * data container.
+/*! Generic parent class for calibration data
  *
- * These containers are used to represent N dimensional data structures
- * in order to accommodate a mapping from multi-variable input to a scalar
- * value (e.g. gain, frequency, temperature -> power level [dBm]).
- *
- * The container only supports inputs of the same type to be mapped.
- *
+ * Derive any class that stores cal data which needs to be stored/retrieved from
+ * this parent class.
  */
-template<typename in_type, typename out_type>
-class UHD_API cal_container : public base_container {
+class UHD_API container
+{
 public:
-    typedef std::map<in_type, out_type> container_t;
+    virtual ~container() = default;
 
-    /*!
-     * Get the mapping from an input to an output
-     * from the calibration container.
-     *
-     * \param args input values
-     * \returns the output of the mapping (a scalar value)
-     * \throws uhd::assertion_error if the dimensions of the input args
-     *         are incorrect for this container
-     */
-    virtual out_type get(const in_type &args) = 0;
+    //! Return the name of this calibration table
+    virtual std::string get_name() const = 0;
 
-    /*!
-     * Add a data point to the container.
-     * This function records a mapping R^n -> R between an input vector
-     * and output scalar.
-     *
-     * \param output the output of the data point mapping
-     * \param args input values
-     */
-    virtual void add(const out_type output, const in_type &args) = 0;
+    //! Return the device serial of this calibration table
+    virtual std::string get_serial() const = 0;
 
-    /*!
-     * Associate some metadata with the container.
-     *
-     * \param data a map of metadata (string -> string).
-     */
-    virtual void add_metadata(const metadata_t &data) = 0;
+    //! Timestamp of acquisition time
+    virtual uint64_t get_timestamp() const = 0;
 
-    /*!
-     * Retrieve metadata from the container.
-     *
-     * \returns map of metadata.
-     */
-    virtual const metadata_t &get_metadata() = 0;
+    //! Return a serialized version of this container
+    virtual std::vector<uint8_t> serialize() = 0;
 
-public:
-    typedef boost::archive::text_iarchive iarchive_type;
-    typedef boost::archive::text_oarchive oarchive_type;
+    //! Populate this class from the serialized data
+    virtual void deserialize(const std::vector<uint8_t>& data) = 0;
 
-protected:
-    friend class boost::serialization::access;
-
-    virtual void serialize(iarchive_type & ar, const unsigned int) = 0;
-    virtual void serialize(oarchive_type & ar, const unsigned int) = 0;
+    //! Generic factory for cal data from serialized data
+    //
+    // \tparam container_type The class type of cal data which should be
+    //                        generated from \p data
+    // \param data The serialized data to be turned into the cal class
+    template <typename container_type>
+    static std::shared_ptr<container_type> make(const std::vector<uint8_t>& data)
+    {
+        auto cal_data = container_type::make();
+        cal_data->deserialize(data);
+        return cal_data;
+    }
 };
 
-} // namespace cal
-} // namespace uhd
-
-#endif /* INCLUDED_UHD_CAL_CONTAINER_HPP */
+}}} // namespace uhd::usrp::cal

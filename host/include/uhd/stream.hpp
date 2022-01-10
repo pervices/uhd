@@ -5,21 +5,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_STREAM_HPP
-#define INCLUDED_UHD_STREAM_HPP
+#pragma once
 
 #include <uhd/config.hpp>
-#include <uhd/types/metadata.hpp>
+
 #include <uhd/types/device_addr.hpp>
+#include <uhd/types/metadata.hpp>
 #include <uhd/types/ref_vector.hpp>
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/utils/noncopyable.hpp>
 #include <boost/utility.hpp>
-#include <boost/shared_ptr.hpp>
-#include <vector>
+#include <memory>
 #include <string>
+#include <vector>
 
-namespace uhd{
+namespace uhd {
 
 /*!
  * A struct of parameters to construct a streamer.
@@ -56,13 +56,11 @@ namespace uhd{
  * stream_args.args["block_port2"] = "1";
  * \endcode
  */
-struct UHD_API stream_args_t{
-
+struct UHD_API stream_args_t
+{
     //! Convenience constructor for streamer args
-    stream_args_t(
-        const std::string &cpu = "",
-        const std::string &otw = ""
-    ){
+    stream_args_t(const std::string& cpu = "", const std::string& otw = "")
+    {
         cpu_format = cpu;
         otw_format = otw;
     }
@@ -96,12 +94,12 @@ struct UHD_API stream_args_t{
      *  - s16 - R16_1 R16_0
      *  - s8 - R8_3 R8_2 R8_1 R8_0
      *
-     * Setting the OTW ("over-the-wire") format is, in theory, transparent to the application,
-     * but changing this can have some side effects. Using less bits for example (e.g. when going
-     * from `otw_format` `sc16` to `sc8`) will reduce the dynamic range, and increases quantization
-     * noise. On the other hand, it reduces the load on the data link and thus allows more bandwidth
-     * (a USRP N210 can work with 25 MHz bandwidth for 16-Bit complex samples, and 50 MHz for 8-Bit
-     * complex samples).
+     * Setting the OTW ("over-the-wire") format is, in theory, transparent to the
+     * application, but changing this can have some side effects. Using less bits for
+     * example (e.g. when going from `otw_format` `sc16` to `sc8`) will reduce the dynamic
+     * range, and increases quantization noise. On the other hand, it reduces the load on
+     * the data link and thus allows more bandwidth (a USRP N210 can work with 25 MHz
+     * bandwidth for 16-Bit complex samples, and 50 MHz for 8-Bit complex samples).
      */
     std::string otw_format;
 
@@ -114,16 +112,17 @@ struct UHD_API stream_args_t{
      * Set the "fullscale" to scale the samples in the host to the
      * expected input range and/or output range of your application.
      *
-     * - peak: specifies a fractional sample level to calculate scaling with the sc8 wire format.
-     * When using sc8 samples over the wire, the device must scale samples
-     * (both on the host and in the device) to satisfy the dynamic range needs.
-     * The peak value specifies a fraction of the maximum sample level (1.0 = 100%).
-     * Set peak to max_sample_level/full_scale_level to ensure optimum dynamic range.
+     * - peak: specifies a fractional sample level to calculate scaling with the sc8 wire
+     * format. When using sc8 samples over the wire, the device must scale samples (both
+     * on the host and in the device) to satisfy the dynamic range needs. The peak value
+     * specifies a fraction of the maximum sample level (1.0 = 100%). Set peak to
+     * max_sample_level/full_scale_level to ensure optimum dynamic range.
      *
      * - underflow_policy: how the TX DSP should recover from underflow.
      * Possible options are "next_burst" or "next_packet".
-     * In the "next_burst" mode, the DSP drops incoming packets until a new burst is started.
-     * In the "next_packet" mode, the DSP starts transmitting again at the next packet.
+     * In the "next_burst" mode, the DSP drops incoming packets until a new burst is
+     * started. In the "next_packet" mode, the DSP starts transmitting again at the next
+     * packet.
      *
      * - spp: (samples per packet) controls the size of RX packets.
      * When not specified, the packets are always maximum frame size.
@@ -151,9 +150,9 @@ struct UHD_API stream_args_t{
      * of `A:0 B:0`. This means the device has two channels available.
      *
      * Setting `stream_args.channels = (0, 1)` therefore configures MIMO streaming
-     * from both channels. By switching the channel indexes, `stream_args.channels = (1, 0)`,
-     * the channels are switched and the first channel of the USRP is mapped to
-     * the second channel in the application.
+     * from both channels. By switching the channel indexes, `stream_args.channels = (1,
+     * 0)`, the channels are switched and the first channel of the USRP is mapped to the
+     * second channel in the application.
      *
      * If only a single channel is used for streaming, `stream_args.channels = (1,)` would
      * only select a single channel (in this case, the second one). When streaming
@@ -171,7 +170,7 @@ struct UHD_API stream_args_t{
 class UHD_API rx_streamer : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<rx_streamer> sptr;
+    typedef std::shared_ptr<rx_streamer> sptr;
 
     virtual ~rx_streamer(void);
 
@@ -182,7 +181,7 @@ public:
     virtual size_t get_max_num_samps(void) const = 0;
 
     //! Typedef for a pointer to a single, or a collection of recv buffers
-    typedef ref_vector<void *> buffs_type;
+    typedef ref_vector<void*> buffs_type;
 
     /*!
      * Receive buffers containing samples described by the metadata.
@@ -209,22 +208,43 @@ public:
      *
      * Note on threading: recv() is *not* thread-safe, to avoid locking
      * overhead. The application calling recv() is responsible for making
-     * sure that not more than one thread can call recv() at the same time.
+     * sure that not more than one thread can call recv() on the same streamer
+     * at the same time. If there are multiple streamers, receiving from
+     * different sources, then those may be called from different threads
+     * simultaneously.
+     *
+     * \section stream_rx_error_handling Error Handling
+     *
+     * \p metadata is a value that is set inside this function (effectively, a
+     * return value), and should be checked
+     * for potential error codes (see rx_metadata_t::error_code_t).
+     *
+     * The most common error code when something goes wrong is an overrun (also
+     * referred to as overflow: error_code_t::ERROR_CODE_OVERFLOW). This error
+     * code means that the device produced data faster than the application
+     * could read, and various buffers filled up leaving no more space for the
+     * device to write data to. Note that an overrun on the device will not
+     * immediatiely show up when calling recv(). Depending on the device
+     * implementation, there may be many more valid samples available before the
+     * device had to stop writing samples to the FIFO. Only when all valid
+     * samples are returned to the call site will the error code be set to
+     * "overrun". When this happens, all valid samples have been returned to
+     * application where recv() was called.
+     * If the device is streaming continuously, it will reset itself when the
+     * FIFO is cleared, and recv() can be called again to retrieve new, valid data.
      *
      * \param buffs a vector of writable memory to fill with samples
      * \param nsamps_per_buff the size of each buffer in number of samples
-     * \param metadata data to fill describing the buffer
+     * \param[out] metadata data to fill describing the buffer
      * \param timeout the timeout in seconds to wait for a packet
      * \param one_packet return after the first packet is received
      * \return the number of samples received or 0 on error
      */
-    virtual size_t recv(
-        const buffs_type &buffs,
+    virtual size_t recv(const buffs_type& buffs,
         const size_t nsamps_per_buff,
-        rx_metadata_t &metadata,
-        const double timeout = 0.1,
-        const bool one_packet = false
-    ) = 0;
+        rx_metadata_t& metadata,
+        const double timeout  = 0.1,
+        const bool one_packet = false) = 0;
 
     /*!
      * Issue a stream command to the usrp device.
@@ -237,7 +257,7 @@ public:
      *
      * \param stream_cmd the stream command to issue
      */
-    virtual void issue_stream_cmd(const stream_cmd_t &stream_cmd) = 0;
+    virtual void issue_stream_cmd(const stream_cmd_t& stream_cmd) = 0;
 };
 
 /*!
@@ -248,7 +268,7 @@ public:
 class UHD_API tx_streamer : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<tx_streamer> sptr;
+    typedef std::shared_ptr<tx_streamer> sptr;
 
     virtual ~tx_streamer(void);
 
@@ -259,7 +279,7 @@ public:
     virtual size_t get_max_num_samps(void) const = 0;
 
     //! Typedef for a pointer to a single, or a collection of send buffers
-    typedef ref_vector<const void *> buffs_type;
+    typedef ref_vector<const void*> buffs_type;
 
     /*!
      * Send buffers containing samples described by the metadata.
@@ -276,30 +296,32 @@ public:
      * Under a timeout condition, the number of samples returned
      * may be less than the number of samples specified.
      *
+     * Note on threading: send() is *not* thread-safe, to avoid locking
+     * overhead. The application calling send() is responsible for making
+     * sure that not more than one thread can call send() on the same streamer
+     * at the same time. If there are multiple streamers, transmitting to
+     * different destinations, then those may be called from different threads
+     * simultaneously.
+     *
      * \param buffs a vector of read-only memory containing samples
      * \param nsamps_per_buff the number of samples to send, per buffer
      * \param metadata data describing the buffer's contents
      * \param timeout the timeout in seconds to wait on a packet
      * \return the number of samples sent
      */
-    virtual size_t send(
-        const buffs_type &buffs,
+    virtual size_t send(const buffs_type& buffs,
         const size_t nsamps_per_buff,
-        const tx_metadata_t &metadata,
-        const double timeout = 0.1
-    ) = 0;
+        const tx_metadata_t& metadata,
+        const double timeout = 0.1) = 0;
 
     /*!
-     * Receive and asynchronous message from this TX stream.
+     * Receive an asynchronous message from this TX stream.
      * \param async_metadata the metadata to be filled in
      * \param timeout the timeout in seconds to wait for a message
      * \return true when the async_metadata is valid, false for timeout
      */
     virtual bool recv_async_msg(
-        async_metadata_t &async_metadata, double timeout = 0.1
-    ) = 0;
+        async_metadata_t& async_metadata, double timeout = 0.1) = 0;
 };
 
-} //namespace uhd
-
-#endif /* INCLUDED_UHD_STREAM_HPP */
+} // namespace uhd

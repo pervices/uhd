@@ -7,10 +7,8 @@
 Code to run the discovery port
 """
 
-from __future__ import print_function
 from multiprocessing import Process
 import socket
-from builtins import bytes
 from usrp_mpm.mpmtypes import MPM_DISCOVERY_PORT
 from usrp_mpm.mpmlog import get_main_logger
 from usrp_mpm.mpmutils import to_binary_str
@@ -18,9 +16,9 @@ from usrp_mpm.mpmutils import to_binary_str
 RESPONSE_PREAMBLE = b"USRP-MPM"
 RESPONSE_SEP = b";"
 RESPONSE_CLAIMED_KEY = b"claimed"
-# "Max MTU" is not a redundant name. We don't know the total path MTU, but we
-# can say for sure that it won't exceed a certain value, and that's the max MTU
-MAX_MTU = 8000
+# A buffer size large enough to capture any UDP packet we receive on the
+# discovery socket
+MAX_SOCK_BUFSIZ = 9000
 # For setsockopt
 IP_MTU_DISCOVER = 10
 IP_PMTUDISC_DO = 2
@@ -30,8 +28,6 @@ def spawn_discovery_process(shared_state, discovery_addr):
     Returns a process that contains the device discovery.
 
     Arguments:
-    device_info -- A dictionary of type string -> string. All of these items
-                   will be included in the response string.
     shared_state -- Shared state of device (is it claimed, etc.). Is a
                     SharedState() object.
     discovery_addr -- Discovery will listen on this address(es)
@@ -57,6 +53,7 @@ def _discovery_process(state, discovery_addr):
             [b"type="+state.dev_type.value] + \
             [b"product="+state.dev_product.value] + \
             [b"serial="+state.dev_serial.value] + \
+            [b"fpga="+state.dev_fpga_type.value] + \
             [RESPONSE_CLAIMED_KEY+to_binary_str("={}".format(state.claim_status.value))]
         )
 
@@ -74,7 +71,7 @@ def _discovery_process(state, discovery_addr):
 
     try:
         while True:
-            data, sender = sock.recvfrom(MAX_MTU)
+            data, sender = sock.recvfrom(MAX_SOCK_BUFSIZ)
             log.debug("Got poked by: %s", sender[0])
             # TODO this is still part of the awful subnet identification
             if not sender[0].startswith(discovery_addr_prefix):

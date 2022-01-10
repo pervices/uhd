@@ -1,6 +1,7 @@
 //
 // Copyright 2013-2016 Ettus Research LLC
 // Copyright 2018 Ettus Research, a National Instruments Company
+// Copyright 2019 Ettus Research, a National Instruments Brand
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
@@ -8,32 +9,36 @@
 #ifndef INCLUDED_X300_IMPL_HPP
 #define INCLUDED_X300_IMPL_HPP
 
-#include "x300_radio_ctrl_impl.hpp"
+
 #include "x300_clock_ctrl.hpp"
-#include "x300_fw_common.h"
-#include "x300_regs.hpp"
+#include "x300_conn_mgr.hpp"
+
 #include "x300_defaults.hpp"
 #include "x300_device_args.hpp"
-
-#include "../device3/device3_impl.hpp"
+#include "x300_fw_common.h"
+#include "x300_mb_controller.hpp"
+#include "x300_mboard_type.hpp"
+#include "x300_regs.hpp"
 #include <uhd/property_tree.hpp>
-#include <uhd/usrp/mboard_eeprom.hpp>
-#include <uhd/usrp/subdev_spec.hpp>
+#include <uhd/rfnoc/chdr_types.hpp>
+#include <uhd/types/device_addr.hpp>
 #include <uhd/types/sensors.hpp>
-#include <uhd/transport/udp_simple.hpp> //mtu
-#include <uhd/usrp/gps_ctrl.hpp>
-#include <uhd/transport/nirio/niusrprio_session.h>
-#include <uhd/transport/vrt_if_packet.hpp>
-#include <uhd/transport/muxed_zero_copy_if.hpp>
-///////////// RFNOC /////////////////////
-#include <uhd/rfnoc/block_ctrl.hpp>
-///////////// RFNOC /////////////////////
-
+#include <uhd/types/wb_iface.hpp>
+#include <uhd/usrp/subdev_spec.hpp>
+#include <uhd/utils/tasks.hpp>
+#include <uhdlib/rfnoc/clock_iface.hpp>
+#include <uhdlib/rfnoc/mb_iface.hpp>
+#include <uhdlib/rfnoc/mgmt_portal.hpp>
+#include <uhdlib/rfnoc/rfnoc_common.hpp>
+#include <uhdlib/rfnoc/rfnoc_device.hpp>
+#include <uhdlib/transport/links.hpp>
 #include <uhdlib/usrp/cores/i2c_core_100_wb32.hpp>
-#include <uhdlib/usrp/common/recv_packet_demuxer_3000.hpp>
-#include <boost/dynamic_bitset.hpp>
-#include <boost/weak_ptr.hpp>
+#include <uhdlib/usrp/cores/spi_core_3000.hpp>
+
 #include <atomic>
+#include <functional>
+#include <memory>
+#include <mutex>
 
 static const std::string X300_FW_FILE_NAME  = "usrp_x300_fw.bin";
 static const std::string X300_DEFAULT_CLOCK_SOURCE  = "internal";
@@ -97,210 +102,136 @@ static const size_t X300_MAX_RATE_1GIGE            = (size_t)(  // bytes/s
 #define X300_SRC_ADDR1  1
 #define X300_DST_ADDR   2
 
-// Ethernet ports
-enum x300_eth_iface_t
-{
-    X300_IFACE_NONE = 0,
-    X300_IFACE_ETH0 = 1,
-    X300_IFACE_ETH1 = 2,
-};
-
-struct x300_eth_conn_t
-{
-    std::string addr;
-    x300_eth_iface_t type;
-    size_t link_rate;
-};
 
 
-uhd::uart_iface::sptr x300_make_uart_iface(uhd::wb_iface::sptr iface);
+uhd::device_addrs_t x300_find(const uhd::device_addr_t& hint_);
 
-uhd::wb_iface::sptr x300_make_ctrl_iface_enet(uhd::transport::udp_simple::sptr udp, bool enable_errors = true);
-uhd::wb_iface::sptr x300_make_ctrl_iface_pcie(uhd::niusrprio::niriok_proxy::sptr drv_proxy, bool enable_errors = true);
-
-uhd::device_addrs_t x300_find(const uhd::device_addr_t &hint_);
-
-class x300_impl : public uhd::usrp::device3_impl
+class x300_impl : public uhd::rfnoc::detail::rfnoc_device
 {
 public:
 
-    x300_impl(const uhd::device_addr_t &);
-    void setup_mb(const size_t which, const uhd::device_addr_t &);
-    ~x300_impl(void);
+    x300_impl(const uhd::device_addr_t&);
+    void setup_mb(const size_t which, const uhd::device_addr_t&);
+    ~x300_impl(void) override;
 
-    // device claim functions
-    enum claim_status_t {UNCLAIMED, CLAIMED_BY_US, CLAIMED_BY_OTHER};
-    static claim_status_t claim_status(uhd::wb_iface::sptr iface);
-    static void claim(uhd::wb_iface::sptr iface);
-    static bool try_to_claim(uhd::wb_iface::sptr iface, long timeout = 2000);
-    static void release(uhd::wb_iface::sptr iface);
 
-    enum x300_mboard_t {
-        USRP_X300_MB, USRP_X310_MB, UNKNOWN
-    };
-    static x300_mboard_t get_mb_type_from_pcie(const std::string& resource, const std::string& rpc_port);
-    static x300_mboard_t get_mb_type_from_eeprom(const uhd::usrp::mboard_eeprom_t& mb_eeprom);
-
-    //! Read out the on-board EEPROM, convert to dict, and return
-    static uhd::usrp::mboard_eeprom_t get_mb_eeprom(uhd::i2c_iface::sptr i2c);
-
-protected:
-    void subdev_to_blockid(
-            const uhd::usrp::subdev_spec_pair_t &spec, const size_t mb_i,
-            uhd::rfnoc::block_id_t &block_id, uhd::device_addr_t &block_args
-    );
-    uhd::usrp::subdev_spec_pair_t blockid_to_subdev(
-            const uhd::rfnoc::block_id_t &blockid, const uhd::device_addr_t &block_args
-    );
+    /**************************************************************************
+     * rfnoc_device API
+     *************************************************************************/
+    uhd::rfnoc::mb_iface& get_mb_iface(const size_t mb_idx) override
+    {
+        if (mb_idx >= _mb_ifaces.size()) {
+            throw uhd::index_error(
+                std::string("Cannot get mb_iface, invalid motherboard index: ")
+                + std::to_string(mb_idx));
+        }
+        return _mb_ifaces.at(mb_idx);
+    }
 
 private:
-
-    //vector of member objects per motherboard
+    /**************************************************************************
+     * Types
+     *************************************************************************/
+    // vector of member objects per motherboard
     struct mboard_members_t
     {
         uhd::usrp::x300::x300_device_args_t args;
 
-        bool initialization_done;
+        //! Remote Device ID for this motherboard
+        uhd::rfnoc::device_id_t device_id;
+
+
+        bool initialization_done = false;
         uhd::task::sptr claimer_task;
-        std::string xport_path;
-
-        std::vector<x300_eth_conn_t> eth_conns;
-        size_t next_src_addr;
-        size_t next_tx_src_addr;
-        size_t next_rx_src_addr;
-
-        // Discover the ethernet connections per motherboard
-        void discover_eth(const uhd::usrp::mboard_eeprom_t mb_eeprom,
-                          const std::vector<std::string> &ip_addrs);
-
-        // Get the primary ethernet connection
-        inline const x300_eth_conn_t& get_pri_eth() const
-        {
-            return eth_conns[0];
-        }
-
+        uhd::usrp::x300::xport_path_t xport_path;
         uhd::device_addr_t send_args;
         uhd::device_addr_t recv_args;
-        bool if_pkt_is_big_endian;
-        uhd::niusrprio::niusrprio_session::sptr  rio_fpga_interface;
 
-        //perifs in the zpu
+
+        // perifs in the zpu
         uhd::wb_iface::sptr zpu_ctrl;
         spi_core_3000::sptr zpu_spi;
         i2c_core_100_wb32::sptr zpu_i2c;
 
-        //other perifs on mboard
+        // other perifs on mboard
         x300_clock_ctrl::sptr clock;
-        uhd::gps_ctrl::sptr gps;
 
-        uhd::usrp::x300::fw_regmap_t::sptr fw_regmap;
 
-        //which FPGA image is loaded
+        // which FPGA image is loaded
         std::string loaded_fpga_image;
 
         size_t hw_rev;
-        std::string current_refclk_src;
 
-        std::vector<uhd::rfnoc::x300_radio_ctrl_impl::sptr> radios;
 
-        // PCIe specific components:
+        uhd::usrp::x300::conn_manager::sptr conn_mgr;
 
-        //! Maps SID -> DMA channel
-        std::map<uint32_t, uint32_t> _dma_chan_pool;
-        //! Control transport for one PCIe connection
-        uhd::transport::muxed_zero_copy_if::sptr ctrl_dma_xport;
-        //! Async message transport
-        uhd::transport::muxed_zero_copy_if::sptr async_msg_dma_xport;
-
-        /*! Allocate or return a previously allocated PCIe channel pair
-         *
-         * Note the SID is always the transmit SID (i.e. from host to device).
-         */
-        uint32_t allocate_pcie_dma_chan(const uhd::sid_t &tx_sid, const xport_type_t xport_type);
     };
+
+
+    //! X300-Specific Implementation of rfnoc::mb_iface
+    class x300_mb_iface : public uhd::rfnoc::mb_iface
+    {
+    public:
+        x300_mb_iface(uhd::usrp::x300::conn_manager::sptr conn_mgr,
+            const double radio_clk_freq,
+            const uhd::rfnoc::device_id_t remote_dev_id);
+        ~x300_mb_iface() override;
+        uint16_t get_proto_ver() override;
+        uhd::rfnoc::chdr_w_t get_chdr_w() override;
+        uhd::endianness_t get_endianness(
+            const uhd::rfnoc::device_id_t local_device_id) override;
+        uhd::rfnoc::device_id_t get_remote_device_id() override;
+        std::vector<uhd::rfnoc::device_id_t> get_local_device_ids() override;
+        uhd::transport::adapter_id_t get_adapter_id(
+            const uhd::rfnoc::device_id_t local_device_id) override;
+        void reset_network() override;
+        uhd::rfnoc::clock_iface::sptr get_clock_iface(
+            const std::string& clock_name) override;
+        uhd::rfnoc::chdr_ctrl_xport::sptr make_ctrl_transport(
+            uhd::rfnoc::device_id_t local_device_id,
+            const uhd::rfnoc::sep_id_t& local_epid) override;
+        uhd::rfnoc::chdr_rx_data_xport::uptr make_rx_data_transport(
+            uhd::rfnoc::mgmt::mgmt_portal& mgmt_portal,
+            const uhd::rfnoc::sep_addr_pair_t& addrs,
+            const uhd::rfnoc::sep_id_pair_t& epids,
+            const uhd::rfnoc::sw_buff_t pyld_buff_fmt,
+            const uhd::rfnoc::sw_buff_t mdata_buff_fmt,
+            const uhd::device_addr_t& xport_args,
+            const std::string& streamer_id) override;
+        uhd::rfnoc::chdr_tx_data_xport::uptr make_tx_data_transport(
+            uhd::rfnoc::mgmt::mgmt_portal& mgmt_portal,
+            const uhd::rfnoc::sep_addr_pair_t& addrs,
+            const uhd::rfnoc::sep_id_pair_t& epids,
+            const uhd::rfnoc::sw_buff_t pyld_buff_fmt,
+            const uhd::rfnoc::sw_buff_t mdata_buff_fmt,
+            const uhd::device_addr_t& xport_args,
+            const std::string& streamer_id) override;
+
+
+    private:
+        const uhd::rfnoc::device_id_t _remote_dev_id;
+        std::unordered_map<uhd::rfnoc::device_id_t, uhd::transport::adapter_id_t>
+            _adapter_map;
+        uhd::rfnoc::clock_iface::sptr _bus_clk;
+        uhd::rfnoc::clock_iface::sptr _radio_clk;
+        uhd::usrp::x300::conn_manager::sptr _conn_mgr;
+    };
+
+    /**************************************************************************
+     * Private Methods
+     *************************************************************************/
+    void check_fw_compat(const uhd::fs_path& mb_path, const mboard_members_t& members);
+    void check_fpga_compat(const uhd::fs_path& mb_path, const mboard_members_t& members);
+
+    /**************************************************************************
+     * Private Attributes
+     *************************************************************************/
     std::vector<mboard_members_t> _mb;
 
-    //task for periodically reclaiming the device from others
-    void claimer_loop(uhd::wb_iface::sptr);
+    std::mutex _mb_iface_mutex;
+    std::unordered_map<size_t, x300_mb_iface> _mb_ifaces;
 
-    std::atomic<size_t> _sid_framer;
-
-    uhd::sid_t allocate_sid(
-        mboard_members_t &mb,
-        const uhd::sid_t &address,
-        const uint32_t src_addr,
-        const uint32_t src_dst);
-    uhd::both_xports_t make_transport(
-        const uhd::sid_t &address,
-        const xport_type_t xport_type,
-        const uhd::device_addr_t& args
-    );
-
-    struct frame_size_t
-    {
-        size_t recv_frame_size;
-        size_t send_frame_size;
-    };
-    frame_size_t _max_frame_sizes;
-
-    /*!
-     * Automatically determine the maximum frame size available by sending a UDP packet
-     * to the device and see which packet sizes actually work. This way, we can take
-     * switches etc. into account which might live between the device and the host.
-     */
-    frame_size_t determine_max_frame_size(const std::string &addr, const frame_size_t &user_mtu);
-
-    ////////////////////////////////////////////////////////////////////
-    //
-    //Caching for transport interface re-use -- like sharing a DMA.
-    //The cache is optionally used by make_transport by use-case.
-    //The cache maps an ID string to a transport-ish object.
-    //The ID string identifies a purpose for the transport.
-    //
-    //For recv, there is a demux cache, which maps a ID string
-    //to a recv demux object. When a demux is used, the underlying transport
-    //must never be used outside of the demux. Use demux->make_proxy(sid).
-    //
-    uhd::dict<std::string, uhd::usrp::recv_packet_demuxer_3000::sptr> _demux_cache;
-    //
-    //For send, there is a shared send xport, which maps an ID string
-    //to a transport capable of sending buffers. Send transports
-    //can be shared amongst multiple callers, unlike recv.
-    //
-    uhd::dict<std::string, uhd::transport::zero_copy_if::sptr> _send_cache;
-    //
-    ////////////////////////////////////////////////////////////////////
-
-    uhd::dict<std::string, uhd::usrp::dboard_manager::sptr> _dboard_managers;
-
-    bool _ignore_cal_file;
-
-    void update_clock_control(mboard_members_t&);
-    void initialize_clock_control(mboard_members_t &mb);
-    void set_time_source_out(mboard_members_t&, const bool);
-    void update_clock_source(mboard_members_t&, const std::string &);
-    void update_time_source(mboard_members_t&, const std::string &);
-    void sync_times(mboard_members_t&, const uhd::time_spec_t&);
-
-    uhd::sensor_value_t get_ref_locked(mboard_members_t& mb);
-    bool wait_for_clk_locked(mboard_members_t& mb, uint32_t which, double timeout);
-    bool is_pps_present(mboard_members_t& mb);
-
-    //! Write the contents of an EEPROM dict to the on-board EEPROM
-    void set_mb_eeprom(
-            uhd::i2c_iface::sptr i2c,
-            const uhd::usrp::mboard_eeprom_t &
-    );
-
-    void check_fw_compat(const uhd::fs_path &mb_path, const mboard_members_t &members);
-    void check_fpga_compat(const uhd::fs_path &mb_path, const mboard_members_t &members);
-
-    /// More IO stuff
-    uhd::device_addr_t get_tx_hints(size_t mb_index);
-    uhd::device_addr_t get_rx_hints(size_t mb_index);
-
-    void post_streamer_hooks(uhd::direction_t dir);
+    static const uhd::rfnoc::chdr::chdr_packet_factory _pkt_factory;
 };
 
 #endif /* INCLUDED_X300_IMPL_HPP */
-// vim: sw=4 expandtab:

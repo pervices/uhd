@@ -5,11 +5,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_TRANSPORT_NIRIO_NIRIO_PROXY_IMPL_V2_H
-#define INCLUDED_UHD_TRANSPORT_NIRIO_NIRIO_PROXY_IMPL_V2_H
+#pragma once
 
-#include <boost/smart_ptr.hpp>
 #include <uhd/utils/noncopyable.hpp>
+
 #include <uhd/transport/nirio/nirio_driver_iface.h>
 #include <uhd/transport/nirio/nirio_quirks.h>
 #include <uhd/transport/nirio/niriok_proxy.h>
@@ -127,5 +126,3 @@ namespace uhd { namespace niusrprio
     };
 
 }}
-
-#endif /* INCLUDED_UHD_TRANSPORT_NIRIO_NIRIO_PROXY_IMPL_V2_H */

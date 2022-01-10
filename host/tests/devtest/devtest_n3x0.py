@@ -48,10 +48,24 @@ uhd_benchmark_rate_test.tests = {
     },
 }
 
+from tx_waveforms_test import uhd_tx_waveforms_test
+uhd_tx_waveforms_test.tests = {
+    'chan0': {
+        'chan': '0',
+    },
+    'chan1': {
+        'chan': '0',
+    },
+    'both_chans': {
+        'chan': '0,1',
+    },
+}
+
 from rx_samples_to_file_test import rx_samples_to_file_test
 from tx_bursts_test import uhd_tx_bursts_test
 from test_pps_test import uhd_test_pps_test
 from gpio_test import gpio_test
 from bitbang_test import bitbang_test
 from list_sensors_test import list_sensors_test
+from test_messages_test import test_messages_test
 

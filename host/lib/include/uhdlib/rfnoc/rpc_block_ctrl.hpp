@@ -4,14 +4,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_LIBUHD_RFNOC_RPC_BLOCK_CTRL_HPP
-#define INCLUDED_LIBUHD_RFNOC_RPC_BLOCK_CTRL_HPP
+#pragma once
 
 #include <uhd/types/device_addr.hpp>
 #include <uhdlib/utils/rpc.hpp>
 
-namespace uhd {
-    namespace rfnoc {
+namespace uhd { namespace rfnoc {
 
 /*! Abstraction for RPC client
  *
@@ -30,12 +28,7 @@ public:
      * \param block_args Additional block arguments
      */
     virtual void set_rpc_client(
-        uhd::rpc_client::sptr rpcc,
-        const uhd::device_addr_t &block_args
-    ) = 0;
-
+        uhd::rpc_client::sptr rpcc, const uhd::device_addr_t& block_args) = 0;
 };
 
-}}
-
-#endif /* INCLUDED_LIBUHD_RFNOC_RPC_BLOCK_CTRL_HPP */
+}} // namespace uhd::rfnoc

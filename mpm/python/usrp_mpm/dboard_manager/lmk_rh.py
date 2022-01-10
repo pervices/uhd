@@ -21,8 +21,9 @@ class LMK04828Rh(LMK04828):
             parent_log.getChild("LMK04828-{}".format(slot_idx)) if parent_log is not None \
             else get_logger("LMK04828-{}".format(slot_idx))
         LMK04828.__init__(self, regs_iface, parent_log)
-        self.log.debug("Using reference clock frequency {} MHz".format(ref_clock_freq/1e6))
-        self.log.debug("Using sampling clock frequency: {} MHz".format(sampling_clock_freq/1e6))
+        self.log.debug("Using reference clock frequency {:.2f} MHz".format(ref_clock_freq/1e6))
+        self.log.debug("Using sampling clock frequency: {:.2f} MHz"
+                       .format(sampling_clock_freq/1e6))
         self.ref_clock_freq = ref_clock_freq
         self.sampling_clock_freq = sampling_clock_freq
         # VCXO on Rh runs at 122.88 MHz
@@ -170,7 +171,7 @@ class LMK04828Rh(LMK04828):
             (0x12C, 0x00), # CLKout Config
             (0x12D, 0x00), # CLKout Config
             (0x12E, 0x71), # CLKout Config
-            (0x12F, 0x85), # CLKout Config
+            (0x12F, 0x05), # CLKout Config
             (0x130, convclk_div_val), # CLKout Config (ADC Clock)
             (0x131, convclk_cnt_val), # CLKout Config
             (0x132, 0x22), # CLKout Config
@@ -215,8 +216,8 @@ class LMK04828Rh(LMK04828):
             (0x159, (self.pll1_n_divider & 0x3F00) >> 8), # PLL1 N divider [13:8], default = d6
             (0x15A, (self.pll1_n_divider & 0x00FF) >> 0), # PLL1 N divider [7:0], default = d0
             (0x15B, 0xC7), # PLL1 PFD: negative slope for active filter / CP = 750 uA
-            (0x15C, 0x27), # PLL1 DLD Count [13:8]
-            (0x15D, 0x10), # PLL1 DLD Count [7:0]
+            (0x15C, 0x0F), # PLL1 DLD Count [13:8]
+            (0x15D, 0xA0), # PLL1 DLD Count [7:0]
             (0x15E, 0x00), # PLL1 R/N delay, defaults = 0
             (0x15F, 0x0B), # Status LD1 pin = PLL1 LD, push-pull output
             (0x160, (self.pll2_r_divider & 0x0F00) >> 8), # PLL2 R divider [11:8];
@@ -241,11 +242,11 @@ class LMK04828Rh(LMK04828):
             (0x173, 0x00), # Do not power down PLL2 or prescaler
         ))
 
-        # Poll for PLL1/2 lock. Total time = 10 * 100 ms = 1000 ms max.
+        # Poll for PLL1/2 lock. Total time = 100 * 10 ms = 1000 ms max.
         self.log.trace("Polling for PLL lock...")
         locked = False
-        for _ in range(10):
-            time.sleep(0.100)
+        for _ in range(100):
+            time.sleep(0.01)
             # Clear stickies
             self.pokes8((
                 (0x182, 0x1), # Clear Lock Detect Sticky
@@ -314,3 +315,9 @@ class LMK04828Rh(LMK04828):
         # Put everything back the way it was before shifting.
         self.poke8(0x144, 0xFF) # Disable SYNC on all outputs including SYSREF
         self.poke8(0x143, 0x52) # Pulser selected; SYNC enabled; 1 shot enabled
+
+    def enable_tx_lb_lo(self, enb):
+        self.poke8(0x11F, 0x05 if enb else 0x00)
+
+    def enable_rx_lb_lo(self, enb):
+        self.poke8(0x12F, 0x05 if enb else 0x00)

@@ -8,6 +8,7 @@ Miscellaneous utilities for MPM
 """
 
 import time
+import pyudev
 from contextlib import contextmanager
 
 def poll_with_timeout(state_check, timeout_ms, interval_ms):
@@ -90,18 +91,18 @@ def assert_compat_number(
         log=None,
     ):
     """
-    Check if a compat number pair is acceptable. A compat number is a pair of
-    integers (MAJOR, MINOR). A compat number is not acceptable if the major
+    Check if a compat number tuple is acceptable. A compat number is a tuple of
+    integers (MAJOR, MINOR, BUILD). A compat number is not acceptable if the major
     part differs from the expected value (regardless of how it's different) or
     if the minor part is behind the expected value and fail_on_old_minor was
-    given.
+    given. Build number is not checked here.
     On failure, will throw a RuntimeError.
 
     Arguments:
-    expected_compat -- A tuple (major, minor) which represents the compat
-                       number we are expecting.
-    actual_compat -- A tuple (major, minor) which represents the compat number
-                     that is actually available.
+    expected_compat -- A tuple (major, minor) or (major, minor, build) which
+                       represents the compat number we are expecting.
+    actual_compat -- A tuple (major, minor) or (major, minor, build) which
+                     represents the compat number that is actually available.
     component -- A name of the component for which we are checking the compat
                  number, e.g. "FPGA".
     fail_on_old_minor -- Will also fail if the actual minor compat number is
@@ -110,15 +111,20 @@ def assert_compat_number(
     log -- Logger object. If given, will use this to report on intermediate
            steps and non-fatal minor compat mismatches.
     """
-    assert len(expected_compat) == 2
-    assert len(actual_compat) == 2
+    valid_tuple_lengths = (2, 3)
+    assert len(expected_compat) in valid_tuple_lengths, (
+        f"Version {expected_compat} has invalid format. Valid formats are"
+        "(major, minor) or (major, minor, build)")
+    assert len(actual_compat) in valid_tuple_lengths, (
+        f"Version {expected_compat} has invalid format. Valid formats are"
+        "(major, minor) or (major, minor, build)")
     log_err = lambda msg: log.error(msg) if log is not None else None
     log_warn = lambda msg: log.warning(msg) if log is not None else None
     expected_actual_str = "Expected: {:d}.{:d} Actual: {:d}.{:d}".format(
         expected_compat[0], expected_compat[1],
         actual_compat[0], actual_compat[1],
     )
-    component_str = "" if component is None else " for component `{}'".format(
+    component_str = "" if component is None else " for component '{}'".format(
         component
     )
     if actual_compat[0] != expected_compat[0]:
@@ -128,17 +134,17 @@ def assert_compat_number(
         log_err(err_msg)
         raise RuntimeError(err_msg)
     if actual_compat[1] > expected_compat[1]:
-        log_warn("Actual minor compat ahead of expected compat{}. {}".format(
+        log_warn("Minor compat ahead of expected compat{}. {}".format(
             component_str, expected_actual_str
         ))
     if actual_compat[1] < expected_compat[1]:
         err_msg = "Minor compat number mismatch{}: {}".format(
             component_str, expected_actual_str
         )
-        log_err(err_msg)
         if fail_on_old_minor:
+            log_err(err_msg)
             raise RuntimeError(err_msg)
-    return
+        log_warn(err_msg)
 
 def str2bool(value):
     """Return a Boolean value from a string, even if the string is not simply
@@ -182,6 +188,26 @@ def lock_guard(lockable):
     lockable -- Must have a .lock() and .unlock() method
     """
     lockable.lock()
-    yield
-    lockable.unlock()
+    try:
+        yield
+    finally:
+        lockable.unlock()
 
+def check_fpga_state(which=0, logger=None):
+    """
+    Check if the FPGA is operational
+    :param which: the FPGA to check
+    """
+    try:
+        context = pyudev.Context()
+        fpga_mgrs = list(context.list_devices(subsystem="fpga_manager"))
+        if fpga_mgrs:
+            state = fpga_mgrs[which].attributes.asstring('state')
+            if logger is not None:
+                logger.trace("FPGA State: {}".format(state))
+            return state == "operating"
+        return False
+    except OSError as ex:
+        if logger is not None:
+            logger.error("Error while checking FPGA status: {}".format(ex))
+        return False

@@ -29,19 +29,21 @@ helpful move for the team and future maintainability of the UHD codebase.
   terminal, and do side-by-side views of code on small-ish screens, so this is
   actually pretty helpful.
 * Go crazy with log messages. Trace-level log messages in particular can be
-  used copiously and freely (unless in rare cases where the can interfere with
+  used copiously and freely (unless in rare cases where they can interfere with
   performance). Note that in C++, we have the option of fully compiling out
   trace-level messages (and even higher levels).
 
 ## C++-specific Guidelines
 
-* If in doubt, consult the [C++ Core Guidelines][https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md].
-  If the guidelines have an answer, and it works for you, just pick that.
+* All C++ code must be formatted according to the .clang-format file in the root
+  of the project.
+* If in doubt, consult the [C++ Core Guidelines][CppCoreGuidelines]. If the
+  guidelines have an answer, and it works for you, just pick that.
 * Use Doxygen doc-blocks copiously.
 * All things equal, prefer standard C++ constructs over Boost constructs (see
   also Boost guidelines).
 * Given the option, prefer C++ lambdas over std::bind, and just don't use
-  boost::bind if you can.
+  boost::bind.
 * `size_t` is the correct container for all indexing of C++ structures (such
   as vectors). But keep in mind that the size of `size_t` is
   *platform-dependent*!
@@ -52,7 +54,8 @@ helpful move for the team and future maintainability of the UHD codebase.
   The rationale is to include from most to least specific. This is the best way
   to catch missing includes (if you were to include the standard header first,
   it would be available to all include files that come later. If they need that
-  standard header too, they should be including it themselves).
+  standard header too, they should be including it themselves). Note that
+  clang-format will do this for you.
   Example:
 
 ```cpp
@@ -117,17 +120,16 @@ std::map<std::string, std::string> bar =
 
 ## Python-specific Guidelines
 
-* Keep Python code compatible with Py2k and Py3k. There are plenty of tools to
-  aid with this, such as `futurize`.
-* Follow the suggestions in PEP8 (https://www.python.org/dev/peps/pep-0008/)
-  and PEP257 (https://www.python.org/dev/peps/pep-0257/). The former is about
+* Starting with UHD 4.0, Python 2 is no longer supported, and we don't need to
+  accommodate for it any longer. Prefer Python 3 constructs.
+* Follow the suggestions in [PEP8][Pep8] and [PEP257][Pep257]. The former is about
   code layout in general, the latter about docstrings.
 * Pylint is good tool for helping with following code guidelines. It's very
   fussy though, so don't get too worked up about following its suggestions.
 
 ## CMake-specific Guidelines
 
-* CMake commands written in lowercase.
+* CMake commands are written in lowercase.
 
 ## Revision Control Hygiene
 
@@ -154,4 +156,7 @@ std::map<std::string, std::string> bar =
 FPGA guidelines are stored in a separate file. See [CODING.md][fpga-coding] in
 the FPGA repository.
 
-[fpga-coding]: https://github.com/EttusResearch/fpga/blob/master/CODING.md
+[CppCoreGuideLines]: https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md
+[PEP8]: https://www.python.org/dev/peps/pep-0008/
+[Pep257]: https://www.python.org/dev/peps/pep-0257/
+[fpga-coding]: https://github.com/EttusResearch/uhd/blob/master/fpga/CODING.md

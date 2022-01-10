@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2018 Ettus Research, a National Instruments Company
+# Copyright 2018,2019 Ettus Research, a National Instruments Company
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -10,7 +10,6 @@ UHD Phase Alignment: Phase alignment test using the UHD Python API.
 
 
 import argparse
-from builtins import input
 from datetime import datetime, timedelta
 import itertools as itt
 import sys
@@ -28,6 +27,18 @@ NUM_RETRIES = 10  # Number of retries on a given trial before giving up
 # TODO: Add support for TX phase alignment
 
 
+def split_args(args_str):
+    """
+    Split a string of the form key1=value1,key2=value2 into a dict of the form
+    {key1 => 'value1', key2 => 'value2'}.
+    """
+    return {
+        x.split('=', 1)[0].strip(): x.split('=', 1)[1]
+        for x in args_str.split(",")
+        if x
+    }
+
+
 def parse_args():
     """Parse the command line arguments"""
     description = """UHD Phase Alignment (Python API)
@@ -43,8 +54,16 @@ def parse_args():
                            --subdev "A:0" "A:0" --runs 3 --duration 1.0
 
     Note: when specifying --subdev, put each mboard's subdev in ""
+
+    When integrating signal generation into this script, add the following
+    arguments:
+
+    --source-plugin uhd_rf_test.new_source_gen --source-args "key1=value1,key2=value2"
+
+    This looks for a child class of SourceGenerator in the `new_source_gen`
+    module within the uhd_rf_test subpackage. See uhd_rf_test/uhd_source_gen.py
+    for an example implementation.
     """
-    # TODO: Add gain steps!
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                                      description=description)
     # Standard device args
@@ -86,12 +105,28 @@ def parse_args():
     parser.add_argument("--time-source", type=str,
                         help="PPS source (internal, external, mimo, gpsdo)")
     parser.add_argument("--sync", type=str, default="default",
-                        #choices=["default", "pps", "mimo"],
                         help="Method to synchronize devices)")
     parser.add_argument("--subdev", type=str, nargs="+",
                         help="Subdevice(s) of UHD device where appropriate. Use "
                              "a space-separated list to set different boards to "
                              "different specs.")
+    parser.add_argument("--lo-export",
+                       help="Set LO export {True, False} for each channel with a comma-separated list.")
+    parser.add_argument("--lo-source",
+                       help="Set LO source {None, internal, companion, external} for each channel with a comma-separated list. None skips this channel.")
+    parser.add_argument("--twinrx", type=bool, default=False,
+                        help="Set if the device is a TwinRX")
+    # Signal Source
+    parser.add_argument("--source-plugin", type=str, default="default",
+                        help="Select source plugin. This can either be one of"
+                             " [default,], or it can be a custom plugin."
+                       )
+    parser.add_argument("--source-args", default="",
+                        help="Arguments to be passed to the source plugin. It is "
+                             "a string of the form key1=value1,key2=value2. The "
+                             "meaning of the keys and values depends on the "
+                             "source generator plugin."
+                       )
     # Extra, advanced arguments
     parser.add_argument("--plot", default=False, action="store_true",
                         help="Plot results")
@@ -99,6 +134,8 @@ def parse_args():
                         help="Save each set of samples")
     parser.add_argument("--easy-tune", type=bool, default=True,
                         help="Round the target frequency to the nearest MHz")
+    parser.add_argument("--skip-time", type=float, default=100e-3,
+                        help="Amount of time to wait after a tune to capture samples")
     args = parser.parse_args()
 
     # Do some sanity checking
@@ -106,6 +143,17 @@ def parse_args():
         logger.warning("Tone offset may be outside the received bandwidth!")
 
     return args
+
+
+def normalize_lo_source_export_sel(args):
+    """Parses and returns the lo inputs and makes sure there is one argument per channel"""
+    lo_source = [x.strip() for x in args.lo_source.split(",")]
+    lo_export = [x.strip() for x in args.lo_export.split(",")]
+    if len(lo_source) != len(args.channels):
+        raise ValueError("Invalid number of lo-source settings {n} for {c} channels. Must be one argument per channel.".format(n=len(lo_source), c=len(args.channels)))
+    if len(lo_export) != len(args.channels):
+        raise ValueError("Invalid number of lo-export settings {n} for {c} channels. Must be one argument per channel.".format(n=len(lo_source), c=len(args.channels)))
+    return (lo_source, lo_export)
 
 
 class LogFormatter(logging.Formatter):
@@ -207,6 +255,22 @@ def setup_usrp(args):
     # Set the sample rate
     for chan in args.channels:
         usrp.set_rx_rate(args.rate, chan)
+        usrp.set_rx_gain(args.gain, chan)
+
+    # Set the LO source and export
+    if (args.lo_export is not None) and (args.lo_source is not None):
+        (args.lo_source, args.lo_export) = normalize_lo_source_export_sel(args)
+        for chan, lo_source, lo_export in zip(args.channels, args.lo_source, args.lo_export):
+            if lo_export == "True":
+                logger.info("LO export enabled on channel %s", chan)
+                usrp.set_rx_lo_export_enabled(True, "all", chan)
+                if args.twinrx is False:
+                    usrp.set_tx_lo_export_enabled(True, "all", chan)
+            if lo_source != "None":
+                logger.info("Channel %s source set to %s", chan, lo_source)
+                usrp.set_rx_lo_source(lo_source, "all", chan)
+                if args.twinrx is False:
+                    usrp.set_tx_lo_source(lo_source, "all", chan)
 
     # Actually synchronize devices
     # We already know we have >=2 channels, so don't worry about that
@@ -257,21 +321,37 @@ def generate_time_spec(usrp, time_delta=0.05):
     return usrp.get_time_now() + uhd.types.TimeSpec(time_delta)
 
 
-def tune_siggen(freq, power_lvl):
-    """Tune the signal generator to output the correct tone"""
-    # TODO: support actual RTS equipment, or any automated way
-    input("Please tune the signal generator to {:.3f} MHz and {:.1f} dBm, "
-          "then press Enter".format(freq / 1e6, power_lvl))
+def tune_usrp(usrp, freq, channels, lo_source, delay=CMD_DELAY):
+    """Synchronously set the device's frequency.
+       If a channel is using an internal LO it will be tuned first
+       and every other channel will be manually tuned based on the response.
+       This is to account for the internal LO channel having an offset in the actual DSP frequency.
+       Then all channels are synchronously tuned."""
 
-
-def tune_usrp(usrp, freq, channels, delay=CMD_DELAY):
-    """Synchronously set the device's frequency"""
+    treq = uhd.types.TuneRequest(freq)
+    lo_source_channel = -1
+    for chan, lo in zip(channels, lo_source):
+        if lo == "internal":
+            lo_source_channel = chan
+    if lo_source_channel != -1:
+        treq.dsp_freq = (usrp.set_rx_freq(uhd.types.TuneRequest(freq), lo_source_channel)).actual_dsp_freq
+        treq.target_freq = freq
+        treq.rf_freq = freq
+        treq.rf_freq_policy = uhd.types.TuneRequestPolicy(ord('M'))
+        treq.dsp_freq_policy = uhd.types.TuneRequestPolicy(ord('M'))
+        for chan, lo_source in zip(channels, lo_source):
+            if lo_source == "internal":
+                continue
+            usrp.set_rx_freq(treq, chan)
     usrp.set_command_time(generate_time_spec(usrp, time_delta=delay))
     for chan in channels:
-        usrp.set_rx_freq(uhd.types.TuneRequest(freq), chan)
+        usrp.set_rx_freq(treq, chan)
+    usrp.clear_command_time()
+    time.sleep(delay)
 
 
-def recv_aligned_num_samps(usrp, streamer, num_samps, freq, channels=(0,)):
+
+def recv_aligned_num_samps(usrp, streamer, num_samps, freq, lo_source, channels=(0,)):
     """
     RX a finite number of samples from the USRP
     :param usrp: MultiUSRP object
@@ -285,7 +365,7 @@ def recv_aligned_num_samps(usrp, streamer, num_samps, freq, channels=(0,)):
     result = np.empty((len(channels), num_samps), dtype=np.complex64)
 
     # Tune to the desired frequency
-    tune_usrp(usrp, freq, channels)
+    tune_usrp(usrp, freq, channels, lo_source)
 
     metadata = uhd.types.RXMetadata()
     buffer_samps = streamer.get_max_num_samps() * 10
@@ -359,6 +439,24 @@ def plot_samps(samps, alignment):
     plt.show()
 
 
+def calc_max_drift(phase_vals):
+    """Returns the maximum drift (radians) between the mean phase values of runs
+    This works for all values, even those around +/-pi.
+    For example, calc_max_drift([179 degrees, -179 degrees]) = 2 degrees, not
+    358 degrees"""
+    def span(ll):
+        "Return max - min of values in ll"
+        return max(ll) - min(ll)
+    # Roll over negative values up to above pi, see if that improves things
+    # Ensure that phase_vals is a numpy array so that we can use nifty indexing
+    # below
+    phase_vals = np.array(phase_vals)
+    norm_span = span(phase_vals)
+    corrected = phase_vals + (phase_vals < 0)*2*np.pi
+    corr_span = span(corrected)
+    return corr_span if corr_span < norm_span else norm_span
+
+
 def check_results(alignment_stats, drift_thresh, stddev_thresh):
     """Print the alignment stats in a nice way
 
@@ -372,7 +470,8 @@ def check_results(alignment_stats, drift_thresh, stddev_thresh):
     """
     success = True  # Whether or not we've exceeded a threshold
     msg = ""
-    for freq, stats_list in alignment_stats.items():
+    for freq, stats_list in sorted(alignment_stats.items()):
+        band_success = True
         # Try to grab the test frequency for the frequency band
         try:
             test_freq = stats_list[0].get("test_freq")
@@ -391,6 +490,7 @@ def check_results(alignment_stats, drift_thresh, stddev_thresh):
             mean_deg = run_dict.get("mean", 0.) * 180 / np.pi
             stddev_deg = run_dict.get("stddev", 0.) * 180 / np.pi
             if stddev_deg > stddev_thresh:
+                band_success = False
                 success = False
 
             msg += "{:.2f}MHz<-{:.2f}MHz: {:.3f} deg +- {:.3f}\n".format(
@@ -399,11 +499,13 @@ def check_results(alignment_stats, drift_thresh, stddev_thresh):
             mean_list.append(mean_deg)
 
         # Report the largest difference in mean values of runs
-        # FIXME: This won't work around +-180 deg
-        max_drift = max(mean_list) - min(mean_list)
+        max_drift = calc_max_drift(mean_list)
         if max_drift > drift_thresh:
+            band_success = False
             success = False
         msg += "--Maximum drift over runs: {:.2f} degrees\n".format(max_drift)
+        if band_success is False:
+            msg += "Failure!\n"
         # Print a newline to separate frequency bands
         msg += "\n"
 
@@ -420,6 +522,10 @@ def main():
     if usrp is None:
         return False
 
+    # Setup source generator
+    from uhd_rf_test import uhd_source_gen
+    src_gen = uhd_source_gen.get_source_generator(
+        logger, args.source_plugin, **split_args(args.source_args))
     ### General test description ###
     # 1. Split the frequency range of our device into bands. For each of these
     #    bands, we'll pick a random frequency within the band to be our test
@@ -434,8 +540,12 @@ def main():
     #    not the test passed or failed.
 
     # Determine the frequency bands we need to test
+    # We need to subtract the tone offset from the maximum frequency so that we
+    # never exceed it
     # TODO: allow users to specify test frequencies in args
-    freq_bands = get_band_limits(args.start_freq, args.stop_freq, args.freq_bands)
+    freq_bands = get_band_limits(args.start_freq,
+                                 args.stop_freq - args.tone_offset,
+                                 args.freq_bands)
     # Frequency bands to tune away to
     # TODO: make this based on the device's frequency range. This requires
     #       additional Python API bindings.
@@ -458,9 +568,10 @@ def main():
         if args.easy_tune:
             # Round to the nearest MHz
             tune_freq = np.round(tune_freq, -6)
+
         # Request the SigGen tune to our test frequency plus some offset away
         # the device's LO
-        tune_siggen(tune_freq + args.tone_offset, current_power)
+        src_gen.tune(tune_freq + args.tone_offset, current_power)
 
         # This is where the magic happens!
         # Store phase alignment statistics as a list of dictionaries
@@ -470,8 +581,8 @@ def main():
             for i in range(NUM_RETRIES):
                 # Tune to a random frequency in each of the frequency bands...
                 tune_away_freq = npr.uniform(tune_away_start, tune_away_stop)
-                tune_usrp(usrp, tune_away_freq, args.channels)
-                time.sleep(0.5)
+                tune_usrp(usrp, tune_away_freq, args.channels, args.lo_source)
+                time.sleep(args.skip_time)
 
                 logger.info("Receiving samples, take %d, (%.2fMHz -> %.2fMHz)",
                             i, tune_away_freq/1e6, tune_freq/1e6)
@@ -481,6 +592,7 @@ def main():
                                                streamer,
                                                nsamps,
                                                tune_freq,
+                                               args.lo_source,
                                                args.channels)
                 if samps.size >= nsamps:
                     break
@@ -495,17 +607,17 @@ def main():
                 alignment_stats.append({})
                 continue
 
-            alignment = np.angle(np.conj(samps[0]) * samps[1])[500:]
+            alignment = np.angle(np.conj(samps[0]) * samps[1])
 
             if args.plot:
                 plot_samps(samps, alignment,)
 
             if args.save:
-                # TODO: add frequency data
                 date_now = datetime.utcnow()
                 epoch = datetime(1970, 1, 1)
                 utc_now = int((date_now - epoch).total_seconds())
-                np.savez("phaseAligned_{}.npz".format(utc_now), samps)
+                np.savez("phaseAligned_{}_{}khz.npz".format(
+                    utc_now, int(tune_freq/1e3)), samps)
 
             # Store the phase alignment stats
             alignment_stats.append({
@@ -522,12 +634,16 @@ def main():
         run_stddevs = [run_stats.get("stddev", 0.) for run_stats in alignment_stats]
         logger.debug("Test freq %.3fMHz health check: %.1f deg drift, %.2f deg max stddev",
                      tune_freq/1e6,
-                     max(run_means) - min(run_means), # FIXME: This won't work around +-180 deg
-                     max(run_stddevs)
-                    )
+                     calc_max_drift(run_means) * 180 / np.pi,
+                     max(run_stddevs) * 180. / np.pi)
+        if args.drift_threshold < calc_max_drift(run_means) * 180 / np.pi:
+            logger.info("Drift threshold of %.1f has been exceeded by %.1f degrees", args.drift_threshold, (calc_max_drift(run_means) * 180 / np.pi) - args.drift_threshold)
+        if args.stddev_threshold < max(run_stddevs) * 180. / np.pi:
+            logger.info("Max stddev threshold of %.2f has been exceeded by %.2f degrees", args.stddev_threshold, (max(run_stddevs) * 180. / np.pi) - args.stddev_threshold)
         all_alignment_stats[freq_start] = alignment_stats
         # Increment the power level for the next run
         current_power += args.power_step
+    src_gen.tear_down()
 
     return check_results(all_alignment_stats, args.drift_threshold, args.stddev_threshold)
 

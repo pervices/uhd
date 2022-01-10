@@ -18,7 +18,7 @@ from usrp_mpm.mpmlog import get_logger
 from usrp_mpm.sys_utils.udev import get_eeprom_paths
 from usrp_mpm.sys_utils.uio import UIO
 from usrp_mpm.periph_manager.e320_periphs import MboardRegsControl
-
+from usrp_mpm.mpmutils import async_exec
 
 ###############################################################################
 # Main dboard control class
@@ -186,7 +186,7 @@ class Neon(DboardManagerBase):
             ))
         # Some default chains on -- needed for setup purposes
         self.catalina.set_active_chains(True, False, True, False)
-        self.catalina.set_clock_rate(self.master_clock_rate)
+        self.set_catalina_clock_rate(self.master_clock_rate)
 
         return True
 
@@ -286,8 +286,8 @@ class Neon(DboardManagerBase):
         return {
             'name': 'ad9361_lock',
             'type': 'BOOLEAN',
-           'unit': 'locked' if lo_locked else 'unlocked',
-           'value': str(lo_locked).lower(),
+            'unit': 'locked' if lo_locked else 'unlocked',
+            'value': str(lo_locked).lower(),
         }
 
     def get_catalina_temp_sensor(self, _):
@@ -321,3 +321,18 @@ class Neon(DboardManagerBase):
             'value': str(self.get_rssi_val(which)),
         }
 
+    def set_catalina_clock_rate(self, rate):
+        """
+        Async call to catalina set_clock_rate
+        """
+        self.log.trace("Setting Clock rate to {}".format(rate))
+        async_exec(lib.ad9361, "set_clock_rate", self.catalina, rate)
+        return rate
+
+    def catalina_tune(self, which, freq):
+        """
+        Async call to catalina tune
+        """
+        self.log.trace("Tuning {} {}".format(which, freq))
+        async_exec(lib.ad9361, "tune", self.catalina, which, freq)
+        return self.catalina.get_freq(which)

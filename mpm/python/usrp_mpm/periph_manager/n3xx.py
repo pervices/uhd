@@ -17,13 +17,12 @@ from usrp_mpm.cores import WhiteRabbitRegsControl
 from usrp_mpm.components import ZynqComponents
 from usrp_mpm.gpsd_iface import GPSDIfaceExtension
 from usrp_mpm.periph_manager import PeriphManagerBase
-from usrp_mpm.mpmtypes import SID
 from usrp_mpm.mpmutils import assert_compat_number, str2bool, poll_with_timeout
 from usrp_mpm.rpc_server import no_rpc
 from usrp_mpm.sys_utils import dtoverlay
 from usrp_mpm.sys_utils import i2c_dev
 from usrp_mpm.sys_utils.sysfs_thermal import read_thermal_sensor_value
-from usrp_mpm.xports import XportMgrUDP, XportMgrLiberio
+from usrp_mpm.xports import XportMgrUDP
 from usrp_mpm.periph_manager.n3xx_periphs import TCA6424
 from usrp_mpm.periph_manager.n3xx_periphs import BackpanelGPIO
 from usrp_mpm.periph_manager.n3xx_periphs import MboardRegsControl
@@ -41,8 +40,12 @@ N3XX_DEFAULT_ENABLE_PPS_EXPORT = True
 N32X_DEFAULT_QSFP_RATE_PRESET = 'Ethernet'
 N32X_DEFAULT_QSFP_DRIVER_PRESET = 'Optical'
 N32X_QSFP_I2C_LABEL = 'qsfp-i2c'
-N3XX_FPGA_COMPAT = (5, 3)
+N3XX_FPGA_COMPAT = (8, 0)
 N3XX_MONITOR_THREAD_INTERVAL = 1.0 # seconds
+N3XX_BUS_CLK = 200e6
+N3XX_GPIO_BANKS = ["FP0",]
+N3XX_GPIO_SRC_PS = "PS"
+N3XX_FPGPIO_WIDTH = 12
 
 # Import daughterboard PIDs from their respective classes
 MG_PID = Magnesium.pids[0]
@@ -52,45 +55,42 @@ RHODIUM_PID = Rhodium.pids[0]
 ###############################################################################
 # Transport managers
 ###############################################################################
+# pylint: disable=too-few-public-methods
 class N3xxXportMgrUDP(XportMgrUDP):
     " N3xx-specific UDP configuration "
-    xbar_dev = "/dev/crossbar0"
     iface_config = {
+        'bridge0': {
+            'label': 'misc-enet-regs0',
+            'type': 'bridge',
+        },
         'sfp0': {
             'label': 'misc-enet-regs0',
-            'xbar': 0,
-            'xbar_port': 0,
-            'ctrl_src_addr': 0,
+            'type': 'sfp',
         },
         'sfp1': {
             'label': 'misc-enet-regs1',
-            'xbar': 0,
-            'xbar_port': 1,
-            'ctrl_src_addr': 1,
+            'type': 'sfp',
         },
-        'eth1': {
-            'label': 'misc-enet-regs0',
-            'xbar': 0,
-            'xbar_port': 0,
-            'ctrl_src_addr': 0,
+        'int0': {
+            'label': 'misc-enet-int-regs',
+            'type': 'internal',
         },
-        'eth2': {
-            'label': 'misc-enet-regs1',
-            'xbar': 0,
-            'xbar_port': 1,
-            'ctrl_src_addr': 1,
-        },
+        'eth0': {
+            'label': '',
+            'type': 'forward',
+        }
     }
+    bridges = {'bridge0': ['sfp0', 'sfp1', 'bridge0']}
 
-class N3xxXportMgrLiberio(XportMgrLiberio):
-    " N3xx-specific Liberio configuration "
-    max_chan = 10
-    xbar_dev = "/dev/crossbar0"
-    xbar_port = 2
+
+# pylint: enable=too-few-public-methods
 
 ###############################################################################
 # Main Class
 ###############################################################################
+# We need to disable the no-self-use check, because we might require self to
+# become an RPC method, but PyLint doesnt' know that.
+# pylint: disable=no-self-use
 class n3xx(ZynqComponents, PeriphManagerBase):
     """
     Holds N3xx specific attributes and methods
@@ -99,11 +99,12 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     # it uses a new daughterboard, also import that PID from the dboard
     # manager class. The format of this map is:
     # (motherboard product code, (Slot-A DB PID, [Slot-B DB PID])) -> product
+    # pylint: disable=bad-whitespace
     product_map = {
-        ('n300', tuple()) : 'n300',
-        ('n300', (MG_PID,       )): 'n300', # Slot B is empty
-        ('n310', tuple()) : 'n310',
-        ('n310', (MG_PID, MG_PID)): 'n310',
+        ('n300', tuple()        ) : 'n300', # No dboards
+        ('n300', (MG_PID,       )): 'n300', # Normal case: Slot B is empty
+        ('n310', tuple()        ) : 'n310', # No dboards
+        ('n310', (MG_PID, MG_PID)): 'n310', # Normal case: No slots are empty
         ('n310', (MG_PID,       )): 'n310', # If Slot B is empty, we can
                                             # still use the n310.bin image.
                                             # We'll leave this here for
@@ -112,6 +113,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         ('n310', (RHODIUM_PID, RHODIUM_PID)): 'n320',
         ('n310', (RHODIUM_PID,            )): 'n320',
     }
+    # pylint: enable=bad-whitespace
 
     #########################################################################
     # Overridables
@@ -124,7 +126,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     mboard_eeprom_offset = 0
     mboard_eeprom_max_len = 256
     mboard_info = {"type": "n3xx"}
-    mboard_max_rev = 6 # 6 == RevG
+    mboard_max_rev = 10 # latest HW revision that this version of MPM is aware of
     mboard_sensor_callback_map = {
         'ref_locked': 'get_ref_lock_sensor',
         'gps_locked': 'get_gps_lock_sensor',
@@ -192,9 +194,6 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         Lists device tree overlays that need to be applied before this class can
         be used. List of strings.
         Are applied in order.
-
-        eeprom_md -- Dictionary of info read out from the mboard EEPROM
-        device_args -- Arbitrary dictionary of info, typically user-defined
         """
         # In the N3xx case, we name the dtbo file the same as the product.
         # N310 -> n310.dtbo, N300 -> n300.dtbo and so on.
@@ -209,23 +208,49 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         self._ext_clock_freq = None
         self._clock_source = None
         self._time_source = None
-        self._available_endpoints = list(range(256))
         self._bp_leds = None
         self._gpsd = None
-        super(n3xx, self).__init__(args)
-        if not self._device_initialized:
-            # Don't try and figure out what's going on. Just give up.
-            return
+        self._qsfp_retimer = None
+        super(n3xx, self).__init__()
         try:
+            # Init peripherals
+            # these peripherals are specific to mboard and
+            # need to configured before applying fpga overlay
+            args = self._update_default_args(args)
+            self._gpios = TCA6424(int(self.mboard_info['rev']))
+            self.log.trace("Enabling power of MGT156MHZ clk")
+            self._gpios.set("PWREN-CLK-MGT156MHz")
+            self._gps_enabled = str2bool(
+                args.get('enable_gps', N3XX_DEFAULT_ENABLE_GPS))
+            if not self._gps_enabled:
+                self.log.info("Disabling GPS (gpsdo reference and time/location data).")
+            self.enable_1g_ref_clock()
+            self.enable_wr_ref_clock()
+            self.enable_gps(enable=self._gps_enabled)
+            self.enable_fp_gpio(
+                enable=str2bool(
+                    args.get(
+                        'enable_fp_gpio',
+                        N3XX_DEFAULT_ENABLE_FPGPIO
+                    )
+                )
+            )
+            # Apply overlay
+            self.overlay_apply()
+            # Run dboards init
+            self.init_dboards(args)
+            if not self._device_initialized:
+                # Don't try and figure out what's going on. Just give up.
+                return
             self._init_peripherals(args)
-        except Exception as ex:
+        except BaseException as ex:
             self.log.error("Failed to initialize motherboard: %s", str(ex))
             self._initialization_status = str(ex)
             self._device_initialized = False
         try:
             if not args.get('skip_boot_init', False):
                 self.init(args)
-        except Exception as ex:
+        except BaseException as ex:
             self.log.warning("Failed to initialize device on boot: %s", str(ex))
 
     def _check_fpga_compat(self):
@@ -250,7 +275,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         self._ext_clock_freq = float(
             default_args.get('ext_clock_freq', N3XX_DEFAULT_EXT_CLOCK_FREQ)
         )
-        if len(self.dboards) == 0:
+        if not self.dboards:
             self.log.warning(
                 "No dboards found, skipping setting clock and time source " \
                 "configuration."
@@ -310,36 +335,14 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         # Sanity checks
         assert self.device_info.get('product') in self.product_map.values(), \
                 "Device product could not be determined!"
-        # Init peripherals
-        self.log.trace("Initializing TCA6424 port expander controls...")
-        self._gpios = TCA6424(int(self.mboard_info['rev']))
         self.log.trace("Initializing back panel LED controls...")
         self._bp_leds = BackpanelGPIO()
-        self.log.trace("Enabling power of MGT156MHZ clk")
-        self._gpios.set("PWREN-CLK-MGT156MHz")
-        self.enable_1g_ref_clock()
-        self.enable_wr_ref_clock()
-        self.enable_gps(
-            enable=str2bool(
-                args.get('enable_gps', N3XX_DEFAULT_ENABLE_GPS)
-            )
-        )
-        self.enable_fp_gpio(
-            enable=str2bool(
-                args.get(
-                    'enable_fp_gpio',
-                    N3XX_DEFAULT_ENABLE_FPGPIO
-                )
-            )
-        )
         # Init Mboard Regs
         self.mboard_regs_control = MboardRegsControl(
             self.mboard_regs_label, self.log)
         self.mboard_regs_control.get_git_hash()
         self.mboard_regs_control.get_build_timestamp()
         self._check_fpga_compat()
-        self._update_fpga_type()
-        self.crossbar_base_port = self.mboard_regs_control.get_xbar_baseport()
         # Init clocking
         self.enable_ref_clock(enable=True)
         self._ext_clock_freq = None
@@ -355,14 +358,26 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             self._qsfp_retimer.set_rate_preset(N32X_DEFAULT_QSFP_RATE_PRESET)
             self._qsfp_retimer.set_driver_preset(N32X_DEFAULT_QSFP_DRIVER_PRESET)
         elif self.device_info['product'] == 'n320':
-            # If we have an N320, we should also have the QSFP board, but we
-            # won't freak out if we can't find it. Maybe someone removed or
-            # disabled it.
-            self.log.warning("No QSFP board detected!")
+            self.log.info(
+                "No QSFP board detected: "
+                "Assuming it is disabled in the device tree overlay "
+                "(e.g., HG, XG images).")
+        # Init FPGA type
+        self._update_fpga_type()
+        # Init FP-GPIO sources
+        self._fp_gpio_srcs = [N3XX_GPIO_SRC_PS,]
+        if self.device_info['product'] == 'n320':
+            for chan_idx in range(len(self.dboards)):
+                self._fp_gpio_srcs.append("RF{}".format(chan_idx))
+        else:
+            for chan_idx in range(len(self.dboards)):
+                self._fp_gpio_srcs.append("RF{}".format(2*chan_idx))
+                self._fp_gpio_srcs.append("RF{}".format(2*chan_idx+1))
+        self.log.debug("Found the following GPIO sources: {}"
+                       .format(",".join(self._fp_gpio_srcs)))
         # Init CHDR transports
         self._xport_mgrs = {
-            'udp': N3xxXportMgrUDP(self.log.getChild('UDP')),
-            'liberio': N3xxXportMgrLiberio(self.log.getChild('liberio')),
+            'udp': N3xxXportMgrUDP(self.log.getChild('UDP'), args),
         }
         # Spawn status monitoring thread
         self.log.trace("Spawning status monitor thread...")
@@ -448,8 +463,6 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         super(n3xx, self).deinit()
         for xport_mgr in itervalues(self._xport_mgrs):
             xport_mgr.deinit()
-        self.log.trace("Resetting SID pool...")
-        self._available_endpoints = list(range(256))
 
     def tear_down(self):
         """
@@ -474,61 +487,34 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     ###########################################################################
     # Transport API
     ###########################################################################
-    def request_xport(
-            self,
-            dst_address,
-            suggested_src_address,
-            xport_type
-        ):
+    def get_chdr_link_types(self):
         """
-        See PeriphManagerBase.request_xport() for docs.
+        This will only ever return a single item (udp).
         """
-        # Try suggested address first, then just pick the first available one:
-        src_address = suggested_src_address
-        if src_address not in self._available_endpoints:
-            if len(self._available_endpoints) == 0:
-                raise RuntimeError(
-                    "Depleted pool of SID endpoints for this device!")
-            else:
-                src_address = self._available_endpoints[0]
-        sid = SID(src_address << 16 | dst_address)
-        # Note: This SID may change its source address!
-        self.log.trace(
-            "request_xport(dst=0x%04X, suggested_src_address=0x%04X, xport_type=%s): " \
-            "operating on temporary SID: %s",
-            dst_address, suggested_src_address, str(xport_type), str(sid))
-        # FIXME token!
-        assert self.device_info['rpc_connection'] in ('remote', 'local')
-        if self.device_info['rpc_connection'] == 'remote':
-            return self._xport_mgrs['udp'].request_xport(
-                sid,
-                xport_type,
-            )
-        elif self.device_info['rpc_connection'] == 'local':
-            return self._xport_mgrs['liberio'].request_xport(
-                sid,
-                xport_type,
-            )
+        assert self.mboard_info['rpc_connection'] in ('remote', 'local')
+        return ["udp"]
 
-    def commit_xport(self, xport_info):
+    def get_chdr_link_options(self, xport_type):
         """
-        See PeriphManagerBase.commit_xport() for docs.
+        Returns a list of dictionaries. Every dictionary contains information
+        about one way to connect to this device in order to initiate CHDR
+        traffic.
 
-        Reminder: All connections are incoming, i.e. "send" or "TX" means
-        remote device to local device, and "receive" or "RX" means this local
-        device to remote device. "Remote device" can be, for example, a UHD
-        session.
+        The interpretation of the return value is very highly dependant on the
+        transport type (xport_type).
+        For UDP, the every entry of the list has the following keys:
+        - ipv4 (IP Address)
+        - port (UDP port)
+        - link_rate (bps of the link, e.g. 10e9 for 10GigE)
         """
-        ## Go, go, go
-        assert self.device_info['rpc_connection'] in ('remote', 'local')
-        sid = SID(xport_info['send_sid'])
-        self._available_endpoints.remove(sid.src_ep)
-        self.log.debug("Committing transport for SID %s, xport info: %s",
-                       str(sid), str(xport_info))
-        if self.device_info['rpc_connection'] == 'remote':
-            return self._xport_mgrs['udp'].commit_xport(sid, xport_info)
-        elif self.device_info['rpc_connection'] == 'local':
-            return self._xport_mgrs['liberio'].commit_xport(sid, xport_info)
+        if xport_type not in self._xport_mgrs:
+            self.log.warning("Can't get link options for unknown link type: `{}'.".format(xport_type))
+            return []
+        if xport_type == "udp":
+            return self._xport_mgrs[xport_type].get_chdr_link_options(
+                self.mboard_info['rpc_connection'])
+        else:
+            return self._xport_mgrs[xport_type].get_chdr_link_options()
 
     ###########################################################################
     # Device info
@@ -554,8 +540,9 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     ###########################################################################
     def get_clock_sources(self):
         " Lists all available clock sources. "
-        self.log.trace("Listing available clock sources...")
-        return ('external', 'internal', 'gpsdo')
+        if self._gps_enabled:
+            return 'external', 'internal', 'gpsdo'
+        return 'external', 'internal'
 
     def get_clock_source(self):
         " Returns the currently selected clock source "
@@ -581,7 +568,9 @@ class n3xx(ZynqComponents, PeriphManagerBase):
 
     def get_time_sources(self):
         " Returns list of valid time sources "
-        return ['internal', 'external', 'gpsdo', 'sfp0']
+        if self._gps_enabled:
+            return ['internal', 'external', 'gpsdo', 'sfp0']
+        return ['internal', 'external', 'sfp0']
 
     def get_time_source(self):
         " Return the currently selected time source "
@@ -590,8 +579,8 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     def set_time_source(self, time_source):
         " Set a time source "
         clock_source = self._clock_source
-        assert clock_source != None
-        assert time_source != None
+        assert clock_source is not None
+        assert time_source is not None
         if (clock_source, time_source) not in self.valid_sync_sources:
             if time_source == 'sfp0':
                 clock_source = 'internal'
@@ -606,18 +595,30 @@ class n3xx(ZynqComponents, PeriphManagerBase):
                  }
         self.set_sync_source(source)
 
+    def get_sync_sources(self):
+        """
+        Enumerate permissible time/clock source combinations for sync
+        """
+        return [{
+            "time_source": time_source,
+            "clock_source": clock_source
+        } for (clock_source, time_source) in self.valid_sync_sources]
+
     def set_sync_source(self, args):
         """
         Selects reference clock and PPS sources. Unconditionally re-applies the time
         source to ensure continuity between the reference clock and time rates.
         """
-
         clock_source = args.get('clock_source', self._clock_source)
-        assert clock_source in self.get_clock_sources()
+        assert clock_source in self.get_clock_sources(), \
+                "`{}' is not a valid clock source, valid choices are: {}".format(
+                    clock_source, ",".join(self.get_clock_sources()))
         time_source = args.get('time_source', self._time_source)
-        assert time_source in self.get_time_sources()
+        assert time_source in self.get_time_sources(), \
+                "`{}' is not a valid time source, valid choices are: {}".format(
+                    clock_source, ",".join(self.get_clock_sources()))
         if (clock_source == self._clock_source) and (time_source == self._time_source):
-            # Nothing change no need to do anything
+            # Nothing changed, no need to do anything
             self.log.trace("New sync source assignment matches"
                            "previous assignment. Ignoring update command.")
             return
@@ -644,9 +645,9 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             self._gpios.set("CLK-MAINSEL-GPS")
         else: # external
             self._gpios.reset("CLK-MAINSEL-EX_B")
-            self._gpios.reset("CLK-MAINSEL-GPS")
+            self._gpios.set("CLK-MAINSEL-GPS")
             # SKY13350 needs to be in known state
-            self._gpios.set("CLK-MAINSEL-25MHz")
+            self._gpios.reset("CLK-MAINSEL-25MHz")
         self._clock_source = clock_source
         self.log.debug("Reference clock source is: {}" \
                        .format(self._clock_source))
@@ -670,7 +671,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
                     time_source)
                 self.log.error(error_msg)
                 raise RuntimeError(error_msg)
-            sfp_time_source_images = ('WX',)
+            sfp_time_source_images = ('WX', 'XQ')
             if self.updateable_components['fpga']['type'] not in sfp_time_source_images:
                 self.log.error("{} time source requires FPGA types {}" \
                                .format(time_source, sfp_time_source_images))
@@ -684,7 +685,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             self.log.debug("Waiting for {} timebase to lock..." \
                            .format(time_source))
             if not poll_with_timeout(
-                    lambda: wr_regs_control.get_time_lock_status(),
+                    wr_regs_control.get_time_lock_status,
                     40000, # Try for x ms... this number is set from a few benchtop tests
                     1000, # Poll every... second! why not?
                 ):
@@ -744,41 +745,67 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             'gpsdo': 20e6,
         }[self._clock_source]
 
-    def set_fp_gpio_master(self, value):
-        """set driver for front panel GPIO
-        Arguments:
-            value {unsigned} -- value is a single bit bit mask of 12 pins GPIO
+    ###########################################################################
+    # GPIO API
+    ###########################################################################
+    def get_gpio_banks(self):
         """
-        self.mboard_regs_control.set_fp_gpio_master(value)
+        Returns a list of GPIO banks over which MPM has any control
+        """
+        return N3XX_GPIO_BANKS
 
-    def get_fp_gpio_master(self):
-        """get "who" is driving front panel gpio
-           The return value is a bit mask of 12 pins GPIO.
-           0: means the pin is driven by PL
-           1: means the pin is driven by PS
+    def get_gpio_srcs(self, bank):
         """
-        return self.mboard_regs_control.get_fp_gpio_master()
+        Return a list of valid GPIO sources for a given bank
+        """
+        assert bank in self.get_gpio_banks(), "Invalid GPIO bank: {}".format(bank)
+        return self._fp_gpio_srcs
 
-    def set_fp_gpio_radio_src(self, value):
-        """set driver for front panel GPIO
-        Arguments:
-            value {unsigned} -- value is 2-bit bit mask of 12 pins GPIO
-           00: means the pin is driven by radio 0
-           01: means the pin is driven by radio 1
-           10: means the pin is driven by radio 2
-           11: means the pin is driven by radio 3
+    def get_gpio_src(self, bank):
         """
-        self.mboard_regs_control.set_fp_gpio_radio_src(value)
+        Return the currently selected GPIO source for a given bank. The return
+        value is a list of strings. The length of the vector is identical to
+        the number of controllable GPIO pins on this bank.
+        """
+        assert bank in self.get_gpio_banks(), "Invalid GPIO bank: {}".format(bank)
+        gpio_master_reg = self.mboard_regs_control.get_fp_gpio_master()
+        gpio_radio_src_reg = self.mboard_regs_control.get_fp_gpio_radio_src()
+        def get_gpio_src_i(gpio_pin_index):
+            """
+            Return the current radio source given a pin index.
+            """
+            if gpio_master_reg & (1 << gpio_pin_index):
+                return N3XX_GPIO_SRC_PS
+            radio_src = (gpio_radio_src_reg >> (2 * gpio_pin_index)) & 0b11
+            return "RF{}".format(radio_src)
+        return [get_gpio_src_i(i) for i in range(N3XX_FPGPIO_WIDTH)]
 
-    def get_fp_gpio_radio_src(self):
-        """get which radio is driving front panel gpio
-           The return value is 2-bit bit mask of 12 pins GPIO.
-           00: means the pin is driven by radio 0
-           01: means the pin is driven by radio 1
-           10: means the pin is driven by radio 2
-           11: means the pin is driven by radio 3
+    def set_gpio_src(self, bank, src):
         """
-        return self.mboard_regs_control.get_fp_gpio_radio_src()
+        Set the GPIO source for a given bank.
+        """
+        assert bank in self.get_gpio_banks(), "Invalid GPIO bank: {}".format(bank)
+        assert len(src) == N3XX_FPGPIO_WIDTH, \
+            "Invalid number of GPIO sources!"
+        gpio_master_reg = 0x000
+        gpio_radio_src_reg = self.mboard_regs_control.get_fp_gpio_radio_src()
+        for src_index, src_name in enumerate(src):
+            if src_name not in self.get_gpio_srcs(bank):
+                raise RuntimeError(
+                    "Invalid GPIO source name `{}' at bit position {}!"
+                    .format(src_name, src_index))
+            gpio_master_flag = (src_name == N3XX_GPIO_SRC_PS)
+            gpio_master_reg = gpio_master_reg | (gpio_master_flag << src_index)
+            if gpio_master_flag:
+                continue
+            # If PS is not the master, we also need to update the radio source:
+            radio_index = int(src_name[2:]) & 0b11
+            gpio_radio_src_reg = gpio_radio_src_reg | (radio_index << (2*src_index))
+        self.log.trace("Updating GPIO source: master==0x{:03X} radio_src={:06X}"
+                       .format(gpio_master_reg, gpio_radio_src_reg))
+        self.mboard_regs_control.set_fp_gpio_master(gpio_master_reg)
+        self.mboard_regs_control.set_fp_gpio_radio_src(gpio_radio_src_reg)
+
     ###########################################################################
     # Hardware periphal controls
     ###########################################################################
@@ -932,13 +959,6 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         """
         return self.mboard_info
 
-    def set_mb_eeprom(self, eeprom_vals):
-        """
-        See PeriphManagerBase.set_mb_eeprom() for docs.
-        """
-        self.log.warn("Called set_mb_eeprom(), but not implemented!")
-        raise NotImplementedError
-
     def get_db_eeprom(self, dboard_idx):
         """
         See PeriphManagerBase.get_db_eeprom() for docs.
@@ -990,12 +1010,15 @@ class n3xx(ZynqComponents, PeriphManagerBase):
                 self.log.error(error_msg)
                 raise RuntimeError(error_msg)
             if not isinstance(blob, str) and not isinstance(blob, bytes):
-                error_msg = "Blob data for ID `{}' is not a " \
-                            "string!".format(blob_id)
+                error_msg = "Blob data for ID `{}' is neither a " \
+                            "string nor already bytes!".format(blob_id)
                 self.log.error(error_msg)
                 raise RuntimeError(error_msg)
-            assert isinstance(blob, str)
-            safe_db_eeprom_user_data[blob_id] = blob.encode('ascii')
+            if isinstance(blob, str):
+                safe_db_eeprom_user_data[blob_id] = blob.encode('ascii')
+            else:
+                safe_db_eeprom_user_data[blob_id] = blob
+
         dboard.set_user_eeprom_data(safe_db_eeprom_user_data)
 
     ###########################################################################
@@ -1006,6 +1029,13 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     def _update_fpga_type(self):
         """Update the fpga type stored in the updateable components"""
         fpga_type = self.mboard_regs_control.get_fpga_type()
+        # This is ugly, but we have no elegant way of probing QSFP capabilities
+        # through the mboard regs object, so we simply hardcode the options:
+        if self.device_info['product'] == 'n320' and self._qsfp_retimer:
+            if fpga_type == "XG":
+                fpga_type = "AQ"
+            if fpga_type == "WX":
+                fpga_type = "XQ"
         self.log.debug("Updating mboard FPGA type info to {}".format(fpga_type))
         self.updateable_components['fpga']['type'] = fpga_type
 
@@ -1030,3 +1060,21 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             # Turn off LINK
             self._bp_leds.set(self._bp_leds.LED_LINK, 0)
 
+    #######################################################################
+    # Timekeeper API
+    #######################################################################
+    def get_clocks(self):
+        """
+        Gets the RFNoC-related clocks present in the FPGA design
+        """
+        return [
+            {
+                'name': 'radio_clk',
+                'freq': str(self.dboards[0].get_master_clock_rate()),
+                'mutable': 'true'
+            },
+            {
+                'name': 'bus_clk',
+                'freq': str(N3XX_BUS_CLK),
+            }
+        ]

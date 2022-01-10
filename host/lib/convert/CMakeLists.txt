@@ -2,7 +2,7 @@
 # Copyright 2011-2013 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -23,12 +23,12 @@ endif()
 
 set(CMAKE_REQUIRED_FLAGS ${EMMINTRIN_FLAGS})
 CHECK_INCLUDE_FILE_CXX(emmintrin.h HAVE_EMMINTRIN_H)
-set(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_FLAGS)
 
 if(ENABLE_SSSE3)
 set(CMAKE_REQUIRED_FLAGS ${TMMINTRIN_FLAGS})
 CHECK_INCLUDE_FILE_CXX(tmmintrin.h HAVE_TMMINTRIN_H)
-set(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_FLAGS)
 endif(ENABLE_SSSE3)
 
 if(HAVE_EMMINTRIN_H)

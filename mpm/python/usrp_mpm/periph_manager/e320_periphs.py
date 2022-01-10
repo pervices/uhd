@@ -7,10 +7,9 @@
 E320 peripherals
 """
 
-import datetime
 import math
 from usrp_mpm.sys_utils.sysfs_gpio import SysFSGPIO, GPIOBank
-from usrp_mpm.sys_utils.uio import UIO
+from usrp_mpm.periph_manager.common import MboardRegsCommon
 
 # Map register values to SFP transport types
 E320_SFP_TYPES = {
@@ -43,30 +42,25 @@ class FrontpanelGPIO(GPIOBank):
             ddr
         )
 
-class MboardRegsControl(object):
+class MboardRegsControl(MboardRegsCommon):
     """
     Control the FPGA Motherboard registers
     """
+    # pylint: disable=bad-whitespace
     # Motherboard registers
-    MB_COMPAT_NUM     = 0x0000
-    MB_DATESTAMP      = 0x0004
-    MB_GIT_HASH       = 0x0008
-    MB_SCRATCH        = 0x000C
-    MB_NUM_CE         = 0x0010
-    MB_NUM_IO_CE      = 0x0014
-    MB_CLOCK_CTRL     = 0x0018
-    MB_XADC_RB        = 0x001C
-    MB_BUS_CLK_RATE   = 0x0020
-    MB_BUS_COUNTER    = 0x0024
-    MB_SFP_PORT_INFO  = 0x0028
-    MB_GPIO_CTRL      = 0x002C
-    MB_GPIO_MASTER    = 0x0030
-    MB_GPIO_RADIO_SRC = 0x0034
-    MB_GPS_CTRL       = 0x0038
-    MB_GPS_STATUS     = 0x003C
-    MB_DBOARD_CTRL    = 0x0040
-    MB_DBOARD_STATUS  = 0x0044
-    MB_XBAR_BASEPORT  = 0x0048
+    MB_CLOCK_CTRL      = 0x0018
+    MB_XADC_RB         = 0x001C
+    MB_BUS_CLK_RATE    = 0x0020
+    MB_BUS_COUNTER     = 0x0024
+    MB_SFP_PORT_INFO   = 0x0028
+    MB_GPIO_CTRL       = 0x002C
+    MB_GPIO_MASTER     = 0x0030
+    MB_GPIO_RADIO_SRC  = 0x0034
+    MB_GPS_CTRL        = 0x0038
+    MB_GPS_STATUS      = 0x003C
+    MB_DBOARD_CTRL     = 0x0040
+    MB_DBOARD_STATUS   = 0x0044
+    # pylint: enable=bad-whitespace
 
     # Bitfield locations for the MB_CLOCK_CTRL register.
     MB_CLOCK_CTRL_PPS_SEL_INT = 0
@@ -101,26 +95,7 @@ class MboardRegsControl(object):
     MB_DBOARD_STATUS_TX_LOCK = 7
 
     def __init__(self, label, log):
-        self.log = log
-        self.regs = UIO(
-            label=label,
-            read_only=False
-        )
-        self.poke32 = self.regs.poke32
-        self.peek32 = self.regs.peek32
-
-    def get_compat_number(self):
-        """get FPGA compat number
-
-        This function reads back FPGA compat number.
-        The return is a tuple of
-        2 numbers: (major compat number, minor compat number )
-        """
-        with self.regs:
-            compat_number = self.peek32(self.MB_COMPAT_NUM)
-        minor = compat_number & 0xff
-        major = (compat_number>>16) & 0xff
-        return (major, minor)
+        MboardRegsCommon.__init__(self, label, log)
 
     def enable_fp_gpio(self, enable):
         """ Enable front panel GPIO buffers and power supply
@@ -178,7 +153,7 @@ class MboardRegsControl(object):
             value {unsigned} -- value is a single bit bit mask of 8 pins GPIO
         """
         with self.regs:
-            return self.poke32(self.MB_GPIO_MASTER, value)
+            self.poke32(self.MB_GPIO_MASTER, value)
 
     def get_fp_gpio_master(self):
         """get "who" is driving front panel gpio
@@ -187,7 +162,7 @@ class MboardRegsControl(object):
            1: means the pin is driven by PS
         """
         with self.regs:
-            return self.peek32(self.MB_GPIO_MASTER) & 0xfff
+            return self.peek32(self.MB_GPIO_MASTER) & 0xff
 
     def set_fp_gpio_radio_src(self, value):
         """set driver for front panel GPIO
@@ -197,7 +172,7 @@ class MboardRegsControl(object):
            01: means the pin is driven by radio 1
         """
         with self.regs:
-            return self.poke32(self.MB_GPIO_RADIO_SRC, value)
+            self.poke32(self.MB_GPIO_RADIO_SRC, value)
 
     def get_fp_gpio_radio_src(self):
         """get which radio is driving front panel gpio
@@ -206,44 +181,7 @@ class MboardRegsControl(object):
            01: means the pin is driven by radio 1
         """
         with self.regs:
-            return self.peek32(self.MB_GPIO_RADIO_SRC) & 0xffffff
-
-    def get_build_timestamp(self):
-        """
-        Returns the build date/time for the FPGA image.
-        The return is datetime string with the  ISO 8601 format
-        (YYYY-MM-DD HH:MM:SS.mmmmmm)
-        """
-        with self.regs:
-            datestamp_rb = self.peek32(self.MB_DATESTAMP)
-        if datestamp_rb > 0:
-            dt_str = datetime.datetime(
-                year=((datestamp_rb>>17)&0x3F)+2000,
-                month=(datestamp_rb>>23)&0x0F,
-                day=(datestamp_rb>>27)&0x1F,
-                hour=(datestamp_rb>>12)&0x1F,
-                minute=(datestamp_rb>>6)&0x3F,
-                second=((datestamp_rb>>0)&0x3F))
-            self.log.trace("FPGA build timestamp: {}".format(str(dt_str)))
-            return str(dt_str)
-        else:
-            # Compatibility with FPGAs without datestamp capability
-            return ''
-
-    def get_git_hash(self):
-        """
-        Returns the GIT hash for the FPGA build.
-        The return is a tuple of
-        2 numbers: (short git hash, bool: is the tree dirty?)
-        """
-        with self.regs:
-            git_hash_rb = self.peek32(self.MB_GIT_HASH)
-        git_hash = git_hash_rb & 0x0FFFFFFF
-        tree_dirty = ((git_hash_rb & 0xF0000000) > 0)
-        dirtiness_qualifier = 'dirty' if tree_dirty else 'clean'
-        self.log.trace("FPGA build GIT Hash: {:07x} ({})".format(
-            git_hash, dirtiness_qualifier))
-        return (git_hash, dirtiness_qualifier)
+            return self.peek32(self.MB_GPIO_RADIO_SRC) & 0xffff
 
     def set_time_source(self, time_source, ref_clk_freq):
         """
@@ -259,11 +197,15 @@ class MboardRegsControl(object):
             pps_sel_val = 0b1 << self.MB_CLOCK_CTRL_PPS_SEL_EXT
         else:
             assert False, "Cannot set to invalid time source: {}".format(time_source)
+
+        pps_sel_mask = ((0b1 << self.MB_CLOCK_CTRL_PPS_SEL_INT) |
+                        (0b1 << self.MB_CLOCK_CTRL_PPS_SEL_EXT))
         with self.regs:
-            reg_val = self.peek32(self.MB_CLOCK_CTRL) & 0xFFFFFF90
             # prevent glitches by writing a cleared value first, then the final value.
+            reg_val = self.peek32(self.MB_CLOCK_CTRL) & ~pps_sel_mask
+            self.log.trace("Writing MB_CLOCK_CTRL to 0x{:08X}".format(reg_val))
             self.poke32(self.MB_CLOCK_CTRL, reg_val)
-            reg_val = reg_val | (pps_sel_val & 0x6F)
+            reg_val = reg_val | pps_sel_val
             self.log.trace("Writing MB_CLOCK_CTRL to 0x{:08X}".format(reg_val))
             self.poke32(self.MB_CLOCK_CTRL, reg_val)
 
@@ -297,10 +239,10 @@ class MboardRegsControl(object):
             sfp_info_rb = self.peek32(self.MB_SFP_PORT_INFO)
         # Print the registers values as 32-bit hex values
         self.log.trace("SFP Info: 0x{0:0{1}X}".format(sfp_info_rb, 8))
+        sfp_type = E320_SFP_TYPES.get((sfp_info_rb & 0x0000FF00) >> 8, "")
+        self.log.trace("SFP type: {}".format(sfp_type))
         try:
-            sfp_type = E320_SFP_TYPES.get((sfp_info_rb & 0x0000FF00) >> 8, "")
-            self.log.trace("SFP type: {}".format(sfp_type))
-            return sfp_type
+            return E320_FPGA_TYPES_BY_SFP[(sfp_type)]
         except KeyError:
             self.log.warning("Unrecognized SFP type: {}"
                              .format(sfp_type))
@@ -368,7 +310,8 @@ class MboardRegsControl(object):
             reg_val = self.peek32(self.MB_DBOARD_CTRL)
             if channel_mode == "MIMO":
                 reg_val = (0b1 << self.MB_DBOARD_CTRL_MIMO)
-                self.log.trace("Setting channel mode in AD9361 interface: {}".format("2R2T" if channel_mode == 2 else "1R1T"))
+                self.log.trace("Setting channel mode in AD9361 interface: %s",
+                               "2R2T" if channel_mode == 2 else "1R1T")
             else:
                 # Warn if user tries to set either tx0/tx1 in mimo mode
                 # as both will be set automatically
@@ -389,7 +332,7 @@ class MboardRegsControl(object):
         """
         mask = 0b1 << self.MB_DBOARD_STATUS_TX_LOCK
         with self.regs:
-            reg_val =  self.peek32(self.MB_DBOARD_STATUS)
+            reg_val = self.peek32(self.MB_DBOARD_STATUS)
         locked = (reg_val & mask) > 0
         if not locked:
             self.log.warning("TX RF PLL reporting unlocked. ")
@@ -403,15 +346,10 @@ class MboardRegsControl(object):
         """
         mask = 0b1 << self.MB_DBOARD_STATUS_RX_LOCK
         with self.regs:
-            reg_val =  self.peek32(self.MB_DBOARD_STATUS)
+            reg_val = self.peek32(self.MB_DBOARD_STATUS)
         locked = (reg_val & mask) > 0
         if not locked:
             self.log.warning("RX RF PLL reporting unlocked. ")
         else:
             self.log.trace("RX RF PLL locked")
         return locked
-
-    def get_xbar_baseport(self):
-        "Get the RFNoC crossbar base port"
-        with self.regs:
-            return self.peek32(self.MB_XBAR_BASEPORT)

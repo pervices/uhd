@@ -1,25 +1,24 @@
 //
 // Copyright 2018 Ettus Research, A National Instruments Company
 //
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_LMX2592_HPP
-#define INCLUDED_LMX2592_HPP
+#pragma once
 
 #include "lmx2592_regs.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <boost/format.hpp>
-#include <boost/function.hpp>
-#include <boost/math/common_factor_rt.hpp> //gcd
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <utility>
 #include <vector>
 
-class lmx2592_iface {
+class lmx2592_iface
+{
 public:
     typedef std::shared_ptr<lmx2592_iface> sptr;
 
@@ -37,8 +36,7 @@ public:
 
     enum mash_order_t { INT_N, FIRST, SECOND, THIRD, FOURTH };
 
-    virtual double set_frequency(
-        double target_freq,
+    virtual double set_frequency(double target_freq,
         const bool spur_dodging,
         const double spur_dodging_threshold) = 0;
 
@@ -54,5 +52,3 @@ public:
 
     virtual void commit() = 0;
 };
-
-#endif // INCLUDED_LMX2592_HPP

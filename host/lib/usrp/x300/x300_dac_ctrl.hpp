@@ -10,12 +10,13 @@
 
 #include <uhd/types/serial.hpp>
 #include <uhd/utils/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
+
 
 class x300_dac_ctrl : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<x300_dac_ctrl> sptr;
+    typedef std::shared_ptr<x300_dac_ctrl> sptr;
 
     virtual ~x300_dac_ctrl(void) = 0;
 
@@ -25,7 +26,8 @@ public:
      * \param spiface the interface to spi
      * \return a new codec control object
      */
-    static sptr make(uhd::spi_iface::sptr iface, const size_t slaveno, const double clock_rate);
+    static sptr make(
+        uhd::spi_iface::sptr iface, const size_t slaveno, const double clock_rate);
 
     // ! Reset the DAC
     virtual void reset(void) = 0;

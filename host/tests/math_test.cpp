@@ -5,15 +5,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <boost/test/unit_test.hpp>
-#include <stdint.h>
 #include <uhd/utils/math.hpp>
+#include <boost/test/unit_test.hpp>
 
-// NOTE: This is not the only math test case, see e.g. special tests
-// for fp comparison.
-
-BOOST_AUTO_TEST_CASE(test_log2){
-    double y = uhd::math::log2(16.0);
-    BOOST_CHECK_EQUAL(y, 4.0);
+BOOST_AUTO_TEST_CASE(test_lcm)
+{
+    BOOST_CHECK_EQUAL(uhd::math::lcm<int>(2, 3), 6);
 }
 
+BOOST_AUTO_TEST_CASE(test_gcd)
+{
+    BOOST_CHECK_EQUAL(uhd::math::gcd<int>(6, 15), 3);
+}
+
+BOOST_AUTO_TEST_CASE(test_sign)
+{
+    BOOST_CHECK_EQUAL(uhd::math::sign(2.3), +1);
+    BOOST_CHECK_EQUAL(uhd::math::sign(-2.3), -1);
+    BOOST_CHECK_EQUAL(uhd::math::sign(0.0), 0);
+}
+
+BOOST_AUTO_TEST_CASE(test_wrap_frequency)
+{
+    BOOST_CHECK_EQUAL(uhd::math::wrap_frequency(10e6, 200e6), 10e6);
+    BOOST_CHECK_EQUAL(uhd::math::wrap_frequency(250e6, 200e6), 50e6);
+    BOOST_CHECK_EQUAL(uhd::math::wrap_frequency(120e6, 200e6), -80e6);
+    BOOST_CHECK_EQUAL(uhd::math::wrap_frequency(-250e6, 200e6), -50e6);
+}

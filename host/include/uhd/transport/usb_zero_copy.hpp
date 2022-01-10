@@ -5,8 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_TRANSPORT_USB_ZERO_COPY_HPP
-#define INCLUDED_UHD_TRANSPORT_USB_ZERO_COPY_HPP
+#pragma once
 
 #include <uhd/transport/usb_device_handle.hpp>
 #include <uhd/transport/zero_copy.hpp>
@@ -24,11 +23,12 @@ namespace uhd { namespace transport {
  * If no platform specific solution is available, make returns a boost asio
  * implementation that wraps functionality around standard send/recv calls.
  */
-class UHD_API usb_zero_copy : public virtual zero_copy_if {
+class UHD_API usb_zero_copy : public virtual zero_copy_if
+{
 public:
-    typedef boost::shared_ptr<usb_zero_copy> sptr;
+    typedef std::shared_ptr<usb_zero_copy> sptr;
 
-    virtual ~usb_zero_copy(void);
+    ~usb_zero_copy(void) override;
 
     /*!
      * Make a new zero copy USB transport:
@@ -45,16 +45,12 @@ public:
      * \param hints optional parameters to pass to the underlying transport
      * \return a new zero copy USB object
      */
-    static sptr make(
-        usb_device_handle::sptr handle,
+    static sptr make(usb_device_handle::sptr handle,
         const int recv_interface,
         const unsigned char recv_endpoint,
         const int send_interface,
         const unsigned char send_endpoint,
-        const device_addr_t &hints = device_addr_t()
-    );
+        const device_addr_t& hints = device_addr_t());
 };
 
-}} //namespace
-
-#endif /* INCLUDED_UHD_TRANSPORT_USB_ZERO_COPY_HPP */
+}} // namespace uhd::transport

@@ -11,6 +11,7 @@
 #include <uhd/config.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/convert.hpp>
+
 #include <uhd/stream.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/utils/byteswap.hpp>
@@ -23,6 +24,7 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
+
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -423,6 +425,7 @@ public:
 
             //setup metadata for the next fragment
             const time_spec_t time_spec = metadata.time_spec; // + time_spec_t::from_ticks(total_num_samps_sent, _samp_rate);
+
             if_packet_info.tsf = time_spec.to_ticks(_tick_rate);
             if_packet_info.sob = false;
 
@@ -805,30 +808,11 @@ private:
         _convert_if_packet_info = &if_packet_info;
 
         //perform N channels of conversion
-        // Wake up the worker threads (convert_to_in_buff) and wait for their completion
-        // if (this->conversion_threads.size() > 1) {
-        //     std::unique_lock<std::mutex> guard(this->conversion_mutex);
-        //     for (size_t i = 0; i < this->size(); i++) {
-        //         conversion_done[i] = false;
-        //         conversion_ready[i] = true;
-        //     }
-        //     guard.unlock();
-        //     conversion_cv.notify_all();
-        // }
-        // Sleep for 10 us intervals while checking whether the worker threads are done
-        // TODO: verify that the sleep duration is efficient.
 
         for (size_t i = 0; i < this->size(); i++) {
             convert_to_in_buff(i);
         }
-        // Wait for worker threads to finish their work
-        // if (this->conversion_threads.size() > 1) {
-        //     for (size_t i = thread_indices[1].front(); i < this->size(); i++) {
-        //         while (!conversion_done[i]) {
-        //             std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
-        //         }
-        //     }
-        // }
+
 
         _next_packet_seq++; //increment sequence after commits
         return nsamps_per_buff;
@@ -884,6 +868,8 @@ private:
             multi_msb_buffs[index].sock_fd = buff->get_socket();
 
             //commit the samples to the zero-copy interface
+
+
             buff->commit(num_vita_words32*sizeof(uint32_t));
 
         }

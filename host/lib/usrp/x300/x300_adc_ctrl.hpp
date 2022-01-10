@@ -10,12 +10,13 @@
 
 #include <uhd/types/serial.hpp>
 #include <uhd/utils/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
+
 
 class x300_adc_ctrl : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<x300_adc_ctrl> sptr;
+    typedef std::shared_ptr<x300_adc_ctrl> sptr;
 
     virtual ~x300_adc_ctrl(void) = 0;
 
@@ -27,9 +28,10 @@ public:
      */
     static sptr make(uhd::spi_iface::sptr iface, const size_t slaveno);
 
-    virtual double set_gain(const double &) = 0;
+    virtual double set_gain(const double&) = 0;
 
-    virtual void set_test_word(const std::string &patterna, const std::string &patternb, const uint32_t = 0) = 0;
+    virtual void set_test_word(
+        const std::string& patterna, const std::string& patternb, const uint32_t = 0) = 0;
 
     virtual void reset(void) = 0;
 };

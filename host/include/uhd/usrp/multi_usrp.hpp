@@ -5,10 +5,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_USRP_MULTI_USRP_HPP
-#define INCLUDED_UHD_USRP_MULTI_USRP_HPP
+#pragma once
 
-//define API capabilities for compile time detection of new features
+// define API capabilities for compile time detection of new features
 #define UHD_USRP_MULTI_USRP_REF_SOURCES_API
 #define UHD_USRP_MULTI_USRP_GET_RATES_API
 #define UHD_USRP_MULTI_USRP_FRONTEND_CAL_API
@@ -23,29 +22,30 @@
 #define UHD_USRP_MULTI_USRP_FILTER_API
 #define UHD_USRP_MULTI_USRP_LO_CONFIG_API
 #define UHD_USRP_MULTI_USRP_TX_LO_CONFIG_API
+#define UHD_USRP_MULTI_USRP_POWER_LEVEL
 
 #include <uhd/config.hpp>
 #include <uhd/device.hpp>
-#include <uhd/deprecated.hpp>
+#include <uhd/rfnoc/mb_controller.hpp>
+#include <uhd/rfnoc/radio_control.hpp>
+#include <uhd/types/filters.hpp>
 #include <uhd/types/ranges.hpp>
+#include <uhd/types/sensors.hpp>
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/types/tune_request.hpp>
 #include <uhd/types/tune_result.hpp>
-#include <uhd/types/sensors.hpp>
-#include <uhd/types/filters.hpp>
+
 #include <uhd/types/wb_iface.hpp>
-#include <uhd/usrp/subdev_spec.hpp>
+
 #include <uhd/usrp/dboard_iface.hpp>
-#include <boost/shared_ptr.hpp>
+#include <uhd/usrp/subdev_spec.hpp>
 #include <uhd/utils/noncopyable.hpp>
 #include <complex>
+#include <memory>
 #include <string>
 #include <vector>
 
-namespace uhd {
-    class device3;
-
-    namespace usrp{
+namespace uhd { namespace usrp {
 
 /*!
  * The Multi-USRP device class:
@@ -96,7 +96,7 @@ namespace uhd {
 class UHD_API multi_usrp : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<multi_usrp> sptr;
+    typedef std::shared_ptr<multi_usrp> sptr;
 
     virtual ~multi_usrp(void) = 0;
 
@@ -119,34 +119,33 @@ public:
      * \throws uhd::key_error no device found
      * \throws uhd::index_error fewer devices found than expected
      */
-    static sptr make(const device_addr_t &dev_addr);
+    static sptr make(const device_addr_t& dev_addr);
 
-    /*!
-     * Get the underlying device object.
-     * This is needed to get access to the streaming API and properties.
+    /*! Get the underlying device object
+     *
+     * Note that it is not recommended to use this method. The property tree can
+     * be accessed by calling get_tree() on this object, and the streamers own
+     * all the streaming-related functionality. get_tx_stream() and
+     * get_rx_stream() can also be called on this object.
+     *
+     * For RFNoC devices, this won't return a true uhd::device anyway, because
+     * direct device access is locked for those. The returned pointer will
+     * still point to a valid device object, however, it has reduced
+     * functionality.
+     *
      * \return the device object within this USRP
      */
     virtual device::sptr get_device(void) = 0;
 
-    /*! Returns true if this is a generation-3 device.
+    /*! Return a reference to the property tree
      */
-    virtual bool is_device3(void) = 0;
-
-    /*!
-     * Get the underlying device3 object. Only works for generation-3 (or later) devices.
-     *
-     * This is needed to get access to the streaming API and properties.
-     *
-     * \return The uhd::device3 object for this USRP.
-     * \throws uhd::type_error if this device is not actually a generation-3 device.
-     */
-    virtual boost::shared_ptr<uhd::device3> get_device3(void) = 0;
+    virtual uhd::property_tree::sptr get_tree(void) const = 0;
 
     //! Convenience method to get a RX streamer. See also uhd::device::get_rx_stream().
-    virtual rx_streamer::sptr get_rx_stream(const stream_args_t &args) = 0;
+    virtual rx_streamer::sptr get_rx_stream(const stream_args_t& args) = 0;
 
     //! Convenience method to get a TX streamer. See also uhd::device::get_tx_stream().
-    virtual tx_streamer::sptr get_tx_stream(const stream_args_t &args) = 0;
+    virtual tx_streamer::sptr get_tx_stream(const stream_args_t& args) = 0;
 
     /*!
      * Returns identifying information about this USRP's configuration.
@@ -164,7 +163,7 @@ public:
      * \param chan channel index 0 to N-1
      * \return TX info
      */
-     virtual dict<std::string, std::string> get_usrp_tx_info(size_t chan = 0) = 0;
+    virtual dict<std::string, std::string> get_usrp_tx_info(size_t chan = 0) = 0;
 
     /*******************************************************************
      * Mboard methods
@@ -213,7 +212,7 @@ public:
      * Examples:
      * - The B200 series' master clock rate can be changed at runtime and
      *   will report the true range of supported values
-     * - The X300 series has _two_ discrete options for the clock rate, but will
+     * - The X300 series has a valid range for the clock rate, but will
      *   always return the clock rate which the USRP was initialized to because
      *   it cannot be changed at runtime
      * - The N200 series does not have a configurable clock rate, and will
@@ -259,7 +258,8 @@ public:
      * \param time_spec the time to latch into the usrp device
      * \param mboard the motherboard index 0 to M-1
      */
-    virtual void set_time_now(const time_spec_t &time_spec, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_time_now(
+        const time_spec_t& time_spec, size_t mboard = ALL_MBOARDS) = 0;
 
     /*!
      * Set the time registers on the usrp at the next pps tick.
@@ -273,7 +273,8 @@ public:
      * \param time_spec the time to latch into the usrp device
      * \param mboard the motherboard index 0 to M-1
      */
-    virtual void set_time_next_pps(const time_spec_t &time_spec, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_time_next_pps(
+        const time_spec_t& time_spec, size_t mboard = ALL_MBOARDS) = 0;
 
     /*!
      * Synchronize the times across all motherboards in this configuration.
@@ -290,7 +291,7 @@ public:
      *
      * \param time_spec the time to latch at the next pps after catching the edge
      */
-    virtual void set_time_unknown_pps(const time_spec_t &time_spec) = 0;
+    virtual void set_time_unknown_pps(const time_spec_t& time_spec) = 0;
 
     /*!
      * Are the times across all motherboards in this configuration synchronized?
@@ -310,7 +311,8 @@ public:
      * \param time_spec the time at which the next command will activate
      * \param mboard which motherboard to set the config
      */
-    virtual void set_command_time(const uhd::time_spec_t &time_spec, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_command_time(
+        const uhd::time_spec_t& time_spec, size_t mboard = ALL_MBOARDS) = 0;
 
     /*!
      * Clear the command time so future commands are sent ASAP.
@@ -331,17 +333,8 @@ public:
      * \param stream_cmd the stream command to issue
      * \param chan the channel index 0 to N-1
      */
-    virtual void issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan = ALL_CHANS) = 0;
-
-    /*!
-     * Set the clock configuration for the usrp device.
-     * DEPRECATED in favor of set time and clock source calls.
-     * This tells the usrp how to get a 10MHz reference and PPS clock.
-     * See the documentation for clock_config_t for more info.
-     * \param clock_config the clock configuration to set
-     * \param mboard which motherboard to set the config
-     */
-    virtual void set_clock_config(const clock_config_t &clock_config, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void issue_stream_cmd(
+        const stream_cmd_t& stream_cmd, size_t chan = ALL_CHANS) = 0;
 
     /*!  Set the time source for the USRP device
      *
@@ -383,12 +376,10 @@ public:
      *
      * \param source a string representing the time source
      * \param mboard which motherboard to set the config
-     * \throws uhd::value_error if \p source is an invalid option
+     * \throws if \p source is an invalid option
      */
     virtual void set_time_source(
-            const std::string &source,
-            const size_t mboard = ALL_MBOARDS
-    ) = 0;
+        const std::string& source, const size_t mboard = ALL_MBOARDS) = 0;
 
     /*!
      * Get the currently set time source.
@@ -444,7 +435,7 @@ public:
      *
      * \param source a string representing the time source
      * \param mboard which motherboard to set the config
-     * \throws uhd::value_error if \p source is an invalid option
+     * \throws if \p source is an invalid option
      */
     virtual void set_clock_source(
             const std::string &source,
@@ -522,25 +513,39 @@ public:
      */
     virtual std::vector<device_addr_t> get_sync_sources(const size_t mboard) = 0;
 
-    /*!
-     * Send the clock source to an output connector.
+    /*! Send the clock signal to an output connector.
+     *
      * This call is only applicable on devices with reference outputs.
      * By default, the reference output will be enabled for ease of use.
      * This call may be used to enable or disable the output.
+     *
+     * If the device does not support this operation, calling this method will
+     * throw a uhd::runtime_error.
+     *
      * \param enb true to output the clock source.
      * \param mboard which motherboard to set
+     * \throws if the device is incapable of exporting the
+     *         clock signal.
      */
-    virtual void set_clock_source_out(const bool enb, const size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_clock_source_out(
+        const bool enb, const size_t mboard = ALL_MBOARDS) = 0;
 
-    /*!
-     * Send the time source to an output connector.
+    /*! Send the time signal (PPS) to an output connector.
+     *
      * This call is only applicable on devices with PPS outputs.
      * By default, the PPS output will be enabled for ease of use.
      * This call may be used to enable or disable the output.
+     *
+     * If the device does not support this operation, calling this method will
+     * throw a uhd::runtime_error.
+     *
      * \param enb true to output the time source.
      * \param mboard which motherboard to set
+     * \throws if the device is incapable of exporting the
+     *         clock signal.
      */
-    virtual void set_time_source_out(const bool enb, const size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_time_source_out(
+        const bool enb, const size_t mboard = ALL_MBOARDS) = 0;
 
     /*!
      * Get the number of USRP motherboards in this configuration.
@@ -553,7 +558,8 @@ public:
      * \param mboard the motherboard index 0 to M-1
      * \return a sensor value object
      */
-    virtual sensor_value_t get_mboard_sensor(const std::string &name, size_t mboard = 0) = 0;
+    virtual sensor_value_t get_mboard_sensor(
+        const std::string& name, size_t mboard = 0) = 0;
 
     /*!
      * Get a list of possible motherboard sensor names.
@@ -568,12 +574,15 @@ public:
      * \param addr 8-bit register address
      * \param data 32-bit register value
      * \param mboard which motherboard to set the user register
+     * \throws uhd::not_implemented_error on RFNoC devices, uhd::lookup_error on
+     *         other devices if this API is not implemented.
      */
-    virtual void set_user_register(const uint8_t addr, const uint32_t data, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_user_register(
+        const uint8_t addr, const uint32_t data, size_t mboard = ALL_MBOARDS) = 0;
 
     /*! Return a user settings interface object
      *
-     * This is only supported by some USRPs (B2xx series, N230). It will return
+     * This is only supported by the B2xx series. It will return
      * an object that will allow to peek and poke user settings, which typically
      * are implemented by custom FPGA images.
      * If the device does not support such an interface, it will return a null
@@ -597,18 +606,40 @@ public:
      */
     virtual uhd::wb_iface::sptr get_user_settings_iface(const size_t chan = 0) = 0;
 
+    /*! Get direct access to the underlying RFNoC radio object.
+     *
+     * Note: This is an advanced API, created for corner cases where the
+     * application is using multi_usrp, but some special features from
+     * radio_control need to be used that are not exposed by multi_usrp. Note
+     * that it is possible to put the radio and multi_usrp into a broken state
+     * by directly accessing the radio. For typical radio operations (such as
+     * tuning, setting gain or antenna, etc.) it is therefore highly recommended
+     * to not use this API call, but use the native multi_usrp API calls.
+     *
+     * The lifetime of the radio is linked to the lifetime of the device object,
+     * so storing a reference from this function is not allowed.
+     *
+     * \param chan The channel index
+     * \returns A reference to the radio block matching the given channel
+     * \throws uhd::not_implemented_error if not on an RFNoC device.
+     */
+    virtual uhd::rfnoc::radio_control& get_radio_control(const size_t chan = 0) = 0;
+
     /*******************************************************************
      * RX methods
      ******************************************************************/
-    /*!
-     * Set the RX frontend specification:
+    /*! Set the RX frontend specification
+     *
      * The subdev spec maps a physical part of a daughter-board to a channel number.
      * Set the subdev spec before calling into any methods with a channel number.
      * The subdev spec must be the same size across all motherboards.
+     *
      * \param spec the new frontend specification
      * \param mboard the motherboard index 0 to M-1
+     * \throws if an invalid spec is provided.
      */
-    virtual void set_rx_subdev_spec(const uhd::usrp::subdev_spec_t &spec, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_rx_subdev_spec(
+        const uhd::usrp::subdev_spec_t& spec, size_t mboard = ALL_MBOARDS) = 0;
 
     /*!
      * Get the RX frontend specification.
@@ -631,12 +662,27 @@ public:
      */
     virtual std::string get_rx_subdev_name(size_t chan = 0) = 0;
 
-    /*!
-     * Set the RX sample rate.
+    /*! Set the RX sample rate
+     *
+     * This function will coerce the requested rate to a rate that the device
+     * can handle. A warning may be logged during coercion. Call get_rx_rate()
+     * to identify the actual rate.
+     *
      * \param rate the rate in Sps
      * \param chan the channel index 0 to N-1
      */
     virtual void set_rx_rate(double rate, size_t chan = ALL_CHANS) = 0;
+
+    /*! Set the number of samples sent per packet (spp) for RX streaming
+     *
+     * On RFNoC devices, this will set the spp value on the radio itself. For
+     * older devices, it will inject the spp value into a later get_rx_stream()
+     * call, but it won't change anything in existing streamers.
+     *
+     * \param spp the new spp value
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_rx_spp(const size_t spp, const size_t chan = ALL_CHANS) = 0;
 
     /*!
      * Gets the RX sample rate.
@@ -652,15 +698,18 @@ public:
      */
     virtual meta_range_t get_rx_rates(size_t chan = 0) = 0;
 
-    /*!
-     * Set the RX center frequency.
+    /*! Set the RX center frequency.
+     *
+     * If the requested frequency is outside of the valid frequency range, it
+     * will be coerced to the nearest valid frequency. Check the return value or
+     * call get_rx_freq() to get the actual center frequency.
+     *
      * \param tune_request tune request instructions
      * \param chan the channel index 0 to N-1
      * \return a tune result object
      */
     virtual tune_result_t set_rx_freq(
-        const tune_request_t &tune_request, size_t chan = 0
-    ) = 0;
+        const tune_request_t& tune_request, size_t chan = 0) = 0;
 
     /*!
      * Get the RX center frequency.
@@ -709,12 +758,19 @@ public:
      *
      * For USRPs that support selectable LO sources, this function allows
      * switching between them. Typical options for source: internal, external.
+     * Call get_rx_lo_sources() to enumerate the list of valid options. Calling
+     * this function with an invalid argument will cause an exception to be
+     * thrown.
      *
      * \param src a string representing the LO source
      * \param name the name of the LO stage to update. If the wildcard value
      *             ALL_LOS is used, the setting will be applied to all LOs on
-     *             this channel.
+     *             this channel. Call get_tx_lo_names() for a list of valid
+     *             argument values.
      * \param chan the channel index 0 to N-1
+     * \throws uhd::not_implemented_error if the device cannot set the LO source
+     * \throws uhd::value_error if the device can set the LO source, but the LO
+     *                          name is invalid.
      */
     virtual void set_rx_lo_source(
             const std::string &src,
@@ -735,12 +791,13 @@ public:
             size_t chan = 0
     ) = 0;
 
-    /*!  Get a list of possible LO sources.
+    /*! Get a list of possible LO sources.
      *
      * Channels which do not have controllable LO sources will return
      * "internal". Typical values are "internal" and "external", although the
-     * TwinRX has more options, such as "companion". These options are device-
-     * specific.
+     * TwinRX, for example, has more options, such as "companion". These options
+     * are device-specific, so consult the individual device manual pages for
+     * details.
      *
      * \param name the name of the LO stage to query
      * \param chan the channel index 0 to N-1
@@ -799,6 +856,7 @@ public:
      * \param name the name of the LO stage to update
      * \param chan the channel index 0 to N-1
      * \return a coerced LO frequency
+     * \throws if the LO name is not valid.
      */
     virtual double set_rx_lo_freq(
             double freq,
@@ -853,6 +911,9 @@ public:
      *
      * For USRPs that support selectable LO sources, this function allows
      * switching between them. Typical options for source: internal, external.
+     * Call get_tx_lo_sources() to enumerate the list of valid options. Calling
+     * this function with an invalid argument will cause an exception to be
+     * thrown.
      *
      * \param src a string representing the LO source
      * \param name the name of the LO stage to update. If the wildcard value
@@ -942,6 +1003,7 @@ public:
      * \param name the name of the LO stage to update
      * \param chan the channel index 0 to N-1
      * \return a coerced LO frequency
+     * \throws if the LO name is not valid.
      */
     virtual double set_tx_lo_freq(
             const double freq,
@@ -981,22 +1043,28 @@ public:
     /**************************************************************************
      * Gain controls
      *************************************************************************/
-    /*!
-     * Set the RX gain value for the specified gain element.
+    /*! Set the RX gain value for the specified gain element.
+     *
+     * If the requested gain value is outside the valid range, it will be
+     * coerced to a valid gain value. Call get_rx_gain_range() to return the
+     * currently valid gain range, and call get_rx_gain() after calling this
+     * function to return the actual current gain value after coercion.
+     *
      * For an empty name, distribute across all gain elements.
+     *
      * \param gain the gain in dB
      * \param name the name of the gain element
      * \param chan the channel index 0 to N-1
      */
-    virtual void set_rx_gain(double gain, const std::string &name, size_t chan = 0) = 0;
+    virtual void set_rx_gain(double gain, const std::string& name, size_t chan = 0) = 0;
 
     /*! Get a list of possible RX gain profile options
      *
-     * Example: On the TwinRX, this will return "low-noise", "low-distortion" or "default".
-     * These names can be used in gain-profile related API called.
-     * An empty return value doesn't mean there are no profile options, it means that
-     * this radio does not have any gain profiles implemented, and typically means
-     * there is only one default profile of set gain
+     * Example: On the TwinRX, this will return "low-noise", "low-distortion" or
+     * "default". These names can be used in gain-profile related API called. An empty
+     * return value doesn't mean there are no profile options, it means that this radio
+     * does not have any gain profiles implemented, and typically means there is only one
+     * default profile of set gain
      *
      * \param chan the channel index 0 to N-1
      * \return a vector of strings for possible gain profile options, or an empty list of
@@ -1004,12 +1072,16 @@ public:
      */
     virtual std::vector<std::string> get_rx_gain_profile_names(const size_t chan = 0) = 0;
 
-    /*!
-     * Set the RX gain profile.
+    /*! Set the RX gain profile.
+     *
+     * Call get_rx_gain_profile_names() for valid names.
+     *
      * \param profile the profile string option
      * \param chan the channel index 0 to N-1
+     * \throws if the requested gain profile name is not valid.
      */
-    virtual void set_rx_gain_profile(const std::string& profile, const size_t chan = 0) = 0;
+    virtual void set_rx_gain_profile(
+        const std::string& profile, const size_t chan = 0) = 0;
 
     /*!
      * Get the RX gain profile.
@@ -1019,16 +1091,18 @@ public:
     virtual std::string get_rx_gain_profile(const size_t chan = 0) = 0;
 
     //! A convenience wrapper for setting overall RX gain
-    void set_rx_gain(double gain, size_t chan = 0){
+    void set_rx_gain(double gain, size_t chan = 0)
+    {
         return this->set_rx_gain(gain, ALL_GAINS, chan);
     }
 
-    /*!
-     * Set the normalized RX gain value.
+    /*! Set the normalized RX gain value.
      *
      * The normalized gain is a value in [0, 1], where 0 is the
      * smallest gain value available, and 1 is the largest, independent
      * of the device. In between, gains are linearly interpolated.
+     * If the requested normalized gain is outside of this range, an exception
+     * is thrown.
      *
      * Check the individual device manual for notes on the gain range.
      *
@@ -1041,13 +1115,22 @@ public:
      */
     virtual void set_normalized_rx_gain(double gain, size_t chan = 0) = 0;
 
-    /*!
-     * Enable or disable the RX AGC module.
+    /*! Enable or disable the RX AGC module.
+     *
+     * Only some devices implement an AGC, including all USRPs from the B200
+     * series, the E310, and the E320.
+     * When called on a device that does not implement an AGC, an exception will
+     * be thrown.
+     *
      * Once this module is enabled manual gain settings will be ignored.
-     * The AGC will start in a default configuration which should be good for most use cases.
-     * Device specific configuration parameters can be found in the property tree.
+     * The AGC will start in a default configuration which should be good for
+     * most use cases. Device specific configuration parameters can be found in
+     * the property tree.
+     *
      * \param enable Enable or Disable the AGC
      * \param chan the channel index 0 to N-1
+     * \throws if the underlying device does not
+     *         implement an AGC.
      */
     virtual void set_rx_agc(bool enable, size_t chan = 0) = 0;
 
@@ -1058,10 +1141,11 @@ public:
      * \param chan the channel index 0 to N-1
      * \return the gain in dB
      */
-    virtual double get_rx_gain(const std::string &name, size_t chan = 0) = 0;
+    virtual double get_rx_gain(const std::string& name, size_t chan = 0) = 0;
 
     //! A convenience wrapper for getting overall RX gain
-    double get_rx_gain(size_t chan = 0){
+    double get_rx_gain(size_t chan = 0)
+    {
         return this->get_rx_gain(ALL_GAINS, chan);
     }
 
@@ -1084,10 +1168,11 @@ public:
      * \param chan the channel index 0 to N-1
      * \return a gain range object
      */
-    virtual gain_range_t get_rx_gain_range(const std::string &name, size_t chan = 0) = 0;
+    virtual gain_range_t get_rx_gain_range(const std::string& name, size_t chan = 0) = 0;
 
     //! A convenience wrapper for getting overall RX gain range
-    gain_range_t get_rx_gain_range(size_t chan = 0){
+    gain_range_t get_rx_gain_range(size_t chan = 0)
+    {
         return this->get_rx_gain_range(ALL_GAINS, chan);
     }
 
@@ -1099,12 +1184,15 @@ public:
      */
     virtual std::vector<std::string> get_rx_gain_names(size_t chan = 0) = 0;
 
-    /*!
-     * Select the RX antenna on the frontend.
-     * \param ant the antenna name
+    /*! Select the RX antenna on the frontend.
+     *
+     * \param ant the antenna name. If an invalid name is provided, an exception
+     *            is thrown. Call get_rx_antennas() to return a valid list of
+     *            antenna names.
      * \param chan the channel index 0 to N-1
+     * \throws if an invalid antenna name is provided
      */
-    virtual void set_rx_antenna(const std::string &ant, size_t chan = 0) = 0;
+    virtual void set_rx_antenna(const std::string& ant, size_t chan = 0) = 0;
 
     /*!
      * Get the selected RX antenna on the frontend.
@@ -1120,15 +1208,19 @@ public:
      */
     virtual std::vector<std::string> get_rx_antennas(size_t chan = 0) = 0;
 
-    /*!
-     * Set the RX bandwidth on the frontend.
+    /*! Set the RX bandwidth on the frontend.
+     *
+     * If a bandwidth is provided that is outside the valid range, it is coerced
+     * to the nearest valid value. Call get_rx_bandwidth_range() to identify the
+     * valid range of bandwidth values.
+     *
      * \param bandwidth the bandwidth in Hz
      * \param chan the channel index 0 to N-1
      */
     virtual void set_rx_bandwidth(double bandwidth, size_t chan = 0) = 0;
 
-    /*!
-     * Get the RX bandwidth on the frontend.
+    /*! Get the RX bandwidth on the frontend
+     *
      * \param chan the channel index 0 to N-1
      * \return the bandwidth in Hz
      */
@@ -1156,7 +1248,7 @@ public:
      * \param chan the channel index 0 to N-1
      * \return a sensor value object
      */
-    virtual sensor_value_t get_rx_sensor(const std::string &name, size_t chan = 0) = 0;
+    virtual sensor_value_t get_rx_sensor(const std::string& name, size_t chan = 0) = 0;
 
     /*!
      * Get a list of possible RX frontend sensor names.
@@ -1186,13 +1278,14 @@ public:
      * \param offset the dc offset (1.0 is full-scale)
      * \param chan the channel index 0 to N-1
      */
-    virtual void set_rx_dc_offset(const std::complex<double> &offset, size_t chan = ALL_CHANS) = 0;
+    virtual void set_rx_dc_offset(
+        const std::complex<double>& offset, size_t chan = ALL_CHANS) = 0;
 
     /*!
      * Get the valid range for RX DC offset values.
      * \param chan the channel index 0 to N-1
      */
-    virtual meta_range_t get_rx_dc_offset_range(size_t chan = ALL_CHANS) = 0;
+    virtual meta_range_t get_rx_dc_offset_range(size_t chan = 0) = 0;
 
     /*!
      * Enable/disable the automatic IQ imbalance correction.
@@ -1209,20 +1302,87 @@ public:
      * \param correction the complex correction (1.0 is full-scale)
      * \param chan the channel index 0 to N-1
      */
-    virtual void set_rx_iq_balance(const std::complex<double> &correction, size_t chan = ALL_CHANS) = 0;
+    virtual void set_rx_iq_balance(
+        const std::complex<double>& correction, size_t chan = ALL_CHANS) = 0;
+
+
+    /**************************************************************************
+     * Power level controls
+     *************************************************************************/
+    /*! Return true if this channel has a reference power API enabled
+     *
+     * Many devices either don't have a built-in reference power API, or they
+     * require calibration data for it to work. This means that it is not clear,
+     * even when the device type is known, if a device supports setting a power
+     * reference level. Use this method to query the availability of
+     * set_rx_power_reference() and get_rx_power_reference(), which will throw
+     * a uhd::not_implemented_error or uhd::runtime_error if they cannot be used.
+     *
+     * See \ref page_power for more information, or query the specific device's
+     * manual page to see if a power API is available, and how to enable it.
+     *
+     * \param chan The channel for which this feature is queried
+     *
+     * \returns true if this channel has an RX power API available
+     */
+    virtual bool has_rx_power_reference(const size_t chan = 0) = 0;
+
+    /*! Set the reference RX power level for a given channel
+     *
+     * Note: This functionality is not supported for most devices, and will
+     * cause a uhd::not_implemented_error exception to be thrown on devices that
+     * do not have this functionality.
+     *
+     * For more information on how to use this API, see \ref page_power.
+     *
+     * \param power_dbm The reference power level in dBm
+     * \param chan The channel for which this setting applies
+     *
+     * \throws uhd::not_implemented_error if this functionality does not exist
+     *         for this device
+     */
+    virtual void set_rx_power_reference(
+        const double power_dbm, const size_t chan = 0) = 0;
+
+    /*! Return the actual reference RX power level.
+     *
+     * Note: This functionality is not supported for most devices, and will
+     * cause a uhd::not_implemented_error exception to be thrown on devices that
+     * do not have this functionality.
+     *
+     * For more information on how to use this API, see \ref page_power.
+     *
+     * \param chan The channel for which this setting is queried
+     * \throws uhd::not_implemented_error if this functionality does not exist
+     *         for this device
+     */
+    virtual double get_rx_power_reference(const size_t chan = 0) = 0;
+
+    /*! Return the available RX power range given the current configuration
+     *
+     * This will return the range of available power levels given the current
+     * frequency, gain profile, antenna, and whatever other settings may affect
+     * the available power ranges. Note that the available power range may
+     * change frequently, so don't assume an immutable range.
+     *
+     * \param chan The channel index
+     */
+    virtual meta_range_t get_rx_power_range(const size_t chan) = 0;
 
     /*******************************************************************
      * TX methods
      ******************************************************************/
-    /*!
-     * Set the TX frontend specification:
+    /*! Set the TX frontend specification:
+     *
      * The subdev spec maps a physical part of a daughter-board to a channel number.
      * Set the subdev spec before calling into any methods with a channel number.
      * The subdev spec must be the same size across all motherboards.
      * \param spec the new frontend specification
      * \param mboard the motherboard index 0 to M-1
+     * \throws if an invalid spec is provided.
      */
-    virtual void set_tx_subdev_spec(const uhd::usrp::subdev_spec_t &spec, size_t mboard = ALL_MBOARDS) = 0;
+    virtual void set_tx_subdev_spec(
+        const uhd::usrp::subdev_spec_t& spec, size_t mboard = ALL_MBOARDS) = 0;
 
     /*!
      * Get the TX frontend specification.
@@ -1245,8 +1405,12 @@ public:
      */
     virtual std::string get_tx_subdev_name(size_t chan = 0) = 0;
 
-    /*!
-     * Set the TX sample rate.
+    /*! Set the TX sample rate.
+     *
+     * This function will coerce the requested rate to a rate that the device
+     * can handle. A warning may be logged during coercion. Call get_rx_rate()
+     * to identify the actual rate.
+     *
      * \param rate the rate in Sps
      * \param chan the channel index 0 to N-1
      */
@@ -1266,15 +1430,18 @@ public:
      */
     virtual meta_range_t get_tx_rates(size_t chan = 0) = 0;
 
-    /*!
-     * Set the TX center frequency.
+    /*! Set the TX center frequency.
+     *
+     * If the requested frequency is outside of the valid frequency range, it
+     * will be coerced to the nearest valid frequency. Check the return value or
+     * call get_tx_freq() to get the actual center frequency.
+     *
      * \param tune_request tune request instructions
      * \param chan the channel index 0 to N-1
      * \return a tune result object
      */
     virtual tune_result_t set_tx_freq(
-        const tune_request_t &tune_request, size_t chan = 0
-    ) = 0;
+        const tune_request_t& tune_request, size_t chan = 0) = 0;
 
     /*!
      * Get the TX center frequency.
@@ -1301,14 +1468,20 @@ public:
      */
     virtual freq_range_t get_fe_tx_freq_range(size_t chan = 0) = 0;
 
-    /*!
-     * Set the TX gain value for the specified gain element.
+    /*! Set the TX gain value for the specified gain element.
+     *
+     * If the requested gain value is outside the valid range, it will be
+     * coerced to a valid gain value. Call get_rx_gain_range() to return the
+     * currently valid gain range, and call get_rx_gain() after calling this
+     * function to return the actual current gain value after coercion.
+     *
      * For an empty name, distribute across all gain elements.
+     *
      * \param gain the gain in dB
      * \param name the name of the gain element
      * \param chan the channel index 0 to N-1
      */
-    virtual void set_tx_gain(double gain, const std::string &name, size_t chan = 0) = 0;
+    virtual void set_tx_gain(double gain, const std::string& name, size_t chan = 0) = 0;
 
     /*! Get a list of possible TX gain profile options
      *
@@ -1324,12 +1497,16 @@ public:
      */
     virtual std::vector<std::string> get_tx_gain_profile_names(const size_t chan = 0) = 0;
 
-    /*!
-     * Set the TX gain profile.
-     * \param profile the profile string option
+    /*! Set the TX gain profile.
+     *
+     * Call get_tx_gain_profile_names() for valid names.
+     *
+     * \param profile the profile string option.
      * \param chan the channel index 0 to N-1
+     * \throws if the requested gain profile name is not valid.
      */
-    virtual void set_tx_gain_profile(const std::string& profile, const size_t chan = 0) = 0;
+    virtual void set_tx_gain_profile(
+        const std::string& profile, const size_t chan = 0) = 0;
 
     /*!
      * Get the TX gain profile.
@@ -1339,7 +1516,8 @@ public:
     virtual std::string get_tx_gain_profile(const size_t chan = 0) = 0;
 
     //! A convenience wrapper for setting overall TX gain
-    void set_tx_gain(double gain, size_t chan = 0){
+    void set_tx_gain(double gain, size_t chan = 0)
+    {
         return this->set_tx_gain(gain, ALL_GAINS, chan);
     }
 
@@ -1348,6 +1526,8 @@ public:
      *
      * See set_normalized_rx_gain() for a discussion on normalized
      * gains.
+     * If the requested normalized gain is outside of this range, an exception
+     * is thrown.
      *
      * \param gain the normalized gain value
      * \param chan the channel index 0 to N-1
@@ -1362,10 +1542,11 @@ public:
      * \param chan the channel index 0 to N-1
      * \return the gain in dB
      */
-    virtual double get_tx_gain(const std::string &name, size_t chan = 0) = 0;
+    virtual double get_tx_gain(const std::string& name, size_t chan = 0) = 0;
 
     //! A convenience wrapper for getting overall TX gain
-    double get_tx_gain(size_t chan = 0){
+    double get_tx_gain(size_t chan = 0)
+    {
         return this->get_tx_gain(ALL_GAINS, chan);
     }
 
@@ -1388,10 +1569,11 @@ public:
      * \param chan the channel index 0 to N-1
      * \return a gain range object
      */
-    virtual gain_range_t get_tx_gain_range(const std::string &name, size_t chan = 0) = 0;
+    virtual gain_range_t get_tx_gain_range(const std::string& name, size_t chan = 0) = 0;
 
     //! A convenience wrapper for getting overall TX gain range
-    gain_range_t get_tx_gain_range(size_t chan = 0){
+    gain_range_t get_tx_gain_range(size_t chan = 0)
+    {
         return this->get_tx_gain_range(ALL_GAINS, chan);
     }
 
@@ -1403,12 +1585,78 @@ public:
      */
     virtual std::vector<std::string> get_tx_gain_names(size_t chan = 0) = 0;
 
+    /**************************************************************************
+     * Power level controls
+     *************************************************************************/
+    /*! Return true if this channel has a reference power API enabled
+     *
+     * Many devices either don't have a built-in reference power API, or they
+     * require calibration data for it to work. This means that it is not clear,
+     * even when the device type is known, if a device supports setting a power
+     * reference level. Use this method to query the availability of
+     * set_tx_power_reference() and get_tx_power_reference(), which will throw
+     * a uhd::not_implemented_error or uhd::runtime_error if they cannot be used.
+     *
+     * See \ref page_power for more information, or query the specific device's
+     * manual page to see if a power API is available, and how to enable it.
+     *
+     * \param chan The channel for which this feature is queried
+     *
+     * \returns true if this channel has a TX power API available
+     */
+    virtual bool has_tx_power_reference(const size_t chan = 0) = 0;
+
+    /*! Set the reference TX power level for a given channel
+     *
+     * Note: This functionality is not supported for most devices, and will
+     * cause a uhd::not_implemented_error exception to be thrown on devices that
+     * do not have this functionality.
+     *
+     * For more information on how to use this API, see \ref page_power.
+     *
+     * \param power_dbm The reference power level in dBm
+     * \param chan The channel for which this setting applies
+     *
+     * \throws uhd::not_implemented_error if this functionality does not exist
+     *         for this device
+     */
+    virtual void set_tx_power_reference(
+        const double power_dbm, const size_t chan = 0) = 0;
+
+    /*! Return the actual reference TX power level.
+     *
+     * Note: This functionality is not supported for most devices, and will
+     * cause a uhd::not_implemented_error exception to be thrown on devices that
+     * do not have this functionality.
+     *
+     * For more information on how to use this API, see \ref page_power.
+     *
+     * \param chan The channel for which this setting is queried
+     * \throws uhd::not_implemented_error if this functionality does not exist
+     *         for this device
+     */
+    virtual double get_tx_power_reference(const size_t chan = 0) = 0;
+
+    /*! Return the available TX power range given the current configuration
+     *
+     * This will return the range of available power levels given the current
+     * frequency, gain profile, antenna, and whatever other settings may affect
+     * the available power ranges. Note that the available power range may
+     * change frequently, so don't assume an immutable range.
+     *
+     * \param chan The channel index
+     */
+    virtual meta_range_t get_tx_power_range(const size_t chan) = 0;
+
     /*!
      * Select the TX antenna on the frontend.
-     * \param ant the antenna name
+     * \param ant the antenna name. If an invalid name is provided, an exception
+     *            is thrown. Call get_tx_antennas() to return a valid list of
+     *            antenna names.
      * \param chan the channel index 0 to N-1
+     * \throws if an invalid antenna name is provided
      */
-    virtual void set_tx_antenna(const std::string &ant, size_t chan = 0) = 0;
+    virtual void set_tx_antenna(const std::string& ant, size_t chan = 0) = 0;
 
     /*!
      * Get the selected TX antenna on the frontend.
@@ -1424,8 +1672,12 @@ public:
      */
     virtual std::vector<std::string> get_tx_antennas(size_t chan = 0) = 0;
 
-    /*!
-     * Set the TX bandwidth on the frontend.
+    /*! Set the TX bandwidth on the frontend.
+     *
+     * If a bandwidth is provided that is outside the valid range, it is coerced
+     * to the nearest valid value. Call get_tx_bandwidth_range() to identify the
+     * valid range of bandwidth values.
+     *
      * \param bandwidth the bandwidth in Hz
      * \param chan the channel index 0 to N-1
      */
@@ -1460,7 +1712,7 @@ public:
      * \param chan the channel index 0 to N-1
      * \return a sensor value object
      */
-    virtual sensor_value_t get_tx_sensor(const std::string &name, size_t chan = 0) = 0;
+    virtual sensor_value_t get_tx_sensor(const std::string& name, size_t chan = 0) = 0;
 
     /*!
      * Get a list of possible TX frontend sensor names.
@@ -1475,13 +1727,14 @@ public:
      * \param offset the dc offset (1.0 is full-scale)
      * \param chan the channel index 0 to N-1
      */
-    virtual void set_tx_dc_offset(const std::complex<double> &offset, size_t chan = ALL_CHANS) = 0;
+    virtual void set_tx_dc_offset(
+        const std::complex<double>& offset, size_t chan = ALL_CHANS) = 0;
 
     /*!
      * Get the valid range for TX DC offset values.
      * \param chan the channel index 0 to N-1
      */
-    virtual meta_range_t get_tx_dc_offset_range(size_t chan = ALL_CHANS) = 0;
+    virtual meta_range_t get_tx_dc_offset_range(size_t chan = 0) = 0;
 
     /*!
      * Set the TX frontend IQ imbalance correction.
@@ -1490,199 +1743,241 @@ public:
      * \param correction the complex correction (1.0 is full-scale)
      * \param chan the channel index 0 to N-1
      */
-    virtual void set_tx_iq_balance(const std::complex<double> &correction, size_t chan = ALL_CHANS) = 0;
+    virtual void set_tx_iq_balance(
+        const std::complex<double>& correction, size_t chan = ALL_CHANS) = 0;
 
     /*******************************************************************
      * GPIO methods
      ******************************************************************/
 
-    /*!
-     * Enumerate gpio banks on the specified device.
+    /*! Enumerate GPIO banks on the specified device.
+     *
      * \param mboard the motherboard index 0 to M-1
      * \return a list of string for each bank name
      */
     virtual std::vector<std::string> get_gpio_banks(const size_t mboard) = 0;
 
-    /*!
-     * Set a GPIO attribute on a particular GPIO bank.
+    /*! Set a GPIO attribute on a particular GPIO bank.
+     *
      * Possible attribute names:
-     *  - CTRL - 1 for ATR mode 0 for GPIO mode
-     *  - DDR - 1 for output 0 for input
+     *  - CTRL - 1 for ATR mode, 0 for GPIO mode
+     *  - DDR - 1 for output, 0 for input
      *  - OUT - GPIO output level (not ATR mode)
      *  - ATR_0X - ATR idle state
      *  - ATR_RX - ATR receive only state
      *  - ATR_TX - ATR transmit only state
      *  - ATR_XX - ATR full duplex state
+     *
+     * A note on bank names: Query get_gpio_banks() for a valid list of arguments
+     * for bank names. Note that RFNoC devices (E3xx, N3xx, X3x0, X410) behave
+     * slightly differently when using this API vs. using the
+     * radio_control::set_gpio_attr() API. For backward-compatibility reasons,
+     * this API does not have a dedicated argument to address a specific radio,
+     * although the aforementioned devices have separate GPIO banks for each
+     * radio. This API thus allows appending the slot name (typically "A" or "B")
+     * to the GPIO bank to differentiate between radios. The following example
+     * shows the difference between the RFNoC and multi_usrp APIs on a USRP N310:
+     * ~~~{.py}
+     * my_usrp = uhd.usrp.MultiUSRP("type=n3xx")
+     * print(my_usrp.get_gpio_banks()) # Will print: FP0A, FP0B
+     * # Now set all pins to GPIO for Radio 1 (note the 'B' in 'FP0B'):
+     * my_usrp.set_gpio_attr("FP0B", "CTRL", 0x000)
+     * # For backwards compatibility, you can omit the 'A', but that will default
+     * # to radio 0. The following lines thus do the same:
+     * my_usrp.set_gpio_attr("FP0", "CTRL", 0x000)
+     * my_usrp.set_gpio_attr("FP0A", "CTRL", 0x000)
+     * ### This is how you do the same thing with RFNoC API:
+     * print(my_usrp.get_radio_control(0).get_gpio_banks()) # Will print: FP0
+     * print(my_usrp.get_radio_control(1).get_gpio_banks()) # Will print: FP0
+     * # Note how the radio controller only has a single bank!
+     * # When accessing the radio directly, we thus can't specify any other bank
+     * # than FP0:
+     * my_usrp.get_radio_control(1).set_gpio_attr("FP0", "CTRL", 0x000)
+     * ~~~
+     *
+     * The \p mask argument can be used to apply \p value only to select pins,
+     * and retain the existing value on the rest. Because of this feature, this
+     * API call will incur two register transactions (one read, one write).
+     *
+     * Note that this API call alone may not be sufficient to configure the
+     * physical GPIO pins. See set_gpio_src() for more details.
+     *
      * \param bank the name of a GPIO bank
-     * \param attr the name of a GPIO attribute
+     * \param attr the name of a GPIO attribute (see list above)
      * \param value the new value for this GPIO bank
      * \param mask the bit mask to effect which pins are changed
      * \param mboard the motherboard index 0 to M-1
+     * \throws an exception if either bank or attr are invalid values.
      */
-    virtual void set_gpio_attr(const std::string &bank, const std::string &attr, const uint32_t value, const uint32_t mask = 0xffffffff, const size_t mboard = 0) = 0;
+    virtual void set_gpio_attr(const std::string& bank,
+        const std::string& attr,
+        const uint32_t value,
+        const uint32_t mask = 0xffffffff,
+        const size_t mboard = 0) = 0;
 
-    /*!
-     * Set a GPIO attribute on a particular GPIO bank.
+    /*! Get a GPIO attribute on a particular GPIO bank.
+     *
      * Possible attribute names:
-     *  - SRC  - "PS" for handling by processing system
-     *         - "RADIO_N/M" for handling by radio block with N is in [0..Number of Radio]; M is in [0..Number of port per Radio]
-     *  - CTRL - "ATR"  for ATR mode
-     *         - "GPIO" for GPIO mode
-     *  - DDR  - "OUT" for output
-     *         - "IN"  for input
-     *  - OUT -  a string of numbers representing GPIO output level (not ATR mode)
-     *        - "HIGH"or "LOW" as GPIO output level that apply for each bit mask that is 1
-     *  - ATR_0X - a string of numbers representing a value of the ATR idle state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR idle state register
-     *  - ATR_RX - a string of numbers representing a value of a ATR receive only state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR receive only state register
-     *  - ATR_TX - a string of numbers representing a value of the ATR transmit only state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR transmit only state register
-     *  - ATR_XX - a string of numbers representing a value of the ATR full duplex state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR full duplex state register
-     * \param bank the name of a GPIO bank
-     * \param attr the name of a GPIO attribute
-     * \param value the new value for this GPIO bank
-     * \param mask the bit mask to effect which pins are changed
-     * \param mboard the motherboard index 0 to M-1
-     */
-    virtual void set_gpio_attr(const std::string &bank, const std::string &attr, const std::string &value, const uint32_t mask = 0xffffffff, const size_t mboard = 0) = 0;
-
-    /*!
-     * Get a GPIO attribute on a particular GPIO bank.
-     * Possible attribute names:
-     *  - CTRL - 1 for ATR mode 0 for GPIO mode
-     *  - DDR - 1 for output 0 for input
+     *  - CTRL - 1 for ATR mode, 0 for GPIO mode
+     *  - DDR - 1 for output, 0 for input
      *  - OUT - GPIO output level (not ATR mode)
      *  - ATR_0X - ATR idle state
      *  - ATR_RX - ATR receive only state
      *  - ATR_TX - ATR transmit only state
      *  - ATR_XX - ATR full duplex state
      *  - READBACK - readback input GPIOs
+     *
+     * For bank names, refer to set_gpio_attr().
+     *
      * \param bank the name of a GPIO bank
-     * \param attr the name of a GPIO attribute
+     * \param attr the name of a GPIO attribute (see list above)
      * \param mboard the motherboard index 0 to M-1
      * \return the value set for this attribute
      */
-    virtual uint32_t get_gpio_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0) = 0;
+    virtual uint32_t get_gpio_attr(
+        const std::string& bank, const std::string& attr, const size_t mboard = 0) = 0;
 
-    /*!
-     * Get a GPIO attribute on a particular GPIO bank.
-     * Possible attribute names:
-     *  - SRC  - "PS" for handling by processing system
-     *         - "RADIO_N/M" for handling by radio block with N is in [0..Number of Radio]; M is in [0..Number of port per Radio]
-     *  - CTRL - "ATR"  for ATR mode
-     *         - "GPIO" for GPIO mode
-     *  - DDR  - "OUT" for output
-     *         - "IN"  for input
-     *  - OUT -  a string of numbers representing GPIO output level (not ATR mode)
-     *        - "HIGH"or "LOW" as GPIO output level that apply for each bit mask that is 1
-     *  - ATR_0X - a string of numbers representing a value of the ATR idle state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR idle state register
-     *  - ATR_RX - a string of numbers representing a value of a ATR receive only state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR receive only state register
-     *  - ATR_TX - a string of numbers representing a value of the ATR transmit only state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR transmit only state register
-     *  - ATR_XX - a string of numbers representing a value of the ATR full duplex state register
-     *           - "HIGH" or "LOW" as a value set on each bit on of the ATR full duplex state register
-     *  - READBACK - readback input GPIOs
-     * \param bank the name of a GPIO bank
-     * \param attr the name of a GPIO attribute
+    /*! Return a list of GPIO banks that can be source-controlled on this motherboard
+     *
+     * This is a different set of banks than those returned from get_gpio_banks().
+     * Here, we return a list of banks that can be used as arguments for
+     * get_gpio_src(), get_gpio_srcs(), and set_gpio_src().
+     *
+     * Some motherboards have GPIO banks that can be driven from different
+     * sources, e.g., the N310 can have any radio channel drive the FP-GPIOs,
+     * or the PS.
+     *
      * \param mboard the motherboard index 0 to M-1
-     * \return the value set for this attribute in vector of strings
+     * \return a list of valid bank names
      */
-    virtual std::vector<std::string> get_gpio_string_attr(const std::string &bank, const std::string &attr, const size_t mboard = 0) = 0;
+    virtual std::vector<std::string> get_gpio_src_banks(const size_t mboard = 0) = 0;
 
-    /*******************************************************************
-     * Register IO methods
-     ******************************************************************/
-    struct register_info_t {
-        size_t bitwidth;
-        bool readable;
-        bool writable;
-    };
-
-    /*!
-     * Enumerate the full paths of all low-level USRP registers accessible to read/write
+    /*! Enumerate sources for a gpio bank on the specified device.
+     *
+     * Each of the pins in the chosen bank can be driven from one of the
+     * returned sources.
+     *
+     * \param bank the name of a GPIO bank. Valid values can be obtained by
+     *        calling get_gpio_src_banks().
      * \param mboard the motherboard index 0 to M-1
-     * \return a vector of register paths
+     * \return a list of strings with each valid source for the chosen bank
      */
-    virtual std::vector<std::string> enumerate_registers(const size_t mboard = 0) = 0;
+    virtual std::vector<std::string> get_gpio_srcs(
+        const std::string& bank, const size_t mboard = 0) = 0;
 
-    /*!
-     * Get more information about a low-level device register
-     * \param path the full path to the register
+    /*! Get the current source for each pin in a GPIO bank.
+     *
+     * \param bank the name of a GPIO bank. Valid values can be obtained by
+     *        calling get_gpio_src_banks().
      * \param mboard the motherboard index 0 to M-1
-     * \return the info struct which contains the bitwidth and read-write access information
+     * \return a list of strings for current source of each GPIO pin in the
+     *         chosen bank. The length of the return value matches the number of
+     *         programmable GPIO pins.
      */
-    virtual register_info_t get_register_info(const std::string &path, const size_t mboard = 0) = 0;
+    virtual std::vector<std::string> get_gpio_src(
+        const std::string& bank, const size_t mboard = 0) = 0;
 
-    /*!
-     * Write a low-level register field for a register in the USRP hardware
-     * \param path the full path to the register
-     * \param field the identifier of bitfield to be written (all other bits remain unchanged)
-     * \param value the value to write to the register field
+    /*! Set the current source for each pin in a GPIO bank.
+     *
+     * Note: The length of the vector must be identical to the number of
+     * programmable GPIO pins.
+     *
+     * \param bank the name of a GPIO bank. Valid values can be obtained by
+     *        calling get_gpio_src_banks().
+     * \param src a list of strings specifying the source of each pin in a GPIO bank
      * \param mboard the motherboard index 0 to M-1
+     * \throws uhd::key_error if the bank does not exist
+     * \throws uhd::value_error if the source does not exist
+     * \throws uhd::not_implemented_error if the current motherboard does not
+     *         support this feature
      */
-    virtual void write_register(const std::string &path, const uint32_t field, const uint64_t value, const size_t mboard = 0) = 0;
-
-    /*!
-     * Read a low-level register field from a register in the USRP hardware
-     * \param path the full path to the register
-     * \param field the identifier of bitfield to be read
-     * \param mboard the motherboard index 0 to M-1
-     * \return the value of the register field
-     */
-    virtual uint64_t read_register(const std::string &path, const uint32_t field, const size_t mboard = 0) = 0;
+    virtual void set_gpio_src(const std::string& bank,
+        const std::vector<std::string>& src,
+        const size_t mboard = 0) = 0;
 
     /*******************************************************************
      * Filter API methods
      ******************************************************************/
-
+    // TODO: This should be a const function, but I don't want to wrestle with the
+    // compiler right now
     /*!
-     * Enumerate the available filters in the signal path.
-     * \param search_mask
-     * \parblock
-     * Select only certain filter names by specifying this search mask.
-     *
-     * E.g. if search mask is set to "rx_frontends/A" only filter names including that string will be returned.
-     * \endparblock
+     * Enumerate the available filters in the RX signal path.
+     * \param chan RX channel index 0 to N-1
      * \return a vector of strings representing the selected filter names.
+     * \return Filter names will follow the pattern BLOCK_ID:FILTER_NAME. For example,
+     * "0/Radio#0:HB_0"
      */
-    virtual std::vector<std::string> get_filter_names(const std::string &search_mask = "") = 0;
+    virtual std::vector<std::string> get_rx_filter_names(const size_t chan) = 0;
 
     /*!
-     * Return the filter object for the given name.
-     * \param path the name of the filter as returned from get_filter_names().
+     * Return the filter object for the given RX filter name.
+     * \param name the name of the filter as returned from get_rx_filter_names().
+     * \param chan RX channel index 0 to N-1
      * \return a filter_info_base::sptr.
      */
-    virtual filter_info_base::sptr get_filter(const std::string &path) = 0;
+    virtual uhd::filter_info_base::sptr get_rx_filter(
+        const std::string& name, const size_t chan) = 0;
 
     /*!
-     * Write back a filter obtained by get_filter() to the signal path.
+     * Write back a filter obtained by get_rx_filter() to the signal path.
      * This filter can be a modified version of the originally returned one.
-     * The information about Rx or Tx is contained in the path parameter.
-     * \param path the name of the filter as returned from get_filter_names().
+     * \param name the name of the filter as returned from get_rx_filter_names().
      * \param filter the filter_info_base::sptr of the filter object to be written
+     * \param chan RX channel index 0 to N-1
      */
-    virtual void set_filter(const std::string &path, filter_info_base::sptr filter) = 0;
+    virtual void set_rx_filter(const std::string& name,
+        uhd::filter_info_base::sptr filter,
+        const size_t chan) = 0;
 
-    virtual void set_tree_value(const std::string path, const std::string value) = 0;
-    virtual void set_tree_value(const std::string path, const double value) = 0;
-    virtual void set_tree_value(const std::string path, const int value) = 0;
-    virtual void set_tree_value(const std::string path, const time_spec_t value) = 0;
-    virtual void set_tree_value(const std::string path, const bool value) = 0;
-    virtual void set_tree_value(const std::string path, const stream_cmd_t value) = 0;
+    // TODO: This should be a const function, but I don't want to wrestle with the
+    // compiler right now
+    /*!
+     * Enumerate the available filters in the TX signal path.
+     * \param chan TX channel index 0 to N-1
+     * \return a vector of strings representing the selected filter names.
+     * \return Filter names will follow the pattern BLOCK_ID:FILTER_NAME. For example,
+     * "0/Radio#0:HB_0"
+     */
+    virtual std::vector<std::string> get_tx_filter_names(const size_t chan) = 0;
 
-    virtual void get_tree_value(const std::string path, std::string& value) = 0;
-    virtual void get_tree_value(const std::string path, double& value) = 0;
-    virtual void get_tree_value(const std::string path, int& value) = 0;
-    virtual void get_tree_value(const std::string path, time_spec_t& value) = 0;
-    virtual void get_tree_value(const std::string path, bool& value) = 0;
-    virtual void get_tree_value(const std::string path, stream_cmd_t& value) = 0;
-    virtual void dump_tree(const std::string root) = 0;
+    /*!
+     * Return the filter object for the given TX filter name.
+     * \param name the name of the filter as returned from get_tx_filter_names().
+     * \param chan TX channel index 0 to N-1
+     * \return a filter_info_base::sptr.
+     */
+    virtual uhd::filter_info_base::sptr get_tx_filter(
+        const std::string& name, const size_t chan) = 0;
+
+    /*!
+     * Write back a filter obtained by get_tx_filter() to the signal path.
+     * This filter can be a modified version of the originally returned one.
+     * \param name the name of the filter as returned from get_tx_filter_names().
+     * \param filter the filter_info_base::sptr of the filter object to be written
+     * \param chan TX channel index 0 to N-1
+     */
+    virtual void set_tx_filter(const std::string& name,
+        uhd::filter_info_base::sptr filter,
+        const size_t chan) = 0;
+
+    /*! Get direct access to the underlying mb_controller object.
+     *
+     * Note: This is an advanced API, created for corner cases where the
+     * application is using multi_usrp, but some special features from
+     * mb_controller need to be used that are not exposed by multi_usrp.
+     * Note that it is possible to put the mb_controller and multi_usrp into a
+     * broken state by directly accessing the mb_controller. For typical
+     * mb_controller operations it is therefore highly recommended
+     * to not use this API call, but use the native multi_usrp API calls.
+     *
+     * The lifetime of the mb_controller is linked to the lifetime of the
+     * device object, so storing a reference from this function is not allowed.
+     *
+     * \param mboard The motherboard index
+     * \returns A reference to the mb_controller for the corresponding mboard
+     * \throws uhd::not_implemented_error if not on an RFNoC device.
+     */
+    virtual uhd::rfnoc::mb_controller& get_mb_controller(const size_t mboard = 0) = 0;
 };
 
-}}
-
-#endif /* INCLUDED_UHD_USRP_MULTI_USRP_HPP */
+}} // namespace uhd::usrp

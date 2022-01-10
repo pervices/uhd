@@ -6,8 +6,8 @@
 
 // The band plan
 
-#include "magnesium_radio_ctrl_impl.hpp"
 #include "magnesium_constants.hpp"
+#include "magnesium_radio_control.hpp"
 #include <uhd/utils/math.hpp>
 
 /*
@@ -43,83 +43,76 @@ using namespace uhd::rfnoc;
 using namespace uhd::math::fp_compare;
 
 namespace {
-    /* Note on the RX filter bank:
-     *
-     * The RX path has 7 bands, which we call BAND0 through BAND7. BAND0 is the
-     * lowest frequency band (it goes through F44, the 490 MHz low pass filter,
-     * on the first channel). BAND7 is the highest frequency band, it goes
-     * through the 2.7 GHz high pass filter (F43 on the first channel).
-     *
-     * For all frequencies, there are gain values where we bypass the filter
-     * bank. In this case, the band setting does not apply (does not have any
-     * meaning).
-     *
-     * The lowband, when not disabling the filter bank, always goes through
-     * BAND0, but there are non-lowband frequencies which can also go through
-     * BAND0.
-     *
-     * The following constants define lower cutoff frequencies for each band.
-     * BAND0 does not have a lower cutoff frequency, it is implied by
-     * MAGNESIUM_MIN_FREQ. MAGNESIUM_RX_BAND1_MIN_FREQ is the cutover frequency
-     * for switching from BAND0 to BAND1, and so on.
-     *
-     * Bands 1-6 have both high- and low-pass filters (effectively band
-     * passes). Frequencies need to be chosen to allow as much of the full
-     * bandwidth through unattenuated.
-     */
-    constexpr double MAGNESIUM_RX_BAND1_MIN_FREQ = 430e6;
-    constexpr double MAGNESIUM_RX_BAND2_MIN_FREQ = 600e6;
-    constexpr double MAGNESIUM_RX_BAND3_MIN_FREQ = 1050e6;
-    constexpr double MAGNESIUM_RX_BAND4_MIN_FREQ = 1600e6;
-    constexpr double MAGNESIUM_RX_BAND5_MIN_FREQ = 2100e6;
-    constexpr double MAGNESIUM_RX_BAND6_MIN_FREQ = 2700e6;
+/* Note on the RX filter bank:
+ *
+ * The RX path has 7 bands, which we call BAND0 through BAND7. BAND0 is the
+ * lowest frequency band (it goes through F44, the 490 MHz low pass filter,
+ * on the first channel). BAND7 is the highest frequency band, it goes
+ * through the 2.7 GHz high pass filter (F43 on the first channel).
+ *
+ * For all frequencies, there are gain values where we bypass the filter
+ * bank. In this case, the band setting does not apply (does not have any
+ * meaning).
+ *
+ * The lowband, when not disabling the filter bank, always goes through
+ * BAND0, but there are non-lowband frequencies which can also go through
+ * BAND0.
+ *
+ * The following constants define lower cutoff frequencies for each band.
+ * BAND0 does not have a lower cutoff frequency, it is implied by
+ * MAGNESIUM_MIN_FREQ. MAGNESIUM_RX_BAND1_MIN_FREQ is the cutover frequency
+ * for switching from BAND0 to BAND1, and so on.
+ *
+ * Bands 1-6 have both high- and low-pass filters (effectively band
+ * passes). Frequencies need to be chosen to allow as much of the full
+ * bandwidth through unattenuated.
+ */
 
-    /* Note on the TX filter bank:
-     *
-     * The TX path has 4 bands, which we call BAND0 through BAND3.
-     * For all frequencies, there are gain values where we bypass the filter
-     * bank. In this case, the band setting does not apply (does not have any
-     * meaning).
-     *
-     * The lowband, when not disabling the filter bank, always goes through
-     * BAND0, but there are non-lowband frequencies which can also go through
-     * BAND0.
-     *
-     * The following constants define lower cutoff frequencies for each band.
-     * BAND0 does not have a lower cutoff frequency, it is implied by
-     * MAGNESIUM_MIN_FREQ. MAGNESIUM_TX_BAND1_MIN_FREQ is the cutover frequency
-     * for switching from BAND0 to BAND1, and so on.
-     *
-     * On current Magnesium revisions, all filters on the TX filter bank are
-     * low pass filters (no high pass filters).
-     * Frequencies need to be chosen to allow as much of the full bandwidth
-     * through unattenuated (so don't go all the way up to the cutoff frequency
-     * of that filter, OK).
-     */
-    constexpr double MAGNESIUM_TX_BAND1_MIN_FREQ = 723.17e6;
-    constexpr double MAGNESIUM_TX_BAND2_MIN_FREQ = 1623.17e6;
-    constexpr double MAGNESIUM_TX_BAND3_MIN_FREQ = 3323.17e6;
-}
+/* Note on the TX filter bank:
+ *
+ * The TX path has 4 bands, which we call BAND0 through BAND3.
+ * For all frequencies, there are gain values where we bypass the filter
+ * bank. In this case, the band setting does not apply (does not have any
+ * meaning).
+ *
+ * The lowband, when not disabling the filter bank, always goes through
+ * BAND0, but there are non-lowband frequencies which can also go through
+ * BAND0.
+ *
+ * The following constants define lower cutoff frequencies for each band.
+ * BAND0 does not have a lower cutoff frequency, it is implied by
+ * MAGNESIUM_MIN_FREQ. MAGNESIUM_TX_BAND1_MIN_FREQ is the cutover frequency
+ * for switching from BAND0 to BAND1, and so on.
+ *
+ * On current Magnesium revisions, all filters on the TX filter bank are
+ * low pass filters (no high pass filters).
+ * Frequencies need to be chosen to allow as much of the full bandwidth
+ * through unattenuated (so don't go all the way up to the cutoff frequency
+ * of that filter, OK).
+ */
 
-magnesium_radio_ctrl_impl::rx_band
-magnesium_radio_ctrl_impl::_map_freq_to_rx_band(const double freq) {
-    magnesium_radio_ctrl_impl::rx_band band;
+} // namespace
+
+magnesium_radio_control_impl::rx_band magnesium_radio_control_impl::_map_freq_to_rx_band(
+    const band_map_t band_map, const double freq)
+{
+    magnesium_radio_control_impl::rx_band band;
 
     if (fp_compare_epsilon<double>(freq) < MAGNESIUM_MIN_FREQ) {
         band = rx_band::INVALID_BAND;
     } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_LOWBAND_FREQ) {
         band = rx_band::LOWBAND;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_RX_BAND1_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(1)) {
         band = rx_band::BAND0;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_RX_BAND2_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(2)) {
         band = rx_band::BAND1;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_RX_BAND3_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(3)) {
         band = rx_band::BAND2;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_RX_BAND4_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(4)) {
         band = rx_band::BAND3;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_RX_BAND5_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(5)) {
         band = rx_band::BAND4;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_RX_BAND6_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(6)) {
         band = rx_band::BAND5;
     } else if (fp_compare_epsilon<double>(freq) <= MAGNESIUM_MAX_FREQ) {
         band = rx_band::BAND6;
@@ -130,19 +123,20 @@ magnesium_radio_ctrl_impl::_map_freq_to_rx_band(const double freq) {
     return band;
 }
 
-magnesium_radio_ctrl_impl::tx_band
-magnesium_radio_ctrl_impl::_map_freq_to_tx_band(const double freq) {
-    magnesium_radio_ctrl_impl::tx_band band;
+magnesium_radio_control_impl::tx_band magnesium_radio_control_impl::_map_freq_to_tx_band(
+    const band_map_t band_map, const double freq)
+{
+    magnesium_radio_control_impl::tx_band band;
 
     if (fp_compare_epsilon<double>(freq) < MAGNESIUM_MIN_FREQ) {
         band = tx_band::INVALID_BAND;
     } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_LOWBAND_FREQ) {
         band = tx_band::LOWBAND;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_TX_BAND1_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(1)) {
         band = tx_band::BAND0;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_TX_BAND2_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(2)) {
         band = tx_band::BAND1;
-    } else if (fp_compare_epsilon<double>(freq) < MAGNESIUM_TX_BAND3_MIN_FREQ) {
+    } else if (fp_compare_epsilon<double>(freq) < band_map.at(3)) {
         band = tx_band::BAND2;
     } else if (fp_compare_epsilon<double>(freq) <= MAGNESIUM_MAX_FREQ) {
         band = tx_band::BAND3;
@@ -152,4 +146,3 @@ magnesium_radio_ctrl_impl::_map_freq_to_tx_band(const double freq) {
 
     return band;
 }
-

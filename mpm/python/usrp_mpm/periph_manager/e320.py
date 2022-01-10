@@ -16,14 +16,13 @@ from six import iteritems, itervalues
 from usrp_mpm.components import ZynqComponents
 from usrp_mpm.dboard_manager import Neon
 from usrp_mpm.gpsd_iface import GPSDIfaceExtension
-from usrp_mpm.mpmtypes import SID
 from usrp_mpm.mpmutils import assert_compat_number, str2bool
 from usrp_mpm.periph_manager import PeriphManagerBase
 from usrp_mpm.rpc_server import no_rpc
 from usrp_mpm.sys_utils import dtoverlay
 from usrp_mpm.sys_utils.sysfs_thermal import read_thermal_sensor_value, read_thermal_sensors_value
 from usrp_mpm.sys_utils.udev import get_spidev_nodes
-from usrp_mpm.xports import XportMgrUDP, XportMgrLiberio
+from usrp_mpm.xports import XportMgrUDP
 from usrp_mpm.periph_manager.e320_periphs import MboardRegsControl
 
 E320_DEFAULT_INT_CLOCK_FREQ = 20e6
@@ -32,35 +31,45 @@ E320_DEFAULT_CLOCK_SOURCE = 'internal'
 E320_DEFAULT_TIME_SOURCE = 'internal'
 E320_DEFAULT_ENABLE_GPS = True
 E320_DEFAULT_ENABLE_FPGPIO = True
-E320_FPGA_COMPAT = (3, 1)
+E320_FPGA_COMPAT = (6, 0)
 E320_MONITOR_THREAD_INTERVAL = 1.0 # seconds
 E320_DBOARD_SLOT_IDX = 0
-
+E320_GPIO_BANKS = ["FP0",]
+E320_GPIO_SRC_PS = "PS"
+# We use the index positions of RFA and RFB to map between name and radio index
+E320_GPIO_SRCS = ("RFA", "RFB", E320_GPIO_SRC_PS)
+E320_FPGPIO_WIDTH = 8
 
 ###############################################################################
 # Transport managers
 ###############################################################################
+# pylint: disable=too-few-public-methods
 class E320XportMgrUDP(XportMgrUDP):
     "E320-specific UDP configuration"
-    xbar_dev = "/dev/crossbar0"
     iface_config = {
         'sfp0': {
             'label': 'misc-enet-regs',
-            'xbar': 0,
-            'xbar_port': 0,
-            'ctrl_src_addr': 0,
+            'type': 'sfp',
+        },
+        'int0': {
+            'label': 'misc-enet-int-regs',
+            'type': 'internal',
+        },
+        'eth0': {
+            'label': '',
+            'type': 'forward',
         }
     }
 
-class E320XportMgrLiberio(XportMgrLiberio):
-    " E320-specific Liberio configuration "
-    max_chan = 6
-    xbar_dev = "/dev/crossbar0"
-    xbar_port = 1
+
+# pylint: enable=too-few-public-methods
 
 ###############################################################################
 # Main Class
 ###############################################################################
+# We need to disable the no-self-use check, because we might require self to
+# become an RPC method, but PyLint doesnt' know that.
+# pylint: disable=no-self-use
 class e320(ZynqComponents, PeriphManagerBase):
     """
     Holds E320 specific attributes and methods
@@ -78,7 +87,7 @@ class e320(ZynqComponents, PeriphManagerBase):
     mboard_info = {"type": "e3xx",
                    "product": "e320"
                   }
-    mboard_max_rev = 2  # RevB
+    mboard_max_rev = 4  # rev E
     mboard_sensor_callback_map = {
         'ref_locked': 'get_ref_lock_sensor',
         'gps_locked': 'get_gps_lock_sensor',
@@ -128,7 +137,9 @@ class e320(ZynqComponents, PeriphManagerBase):
     # Ctor and device initialization tasks
     ###########################################################################
     def __init__(self, args):
-        super(e320, self).__init__(args)
+        super(e320, self).__init__()
+        self.overlay_apply()
+        self.init_dboards(args)
         if not self._device_initialized:
             # Don't try and figure out what's going on. Just give up.
             return
@@ -137,7 +148,6 @@ class e320(ZynqComponents, PeriphManagerBase):
         self._ext_clock_freq = E320_DEFAULT_EXT_CLOCK_FREQ
         self._clock_source = None
         self._time_source = None
-        self._available_endpoints = list(range(256))
         self._gpsd = None
         self.dboard = self.dboards[E320_DBOARD_SLOT_IDX]
         from functools import partial
@@ -146,7 +156,7 @@ class e320(ZynqComponents, PeriphManagerBase):
                 setattr(self, sensor_cb_name, partial(self.get_temp_sensor, sensor_name))
         try:
             self._init_peripherals(args)
-        except Exception as ex:
+        except BaseException as ex:
             self.log.error("Failed to initialize motherboard: %s", str(ex))
             self._initialization_status = str(ex)
             self._device_initialized = False
@@ -264,7 +274,6 @@ class e320(ZynqComponents, PeriphManagerBase):
         self.mboard_regs_control.get_build_timestamp()
         self._check_fpga_compat()
         self._update_fpga_type()
-        self.crossbar_base_port = self.mboard_regs_control.get_xbar_baseport()
         # Init peripherals
         self.enable_gps(
             enable=str2bool(
@@ -272,10 +281,7 @@ class e320(ZynqComponents, PeriphManagerBase):
             )
         )
         self.enable_fp_gpio(
-            enable=args.get(
-                        'enable_fp_gpio',
-                        E320_DEFAULT_ENABLE_FPGPIO
-                    )
+            enable=args.get('enable_fp_gpio', E320_DEFAULT_ENABLE_FPGPIO)
         )
         # Init clocking
         self._init_ref_clock_and_time(args)
@@ -283,8 +289,7 @@ class e320(ZynqComponents, PeriphManagerBase):
         self._init_gps_sensors()
         # Init CHDR transports
         self._xport_mgrs = {
-            'udp': E320XportMgrUDP(self.log.getChild('UDP')),
-            'liberio': E320XportMgrLiberio(self.log.getChild('liberio')),
+            'udp': E320XportMgrUDP(self.log, args)
         }
         # Spawn status monitoring thread
         self.log.trace("Spawning status monitor thread...")
@@ -345,8 +350,6 @@ class e320(ZynqComponents, PeriphManagerBase):
         super(e320, self).deinit()
         for xport_mgr in itervalues(self._xport_mgrs):
             xport_mgr.deinit()
-        self.log.trace("Resetting SID pool...")
-        self._available_endpoints = list(range(256))
 
     def tear_down(self):
         """
@@ -370,61 +373,36 @@ class e320(ZynqComponents, PeriphManagerBase):
     ###########################################################################
     # Transport API
     ###########################################################################
-    def request_xport(
-            self,
-            dst_address,
-            suggested_src_address,
-            xport_type
-        ):
+    def get_chdr_link_types(self):
         """
-        See PeriphManagerBase.request_xport() for docs.
+        This will only ever return a single item (udp).
         """
-        # Try suggested address first, then just pick the first available one:
-        src_address = suggested_src_address
-        if src_address not in self._available_endpoints:
-            if not self._available_endpoints:
-                raise RuntimeError(
-                    "Depleted pool of SID endpoints for this device!")
-            else:
-                src_address = self._available_endpoints[0]
-        sid = SID(src_address << 16 | dst_address)
-        # Note: This SID may change its source address!
-        self.log.trace(
-            "request_xport(dst=0x%04X, suggested_src_address=0x%04X, xport_type=%s): " \
-            "operating on temporary SID: %s",
-            dst_address, suggested_src_address, str(xport_type), str(sid))
-        # FIXME token!
         assert self.mboard_info['rpc_connection'] in ('remote', 'local')
-        if self.mboard_info['rpc_connection'] == 'remote':
-            return self._xport_mgrs['udp'].request_xport(
-                sid,
-                xport_type,
-            )
-        elif self.mboard_info['rpc_connection'] == 'local':
-            return self._xport_mgrs['liberio'].request_xport(
-                sid,
-                xport_type,
-            )
+        return ["udp"]
 
-    def commit_xport(self, xport_info):
+    def get_chdr_link_options(self, xport_type):
         """
-        See PeriphManagerBase.commit_xport() for docs.
+        Returns a list of dictionaries. Every dictionary contains information
+        about one way to connect to this device in order to initiate CHDR
+        traffic.
 
-        Reminder: All connections are incoming, i.e. "send" or "TX" means
-        remote device to local device, and "receive" or "RX" means this local
-        device to remote device. "Remote device" can be, for example, a UHD
-        session.
+        The interpretation of the return value is very highly dependant on the
+        transport type (xport_type).
+        For UDP, the every entry of the list has the following keys:
+        - ipv4 (IP Address)
+        - port (UDP port)
+        - link_rate (bps of the link, e.g. 10e9 for 10GigE)
+
         """
-        ## Go, go, go
-        assert self.mboard_info['rpc_connection'] in ('remote', 'local')
-        sid = SID(xport_info['send_sid'])
-        self._available_endpoints.remove(sid.src_ep)
-        self.log.debug("Committing transport for SID %s, xport info: %s",
-                       str(sid), str(xport_info))
-        if self.mboard_info['rpc_connection'] == 'remote':
-            return self._xport_mgrs['udp'].commit_xport(sid, xport_info)
-        elif self.mboard_info['rpc_connection'] == 'local':
-            return self._xport_mgrs['liberio'].commit_xport(sid, xport_info)
+        if xport_type not in self._xport_mgrs:
+            self.log.warning("Can't get link options for unknown link type: `{}'."
+                             .format(xport_type))
+            return []
+        if xport_type == "udp":
+            return self._xport_mgrs[xport_type].get_chdr_link_options(
+                self.mboard_info['rpc_connection'])
+        else:
+            return self._xport_mgrs[xport_type].get_chdr_link_options()
 
     ###########################################################################
     # Device info
@@ -439,7 +417,9 @@ class e320(ZynqComponents, PeriphManagerBase):
         device_info.update({
             'fpga_version': "{}.{}".format(
                 *self.mboard_regs_control.get_compat_number()),
-            'fpga': self.updateable_components.get('fpga', {}).get('type',""),
+            'fpga_version_hash': "{:x}.{}".format(
+                *self.mboard_regs_control.get_git_hash()),
+            'fpga': self.updateable_components.get('fpga', {}).get('type', ""),
         })
         return device_info
 
@@ -506,8 +486,8 @@ class e320(ZynqComponents, PeriphManagerBase):
         clock_source = self.get_clock_source()
         if clock_source == "internal" or clock_source == "gpsdo":
             return E320_DEFAULT_INT_CLOCK_FREQ
-        elif clock_source == "external":
-            return self._ext_clock_freq
+        # elif clock_source == "external":
+        return self._ext_clock_freq
 
     def get_time_sources(self):
         " Returns list of valid time sources "
@@ -527,41 +507,70 @@ class e320(ZynqComponents, PeriphManagerBase):
         self.mboard_regs_control.set_time_source(time_source, self.get_ref_clock_freq())
 
     ###########################################################################
+    # GPIO API
+    ###########################################################################
+    def get_gpio_banks(self):
+        """
+        Returns a list of GPIO banks over which MPM has any control
+        """
+        return E320_GPIO_BANKS
+
+    def get_gpio_srcs(self, bank):
+        """
+        Return a list of valid GPIO sources for a given bank
+        """
+        assert bank in self.get_gpio_banks(), "Invalid GPIO bank: {}".format(bank)
+        return E320_GPIO_SRCS
+
+    def get_gpio_src(self, bank):
+        """
+        Return the currently selected GPIO source for a given bank. The return
+        value is a list of strings. The length of the vector is identical to
+        the number of controllable GPIO pins on this bank.
+        """
+        assert bank in self.get_gpio_banks(), "Invalid GPIO bank: {}".format(bank)
+        gpio_master_reg = self.mboard_regs_control.get_fp_gpio_master()
+        gpio_radio_src_reg = self.mboard_regs_control.get_fp_gpio_radio_src()
+        def get_gpio_src_i(gpio_pin_index):
+            """
+            Return the current radio source given a pin index.
+            """
+            if gpio_master_reg & (1 << gpio_pin_index):
+                return E320_GPIO_SRC_PS
+            radio_src = (gpio_radio_src_reg >> (2 * gpio_pin_index)) & 0b11
+            assert radio_src in (0, 1)
+            return E320_GPIO_SRCS[radio_src]
+        return [get_gpio_src_i(i) for i in range(E320_FPGPIO_WIDTH)]
+
+    def set_gpio_src(self, bank, src):
+        """
+        Set the GPIO source for a given bank.
+        """
+        assert bank in self.get_gpio_banks(), "Invalid GPIO bank: {}".format(bank)
+        assert len(src) == E320_FPGPIO_WIDTH, \
+            "Invalid number of GPIO sources!"
+        gpio_master_reg = 0x00
+        gpio_radio_src_reg = self.mboard_regs_control.get_fp_gpio_radio_src()
+        for src_index, src_name in enumerate(src):
+            if src_name not in self.get_gpio_srcs(bank):
+                raise RuntimeError(
+                    "Invalid GPIO source name `{}' at bit position {}!"
+                    .format(src_name, src_index))
+            gpio_master_flag = (src_name == E320_GPIO_SRC_PS)
+            gpio_master_reg = gpio_master_reg | (gpio_master_flag << src_index)
+            if gpio_master_flag:
+                continue
+            # If PS is not the master, we also need to update the radio source:
+            radio_index = E320_GPIO_SRCS.index(src_name)
+            gpio_radio_src_reg = gpio_radio_src_reg | (radio_index << (2*src_index))
+        self.log.trace("Updating GPIO source: master==0x{:02X} radio_src={:04X}"
+                       .format(gpio_master_reg, gpio_radio_src_reg))
+        self.mboard_regs_control.set_fp_gpio_master(gpio_master_reg)
+        self.mboard_regs_control.set_fp_gpio_radio_src(gpio_radio_src_reg)
+
+    ###########################################################################
     # Hardware peripheral controls
     ###########################################################################
-
-    def set_fp_gpio_master(self, value):
-        """set driver for front panel GPIO
-        Arguments:
-            value {unsigned} -- value is a single bit bit mask of 12 pins GPIO
-        """
-        self.mboard_regs_control.set_fp_gpio_master(value)
-
-    def get_fp_gpio_master(self):
-        """get "who" is driving front panel gpio
-           The return value is a bit mask of 8 pins GPIO.
-           0: means the pin is driven by PL
-           1: means the pin is driven by PS
-        """
-        return self.mboard_regs_control.get_fp_gpio_master()
-
-    def set_fp_gpio_radio_src(self, value):
-        """set driver for front panel GPIO
-        Arguments:
-            value {unsigned} -- value is 2-bit bit mask of 8 pins GPIO
-           00: means the pin is driven by radio 0
-           01: means the pin is driven by radio 1
-        """
-        self.mboard_regs_control.set_fp_gpio_radio_src(value)
-
-    def get_fp_gpio_radio_src(self):
-        """get which radio is driving front panel gpio
-           The return value is 2-bit bit mask of 8 pins GPIO.
-           00: means the pin is driven by radio 0
-           01: means the pin is driven by radio 1
-        """
-        return self.mboard_regs_control.get_fp_gpio_radio_src()
-
     def enable_gps(self, enable):
         """
         Turn power to the GPS (CLK_GPS_PWR_EN) off or on.
@@ -633,7 +642,7 @@ class e320(ZynqComponents, PeriphManagerBase):
         except ValueError:
             self.log.warning("Error when converting temperature value")
         except KeyError:
-            self.log.warning("Can't read temp on thermal_zone".format(sensor))
+            self.log.warning("Can't read temp on thermal_zone {}".format(sensor))
         return {
             'name': sensor_name,
             'type': 'REALNUM',
@@ -749,3 +758,22 @@ class e320(ZynqComponents, PeriphManagerBase):
         fpga_type = self.mboard_regs_control.get_fpga_type()
         self.log.debug("Updating mboard FPGA type info to {}".format(fpga_type))
         self.updateable_components['fpga']['type'] = fpga_type
+
+    #######################################################################
+    # Timekeeper API
+    #######################################################################
+    def get_clocks(self):
+        """
+        Gets the RFNoC-related clocks present in the FPGA design
+        """
+        return [
+            {
+                'name': 'radio_clk',
+                'freq': str(self.dboard.get_master_clock_rate()),
+                'mutable': 'true'
+            },
+            {
+                'name': 'bus_clk',
+                'freq': str(200e6),
+            }
+        ]

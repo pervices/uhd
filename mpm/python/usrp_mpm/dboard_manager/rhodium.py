@@ -9,8 +9,6 @@ Rhodium dboard implementation module
 
 from __future__ import print_function
 import os
-import threading
-from six import iterkeys, iteritems
 from usrp_mpm import lib # Pulls in everything from C++-land
 from usrp_mpm.dboard_manager import DboardManagerBase
 from usrp_mpm.dboard_manager.rh_periphs import TCA6408, FPGAtoDbGPIO, FPGAtoLoDist
@@ -22,9 +20,7 @@ from usrp_mpm.dboard_manager.adc_rh import AD9695Rh
 from usrp_mpm.dboard_manager.dac_rh import DAC37J82Rh
 from usrp_mpm.mpmlog import get_logger
 from usrp_mpm.sys_utils.uio import open_uio
-from usrp_mpm.sys_utils.udev import get_eeprom_paths
-from usrp_mpm.bfrfs import BufferFS
-from usrp_mpm.sys_utils.dtoverlay import apply_overlay_safe, rm_overlay_safe
+from usrp_mpm.user_eeprom import BfrfsEEPROM
 
 
 ###############################################################################
@@ -131,7 +127,7 @@ def create_spidev_iface_dac(dev_node):
 # Main dboard control class
 ###############################################################################
 
-class Rhodium(DboardManagerBase):
+class Rhodium(BfrfsEEPROM, DboardManagerBase):
     """
     Holds all dboard specific information and methods of the Rhodium dboard
     """
@@ -164,7 +160,7 @@ class Rhodium(DboardManagerBase):
     # Map I2C channel to slot index
     i2c_chan_map = {0: 'i2c-9', 1: 'i2c-10'}
     user_eeprom = {
-        2: { # RevC
+        0: { # dt-compat=0
             'label': "e0004000.i2c",
             'offset': 1024,
             'max_size': 32786 - 1024,
@@ -195,7 +191,7 @@ class Rhodium(DboardManagerBase):
         'TX' : 'TX_INSWITCH_CTRL'}
 
     def __init__(self, slot_idx, **kwargs):
-        super(Rhodium, self).__init__(slot_idx, **kwargs)
+        DboardManagerBase.__init__(self, slot_idx, **kwargs)
         self.log = get_logger("Rhodium-{}".format(slot_idx))
         self.log.trace("Initializing Rhodium daughterboard, slot index %d",
                        self.slot_idx)
@@ -249,15 +245,14 @@ class Rhodium(DboardManagerBase):
             }
         self._port_expander = TCA6408(_get_i2c_dev())
         self._daughterboard_gpio = FPGAtoDbGPIO(self.slot_idx)
-        # TODO: applying the overlay without checking for the presence of the
-        # LO dist board will create a kernel error. Fix this when the I2C API
-        # is implemented by checking if the board is present before applying.
-        try:
+        if FPGAtoLoDist.lo_dist_present(_get_i2c_dev()):
+            self.log.info("Enabling LO distribution board")
             self._lo_dist = FPGAtoLoDist(_get_i2c_dev())
-        except RuntimeError:
-            self._lo_dist = None
+        else:
+            self.log.debug("No LO distribution board detected")
         self.log.debug("Turning on Module and RF power supplies")
         self._power_on()
+        BfrfsEEPROM.__init__(self)
         self._spi_ifaces = _init_spi_devices()
         self.log.debug("Loaded SPI interfaces!")
         self.cpld = RhCPLD(self._spi_ifaces['cpld'], self.log)
@@ -268,7 +263,7 @@ class Rhodium(DboardManagerBase):
         # Create ADC interface (JESD204B link is powered down).
         self.log.trace("Creating ADC control object...")
         self.adc = AD9695Rh(self.slot_idx, self._spi_ifaces['adc'], self.log)
-        self.log.info("Succesfully loaded all peripherals!")
+        self.log.info("Successfully loaded all peripherals!")
 
     def _power_on(self):
         " Turn on power to daughterboard "
@@ -282,28 +277,6 @@ class Rhodium(DboardManagerBase):
         self.log.trace("Powering off slot_idx={}...".format(self.slot_idx))
         self._daughterboard_gpio.set(FPGAtoDbGPIO.DB_POWER_ENABLE, 0)
         self._daughterboard_gpio.set(FPGAtoDbGPIO.RF_POWER_ENABLE, 0)
-
-    def _init_user_eeprom(self, eeprom_info):
-        """
-        Reads out user-data EEPROM, and intializes a BufferFS object from that.
-        """
-        self.log.trace("Initializing EEPROM user data...")
-        eeprom_paths = get_eeprom_paths(eeprom_info.get('label'))
-        self.log.trace("Found the following EEPROM paths: `{}'".format(
-            eeprom_paths))
-        eeprom_path = eeprom_paths[self.slot_idx]
-        self.log.trace("Selected EEPROM path: `{}'".format(eeprom_path))
-        user_eeprom_offset = eeprom_info.get('offset', 0)
-        self.log.trace("Selected EEPROM offset: %d", user_eeprom_offset)
-        user_eeprom_data = open(eeprom_path, 'rb').read()[user_eeprom_offset:]
-        self.log.trace("Total EEPROM size is: %d bytes", len(user_eeprom_data))
-        # FIXME verify EEPROM sectors
-        return BufferFS(
-            user_eeprom_data,
-            max_size=eeprom_info.get('max_size'),
-            alignment=eeprom_info.get('alignment', 1024),
-            log=self.log
-        ), eeprom_path
 
     def init(self, args):
         """
@@ -370,66 +343,6 @@ class Rhodium(DboardManagerBase):
             self._init_args = args
         return init_result
 
-    def get_user_eeprom_data(self):
-        """
-        Return a dict of blobs stored in the user data section of the EEPROM.
-        """
-        return {
-            blob_id: self.eeprom_fs.get_blob(blob_id)
-            for blob_id in iterkeys(self.eeprom_fs.entries)
-        }
-
-    def set_user_eeprom_data(self, eeprom_data):
-        """
-        Update the local EEPROM with the data from eeprom_data.
-
-        The actual writing to EEPROM can take some time, and is thus kicked
-        into a background task. Don't call set_user_eeprom_data() quickly in
-        succession. Also, while the background task is running, reading the
-        EEPROM is unavailable and MPM won't be able to reboot until it's
-        completed.
-        However, get_user_eeprom_data() will immediately return the correct
-        data after this method returns.
-        """
-        for blob_id, blob in iteritems(eeprom_data):
-            self.eeprom_fs.set_blob(blob_id, blob)
-        self.log.trace("Writing EEPROM info to `{}'".format(self.eeprom_path))
-        eeprom_offset = self.user_eeprom[self.rev]['offset']
-        def _write_to_eeprom_task(path, offset, data, log):
-            " Writer task: Actually write to file "
-            # Note: This can be sped up by only writing sectors that actually
-            # changed. To do so, this function would need to read out the
-            # current state of the file, do some kind of diff, and then seek()
-            # to the different sectors. When very large blobs are being
-            # written, it doesn't actually help all that much, of course,
-            # because in that case, we'd anyway be changing most of the EEPROM.
-            with open(path, 'r+b') as eeprom_file:
-                log.trace("Seeking forward to `{}'".format(offset))
-                eeprom_file.seek(eeprom_offset)
-                log.trace("Writing a total of {} bytes.".format(
-                    len(self.eeprom_fs.buffer)))
-                eeprom_file.write(data)
-                log.trace("EEPROM write complete.")
-        thread_id = "eeprom_writer_task_{}".format(self.slot_idx)
-        if any([x.name == thread_id for x in threading.enumerate()]):
-            # Should this be fatal?
-            self.log.warn("Another EEPROM writer thread is already active!")
-        writer_task = threading.Thread(
-            target=_write_to_eeprom_task,
-            args=(
-                self.eeprom_path,
-                eeprom_offset,
-                self.eeprom_fs.buffer,
-                self.log
-            ),
-            name=thread_id,
-        )
-        writer_task.start()
-        # Now return and let the copy finish on its own. The thread will detach
-        # and MPM this process won't terminate until the thread is complete.
-        # This does not stop anyone from killing this process (and the thread)
-        # while the EEPROM write is happening, though.
-
     def enable_lo_export(self, direction, enable):
         """
         For N321 devices. If enable is true, connect the RX 1:4 splitter to the
@@ -471,6 +384,10 @@ class Rhodium(DboardManagerBase):
         self._lo_dist.set(pin_info[0], pin_val)
 
     def is_lo_dist_present(self):
+        """
+        Returns true if this daughterboard has a LO distribution board
+        attached and initialized, otherwise false.
+        """
         return self._lo_dist is not None
 
     ##########################################################################
@@ -561,6 +478,20 @@ class Rhodium(DboardManagerBase):
             self._reinit(self.master_clock_rate)
             self.log.debug("Daughter board re-initialization done.")
 
+    def enable_tx_lowband_lo(self, enable):
+        """
+        Enables or disables the TX lowband LO output from the LMK on the
+        daughterboard.
+        """
+        self.lmk.enable_tx_lb_lo(enable)
+
+    def enable_rx_lowband_lo(self, enable):
+        """
+        Enables or disables the RX lowband LO output from the LMK on the
+        daughterboard.
+        """
+        self.lmk.enable_rx_lb_lo(enable)
+
 
     ##########################################################################
     # Debug
@@ -570,7 +501,7 @@ class Rhodium(DboardManagerBase):
         """
         Debug for accessing the CPLD via the RPC shell.
         """
-        self.log.trace("CPLD Signature: 0x{:X}".format(self.cpld.peek(0x00)))
+        self.log.trace("CPLD Signature: 0x{:X}".format(self.cpld.peek16(0x00)))
         revision_msb = self.cpld.peek16(0x04)
         self.log.trace("CPLD Revision:  0x{:X}"
                        .format(self.cpld.peek16(0x03) | (revision_msb << 16)))
@@ -634,7 +565,7 @@ class Rhodium(DboardManagerBase):
         Debug for reading out all JESD core registers via RPC shell
         """
         with open_uio(
-            label="dboard-regs-{}".format(slot_idx),
+            label="dboard-regs-{}".format(self.slot_idx),
             read_only=False
         ) as radio_regs:
             for i in range(0x2000, 0x2110, 0x10):

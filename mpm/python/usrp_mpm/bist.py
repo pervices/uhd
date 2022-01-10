@@ -18,6 +18,7 @@ from datetime import datetime
 import argparse
 import subprocess
 from six import iteritems
+from usrp_mpm.sys_utils import ectool
 
 ##############################################################################
 # Aurora/SFP BIST code
@@ -216,14 +217,14 @@ def filter_results_for_lv(results, lv_compat_format):
     }
     return results
 
-def get_product_id_from_eeprom(valid_ids):
+def get_product_id_from_eeprom(valid_ids, cmd='eeprom-id'):
     """Return the mboard product ID
 
     Returns something like n300, n310, e320...
+    the eeprom parameter is needed if there are several eeprom within the system
     """
-    cmd = ['eeprom-id']
     output = subprocess.check_output(
-        cmd,
+        [cmd],
         stderr=subprocess.STDOUT,
         shell=True,
     ).decode('utf-8')
@@ -246,7 +247,9 @@ def get_tpm_caps_info():
     return result
 
 def gpio_set_all(gpio_bank, value, gpio_size, ddr_mask):
-    """Helper function for set gpio.
+    """
+    Helper function to set GPIOs
+
     What this function do is take decimal value and convert to a binary string
     then try to set those individual bits to the gpio_bank.
     Arguments:
@@ -267,14 +270,24 @@ def gpio_set_all(gpio_bank, value, gpio_size, ddr_mask):
 ##############################################################################
 # Common tests
 ##############################################################################
-def test_ddr3_with_usrp_probe():
+def test_ddr3_with_usrp_probe(extra_args=None):
     """
     Run uhd_usrp_probe and scrape the output to see if the DRAM FIFO block is
     reporting a good throughput. This is a bit of a roundabout way of testing
     the DDR3, but it uses existing software and also tests the RFNoC pathways.
     """
-    result = {}
-    ddr3_bist_executor = 'uhd_usrp_probe --args addr=127.0.0.1'
+    dflt_args = {'addr':'127.0.0.1', 'rfnoc_num_blocks':1}
+    extra_args = extra_args or {}
+    # merge args dicts, extra_args overrides dflt_args if keys exists in both dicts
+    args = {**dflt_args, **extra_args}
+    args_str = ",".join(
+        ['{k}={v}'.format(k=k, v=v) for k, v in iteritems(args)])
+    cmd = [
+        'uhd_usrp_probe',
+        '--args',
+        '{e}'.format(e=args_str)
+    ]
+    ddr3_bist_executor = ' '.join(cmd)
     try:
         output = subprocess.check_output(
             ddr3_bist_executor,
@@ -285,14 +298,19 @@ def test_ddr3_with_usrp_probe():
         # Don't throw errors from uhd_usrp_probe
         output = ex.output
     output = output.decode("utf-8")
+    if re.search(r"DmaFIFO", output) is None:
+        return {
+            'error_msg': "DmaFIFO block not enabled. Cannot execute DDR3 BIST!",
+            'throughput': 0,
+        }
     mobj = re.search(r"Throughput: (?P<thrup>[0-9.]+)\s?MB", output)
     if mobj is not None:
-        result['throughput'] = float(mobj.group('thrup')) * 1000
+        return {'throughput': float(mobj.group('thrup')) * 1000}
     else:
-        result['throughput'] = 0
-        result['error_msg'] = result.get('error_msg', '') + \
-                                    "\n\nFailed match throughput regex!"
-    return result
+        return {
+            'throughput': 0,
+            'error_msg': "Failed match throughput regex!",
+        }
 
 
 def get_gpsd_tpv_result():
@@ -330,15 +348,19 @@ def get_ref_clock_prop(clock_source, time_source, extra_args=None):
      - <sensor-name>:
        - locked: Boolean lock status
     """
+    dflt_args = {'addr':'127.0.0.1'}
     extra_args = extra_args or {}
+    # merge args dicts, extra_args overrides dflt_args if keys exists in both dicts
+    args = {**dflt_args, **extra_args}
     result = {}
-    extra_args_str = ",".join(
-        ['{k}={v}'.format(k=k, v=v) for k, v in iteritems(extra_args)])
+
+    args_str = ",".join(
+        ['{k}={v}'.format(k=k, v=v) for k, v in iteritems(args)])
     cmd = [
         'uhd_usrp_probe',
         '--args',
-        'addr=127.0.0.1,clock_source={c},time_source={t},{e}'.format(
-            c=clock_source, t=time_source, e=extra_args_str),
+        'clock_source={c},time_source={t},{e}'.format(
+            c=clock_source, t=time_source, e=args_str),
         '--sensor'
     ]
     sensor_path = '/mboards/0/sensors/ref_locked'
@@ -377,6 +399,33 @@ def get_temp_sensor_value(temp_sensor_map):
                 and device.attributes.get('temp') is not None
     }
 
+
+def get_iio_temp_sensor_values():
+    """
+    Read all devices in the IIO subsystem that can report a temperature and
+    returns dictionary containing {name: temperature}, where name is the
+    temperature device name and the temperature is a value in mC.
+    """
+    import pyudev
+    context = pyudev.Context()
+    iio_devs = context.list_devices(subsystem='iio')
+
+    def is_temp_dev(dev):
+        return 'in_temp_raw' in dev.attributes.available_attributes
+
+    def get_temp(dev):
+        raw = float(dev.attributes.get('in_temp_raw').decode('ascii'))
+        offset = float(dev.attributes.get('in_temp_offset').decode('ascii'))
+        scale = float(dev.attributes.get('in_temp_scale').decode('ascii'))
+        return int(scale * (raw + offset))
+
+    def get_name(dev):
+        return dev.attributes.get('name').decode('ascii')
+
+    temp_devs = [dev for dev in iio_devs if is_temp_dev(dev)]
+    return {get_name(dev): get_temp(dev) for dev in temp_devs}
+
+
 def get_fan_values():
     """
     Return a dict of fan name -> fan speed key/values.
@@ -389,6 +438,14 @@ def get_fan_values():
         if 'cur_state' in device.attributes.available_attributes \
                 and device.attributes.get('cur_state') is not None
     }
+
+def get_ectool_fan_values():
+    try:
+        return ectool.get_fan_rpm()
+    except RuntimeError as ex:
+        return {
+            'error_msg': "{}".format(str(ex))
+        }
 
 def get_link_up(if_name):
     """

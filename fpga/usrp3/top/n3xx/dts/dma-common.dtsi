@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0 OR X11
+/*
+ * Copyright (c) 2018 National Instruments Corp
+ */
+
+&fpga_full {
+	nixge_internal: ethernet@40040000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "ni,xge-enet-3.00";
+		reg = <0x40040000 0x4000
+		       0x40050000 0x2000>;
+		reg-names = "dma", "ctrl";
+			clocks = <&clkc 15>;
+			clock-names = "bus_clk";
+
+		interrupts = <0 52 4>, <0 53 4>;
+		interrupt-names = "rx", "tx";
+		interrupt-parent = <&intc>;
+		status = "okay";
+
+		phy-mode = "internal";
+		local-mac-address = <0x00 0x01 0x02 0x03 0x04 0x05>;
+
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+		};
+	};
+
+	uio@40052000 {
+		compatible = "usrp-uio";
+		reg = <0x40052000 0x2000>;
+		reg-names = "misc-enet-int-regs";
+		status = "okay";
+	};
+};

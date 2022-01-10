@@ -1,8 +1,9 @@
 #
 # Copyright 2010-2013,2015 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
+# Copyright 2019 Ettus Research, a National Instruments Brand
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -20,38 +21,18 @@ set(ENABLE_MANUAL_OR_DOXYGEN false)
 ########################################################################
 LIBUHD_REGISTER_COMPONENT("Manual" ENABLE_MANUAL ON "DOXYGEN_FOUND" OFF OFF)
 
-# Check if fpga submodule is there. If yes:
-# - Add fpga-src/docs and fpga-src/README.md to inputs
-# - Add fpga-src docs dirs to strip?
-# If no:
-# - Make FPGA Manual reference link to our website
-
 if(ENABLE_MANUAL)
+    set(FPGA_SOURCE_DIR "${UHD_SOURCE_DIR}/../fpga")
     set(ENABLE_MANUAL_OR_DOXYGEN true)
-    # First: Set up UHD manual only
     file(GLOB manual_sources "*.dox")
+    file(GLOB_RECURSE fpga_manual_sources "${FPGA_SOURCE_DIR}/docs/*.md")
+    list(APPEND manual_sources ${fpga_manual_sources})
     set(DOXYGEN_DEPENDENCIES ${manual_sources})
-    set(DOXYGEN_INPUT_DIRS "${CMAKE_SOURCE_DIR}/docs ${CMAKE_CURRENT_BINARY_DIR}")
+    set(DOXYGEN_INPUT_DIRS "${UHD_SOURCE_DIR}/docs ${CMAKE_CURRENT_BINARY_DIR} ${FPGA_SOURCE_DIR}/docs")
     set(DOXYGEN_DEP_COMPONENT "manual")
-    set(DOXYGEN_FPGA_MANUAL_REFERENCE "<a href=\"http://files.ettus.com/manual/md_fpga.html\">Part III: FPGA Manual</a>")
-    set(DOXYGEN_STRIP_EXTRA "")
+    set(DOXYGEN_FPGA_MANUAL_REFERENCE "\\subpage md_fpga \"Part III: FPGA Manual\"")
+    set(DOXYGEN_STRIP_EXTRA "${UHD_SOURCE_DIR}/../fpga/docs")
     set(DOXYGEN_EXCLUDE_DIRS "")
-    if(NOT ENABLE_RFNOC)
-        set(DOXYGEN_EXCLUDE_DIRS "${DOXYGEN_EXCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include/uhd/rfnoc")
-    endif(NOT ENABLE_RFNOC)
-    # Now, check if we have the FPGA sources as well.
-    # If so, pull them in:
-    if(HAS_FPGA_SUBMODULE)
-        file(GLOB_RECURSE fpga_manual_sources "${FPGA_SUBMODULE_DIR}/docs/*.md")
-        list(APPEND manual_sources ${fpga_manual_sources})
-        set(DOXYGEN_INPUT_DIRS "${DOXYGEN_INPUT_DIRS} ${FPGA_SUBMODULE_DIR}/docs")
-        set(DOXYGEN_FPGA_MANUAL_REFERENCE "\\subpage md_fpga \"Part III: FPGA Manual\"")
-	set(DOXYGEN_STRIP_EXTRA "${FPGA_SUBMODULE_DIR}/docs")
-    endif(HAS_FPGA_SUBMODULE)
-    configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/mainpage.dox.in
-        ${CMAKE_CURRENT_BINARY_DIR}/mainpage.dox
-    @ONLY)
 endif(ENABLE_MANUAL)
 
 ########################################################################
@@ -69,14 +50,14 @@ endif(LIBUHDDEV_PKG)
 if(ENABLE_DOXYGEN)
     set(ENABLE_MANUAL_OR_DOXYGEN true)
     #make doxygen directory depend on the header files
-    file(GLOB_RECURSE header_files ${CMAKE_SOURCE_DIR}/include/*.hpp)
-    file(GLOB_RECURSE h_files ${CMAKE_SOURCE_DIR}/include/*.h)
+    file(GLOB_RECURSE header_files ${UHD_SOURCE_DIR}/include/*.hpp)
+    file(GLOB_RECURSE h_files ${UHD_SOURCE_DIR}/include/*.h)
     list(APPEND header_files ${h_files})
-    set(DOXYGEN_DEPENDENCIES ${DOXYGEN_DEPENDENCIES} ${header_files} "${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/gen_basic_funcs.py")
+    set(DOXYGEN_DEPENDENCIES ${DOXYGEN_DEPENDENCIES} ${header_files})
     if(ENABLE_DOXYGEN_FULL)
-        set(DOXYGEN_INPUT_DIRS "${DOXYGEN_INPUT_DIRS} ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/lib ${CMAKE_SOURCE_DIR}/python")
+        set(DOXYGEN_INPUT_DIRS "${DOXYGEN_INPUT_DIRS} ${UHD_SOURCE_DIR}/include ${UHD_SOURCE_DIR}/lib ${UHD_SOURCE_DIR}/python")
     else(ENABLE_DOXYGEN_FULL)
-        set(DOXYGEN_INPUT_DIRS "${DOXYGEN_INPUT_DIRS} ${CMAKE_SOURCE_DIR}/include")
+        set(DOXYGEN_INPUT_DIRS "${DOXYGEN_INPUT_DIRS} ${UHD_SOURCE_DIR}/include")
     endif(ENABLE_DOXYGEN_FULL)
 
     set(DOXYGEN_DEP_COMPONENT "doxygen")
@@ -103,9 +84,13 @@ if(ENABLE_MANUAL_OR_DOXYGEN)
         ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in
         ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
     @ONLY)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/build.dox.in
+        ${CMAKE_CURRENT_BINARY_DIR}/build.dox
+    @ONLY)
 
     #make doxygen directory depend on the header files
-    file(GLOB_RECURSE header_files ${CMAKE_SOURCE_DIR}/include/*.hpp)
+    file(GLOB_RECURSE header_files ${UHD_SOURCE_DIR}/include/*.hpp)
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR_DOXYGEN} DEPENDS ${DOXYGEN_DEPENDENCIES}
         COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
@@ -139,34 +124,62 @@ set(man_page_sources
 ########################################################################
 # Setup man pages
 ########################################################################
-find_package(GZip)
-
 # No elegant way in CMake to reverse a boolean
 if(NOT WIN32)
     set(NOT_WIN32 TRUE)
 endif(NOT WIN32)
 
-LIBUHD_REGISTER_COMPONENT("Man Pages" ENABLE_MAN_PAGES ON "GZIP_FOUND;NOT_WIN32" OFF OFF)
+set(MAN_PAGES_DEPS "NOT_WIN32")
 
+# Quietly see if we have GZip, if not, we can skip trying to compress
+# the man pages
+find_package(GZip QUIET)
+set(ENABLE_MAN_PAGE_COMPRESSION ${GZIP_FOUND} CACHE BOOL "Compress Man Pages")
+
+message(STATUS "")
+if(ENABLE_MAN_PAGE_COMPRESSION)
+    # If gzip is not found, this will force failure in
+    # LIBUHD_REGISTER_COMPONENT for ENABLE_MAN_PAGES
+    list(APPEND MAN_PAGES_DEPS "GZIP_FOUND")
+    if(GZIP_FOUND)
+        message(STATUS "Found GZip: ${GZIP_EXECUTABLE}")
+        message(STATUS "")
+        message(STATUS "Compressed Man Pages enabled")
+    else()
+        message(FATAL_ERROR
+                "ENABLE_MAN_PAGE_COMPRESSION is set, "
+                "but GZip compression program not found!")
+        message(STATUS "")
+    endif()
+else()
+    message(STATUS "Compressed Man Pages disabled")
+endif(ENABLE_MAN_PAGE_COMPRESSION)
+message(STATUS "  Override with -DENABLE_MAN_PAGE_COMPRESSION=ON/OFF")
+
+LIBUHD_REGISTER_COMPONENT("Man Pages" ENABLE_MAN_PAGES ON "${MAN_PAGES_DEPS}" OFF OFF)
 if(ENABLE_MAN_PAGES)
-    #Generate man pages
-    foreach(manfile ${man_page_sources})
-        #make the gzip file depend on the text file
-        string(REPLACE ".1" "" PROGRAM_NAME "${manfile}")
-        set(gzfile "${CMAKE_CURRENT_BINARY_DIR}/${manfile}.gz")
-        set(manfile "${CMAKE_CURRENT_SOURCE_DIR}/${manfile}")
-        add_custom_command(
-            OUTPUT ${gzfile}
-            DEPENDS ${manfile}
-            COMMAND ${GZIP_EXECUTABLE} -9 -cf ${manfile} > ${gzfile}
-            COMMENT "Generating ${PROGRAM_NAME} man page"
-        )
-
-        #make the man page target depend on the gz file
-        list(APPEND man_page_gz_files ${gzfile})
-        UHD_INSTALL(FILES ${gzfile} DESTINATION ${PKG_MAN_DIR} COMPONENT manpages)
-    endforeach(manfile ${man_page_sources})
-
-    #make the man pages a build-time dependency
-    add_custom_target(man_page_gzips ALL DEPENDS ${man_page_gz_files})
+    #Generate man pages; either compressed or not
+    if(ENABLE_MAN_PAGE_COMPRESSION)
+        # compress man pages
+        foreach(manfile ${man_page_sources})
+            #make the gzip file depend on the text file
+            string(REPLACE ".1" "" PROGRAM_NAME "${manfile}")
+            set(gzfile "${CMAKE_CURRENT_BINARY_DIR}/${manfile}.gz")
+            set(manfile "${CMAKE_CURRENT_SOURCE_DIR}/${manfile}")
+            add_custom_command(
+                OUTPUT ${gzfile}
+                DEPENDS ${manfile}
+                COMMAND ${GZIP_EXECUTABLE} -9 -cf ${manfile} > ${gzfile}
+                COMMENT "Generating ${PROGRAM_NAME} man page"
+            )
+            #make the man page target depend on the gz file
+            list(APPEND man_page_gz_files ${gzfile})
+        endforeach(manfile ${man_page_sources})
+        #make the man pages a build-time dependency
+        UHD_INSTALL(FILES ${man_page_gz_files} DESTINATION ${PKG_MAN_DIR} COMPONENT manpages)
+        add_custom_target(man_page_gzips ALL DEPENDS ${man_page_gz_files})
+    else(ENABLE_MAN_PAGE_COMPRESSION)
+        # uncompressed man pages; just install them
+        UHD_INSTALL(FILES ${man_page_sources} DESTINATION ${PKG_MAN_DIR} COMPONENT manpages)
+    endif(ENABLE_MAN_PAGE_COMPRESSION)
 endif(ENABLE_MAN_PAGES)

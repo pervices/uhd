@@ -2,7 +2,7 @@
 # Copyright 2010-2013,2015 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 ########################################################################
@@ -81,10 +81,11 @@ set_source_files_properties(
 ########################################################################
 if(WIN32)
     LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_wsa_zero_copy.cpp)
+    LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_boost_asio_link.cpp)
 else()
     LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_zero_copy.cpp)
-    LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_stream_zero_copy.cpp)
-ENDIF()
+    LIBUHD_APPEND_SOURCES(${CMAKE_CURRENT_SOURCE_DIR}/udp_boost_asio_link.cpp)
+endif()
 
 #On windows, the boost asio implementation uses the winsock2 library.
 #Note: we exclude the .lib extension for cygwin and mingw platforms.
@@ -114,7 +115,7 @@ LIBUHD_PYTHON_GEN_SOURCE(
 
 LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_copy_flow_ctrl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/zero_copy_recv_offload.cpp
+
     ${CMAKE_CURRENT_SOURCE_DIR}/tcp_zero_copy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer_pool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/if_addrs.cpp
@@ -122,31 +123,29 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/chdr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/muxed_zero_copy_if.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/zero_copy_flow_ctrl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inline_io_service.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/offload_io_service.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/adapter.cpp
 )
 
 if(ENABLE_X300)
     LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/nirio_zero_copy.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nirio_link.cpp
     )
 endif(ENABLE_X300)
 
-if(ENABLE_LIBERIO)
-    include_directories(${LIBERIO_INCLUDE_DIRS})
-    LIBUHD_APPEND_LIBS(${LIBERIO_LIBRARIES})
-    LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/liberio_zero_copy.cpp
-    )
-endif(ENABLE_LIBERIO)
+
 
 if(ENABLE_DPDK)
     INCLUDE_SUBDIRECTORY(uhd-dpdk)
+    include_directories(${DPDK_INCLUDE_DIRS})
+
+    LIBUHD_APPEND_SOURCES(
+        ${CMAKE_CURRENT_SOURCE_DIR}/udp_dpdk_link.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dpdk_simple.cpp
+    )
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/udp_dpdk_link.cpp
+        PROPERTIES COMPILE_FLAGS "${UHD_DPDK_CFLAGS} -D_GNU_SOURCE"
+    )
 endif(ENABLE_DPDK)
-
-# Verbose Debug output for send/recv
-set( UHD_TXRX_DEBUG_PRINTS OFF CACHE BOOL "Use verbose debug output for send/recv" )
-option( UHD_TXRX_DEBUG_PRINTS "Use verbose debug output for send/recv" "" )
-if(UHD_TXRX_DEBUG_PRINTS)
-	message(STATUS "Using verbose debug output for send/recv")
-	add_definitions(-DUHD_TXRX_DEBUG_PRINTS)
-endif()
-

@@ -1,5 +1,6 @@
 //
 // Copyright 2018 Ettus Research, a National Instruments Company
+// Copyright 2019 Ettus Research, a National Instruments Brand
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
@@ -8,35 +9,35 @@
 
 // Relative to uhd/host/lib/usrp/common/ad9361_driver/
 #include "../../../include/uhdlib/usrp/common/ad9361_ctrl.hpp"
-
 #include <boost/make_shared.hpp>
 #include <boost/noncopyable.hpp>
-
 #include <functional>
+#include <future>
 #include <string>
 #include <vector>
 
 namespace mpm { namespace chips {
-    using uhd::usrp::ad9361_ctrl;
-}};
+using uhd::usrp::ad9361_ctrl;
+}}; // namespace mpm::chips
 
-//TODO: pull in filter_info_base
+//! Async calls
+std::future<double> handle_tune;
+std::future<double> handle_set_clock_rate;
+
+// TODO: pull in filter_info_base
 #ifdef LIBMPM_PYTHON
-void export_catalina(){
-    LIBMPM_BOOST_PREAMBLE("ad9361")
+void export_catalina(py::module& top_module)
+{
     using namespace mpm::chips;
-    bp::class_<ad9361_ctrl, boost::noncopyable, boost::shared_ptr<ad9361_ctrl>>("ad9361_ctrl", bp::no_init)
-        .def("get_gain_names", &ad9361_ctrl::get_gain_names)
-        .staticmethod("get_gain_names")
+    auto m = top_module.def_submodule("ad9361");
+
+    py::class_<ad9361_ctrl, boost::shared_ptr<ad9361_ctrl>>(m, "ad9361_ctrl")
+        .def_static("get_gain_names", &ad9361_ctrl::get_gain_names)
         // Make this "Python private" because the return value can't be serialized
-        .def("_get_gain_range", &ad9361_ctrl::get_gain_range)
-        .staticmethod("_get_gain_range")
-        .def("get_rf_freq_range", &ad9361_ctrl::get_rf_freq_range)
-        .staticmethod("get_rf_freq_range")
-        .def("get_bw_filter_range", &ad9361_ctrl::get_bw_filter_range)
-        .staticmethod("get_bw_filter_range")
-        .def("get_clock_rate_range", &ad9361_ctrl::get_clock_rate_range)
-        .staticmethod("get_clock_rate_range")
+        .def_static("_get_gain_range", &ad9361_ctrl::get_gain_range)
+        .def_static("get_rf_freq_range", &ad9361_ctrl::get_rf_freq_range)
+        .def_static("get_bw_filter_range", &ad9361_ctrl::get_bw_filter_range)
+        .def_static("get_clock_rate_range", &ad9361_ctrl::get_clock_rate_range)
         .def("set_bw_filter", &ad9361_ctrl::set_bw_filter)
         .def("set_gain", &ad9361_ctrl::set_gain)
         .def("set_agc", &ad9361_ctrl::set_agc)
@@ -51,19 +52,42 @@ void export_catalina(){
         .def("set_iq_balance_auto", &ad9361_ctrl::set_iq_balance_auto)
         .def("get_freq", &ad9361_ctrl::get_freq)
         .def("data_port_loopback", &ad9361_ctrl::data_port_loopback)
-        .def("get_rssi", +[](ad9361_ctrl& self, std::string which) {
-            return self.get_rssi(which).to_real();
-        })
-        .def("get_temperature", +[](ad9361_ctrl& self) {
-            return self.get_temperature().to_real();
-        })
+        .def("get_rssi",
+            +[](ad9361_ctrl& self, std::string which) {
+                return self.get_rssi(which).to_real();
+            })
+        .def("get_temperature",
+            +[](ad9361_ctrl& self) { return self.get_temperature().to_real(); })
         .def("get_filter_names", &ad9361_ctrl::get_filter_names)
         // Make this "Python private" because the return value can't be serialized.
         .def("_get_filter", &ad9361_ctrl::get_filter)
         .def("set_filter", &ad9361_ctrl::set_filter)
-        .def("output_digital_test_tone", &ad9361_ctrl::output_digital_test_tone)
-        ;
+        .def("output_digital_test_tone", &ad9361_ctrl::output_digital_test_tone);
+
+    m.def("async__tune",
+        +[](ad9361_ctrl& catalina, const std::string& which, const double value) {
+            handle_tune = std::async(
+                std::launch::async, &ad9361_ctrl::tune, &catalina, which, value);
+        });
+    m.def("await__tune", +[]() -> bool {
+        if (handle_tune.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            handle_tune.get();
+            return true;
+        }
+        return false;
+    });
+    m.def("async__set_clock_rate", +[](ad9361_ctrl& catalina, const double value) {
+        handle_set_clock_rate = std::async(
+            std::launch::async, &ad9361_ctrl::set_clock_rate, &catalina, value);
+    });
+    m.def("await__set_clock_rate", +[]() -> bool {
+        if (handle_set_clock_rate.wait_for(std::chrono::seconds(0))
+            == std::future_status::ready) {
+            handle_set_clock_rate.get();
+            return true;
+        }
+        return false;
+    });
 }
 
 #endif
-

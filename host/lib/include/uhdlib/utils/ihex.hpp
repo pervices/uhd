@@ -5,12 +5,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_IHEX_READER_HPP
-#define INCLUDED_IHEX_READER_HPP
+#pragma once
 
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
 #include <stdint.h>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -20,12 +18,13 @@ class ihex_reader
 {
 public:
     // Arguments are: lower address bits, upper address bits, buff, length
-    typedef boost::function<int(uint16_t,uint16_t,unsigned char*,uint16_t)> record_handle_type;
+    typedef std::function<int(uint16_t, uint16_t, unsigned char*, uint16_t)>
+        record_handle_type;
 
     /*
      * \param ihex_filename Path to the *.ihx file
      */
-    ihex_reader(const std::string &ihex_filename);
+    ihex_reader(const std::string& ihex_filename);
 
     /*! Read an Intel HEX file and handle it record by record.
      *
@@ -46,7 +45,7 @@ public:
      *
      * \throws uhd::io_error if the HEX file is corrupted or unreadable.
      */
-    void to_bin_file(const std::string &bin_filename);
+    void to_bin_file(const std::string& bin_filename);
 
     /*! Copy the ihex file into a buffer.
      *
@@ -64,6 +63,3 @@ private:
 };
 
 }; /* namespace uhd */
-
-#endif /* INCLUDED_IHEX_READER_HPP */
-

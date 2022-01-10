@@ -2,7 +2,7 @@
 # Copyright 2013,2015 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
 #
-# SPDX-License-Identifier: GPL-3.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 
 macro(LIBUHD_LVBITX_GEN_SOURCE_AND_BITSTREAM lvbitx binfile)
@@ -12,7 +12,7 @@ macro(LIBUHD_LVBITX_GEN_SOURCE_AND_BITSTREAM lvbitx binfile)
         set( GEN_OPTIONS )
         message( STATUS "  Using ${lvbitx} for codegen" )
     else( ${binfile} STREQUAL "OFF" )
-        set( GEN_OPTIONS --merge-bin=${CMAKE_SOURCE_DIR}/../binaries/${binfile} --output-lvbitx-path=${CMAKE_SOURCE_DIR}/../binaries )
+        set( GEN_OPTIONS --merge-bin=${UHD_SOURCE_DIR}/../binaries/${binfile} --output-lvbitx-path=${UHD_SOURCE_DIR}/../binaries )
         message( STATUS "  Merging ${lvbitx} with ${binfile} for codegen" )
     endif( ${binfile} STREQUAL "OFF" )
 

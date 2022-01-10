@@ -7,18 +7,35 @@
 #ifndef INCLUDED_MPMD_IMPL_HPP
 #define INCLUDED_MPMD_IMPL_HPP
 
-#include "mpmd_xport_mgr.hpp"
-#include "../device3/device3_impl.hpp"
+#include <uhd/property_tree.hpp>
 #include <uhd/stream.hpp>
 #include <uhd/types/device_addr.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/utils/tasks.hpp>
-#include <uhd/transport/muxed_zero_copy_if.hpp>
-#include <uhd/property_tree.hpp>
+#include <uhdlib/rfnoc/clock_iface.hpp>
+#include <uhdlib/rfnoc/rfnoc_device.hpp>
+#include <uhdlib/usrp/common/mpmd_mb_controller.hpp>
 #include <uhdlib/utils/rpc.hpp>
 #include <boost/optional.hpp>
 #include <map>
 #include <memory>
+
+/*************************************************************************
+ * RPC timeout constants for MPMD
+ ************************************************************************/
+//! Time between reclaims (ms)
+static constexpr size_t MPMD_RECLAIM_INTERVAL_MS = 1000;
+//! Default timeout value for the init() RPC call (ms)
+static constexpr size_t MPMD_DEFAULT_INIT_TIMEOUT = 120000;
+//! Default timeout value for RPC calls (ms)
+static constexpr size_t MPMD_DEFAULT_RPC_TIMEOUT = 2000;
+//! Short timeout value for RPC calls (ms), used for calls that shouldn't
+// take long. This value can be used to quickly determine a link status.
+static constexpr size_t MPMD_SHORT_RPC_TIMEOUT = 2000;
+//! Claimer loop timeout value for RPC calls (ms).
+static constexpr size_t MPMD_CLAIMER_RPC_TIMEOUT = 10000;
+//! Ethernet address for management and RPC communication
+static const std::string MGMT_ADDR_KEY = "mgmt_addr";
 
 namespace uhd { namespace mpmd {
 
@@ -26,10 +43,15 @@ namespace uhd { namespace mpmd {
  */
 class mpmd_mboard_impl
 {
-  public:
+public:
     /*** Types ***************************************************************/
-    using uptr = std::unique_ptr<mpmd_mboard_impl>;
+    using uptr     = std::unique_ptr<mpmd_mboard_impl>;
     using dev_info = std::map<std::string, std::string>;
+
+    //! MPMD-specific implementation of the mb_iface
+    //
+    // This handles the transport management
+    class mpmd_mb_iface;
 
     /*** Static helper *******************************************************/
     /*! Will run some checks to determine if this device can be reached from
@@ -38,8 +60,7 @@ class mpmd_mboard_impl
      *  \param device_addr Device args. Must contain an mgmt_addr.
      */
     static boost::optional<device_addr_t> is_device_reachable(
-        const device_addr_t& device_addr
-    );
+        const device_addr_t& device_addr);
 
     /*** Structors ***********************************************************/
     /*! Ctor: Claim device or throw an exception on failure.
@@ -49,10 +70,7 @@ class mpmd_mboard_impl
      * \param mb_args Device args that pertain to this motherboard
      * \param ip_addr RPC client will attempt to connect to this IP address
      */
-    mpmd_mboard_impl(
-            const uhd::device_addr_t &mb_args,
-            const std::string& ip_addr
-    );
+    mpmd_mboard_impl(const uhd::device_addr_t& mb_args, const std::string& ip_addr);
     ~mpmd_mboard_impl();
 
     /*** Factory *************************************************************/
@@ -60,13 +78,12 @@ class mpmd_mboard_impl
      * \param mb_args Device args that pertain to this motherboard
      * \param ip_addr RPC client will attempt to connect to this IP address
      */
-    static uptr make(
-            const uhd::device_addr_t &mb_args,
-            const std::string& addr
-    );
+    static uptr make(const uhd::device_addr_t& mb_args, const std::string& addr);
 
-    /*** Init ****************************************************************/
+    /*** API *****************************************************************/
     void init();
+
+    uhd::rfnoc::mb_iface& get_mb_iface();
 
     /*** Public attributes ***************************************************/
     //! These are the args given by the user, with some filtering/preprocessing
@@ -80,6 +97,12 @@ class mpmd_mboard_impl
     // to be populated at all.
     std::vector<uhd::device_addr_t> dboard_info;
 
+    //! Reference to this motherboards mb_iface
+    std::unique_ptr<mpmd_mb_iface> mb_iface;
+
+    //! Reference to this motherboards mb_controller
+    uhd::rfnoc::mpmd_mb_controller::sptr mb_ctrl;
+
     /*! Reference to the RPC client for this motherboard
      *
      * We store a shared ptr, because we might share it with some of the RFNoC
@@ -87,49 +110,34 @@ class mpmd_mboard_impl
      */
     uhd::rpc_client::sptr rpc;
 
-    //! Number of RFNoC crossbars on this device
-    const size_t num_xbars;
-
     /*************************************************************************
      * API
      ************************************************************************/
-    //! Configure a crossbar to have a certain local address
-    void set_xbar_local_addr(const size_t xbar_index, const size_t local_addr);
-
-    //! Return the local address of a given crossbar
-    size_t get_xbar_local_addr(const size_t xbar_index) const {
-        return xbar_local_addrs.at(xbar_index);
+    /*! Setting this flag will enable a mode where a reclaim failure is
+     *  acceptable.
+     *
+     * The only legitimate time to do this is when a procedure is called that
+     * can cause communication with the RPC server to be interrupted
+     * legitimately, but non-critically. For example, when updating the FPGA
+     * image, the RPC server gets rebooted, but the claim loop is running in a
+     * separate thread, and needs some kind of flag to be notified that
+     * something is up.
+     */
+    void allow_claim_failure(const bool allow)
+    {
+        if (allow) {
+            _allow_claim_failure_latch = true;
+        }
+        _allow_claim_failure_flag = allow;
     }
 
-    //! Device-specific make_transport implementation
-    //
-    // A major difference to the mpmd_impl::make_transport() is the meaning of
-    // the first argument (\p sid). mpmd_impl::make_transport() will add a
-    // source part to the SID which needs to be taken into account in this
-    // function.
-    //
-    // \param sid The full SID of this transport (UHD to device)
-    // \param xport_type Transport type (CTRL, RX_DATA, ...)
-    // \param args Any kind of args passed in via get_?x_stream()
-    uhd::both_xports_t make_transport(
-        const sid_t& sid,
-        usrp::device3_impl::xport_type_t xport_type,
-        const uhd::device_addr_t& args
-    );
+    //! Read the device access token
+    std::string get_token()
+    {
+        return _token;
+    }
 
-    size_t get_mtu(const uhd::direction_t dir) const;
-
-
-    uhd::device_addr_t get_rx_hints() const;
-    uhd::device_addr_t get_tx_hints() const;
-
-    //! Set the RPC call timeout to the default value
-    void set_timeout_default();
-
-    //! Set the RPC call timeout to the value for initializations
-    void set_timeout_init();
-
-  private:
+private:
     /*! Reference to the RPC client that handles claiming
      */
     uhd::rpc_client::sptr _claim_rpc;
@@ -143,34 +151,39 @@ class mpmd_mboard_impl
      */
     bool claim();
 
-     /*! Set RPC client timeout value
-      *
-      * \param timeout_ms time limit (in ms) that a rpc client waits for a single call
-      */
-     void set_rpcc_timeout(
-        const uint64_t timeout_ms
-    );
+    /*! Set RPC client timeout value
+     *
+     * \param timeout_ms time limit (in ms) that a rpc client waits for a single call
+     */
+    void set_rpcc_timeout(const uint64_t timeout_ms);
 
-    uhd::task::sptr claim_device_and_make_task(
-    );
+    uhd::task::sptr claim_device_and_make_task();
 
     /*! Read out the log buffer from the MPM device and send it to native
      * logging system.
      */
-    void dump_logs(const bool dump_to_null=false);
+    void dump_logs(const bool dump_to_null = false);
 
     /*************************************************************************
      * Private attributes
      ************************************************************************/
-    //! Stores a list of local addresses of the crossbars. The local address is
-    // what we use when addressing a crossbar in a CHDR header.
-    std::vector<size_t> xbar_local_addrs;
-
     /*! Continuously reclaims the device.
      */
     uhd::task::sptr _claimer_task;
 
-    uhd::mpmd::xport::mpmd_xport_mgr::uptr _xport_mgr;
+    /*! A copy of the device access token
+     */
+    std::string _token;
+
+    /*! This flag is only used within the claim() function. Go look there if you
+     * really need to know what it does.
+     */
+    std::atomic<bool> _allow_claim_failure_flag{false};
+
+    /*! This flag is only used within the claim() function. Go look there if you
+     * really need to know what it does.
+     */
+    std::atomic<bool> _allow_claim_failure_latch{false};
 };
 
 
@@ -180,7 +193,7 @@ class mpmd_mboard_impl
  * are taken care of by MPM itself, it is not necessary to write a specific
  * derived class for every single type of MPM device.
  */
-class mpmd_impl : public uhd::usrp::device3_impl
+class mpmd_impl : public uhd::rfnoc::detail::rfnoc_device
 {
 public:
     //! Device arg key which will allow finding all devices, even those not
@@ -209,19 +222,26 @@ public:
      * Structors
      ************************************************************************/
     mpmd_impl(const uhd::device_addr_t& device_addr);
-    ~mpmd_impl();
+    ~mpmd_impl() override;
 
     /**************************************************************************
      * API
      ************************************************************************/
-    uhd::both_xports_t make_transport(const uhd::sid_t&,
-                                      uhd::usrp::device3_impl::xport_type_t,
-                                      const uhd::device_addr_t&);
+    uhd::rfnoc::mb_iface& get_mb_iface(const size_t mb_idx) override
+    {
+        if (mb_idx >= _mb.size()) {
+            throw uhd::index_error(
+                std::string("Cannot get mb_iface, invalid motherboard index: ")
+                + std::to_string(mb_idx));
+        }
+        return _mb.at(mb_idx)->get_mb_iface();
+    }
 
-  private:
-    uhd::device_addr_t get_rx_hints(size_t mb_index);
-    uhd::device_addr_t get_tx_hints(size_t mb_index);
+protected:
+    //! Destroys the mboard_impls and the device_tree
+    void _deinit();
 
+private:
     /*************************************************************************
      * Private methods/helpers
      ************************************************************************/
@@ -229,9 +249,7 @@ public:
      *
      * Does not initialize the device (see setup_mb() for that).
      */
-    mpmd_mboard_impl::uptr claim_and_make(
-        const uhd::device_addr_t& dev_args
-    );
+    mpmd_mboard_impl::uptr claim_and_make(const uhd::device_addr_t& dev_args);
 
     /*! Initialize a single motherboard
      *
@@ -243,29 +261,7 @@ public:
      * \param device_args Device args
      *
      */
-    void setup_mb(
-        mpmd_mboard_impl *mb,
-        const size_t mb_index,
-        const size_t base_xport_addr
-    );
-
-    //! Setup all RFNoC blocks running on mboard \p mb_i
-    void setup_rfnoc_blocks(
-        mpmd_mboard_impl* mb,
-        const size_t mb_i,
-        const uhd::device_addr_t& block_args
-    );
-
-    //! Configure all blocks that require access to an RPC client
-    void setup_rpc_blocks(
-        const uhd::device_addr_t &block_args,
-        const bool serialize_init
-    );
-
-    /*! Return the index of the motherboard given the local address of a
-     * crossbar
-     */
-    size_t identify_mboard_by_xbar_addr(const size_t xbar_addr) const;
+    void setup_mb(mpmd_mboard_impl* mb, const size_t mb_index);
 
     /*! Initialize property tree for a single device.
      *
@@ -274,11 +270,7 @@ public:
      * \param mb Reference to the actual device
      */
     static void init_property_tree(
-                uhd::property_tree::sptr tree,
-                fs_path mb_path,
-                mpmd_mboard_impl *mb
-    );
-
+        uhd::property_tree::sptr tree, fs_path mb_path, mpmd_mboard_impl* mb);
 
     /*************************************************************************
      * Private attributes
@@ -294,4 +286,3 @@ public:
 uhd::device_addrs_t mpmd_find(const uhd::device_addr_t& hint_);
 
 #endif /* INCLUDED_MPMD_IMPL_HPP */
-// vim: sw=4 expandtab:

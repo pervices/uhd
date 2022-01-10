@@ -5,13 +5,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_UHD_TRANSPORT_USB_DEVICE_HANDLE_HPP
-#define INCLUDED_UHD_TRANSPORT_USB_DEVICE_HANDLE_HPP
+#pragma once
+
 
 #include <uhd/config.hpp>
 #include <uhd/utils/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
+
 #include <stdint.h>
+#include <memory>
+#include <string>
 #include <vector>
 #include <stdint.h>
 
@@ -32,7 +34,7 @@ namespace uhd { namespace transport {
 class UHD_API usb_device_handle : uhd::noncopyable
 {
 public:
-    typedef boost::shared_ptr<usb_device_handle> sptr;
+    typedef std::shared_ptr<usb_device_handle> sptr;
     typedef std::pair<uint16_t, uint16_t> vid_pid_pair_t;
 
     virtual ~usb_device_handle(void);
@@ -77,12 +79,12 @@ public:
      * Return a vector of USB devices on this host
      * \return a vector of USB device handles that match vid and pid
      */
-    static std::vector<usb_device_handle::sptr> get_device_list(uint16_t vid, uint16_t pid);
-    static std::vector<usb_device_handle::sptr> get_device_list(const std::vector<usb_device_handle::vid_pid_pair_t>& vid_pid_pair_list);
+    static std::vector<usb_device_handle::sptr> get_device_list(
+        uint16_t vid, uint16_t pid);
+    static std::vector<usb_device_handle::sptr> get_device_list(
+        const std::vector<usb_device_handle::vid_pid_pair_t>& vid_pid_pair_list);
 
 
-}; //namespace usb
+}; // namespace usb
 
-}} //namespace
-
-#endif /* INCLUDED_UHD_TRANSPORT_USB_DEVICE_HANDLE_HPP */
+}} // namespace uhd::transport

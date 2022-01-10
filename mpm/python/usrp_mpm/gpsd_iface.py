@@ -7,16 +7,104 @@
 GPS service daemon (GPSd) interface class
 """
 
-from __future__ import print_function
 import socket
 import json
 import time
 import select
 import datetime
+import math
+import re
 from usrp_mpm.mpmlog import get_logger
 
+def _deg_to_dm(angle):
+    """
+    Convert a latitude or longitude from NMEA degrees to degrees minutes
+    format (DDDmm.mm)
+    """
+    fraction_int_tuple = math.modf(angle)
+    return fraction_int_tuple[1] * 100 + fraction_int_tuple[0] * 60
 
-class GPSDIface(object):
+def _nmea_checksum(nmea_sentence):
+    """Calculate the checksum for a NMEA data sentence"""
+    checksum = 0
+    if not nmea_sentence.startswith('$'):
+        return checksum
+
+    for character in nmea_sentence[1:]:
+        checksum ^= ord(character)
+
+    return checksum
+
+def gpgga_from_tpv_sky(tpv_sensor_data, sky_sensor_data):
+    """
+    Turn a TPV and SKY sensor value dictionary into a GPGGA string
+    """
+    gpgga = "$GPGGA,"
+
+    if 'time' in tpv_sensor_data:
+        time_formatted = re.subn(r'\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2}):(\d{2}\.?\d*)Z',
+                                 r'\1\2\3,', tpv_sensor_data.get('time'))
+        if time_formatted[1] == 1:
+            gpgga += time_formatted[0]
+        else:
+            gpgga += ","
+    else:
+        gpgga += ","
+
+    if 'lat' in tpv_sensor_data:
+        latitude = tpv_sensor_data.get('lat')
+        latitude_direction = 'N' if latitude > 0 else 'S'
+        latitude = _deg_to_dm(abs(latitude))
+        gpgga += "{:09.4f},{},".format(latitude, latitude_direction)
+    else:
+        gpgga += "0.0,S,"
+
+    if 'lon' in tpv_sensor_data:
+        longitude = tpv_sensor_data['lon']
+        longitude_direction = 'E' if longitude > 0 else 'W'
+        longitude = _deg_to_dm(abs(longitude))
+        gpgga += "{:010.4f},{},".format(longitude, longitude_direction)
+    else:
+        gpgga += "0.0,W,"
+
+    quality = 0
+    if tpv_sensor_data['mode'] > 1:
+        if tpv_sensor_data.get('status') == 2:
+            quality = 2
+        else:
+            quality = 1
+    gpgga += "{:d},".format(quality)
+
+    if 'satellites' in sky_sensor_data:
+        satellites_used = 0
+        for satellite in sky_sensor_data['satellites']:
+            if 'used' in satellite and satellite['used']:
+                satellites_used += 1
+        gpgga += "{:02d},".format(satellites_used)
+    else:
+        gpgga += ","
+
+    if 'hdop' in sky_sensor_data:
+        gpgga += "{:.2f},".format(sky_sensor_data['hdop'])
+    else:
+        gpgga += ","
+
+    if 'alt' in tpv_sensor_data:
+        gpgga += "{:2f},{},".format(tpv_sensor_data['alt'], 'M')
+    else:
+        gpgga += ",,"
+
+    # separation data is not present in tpv or sky sensor data
+    gpgga += ",,"
+
+    # differential data is not present
+    gpgga += ",,"
+
+    gpgga += "*{:02X}".format(_nmea_checksum(gpgga))
+
+    return gpgga
+
+class GPSDIface:
     """
     Interface to the GPS service daemon (GPSd).
 
@@ -132,19 +220,32 @@ class GPSDIface(object):
                 return json_result
 
     def get_gps_info(self, resp_class='', timeout=60):
-        """Convenience function for getting a response which contains a response class"""
-        # Read results until we see one which contains the requested response class, ie TPV or SKY
+        """
+        This will do:
+        - Poll gpsd for info until we get a response that contains the requested
+          response class (tpv or sky)
+        - If no response class is requested, just return the entire dictionary
+        - Otherwise, filter out the response class value and return that
+        - The return value is always a dictionary
+        - If the request times out, we return an empty dictionary
+        """
         result = {}
         end_time = time.time() + timeout
-        while not result.get(resp_class, {}):
+        while not result.get(resp_class):
             try:
                 # Do poll request with socket timeout of 5s here.
                 # It should not be that long, since GPSD should send POLL object promptly.
                 result = self.poll_request(5)
-                if (resp_class == "") or (time.time() > end_time):
-                    # If we don't have a response class filter, just return the first response
-                    # or if we timeout
-                    break
+                # If we don't have a response class filter, just return the
+                # first response
+                if not resp_class:
+                    return result
+                # If we time out, return nothing
+                if time.time() > end_time:
+                    self.log.warning(
+                        "Timeout trying to get GPS info (response class `{}')"
+                        .format(resp_class))
+                    return {}
             except json.JSONDecodeError:
                 # If we get an incomplete packet, this will trigger
                 # In this case, just retry
@@ -153,10 +254,10 @@ class GPSDIface(object):
         # Filter the result by resp_class or return the entire thing
         # In the filtered case, the result contains a list of 'resp_class' responses,
         # so we need to get one valid one.
-        return result if (resp_class == "") else result.get(resp_class, [{}])[0]
+        return result.get(resp_class, [{}])[0]
 
 
-class GPSDIfaceExtension(object):
+class GPSDIfaceExtension:
     """
     Wrapper class that facilitates the 'extension' of a `context` object. The
     intention here is for a object to instantiate a GPSDIfaceExtension object,
@@ -176,18 +277,28 @@ class GPSDIfaceExtension(object):
     """
     def __init__(self):
         self._gpsd_iface = GPSDIface()
-        self._gpsd_iface.open()
         self._log = self._gpsd_iface.log
+        self._initialized = False
+        try:
+            self._gpsd_iface.open()
+            self._initialized = True
+        except (ConnectionRefusedError, ConnectionResetError):
+            self._log.warning(
+                "Could not connect to GPSd! None of the GPS sensors will work!")
 
     def __del__(self):
-        self._gpsd_iface.close()
+        if self._initialized:
+            self._gpsd_iface.close()
 
     def extend(self, context):
-        """Register the GSPDIfaceExtension object's public function with `context`"""
+        """
+        Register the GSPDIfaceExtension object's public function with `context`
+        """
         new_methods = [method_name for method_name in dir(self)
                        if not method_name.startswith('_') \
                        and callable(getattr(self, method_name)) \
-                       and method_name != "extend"]
+                       and method_name.endswith("sensor") \
+                       and self._initialized]
         for method_name in new_methods:
             new_method = getattr(self, method_name)
             self._log.trace("%s: Adding %s method", context, method_name)
@@ -222,14 +333,13 @@ class GPSDIfaceExtension(object):
             if gps_time_prev == 0:
                 gps_time_prev = gps_time
                 continue
-            else:
-                if int(gps_time) - int(gps_time_prev) >= 1:
-                    return {
-                        'name': 'gps_time',
-                        'type': 'INTEGER',
-                        'unit': 'seconds',
-                        'value': str(int(gps_time)),
-                    }
+            if int(gps_time) - int(gps_time_prev) >= 1:
+                return {
+                    'name': 'gps_time',
+                    'type': 'INTEGER',
+                    'unit': 'seconds',
+                    'value': str(int(gps_time)),
+                }
 
     def get_gps_tpv_sensor(self):
         """Get a TPV response from GPSd as a sensor dict"""
@@ -263,6 +373,50 @@ class GPSDIfaceExtension(object):
             'value': gps_sky,
         }
 
+    def get_gps_gpgga_sensor(self):
+        """Get GPGGA sensor data by parsing TPV and SKY sensor data"""
+        self._log.trace("Polling GPS TPV and SKY results from GPSD")
+        # Read responses from GPSD until we get both a SKY response and TPV
+        # response in non-trivial mode
+        while True:
+            gps_info = self._gpsd_iface.get_gps_info(resp_class='', timeout=15)
+            self._log.trace("GPS info: {}".format(gps_info))
+            # Response types are 'list of dicts', but they can be empty lists so
+            # we need to prepare for that:
+            tpv_sensor_data = gps_info.get('tpv')
+            sky_sensor_data = gps_info.get('sky')
+            if tpv_sensor_data and sky_sensor_data:
+                tpv_sensor_data = tpv_sensor_data[0]
+                sky_sensor_data = sky_sensor_data[0]
+                if tpv_sensor_data.get("mode", 0) > 0:
+                    break
+        return {
+            'name': 'gpgga',
+            'type': 'STRING',
+            'unit': '',
+            'value': gpgga_from_tpv_sky(tpv_sensor_data, sky_sensor_data),
+        }
+
+    def get_gps_lock(self):
+        """
+        Get the GPS lock status using the TPV data.
+
+        The Jackson Labs GPS modules have a pin to query GPS lock, which is a
+        better option.
+        """
+        if not self._initialized:
+            self._log.warning("Cannot query GPS lock, GPSd not initialized!")
+            return False
+        # Read responses from GPSD until we get a non-trivial mode
+        while True:
+            gps_info = self._gpsd_iface.get_gps_info(resp_class='tpv', timeout=15)
+            self._log.trace("GPS info: {}".format(gps_info))
+            if gps_info.get("mode", 0) > 0:
+                break
+        # 2 == 2D fix, 3 == 3D fix.
+        # https://gpsd.gitlab.io/gpsd/gpsd_json.html
+        return gps_info.get("mode", 0) >= 2
+
 
 def main():
     """Test functionality of the GPSDIface class"""
@@ -287,8 +441,6 @@ def main():
     gps_ext = GPSDIfaceExtension()
     for _ in range(10):
         print(gps_ext.get_gps_time_sensor().get('value'))
-    #TODO Add GPSDIfaceExtension code
-
 
 if __name__ == "__main__":
     main()

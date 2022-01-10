@@ -5,28 +5,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include <uhd/utils/math.hpp>
 #include <uhd/exception.hpp>
+#include <uhd/utils/math.hpp>
 #include <uhdlib/usrp/cores/dsp_core_utils.hpp>
-#include <boost/math/special_functions/round.hpp>
-#include <boost/math/special_functions/sign.hpp>
+#include <cmath>
+#include <limits>
 
-static const int32_t MAX_FREQ_WORD = boost::numeric::bounds<int32_t>::highest();
-static const int32_t MIN_FREQ_WORD = boost::numeric::bounds<int32_t>::lowest();
+static const int32_t MAX_FREQ_WORD = std::numeric_limits<int32_t>::max();
+static const int32_t MIN_FREQ_WORD = std::numeric_limits<int32_t>::min();
 
-void get_freq_and_freq_word(
-        const double requested_freq,
-        const double tick_rate,
-        double &actual_freq,
-        int32_t &freq_word
-) {
-    //correct for outside of rate (wrap around)
-    double freq = std::fmod(requested_freq, tick_rate);
-    if (std::abs(freq) > tick_rate/2.0)
-        freq -= boost::math::sign(freq) * tick_rate;
+void get_freq_and_freq_word(const double requested_freq,
+    const double tick_rate,
+    double& actual_freq,
+    int32_t& freq_word)
+{
+    const double freq = uhd::math::wrap_frequency(requested_freq, tick_rate);
 
-    //confirm that the target frequency is within range of the CORDIC
-    UHD_ASSERT_THROW(std::abs(freq) <= tick_rate/2.0);
+    // confirm that the target frequency is within range of the CORDIC
+    UHD_ASSERT_THROW(std::abs(freq) <= tick_rate / 2.0);
 
     /* Now calculate the frequency word. It is possible for this calculation
      * to cause an overflow. As the requested DSP frequency approaches the
@@ -48,9 +44,17 @@ void get_freq_and_freq_word(
 
     } else {
         /* The operation is safe. Perform normally. */
-        freq_word = int32_t(boost::math::round((freq / tick_rate) * scale_factor));
+        freq_word = int32_t(std::lround((freq / tick_rate) * scale_factor));
     }
 
     actual_freq = (double(freq_word) / scale_factor) * tick_rate;
 }
 
+std::tuple<double, int> get_freq_and_freq_word(
+    const double requested_freq, const double tick_rate)
+{
+    double actual_freq;
+    int32_t freq_word;
+    get_freq_and_freq_word(requested_freq, tick_rate, actual_freq, freq_word);
+    return std::make_tuple(actual_freq, freq_word);
+}
