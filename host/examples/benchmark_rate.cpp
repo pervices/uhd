@@ -30,9 +30,10 @@ namespace po = boost::program_options;
 using namespace std::chrono_literals;
 
 namespace {
-    constexpr int64_t CLOCK_TIMEOUT = 1000;  // 1000mS timeout for external clock locking
-    constexpr float   INIT_DELAY    = 1.10;  // Crimson TNG default start of burst time is 1.0 and will be adjust if not greater than 1.0.
+    constexpr auto CLOCK_TIMEOUT = 1000ms;  // 1000mS timeout for external clock locking
 }
+
+using start_time_type = std::chrono::time_point<std::chrono::steady_clock>;
 
 /***********************************************************************
  * Test result variables
@@ -48,7 +49,7 @@ unsigned long long num_late_commands = 0;
 unsigned long long num_timeouts_rx   = 0;
 unsigned long long num_timeouts_tx   = 0;
 
-inline boost::posix_time::time_duration time_delta(const boost::posix_time::ptime &ref_time)
+inline auto time_delta(const start_time_type &ref_time)
 {
     return std::chrono::steady_clock::now() - ref_time;
 }

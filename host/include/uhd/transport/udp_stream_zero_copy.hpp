@@ -30,7 +30,7 @@ namespace uhd{ namespace transport{
  */
 class UHD_API udp_stream_zero_copy : public virtual udp_zero_copy{
 public:
-    typedef boost::shared_ptr<udp_stream_zero_copy> sptr;
+    typedef std::shared_ptr<udp_stream_zero_copy> sptr;
 
     /**
      *

@@ -13,7 +13,7 @@ namespace uhd {
 class flow_control {
 
 public:
-	typedef boost::shared_ptr<uhd::flow_control> sptr;
+	typedef std::shared_ptr<uhd::flow_control> sptr;
 	virtual ~flow_control() {}
 
 	/**

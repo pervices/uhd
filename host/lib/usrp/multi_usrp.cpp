@@ -18,7 +18,6 @@
 #include <uhd/utils/gain_group.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
-
 #include <uhd/utils/soft_register.hpp>
 #include <uhdlib/rfnoc/rfnoc_device.hpp>
 #include <uhdlib/usrp/gpio_defs.hpp>
@@ -26,7 +25,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <algorithm>
-
 #include <bitset>
 #include <chrono>
 #include <cmath>
@@ -34,8 +32,16 @@
 #include <memory>
 #include <thread>
 
-//#define MULTI_F_DEBUG
+namespace uhd { namespace rfnoc {
 
+//! Factory function for RFNoC devices specifically
+uhd::usrp::multi_usrp::sptr make_rfnoc_device(
+    uhd::rfnoc::detail::rfnoc_device::sptr rfnoc_device,
+    const uhd::device_addr_t& dev_addr);
+
+}} /* namespace uhd::rfnoc */
+
+//#define MULTI_F_DEBUG
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -190,33 +196,6 @@ static void do_samp_rate_warning_message(
         UHD_LOGGER_WARNING("MULTI_USRP") << results_string ;
     }
 }*/
-
-/*! The CORDIC can be used to shift the baseband below / past the tunable
- * limits of the actual RF front-end. The baseband filter, located on the
- * daughterboard, however, limits the useful instantaneous bandwidth. We
- * allow the user to tune to the edge of the filter, where the roll-off
- * begins.  This prevents the user from tuning past the point where less
- * than half of the spectrum would be useful. */
-static meta_range_t make_overall_tune_range(
-    const meta_range_t &fe_range,
-    const meta_range_t &dsp_range,
-    const double bw
-){
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
-    meta_range_t range;
-    for(const range_t &sub_range:  fe_range){
-        range.push_back(range_t(
-            sub_range.start() + std::max(dsp_range.start(), -bw/2),
-            sub_range.stop() + std::min(dsp_range.stop(), bw/2),
-            dsp_range.step()
-        ));
-    }
-    return range;
-}
-
-
 
 /***********************************************************************
  * Gain helper functions
@@ -421,28 +400,22 @@ static double derive_freq_from_xx_subdev_and_dsp(
 class multi_usrp_impl : public multi_usrp
 {
 public:
-    multi_usrp_impl(const device_addr_t &addr){
+    multi_usrp_impl(device::sptr dev) : _dev(dev)
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-
         _tree = _dev->get_tree();
-
     }
 
     device::sptr get_device(void) override
     {
-
         return _dev;
     }
 
     uhd::property_tree::sptr get_tree() const override
     {
         return _tree;
-
-
-
-
     }
 
     dict<std::string, std::string> get_usrp_rx_info(size_t chan){
@@ -579,9 +552,12 @@ public:
     }
 
     std::string get_pp_string(void) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
+        std::string buff = str(boost::format("%s USRP:\n"
+                                             "  Device: %s\n")
                                % ((get_num_mboards() > 1) ? "Multi" : "Single")
                                % (_tree->access<std::string>("/name").get()));
         for (size_t m = 0; m < get_num_mboards(); m++) {
@@ -621,6 +597,7 @@ public:
     }
 
     std::string get_mboard_name(size_t mboard) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
@@ -628,20 +605,23 @@ public:
     }
 
     time_spec_t get_time_now(size_t mboard = 0) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
         return _tree->access<time_spec_t>(mb_root(mboard) / "time/now").get();
     }
 
-    time_spec_t get_time_last_pps(size_t mboard = 0){
+    time_spec_t get_time_last_pps(size_t mboard = 0) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
         return _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").get();
     }
 
-    void set_time_now(const time_spec_t &time_spec, size_t mboard){
+    void set_time_now(const time_spec_t& time_spec, size_t mboard) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
@@ -654,7 +634,8 @@ public:
         }
     }
 
-    void set_time_next_pps(const time_spec_t &time_spec, size_t mboard){
+    void set_time_next_pps(const time_spec_t& time_spec, size_t mboard) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
@@ -667,13 +648,11 @@ public:
         }
     }
 
-    void set_time_unknown_pps(const time_spec_t &time_spec){
+    void set_time_unknown_pps(const time_spec_t& time_spec) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-
-
-    {
         UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
         auto end_time =
             std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
@@ -708,7 +687,8 @@ public:
         }
     }
 
-    bool get_time_synchronized(void){
+    bool get_time_synchronized(void) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
@@ -764,15 +744,10 @@ public:
             issue_stream_cmd(stream_cmd, c);
         }
     }
+    
 
-    void set_clock_config(const clock_config_t &clock_config, size_t mboard){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
-
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
+    void set_time_source(const std::string& source, const size_t mboard) override
+    {
         if (mboard != ALL_MBOARDS) {
             const auto time_source_path = mb_root(mboard) / "time_source/value";
             const auto sync_source_path = mb_root(mboard) / "sync_source/value";
@@ -984,7 +959,8 @@ public:
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-
+        if (mboard != ALL_MBOARDS) {
+            if (_tree->exists(mb_root(mboard) / "clock_source" / "output")) {
                 _tree->access<bool>(mb_root(mboard) / "clock_source" / "output").set(enb);
             } else {
                 throw uhd::runtime_error(
@@ -996,13 +972,13 @@ public:
             this->set_clock_source_out(enb, m);
         }
     }
-
     void set_time_source_out(const bool enb, const size_t mboard) override
     {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-
+        if (mboard != ALL_MBOARDS) {
+            if (_tree->exists(mb_root(mboard) / "time_source" / "output")) {
                 _tree->access<bool>(mb_root(mboard) / "time_source" / "output").set(enb);
             } else {
                 throw uhd::runtime_error(
@@ -1137,9 +1113,9 @@ public:
                 spec.push_back(subdev_spec_pair_t(db_name, fe_name));
                 _tree->access<subdev_spec_t>(mb_root(mboard) / "rx_subdev_spec")
                     .set(spec);
-            }
-            catch(const std::exception &e)
-            {
+            } catch (const std::exception& e) {
+                throw uhd::index_error(
+                    str(boost::format("multi_usrp::get_rx_subdev_spec(%u) failed to make "
                                       "default spec - %s")
                         % mboard % e.what()));
             }
@@ -1191,9 +1167,11 @@ public:
     {
         _rx_spp[chan] = spp;
     }
-
-    double get_rx_rate(size_t chan) override
-    {
+    
+    double get_rx_rate(size_t chan){
+#ifdef MULTI_F_DEBUG
+        std::cout << "Start of: " << __func__ << std::endl;
+#endif
         return _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
     }
 
@@ -1229,8 +1207,6 @@ public:
             }
         }
         return get_device()->set_rx_freq(tune_request, chan);
-
-        return result;
     }
 
     double get_rx_freq(size_t chan) override
@@ -2245,8 +2221,7 @@ public:
 
         return ret;
     }
-
-    filter_info_base::sptr get_filter(const std::string &path)
+    
     uhd::filter_info_base::sptr get_tx_filter(
         const std::string& name, const size_t chan) override
     {
@@ -2254,7 +2229,7 @@ public:
         std::vector<std::string> possible_names = get_tx_filter_names(chan);
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-        std::vector<std::string> possible_names = get_filter_names("");
+        std::vector<std::string> possible_names = get_tx_filter_names(chan);
         std::vector<std::string>::iterator it;
         it = find(possible_names.begin(), possible_names.end(), name);
         if (it == possible_names.end()) {
@@ -2392,12 +2367,10 @@ public:
 
     tune_result_t set_tx_freq(const tune_request_t& tune_request, size_t chan) override
     {
-        tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
-            _tree->subtree(tx_dsp_root(chan)),
-            _tree->subtree(tx_rf_fe_root(chan)),
-            tune_request);
-        // do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
-        return result;
+#ifdef MULTI_F_DEBUG
+        std::cout << "Start of: " << __func__ << std::endl;
+#endif
+        return get_device()->set_tx_freq(tune_request, chan);
     }
 
     double get_tx_freq(size_t chan) override
@@ -2522,6 +2495,7 @@ public:
 
     double get_tx_gain(const std::string& name, size_t chan) override
     {
+#ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
 

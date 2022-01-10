@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-
+#include "../global.hpp"
 
 #include <uhd/transport/buffer_pool.hpp>
 #include <uhd/transport/udp_zero_copy.hpp>
@@ -19,6 +19,10 @@
 #include <thread>
 #include <vector>
 
+namespace global
+{
+    bool udp_retry; // defined in ./transport/udp_zero_copy.cpp
+}
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -105,8 +109,6 @@ private:
  **********************************************************************/
 class udp_zero_copy_asio_msb : public managed_send_buffer
 
-
-
 {
 public:
     udp_zero_copy_asio_msb(void* mem, int sock_fd, const size_t frame_size)
@@ -114,10 +116,41 @@ public:
     { /*NOP*/
     }
 
-    void release(void) override
-    {
-        send_udp_packet(_sock_fd, _mem, size());
+
+    void release(void){
+        //Retry logic because send may fail with ENOBUFS.
+        //This is known to occur at least on some OSX systems.
+        //2020 OCT - jpol: On my dev machines,
+        //     crimson will underflow without retry
+        //     and cyan will overflow with retry.
+        //     So in the io_impl.cpp file for each device
+        //     we set global::udp_retry appropriately.
+        while (global::udp_retry)
+        {
+            const ssize_t ret = ::send(_sock_fd, (const char *)_mem, size(), 0);
+            if (ret == ssize_t(size())) break;
+            if (ret == -1 and errno == ENOBUFS)
+            {
+                std::this_thread::sleep_for(std::chrono::microseconds(1));
+                continue; //try to send again
+            }
+            if (ret == -1)
+            {
+                throw uhd::io_error(str(boost::format("send error on socket: %s") % strerror(errno)));
+            }
+            UHD_ASSERT_THROW(ret == ssize_t(size()));
+        }
         _claimer.release();
+    }
+
+    // Override base class get_socket function
+    UHD_INLINE int get_socket(void) {
+        return _sock_fd;
+    }
+
+    UHD_INLINE void get_iov(iovec &iov) {
+        iov.iov_base = _mem;
+        iov.iov_len = _frame_size;
     }
 
     UHD_INLINE sptr get_new(const double timeout, size_t& index)

@@ -1978,6 +1978,72 @@ public:
      * \throws uhd::not_implemented_error if not on an RFNoC device.
      */
     virtual uhd::rfnoc::mb_controller& get_mb_controller(const size_t mboard = 0) = 0;
+    
+    virtual void set_tree_value(const std::string path, const std::string value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void set_tree_value(const std::string path, const double value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void set_tree_value(const std::string path, const int value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void set_tree_value(const std::string path, const time_spec_t value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void set_tree_value(const std::string path, const bool value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void set_tree_value(const std::string path, const stream_cmd_t value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    virtual void get_tree_value(const std::string path, std::string& value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void get_tree_value(const std::string path, double& value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void get_tree_value(const std::string path, int& value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void get_tree_value(const std::string path, time_spec_t& value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void get_tree_value(const std::string path, bool& value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void get_tree_value(const std::string path, stream_cmd_t& value) {
+        (void) path;
+        (void) value;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    virtual void dump_tree(const std::string root) {
+        (void) root;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
 };
 
 }} // namespace uhd::usrp

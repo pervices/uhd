@@ -1635,22 +1635,7 @@ std::vector<std::string> multi_crimson_tng::enumerate_registers(const size_t mbo
         return std::vector<std::string>();
     }
 }
-multi_usrp::register_info_t multi_crimson_tng::get_register_info(const std::string &path, const size_t mboard) {
-    if (_tree->exists(mb_root(mboard) / "registers"))
-    {
-        uhd::soft_regmap_accessor_t::sptr accessor =
-            _tree->access<uhd::soft_regmap_accessor_t::sptr>(mb_root(mboard) / "registers").get();
-        uhd::soft_register_base& reg = accessor->lookup(path);
 
-        register_info_t info;
-        info.bitwidth = reg.get_bitwidth();
-        info.readable = reg.is_readable();
-        info.writable = reg.is_writable();
-        return info;
-    } else {
-        throw uhd::not_implemented_error("multi_usrp::read_register - register IO not supported for this device");
-    }
-}
 void multi_crimson_tng::write_register(const std::string &path, const uint32_t field, const uint64_t value, const size_t mboard) {
     if (_tree->exists(mb_root(mboard) / "registers"))
     {

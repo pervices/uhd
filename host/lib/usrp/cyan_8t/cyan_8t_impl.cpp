@@ -1235,11 +1235,9 @@ cyan_8t_impl::cyan_8t_impl(const device_addr_t &_device_addr)
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
 		_mbc[mb].rx_dsp_xports.push_back(
-			udp_stream_zero_copy::make(
+			udp_zero_copy::make(
 				_tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-				std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-				"127.0.0.1",
-				1,
+				_tree->access<std::string>( rx_link_path / "port" ).get(),
 				zcxp,
 				bp,
 				device_addr

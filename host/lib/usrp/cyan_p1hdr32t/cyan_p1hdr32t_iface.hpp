@@ -36,7 +36,7 @@ namespace uhd {
 class cyan_p1hdr32t_iface : public uhd::wb_iface
 {
 public:
-    typedef boost::shared_ptr<cyan_p1hdr32t_iface> sptr;
+    typedef std::shared_ptr<cyan_p1hdr32t_iface> sptr;
     /*!
      * Make a new cyan_p1hdr32t interface with the control transport.
      * \param ctrl_transport the udp transport object

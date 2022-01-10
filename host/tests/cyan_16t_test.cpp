@@ -330,7 +330,7 @@ UHD_STATIC_BLOCK(register_cyan_16t_mock)
     uhd::device::register_device(&cyan_16t_mock_find, &cyan_16t_mock_make, uhd::device::USRP);
 }
 
-static boost::shared_ptr<uhd::usrp::multi_usrp>
+static std::shared_ptr<uhd::usrp::multi_usrp>
 get_usrp(){
     uhd::device_addr_t dev_addr;
     dev_addr["addr"] = "127.0.0.1";
@@ -354,7 +354,7 @@ BOOST_AUTO_TEST_CASE(test_is_device3){
 BOOST_AUTO_TEST_CASE(test_get_device3){
     auto usrp = get_usrp();
     std::exception_ptr e = nullptr;
-    boost::shared_ptr<uhd::device3> dev3 = nullptr;
+    std::shared_ptr<uhd::device3> dev3 = nullptr;
     try {
         dev3 = usrp->get_device3();
     } catch(...) {

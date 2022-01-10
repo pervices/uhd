@@ -1151,11 +1151,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
 		_mbc[mb].rx_dsp_xports.push_back(
-			udp_stream_zero_copy::make(
+			udp_zero_copy::make(
 				_tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-				std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-				"127.0.0.1",
-				1,
+				_tree->access<std::string>( rx_link_path / "port" ).get(),
 				zcxp,
 				bp,
 				device_addr
@@ -1504,17 +1502,17 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 					                                           H = A + B + C + D
 	 */
 	static const std::vector<freq_range_t> AB_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_FM_LOWERLIMIT ), // B
-		//freq_range_t( -CRIMSON_TNG_FM_LOWERLIMIT,-(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // F = B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -F
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF ), // G = A + B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -CRIMSON_TNG_DC_LOWERLIMIT ), // -G
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL ), // H = A + B + C + D (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, -CRIMSON_TNG_DC_LOWERLIMIT ), // -H
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL), // I = 2*H (Catch All)
+		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), 0 ), // A
+		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -A
+		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_FM_LOWERLIMIT, 0 ), // B
+		//freq_range_t( -CRIMSON_TNG_FM_LOWERLIMIT,-(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), 0 ), // -B
+		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, 0 ), // F = B + C
+		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), 0 ), // -F
+		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, 0 ), // G = A + B + C
+		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -G
+		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, 0 ), // H = A + B + C + D (Catch All)
+		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -H
+		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, 0), // I = 2*H (Catch All)
 	};
 	/*
 	 * Scenario 2) Channels C and D
@@ -1537,13 +1535,13 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
                            C = A + B (includes LO)
 	 */
 	static const std::vector<freq_range_t> CD_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND) ), // +A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // B
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND) ), // -B
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // C = A + B (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -CRIMSON_TNG_DC_LOWERLIMIT ), // -C
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER ), // I = 2*H (Catch All)
+		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), 0 ), // +A
+		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -A
+		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, 0 ), // B
+		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), 0 ), // -B
+		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, 0 ), // C = A + B (Catch All)
+		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -C
+		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, 0), // I = 2*H (Catch All)
 	};
 	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
 

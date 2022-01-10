@@ -36,7 +36,7 @@ namespace gr {
     class USRPTEST_API measurement_sink_f : virtual public gr::sync_block
     {
      public:
-      typedef boost::shared_ptr<measurement_sink_f> sptr;
+      typedef std::shared_ptr<measurement_sink_f> sptr;
 
       /*!
        * \brief Return a shared_ptr to a new instance of usrptest::measurement_sink_f.

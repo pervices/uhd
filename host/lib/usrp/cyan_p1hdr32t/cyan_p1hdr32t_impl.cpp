@@ -1240,11 +1240,9 @@ static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
 		_mbc[mb].rx_dsp_xports.push_back(
-			udp_stream_zero_copy::make(
+			udp_zero_copy::make(
 				_tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-				std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-				"127.0.0.1",
-				1,
+				_tree->access<std::string>( rx_link_path / "port" ).get(),
 				zcxp,
 				bp,
 				device_addr

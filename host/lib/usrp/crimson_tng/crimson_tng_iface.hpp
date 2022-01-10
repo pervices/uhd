@@ -36,7 +36,7 @@ namespace uhd {
 class crimson_tng_iface : public uhd::wb_iface
 {
 public:
-    typedef boost::shared_ptr<crimson_tng_iface> sptr;
+    typedef std::shared_ptr<crimson_tng_iface> sptr;
     /*!
      * Make a new crimson_tng interface with the control transport.
      * \param ctrl_transport the udp transport object

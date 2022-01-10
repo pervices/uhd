@@ -85,7 +85,7 @@ class cyan_8r_impl : public uhd::device
 {
 public:
     // shared pointer to the Crimson device
-    typedef boost::shared_ptr<cyan_8r_impl> sptr;
+    typedef std::shared_ptr<cyan_8r_impl> sptr;
 
     // This is the core constructor to be called when a cyan_8r device is found
     cyan_8r_impl(const uhd::device_addr_t &);
@@ -225,8 +225,8 @@ private:
 
     struct mb_container_type{
         cyan_8r_iface::sptr iface;
-        std::vector<boost::weak_ptr<uhd::rx_streamer> > rx_streamers;
-        std::vector<boost::weak_ptr<uhd::tx_streamer> > tx_streamers;
+        std::vector<std::weak_ptr<uhd::rx_streamer> > rx_streamers;
+        std::vector<std::weak_ptr<uhd::tx_streamer> > tx_streamers;
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
         std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;

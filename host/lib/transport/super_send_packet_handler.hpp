@@ -11,7 +11,6 @@
 #include <uhd/config.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/convert.hpp>
-
 #include <uhd/stream.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/utils/byteswap.hpp>
@@ -19,12 +18,10 @@
 #include <uhd/types/metadata.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/transport/zero_copy.hpp>
-#include <uhdlib/rfnoc/tx_stream_terminator.hpp>
 #include <boost/function.hpp>
 #include <iostream>
 #include <vector>
 #include <chrono>
-
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -793,16 +790,15 @@ private:
         // Used for predictive modeling in Per Vices
         _convert_nsamps = nsamps_per_buff;
 
-        //get a buffer for each channel or timeout
-        BOOST_FOREACH(xport_chan_props_type &props, _props){
-            //We need to get nsamps_per_buff into crimson. How how how how
-            // if (not props.buff) props.buff = props.get_buff(timeout);
-            props.buff = props.get_buff(timeout);
-            if (not props.buff) return 0; //timeout
+        // get a buffer for each channel or timeout
+        for (xport_chan_props_type& props : _props) {
+            if (not props.buff)
+                props.buff = props.get_buff(timeout);
+            if (not props.buff)
+                return 0; // timeout
         }
 
         //setup the data to share with converter threads
-        _convert_nsamps = nsamps_per_buff;
         _convert_buffs = &buffs;
         _convert_buffer_offset_bytes = buffer_offset_bytes;
         _convert_if_packet_info = &if_packet_info;

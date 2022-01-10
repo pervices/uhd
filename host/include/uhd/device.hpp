@@ -13,6 +13,8 @@
 #include <uhd/stream.hpp>
 #include <uhd/types/device_addr.hpp>
 #include <uhd/utils/noncopyable.hpp>
+#include <uhd/types/tune_request.hpp>
+#include <uhd/types/tune_result.hpp>
 #include <functional>
 #include <memory>
 
@@ -32,7 +34,20 @@ public:
     typedef std::function<sptr(const device_addr_t&)> make_t;
 
     //! Device type, used as a filter in make
-    enum device_filter_t { ANY, USRP, CLOCK };
+    enum device_filter_t {
+        ANY,
+        USRP,
+        CLOCK,
+        CRIMSON_TNG,
+        CYAN_8T,
+        CYAN_4R4T,
+        CYAN_4R4T_3G,
+        CYAN_8R,
+        CYAN_16T,
+        CYAN_P1HDR16T,
+        CYAN_P1HDR32T,
+        CYAN_64T,
+    };
 
 
 
@@ -110,6 +125,83 @@ public:
     //! Get device type
     device_filter_t get_device_type() const;
 
+    /*!
+     * Set the RX center frequency.
+     * \param tune_request tune request instructions
+     * \param chan the channel index 0 to N-1
+     * \return a tune result object
+     */
+    virtual uhd::tune_result_t set_rx_freq(
+        const uhd::tune_request_t &tune_request, size_t chan = 0
+    ) {
+        (void) tune_request;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Get the RX center frequency.
+     * \param chan the channel index 0 to N-1
+     * \return the frequency in Hz
+     */
+    virtual double get_rx_freq(size_t chan = 0) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Set the RX center frequency.
+     * \param tune_request tune request instructions
+     * \param chan the channel index 0 to N-1
+     * \return a tune result object
+     */
+    virtual uhd::tune_result_t set_tx_freq(
+        const uhd::tune_request_t &tune_request, size_t chan = 0
+    ) {
+        (void) tune_request;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Get the TX center frequency.
+     * \param chan the channel index 0 to N-1
+     * \return the frequency in Hz
+     */
+    virtual double get_tx_freq(size_t chan = 0) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    virtual void set_tx_gain(double gain, const std::string &name, size_t chan){
+        (void) gain;
+        (void) name;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+
+    }
+
+    virtual double get_tx_gain(const std::string &name, size_t chan){
+        (void) name;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+
+    }
+
+    virtual void set_rx_gain(double gain, const std::string &name, size_t chan){
+        (void) gain;
+        (void) name;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+
+    }
+    
+    virtual double get_rx_gain(const std::string &name, size_t chan){
+        (void) name;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+
+    }
 
 protected:
     uhd::property_tree::sptr _tree;

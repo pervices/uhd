@@ -86,31 +86,39 @@ public:
     { /*NOP*/
     }
 
-    void release(void) override
-    {
-        // Retry logic because send may fail with ENOBUFS.
-        // This is known to occur at least on some OSX systems.
-        // But it should be safe to always check for the error.
-        while (true) {
-            this->commit(_frame_size); // always full size frames to avoid pkt coalescing
-            const ssize_t ret = ::send(_sock_fd, (const char*)_mem, size(), 0);
-            if (ret == ssize_t(size()))
-                break;
-            if (ret == -1 and errno == ENOBUFS) {
+    void release(void){
+        //Retry logic because send may fail with ENOBUFS.
+        //This is known to occur at least on some OSX systems.
+        //But it should be safe to always check for the error.
+        while (true)
+        {
+            this->commit(_frame_size); //always full size frames to avoid pkt coalescing
+            const ssize_t ret = ::send(_sock_fd, (const char *)_mem, size(), 0);
+            if (ret == ssize_t(size())) break;
+            if (ret == -1 and errno == ENOBUFS)
+            {
                 std::this_thread::sleep_for(std::chrono::microseconds(1));
-                continue; // try to send again
+                continue; //try to send again
             }
             UHD_ASSERT_THROW(ret == ssize_t(size()));
         }
         _claimer.release();
     }
 
-    UHD_INLINE sptr get_new(const double timeout, size_t& index)
-    {
-        if (not _claimer.claim_with_wait(timeout))
-            return sptr();
+    // Override base class get_socket virtual function
+    UHD_INLINE int get_socket(void) {
+        return 0;
+    }
 
-        index++; // advances the caller's buffer
+    // Override base class get_iov virtual function
+    UHD_INLINE void get_iov(iovec &iov) {
+        iov.iov_base = NULL;
+        iov.iov_len = 0;
+    }
+
+    UHD_INLINE sptr get_new(const double timeout, size_t &index){
+        if (not _claimer.claim_with_wait(timeout)) return sptr();
+        index++; //advances the caller's buffer
         return make(this, _mem, _frame_size);
     }
 

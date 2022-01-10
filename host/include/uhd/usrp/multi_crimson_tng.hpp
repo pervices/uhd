@@ -63,7 +63,7 @@ namespace uhd{ namespace usrp{
 
 class multi_crimson_tng : public multi_usrp{
 public:
-    typedef boost::shared_ptr<multi_crimson_tng> sptr;
+    typedef std::shared_ptr<multi_crimson_tng> sptr;
 
     multi_crimson_tng(const device_addr_t &addr);
     ~multi_crimson_tng(void);
@@ -256,7 +256,6 @@ public:
      * Register IO methods
      ******************************************************************/
     std::vector<std::string> enumerate_registers(const size_t mboard = 0);
-    register_info_t get_register_info(const std::string &path, const size_t mboard = 0);
     void write_register(const std::string &path, const uint32_t field, const uint64_t value, const size_t mboard = 0);
     uint64_t read_register(const std::string &path, const uint32_t field, const size_t mboard = 0);
 
