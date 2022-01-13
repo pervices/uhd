@@ -20,7 +20,6 @@
 
 #include <uhd/config.hpp>
 #include <uhd/device.hpp>
-#include <uhd/deprecated.hpp>
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/types/tune_request.hpp>
@@ -35,6 +34,7 @@
 #include <vector>
 #include <uhd/stream.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
+#include <uhd/types/clock_config.hpp>
 
 namespace uhd{ namespace usrp{
 
