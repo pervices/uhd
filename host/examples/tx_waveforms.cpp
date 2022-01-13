@@ -22,8 +22,8 @@
 #include <chrono>
 #include <thread>
 
-//#define DEBUG_TX_WAVE 1
-//#define DEBUG_TX_WAVE_STEP 1
+#define DEBUG_TX_WAVE 1
+#define DEBUG_TX_WAVE_STEP 1
 
 //wait for user to press cntrl c before closing
 #define DELAYED_EXIT
@@ -291,6 +291,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     usrp->set_time_now(0.0);
 
     bool ignore_last = first > last;
+    
 
     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
     {
