@@ -2,7 +2,7 @@
 
 #include "tune_lo_and_dsp_test_fixture.hpp"
 
-#include "uhd/usrp/multi_crimson_tng.hpp"
+#include "uhd/usrp/multi_usrp.hpp"
 
 #define k *1e3
 #define M *1e6
@@ -139,7 +139,7 @@ void check_lo_modulus( tune_lo_and_dsp_test_fixture & f ) {
 void common( tune_lo_and_dsp_test_fixture & f ) {
 	const bool warn = true;
 
-	f.res = uhd::usrp::multi_crimson_tng::tune_lo_and_dsp( f.tx ? TX_SIGN : RX_SIGN, f.dsp_subtree, f.rf_subtree, f.req );
+	f.res = uhd::usrp::tune_lo_and_dsp( f.tx ? TX_SIGN : RX_SIGN, f.dsp_subtree, f.rf_subtree, f.req );
 
 	// mandatory (tune request must give use the correct overal result
 	check_tune( f );

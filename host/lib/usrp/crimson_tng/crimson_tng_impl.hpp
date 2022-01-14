@@ -25,7 +25,7 @@
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
-#include "uhd/usrp/multi_crimson_tng.hpp"
+#include "uhd/usrp/multi_usrp.hpp"
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
