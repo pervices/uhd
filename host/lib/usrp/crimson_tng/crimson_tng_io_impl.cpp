@@ -230,7 +230,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        global::udp_retry = true;
+        global::udp_retry = false;
         
         static const double default_sob = 1.0;
 
@@ -309,9 +309,7 @@ public:
       //  }
 
         now = get_time_now();
-
         pillage();
-
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
             std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CRIMSON_TNG_MASTER_TICK_RATE ) << std::endl;
@@ -323,8 +321,9 @@ public:
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
             retreat();
-        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
-
+        } else {
+            r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
+        }
         return r;
     }
     
@@ -335,9 +334,6 @@ public:
 
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
-        //wait on flow control w/ timeout
-        if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
-
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
@@ -346,7 +342,7 @@ public:
         my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
-/* These functions not defined while using super_send_packet_handler_crimson
+
     static void update_fc_send_count( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
         std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
@@ -361,7 +357,7 @@ public:
 
         return my_streamer->check_fc_condition( chan, timeout);
     }
-*/
+
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
@@ -387,7 +383,7 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, 0.8, CRIMSON_TNG_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CRIMSON_TNG_BUFF_PERCENT, CRIMSON_TNG_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -483,6 +479,9 @@ private:
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
     
+    // dt is the time until next send
+    // if dt is close enough (less than timeout) it returns true
+    // the send function in super_send_packet_handler should poll this function until it returns true
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -510,17 +509,7 @@ private:
 		}
 		#endif
 
-		// The time delta (dt) may be negative from the linear interpolator.
-		// In such a case, do not bother with the delay calculations and send right away.
-		if(dt <= 0.0)
-			return true;
-
-		// Otherwise, delay.
-		req.tv_sec = (time_t) dt.get_full_secs();
-		req.tv_nsec = dt.get_frac_secs()*1e9;
-		nanosleep( &req, &rem );
-
-		return true;
+		return dt.get_real_secs() <= timeout;
     }
 
     /***********************************************************************
@@ -1136,15 +1125,15 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
-/* These functions not defined while using super_send_packet_handler_crimson
+                
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
                 ));
-                
+
                 my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
                 ));
-*/
+
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));

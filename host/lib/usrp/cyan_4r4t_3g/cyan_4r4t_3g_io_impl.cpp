@@ -475,6 +475,9 @@ private:
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
     
+    // dt is the time until next send
+    // if dt is close enough (less than timeout) it returns true
+    // the send function in super_send_packet_handler should poll this function until it returns true
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -509,19 +512,7 @@ private:
 		}
 		#endif
 
-		// The time delta (dt) may be negative from the linear interpolator.
-		// In such a case, do not bother with the delay calculations and send right away.
-		if(dt <= 0.0) {
-#ifdef FLOW_CONTROL_DEBUG
-            std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
-            std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
-#endif
-			return true;
-        }
-
-        bool tmp = (dt.get_full_secs() < timeout);
-        if(tmp)  std::cout << __func__ << ": R2: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
-        return tmp;
+        return dt.get_real_secs() <= timeout;
     }
 
     /***********************************************************************

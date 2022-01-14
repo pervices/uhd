@@ -412,6 +412,7 @@ public:
 
         //loop through the following fragment indexes
         size_t i = 0;
+        
         while ( i < num_fragments) {
 
             //send a fragment with the helper function
@@ -425,9 +426,9 @@ public:
 
             if_packet_info.tsf = time_spec.to_ticks(_tick_rate);
             if_packet_info.sob = false;
-
+            
             if ((flow_control_passes > 1 && i > 0 && i%flow_control_passes == 0)
-                || (i == num_fragments-1)) 
+                || (i == num_fragments-1))
             {
                 this->samps_per_buffer = total_num_samps_sent - prev_total_num_samps_sent;
                 prev_total_num_samps_sent = total_num_samps_sent;
@@ -441,7 +442,7 @@ public:
             }
             i++;
         }
-
+        
         //send the final fragment with the helper function
         if_packet_info.eob = metadata.end_of_burst;
 		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
@@ -617,6 +618,7 @@ private:
             }
             size_t total_channels_to_service = channels.size();
             size_t total_channels_serviced = 0;
+            
 
             while(total_channels_serviced < total_channels_to_service) {
                 for (const auto & chan: channels) {
@@ -663,8 +665,9 @@ private:
 
                         i++;
                     }
-
+                    
                     int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+                    
                     if (retval == -1) {
                         std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                         std::cout << "XXX: Must implement retry code!\n";
@@ -698,14 +701,14 @@ private:
         }
         size_t total_channels_to_service = channels.size();
         size_t total_channels_serviced = 0;
-
+        
         while (total_channels_serviced < total_channels_to_service) {
             for (const auto & chan: channels) {
                 if (channels_serviced[chan] == 0) {
                     if (!(_props.at(chan).check_flow_control(timeout))) {
-// #ifdef FLOW_CONTROL_DEBUG
-//                         std::cout << "Not time to send yet" << std::endl;
-// #endif
+//  #ifdef FLOW_CONTROL_DEBUG
+//                          std::cout << "Not time to send yet" << std::endl;
+//  #endif
                         // The time to send for this channel has not reached.
                         continue;
                     } else {
@@ -713,6 +716,7 @@ private:
                         std::cout << "Time to send" << std::endl;
 #endif
                     }
+                                        
                     // It's time to send for this channel, mark it as serviced.
                     channels_serviced[chan] = 1;
                     total_channels_serviced++;
@@ -720,7 +724,7 @@ private:
                     // We've already sent the data for this channel; move on.
                     continue;
                 }
-
+                
                 const auto multi_msb = multi_msb_buffs.at(chan);
                 int number_of_messages = multi_msb.data_buffs.size();
                 mmsghdr msg[number_of_messages];
@@ -752,8 +756,9 @@ private:
 
                     i++;
                 }
-
+                
                 int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+                
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                     std::cout << "XXX: Must implement retry code!\n";
@@ -797,6 +802,7 @@ private:
             if (not props.buff)
                 return 0; // timeout
         }
+        
 
         //setup the data to share with converter threads
         _convert_buffs = &buffs;
@@ -808,9 +814,9 @@ private:
         for (size_t i = 0; i < this->size(); i++) {
             convert_to_in_buff(i);
         }
-
-
+        
         _next_packet_seq++; //increment sequence after commits
+        
         return nsamps_per_buff;
     }
 
@@ -846,7 +852,6 @@ private:
         uint32_t *vrt_header = otw_mem;
         otw_mem += if_packet_info.num_header_words32;
 
-
         if (_converter->bypass_conversion_and_use_scatter_gather()) {
             // Add buffer to the array to be sent using sendmmsg
             multi_msb_buffs[index].data_buffs.push_back(reinterpret_cast<const void *>(io_buffs[0]));
@@ -865,14 +870,12 @@ private:
 
             //commit the samples to the zero-copy interface
 
-
             buff->commit(num_vita_words32*sizeof(uint32_t));
-
         }
 
         buff->release();
         buff.reset(); //effectively a release
-
+        
         if (_props[index].go_postal)
         {
             _props[index].go_postal();

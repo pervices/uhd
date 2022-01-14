@@ -475,6 +475,10 @@ private:
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
     
+    // dt is the time until next send
+    // if dt is close enough (less than timeout) it returns true
+    // the send function in super_send_packet_handler should poll this function until it returns true
+    
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -519,9 +523,7 @@ private:
 			return true;
         }
 
-        bool tmp = (dt.get_full_secs() < timeout);
-        if(tmp)  std::cout << __func__ << ": R2: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
-        return tmp;
+        return dt.get_real_secs() <= timeout;
     }
 
     /***********************************************************************
