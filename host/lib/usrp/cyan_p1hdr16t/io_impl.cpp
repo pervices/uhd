@@ -16,8 +16,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "../../global.hpp"
-
 #include <stdlib.h>
 
 #include <iomanip>
@@ -73,8 +71,6 @@
   #define UHD_TXRX_DEBUG_TIME
   #endif
 #endif
-
-extern bool global::udp_retry;
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -217,7 +213,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        global::udp_retry = false;
         
         static const double default_sob = 1.0;
 
