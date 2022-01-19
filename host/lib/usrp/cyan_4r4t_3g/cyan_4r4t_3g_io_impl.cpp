@@ -496,7 +496,7 @@ private:
 #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
             std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
             std::cout << "dt: " << dt << std::endl;
-            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_TICK_RATE) << std::endl;
+            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_3G_TICK_RATE) << std::endl;
             std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
             std::cout << "timout: " << timeout << std::endl;
 #endif
