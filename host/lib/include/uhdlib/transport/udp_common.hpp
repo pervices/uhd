@@ -183,6 +183,7 @@ UHD_INLINE size_t resize_udp_socket_buffer_with_warning(
     if (target_size > 0) {
         actual_size = resize_fn(target_size);
 
+        //see udp_zero_copy make for the code that automatically sets the buffer size
         UHD_LOGGER_TRACE("UDP")
             << boost::format("Target/actual %s sock buff size: %d/%d bytes") % name
                    % target_size % actual_size;

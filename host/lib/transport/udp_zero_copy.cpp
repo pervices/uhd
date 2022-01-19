@@ -280,7 +280,7 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
 {
     // Initialize xport_params
     zero_copy_xport_params xport_params = default_buff_args;
-
+    
     xport_params.recv_frame_size =
         size_t(hints.cast<double>("recv_frame_size", default_buff_args.recv_frame_size));
     xport_params.num_recv_frames =
@@ -293,7 +293,7 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
         size_t(hints.cast<double>("recv_buff_size", default_buff_args.recv_buff_size));
     xport_params.send_buff_size =
         size_t(hints.cast<double>("send_buff_size", default_buff_args.send_buff_size));
-
+        
     if (xport_params.num_recv_frames == 0) {
         UHD_LOG_TRACE(
             "UDP", "Default value for num_recv_frames: " << UDP_DEFAULT_NUM_FRAMES);
@@ -330,7 +330,7 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
         xport_params.send_buff_size = std::max(
             UDP_DEFAULT_BUFF_SIZE, xport_params.num_send_frames * MAX_ETHERNET_MTU);
     }
-
+    
 #if defined(UHD_PLATFORM_MACOS) || defined(UHD_PLATFORM_BSD)
     // limit default buffer size on macos to avoid the warning issued by
     // resize_buff_helper
@@ -352,6 +352,7 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
         [udp_trans](size_t size) { return udp_trans->resize_recv_socket_buffer(size); },
         xport_params.recv_buff_size,
         "recv");
+
     buff_params_out.send_buff_size = resize_udp_socket_buffer_with_warning(
         [udp_trans](size_t size) { return udp_trans->resize_send_socket_buffer(size); },
         xport_params.send_buff_size,

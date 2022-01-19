@@ -332,9 +332,6 @@ public:
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
-        //Last thing we do is update our buffer model with sent data
-        //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
-        my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
 
@@ -503,7 +500,7 @@ private:
 			std::cout << ss.str();
 		}
 		#endif
-
+		
 		return dt.get_real_secs() <= timeout;
     }
 
@@ -1006,6 +1003,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
 	uint16_t lvl = rsp.header & 0xffff;
+    
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG

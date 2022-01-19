@@ -325,10 +325,6 @@ public:
         //get a buffer from the transport w/ timeout
         managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
 
-        //Last thing we do is update our buffer model with sent data
-        //xxx: DMCL - this requires us to add get_nsamps() to super_send_pack
-
-        //my_streamer->check_fc_update( chan, my_streamer->get_nsamps());
         return buff;
     }
 
