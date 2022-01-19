@@ -26,7 +26,7 @@
 //#define DEBUG_TX_WAVE_STEP 1
 
 //wait for user to press cntrl c before closing
-#define DELAYED_EXIT
+//#define DELAYED_EXIT
 
 namespace po = boost::program_options;
 
