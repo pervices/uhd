@@ -1510,6 +1510,7 @@ bool cyan_4r4t_impl::is_bm_thread_needed() {
         "uhd_manual_set",
         "uhd_manual_get",
         "rx_start",
+        "rx_start_synchronized",
         "rx_stop",
 	};
 
