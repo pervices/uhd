@@ -2499,9 +2499,9 @@ public:
 #endif
 
         try {
-            return tx_gain_group(chan)->get_value(name);
-        } catch (uhd::key_error&) {
-            THROW_GAIN_NAME_ERROR(name, chan, tx);
+            return get_device()->get_tx_gain(name, chan);
+        } catch (uhd::key_error &) {
+            THROW_GAIN_NAME_ERROR(name,chan,rx);
         }
     }
 
