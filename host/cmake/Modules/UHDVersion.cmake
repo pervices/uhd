@@ -19,11 +19,17 @@ find_package(Git QUIET)
 #     release)
 #  - set UHD_VERSION_DEVEL to true for master and development branches
 ########################################################################
-set(UHD_VERSION_MAJOR 4)
-set(UHD_VERSION_API   2)
-set(UHD_VERSION_ABI   0)
-set(UHD_VERSION_PATCH git)
-set(UHD_VERSION_DEVEL TRUE)
+SET(UHD_VERSION_MAJOR   3)
+SET(UHD_VERSION_API    13)
+SET(UHD_VERSION_ABI     0)
+SET(UHD_VERSION_PATCH   1)
+SET(UHD_VERSION_DEVEL FALSE)
+#Ettus uses these version number when I last merged it. We should make
+#set(UHD_VERSION_MAJOR 4)
+#set(UHD_VERSION_API   2)
+#set(UHD_VERSION_ABI   0)
+#set(UHD_VERSION_PATCH git)
+#set(UHD_VERSION_DEVEL TRUE)
 
 ########################################################################
 # If we're on a development branch, we skip the patch version
