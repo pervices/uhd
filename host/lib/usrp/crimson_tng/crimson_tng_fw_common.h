@@ -72,7 +72,7 @@
 // Crimson Buffer Size
 #define CRIMSON_TNG_BUFF_SIZE	65536
 //Target buffer level percentage
-#define CRIMSON_TNG_BUFF_PERCENT 0.8
+#define CRIMSON_TNG_BUFF_PERCENT 0.7
 
 // Crimson RF Settings
 #define CRIMSON_TNG_RF_TX_GAIN_RANGE_START	0.0
