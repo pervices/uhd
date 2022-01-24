@@ -41,7 +41,7 @@ uhd::usrp::multi_usrp::sptr make_rfnoc_device(
 
 }} /* namespace uhd::rfnoc */
 
-//#define MULTI_F_DEBUG
+#define MULTI_F_DEBUG
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -1015,9 +1015,15 @@ public:
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-        if (_tree->exists(mb_root(mboard) / "sensors")) {
-            return _tree->list(mb_root(mboard) / "sensors");
+        std::cout << "C100" << std::endl;
+        auto tmp1 = mb_root(mboard);
+        std::cout << "C200" << std::endl;
+        if (_tree->exists(tmp1 / "sensors")) {
+            std::cout << "C500" << std::endl;
+            auto tmp = _tree->list(mb_root(mboard) / "sensors");
+            std::cout << "End 1 of: " << __func__ << std::endl;
         }
+        std::cout << "End 2 of: " << __func__ << std::endl;
         return {};
     }
 
@@ -1986,10 +1992,10 @@ public:
     }
 
     std::vector<std::string> get_rx_antennas(size_t chan) override
+    {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-    {
         return _tree
             ->access<std::vector<std::string>>(
                 rx_rf_fe_root(chan) / "antenna" / "options")
@@ -2225,7 +2231,6 @@ public:
         const std::string& name, const size_t chan) override
     {
 #ifdef MULTI_F_DEBUG
-        std::vector<std::string> possible_names = get_tx_filter_names(chan);
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
         std::vector<std::string> possible_names = get_tx_filter_names(chan);
@@ -3005,16 +3010,24 @@ private:
         try
         {
             const std::string tree_path = "/mboards/" + std::to_string(mboard);
+            std::cout << "M1" << std::endl;
+            if(_tree == NULL) std::cout<< "_tree is null" << std::endl;
+            _tree->exists(NULL);
+            std::cout << "M1.5" << std::endl;
             if (_tree->exists(tree_path)) {
+                std::cout << "M2A" << std::endl;
                 return tree_path;
             } else {
+                std::cout << "M2B" << std::endl;
                 throw uhd::index_error(str(
                     boost::format("multi_usrp::mb_root(%u) - path not found") % mboard));
             }
         } catch (const std::exception& e) {
+            std::cout << "M3" << std::endl;
             throw uhd::index_error(
                 str(boost::format("multi_usrp::mb_root(%u) - %s") % mboard % e.what()));
         }
+        std::cout << "End of: " << __func__ << std::endl;
     }
 
     fs_path rx_dsp_root(const size_t chan)
