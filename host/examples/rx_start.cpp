@@ -81,8 +81,6 @@ bool check_locked_sensor(
 int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
-    std::cerr << "WARNING: rx_start is deprecated, siwtch to rx_start_synchronized\n" << std::endl;
-
     //variables to be set by po
     std::string args, type, ant, subdev, ref, wirefmt, channel_list;
     size_t spb;
@@ -121,7 +119,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << boost::format("UHD RX stream init %s") % desc << std::endl;
         std::cout
             << std::endl
-            << "This application streams data from a single channel of a USRP device, and launches programs to process it.\n"
+            << "This application starts streaming data from all channels synchronously.\n"
             << std::endl;
         return ~0;
     }
@@ -277,14 +275,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    //start streaming. THis method is different from the conventional method
-    for(size_t n = 0; n <channel_nums.size(); n ++) {
-        size_t channel = channel_nums[n];
-        std::string path_buffer = "/mboards/0/rx/";
-        path_buffer.append(std::to_string(channel));
-        path_buffer.append("/force_stream");
-        usrp->set_tree_value(path_buffer, 1);
+     //start streaming. This method is different from the conventional method of sending a command over the sfp port
+    int stream_mask = 0;
+    for(size_t n = 0; n <channel_nums.size(); n++) {
+        //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
+        stream_mask |= 1 << channel_nums[n];
     }
+    std::string path_buffer = "/mboards/0/cm/rx/force_stream";
+    usrp->set_tree_value(path_buffer, stream_mask);
 
     return EXIT_SUCCESS;
 }
