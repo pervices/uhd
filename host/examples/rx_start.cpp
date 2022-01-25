@@ -81,6 +81,8 @@ bool check_locked_sensor(
 int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
+    std::cerr << "WARNING: rx_start is deprecated, siwtch to rx_start_synchronized\n" << std::endl;
+
     //variables to be set by po
     std::string args, type, ant, subdev, ref, wirefmt, channel_list;
     size_t spb;
