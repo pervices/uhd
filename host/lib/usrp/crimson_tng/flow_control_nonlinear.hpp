@@ -166,8 +166,8 @@ public:
 		} else {
 			buffer_level_set_time = now;
 		}
-#ifdef DEBUG_FLOW_CONTROL
-		std::cout << __func__ << ": buffer_level 2: " << buffer_level << std::endl;
+// #ifdef DEBUG_FLOW_CONTROL
+// 		std::cout << __func__ << ": buffer_level 2: " << buffer_level << std::endl;
 
 		// underflow
 		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
@@ -189,7 +189,7 @@ public:
 				).str();
 			throw uhd::value_error( msg );
 		}
-#endif
+//#endif
 	}
 
 protected:

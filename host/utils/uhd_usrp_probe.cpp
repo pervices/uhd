@@ -31,7 +31,9 @@ static std::string make_border(const std::string &text){
     ss << boost::format("  _____________________________________________________") << std::endl;
     ss << boost::format(" /") << std::endl;
     std::vector<std::string> lines; boost::split(lines, text, boost::is_any_of("\n"));
-    while (lines.back().empty()) lines.pop_back(); //strip trailing newlines
+    while (lines.back().empty() && lines.size()>0) {
+        lines.pop_back(); //strip trailing newlines
+    }
     if (lines.size()) lines[0] = "    " + lines[0]; //indent the title line
     for(const std::string &line:  lines){
         ss << boost::format("|   %s") % line << std::endl;
@@ -297,8 +299,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return EXIT_SUCCESS;
     }
 
-    if (vm.count("tree") != 0) print_tree("/", tree);
-    else if (not vm.count("init-only")) std::cout << make_border(get_device_pp_string(tree)) << std::endl;
+    if (vm.count("tree") != 0) {
+        print_tree("/", tree);
+    }
+    else if (not vm.count("init-only")) {
+        std::cout << make_border(get_device_pp_string(tree)) << std::endl;
+    }
 
     return EXIT_SUCCESS;
 }
