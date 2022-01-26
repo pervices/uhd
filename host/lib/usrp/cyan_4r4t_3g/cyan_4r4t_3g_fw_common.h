@@ -72,7 +72,8 @@
 // Cyan 4r4t min MTU size (typical ethernet frame)
 #define CYAN_4R4T_3G_MIN_MTU		1500
 // Cyan 4r4t max MTU size (jumbo ethernet frame is 9000 bytes)
-#define CYAN_4R4T_3G_MAX_MTU		8898
+// 3G is to fast for the FPGA to combine stuff across packets, a limit of 9000 would
+#define CYAN_4R4T_3G_MAX_MTU		8994
 
 // Cyan 4r4t Flowcontrol Update Per Second
 #define CYAN_4R4T_3G_UPDATE_PER_SEC	100
