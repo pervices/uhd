@@ -302,9 +302,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.has_time_spec  = true;
         md.time_spec = uhd::time_spec_t(time);
 
+        uint64_t num_acc_samps = 0;
+
+        //Start of temporary debug tool
+        for (size_t n = 0; n < 2220); n++){
+            buff[n] = wave_table(index += step);
+        }
+        num_acc_samps += tx_stream->send(buffs, n, md);
+        md.start_of_burst = false;
+        md.has_time_spec = false;
+        //end of temporary debug tool
+
         //send data until the signal handler gets called
         //or if we accumulate the number of samples specified (unless it's 0)
-        uint64_t num_acc_samps = 0;
+
         while(true){
 
             if (stop_signal_called)
@@ -314,8 +325,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 break;
 
             //fill the buffer with the waveform
-            size_t n = 0;
-            for (n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
+            for (size_t n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
                 buff[n] = wave_table(index += step);
             }
 #ifdef DEBUG_TX_WAVE
