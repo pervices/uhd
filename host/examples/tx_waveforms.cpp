@@ -305,7 +305,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         uint64_t num_acc_samps = 0;
 
         //Start of temporary debug tool
-        for (size_t n = 0; n < 2220); n++){
+        for (size_t n = 0; n < 2220; n++){
             buff[n] = wave_table(index += step);
         }
         num_acc_samps += tx_stream->send(buffs, n, md);
