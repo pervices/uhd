@@ -293,7 +293,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     size_t packets_sent = 0;
     size_t first_packet_to_save = 10000;
     size_t num_to_record = 1000000000;
-    time_spec_t send_times[num_to_record];
+    uhd::time_spec_t send_times[num_to_record];
 
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
