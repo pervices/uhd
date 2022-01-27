@@ -346,6 +346,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             //this statement will block until the data is sent
             //send the entire contents of the buffer
             num_acc_samps += tx_stream->send(buffs, n, md);
+            send_times[packets_sent] = uhd::get_system_time();
+            packets_sent++;
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sent samples" << std::endl;
 #endif
@@ -361,8 +363,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "Sending EOB packet" << std::endl;
 #endif
         tx_stream->send("", 0, md);
-        send_times[packets_sent] = uhd::get_system_time();
-        packets_sent++;
 #ifdef DEBUG_TX_WAVE
         std::cout << "Sent EOB packet" << std::endl;
 #endif
@@ -373,6 +373,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #endif
 
     std::ofstream ostrm("time_between_buffers.csv", std::ios::binary);
+    std::cout << "packets_sent: " << packets_sent << std::endl;
     for(int n = first_packet_to_save; n < packets_sent; n++) {
         ostrm << std::to_string(send_times[n].get_real_secs() - send_times[n].get_real_secs()) << ",";
     }
