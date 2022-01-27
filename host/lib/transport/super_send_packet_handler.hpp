@@ -597,6 +597,8 @@ private:
         return 0;
     }
 
+    bool sent_on_last_packet = false;
+
     UHD_INLINE size_t send_multiple_packets_threaded(const std::vector<size_t> channels) {
         const double timeout = 0;
         while (true) {
@@ -623,8 +625,13 @@ private:
                     if (channels_serviced[chan] == 0) {
                         if (!(_props.at(chan).check_flow_control(timeout))) {
                             // The time to send for this channel has not reached.
+                            sent_on_last_packet = false;
                             continue;
                         }
+                        if(sent_on_last_packet) {
+                            std::cout << "Sending on consecutive batches" << std::endl;
+                        }
+                        sent_on_last_packet = true;
                         // It's time to send for this channel, mark it as serviced.
                         channels_serviced[chan] = 1;
                         total_channels_serviced++;
