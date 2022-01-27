@@ -3009,6 +3009,7 @@ private:
 #endif
         try
         {
+            std::cout << "mboard:" << mboard << std::endl;
             const std::string tree_path = "/mboards/" + std::to_string(mboard);
             std::cout << "M1" << std::endl;
             if(_tree == NULL) std::cout<< "_tree is null" << std::endl;
