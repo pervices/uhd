@@ -375,7 +375,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::ofstream ostrm("time_between_buffers.csv", std::ios::binary);
     std::cout << "packets_sent: " << packets_sent << std::endl;
     for(int n = first_packet_to_save; n < packets_sent; n++) {
-        ostrm << std::to_string((send_times[n] - send_times[n]).get_real_secs()) << ",";
+        ostrm << std::to_string((send_times[n].to_ticks() - send_times[n].to_ticks()) << ",";
     }
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
