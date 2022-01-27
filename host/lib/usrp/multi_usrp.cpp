@@ -3015,7 +3015,7 @@ private:
             std::cout << "M1.25" << std::endl;
             std::cout << "tree_path: " << tree_path << std::endl;
             std::cout << "M1.4" << std::endl;
-            _tree->exists(NULL);
+            _tree->exists("/mboards/0/Channel_A/freq/i_bias");
             std::cout << "M1.5" << std::endl;
             if (_tree->exists(tree_path)) {
                 std::cout << "M2A" << std::endl;
