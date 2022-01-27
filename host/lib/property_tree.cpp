@@ -224,6 +224,7 @@ private:
 
 property_tree::~property_tree(void)
 {
+    std::cout << "property_tree::~property_tree(" << std::endl;
     /* NOP */
 }
 
@@ -232,5 +233,6 @@ property_tree::~property_tree(void)
  **********************************************************************/
 uhd::property_tree::sptr uhd::property_tree::make(void)
 {
+    std::cout << "property_tree::make" << std::endl;
     return sptr(new property_tree_impl());
 }
