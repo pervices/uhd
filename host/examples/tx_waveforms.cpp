@@ -24,6 +24,7 @@
 
 //here to save debug info
 #include <fstream>
+#include <../lib/usrp/crimson_tng/system_time.hpp>
 
 //#define DEBUG_TX_WAVE 1
 //#define DEBUG_TX_WAVE_STEP 1
