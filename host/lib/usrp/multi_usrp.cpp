@@ -3012,6 +3012,7 @@ private:
             const std::string tree_path = "/mboards/" + std::to_string(mboard);
             std::cout << "M1" << std::endl;
             if(_tree == NULL) std::cout<< "_tree is null" << std::endl;
+            std::cout << "M1.25" << std::endl;
             _tree->exists(NULL);
             std::cout << "M1.5" << std::endl;
             if (_tree->exists(tree_path)) {
