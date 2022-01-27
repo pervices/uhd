@@ -22,6 +22,9 @@
 #include <chrono>
 #include <thread>
 
+//here to save debug info
+#include <fstream>
+
 //#define DEBUG_TX_WAVE 1
 //#define DEBUG_TX_WAVE_STEP 1
 
@@ -286,11 +289,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #endif
 
     std::signal(SIGINT, &sig_int_handler);
+
+    size_t packets_sent = 0;
+    size_t first_packet_to_save = 10000;
+    size_t num_to_record = 1000000000;
+    time_spec_t send_times[num_to_record];
+
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
     usrp->set_time_now(0.0);
 
     bool ignore_last = first > last;
+
 
     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
     {
@@ -350,6 +360,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "Sending EOB packet" << std::endl;
 #endif
         tx_stream->send("", 0, md);
+        send_times[packets_sent] = uhd::get_system_time();
+        packets_sent++;
 #ifdef DEBUG_TX_WAVE
         std::cout << "Sent EOB packet" << std::endl;
 #endif
@@ -358,6 +370,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 //waits until told to stop before continuing (allows closing tasks to be delayed)
     while(!stop_signal_called) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
 #endif
+
+    std::ofstream ostrm("time_between_buffers.csv", std::ios::binary);
+    for(int n = first_packet_to_save; n < packets_sent; n++) {
+        ostrm << std::to_string(send_times[n].get_real_secs() - send_times[n].get_real_secs()) << ",";
+    }
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
