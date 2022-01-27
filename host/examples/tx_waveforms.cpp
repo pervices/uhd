@@ -24,7 +24,7 @@
 
 //here to save debug info
 #include <fstream>
-#include <../lib/usrp/crimson_tng/system_time.hpp>
+#include <time.h>
 
 //#define DEBUG_TX_WAVE 1
 //#define DEBUG_TX_WAVE_STEP 1
@@ -294,7 +294,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     size_t packets_sent = 0;
     size_t first_packet_to_save = 10000;
     size_t num_to_record = 100000000;
-    std::vector<uhd::time_spec_t> send_times(num_to_record);
+    std::vector<time_spec> send_times(num_to_record);
 
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
@@ -346,7 +346,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             //this statement will block until the data is sent
             //send the entire contents of the buffer
             num_acc_samps += tx_stream->send(buffs, n, md);
-            send_times[packets_sent] = uhd::get_system_time();
+            clock_gettime( CLOCK_MONOTONIC, &send_times[packets_sent] );
             packets_sent++;
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sent samples" << std::endl;
@@ -375,7 +375,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::ofstream ostrm("time_between_buffers.csv", std::ios::binary);
     std::cout << "packets_sent: " << packets_sent << std::endl;
     for(int n = first_packet_to_save; n < packets_sent; n++) {
-        ostrm << std::to_string(send_times[n].to_ticks(250000000) - send_times[n].to_ticks(250000000)) << ",";
+        int64_t time_diff_ns = (send_times[n].tv_sec - send_times[n-1].tv_sec) * 1e9 + (send_times[n].tv_nsec - send_times[n-1].tv_nsec)
+        ostrm << std::to_string(time_diff_ns) << ",";
     }
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
