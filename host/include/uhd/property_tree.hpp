@@ -230,7 +230,7 @@ public:
     virtual void remove(const fs_path& path) = 0;
 
     //! True if the path exists in the tree
-    virtual bool exists(const fs_path& path) = 0;
+    virtual bool exists(const fs_path& path) const = 0;
 
     //! Get an iterable to all things in the given path
     virtual std::vector<std::string> list(const fs_path& path) const = 0;
