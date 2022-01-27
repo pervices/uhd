@@ -108,23 +108,23 @@ public:
     bool exists(const fs_path& path_) const override
     {
         std::cout << "E1" << std::endl;
-        const fs_path path = _root / path_;
-        std::cout << "E2" << std::endl;
-        std::lock_guard<std::mutex> lock(_guts->mutex);
-        std::cout << "E3" << std::endl;
-
-        node_type* node = &_guts->root;
-        std::cout << "E4" << std::endl;
-        for (const std::string& name : path_tokenizer(path)) {
-            std::cout << "E5" << std::endl;
-            if (not node->has_key(name)) {
-                std::cout << "E6" << std::endl;
-                return false;
-            }
-            std::cout << "E7" << std::endl;
-            node = &(*node)[name];
-        }
-        std::cout << "E8" << std::endl;
+//         const fs_path path = _root / path_;
+//         std::cout << "E2" << std::endl;
+//         std::lock_guard<std::mutex> lock(_guts->mutex);
+//         std::cout << "E3" << std::endl;
+//
+//         node_type* node = &_guts->root;
+//         std::cout << "E4" << std::endl;
+//         for (const std::string& name : path_tokenizer(path)) {
+//             std::cout << "E5" << std::endl;
+//             if (not node->has_key(name)) {
+//                 std::cout << "E6" << std::endl;
+//                 return false;
+//             }
+//             std::cout << "E7" << std::endl;
+//             node = &(*node)[name];
+//         }
+//         std::cout << "E8" << std::endl;
         return true;
     }
 
