@@ -73,6 +73,7 @@ class property_tree_impl : public uhd::property_tree
 public:
     property_tree_impl(const fs_path& root = fs_path()) : _root(root)
     {
+        std::cout << "property_tree_impl" << std::endl;
         _guts = std::make_shared<tree_guts_type>();
     }
 
@@ -224,7 +225,7 @@ private:
 
 property_tree::~property_tree(void)
 {
-    std::cout << "property_tree::~property_tree(" << std::endl;
+    std::cout << "property_tree::~property_tree" << std::endl;
     /* NOP */
 }
 
