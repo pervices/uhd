@@ -3013,6 +3013,8 @@ private:
             std::cout << "M1" << std::endl;
             if(_tree == NULL) std::cout<< "_tree is null" << std::endl;
             std::cout << "M1.25" << std::endl;
+            std::cout << "tree_path: " << tree_path << std::endl;
+            std::cout << "M1.4" << std::endl;
             _tree->exists(NULL);
             std::cout << "M1.5" << std::endl;
             if (_tree->exists(tree_path)) {
