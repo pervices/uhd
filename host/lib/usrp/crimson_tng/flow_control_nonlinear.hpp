@@ -105,7 +105,9 @@ public:
 	}
 
     int64_t longest_get_time_until_next_send = 0;
+    int64_t num_get_time_until_next_send = 0;
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
+        num_get_time_until_next_send++;
         
         auto start = std::chrono::high_resolution_clock::now();
 
