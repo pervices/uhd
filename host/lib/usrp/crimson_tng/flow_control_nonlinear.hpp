@@ -119,7 +119,7 @@ public:
         auto lock_time = std::chrono::high_resolution_clock::now();
         auto lock_duration = std::chrono::duration_cast<std::chrono::microseconds>(lock_time - start).count();
         if(lock_duration > 1000) {
-            std::cout << "check lock longer than 1ms, took: " << lock_duration << std::endl;
+            std::cout << "lock longer than 1ms, took: " << lock_duration << std::endl;
         }
         
         
@@ -254,7 +254,14 @@ protected:
 	}
 
 	bool unlocked_start_of_burst_pending( const uhd::time_spec_t & now ) {
-		return now < sob_time;
+        auto start = std::chrono::high_resolution_clock::now();
+		bool tmp = now < sob_time;
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        if(duration > 1000) {
+            std::cout << "unlock_start_of_burst took longer than 1ms, took: " << duration << std::endl;
+        }
+        return tmp;
 	}
 
     int64_t longest_get_unlocked_bl = 0;
