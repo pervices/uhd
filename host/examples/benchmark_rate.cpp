@@ -196,6 +196,7 @@ void benchmark_tx_rate(
     md.time_spec = usrp->get_time_now() + uhd::time_spec_t(INIT_DELAY);
     md.has_time_spec = (tx_stream->get_num_channels() > 1);
     const size_t max_samps_per_packet = tx_stream->get_max_num_samps();
+    std::cout << "max_samps_per_packet: " << max_samps_per_packet << std::endl;
     std::vector<char> buff(max_samps_per_packet*uhd::convert::get_bytes_per_item(tx_cpu));
     std::vector<const void *> buffs;
     for (size_t ch = 0; ch < tx_stream->get_num_channels(); ch++)
@@ -214,6 +215,7 @@ void benchmark_tx_rate(
             while(num_acc_samps < total_num_samps){
                 //send a single packet
                 num_tx_samps += tx_stream->send(buffs, max_samps_per_packet, md, timeout)*tx_stream->get_num_channels();
+                
                 num_acc_samps += std::min(total_num_samps-num_acc_samps, tx_stream->get_max_num_samps());
             }
         }
