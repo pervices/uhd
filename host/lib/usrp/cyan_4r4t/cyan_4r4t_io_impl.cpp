@@ -508,8 +508,8 @@ private:
             if(longest_check_fc_condition < duration) {
                 longest_check_fc_condition = duration;
             }
-            if(duration1 > 1000) {
-                    std::cout << "check fc 1 longer than 1ms, took: " << duration1 << std::endl;
+            if(duration > 1000) {
+                    std::cout << "check fc 1 longer than 1ms, took: " << duration << std::endl;
             }
             num_check_fc_condition++;
             if(num_check_fc_condition == 3000000) {
