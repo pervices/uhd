@@ -681,7 +681,7 @@ private:
                     
                     auto end_time = std::chrono::high_resolution_clock::now();
                     
-                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
                     
                     if(duration > 100) {
                         std::cout << "sendmmsg took longer than 100us after x messages: " << num_sendmmsgs_run << std::endl;
