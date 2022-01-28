@@ -43,6 +43,9 @@
 #include <fstream>
 #endif
 
+//used for debugging
+#include <chrono>
+
 //#define FLOW_CONTROL_DEBUG
 
 namespace uhd {
@@ -569,6 +572,7 @@ private:
     /*******************************************************************
      * Send multiple packets at once:
      ******************************************************************/
+    int64_t num_sendmmsgs_run = 0;
     UHD_INLINE size_t send_multiple_packets() {
         //perform N channels of conversion
         // Wake up the worker threads (send_multiple_packets_threaded) and wait for their completion
@@ -670,8 +674,21 @@ private:
 
                         i++;
                     }
+                    
+                    auto start_time = std::chrono::high_resolution_clock::now();
 
                     int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+                    
+                    auto end_time = std::chrono::high_resolution_clock::now();
+                    
+                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+                    
+                    if(duration > 100) {
+                        std::cout << "sendmmsg took longer than 100us after x messages: " << num_sendmmsgs_run << std::endl;
+                    }
+                    
+                    num_sendmmsgs_run++;
+                    
                     if (retval == -1) {
                         std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                         std::cout << "XXX: Must implement retry code!\n";
