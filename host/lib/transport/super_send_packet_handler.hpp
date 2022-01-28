@@ -629,7 +629,6 @@ private:
                             // The time to send for this channel has not reached.
                             continue;
                         }
-                        sent_on_last_packet = true;
                         // It's time to send for this channel, mark it as serviced.
                         channels_serviced[chan] = 1;
                         total_channels_serviced++;
