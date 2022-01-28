@@ -778,8 +778,8 @@ private:
                     std::cout << "sendmmsg took longer than 10ms, took: " << duration << std::endl;
                 }
                 
-                if(num_sendmmsgs_run == 100000) {
-                    std::cout << "longest_sendmmsg after 1000000 calls: " << num_sendmmsgs_run << std::endl;
+                if(num_sendmmsgs_run == 300000) {
+                    std::cout << "longest_sendmmsg after 1000000 calls: " << longest_sendmmsg << std::endl;
                 }
                 
                 if (retval == -1) {
