@@ -683,11 +683,14 @@ private:
                     
                     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
                     
-                    if(duration > 300) {
-                        std::cout << "sendmmsg took longer than 100us after x messages: " << num_sendmmsgs_run << std::endl;
+                    //averate_duration = average_duration * 0.95 + duration * 0.05;
+                    
+                    if(duration > average_duration) {
+                        num_slow_sends++;
+                    } else {
+                        num_normal_sends++;
                     }
                     
-                    num_sendmmsgs_run++;
                     
                     if (retval == -1) {
                         std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";

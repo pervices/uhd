@@ -297,7 +297,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     bool ignore_last = first > last;
 
-    int64_t num_sends = 0;
+    int64_t num_slow_sends = 0;
+    int64_t num_normal_sends = 0;
+    double average_duration = 250;
     
     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
     {
@@ -374,6 +376,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 //waits until told to stop before continuing (allows closing tasks to be delayed)
     while(!stop_signal_called) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
 #endif
+
+    std::cout << "num_slow_sends: " << num_slow_sends << std::endl;
+    std::cout << "num_normal_sends: " << num_normal_sends << std::endl;
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
