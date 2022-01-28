@@ -349,7 +349,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #endif
             auto end_time = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-            if(duration > 100) {
+            if(duration > 300) {
                 std::cout << "tx_waveforms send longer than 100us after x messages: " << num_sends << std::endl;
             }
             num_sends++;
