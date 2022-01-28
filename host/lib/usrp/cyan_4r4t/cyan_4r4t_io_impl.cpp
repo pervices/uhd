@@ -544,7 +544,7 @@ private:
                     std::cout << "check fc 2 longer than 1ms, took: " << duration << std::endl;
             }
             num_check_fc_condition++;
-            if(num_sendmmsgs_run == 3000000) {
+            if(num_check_fc_condition == 3000000) {
                 std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
             }
 			return true;
@@ -561,7 +561,7 @@ private:
                 std::cout << "check fc 3 longer than 1ms, took: " << duration << std::endl;
         }
         num_check_fc_condition++;
-        if(num_sendmmsgs_run == 3000000) {
+        if(num_check_fc_condition == 3000000) {
             std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
         }
         return tmp;
