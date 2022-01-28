@@ -572,7 +572,7 @@ private:
     /*******************************************************************
      * Send multiple packets at once:
      ******************************************************************/
-    int64_t num_sendmmsgs_run = 0;
+
     UHD_INLINE size_t send_multiple_packets() {
         //perform N channels of conversion
         // Wake up the worker threads (send_multiple_packets_threaded) and wait for their completion
@@ -601,8 +601,6 @@ private:
         return 0;
     }
 
-    bool sent_on_last_packet = false;
-
     UHD_INLINE size_t send_multiple_packets_threaded(const std::vector<size_t> channels) {
         const double timeout = 0;
         while (true) {
@@ -629,11 +627,7 @@ private:
                     if (channels_serviced[chan] == 0) {
                         if (!(_props.at(chan).check_flow_control(timeout))) {
                             // The time to send for this channel has not reached.
-                            sent_on_last_packet = false;
                             continue;
-                        }
-                        if(sent_on_last_packet) {
-                            std::cout << "Sending on consecutive batches" << std::endl;
                         }
                         sent_on_last_packet = true;
                         // It's time to send for this channel, mark it as serviced.
@@ -675,21 +669,19 @@ private:
                         i++;
                     }
                     
-//                     auto start_time = std::chrono::high_resolution_clock::now();
+                    auto start_time = std::chrono::high_resolution_clock::now();
 
                     int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
                     
-//                     auto end_time = std::chrono::high_resolution_clock::now();
+                    auto end_time = std::chrono::high_resolution_clock::now();
                     
-//                     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
                     
-                    //averate_duration = average_duration * 0.95 + duration * 0.05;
-                    
-//                     if(duration > average_duration) {
-//                         num_slow_sends++;
-//                     } else {
-//                         num_normal_sends++;
-//                     }
+                    if(duration > average_duration) {
+                        num_slow_sends++;
+                    } else {
+                        num_normal_sends++;
+                    }
                     
                     
                     if (retval == -1) {
@@ -712,6 +704,9 @@ private:
 
         return 0;
     }
+    
+    int64_t num_sendmmsgs_run = 0;
+    int64_t longest_sendmmsg = 0;
 
     UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
         const double timeout = 0;
@@ -779,8 +774,28 @@ private:
 
                     i++;
                 }
+                
+                num_sendmmsgs_run++;
+                
+                auto start_time = std::chrono::high_resolution_clock::now();
 
                 int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+                
+                auto end_time = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+                
+                if(longest_sendmmsg < duration) {
+                    longest_sendmmsg = duration;
+                }
+                
+                if(duration > 10000) {
+                    std::cout << "sendmmsg took longer than 10ms, took: " << duration << std::endl;
+                }
+                
+                if(num_sendmmsgs_run > 1000000) {
+                    std::cout << "longest_sendmmsg after 1000000 calls: " << num_sendmmsgs_run << std::endl;
+                }
+                
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                     std::cout << "XXX: Must implement retry code!\n";
