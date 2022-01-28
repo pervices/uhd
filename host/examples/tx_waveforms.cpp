@@ -338,12 +338,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sending samples" << std::endl;
 #endif
+            auto start_time = std::chrono::high_resolution_clock::now();
+                    
             //this statement will block until the data is sent
             //send the entire contents of the buffer
             num_acc_samps += tx_stream->send(buffs, n, md);
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sent samples" << std::endl;
 #endif
+            auto end_time = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+            if(duration > 100) {
+                std::cout << "tx_waveforms send longer than 100us after x messages: " << num_sendmmsgs_run << std::endl;
+            }
+                    
             md.start_of_burst = false;
             md.has_time_spec = false;
         }
