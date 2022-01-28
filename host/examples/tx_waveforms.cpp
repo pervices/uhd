@@ -299,7 +299,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     int64_t num_slow_sends = 0;
     int64_t num_normal_sends = 0;
-    double average_duration = 250;
     int64_t longest_send = 0;
     
     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
@@ -352,10 +351,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #endif
             auto end_time = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-            
-            //averate_duration = average_duration * 0.95 + duration * 0.05;
                     
-            if(duration > average_duration) {
+            if(duration > 1000) {
                 num_slow_sends++;
             } else {
                 num_normal_sends++;
