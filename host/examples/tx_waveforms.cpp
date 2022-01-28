@@ -360,7 +360,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             } else {
                 num_normal_sends++;
             }
-            if(duration > longest_send) {
+            if(duration > longest_send && num_acc_samps > 5000000) {
                 longest_send = duration;
             }
                     
