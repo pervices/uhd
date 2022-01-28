@@ -693,6 +693,7 @@ private:
     
     int64_t num_sendmmsgs_run = 0;
     int64_t longest_sendmmsg = 0;
+    int64_t longest_send_loop = 0;
 
     UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
         const double timeout = 0;
@@ -728,6 +729,8 @@ private:
                     // We've already sent the data for this channel; move on.
                     continue;
                 }
+                
+                auto send_loop_start = std::chrono::high_resolution_clock::now();
 
                 const auto multi_msb = multi_msb_buffs.at(chan);
                 int number_of_messages = multi_msb.data_buffs.size();
@@ -774,14 +777,6 @@ private:
                     longest_sendmmsg = duration;
                 }
                 
-                if(duration > 1000) {
-                    std::cout << "sendmmsg took longer than 1ms, took: " << duration << std::endl;
-                }
-                
-                if(num_sendmmsgs_run == 300000) {
-                    std::cout << "longest_sendmmsg after 1000000 calls: " << longest_sendmmsg << std::endl;
-                }
-                
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
                     std::cout << "XXX: Must implement retry code!\n";
@@ -792,6 +787,28 @@ private:
                 //     buff.reset();
                 // }
                 _props.at(chan).update_fc_send_count(this->samps_per_buffer);
+                
+                auto send_loop_end = std::chrono::high_resolution_clock::now();
+                
+                auto send_loop_duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+                
+                if(longest_send_loop < send_loop_duration) {
+                    longest_send_loop = send_loop_duration;
+                }
+                
+                if(duration > 1000) {
+                    std::cout << "sendmmsg took longer than 1ms, took: " << duration << std::endl;
+                }
+                if(send_loop_duration > 1000) {
+                    std::cout << "send_loop took longer than 1ms, took: " << duration << std::endl;
+                }
+                
+                if(num_sendmmsgs_run == 300000) {
+                    std::cout << "longest_sendmmsg after 300000 calls: " << longest_sendmmsg << std::endl;
+                }
+                if(num_sendmmsgs_run == 300000) {
+                    std::cout << "longest_send_loop after 300000 calls: " << longest_send_loop << std::endl;
+                }
             }
         }
 
