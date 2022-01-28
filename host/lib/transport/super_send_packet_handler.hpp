@@ -774,8 +774,8 @@ private:
                     longest_sendmmsg = duration;
                 }
                 
-                if(duration > 10000) {
-                    std::cout << "sendmmsg took longer than 10ms, took: " << duration << std::endl;
+                if(duration > 1000) {
+                    std::cout << "sendmmsg took longer than 1ms, took: " << duration << std::endl;
                 }
                 
                 if(num_sendmmsgs_run == 300000) {
