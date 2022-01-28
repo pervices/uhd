@@ -478,8 +478,11 @@ private:
         _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
-    
+
+    int64_t num_check_fc_condition = 0;
+    int64_t longest_check_fc_condition = 0;
     bool check_fc_condition( const size_t chan, const double & timeout ) {
+        auto start = std::chrono::high_resolution_clock::now();
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
         static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
@@ -500,6 +503,18 @@ private:
             std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
             std::cout << "timout: " << timeout << std::endl;
 #endif
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            if(longest_check_fc_condition < duration) {
+                longest_check_fc_condition = duration;
+            }
+            if(duration1 > 1000) {
+                    std::cout << "check fc 1 longer than 1ms, took: " << duration1 << std::endl;
+            }
+            num_check_fc_condition++;
+            if(num_check_fc_condition == 3000000) {
+                std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
+            }
             return false;
         }
 
@@ -520,11 +535,35 @@ private:
             std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
             std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
 #endif
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            if(longest_check_fc_condition < duration) {
+                longest_check_fc_condition = duration;
+            }
+            if(duration > 1000) {
+                    std::cout << "check fc 2 longer than 1ms, took: " << duration << std::endl;
+            }
+            num_check_fc_condition++;
+            if(num_sendmmsgs_run == 3000000) {
+                std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
+            }
 			return true;
         }
 
         bool tmp = (dt.get_full_secs() < timeout);
         if(tmp)  std::cout << __func__ << ": R2: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        if(longest_check_fc_condition < duration) {
+            longest_check_fc_condition = duration;
+        }
+        if(duration > 1000) {
+                std::cout << "check fc 3 longer than 1ms, took: " << duration << std::endl;
+        }
+        num_check_fc_condition++;
+        if(num_sendmmsgs_run == 3000000) {
+            std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
+        }
         return tmp;
     }
 
