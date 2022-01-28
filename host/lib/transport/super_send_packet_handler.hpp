@@ -675,21 +675,21 @@ private:
                         i++;
                     }
                     
-                    auto start_time = std::chrono::high_resolution_clock::now();
+//                     auto start_time = std::chrono::high_resolution_clock::now();
 
                     int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
                     
-                    auto end_time = std::chrono::high_resolution_clock::now();
+//                     auto end_time = std::chrono::high_resolution_clock::now();
                     
-                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+//                     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
                     
                     //averate_duration = average_duration * 0.95 + duration * 0.05;
                     
-                    if(duration > average_duration) {
-                        num_slow_sends++;
-                    } else {
-                        num_normal_sends++;
-                    }
+//                     if(duration > average_duration) {
+//                         num_slow_sends++;
+//                     } else {
+//                         num_normal_sends++;
+//                     }
                     
                     
                     if (retval == -1) {
