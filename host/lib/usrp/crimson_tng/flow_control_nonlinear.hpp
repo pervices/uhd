@@ -117,7 +117,7 @@ public:
 		std::lock_guard<std::mutex> _lock( lock );
         
         auto lock_time = std::chrono::high_resolution_clock::now();
-        auto lock_duration = = std::chrono::duration_cast<std::chrono::microseconds>(lock_time - start).count();
+        auto lock_duration = std::chrono::duration_cast<std::chrono::microseconds>(lock_time - start).count();
         if(lock_duration > 1000) {
             std::cout << "check lock longer than 1ms, took: " << lock_duration << std::endl;
         }
