@@ -667,21 +667,8 @@ private:
 
                         i++;
                     }
-                    
-                    auto start_time = std::chrono::high_resolution_clock::now();
 
                     int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
-                    
-                    auto end_time = std::chrono::high_resolution_clock::now();
-                    
-                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-                    
-                    if(duration > average_duration) {
-                        num_slow_sends++;
-                    } else {
-                        num_normal_sends++;
-                    }
-                    
                     
                     if (retval == -1) {
                         std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
