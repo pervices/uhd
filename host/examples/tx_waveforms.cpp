@@ -300,6 +300,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     int64_t num_slow_sends = 0;
     int64_t num_normal_sends = 0;
     double average_duration = 250;
+    int64_t longest_send = 0;
     
     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
     {
@@ -359,6 +360,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             } else {
                 num_normal_sends++;
             }
+            if(duration > longest_send) {
+                longest_send = duration;
+            }
                     
             md.start_of_burst = false;
             md.has_time_spec = false;
@@ -383,6 +387,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::cout << "num_slow_sends: " << num_slow_sends << std::endl;
     std::cout << "num_normal_sends: " << num_normal_sends << std::endl;
+    std::cout << "longest_send: " << longest_send << std::endl;
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
