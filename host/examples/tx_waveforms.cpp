@@ -297,7 +297,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     bool ignore_last = first > last;
 
-
+    int64_t num_sends = 0;
+    
     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
     {
         // Set up metadata. We start streaming a bit in the future
@@ -349,8 +350,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             auto end_time = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
             if(duration > 100) {
-                std::cout << "tx_waveforms send longer than 100us after x messages: " << num_sendmmsgs_run << std::endl;
+                std::cout << "tx_waveforms send longer than 100us after x messages: " << num_sends << std::endl;
             }
+            num_sends++;
                     
             md.start_of_burst = false;
             md.has_time_spec = false;
