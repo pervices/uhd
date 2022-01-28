@@ -159,7 +159,7 @@ public:
                 std::cout << "check get_time_until_next_send longer than 1ms, took: " << duration_time_until_send << std::endl;
         }
         if(num_check_fc_condition == 3000000) {
-            std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
+            std::cout << "longest check fc after 3000000 calls: " << longest_get_time_until_next_send << std::endl;
         }
 
 		return dt;
