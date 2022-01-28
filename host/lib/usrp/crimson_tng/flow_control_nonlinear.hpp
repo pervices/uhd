@@ -104,7 +104,10 @@ public:
 		unlocked_set_buffer_level( _level );
 	}
 
+    int64_t longest_get_time_until_next_send = 0;
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
+        
+        auto start = std::chrono::high_resolution_clock::now();
 
 		(void)nsamples_to_send;
 
@@ -144,6 +147,17 @@ public:
                 std::cout << "dt: " << dt.get_real_secs() << std::endl;
             }
 #endif
+        }
+        auto end_time_until_send = std::chrono::high_resolution_clock::now();
+        auto duration_time_until_send = std::chrono::duration_cast<std::chrono::microseconds>(end_time_until_send - start).count();
+        if(longest_get_time_until_next_send < duration_time_until_send) {
+            longest_get_time_until_next_send = duration_time_until_send;
+        }
+        if(duration_time_until_send > 1000) {
+                std::cout << "check get_time_until_next_send longer than 1ms, took: " << duration_time_until_send << std::endl;
+        }
+        if(num_check_fc_condition == 3000000) {
+            std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
         }
 
 		return dt;
