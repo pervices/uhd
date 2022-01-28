@@ -481,7 +481,9 @@ private:
 
     int64_t num_check_fc_condition = 0;
     int64_t longest_check_fc_condition = 0;
+    int64_t longest_get_time_until_next_send = 0;
     bool check_fc_condition( const size_t chan, const double & timeout ) {
+        num_check_fc_condition++;
         auto start = std::chrono::high_resolution_clock::now();
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -494,6 +496,18 @@ private:
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
         then = now + dt;
+        
+        auto end_time_until_send = std::chrono::high_resolution_clock::now();
+        auto duration_time_until_send = std::chrono::duration_cast<std::chrono::microseconds>(end_time_until_send - start).count();
+        if(longest_get_time_until_next_send < duration_time_until_send) {
+            longest_get_time_until_next_send = duration_time_until_send;
+        }
+        if(duration > 1000) {
+                std::cout << "check get_time_until_next_send longer than 1ms, took: " << duration_time_until_send << std::endl;
+        }
+        if(num_check_fc_condition == 3000000) {
+            std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
+        }
 
         if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
 #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -511,7 +525,6 @@ private:
             if(duration > 1000) {
                     std::cout << "check fc 1 longer than 1ms, took: " << duration << std::endl;
             }
-            num_check_fc_condition++;
             if(num_check_fc_condition == 3000000) {
                 std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
             }
@@ -543,7 +556,6 @@ private:
             if(duration > 1000) {
                     std::cout << "check fc 2 longer than 1ms, took: " << duration << std::endl;
             }
-            num_check_fc_condition++;
             if(num_check_fc_condition == 3000000) {
                 std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
             }
@@ -560,7 +572,6 @@ private:
         if(duration > 1000) {
                 std::cout << "check fc 3 longer than 1ms, took: " << duration << std::endl;
         }
-        num_check_fc_condition++;
         if(num_check_fc_condition == 3000000) {
             std::cout << "longest check fc after 3000000 calls: " << longest_check_fc_condition << std::endl;
         }
