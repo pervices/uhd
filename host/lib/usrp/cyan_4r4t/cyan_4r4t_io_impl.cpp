@@ -360,7 +360,7 @@ public:
 		_eprops.at(chan).on_fini = on_fini;
     }
     void set_time_now( timenow_type time_now ) {
-        _time_now = time_now;
+        _time_now = timenow_type(time_now);
     }
     uhd::time_spec_t get_time_now() {
         return _time_now ? _time_now() : get_system_time();
@@ -480,8 +480,6 @@ private:
     }
 
     bool check_fc_condition( const size_t chan, const double & timeout ) {
-        num_check_fc_condition++;
-        auto start = std::chrono::high_resolution_clock::now();
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
         static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
