@@ -523,7 +523,7 @@ private:
 			return true;
         }
 
-        nanosleep(&dt.get_full_secs(), &dt.get_frac_secs());
+        nanosleep(dt.get_full_secs(), dt.get_frac_secs());
 
         return dt.get_full_secs() < timeout;
     }
