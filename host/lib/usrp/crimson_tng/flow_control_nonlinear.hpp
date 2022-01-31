@@ -61,7 +61,7 @@ public:
 
 		std::lock_guard<std::mutex> _lock( lock );
 
-		sob_time = sob;
+		sob_time = time_spec_t(sob);
 	}
 	uhd::time_spec_t get_start_of_burst_time() {
 
