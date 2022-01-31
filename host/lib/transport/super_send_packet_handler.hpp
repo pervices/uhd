@@ -692,7 +692,7 @@ private:
     }
     
     UHD_INLINE size_t send_multiple_packets_sequential(const std::vector<size_t> channels) {
-        const double timeout = 0;
+        const double timeout = 0.1;
 
         // data structure to record which channels we have sent the data for
         // char channels_serviced[MAX_CHANNELS];
@@ -759,7 +759,7 @@ private:
                 }
                 
 
-                int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, MSG_DONTWAIT);
+                int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
                 
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
