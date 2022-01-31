@@ -254,28 +254,14 @@ protected:
 	}
 
 	bool unlocked_start_of_burst_pending( const uhd::time_spec_t & now ) {
-        auto start = std::chrono::high_resolution_clock::now();
-        auto tmp_now = uhd::time_spec_t(now);
-        auto tmp_sob_time = uhd::time_spec_t(sob_time);
-        auto compare_start = std::chrono::high_resolution_clock::now();
-		bool tmp = tmp_now < tmp_sob_time;
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        auto compare_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - compare_start).count();
-        if(duration > 1000) {
-            std::cout << "unlock_start_of_burst took longer than 1ms, took: " << duration << std::endl;
-        }
-        if(duration > 1000) {
-            std::cout << "unlock_start_of_burst compare took longer than 1ms, took: " << compare_duration << std::endl;
-        }
-        return tmp;
+        return now < sob_time;
+
 	}
 
     int64_t longest_get_unlocked_bl = 0;
     int64_t num_get_unlocked_bl = 0;
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
         num_get_unlocked_bl++;
-        auto start = std::chrono::high_resolution_clock::now();
         
 		ssize_t r = buffer_level;
 #ifdef DEBUG_FLOW_CONTROL
@@ -301,12 +287,6 @@ protected:
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
         if(longest_get_unlocked_bl < duration) {
             longest_get_unlocked_bl = duration;
-        }
-        if(duration > 1000) {
-                std::cout << "check get_time_until_next_send longer than 1ms, took: " << duration << std::endl;
-        }
-        if(num_get_unlocked_bl == 3000000) {
-            std::cout << "longest longest_get_unlocked_bl 3000000 calls: " << longest_get_unlocked_bl << std::endl;
         }
 
 		return r;
