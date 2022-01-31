@@ -243,7 +243,7 @@ protected:
 #endif
 
 		// decrement the buffer level only when we are actively sending
-		if ( BOOST_LIKELY( ! unlocked_start_of_burst_pending( now ) ) ) {
+		if ( ! unlocked_start_of_burst_pending( now ) ) {
 			uhd::time_spec_t a = buffer_level_set_time;
 			uhd::time_spec_t b = now;
 			size_t nsamples_consumed = interp( a, b, nominal_sample_rate );
