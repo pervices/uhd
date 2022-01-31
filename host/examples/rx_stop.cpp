@@ -150,13 +150,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         start_index = stop_index;
     }
 
-    //start streaming. THis method is different from the conventional method
-    for(size_t n = 0; n <channel_nums.size();n++) {
-        std::string path_buffer = "/mboards/0/rx/";
-        path_buffer.append(std::to_string(channel_nums[n]));
-        path_buffer.append("/force_stream");
-        usrp->set_tree_value(path_buffer, 0);
-    }
+    //stop streaming. This method is different from the conventional method
+    usrp->set_tree_value("/mboards/0/cm/rx/force_stream", 0);
 
     return EXIT_SUCCESS;
 }
