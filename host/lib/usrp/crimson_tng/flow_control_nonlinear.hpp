@@ -257,7 +257,7 @@ protected:
         auto start = std::chrono::high_resolution_clock::now();
         auto tmp_now = uhd::time_spec_t(now);
         auto compare_start = std::chrono::high_resolution_clock::now();
-		bool tmp = now < sob_time;
+		bool tmp = tmp_now < sob_time;
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
         auto compare_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - compare_start).count();
