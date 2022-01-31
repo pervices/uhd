@@ -486,7 +486,7 @@ private:
         #endif
 
         uhd::time_spec_t now, then, dt;
-		struct timespec req;
+		struct timespec req, rem;
 
         now = uhd::time_spec_t(get_time_now());
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
@@ -523,7 +523,10 @@ private:
 			return true;
         }
 
-        nanosleep(dt.get_full_secs(), dt.get_frac_secs());
+        req.tv_sec = (time_t) dt.get_full_secs();
+		req.tv_nsec = dt.get_frac_secs()*1e9;
+
+        nanosleep(&req, &rem);
 
         return dt.get_full_secs() < timeout;
     }
