@@ -256,8 +256,9 @@ protected:
 	bool unlocked_start_of_burst_pending( const uhd::time_spec_t & now ) {
         auto start = std::chrono::high_resolution_clock::now();
         auto tmp_now = uhd::time_spec_t(now);
+        auto tmp_sob_time = uhd::time_spec_t(sob_time);
         auto compare_start = std::chrono::high_resolution_clock::now();
-		bool tmp = tmp_now < sob_time;
+		bool tmp = tmp_now < tmp_sob_time;
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
         auto compare_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - compare_start).count();
