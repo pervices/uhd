@@ -255,11 +255,17 @@ protected:
 
 	bool unlocked_start_of_burst_pending( const uhd::time_spec_t & now ) {
         auto start = std::chrono::high_resolution_clock::now();
+        auto tmp_now = uhd::time_spec_t(now);
+        auto compare_start = std::chrono::high_resolution_clock::now();
 		bool tmp = now < sob_time;
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        auto compare_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - compare_start).count();
         if(duration > 1000) {
             std::cout << "unlock_start_of_burst took longer than 1ms, took: " << duration << std::endl;
+        }
+        if(duration > 1000) {
+            std::cout << "unlock_start_of_burst compare took longer than 1ms, took: " << compare_duration << std::endl;
         }
         return tmp;
 	}
