@@ -759,7 +759,7 @@ private:
                 }
                 
 
-                int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, MSG_CONFIRM);
+                int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, MSG_DONTWAIT);
                 
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";
