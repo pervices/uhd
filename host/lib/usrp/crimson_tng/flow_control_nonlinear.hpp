@@ -258,10 +258,7 @@ protected:
 
 	}
 
-    int64_t longest_get_unlocked_bl = 0;
-    int64_t num_get_unlocked_bl = 0;
 	ssize_t unlocked_get_buffer_level( const uhd::time_spec_t & now ) {
-        num_get_unlocked_bl++;
         
 		ssize_t r = buffer_level;
 #ifdef DEBUG_FLOW_CONTROL
@@ -282,12 +279,6 @@ protected:
 #endif
 			r -= nsamples_consumed;
 		}
-		
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        if(longest_get_unlocked_bl < duration) {
-            longest_get_unlocked_bl = duration;
-        }
 
 		return r;
 	}
