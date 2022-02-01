@@ -85,7 +85,7 @@ void benchmark_rx_rate(
 
     uhd::stream_cmd_t cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
     cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(INIT_DELAY);
-    cmd.stream_now = (buffs.size() == 1);
+    cmd.stream_now = (0);
     rx_stream->issue_stream_cmd(cmd);
 
     const float burst_pkt_time =
@@ -542,8 +542,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //sleep for the required duration
     const bool wait_for_multichan =
         (rx_channel_nums.size() <= 1 and tx_channel_nums.size() <= 1);
-    const int64_t secs =
-        int64_t(duration + (wait_for_multichan ? 0 : INIT_DELAY * 1000));
+    //
+    duration+= INIT_DELAY;
+    const int64_t secs = int64_t(duration + (wait_for_multichan ? 0 : INIT_DELAY * 1000));
     const int64_t usecs = int64_t((duration - secs)*1e6);
     std::this_thread::sleep_for(
         std::chrono::seconds(secs) +
@@ -594,6 +595,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
               % num_timeouts_tx
               % num_timeouts_rx
         << std::endl;
+
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 
