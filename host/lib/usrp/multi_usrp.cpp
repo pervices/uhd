@@ -41,8 +41,6 @@ uhd::usrp::multi_usrp::sptr make_rfnoc_device(
 
 }} /* namespace uhd::rfnoc */
 
-//#define MULTI_F_DEBUG
-
 using namespace uhd;
 using namespace uhd::usrp;
 
@@ -54,9 +52,6 @@ const std::string multi_usrp::ALL_LOS   = "all";
 UHD_INLINE std::string string_vector_to_string(
     std::vector<std::string> values, std::string delimiter = std::string(" "))
 {
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     std::string out = "";
     for (std::vector<std::string>::iterator iter = values.begin(); iter != values.end();
          iter++) {
@@ -79,9 +74,6 @@ UHD_INLINE std::string string_vector_to_string(
 static void do_samp_rate_warning_message(
     double target_rate, double actual_rate, const std::string& xx)
 {
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     static const double max_allowed_error = 1.0; // Sps
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
         UHD_LOGGER_WARNING("MULTI_USRP")
@@ -201,30 +193,18 @@ static void do_samp_rate_warning_message(
  * Gain helper functions
  **********************************************************************/
 static double get_gain_value(property_tree::sptr subtree){
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     return subtree->access<double>("value").get();
 }
 
 static void set_gain_value(property_tree::sptr subtree, const double gain){
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     subtree->access<double>("value").set(gain);
 }
 
 static meta_range_t get_gain_range(property_tree::sptr subtree){
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     return subtree->access<meta_range_t>("range").get();
 }
 
 static gain_fcns_t make_gain_fcns_from_subtree(property_tree::sptr subtree){
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     gain_fcns_t gain_fcns;
     gain_fcns.get_range = std::bind(&get_gain_range, subtree);
     gain_fcns.get_value = std::bind(&get_gain_value, subtree);
@@ -382,9 +362,6 @@ static double derive_freq_from_xx_subdev_and_dsp(
     property_tree::sptr dsp_subtree,
     property_tree::sptr rf_fe_subtree)
 {
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     //extract actual dsp and IF frequencies
     const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
     const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
@@ -401,9 +378,6 @@ class multi_usrp_impl : public multi_usrp
 public:
     multi_usrp_impl(device::sptr dev) : _dev(dev)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree = _dev->get_tree();
     }
 
@@ -443,9 +417,6 @@ public:
     [[deprecated("Use get_tx_filter or get_rx_filter")]]
     filter_info_base::sptr get_filter(const std::string &path)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> possible_names = get_filter_names("");
         std::vector<std::string>::iterator it;
         it = find(possible_names.begin(), possible_names.end(), path);
@@ -459,9 +430,6 @@ public:
     [[deprecated("Use set_tx_filter  or set_rx_filter instead")]]
     void set_filter(const std::string &path, filter_info_base::sptr filter)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> possible_names = get_filter_names("");
         std::vector<std::string>::iterator it;
         it = find(possible_names.begin(), possible_names.end(), path);
@@ -473,9 +441,6 @@ public:
     }
 
     dict<std::string, std::string> get_usrp_rx_info(size_t chan){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
 
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
 
@@ -516,9 +481,6 @@ public:
     }
 
     dict<std::string, std::string> get_usrp_tx_info(size_t chan){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
         dict<std::string, std::string> usrp_info;
         const auto mb_eeprom =
@@ -560,9 +522,6 @@ public:
      * Mboard methods
      ******************************************************************/
     void set_master_clock_rate(double rate, size_t mboard){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             if (_tree->exists(mb_root(mboard) / "auto_tick_rate")
                 and _tree->access<bool>(mb_root(mboard) / "auto_tick_rate").get()) {
@@ -579,17 +538,11 @@ public:
     }
 
     double get_master_clock_rate(size_t mboard){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<double>(mb_root(mboard) / "tick_rate").get();
     }
 
     meta_range_t get_master_clock_rate_range(const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(mb_root(mboard) / "tick_rate/range")) {
             return _tree->access<meta_range_t>(
                 mb_root(mboard) / "tick_rate/range"
@@ -607,9 +560,6 @@ public:
 
     std::string get_pp_string(void) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::string buff = str(boost::format("%s USRP:\n"
                                              "  Device: %s\n")
                                % ((get_num_mboards() > 1) ? "Multi" : "Single")
@@ -652,33 +602,21 @@ public:
 
     std::string get_mboard_name(size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<std::string>(mb_root(mboard) / "name").get();
     }
 
     time_spec_t get_time_now(size_t mboard = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<time_spec_t>(mb_root(mboard) / "time/now").get();
     }
 
     time_spec_t get_time_last_pps(size_t mboard = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").get();
     }
 
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
             return;
@@ -690,9 +628,6 @@ public:
 
     void set_time_next_pps(const time_spec_t& time_spec, size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").set(time_spec);
             return;
@@ -704,9 +639,6 @@ public:
 
     void set_time_unknown_pps(const time_spec_t& time_spec) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
         auto end_time =
             std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
@@ -743,9 +675,6 @@ public:
 
     bool get_time_synchronized(void) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         for (size_t m = 1; m < get_num_mboards(); m++) {
             time_spec_t time_0 = this->get_time_now(0);
             time_spec_t time_i = this->get_time_now(m);
@@ -756,9 +685,6 @@ public:
     }
 
     void set_command_time(const time_spec_t &time_spec, size_t mboard){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             if (not _tree->exists(mb_root(mboard) / "time/cmd")) {
                 throw uhd::not_implemented_error(
@@ -773,9 +699,6 @@ public:
     }
 
     void clear_command_time(size_t mboard){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             _tree->access<time_spec_t>(mb_root(mboard) / "time/cmd")
                 .set(time_spec_t(0.0));
@@ -787,9 +710,6 @@ public:
     }
 
     void issue_stream_cmd(const stream_cmd_t &stream_cmd, size_t chan){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             _tree->access<stream_cmd_t>(rx_dsp_root(chan) / "stream_cmd").set(stream_cmd);
             return;
@@ -840,9 +760,6 @@ public:
 
     std::vector<std::string> get_time_sources(const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         const auto time_source_path = mb_root(mboard) / "time_source/options";
         if (_tree->exists(time_source_path)) {
             return _tree->access<std::vector<std::string>>(time_source_path).get();
@@ -860,9 +777,6 @@ public:
 
     void set_clock_source(const std::string& source, const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             const auto clock_source_path = mb_root(mboard) / "clock_source/value";
             const auto sync_source_path  = mb_root(mboard) / "sync_source/value";
@@ -884,9 +798,6 @@ public:
 
     std::string get_clock_source(const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         const auto clock_source_path = mb_root(mboard) / "clock_source/value";
         if (_tree->exists(clock_source_path)) {
             return _tree->access<std::string>(mb_root(mboard) / "clock_source" / "value")
@@ -906,9 +817,6 @@ public:
         const std::string& time_source,
         const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         device_addr_t sync_args;
         sync_args["clock_source"] = clock_source;
         sync_args["time_source"]  = time_source;
@@ -917,9 +825,6 @@ public:
 
     void set_sync_source(const device_addr_t& sync_source, const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             const auto sync_source_path = mb_root(mboard) / "sync_source/value";
             if (_tree->exists(sync_source_path)) {
@@ -945,9 +850,6 @@ public:
 
     device_addr_t get_sync_source(const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         const auto sync_source_path = mb_root(mboard) / "sync_source/value";
         if (_tree->exists(sync_source_path)) {
             return _tree->access<device_addr_t>(sync_source_path).get();
@@ -964,9 +866,6 @@ public:
 
     std::vector<device_addr_t> get_sync_sources(const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         const auto sync_source_path = mb_root(mboard) / "sync_source/options";
         if (_tree->exists(sync_source_path)) {
             return _tree->access<std::vector<device_addr_t>>(sync_source_path).get();
@@ -990,9 +889,6 @@ public:
 
     std::vector<std::string> get_clock_sources(const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         const auto clock_source_path = mb_root(mboard) / "clock_source/options";
         if (_tree->exists(clock_source_path)) {
             return _tree->access<std::vector<std::string>>(clock_source_path).get();
@@ -1010,9 +906,6 @@ public:
 
     void set_clock_source_out(const bool enb, const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             if (_tree->exists(mb_root(mboard) / "clock_source" / "output")) {
                 _tree->access<bool>(mb_root(mboard) / "clock_source" / "output").set(enb);
@@ -1028,9 +921,6 @@ public:
     }
     void set_time_source_out(const bool enb, const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             if (_tree->exists(mb_root(mboard) / "time_source" / "output")) {
                 _tree->access<bool>(mb_root(mboard) / "time_source" / "output").set(enb);
@@ -1047,29 +937,16 @@ public:
 
     size_t get_num_mboards(void) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
-        size_t ret = _tree->list("/mboards").size();
-#ifdef MULTI_F_DEBUG
-        std::cout << "End of: " << __func__ << std::endl;
-#endif
-        return ret;
+        return _tree->list("/mboards").size();
     }
 
     sensor_value_t get_mboard_sensor(const std::string& name, size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<sensor_value_t>(mb_root(mboard) / "sensors" / name).get();
     }
 
     std::vector<std::string> get_mboard_sensor_names(size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(mb_root(mboard) / "sensors")) {
             return _tree->list(mb_root(mboard) / "sensors");
         }
@@ -1079,9 +956,6 @@ public:
     void set_user_register(
         const uint8_t addr, const uint32_t data, size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             typedef std::pair<uint8_t, uint32_t> user_reg_t;
             _tree->access<user_reg_t>(mb_root(mboard) / "user/regs")
@@ -1096,9 +970,6 @@ public:
     wb_iface::sptr get_user_settings_iface(const size_t chan) override
     {
         const auto user_settings_path = rx_rf_fe_root(chan) / "user_settings" / "iface";
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
 
         if (_tree->exists(user_settings_path)) {
             return _tree->access<wb_iface::sptr>(user_settings_path).get();
@@ -1119,9 +990,6 @@ public:
      ******************************************************************/
     rx_streamer::sptr get_rx_stream(const stream_args_t& args) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _check_link_rate(args, false);
         stream_args_t args_ = args;
         if (!args.args.has_key("spp")) {
@@ -1138,9 +1006,6 @@ public:
 
     void set_rx_subdev_spec(const subdev_spec_t& spec, size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             _tree->access<subdev_spec_t>(mb_root(mboard) / "rx_subdev_spec").set(spec);
             return;
@@ -1152,9 +1017,6 @@ public:
 
     subdev_spec_t get_rx_subdev_spec(size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         subdev_spec_t spec =
             _tree->access<subdev_spec_t>(mb_root(mboard) / "rx_subdev_spec").get();
         if (spec.empty()) {
@@ -1176,9 +1038,6 @@ public:
             UHD_LOGGER_INFO("MULTI_USRP")
                 << "Selecting default RX front end spec: " << spec.to_pp_string();
         }
-#ifdef MULTI_F_DEBUG
-        std::cout << "End of: " << __func__ << std::endl;
-#endif
         return spec;
     }
 
@@ -1186,9 +1045,6 @@ public:
     size_t cached_rx_num_channels = 0;
     size_t get_rx_num_channels(void) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if(is_cached_rx_num_channels) return cached_rx_num_channels;
         else {
             size_t sum = 0;
@@ -1208,9 +1064,6 @@ public:
 
     void set_rx_rate(double rate, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
             do_samp_rate_warning_message(rate, get_rx_rate(chan), "RX");
@@ -1227,24 +1080,15 @@ public:
     }
     
     double get_rx_rate(size_t chan){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
     }
 
     meta_range_t get_rx_rates(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<meta_range_t>(rx_dsp_root(chan) / "rate" / "range").get();
     }
 
     tune_result_t set_rx_freq(const tune_request_t &tune_request, size_t chan){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         // If any mixer is driven by an external LO the daughterboard assumes that no CORDIC correction is
         // necessary. Since the LO might be sourced from another daughterboard which would normally apply a
         // cordic correction a manual DSP tune policy should be used to ensure identical configurations across
@@ -1269,18 +1113,12 @@ public:
 
     double get_rx_freq(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return get_device()->get_rx_freq(chan);
     }
 
 
     freq_range_t get_rx_freq_range(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return make_overall_tune_range(
             _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "freq" / "range").get(),
             _tree->access<meta_range_t>(rx_dsp_root(chan) / "freq" / "range").get(),
@@ -1289,9 +1127,6 @@ public:
 
     freq_range_t get_fe_rx_freq_range(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "freq" / "range").get();
     }
 
@@ -1313,9 +1148,6 @@ public:
         const std::string& name = ALL_LOS,
         size_t chan             = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 if (_tree->exists(rx_rf_fe_root(chan) / "los" / ALL_LOS)) {
@@ -1409,9 +1241,6 @@ public:
     void set_rx_lo_export_enabled(
         bool enabled, const std::string& name = ALL_LOS, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 if (_tree->exists(rx_rf_fe_root(chan) / "los" / ALL_LOS)) {
@@ -1444,9 +1273,6 @@ public:
     bool get_rx_lo_export_enabled(
         const std::string& name = ALL_LOS, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 // Special value ALL_LOS support atomically sets the source for all LOs
@@ -1471,9 +1297,6 @@ public:
     double set_rx_lo_freq(
         double freq, const std::string& name = ALL_LOS, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 throw uhd::runtime_error(
@@ -1500,9 +1323,6 @@ public:
 
     double get_rx_lo_freq(const std::string& name = ALL_LOS, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 throw uhd::runtime_error(
@@ -1526,9 +1346,6 @@ public:
     freq_range_t get_rx_lo_freq_range(
         const std::string& name = ALL_LOS, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 throw uhd::runtime_error(
@@ -1552,9 +1369,6 @@ public:
 
     std::vector<std::string> get_tx_lo_names(const size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> lo_names;
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             for (const std::string& name : _tree->list(tx_rf_fe_root(chan) / "los")) {
@@ -1568,9 +1382,6 @@ public:
         const std::string& name = ALL_LOS,
         const size_t chan       = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
@@ -1606,9 +1417,6 @@ public:
     const std::string get_tx_lo_source(
         const std::string& name = ALL_LOS, const size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
                 return _tree
@@ -1629,9 +1437,6 @@ public:
             const std::string &name = ALL_LOS,
             const size_t chan = 0
     ) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
@@ -1665,9 +1470,6 @@ public:
         const std::string& name = ALL_LOS,
         const size_t chan       = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 if (_tree->exists(tx_rf_fe_root(chan) / "los" / ALL_LOS)) {
@@ -1700,9 +1502,6 @@ public:
     bool get_tx_lo_export_enabled(
         const std::string& name = ALL_LOS, const size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
                 return _tree->access<bool>(tx_rf_fe_root(chan) / "los" / name / "export")
@@ -1721,9 +1520,6 @@ public:
         const std::string& name = ALL_LOS,
         const size_t chan       = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 throw uhd::runtime_error("LO frequency must be set for each "
@@ -1749,9 +1545,6 @@ public:
             const std::string &name = ALL_LOS,
             const size_t chan = 0
     ) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 throw uhd::runtime_error("LO frequency must be retrieved for "
@@ -1776,9 +1569,6 @@ public:
     freq_range_t get_tx_lo_freq_range(
         const std::string& name = ALL_LOS, const size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
             if (name == ALL_LOS) {
                 throw uhd::runtime_error("LO frequency range must be retrieved "
@@ -1806,9 +1596,6 @@ public:
      *************************************************************************/
     void set_rx_gain(double gain, const std::string& name, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         /* Check if any AGC mode is enable and if so warn the user */
         if (chan != ALL_CHANS) {
             if (_tree->exists(rx_rf_fe_root(chan) / "gain" / "agc")) {
@@ -1846,9 +1633,6 @@ public:
 
     void set_rx_gain_profile(const std::string& profile, const size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/value")) {
                 _tree->access<std::string>(
@@ -1869,9 +1653,6 @@ public:
 
     std::string get_rx_gain_profile(const size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/value")) {
                 return _tree
@@ -1887,9 +1668,6 @@ public:
 
     std::vector<std::string> get_rx_gain_profile_names(const size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(rx_rf_fe_root(chan) / "gains/all/profile/options")) {
                 return _tree->access<std::vector<std::string>>(
@@ -1905,9 +1683,6 @@ public:
 
     void set_normalized_rx_gain(double gain, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (gain > 1.0 || gain < 0.0) {
             throw uhd::runtime_error("Normalized gain out of range, "
                                      "must be in [0, 1].");
@@ -1920,9 +1695,6 @@ public:
 
     void set_rx_agc(bool enable, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(rx_rf_fe_root(chan) / "gain" / "agc" / "enable")) {
                 _tree->access<bool>(rx_rf_fe_root(chan) / "gain" / "agc" / "enable")
@@ -1941,9 +1713,6 @@ public:
 
     double get_rx_gain(const std::string& name, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         
         try {
             return rx_gain_group(chan)->get_value(name);
@@ -1954,9 +1723,6 @@ public:
 
     double get_normalized_rx_gain(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         gain_range_t gain_range = get_rx_gain_range(ALL_GAINS, chan);
         double gain_range_width = gain_range.stop() - gain_range.start();
         // In case we have a device without a range of gains:
@@ -1975,9 +1741,6 @@ public:
 
     gain_range_t get_rx_gain_range(const std::string& name, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         try {
             return rx_gain_group(chan)->get_range(name);
         } catch (uhd::key_error&) {
@@ -1987,9 +1750,6 @@ public:
 
     std::vector<std::string> get_rx_gain_names(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return rx_gain_group(chan)->get_names();
     }
 
@@ -2046,9 +1806,6 @@ public:
 
     std::vector<std::string> get_rx_antennas(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree
             ->access<std::vector<std::string>>(
                 rx_rf_fe_root(chan) / "antenna" / "options")
@@ -2057,17 +1814,11 @@ public:
 
     void set_rx_bandwidth(double bandwidth, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<double>(rx_rf_fe_root(chan) / "bandwidth" / "value").set(bandwidth);
     }
 
     double get_rx_bandwidth(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<double>(rx_rf_fe_root(chan) / "bandwidth" / "value").get();
     }
 
@@ -2147,9 +1898,6 @@ public:
 
     meta_range_t get_rx_dc_offset_range(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(rx_fe_root(chan) / "dc_offset" / "range")) {
             return _tree
                 ->access<uhd::meta_range_t>(rx_fe_root(chan) / "dc_offset" / "range")
@@ -2163,9 +1911,6 @@ public:
 
     void set_rx_iq_balance(const bool enb, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(rx_rf_fe_root(chan) / "iq_balance" / "enable")) {
                 _tree->access<bool>(rx_rf_fe_root(chan) / "iq_balance" / "enable")
@@ -2183,9 +1928,6 @@ public:
 
     void set_rx_iq_balance(const std::complex<double>& offset, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(rx_fe_root(chan) / "iq_balance" / "value")) {
                 _tree
@@ -2283,9 +2025,6 @@ public:
     uhd::filter_info_base::sptr get_tx_filter(
         const std::string& name, const size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> possible_names = get_tx_filter_names(chan);
         std::vector<std::string>::iterator it;
         it = find(possible_names.begin(), possible_names.end(), name);
@@ -2301,9 +2040,6 @@ public:
         const size_t chan) override
     {
         std::vector<std::string> possible_names = get_tx_filter_names(chan);
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
 
         std::vector<std::string>::iterator it;
         it = find(possible_names.begin(), possible_names.end(), name);
@@ -2319,9 +2055,6 @@ public:
      ******************************************************************/
     tx_streamer::sptr get_tx_stream(const stream_args_t& args) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _check_link_rate(args, true);
 
         return this->get_device()->get_tx_stream(args);
@@ -2329,9 +2062,6 @@ public:
 
     void set_tx_subdev_spec(const subdev_spec_t& spec, size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (mboard != ALL_MBOARDS) {
             _tree->access<subdev_spec_t>(mb_root(mboard) / "tx_subdev_spec").set(spec);
             return;
@@ -2343,9 +2073,6 @@ public:
 
     subdev_spec_t get_tx_subdev_spec(size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         subdev_spec_t spec =
             _tree->access<subdev_spec_t>(mb_root(mboard) / "tx_subdev_spec").get();
         if (spec.empty()) {
@@ -2374,9 +2101,6 @@ public:
     size_t cached_tx_num_channels = 0;
     size_t get_tx_num_channels(void) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if(is_cached_tx_num_channels) return cached_tx_num_channels;
         else {
             size_t sum = 0;
@@ -2391,17 +2115,11 @@ public:
 
     std::string get_tx_subdev_name(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<std::string>(tx_rf_fe_root(chan) / "name").get();
     }
 
     void set_tx_rate(double rate, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
             do_samp_rate_warning_message(rate, get_tx_rate(chan), "TX");
@@ -2414,42 +2132,27 @@ public:
 
     double get_tx_rate(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
     }
 
     meta_range_t get_tx_rates(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<meta_range_t>(tx_dsp_root(chan) / "rate" / "range").get();
     }
 
     tune_result_t set_tx_freq(const tune_request_t& tune_request, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return get_device()->set_tx_freq(tune_request, chan);
     }
 
     double get_tx_freq(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return get_device()->get_tx_freq(chan);
     }
 
 
     freq_range_t get_tx_freq_range(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return make_overall_tune_range(
             _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get(),
             _tree->access<meta_range_t>(tx_dsp_root(chan) / "freq" / "range").get(),
@@ -2458,17 +2161,11 @@ public:
 
     freq_range_t get_fe_tx_freq_range(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "freq" / "range").get();
     }
 
     void set_tx_gain(double gain, const std::string& name, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
 
         get_device()->set_tx_gain(gain, name, chan);
 
@@ -2483,9 +2180,6 @@ public:
 //    }
 
     void set_tx_gain_profile(const std::string& profile, const size_t chan){
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/value")) {
                 _tree->access<std::string>(
@@ -2506,9 +2200,6 @@ public:
 
     std::string get_tx_gain_profile(const size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/value")) {
                 return _tree
@@ -2524,9 +2215,6 @@ public:
 
     std::vector<std::string> get_tx_gain_profile_names(const size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(tx_rf_fe_root(chan) / "gains/all/profile/options")) {
                 return _tree
@@ -2543,9 +2231,6 @@ public:
 
     void set_normalized_tx_gain(double gain, size_t chan = 0) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (gain > 1.0 || gain < 0.0) {
             throw uhd::runtime_error("Normalized gain out of range, must be in [0, 1].");
         }
@@ -2558,9 +2243,6 @@ public:
 
     double get_tx_gain(const std::string& name, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
 
         try {
             return get_device()->get_tx_gain(name, chan);
@@ -2571,9 +2253,6 @@ public:
 
     double get_normalized_tx_gain(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         gain_range_t gain_range = get_tx_gain_range(ALL_GAINS, chan);
         double gain_range_width = gain_range.stop() - gain_range.start();
         // In case we have a device without a range of gains:
@@ -2592,9 +2271,6 @@ public:
 
     gain_range_t get_tx_gain_range(const std::string& name, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         try {
             return tx_gain_group(chan)->get_range(name);
         } catch (uhd::key_error&) {
@@ -2604,9 +2280,6 @@ public:
 
     std::vector<std::string> get_tx_gain_names(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return tx_gain_group(chan)->get_names();
     }
 
@@ -2670,17 +2343,11 @@ public:
 
     void set_tx_bandwidth(double bandwidth, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<double>(tx_rf_fe_root(chan) / "bandwidth" / "value").set(bandwidth);
     }
 
     double get_tx_bandwidth(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         return _tree->access<double>(tx_rf_fe_root(chan) / "bandwidth" / "value").get();
     }
 
@@ -2708,9 +2375,6 @@ public:
 
     std::vector<std::string> get_tx_sensor_names(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> sensor_names;
         if (_tree->exists(rx_rf_fe_root(chan) / "sensors")) {
             sensor_names = _tree->list(tx_rf_fe_root(chan) / "sensors");
@@ -2720,9 +2384,6 @@ public:
 
     void set_tx_dc_offset(const std::complex<double>& offset, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(tx_fe_root(chan) / "dc_offset" / "value")) {
                 _tree
@@ -2742,9 +2403,6 @@ public:
 
     meta_range_t get_tx_dc_offset_range(size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (_tree->exists(tx_fe_root(chan) / "dc_offset" / "range")) {
             return _tree
                 ->access<uhd::meta_range_t>(tx_fe_root(chan) / "dc_offset" / "range")
@@ -2758,9 +2416,6 @@ public:
 
     void set_tx_iq_balance(const std::complex<double>& offset, size_t chan) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         if (chan != ALL_CHANS) {
             if (_tree->exists(tx_fe_root(chan) / "iq_balance" / "value")) {
                 _tree
@@ -2783,9 +2438,6 @@ public:
      ******************************************************************/
     std::vector<std::string> get_gpio_banks(const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> banks;
         if (_tree->exists(mb_root(mboard) / "gpio")) {
             for (const std::string& name : _tree->list(mb_root(mboard) / "gpio")) {
@@ -2805,9 +2457,6 @@ public:
         const uint32_t mask,
         const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> attr_value;
         if (_tree->exists(mb_root(mboard) / "gpio" / bank)) {
             if (_tree->exists(mb_root(mboard) / "gpio" / bank / attr)) {
@@ -2893,9 +2542,6 @@ public:
     uint32_t get_gpio_attr(
         const std::string& bank, const std::string& attr, const size_t mboard) override
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         std::vector<std::string> str_val;
 
         if (_tree->exists(mb_root(mboard) / "gpio" / bank)) {
@@ -3016,9 +2662,6 @@ private:
 
     mboard_chan_pair rx_chan_to_mcp(size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp;
         mcp.chan = chan;
         for (mcp.mboard = 0; mcp.mboard < get_num_mboards(); mcp.mboard++) {
@@ -3033,17 +2676,11 @@ private:
                     "multi_usrp: RX channel %u out of range for configured RX frontends")
                 % chan));
         }
-#ifdef MULTI_F_DEBUG
-        std::cout << "End of: " << __func__ << std::endl;
-#endif
         return mcp;
     }
 
     mboard_chan_pair tx_chan_to_mcp(size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp;
         mcp.chan = chan;
         for (mcp.mboard = 0; mcp.mboard < get_num_mboards(); mcp.mboard++) {
@@ -3063,9 +2700,6 @@ private:
 
     fs_path mb_root(const size_t mboard)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         try {
             const std::string tree_path = "/mboards/" + std::to_string(mboard);
             if (_tree->exists(tree_path)) {
@@ -3082,9 +2716,6 @@ private:
 
     fs_path rx_dsp_root(const size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
 
 
@@ -3117,9 +2748,6 @@ private:
 
     fs_path tx_dsp_root(const size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
 
         if (_tree->exists(mb_root(mcp.mboard) / "tx_chan_dsp_mapping")) {
@@ -3149,9 +2777,6 @@ private:
 
     fs_path rx_fe_root(const size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         try {
             const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
@@ -3165,9 +2790,6 @@ private:
 
     fs_path tx_fe_root(const size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
         try {
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
@@ -3199,9 +2821,6 @@ private:
 
     fs_path rx_rf_fe_root(const size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         try {
             const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
@@ -3216,9 +2835,6 @@ private:
 
     fs_path tx_rf_fe_root(const size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
         try {
             const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
@@ -3233,9 +2849,6 @@ private:
 
     gain_group::sptr rx_gain_group(size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp          = rx_chan_to_mcp(chan);
         const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
         gain_group::sptr gg           = gain_group::make();
@@ -3257,9 +2870,6 @@ private:
 
     gain_group::sptr tx_gain_group(size_t chan)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         mboard_chan_pair mcp          = tx_chan_to_mcp(chan);
         const subdev_spec_pair_t spec = get_tx_subdev_spec(mcp.mboard).at(mcp.chan);
         gain_group::sptr gg           = gain_group::make();
@@ -3284,9 +2894,6 @@ private:
     // and that the rate sum is evenly distributed among the mboards
     bool _check_link_rate(const stream_args_t& args, bool is_tx)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         bool link_rate_is_ok    = true;
         size_t bytes_per_sample = convert::get_bytes_per_item(
             args.otw_format.empty() ? "sc16" : args.otw_format);
@@ -3316,84 +2923,45 @@ private:
 
     // Generic tree setters and getters.
     void set_tree_value(const std::string path, const std::string value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<std::string>(path).set(value);
     }
     void set_tree_value(const std::string path, const double value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<double>(path).set(value);
     }
     void set_tree_value(const std::string path, const int value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<int>(path).set(value);
     }
     void set_tree_value(const std::string path, const time_spec_t value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<time_spec_t>(path).set(value);
     }
     void set_tree_value(const std::string path, const bool value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<bool>(path).set(value);
     }
     void set_tree_value(const std::string path, const stream_cmd_t value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         _tree->access<stream_cmd_t>(path).set(value);
     }
 
     void get_tree_value(const std::string path, std::string& value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         value = _tree->access<std::string>(path).get();
     }
     void get_tree_value(const std::string path, double& value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         value = _tree->access<double>(path).get();
     }
     void get_tree_value(const std::string path, int& value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         value = _tree->access<int>(path).get();
     }
     void get_tree_value(const std::string path, time_spec_t& value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         value = _tree->access<time_spec_t>(path).get();
     }
     void get_tree_value(const std::string path, bool& value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         value = _tree->access<bool>(path).get();
     }
     void get_tree_value(const std::string path, stream_cmd_t& value) {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         value = _tree->access<stream_cmd_t>(path).get();
     }
 
     void dump_tree(const std::string root)
     {
-#ifdef MULTI_F_DEBUG
-        std::cout << "Start of: " << __func__ << std::endl;
-#endif
         for(auto& path : _tree->list(root))
         {
             const std::string full = root + "/" + path;
@@ -3405,9 +2973,6 @@ private:
 
 multi_usrp::~multi_usrp(void)
 {
-#ifdef MULTI_F_DEBUG
-    std::cout << "Start of: " << __func__ << std::endl;
-#endif
     /* NOP */
 }
 
