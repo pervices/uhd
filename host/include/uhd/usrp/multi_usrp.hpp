@@ -577,6 +577,29 @@ public:
      * \throws uhd::not_implemented_error on RFNoC devices, uhd::lookup_error on
      *         other devices if this API is not implemented.
      */
+
+    [[deprecated("Use get_tx_filter_names  or get_rx_filter_names instead")]]
+    virtual std::vector<std::string> get_filter_names(const std::string &search_mask = "") = 0;
+
+    /*!
+     * Return the filter object for the given name, deprecated replaced by get_rx_filter_names and get_tx_filter_names.
+     * \param path the name of the filter as returned from get_filter_names().
+     * \return a filter_info_base::sptr.
+     */
+
+    [[deprecated("Use get_tx_filter  or get_rx_filter instead")]]
+    virtual filter_info_base::sptr get_filter(const std::string &path) = 0;
+
+    [[deprecated("Use get_tx_filter_names  or get_rx_filter_names instead")]]
+    virtual void set_filter(const std::string &path, filter_info_base::sptr filter) = 0;
+
+    /*!
+     * Write back a filter obtained by get_filter() to the signal path.
+     * This filter can be a modified version of the originally returned one.
+     * The information about Rx or Tx is contained in the path parameter.
+     * \param path the name of the filter as returned from get_filter_names().
+     * \param filter the filter_info_base::sptr of the filter object to be written
+     */
     virtual void set_user_register(
         const uint8_t addr, const uint32_t data, size_t mboard = ALL_MBOARDS) = 0;
 

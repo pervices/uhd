@@ -2185,6 +2185,61 @@ public:
     /*******************************************************************
      * Filter API methods
      ******************************************************************/
+    [[deprecated("Use get_tx_filter_names  or get_rx_filter_names instead")]]
+    std::vector<std::string> get_filter_names(const std::string &search_mask)
+    {
+        std::vector<std::string> names;
+        //the odd and inefficient structure of this code is to keep its behaviour as close as possible to the original
+        for(int n = 0; n <get_rx_num_channels(); n++) {
+            std::vector<std::string> ch_names = get_rx_filter_names(n);
+            for(int i = 0; i < ch_names.size(); i++) {
+                if((search_mask.empty()) || ch_names[i].find(search_mask) != std::string::npos) {
+                    names.push_back(ch_names[i]);
+                }
+            }
+        }
+        for(int n = 0; n <get_tx_num_channels(); n++) {
+            std::vector<std::string> ch_names = get_tx_filter_names(n);
+            for(int i = 0; i < ch_names.size(); i++) {
+                if((search_mask.empty()) || ch_names[i].find(search_mask) != std::string::npos) {
+                    names.push_back(ch_names[i]);
+                }
+            }
+        }
+    }
+
+    [[deprecated("Use get_tx_filter  or get_rx_filter instead")]]
+    filter_info_base::sptr get_filter(const std::string &path)
+    {
+#ifdef MULTI_F_DEBUG
+        std::cout << "Start of: " << __func__ << std::endl;
+#endif
+        std::vector<std::string> possible_names = get_filter_names("");
+        std::vector<std::string>::iterator it;
+        it = find(possible_names.begin(), possible_names.end(), path);
+        if (it == possible_names.end()) {
+            throw uhd::runtime_error("Attempting to get non-existing filter: "+path);
+        }
+
+        return _tree->access<filter_info_base::sptr>(path / "value").get();
+    }
+
+    [[deprecated("Use set_tx_filter  or set_rx_filter instead")]]
+    void set_filter(const std::string &path, filter_info_base::sptr filter)
+    {
+#ifdef MULTI_F_DEBUG
+        std::cout << "Start of: " << __func__ << std::endl;
+#endif
+        std::vector<std::string> possible_names = get_filter_names("");
+        std::vector<std::string>::iterator it;
+        it = find(possible_names.begin(), possible_names.end(), path);
+        if (it == possible_names.end()) {
+            throw uhd::runtime_error("Attempting to set non-existing filter: "+path);
+        }
+
+        _tree->access<filter_info_base::sptr>(path / "value").set(filter);
+    }
+
     std::vector<std::string> get_rx_filter_names(const size_t chan) override
     {
         std::vector<std::string> filter_names;
