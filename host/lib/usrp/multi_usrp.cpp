@@ -1127,19 +1127,23 @@ public:
         return spec;
     }
 
+    bool is_cached_rx_num_channels = false;
+    size_t cached_rx_num_channels = 0;
     size_t get_rx_num_channels(void) override
     {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-        size_t sum = 0;
-        for (size_t m = 0; m < get_num_mboards(); m++) {
-            sum += get_rx_subdev_spec(m).size();
+        if(is_cached_rx_num_channels) return cached_rx_num_channels;
+        else {
+            size_t sum = 0;
+            for (size_t m = 0; m < get_num_mboards(); m++) {
+                sum += get_rx_subdev_spec(m).size();
+            }
+            is_cached_rx_num_channels = true;
+            cached_rx_num_channels = sum;
+            return cached_rx_num_channels;
         }
-#ifdef MULTI_F_DEBUG
-        std::cout << "End of: " << __func__ << std::endl;
-#endif
-        return sum;
     }
 
     std::string get_rx_subdev_name(size_t chan) override
@@ -2313,16 +2317,23 @@ public:
         return spec;
     }
 
+    bool is_cached_tx_num_channels = false;
+    size_t cached_tx_num_channels = 0;
     size_t get_tx_num_channels(void) override
     {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
-        size_t sum = 0;
-        for (size_t m = 0; m < get_num_mboards(); m++) {
-            sum += get_tx_subdev_spec(m).size();
+        if(is_cached_tx_num_channels) return cached_tx_num_channels;
+        else {
+            size_t sum = 0;
+            for (size_t m = 0; m < get_num_mboards(); m++) {
+                sum += get_tx_subdev_spec(m).size();
+            }
+            is_cached_tx_num_channels = true;
+            cached_tx_num_channels = sum;
+            return cached_tx_num_channels;
         }
-        return sum;
     }
 
     std::string get_tx_subdev_name(size_t chan) override
