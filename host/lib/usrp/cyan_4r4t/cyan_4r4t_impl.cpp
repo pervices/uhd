@@ -1246,15 +1246,16 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		zcxp.num_send_frames = 0;
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
-
         //Attempts to bind the ips associated with the ip ports
         //It is neccessary for maximum performance when receiving using uhd
         //However if uhd is only being used to start the stream and something else is handling actually receiving the data this error can be ignored
         try {
             _mbc[mb].rx_dsp_xports.push_back(
-                udp_zero_copy::make(
+                udp_stream_zero_copy::make(
                     _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-                    _tree->access<std::string>( rx_link_path / "port" ).get(),
+                    std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
+                    "127.0.0.1",
+                    1,
                     zcxp,
                     bp,
                     device_addr

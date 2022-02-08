@@ -15,11 +15,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "udp_common.hpp"
 #include <uhd/transport/udp_stream_zero_copy.hpp>
 #include <uhd/transport/udp_simple.hpp> //mtu
 #include <uhd/transport/buffer_pool.hpp>
 #include <uhd/utils/log.hpp>
+#include <uhdlib/transport/udp_common.hpp>
 #include <uhdlib/utils/atomic.hpp>
 #include <boost/format.hpp>
 #include <boost/make_shared.hpp>

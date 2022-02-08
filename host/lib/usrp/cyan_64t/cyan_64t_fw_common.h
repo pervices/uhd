@@ -128,4 +128,6 @@
 				( CYAN_64T_VITA_TLR_E      << 7) |\
 				( CYAN_64T_VITA_TLR_PCKCNT << 0) )
 
+#define CYAN_64T_DEBUG_NAME_C "CYAN_64T"
+
 #endif /* INCLUDED_CYAN_64T_FW_COMMON_H */

@@ -131,4 +131,6 @@
 				( CYAN_8T_VITA_TLR_E      << 7) |\
 				( CYAN_8T_VITA_TLR_PCKCNT << 0) )
 
+#define CYAN_8T_DEBUG_NAME_C "CYAN_8T"
+
 #endif /* INCLUDED_CYAN_8T_FW_COMMON_H */
