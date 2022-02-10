@@ -1927,13 +1927,10 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
         int lna_bypass_enable = 0 == lna_val ? 1 : 0;
         _tree->access<int>( rx_rf_fe_root(chan) / "freq" / "lna" ).set( lna_bypass_enable );
 
-        //if ( 0 == _tree->access<int>( cm_root() / "chanmask-rx" ).get() ) {
-            _tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-            _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
-        //} else {
-        //	_tree->access<double>( cm_root() / "rx/atten/val" ).set( atten_val * 4 );
-        //	_tree->access<double>( cm_root() / "rx/gain/val" ).set( gain_val * 4 );
-        //}
+        // the value written to the state tree for crimson is actually 4 times the desired value
+        // this have been changed in cyan, so that you always write the desired gain
+        _tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
+        _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
         return;
     }
 
@@ -1962,6 +1959,8 @@ double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
 
     bool lna_bypass_enable = 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "lna").get() ? false : true;
     double lna_val = lna_bypass_enable ? 0 : 20;
+    // the value written to the state tree for crimson is actually 4 times the desired value
+    // this have been changed in cyan, so that you always write the desired gain
     double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
