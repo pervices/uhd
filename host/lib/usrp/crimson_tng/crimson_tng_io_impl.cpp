@@ -471,9 +471,8 @@ private:
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
     
-    // dt is the time until next send
-    // if dt is close enough (less than timeout) it returns true
-    // the send function in super_send_packet_handler should poll this function until it returns true
+    // timeout must be small but non-zero, polling it at the max rate with result in something triggering,
+    // which results in a 35ms pause every 1s
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
         #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
@@ -481,13 +480,20 @@ private:
         #endif
 
         uhd::time_spec_t now, then, dt;
-		struct timespec req, rem;
+		struct timespec req,rem;
 
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
         then = now + dt;
 
         if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
+#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+            std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
+            std::cout << "dt: " << dt << std::endl;
+            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_TICK_RATE) << std::endl;
+            std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
+            std::cout << "timout: " << timeout << std::endl;
+#endif
             return false;
         }
 
@@ -500,8 +506,23 @@ private:
 			std::cout << ss.str();
 		}
 		#endif
-		
-		return dt.get_real_secs() <= timeout;
+
+		// The time delta (dt) may be negative from the linear interpolator.
+		// In such a case, do not bother with the delay calculations and send right away.
+		if(dt <= 0.0) {
+#ifdef FLOW_CONTROL_DEBUG
+            std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
+            std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+#endif
+			return true;
+        }
+
+        req.tv_sec = (time_t) dt.get_full_secs();
+		req.tv_nsec = dt.get_frac_secs()*1e9;
+
+        nanosleep(&req, &rem);
+
+        return true;
     }
 
     /***********************************************************************
