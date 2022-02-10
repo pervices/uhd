@@ -1339,7 +1339,7 @@ public:
             }
         } else {
             // Return actual RF frequency if the daughterboard doesn't expose it's LO(s)
-            return _tree->access<double>(rx_rf_fe_root(chan) / "freq" / " value").get();
+            return _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
         }
     }
 

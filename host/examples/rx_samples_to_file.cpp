@@ -259,9 +259,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<double>(&rate)->default_value(1e6), "rate of incoming samples")
-        ("freq", po::value<double>(&freq)->default_value(0.0), "RF center frequency in Hz")
-        ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
-            "Offset for frontend LO in Hz (optional)")
+        ("freq", po::value<double>(&freq), "RF center frequency in Hz")
+        ("lo-offset", po::value<double>(&lo_offset), "lo offset for frontend LO in Hz (optional)")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
@@ -332,21 +331,56 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
               << std::endl
               << std::endl;
 
-    // set the center frequency
-    if (vm.count("freq")) { // with default of 0.0 this will always be true
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq / 1e6)
-                  << std::endl;
+    uhd::tune_request_t tune_request(0);
+    
+    // manual lo
+    if(vm.count("lo-offset")) {
         std::cout << boost::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
                   << std::endl;
-        uhd::tune_request_t tune_request(freq, lo_offset);
-        if (vm.count("int-n"))
-            tune_request.args = uhd::device_addr_t("mode_n=integer");
-        usrp->set_rx_freq(tune_request, channel);
+        double target_dsp;
+        if (vm.count("freq")) {
+            target_dsp = freq-lo_offset;
+        } else {
+            target_dsp = 0;
+        }
+        std::cout << boost::format("Setting RX DSP NCO: %f MHz...") % ((freq-lo_offset) / 1e6)
+                << std::endl;
+        //the argument order for a manual tune request specifying nco and lo is nco (Hz), lo (Hz), any value
+        //the 3rd value is there to avoid a conflict with a different overload for the tune request constructor
+        tune_request = uhd::tune_request_t(target_dsp, lo_offset, 0);
+    // automatic lo
+    } else {
+        // initialize freq if it was not set by the user
+        // using a default value in po would result in vm.count treating it as set
+        if(!vm.count("freq")) {
+            freq = 0;
+        }
+        tune_request = uhd::tune_request_t(freq);
+        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq / 1e6)
+                  << std::endl;
+    }
+    
+    if (vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
+    
+    usrp->set_rx_freq(tune_request, channel);
+    
+    if(vm.count("lo-offset")) {
+        double actual_lo = usrp->get_rx_lo_freq("", channel);
+        std::cout << boost::format("Actual RX LO OFFSET: %f MHz...")
+                         % (actual_lo / 1e6)
+                  << std::endl;
+        // there is no command to get the dsp freq directly, but it will be the difference between the total and lo freqs
+        std::cout << boost::format("Actual RX DSP NCO: %f MHz...")
+                         % ((usrp->get_rx_freq(channel)-actual_lo) / 1e6)
+                  << std::endl
+                  << std::endl;
+    } else {
         std::cout << boost::format("Actual RX Freq: %f MHz...")
                          % (usrp->get_rx_freq(channel) / 1e6)
                   << std::endl
                   << std::endl;
     }
+    
 
     // set the rf gain
     if (vm.count("gain")) {
