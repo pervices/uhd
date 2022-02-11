@@ -74,7 +74,8 @@ public:
     }
 
     UHD_INLINE sptr get_new(const double timeout, size_t &index){
-        if (not _claimer.claim_with_wait(timeout)) return sptr();
+        if (not _claimer.claim_with_wait(timeout))
+            return sptr();
 
         #ifdef MSG_DONTWAIT //try a non-blocking recv() if supported
         _len = ::recv(_sock_fd, (char *)_mem, _frame_size, MSG_DONTWAIT);
@@ -84,7 +85,8 @@ public:
         }
         #endif
 
-        if (wait_for_recv_ready(_sock_fd, timeout)){
+        const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
+        if (wait_for_recv_ready(_sock_fd, timeout_ms)){
             _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
             UHD_ASSERT_THROW(_len > 0); // TODO: Handle case of recv error
             index++; //advances the caller's buffer
