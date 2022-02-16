@@ -466,8 +466,8 @@ private:
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
     
-    // dt is the time until next send
-    // if dt is close enough (less than timeout) it returns true
+    // timeout must be small but non-zero, polling it at the max rate with result in something triggering,
+    // which results in a 35ms pause every 1s
     // the send function in super_send_packet_handler should poll this function until it returns true
     
     bool check_fc_condition( const size_t chan, const double & timeout ) {
@@ -477,7 +477,7 @@ private:
         #endif
 
         uhd::time_spec_t now, then, dt;
-		struct timespec req;
+		struct timespec req,rem;
 
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
@@ -514,7 +514,12 @@ private:
 			return true;
         }
 
-        return dt.get_real_secs() <= timeout;
+        req.tv_sec = (time_t) dt.get_full_secs();
+		req.tv_nsec = dt.get_frac_secs()*1e9;
+
+        nanosleep(&req, &rem);
+
+        return true;
     }
 
     /***********************************************************************

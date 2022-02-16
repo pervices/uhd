@@ -1208,6 +1208,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		// Actual frequency values
 		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
 
+        TREE_CREATE_RW(tx_path / chan / "freq" / "i_bias", "tx_"+lc_num+"/rf/freq/i_bias", double, double);
+        TREE_CREATE_RW(tx_path / chan / "freq" / "q_bias", "tx_"+lc_num+"/rf/freq/q_bias", double, double);
+
 		// Power status
 		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 

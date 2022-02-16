@@ -10,11 +10,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/program_options.hpp>
-#include <uhd/utils/safe_main.hpp>
-#include <uhd/utils/thread.hpp>
-#include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
-
 #include <boost/thread/thread.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -30,8 +26,8 @@ namespace po = boost::program_options;
 using namespace std::chrono_literals;
 
 namespace {
-    constexpr auto CLOCK_TIMEOUT = 1000ms;  // 1000mS timeout for external clock locking
-}
+    constexpr auto CLOCK_TIMEOUT = 1000ms; // 1000mS timeout for external clock locking
+} // namespace
 
 using start_time_type = std::chrono::time_point<std::chrono::steady_clock>;
 
@@ -42,6 +38,7 @@ unsigned long long num_overruns      = 0;
 unsigned long long num_underruns     = 0;
 unsigned long long num_rx_samps      = 0;
 unsigned long long num_tx_samps      = 0;
+uint64_t num_tx_attempted = 0;
 unsigned long long num_dropped_samps = 0;
 unsigned long long num_seq_errors    = 0;
 unsigned long long num_seqrx_errors  = 0; // "D"s
@@ -80,7 +77,9 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const start_time_type& start_time,
     std::atomic<bool>& burst_timer_elapsed,
     bool elevate_priority,
-    double rx_delay)
+    double rx_delay,
+    //number of samples to receive per channel
+    uint64_t target_nsamps=0)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
@@ -105,14 +104,13 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     uhd::time_spec_t last_time;
     const double rate = usrp->get_rx_rate();
 
-    uhd::stream_cmd_t cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
-    cmd.num_samps = max_samps_per_packet;
-    if (random_nsamps) {
-        cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE;
-        cmd.num_samps = (rand() % max_samps_per_packet) + 1;
-    }
-    cmd.time_spec  = usrp->get_time_now() + uhd::time_spec_t(rx_delay);
-    cmd.stream_now = (buffs.size() == 1);
+    uhd::stream_cmd_t cmd((target_nsamps == 0)?
+        uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+        uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE
+    );
+    cmd.num_samps = target_nsamps;
+    cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(rx_delay);
+    cmd.stream_now = (0);
     rx_stream->issue_stream_cmd(cmd);
 
     const float burst_pkt_time =
@@ -127,8 +125,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             stop_called = true;
         }
         if (random_nsamps) {
-            cmd.time_spec  = usrp->get_time_now() + uhd::time_spec_t(rx_delay);
-            cmd.num_samps = (rand() % max_samps_per_packet) + 1;
+            cmd.num_samps = rand() % max_samps_per_packet;
             rx_stream->issue_stream_cmd(cmd);
         }
         try {
@@ -189,7 +186,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
 
             case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
-                if (burst_timer_elapsed) {
+                if (burst_timer_elapsed || (target_nsamps != 0 && num_rx_samps >= target_nsamps)) {
                     return;
                 }
                 std::cerr << "[" << NOW() << "] Receiver error: " << md.strerror()
@@ -219,7 +216,9 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const size_t spp,
     bool elevate_priority,
     double tx_delay,
-    bool random_nsamps = false)
+    bool random_nsamps=false,
+    //number of samples to send
+    uint64_t target_nsamps=0)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
@@ -245,40 +244,58 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     md.time_spec     = usrp->get_time_now() + uhd::time_spec_t(tx_delay);
 
     const float timeout = 1.0;
+    md.start_of_burst = true;
 
+    int num_tx_channels = tx_stream->get_num_channels();
+    uint64_t target_nsamps_per_channel = target_nsamps/num_tx_channels;
     if (random_nsamps) {
+        // this section is very wrong
+        //TODO: rewrite this
         std::srand((unsigned int)time(NULL));
-        while (not burst_timer_elapsed) {
-            size_t total_num_samps = (rand() % max_samps_per_packet) + 1;
-            size_t num_acc_samps   = 0;
-
-            while (num_acc_samps < total_num_samps) {
-                // send a single packet
-                num_tx_samps += tx_stream->send(buffs, spp, md, timeout)
-                                * tx_stream->get_num_channels();
-                num_acc_samps += std::min(
-                    total_num_samps - num_acc_samps, max_samps_per_packet);
+        while (not burst_timer_elapsed && (num_tx_attempted < target_nsamps || target_nsamps == 0)) {
+            uint64_t samps_to_attempt_now_per_ch;
+            if(target_nsamps != 0) {
+                samps_to_attempt_now_per_ch = std::min((target_nsamps - num_tx_attempted)/num_tx_channels, max_samps_per_packet);
             }
+            else {
+                samps_to_attempt_now_per_ch = max_samps_per_packet;
+            }
+            uint64_t num_tx_samps_sent_now_per_ch = tx_stream->send(buffs, samps_to_attempt_now_per_ch, md);
+            num_tx_samps += num_tx_samps_sent_now_per_ch * num_tx_channels;
+            num_tx_attempted += samps_to_attempt_now_per_ch*num_tx_channels;
+            if (num_tx_samps_sent_now_per_ch == 0) {
+                num_timeouts_tx++;
+                if ((num_timeouts_tx % 10000) == 1) {
+                    std::cerr << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx << std::endl;
+                }
+            }
+            md.start_of_burst = false;
             md.has_time_spec = false;
         }
     } else {
-        while (not burst_timer_elapsed) {
-            const size_t num_tx_samps_sent_now =
-                tx_stream->send(buffs, spp, md, timeout) * tx_stream->get_num_channels();
+        while (not burst_timer_elapsed && (num_tx_attempted < target_nsamps || target_nsamps ==0 )) {
+            uint64_t samps_to_attempt_now_per_ch;
+            if(target_nsamps != 0) {
+                samps_to_attempt_now_per_ch = std::min((target_nsamps - num_tx_attempted)/num_tx_channels, max_samps_per_packet);
+            }
+            else {
+                samps_to_attempt_now_per_ch = max_samps_per_packet;
+            }
+            uint64_t num_tx_samps_sent_now = tx_stream->send(buffs, samps_to_attempt_now_per_ch, md) * num_tx_channels;
             num_tx_samps += num_tx_samps_sent_now;
+            num_tx_attempted += samps_to_attempt_now_per_ch*num_tx_channels;
             if (num_tx_samps_sent_now == 0) {
                 num_timeouts_tx++;
                 if ((num_timeouts_tx % 10000) == 1) {
-                    std::cerr << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx
-                              << std::endl;
+                    std::cerr << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx << std::endl;
                 }
             }
-
+            md.start_of_burst = false;
             md.has_time_spec = false;
         }
     }
 
-    // send a mini EOB packet
+    //send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send(buffs, 0, md);
 }
@@ -336,6 +353,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::string rx_subdev, tx_subdev;
     std::string rx_stream_args, tx_stream_args;
     double duration;
+    int64_t nsamps;
     double rx_rate, tx_rate;
     std::string rx_otw, tx_otw;
     std::string rx_cpu, tx_cpu;
@@ -355,7 +373,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     desc.add_options()
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
-        ("duration", po::value<double>(&duration)->default_value(10.0), "duration for the test in seconds")
+        ("duration", po::value<double>(&duration)->default_value(10.0), "duration for the test in seconds, ignored when using nsamps")
+        ("nsamps", po::value<int64_t>(&nsamps)->default_value(0), "number of samples to receive on each channel")
         ("rx_subdev", po::value<std::string>(&rx_subdev), "specify the device subdev for RX")
         ("tx_subdev", po::value<std::string>(&tx_subdev), "specify the device subdev for TX")
         ("rx_stream_args", po::value<std::string>(&rx_stream_args)->default_value(""), "stream args for RX streamer")
@@ -565,7 +584,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 start_time,
                 burst_timer_elapsed,
                 elevate_priority,
-                rx_delay);
+                rx_delay,
+                nsamps*rx_channel_nums.size()
+            );
         });
         uhd::set_thread_name(rx_thread, "bmark_rx_stream");
     }
@@ -593,7 +614,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 spp,
                 elevate_priority,
                 tx_delay,
-                random_nsamps);
+                random_nsamps,
+                nsamps*tx_channel_nums.size()
+            );
         });
         uhd::set_thread_name(tx_thread, "bmark_tx_stream");
         auto tx_async_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
@@ -603,20 +626,29 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     }
 
-    // sleep for the required duration (add any initial delay)
-    if (vm.count("rx_rate") and vm.count("tx_rate")) {
-        duration += std::max(rx_delay, tx_delay);
-    } else if (vm.count("rx_rate")) {
-        duration += rx_delay;
+    double longer_delay = std::max(tx_delay, rx_delay);
+    if(nsamps == 0) {
+        duration+= longer_delay;
     } else {
-        duration += tx_delay;
+        if(vm.count("rx_rate") && vm.count("tx_rate")){
+            double longer_run_rate = std::min(rx_rate, tx_rate);
+            duration = (nsamps / longer_run_rate) + longer_delay + 1;
+        }
+        else if(vm.count("tx_rate")) duration = (nsamps/tx_rate) + longer_delay + 1;
+        else if(vm.count("rx_rate")) duration = (nsamps/rx_rate) + longer_delay + 1;
+
+        //when using nsamps mode the tests should stop on their own
+        //this setup waits an additional second to give time for host timer innacuracies before attempting to stop the threads
+        //TODO:display erro message if the threads are not finished after waiting in nsamps mode
     }
-    const int64_t secs  = int64_t(duration);
+    const int64_t secs = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
     std::this_thread::sleep_for(
-        std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+        std::chrono::seconds(secs) +
+        std::chrono::microseconds(usecs)
+    );
 
-    // interrupt and join the threads
+    //interrupt and join the threads
     burst_timer_elapsed = true;
     thread_group.join_all();
 
@@ -633,21 +665,32 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     const bool seq_threshold_err = vm.count("seq-threshold")
                                    and num_seq_errors > seq_threshold;
     std::cout << std::endl
-              << boost::format("Benchmark rate summary:\n"
-                               "  Num received samples:     %u\n"
-                               "  Num dropped samples:      %u\n"
-                               "  Num overruns detected:    %u\n"
-                               "  Num transmitted samples:  %u\n"
-                               "  Num sequence errors (Tx): %u\n"
-                               "  Num sequence errors (Rx): %u\n"
-                               "  Num underruns detected:   %u\n"
-                               "  Num late commands:        %u\n"
-                               "  Num timeouts (Tx):        %u\n"
-                               "  Num timeouts (Rx):        %u\n")
-                     % num_rx_samps % num_dropped_samps % num_overruns % num_tx_samps
-                     % num_seq_errors % num_seqrx_errors % num_underruns
-                     % num_late_commands % num_timeouts_tx % num_timeouts_rx
-              << std::endl;
+        << boost::format(
+                "Benchmark rate summary:\n"
+                "  Num received samples:     %u\n"
+                "  Num dropped samples:      %u\n"
+                "  Num overruns detected:    %u\n"
+                "  Num transmitted samples:  %u\n"
+                "  Num transmitted samples attempted:  %u\n"
+                "  Num sequence errors (Tx): %u\n"
+                "  Num sequence errors (Rx): %u\n"
+                "  Num underruns detected:   %u\n"
+                "  Num late commands:        %u\n"
+                "  Num timeouts (Tx):        %u\n"
+                "  Num timeouts (Rx):        %u\n"
+            ) % num_rx_samps
+              % num_dropped_samps
+              % num_overruns
+              % num_tx_samps
+              % num_tx_attempted
+              % num_seq_errors
+              % num_seqrx_errors
+              % num_underruns
+              % num_late_commands
+              % num_timeouts_tx
+              % num_timeouts_rx
+        << std::endl;
+
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 
