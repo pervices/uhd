@@ -250,6 +250,10 @@ private:
     uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_tx_freq(size_t chan = 0);
 
+    std::string get_tx_sfp( size_t chan );
+    std::string get_tx_ip( size_t chan );
+    uint16_t get_tx_fc_port( size_t chan );
+    uint16_t get_tx_udp_port( size_t chan );
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
     void set_tx_gain(double gain, const std::string &name, size_t chan);
     double get_tx_gain(const std::string &name, size_t chan);

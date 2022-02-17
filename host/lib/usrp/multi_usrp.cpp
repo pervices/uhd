@@ -1968,6 +1968,26 @@ public:
 
         _tree->access<filter_info_base::sptr>(fs_path(name) / "value").set(filter);
     }
+    
+    std::string get_tx_sfp(size_t chan) override
+    {
+        return get_device()->get_tx_sfp(chan);
+    }
+    
+    std::string get_tx_ip(size_t chan) override
+    {
+        return get_device()->get_tx_ip(chan);
+    }
+    
+    uint16_t get_tx_fc_port(size_t chan) override
+    {
+        return get_device()->get_tx_fc_port(chan);
+    }
+    
+    uint16_t get_tx_udp_port(size_t chan) override
+    {
+        return get_device()->get_tx_udp_port(chan);
+    }
 
     std::vector<std::string> get_tx_filter_names(const size_t chan) override
     {

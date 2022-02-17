@@ -8,6 +8,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/transport/udp_simple.hpp>
 #include <boost/endian/conversion.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <fstream>
 #include <thread>
@@ -61,19 +62,24 @@ class Fifo
     const size_t channel {0};
 
 public:
-    Fifo(const size_t channel)
+    Fifo(uhd::usrp::multi_usrp::sptr usrp, const size_t channel)
     :
     channel {channel}
     {
-        const std::string port = channel % 2 ? "10.10.11.2" : "10.10.10.2";
-        const std::string ip = "42809";
-        link = uhd::transport::udp_simple::make_connected(port, ip);
+        std::string ip = usrp->get_tx_ip(channel);
+        std::string port = std::to_string(usrp->get_tx_fc_port(channel));
+        link = uhd::transport::udp_simple::make_connected(ip, port);
     }
 
-    uint16_t get_level()
+    uint64_t get_level()
     {
         poke();
-        return peek().header & 0xFFFF;
+        uint64_t lvl = peek().header & 0xFFFF;
+        // Cyan reports the upper 16 bits of the number of DDR locations used
+        lvl = lvl * 8;
+        // Each DDR location uses 512 bits, 32 bits per sample
+        lvl = lvl * 16;
+        return lvl;
     }
 
 private:
@@ -303,6 +309,7 @@ private:
 class Streamer
 {
     uhd::tx_streamer::sptr tx;
+    uhd::usrp::multi_usrp::sptr usrp;
 
     const std::vector<size_t> channels;
 
@@ -313,10 +320,11 @@ public:
     {
         uhd::stream_args_t stream_args("fc32", "sc16");
         stream_args.channels = channels;
+        this->usrp = usrp;
         tx = usrp->get_tx_stream(stream_args);
     }
 
-    void stream(const Buffer buffer, const double start_time, const int setpoint, const double period) const
+    void stream(const Buffer buffer, const double start_time, const int setpoint, const double period, const int samples) const
     {
         //
         // Prime the FPGA FIFO buffer.
@@ -333,6 +341,7 @@ public:
         //
         // Fuzzy flow control begins now. Hit Enter or Ctrl-C to exit and cleanup.
         //
+        uint64_t total_sent = 0;
 
         std::thread thread(Exit::wait);
         while(!Exit::get())
@@ -340,7 +349,7 @@ public:
             std::vector<int> levels;
 
             for(const auto ch : channels)
-                levels.push_back(Fifo(ch).get_level());
+                levels.push_back(Fifo(usrp, ch).get_level());
 
             const int max = *std::max_element(std::begin(levels), std::end(levels));
             const int min = *std::min_element(std::begin(levels), std::end(levels));
@@ -353,15 +362,20 @@ public:
             {
                 // To compensate for the hidden buffer inside FPGA empty_handler, we're
                 // sending an additional 30 more samples.
-                tx->send(buffer.mirrors, setpoint+30, md);
+                uint64_t sent = tx->send(buffer.mirrors, samples, md);
+                total_sent = sent + total_sent;
+//                 std::cout << "sent: " << sent << std::endl;
+//                 std::cout << "total_sent: " << total_sent << std::endl;
                 md.start_of_burst = false;
                 md.has_time_spec = false;
+            } else {
+//                 std::cout << "not sending" << std::endl;
             }
 
             //
             // Print FIFO levels.
             //
-
+            
             for(const auto level : levels)
                 std::cout << level << "\t";
             std::cout << max - min << std::endl;
@@ -411,10 +425,11 @@ public:
     // Channels not to be set from command line.
     //
 
-    const std::vector<size_t> channels = { 0, 1, 2, 3 };
+    std::vector<size_t> channels;
 
     Args(int argc, char* argv[])
     {
+        std::string channel_list;
         namespace po = boost::program_options;
 
         po::options_description description("Command line options");
@@ -431,6 +446,7 @@ public:
             ("path"          , po::value<std::string>(&path          )->default_value("data.txt"), "(Path   ) File path of single column floating point data (Just I, not Q) in range [-1.0, 1.0] to be applied to all device channels")
             ("gating"        , po::value<std::string>(&gating        )->default_value(     "dsp"), "(String ) Gating mode [\"dsp\" | \"output\"]")
             ("edge_debounce" , po::value<int        >(&edge_debounce )->default_value(         0), "(Samples) Number of samples to ignore after first trigger (for debouncing)")
+            ("channels", po::value<std::string>(&channel_list)->default_value("0,1,2,3"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
             ;
 
         po::variables_map vm;
@@ -441,7 +457,13 @@ public:
         {
             std::cout << description << std::endl;
             std::exit(1);
+        }        std::vector<std::string> channel_strings;
+        boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
+        for(size_t ch = 0; ch < channel_strings.size(); ch++){
+            size_t chan = std::stoi(channel_strings[ch]);
+            channels.push_back(chan);
         }
+        
     }
 };
 
@@ -461,7 +483,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Trigger trigger(uhd.usrp, args.channels, args.samples, args.edge_debounce, args.gating);
 
-    streamer.stream(buffer, args.start_time, args.setpoint, args.period);
+    streamer.stream(buffer, args.start_time, args.setpoint, args.period, args.samples);
 
     return 0;
 }

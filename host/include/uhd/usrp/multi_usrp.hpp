@@ -928,6 +928,7 @@ public:
      * \return a vector of strings for possible LO names, or an empty list of
      *         this doesn't apply (i.e. there are no controllable LO stages)
      */
+    
     virtual std::vector<std::string> get_tx_lo_names(size_t chan = 0) = 0;
 
     /*! Set the TX LO source for the USRP device.
@@ -1403,6 +1404,38 @@ public:
      * \param spec the new frontend specification
      * \param mboard the motherboard index 0 to M-1
      * \throws if an invalid spec is provided.
+     */
+    
+    virtual std::string get_tx_sfp( size_t chan ) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    /*! Gets the sfp port to use when interacting with that channel
+     * \param chan the channel index 0 to N-1
+     */
+    
+    virtual std::string get_tx_ip( size_t chan ) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    /*! Gets the IP adress to send the main tx datastream to
+     * \param chan the channel index 0 to N-1
+     */
+    
+    virtual uint16_t get_tx_fc_port(size_t chan ) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    /*! Gets the port used for flow control (getting fifo lvl and clock synchronization
+     * \param chan the channel index 0 to N-1
+     */
+    
+    virtual uint16_t get_tx_udp_port( size_t chan ) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    /*! Gets the udp port to send the main tx datastream to
+     * \param chan the channel index 0 to N-1
      */
     virtual void set_tx_subdev_spec(
         const uhd::usrp::subdev_spec_t& spec, size_t mboard = ALL_MBOARDS) = 0;

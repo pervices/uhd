@@ -1437,6 +1437,51 @@ bool crimson_tng_impl::is_bm_thread_needed() {
 	return r;
 }
 
+std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
+
+	switch( chan ) {
+	case 0:
+	case 2:
+		return "sfpa";
+		break;
+	case 1:
+	case 3:
+		return "sfpb";
+		break; 
+	}
+}
+
+std::string crimson_tng_impl::get_tx_ip( size_t chan ) {
+    
+    std::string sfp = get_tx_sfp(chan);
+
+	const fs_path mb_path = "/mboards/0";
+
+	return _tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
+}
+
+uint16_t crimson_tng_impl::get_tx_fc_port( size_t chan ) {
+    
+    const fs_path mb_path   = "/mboards/0";
+    const fs_path fc_port_path = mb_path / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
+    
+    return (uint16_t) _tree->access<int>( fc_port_path ).get();
+}
+
+uint16_t crimson_tng_impl::get_tx_udp_port( size_t chan ) {
+    
+    const fs_path mb_path   = "/mboards/0";
+	const fs_path prop_path = mb_path / "tx_link";
+
+	const std::string udp_port_str = _tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
+
+	std::stringstream udp_port_ss( udp_port_str );
+    uint16_t udp_port;
+	udp_port_ss >> udp_port;
+    return udp_port;
+}
+
+//TODO: make this use the above functions for getting ip, port, and sfp
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	switch( chan ) {

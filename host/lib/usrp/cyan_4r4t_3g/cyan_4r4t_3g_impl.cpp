@@ -1553,6 +1553,83 @@ int cyan_4r4t_3g_impl::get_rx_xg_intf(int channel) {
     return xg_intf;
 }
 
+std::string cyan_4r4t_3g_impl::get_tx_sfp( size_t chan ) {
+    if ( chan >= CYAN_4R4T_3G_TX_CHANNELS ) {
+        std::string error_msg = CYAN_4R4T_3G_DEBUG_NAME_S " requested sfp port of non-existant channel: " + std::to_string(chan);
+        throw uhd::value_error(error_msg);
+    }
+    if( is_tx_sfp_cached[chan] ) {
+        return tx_sfp_cache[chan];
+    } else {
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path tx_link_path  = mb_path / "tx_link" / chan;
+        tx_sfp_cache[chan] = _tree->access<std::string>( tx_link_path / "iface" ).get();
+        is_tx_sfp_cached[chan] = true;
+        return tx_sfp_cache[chan];
+    }
+}
+
+std::string cyan_4r4t_3g_impl::get_tx_ip( size_t chan ) {
+    if ( chan >= CYAN_4R4T_3G_TX_CHANNELS ) {
+        std::string error_msg = CYAN_4R4T_3G_DEBUG_NAME_S " requested ip of non-existant channel: " + std::to_string(chan);
+        throw uhd::value_error(error_msg);
+    }
+    if( is_tx_ip_cached[chan] ) {
+        return tx_ip_cache[chan];
+    } else {
+        std::string sfp = get_tx_sfp(chan);
+
+        const fs_path mb_path = "/mboards/0";
+        std::cout << mb_path / "link" / sfp / "ip_addr" << std::endl;
+
+        auto tmp =_tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
+        tx_ip_cache[chan] = tmp;
+        is_tx_ip_cached[chan] = true;
+        return tx_ip_cache[chan];
+    }
+}
+
+uint16_t cyan_4r4t_3g_impl::get_tx_fc_port( size_t chan ) {
+    if ( chan >= CYAN_4R4T_3G_TX_CHANNELS ) {
+        std::string error_msg = CYAN_4R4T_3G_DEBUG_NAME_S " requested fc port of non-existant channel: " + std::to_string(chan);
+        throw uhd::value_error(error_msg);
+    }
+    if( is_tx_fc_cached[chan] ) {
+        return tx_fc_cache[chan];
+    } else {
+    
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path fc_port_path = mb_path / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
+    
+        tx_fc_cache[chan] = (uint16_t) _tree->access<int>( fc_port_path ).get();
+        is_tx_fc_cached[chan] = true;
+        return tx_fc_cache[chan];
+    }
+}
+
+uint16_t cyan_4r4t_3g_impl::get_tx_udp_port( size_t chan ) {
+    if ( chan >= CYAN_4R4T_3G_TX_CHANNELS ) {
+        std::string error_msg = CYAN_4R4T_3G_DEBUG_NAME_S " requested udp port of non-existant channel: " + std::to_string(chan);
+        throw uhd::value_error(error_msg);
+    }
+    if( is_tx_udp_port_cached[chan] ) {
+        return tx_udp_port_cache[chan];
+    } else {
+    
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path prop_path = mb_path / "tx_link";
+
+        const std::string udp_port_str = _tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
+
+        std::stringstream udp_port_ss( udp_port_str );
+        uint16_t udp_port;
+        udp_port_ss >> udp_port;
+        tx_udp_port_cache[chan] = udp_port;
+        is_tx_udp_port_cached[chan] = true;
+        return tx_udp_port_cache[chan];
+    }
+}
+
 //figures out which ip address, udp port, and sfp port to use
 //Only tree and chan are actual arguments, the rest are to store the calculated values
 void cyan_4r4t_3g_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
