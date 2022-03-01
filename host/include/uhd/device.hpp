@@ -41,6 +41,7 @@ public:
         CRIMSON_TNG,
         CYAN_8T,
         CYAN_4R4T,
+        CYAN_9R7T,
         CYAN_4R4T_3G,
         CYAN_8R,
         CYAN_16T,
