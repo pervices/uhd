@@ -1891,7 +1891,7 @@ void cyan_9r7t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
     }
 }
 
-double cyan_9r7t_impl::get_tx_gain(const std::string &name, size_t chan) {
+int64_t cyan_9r7t_impl::get_tx_gain(const std::string &name, size_t chan) {
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
 	};
@@ -1901,6 +1901,10 @@ double cyan_9r7t_impl::get_tx_gain(const std::string &name, size_t chan) {
 	};
 
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
+}
+
+double cyan_9r7t_impl::get_tx_buff_scale() {
+    return CYAN_9R7T_BUFF_SCALE;
 }
 
 void cyan_9r7t_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {

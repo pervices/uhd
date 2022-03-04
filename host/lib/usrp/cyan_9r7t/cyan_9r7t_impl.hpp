@@ -272,6 +272,8 @@ private:
     uint16_t get_tx_udp_port( size_t chan );
     
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
+    
+    int64_t get_tx_buff_scale();
 
     int get_rx_xg_intf(int channel);
 

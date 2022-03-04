@@ -220,6 +220,13 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
 
     }
+    
+    /*!
+     * Get the number of samples in the buffer per number reported in packets sent to fif udp port
+     */
+    virtual int64_t get_tx_buff_scale(){
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
 
     virtual void set_rx_gain(double gain, const std::string &name, size_t chan){
         (void) gain;

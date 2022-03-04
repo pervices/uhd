@@ -1434,6 +1434,11 @@ public:
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
+    
+    virtual int64_t get_tx_buff_scale() {
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    
     /*! Gets the udp port to send the main tx datastream to
      * \param chan the channel index 0 to N-1
      */

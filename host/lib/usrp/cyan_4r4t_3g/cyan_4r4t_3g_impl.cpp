@@ -1916,6 +1916,10 @@ double cyan_4r4t_3g_impl::get_tx_gain(const std::string &name, size_t chan) {
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
 
+int64_t cyan_4r4t_3g_impl::get_tx_buff_scale() {
+    return CYAN_4R4T_3G_BUFF_SCALE;
+}
+
 void cyan_4r4t_3g_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
     auto mb_root = [&](size_t mboard) -> std::string {

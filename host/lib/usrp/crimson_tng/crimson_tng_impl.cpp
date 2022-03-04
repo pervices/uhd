@@ -1895,6 +1895,9 @@ double crimson_tng_impl::get_tx_gain(const std::string &name, size_t chan) {
     return round(_tree->access<double>(tx_rf_fe_root(chan) / "gain"  / "value").get() / 4);
 }
 
+int64_t crimson_tng_impl::get_tx_buff_scale() {
+    return CRIMSON_TNG_BUFF_SCALE;
+}
 
 void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
 

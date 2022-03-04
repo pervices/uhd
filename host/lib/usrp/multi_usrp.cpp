@@ -2274,6 +2274,13 @@ public:
     {
         return tx_gain_group(chan)->get_names();
     }
+    
+    /*!
+     * Get the number of samples in the buffer per number reported in packets sent to fif udp port
+     */
+    int64_t get_tx_buff_scale(){
+        return get_device()->get_tx_buff_scale();
+    }
 
     /**************************************************************************
      * TX Power Controls

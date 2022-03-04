@@ -60,10 +60,13 @@ class Fifo
     uhd::transport::udp_simple::sptr link;
 
     const size_t channel {0};
+    
+    uhd::usrp::multi_usrp::sptr usrp;
 
 public:
     Fifo(uhd::usrp::multi_usrp::sptr usrp, const size_t channel)
     :
+    usrp {usrp},
     channel {channel}
     {
         std::string ip = usrp->get_tx_ip(channel);
@@ -75,10 +78,9 @@ public:
     {
         poke();
         uint64_t lvl = peek().header & 0xFFFF;
-        // Cyan reports the upper 16 bits of the number of DDR locations used
-        lvl = lvl * 8;
-        // Each DDR location uses 512 bits, 32 bits per sample
-        lvl = lvl * 16;
+        
+        lvl = lvl * usrp->get_tx_buff_scale();
+        
         return lvl;
     }
 
