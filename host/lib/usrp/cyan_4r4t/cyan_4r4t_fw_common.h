@@ -82,6 +82,8 @@
 #define CYAN_4R4T_BUFF_SIZE	(2048*140*512/32)
 //how full the system shoudl try to keep the buffer
 #define CYAN_4R4T_BUFF_PERCENT 0.7
+// conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
+#define CYAN_4R4T_BUFF_SCALE (8 * 16)
 
 // Cyan 4r4t RF Settings
 #define CYAN_4R4T_RF_TX_GAIN_RANGE_START	0.0

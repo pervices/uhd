@@ -1024,6 +1024,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
 	uint16_t lvl = rsp.header & 0xffff;
+    \
+    lvl = lvl * CRIMSON_TNG_BUFF_SCALE;
     
 	pcnt = (double)lvl / CRIMSON_TNG_BUFF_SIZE;
 

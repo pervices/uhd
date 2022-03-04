@@ -1026,13 +1026,8 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
     //fifo level provided by FPGA
 	int64_t lvl = rsp.header & 0xffff;
-    //FPGA reports only 16 bits, but we can store 2048 packets in DDR,
-    //This would require 19 bits. FPGA reports only the 16 upper bits.
-    lvl = lvl *8;
-    //Now lvl is correct in terms of DDR locations used
-    //Each DDR Location can stores 512 bits = 16 samples.
-    //Lvl in terms of samples stored:
-    lvl = lvl*16;
+
+    lvl = lvl * CYAN_4R4T_3G_BUFF_SCALE;
 
 	pcnt = (double)lvl / CYAN_4R4T_3G_BUFF_SIZE;
 
