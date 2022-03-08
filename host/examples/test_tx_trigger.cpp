@@ -166,11 +166,35 @@ private:
     struct Set
     {
         const std::string path;
-        const std::string value;
+        const std::string string_value;
+        const bool use_double;
+        const double double_value;
+        //verify if the porperty set in the state tree matches the value set, certain state tree values are not expected to match
+        const bool verify;
+
+        Set(std::string path, std::string value, bool verify) :
+            path(path),
+            string_value(value),
+            verify(verify),
+            use_double(false),
+            double_value(0)
+        {}
+
+        Set(std::string path, double value, bool verify) :
+            path(path),
+            string_value(""),
+            verify(verify),
+            use_double(true),
+            double_value(value)
+        {}
 
         void print() const
         {
-            std::cout << path << " = " << value << std::endl;
+            if(use_double) {
+                std::cout << path << " = " << string_value << std::endl;
+            } else {
+                std::cout << path << " = " << string_value << std::endl;
+            }
         }
     };
 
@@ -179,45 +203,42 @@ private:
         const std::string root { "/mboards/0/tx/" + std::to_string(channel) + "/" };
         const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channel) + "/" };
         const std::vector<Set> sets {
-            { root + "trigger/sma_mode"       , "edge"                          },
-            { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0"         },
-            { root + "trigger/edge_backoff"   , std::to_string(edge_debounce)   },
-            { root + "trigger/edge_sample_num", std::to_string(samples)         },
-            { root + "trigger/gating"         , gating                          },
-            { "/mboards/0/trigger/sma_dir"    , "in"                            },
-            { "/mboards/0/trigger/sma_pol"    , "positive"                      },
-            { dsp_root + "rstreq"             , "1"                             },
+            { root + "trigger/sma_mode"       , "edge"                          , true},
+            { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0"         , true},
+            { root + "trigger/edge_backoff"   , std::to_string(edge_debounce)   , true},
+            { root + "trigger/edge_sample_num", std::to_string(samples)         , true},
+            { root + "trigger/gating"         , gating                          , true},
+            { "/mboards/0/trigger/sma_dir"    , "in"                            , true},
+            { "/mboards/0/trigger/sma_pol"    , "positive"                      , true},
+            { dsp_root + "rstreq"             , 1.0                             , false},
         };
         return sets;
     }
 
     void apply(const std::vector<Set> sets) const
     {
-        set(sets);
-        check(sets);
-    }
-
-    void set(const std::vector<Set> sets) const
-    {
         for(const auto &set : sets)
         {
-            usrp->set_tree_value(set.path, set.value);
-            set.print();
-        }
-        std::cout << std::endl;
-    }
+            if(set.use_double) {
+                usrp->set_tree_value(set.path, set.double_value);
+                double actual_value;
+                usrp->get_tree_value(set.path, actual_value);
+                std::cout << set.path << "=" << actual_value << std::endl;
 
-    void check(const std::vector<Set> sets) const
-    {
-        for(const auto &set : sets)
-        {
-            std::string value;
-            // skip checking rstreq, since it is self-clearing
-            if (set.path.find("rstreq") == std::string::npos ) {
-                usrp->get_tree_value(set.path, value);
-                assert(value == set.value);
+                if(set.verify) {
+                    assert(set.double_value == actual_value);
+                }
+
+            } else {
+                usrp->set_tree_value(set.path, set.string_value);
+                std::string actual_value;
+                usrp->get_tree_value(set.path, actual_value);
+
+                if (set.verify) {
+                    assert(set.string_value == actual_value);
+                }
             }
-
+            set.print();
         }
     }
 };
