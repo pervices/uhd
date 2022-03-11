@@ -65,6 +65,20 @@ public:
                     ampl * std::exp(J * static_cast<float>(tau * i / wave_table_len));
             }
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
+        } else if (wave_type == "SINE_NO_Q") {
+            static const double tau = 2 * std::acos(-1.0);
+            static const std::complex<float> J(0, 1);
+            // Careful: i is the loop counter, not the imaginary unit
+
+            for (size_t i = 0; i < wave_table_len; i++) {
+                // Directly generate complex sinusoid (a*e^{j 2\pi i/N}). We
+                // create a single rotation. The call site will sub-sample
+                // appropriately to create a sine wave of it's desired frequency
+                _wave_table[i] =
+                    ampl * std::exp(J * static_cast<float>(tau * i / wave_table_len));
+                _wave_table[i] = std::complex<float>(std::real(_wave_table[i]));
+            }
+            _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else {
             throw std::runtime_error("unknown waveform type: " + wave_type);
         }
