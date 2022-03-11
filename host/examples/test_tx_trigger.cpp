@@ -210,7 +210,7 @@ private:
             { root + "trigger/gating"         , gating                          , true},
             { "/mboards/0/trigger/sma_dir"    , "in"                            , true},
             { "/mboards/0/trigger/sma_pol"    , "positive"                      , true},
-            { dsp_root + "rstreq"             , 1.0                             , false},
+            /*{ dsp_root + "rstreq"             , 1.0                             , false},*/
         };
         return sets;
     }
