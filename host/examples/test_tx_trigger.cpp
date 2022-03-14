@@ -267,15 +267,17 @@ public:
 class Buffer
 {
     const std::vector<size_t> channels;
+    const bool iq_swap;
 
 public:
     std::vector<std::complex<float> > buffer;
 
     std::vector<std::complex<float>*> mirrors;
 
-    Buffer(const std::vector<size_t> channels, const std::string path)
+    Buffer(const std::vector<size_t> channels, const std::string path, const bool iq_swap)
     :
-    channels {channels}
+    channels {channels},
+    iq_swap {iq_swap}
     {
         load(path);
         mirror();
@@ -315,7 +317,11 @@ private:
             float val = 0.0f;
             stream >> val;
 
-            buffer.push_back(val);
+            if(iq_swap) {
+                buffer.push_back(std::complex<float>(0.0f, val));
+            } else {
+                buffer.push_back(val);
+            }
         }
     }
 
@@ -444,15 +450,14 @@ public:
 
     int edge_debounce {0};
 
-    //
-    // Channels not to be set from command line.
-    //
-
     std::vector<size_t> channels;
+
+    bool iq_swap;
 
     Args(int argc, char* argv[])
     {
         std::string channel_list;
+
         namespace po = boost::program_options;
 
         po::options_description description("Command line options");
@@ -470,6 +475,7 @@ public:
             ("gating"        , po::value<std::string>(&gating        )->default_value(     "dsp"), "(String ) Gating mode [\"dsp\" | \"output\"]")
             ("edge_debounce" , po::value<int        >(&edge_debounce )->default_value(         0), "(Samples) Number of samples to ignore after first trigger (for debouncing)")
             ("channels", po::value<std::string>(&channel_list)->default_value("0,1,2,3"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
+            ("iq_swap", "Swap i and q in that data packets being send. Useful for debugging purposes only")
             ;
 
         po::variables_map vm;
@@ -480,7 +486,11 @@ public:
         {
             std::cout << description << std::endl;
             std::exit(1);
-        }        std::vector<std::string> channel_strings;
+        }
+
+        iq_swap = vm.count("iq_swap");
+
+        std::vector<std::string> channel_strings;
         boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
         for(size_t ch = 0; ch < channel_strings.size(); ch++){
             size_t chan = std::stoi(channel_strings[ch]);
@@ -498,7 +508,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Streamer streamer(uhd.usrp, args.channels);
 
-    Buffer buffer(args.channels, args.path);
+    Buffer buffer(args.channels, args.path, args.iq_swap);
 
     //
     // Trigger class will destruct and cleanup SMA settings on Exit signal.
