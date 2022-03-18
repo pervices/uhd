@@ -117,6 +117,7 @@ public:
      * \param timeout the timeout in seconds to wait for a message
      * \return true when the async_metadata is valid, false for timeout
      */
+
     virtual bool recv_async_msg(
         async_metadata_t& async_metadata, double timeout = 0.1) = 0;
 
@@ -155,6 +156,36 @@ public:
      * \param tune_request tune request instructions
      * \param chan the channel index 0 to N-1
      * \return a tune result object
+     */
+
+    virtual void tx_trigger_setup(
+        std::vector<size_t> channels,
+        ssize_t buffer_setpoint,
+        uint64_t num_samples_per_trigger
+    ) {
+        (void) channels;
+        (void) buffer_setpoint;
+        (void) num_samples_per_trigger;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Configures the unit for trigger streaming. Note that is will cause the selected channels to stop using buffer level prediction
+     * \param channels list of channels
+     * \param buffer_setpoint target buffer level
+     * \param num_samples_per_trigger number of samples to send per trigger event
+     */
+
+    virtual void tx_trigger_cleanup(
+        std::vector<size_t> channels
+    ) {
+        (void) channels;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Cleans up changes from normal mode made by tx_trigger_setup
+     * \param channels list of channels
      */
     
     virtual std::string get_tx_sfp(size_t chan ) {

@@ -169,6 +169,8 @@ static void shutdown_lingering_rx_streamers() {
 class cyan_4r4t_3g_send_packet_streamer : public sph::send_packet_streamer {
 public:
 
+    std::shared_ptr<std::vector<bool>> streamer_use_simple_fc;
+    std::shared_ptr<std::vector<ssize_t>> streamer_simple_fc_setpoint;
 	typedef boost::function<void(void)> onfini_type;
 	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
 	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
@@ -183,6 +185,7 @@ public:
 		_samp_rate( 1.0 ),
 		_streaming( false ),
 		_stop_streaming( false ) // icelandic (viking) for bye
+
 
 	{
 	}
@@ -471,45 +474,60 @@ private:
     // the send function in super_send_packet_handler should poll this function until it returns true
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
-        #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-        static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
-        #endif
+        if(BOOST_LIKELY(!streamer_use_simple_fc->at(chan))) {
 
-        uhd::time_spec_t now, then, dt;
-		struct timespec req, rem;
-
-        now = get_time_now();
-        dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
-        then = now + dt;
-
-        if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
 #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-            std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
-            std::cout << "dt: " << dt << std::endl;
-            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_3G_TICK_RATE) << std::endl;
-            std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
-            std::cout << "timout: " << timeout << std::endl;
+            static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
 #endif
-            return false;
+
+            uhd::time_spec_t now, then, dt;
+            struct timespec req, rem;
+
+            now = get_time_now();
+            dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
+            then = now + dt;
+
+            if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
+#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+                std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
+                std::cout << "dt: " << dt << std::endl;
+                std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_3G_TICK_RATE) << std::endl;
+                std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
+                std::cout << "timout: " << timeout << std::endl;
+#endif
+                return false;
+            }
+
+#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+            if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
+                last_print_time = now;
+                next_print_time = last_print_time + 0.2;
+                std::stringstream ss;
+                ss << now << ": " << _eprops.at(chan).name << ": Queued " << std::dec << _actual_num_samps << " Buffer Level: " << std::dec << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl << std::flush;
+                std::cout << ss.str();
+            }
+#endif
+
+            return dt.get_real_secs() <= timeout;
+            req.tv_sec = (time_t) dt.get_full_secs();
+            req.tv_nsec = dt.get_frac_secs()*1e9;
+
+            nanosleep(&req, &rem);
+
+            return dt.get_full_secs() < timeout;
+        } else {
+            bool send_now = _eprops.at( chan ).flow_control->get_buffer_level_no_prediction() < streamer_simple_fc_setpoint->at(chan);
+            if(send_now) return true;
+            else {
+                // The function that calls function will call it repeatedly until it returns true. This delay creates some rest between checks
+                // It is done here since in the normal mode its delay is determined by predicted time to send
+                struct timespec req, rem;
+                req.tv_sec = (time_t)(int64_t)timeout;
+                req.tv_nsec = (time_t)(int64_t)((timeout - (int64_t)timeout)*1e9);
+                nanosleep(&req, &rem);
+                return false;
+            }
         }
-
-		#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-		if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
-			last_print_time = now;
-			next_print_time = last_print_time + 0.2;
-			std::stringstream ss;
-			ss << now << ": " << _eprops.at(chan).name << ": Queued " << std::dec << _actual_num_samps << " Buffer Level: " << std::dec << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl << std::flush;
-			std::cout << ss.str();
-		}
-		#endif
-
-        return dt.get_real_secs() <= timeout;
-        req.tv_sec = (time_t) dt.get_full_secs();
-		req.tv_nsec = dt.get_frac_secs()*1e9;
-
-        nanosleep(&req, &rem);
-
-        return dt.get_full_secs() < timeout;
     }
 
     /***********************************************************************
@@ -1101,6 +1119,10 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
         xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
     std::shared_ptr<cyan_4r4t_3g_send_packet_streamer> my_streamer = std::make_shared<cyan_4r4t_3g_send_packet_streamer>( spp );
+
+    // Pointers to arrays indicating how many samples to use, and if to disable flow control and only send packets when the buffer says its below the setpoint
+    my_streamer->streamer_use_simple_fc = use_simple_fc;
+    my_streamer->streamer_simple_fc_setpoint = simple_fc_setpoint;
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

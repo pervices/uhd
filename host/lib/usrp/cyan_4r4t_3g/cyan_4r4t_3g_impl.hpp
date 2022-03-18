@@ -255,6 +255,20 @@ private:
     uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_tx_freq(size_t chan = 0);
 
+    // Stores whther or not to disable predictive buffer management
+    // Note: this system is extremely slow
+    std::shared_ptr<std::vector<bool>> use_simple_fc = std::make_shared<std::vector<bool>>(CYAN_4R4T_3G_TX_CHANNELS, false );
+    // Stores the target buffer level. Only used when predictive buffer management is disabled
+    std::shared_ptr<std::vector<ssize_t>> simple_fc_setpoint = std::make_shared<std::vector<ssize_t>>(CYAN_4R4T_3G_TX_CHANNELS, 0);
+    void tx_trigger_setup(
+        std::vector<size_t> channels,
+        ssize_t buffer_setpoint,
+        uint64_t num_samples_per_trigger
+    );
+    void tx_trigger_cleanup(
+        std::vector<size_t> channels
+    );
+
     bool is_tx_sfp_cached[CYAN_4R4T_3G_TX_CHANNELS] = {0};
     std::string tx_sfp_cache[CYAN_4R4T_3G_TX_CHANNELS];
     std::string get_tx_sfp( size_t chan );
