@@ -22,13 +22,16 @@
 #include <chrono>
 #include <thread>
 
-//#define DEBUG_TX_WAVE 1
-//#define DEBUG_TX_WAVE_STEP 1
-
-//wait for user to press cntrl c before closing
-//#define DELAYED_EXIT
 
 namespace po = boost::program_options;
+
+static std::atomic<bool> stop_signal_called(false);
+void sig_int_handler(int){
+#ifdef DEBUG_TX_WAVE
+    std::cout << "stop_signal_called" << std::endl;
+#endif
+    stop_signal_called = true;
+}
 
 void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *> buffs, double start_time, uint64_t num_pulses, size_t samples_per_pulse) {
     uhd::tx_metadata_t md;
@@ -37,7 +40,7 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     md.has_time_spec  = true;
     md.time_spec = uhd::time_spec_t(start_time);
 
-    for(uint64_t pulses_sent = 0; (pulses_sent < num_pulses || num_pulses ==0); pulses_sent++)
+    for(uint64_t pulses_sent = 0; ((pulses_sent < num_pulses || num_pulses == 0) && !stop_signal_called); pulses_sent++)
     {
         //this statement will block until the data is sent
         //send the entire contents of the buffer
@@ -227,12 +230,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         buff[n] = wave_table(index += step);
     }
 
+    std::signal(SIGINT, &sig_int_handler);
     usrp->tx_trigger_setup(channel_nums, setpoint, samples_per_pulse);
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     usrp->set_time_now(0.0);
 
-    std::cout << "Starting streaming" << std::endl;
+    std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
     std::thread tx_thread (tx_run, tx_stream, buffs, start_time, num_pulses, samples_per_pulse);
 
