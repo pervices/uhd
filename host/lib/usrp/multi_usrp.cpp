@@ -2446,6 +2446,19 @@ public:
         get_device()->tx_trigger_cleanup(channels);
     }
 
+    void rx_trigger_setup(
+        std::vector<size_t> channels,
+        uint64_t num_samples_per_trigger
+    ) {
+        get_device()->rx_trigger_setup(channels, num_samples_per_trigger);
+    }
+
+    void rx_trigger_cleanup(
+        std::vector<size_t> channels
+    ) {
+        get_device()->rx_trigger_cleanup(channels);
+    }
+
     /*******************************************************************
      * GPIO methods
      ******************************************************************/

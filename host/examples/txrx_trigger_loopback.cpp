@@ -21,6 +21,10 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <fstream>
+#include <boost/filesystem.hpp>
+
+#include <uhd/types/tune_request.hpp>
 
 
 namespace po = boost::program_options;
@@ -33,18 +37,18 @@ void sig_int_handler(int){
     stop_signal_called = true;
 }
 
-void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *> buffs, double start_time, uint64_t num_pulses, size_t samples_per_pulse) {
+void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *> buffs, double start_time, uint64_t num_trigger, size_t samples_per_trigger) {
     uhd::tx_metadata_t md;
     md.start_of_burst = true;
     md.end_of_burst   = false;
     md.has_time_spec  = true;
     md.time_spec = uhd::time_spec_t(start_time);
 
-    for(uint64_t pulses_sent = 0; ((pulses_sent < num_pulses || num_pulses == 0) && !stop_signal_called); pulses_sent++)
+    for(uint64_t pulses_sent = 0; ((pulses_sent < num_trigger || num_trigger == 0) && !stop_signal_called); pulses_sent++)
     {
         //this statement will block until the data is sent
         //send the entire contents of the buffer
-        tx_stream->send(buffs, samples_per_pulse, md);
+        tx_stream->send(buffs, samples_per_trigger, md);
 
         md.start_of_burst = false;
         md.has_time_spec = false;
@@ -55,6 +59,58 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     tx_stream->send("", 0, md);
 }
 
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory) {
+    uhd::rx_metadata_t previous_md;
+    bool first_packet_of_trigger = true;
+    // setup streaming
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
+
+    //num_samps is not relevant in our current mode, only in nsamps mode
+    stream_cmd.num_samps  = size_t(0);
+    stream_cmd.stream_now = false;
+    stream_cmd.time_spec  = uhd::time_spec_t(start_time);
+
+    rx_stream->issue_stream_cmd(stream_cmd);
+
+    // The buffer must be able to hold a full buffer's worth of data plus data from one more packet
+    std::vector<std::complex<short>> buff(samples_per_trigger*2);
+
+    uint64_t num_trigger_passed = 0;
+    size_t num_samples_this_trigger = 0;
+    while((num_trigger_passed < num_trigger || num_trigger == 0) && !stop_signal_called) {
+        uhd::rx_metadata_t this_md;
+        // The receive command is will to accept more samples than expected in order to detect if the unit is sending to many samples
+        size_t samples_this_packet = rx_stream->recv(&buff.at(num_samples_this_trigger), (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
+        // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
+        if(this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) {
+            std::cout << "Saving result from trigger " << num_trigger_passed << " containing " << num_samples_this_trigger << " samples" << std::endl;
+            std::string burst_path = burst_directory + "/burst_" + std::to_string(num_trigger_passed) + "_result.dat";
+            std::ofstream outfile;
+            outfile.open(burst_path.c_str(), std::ofstream::binary);
+            outfile.write((const char*)&buff.front(), num_samples_this_trigger * sizeof(buff.at(0)));
+            outfile.close();
+            first_packet_of_trigger = true;
+
+            // Copies the data from the most recent packet received (first packet of a new burst) to the start of the buffer
+            auto start_of_this_packet_data = std::next(buff.begin(), num_samples_this_trigger);
+            auto end_of_this_packet_data = std::next(buff.begin(), num_samples_this_trigger + samples_this_packet);
+            std::copy(start_of_this_packet_data, end_of_this_packet_data, std::next(buff.begin()));
+
+            num_samples_this_trigger = samples_this_packet;
+            num_trigger_passed++;
+
+        } else{
+            previous_md = this_md;
+            num_samples_this_trigger += samples_this_packet;
+            first_packet_of_trigger = false;
+        }
+    }
+
+    stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
+    rx_stream->issue_stream_cmd(stream_cmd);
+
+}
+
 /***********************************************************************
  * Main function
  **********************************************************************/
@@ -62,9 +118,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, wave_type, channel_list;
-    size_t samples_per_pulse;
-    uint64_t num_pulses, setpoint;
+    std::string args, wave_type, channel_list, results_directory;
+    size_t samples_per_trigger;
+    uint64_t num_trigger, setpoint;
     double rate, freq, tx_gain, rx_gain, wave_freq, start_time;
     float ampl;
 
@@ -85,9 +141,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         //SIN_NO_Q can also be used to generate a sinwave without the q component, whichi s useful when debugging the FPGA
         ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
-        ("num_pulses", po::value<uint64_t>(&num_pulses)->default_value(0), "Number of pulses to send. Set to 0 for continuous")
-        ("samples_per_pulse", po::value<size_t>(&samples_per_pulse), "Number of samples to send per pulse")
+        ("num_trigger", po::value<uint64_t>(&num_trigger)->default_value(0), "Number of trigger event results to record. Set to 0 for continuous")
+        ("samples_per_trigger", po::value<size_t>(&samples_per_trigger), "Number of samples to send per trigger, default 10 * num_trigger")
         ("setpoint", po::value<uint64_t>(&setpoint), "Target buffer level")
+        ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
     ;
@@ -117,17 +174,22 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     // Check if the user specified the pulse length
-    if (not vm.count("samples_per_pulse")){
-        std::cerr << "Please specify the number of samples per pulse with --samples_per_pulse" << std::endl;
+    if (not vm.count("samples_per_trigger")){
+        std::cerr << "Please specify the number of samples per pulse with --samples_per_trigger" << std::endl;
+        return ~0;
+    }
+
+    if(samples_per_trigger ==0) {
+        std::cerr << "samples_per_trigger must not be 0" << std::endl;
         return ~0;
     }
 
     if(not vm.count("setpoint")) {
-        setpoint = 10 * samples_per_pulse;
+        setpoint = 10 * samples_per_trigger;
     }
 
-    if (samples_per_pulse > setpoint) {
-        std::cerr << "Setpoint must be greater than samples_per_pulse" << std::endl;
+    if (samples_per_trigger > setpoint) {
+        std::cerr << "Setpoint must be greater than samples_per_trigger" << std::endl;
     }
 
     //create a usrp device
@@ -141,7 +203,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
     for(size_t ch = 0; ch < channel_strings.size(); ch++){
         size_t chan = std::stoi(channel_strings[ch]);
-        if(chan >= usrp->get_tx_num_channels())
+        if(chan >= usrp->get_tx_num_channels() || chan >= usrp->get_rx_num_channels())
             throw std::runtime_error("Invalid channel(s) specified.");
         else
             channel_nums.push_back(std::stoi(channel_strings[ch]));
@@ -218,31 +280,58 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("fc32");
+    uhd::stream_args_t stream_args("sc16");
     stream_args.channels = channel_nums;
-    uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
+    uhd::tx_streamer::sptr tx_stream;
+    if(use_tx) {
+        tx_stream = usrp->get_tx_stream(stream_args);
+    }
 
-    std::vector<std::complex<float> > buff(samples_per_pulse);
-    std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
+    std::vector<std::complex<float> > tx_buff(samples_per_trigger);
+    std::vector<std::complex<float> *> tx_buffs(channel_nums.size(), &tx_buff.front());
 
     //Fill up the buffer. The same data should be sent for every pulse
-    for (size_t n = 0; n < buff.size(); n++) {
-        buff[n] = wave_table(index += step);
+    for (size_t n = 0; n < tx_buff.size(); n++) {
+        tx_buff[n] = wave_table(index += step);
+    }
+
+    uhd::rx_streamer::sptr rx_stream;
+    if(use_rx) {
+        rx_stream = usrp->get_rx_stream(stream_args);
     }
 
     std::signal(SIGINT, &sig_int_handler);
-    usrp->tx_trigger_setup(channel_nums, setpoint, samples_per_pulse);
+    if(use_tx) {
+        usrp->tx_trigger_setup(channel_nums, setpoint, samples_per_trigger);
+    }
+    if(use_rx) {
+        usrp->rx_trigger_setup(channel_nums, samples_per_trigger);
+    }
+
+    if(use_rx) {
+        // This function is in the standard library of c++17
+        boost::filesystem::create_directories(results_directory);
+    }
+
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     usrp->set_time_now(0.0);
 
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
-    std::thread tx_thread (tx_run, tx_stream, buffs, start_time, num_pulses, samples_per_pulse);
+    std::thread tx_thread;
+    if(use_tx) {
+        tx_thread = std::thread(tx_run, tx_stream, tx_buffs, start_time, num_trigger, samples_per_trigger);
+    }
+
+    //TODO make this asynchronous
+    rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory);
 
     // Wait for tx to finish
-    tx_thread.join();
-    usrp->tx_trigger_cleanup(channel_nums);
+    if(use_tx) {
+        tx_thread.join();
+        usrp->tx_trigger_cleanup(channel_nums);
+    }
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;

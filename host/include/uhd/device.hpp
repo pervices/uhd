@@ -183,8 +183,30 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
+    virtual void rx_trigger_setup(
+        std::vector<size_t> channels,
+        uint64_t num_samples_per_trigger
+    ) {
+        (void) channels;
+        (void) num_samples_per_trigger;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
     /*!
-     * Cleans up changes from normal mode made by tx_trigger_setup
+     * Configures the unit to stream when the trigger is activated
+     * \param channels list of channels
+     * \param num_samples_per_trigger number of samples to send per trigger event
+     */
+
+    virtual void rx_trigger_cleanup(
+        std::vector<size_t> channels
+    ) {
+        (void) channels;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Cleans up changes from normal mode made by rx_trigger_setup
      * \param channels list of channels
      */
     
