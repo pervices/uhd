@@ -1613,7 +1613,12 @@ void cyan_4r4t_3g_impl::rx_trigger_setup(
 void cyan_4r4t_3g_impl::rx_trigger_cleanup(
     std::vector<size_t> channels
 ) {
-    std::cout << "TODO: implement cleanup" << std::endl;
+    for(size_t n = 0; n < channels.size(); n++) {
+        const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "stream").set("0");
+        _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
+        _tree->access<std::string>(root + "trigger/trig_sel").set("0");
+    }
 }
 
 std::string cyan_4r4t_3g_impl::get_tx_sfp( size_t chan ) {
