@@ -1097,6 +1097,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
+    TREE_CREATE_RW(mb_path / "link" / "sfp_reset", "fpga/link/sfp_reset", int, int);
+
     // This is the master clock rate
     TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_4R4T_3G_TICK_RATE);
 
@@ -1618,6 +1620,8 @@ void cyan_4r4t_3g_impl::rx_trigger_cleanup(
         _tree->access<std::string>(root + "stream").set("0");
         _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
         _tree->access<std::string>(root + "trigger/trig_sel").set("0");
+        // Due to a issue with the fpga, remove the sfp reset when fixed
+        _tree->access<std::string>("/mboards/0/sfp_reset").set("1");
     }
 }
 
