@@ -63,10 +63,10 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     uhd::rx_metadata_t previous_md;
     bool first_packet_of_trigger = true;
     // setup streaming
-    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE);
 
     //num_samps is not relevant in our current mode, only in nsamps mode
-    stream_cmd.num_samps  = size_t(0);
+    stream_cmd.num_samps  = size_t(samples_per_trigger);
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(start_time);
 
