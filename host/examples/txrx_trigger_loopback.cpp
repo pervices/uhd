@@ -71,8 +71,14 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
 
     rx_stream->issue_stream_cmd(stream_cmd);
 
+    // Vector containing each buffer
     // The buffer must be able to hold a full buffer's worth of data plus data from one more packet
-    std::vector<std::complex<short>> buff(samples_per_trigger*2);
+    std::vector<std::vector<std::complex<float>>> buffs(channel_nums.size(), std::vector<std::complex<float>>(samples_per_trigger*2));
+
+    // Vector pointing to each buffer
+    std::vector<std::complex<float>*> buff_ptrs;
+    for (size_t i = 0; i < buffs.size(); i++)
+        buff_ptrs.push_back(&buffs[i].front());
 
     bool vita_enabled = true;
 
@@ -81,7 +87,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     while((num_trigger_passed < num_trigger || num_trigger == 0) && !stop_signal_called) {
         uhd::rx_metadata_t this_md;
         // The receive command is will to accept more samples than expected in order to detect if the unit is sending to many samples
-        size_t samples_this_packet = rx_stream->recv(&buff.at(num_samples_this_trigger), (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
+        size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)
         if(vita_enabled) {
@@ -95,17 +101,19 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
         if(this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) {
             std::cout << "Saving result from trigger " << num_trigger_passed << " containing " << num_samples_this_trigger << " samples" << std::endl;
-            std::string burst_path = burst_directory + "/burst_" + std::to_string(num_trigger_passed) + "_result.dat";
-            std::ofstream outfile;
-            outfile.open(burst_path.c_str(), std::ofstream::binary);
-            outfile.write((const char*)&buff.front(), num_samples_this_trigger * sizeof(buff.at(0)));
-            outfile.close();
-            first_packet_of_trigger = true;
+            for(size_t n = 0; n < buffs.size(); n++) {
+                std::string burst_path = burst_directory + "/burst_" + std::to_string(num_trigger_passed) + "ch_" + std::to_string(channel_nums[n]) + "_result.dat";
+                std::ofstream outfile;
+                outfile.open(burst_path.c_str(), std::ofstream::binary);
+                outfile.write((const char*)buff_ptrs[n], num_samples_this_trigger * sizeof(buffs[n].at(0)));
+                outfile.close();
 
-            // Copies the data from the most recent packet received (first packet of a new burst) to the start of the buffer
-            auto start_of_this_packet_data = std::next(buff.begin(), num_samples_this_trigger);
-            auto end_of_this_packet_data = std::next(buff.begin(), num_samples_this_trigger + samples_this_packet);
-            std::copy(start_of_this_packet_data, end_of_this_packet_data, std::next(buff.begin()));
+                // Copies the data from the most recent packet received (first packet of a new burst) to the start of the buffer
+                auto start_of_this_packet_data = std::next(buffs[n].begin(), num_samples_this_trigger);
+                auto end_of_this_packet_data = std::next(buffs[n].begin(), num_samples_this_trigger + samples_this_packet);
+                std::copy(start_of_this_packet_data, end_of_this_packet_data, std::next(buffs[n].begin()));
+            }
+            first_packet_of_trigger = true;
 
             num_samples_this_trigger = samples_this_packet;
             num_trigger_passed++;
