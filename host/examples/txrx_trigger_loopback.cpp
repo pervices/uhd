@@ -59,13 +59,12 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     tx_stream->send("", 0, md);
 }
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory) {
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums) {
     uhd::rx_metadata_t previous_md;
     bool first_packet_of_trigger = true;
     // setup streaming
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE);
 
-    //num_samps is not relevant in our current mode, only in nsamps mode
     stream_cmd.num_samps  = size_t(samples_per_trigger);
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(start_time);
@@ -75,12 +74,24 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     // The buffer must be able to hold a full buffer's worth of data plus data from one more packet
     std::vector<std::complex<short>> buff(samples_per_trigger*2);
 
+    bool vita_enabled = true;
+
     uint64_t num_trigger_passed = 0;
     size_t num_samples_this_trigger = 0;
     while((num_trigger_passed < num_trigger || num_trigger == 0) && !stop_signal_called) {
         uhd::rx_metadata_t this_md;
         // The receive command is will to accept more samples than expected in order to detect if the unit is sending to many samples
         size_t samples_this_packet = rx_stream->recv(&buff.at(num_samples_this_trigger), (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
+        // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
+        // Therefore we need to disable vita (skip waiting for packet)
+        if(vita_enabled) {
+            vita_enabled = false;
+            for(size_t n = 0; n < channel_nums.size(); n++) {
+                const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
+                const std::string value = "0";
+                usrp->set_tree_value(path, value);
+            }
+        }
         // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
         if(this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) {
             std::cout << "Saving result from trigger " << num_trigger_passed << " containing " << num_samples_this_trigger << " samples" << std::endl;
@@ -108,6 +119,14 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
+
+    //re-enables waiting for vita commands (regular stream commands)
+    // Disables the temporary workaround for the lack of STREAM_MODE_NUM_SAMPS_AND_MORE implementation
+    for(size_t n = 0; n < channel_nums.size(); n++) {
+        const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
+        const std::string value = "0";
+        usrp->set_tree_value(path, value);
+    }
 
 }
 
@@ -325,7 +344,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //TODO make this asynchronous
-    rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory);
+    rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums);
 
     // Wait for tx to finish
     if(use_tx) {
