@@ -348,11 +348,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::thread tx_thread;
     if(use_tx) {
+        std::cout << "T0" << std::endl;
         tx_thread = std::thread(tx_run, tx_stream, tx_buffs, start_time, num_trigger, samples_per_trigger);
     }
 
-    //TODO make this asynchronous
-    rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums);
+    if(use_rx) {
+        //TODO make this asynchronous
+        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums);
+    }
 
     // Wait for tx to finish
     if(use_tx) {
