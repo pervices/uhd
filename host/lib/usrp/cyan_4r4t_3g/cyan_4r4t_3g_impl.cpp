@@ -1026,10 +1026,10 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
 
-    static const std::vector<size_t> default_map { 0, 1, 2, 3 };
+    static const std::vector<size_t> default_rx_map CYAN_4R4T_3G_DEFAULT_RX_MAP;
 
-    _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
-    _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
+    _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_rx_map);
+    _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_rx_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_rx_subdev_spec, this, mb, _1));
     _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_tx_subdev_spec, this, mb, _1));
 
@@ -1096,6 +1096,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(mb_path / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
+
+    TREE_CREATE_RW(mb_path / "link" / "sfp_reset", "fpga/link/sfp_reset", int, int);
 
     // This is the master clock rate
     TREE_CREATE_ST(mb_path / "tick_rate", double, CYAN_4R4T_3G_TICK_RATE);
@@ -1552,6 +1554,75 @@ int cyan_4r4t_3g_impl::get_rx_xg_intf(int channel) {
     std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
     int xg_intf = sfp.back() - 'a';
     return xg_intf;
+}
+
+void cyan_4r4t_3g_impl::tx_trigger_setup(
+    std::vector<size_t> channels,
+    ssize_t buffer_setpoint,
+    uint64_t num_samples_per_trigger
+) {
+    for(size_t n = 0; n < channels.size(); n++) {
+        use_simple_fc->at(n) = true;
+        simple_fc_setpoint->at(n) = buffer_setpoint;
+        const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
+        _tree->access<std::string>(root + "trigger/trig_sel").set("1");
+        _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
+        _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
+        _tree->access<std::string>(root + "trigger/gating").set("dsp");
+    }
+    _tree->access<std::string>("/mboards/0/trigger/sma_dir").set("in");
+    _tree->access<std::string>("/mboards/0/trigger/sma_pol").set("positive");
+    for(size_t n = 0; n < channels.size(); n++) {
+        const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channels[n]) + "/" };
+        _tree->access<double>(dsp_root + "rstreq").set(1.0);
+    }
+}
+
+void cyan_4r4t_3g_impl::tx_trigger_cleanup(
+    std::vector<size_t> channels
+) {
+    for(size_t n = 0; n < channels.size(); n++) {
+        use_simple_fc->at(n) = false;
+        const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "stream").set("0");
+        _tree->access<std::string>(root + "trigger/edge_sample_num").set(0);
+    }
+}
+
+void cyan_4r4t_3g_impl::rx_trigger_setup(
+    std::vector<size_t> channels,
+    uint64_t num_samples_per_trigger
+) {
+    for(size_t n = 0; n < channels.size(); n++) {
+        const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "stream").set("0");
+        _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
+        _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
+        _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
+        _tree->access<std::string>(root + "trigger/trig_sel").set("1");
+    }
+
+    _tree->access<std::string>("/mboards/0/trigger/sma_dir").set("in");
+    _tree->access<std::string>("/mboards/0/trigger/sma_pol").set("positive");
+
+    for(size_t n = 0; n < channels.size(); n++) {
+        const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "stream").set("1");
+    }
+}
+
+void cyan_4r4t_3g_impl::rx_trigger_cleanup(
+    std::vector<size_t> channels
+) {
+    for(size_t n = 0; n < channels.size(); n++) {
+        const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "stream").set("0");
+        _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
+        _tree->access<std::string>(root + "trigger/trig_sel").set("0");
+        // Due to a issue with the fpga, remove the sfp reset when fixed
+        _tree->access<std::string>("/mboards/0/sfp_reset").set("1");
+    }
 }
 
 std::string cyan_4r4t_3g_impl::get_tx_sfp( size_t chan ) {

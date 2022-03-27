@@ -28,6 +28,8 @@ public:
 
 	std::mutex lock;
 	ssize_t buffer_level;
+    //buffer level not taking into account sample consumption
+    ssize_t buffer_level_no_prediction;
 	uhd::time_spec_t buffer_level_set_time;
 	uhd::time_spec_t sob_time;
 
@@ -85,6 +87,14 @@ public:
 		}
 
 		return r;
+	}
+	ssize_t get_buffer_level_no_prediction() {
+
+		std::lock_guard<std::mutex> _lock( lock );
+
+        if(buffer_level_no_prediction < 0) std::abort();
+
+		return buffer_level_no_prediction;
 	}
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) {
 
@@ -154,6 +164,7 @@ public:
 #endif
 
 		buffer_level += nsamples_sent;
+        buffer_level_no_prediction += nsamples_sent;
 		buffer_level = unlocked_get_buffer_level( now );
 		if ( BOOST_LIKELY( unlocked_start_of_burst_pending( now ) ) ) {
 			buffer_level_set_time = sob_time;
@@ -268,6 +279,7 @@ protected:
 // 			throw uhd::value_error( msg );
 // 		}
 
+        buffer_level_no_prediction = level;
 		buffer_level = level;
 	}
 };

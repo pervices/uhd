@@ -995,10 +995,10 @@ cyan_8r_impl::cyan_8r_impl(const device_addr_t &_device_addr)
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
 
-    static const std::vector<size_t> default_map { 0, 1, 2, 3, 4, 5, 6, 7 };
+    static const std::vector<size_t> default_rx_map CYAN_8R_DEFAULT_RX_MAP;
 
-    _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
-    _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
+    _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_rx_map);
+    _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_rx_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_8r_impl::update_rx_subdev_spec, this, mb, _1));
     _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_8r_impl::update_tx_subdev_spec, this, mb, _1));
 

@@ -173,6 +173,8 @@
 #define CYAN_8R_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H"
 #define CYAN_8R_SUBDEV_SPEC_TX ""
 
+#define CYAN_8R_DEFAULT_RX_MAP {0, 1, 2, 3, 4, 5, 6, 7}
+
 enum {
     LOW_BAND = 0,
     MID_BAND = 1,

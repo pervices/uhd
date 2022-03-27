@@ -179,6 +179,8 @@
 #define CYAN_4R4T_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
 #define CYAN_4R4T_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
 
+#define CYAN_4R4T_DEFAULT_RX_MAP {0, 1, 2, 3}
+
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
     LOW_BAND = 0,

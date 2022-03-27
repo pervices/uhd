@@ -79,11 +79,12 @@
 #define CYAN_4R4T_3G_SS_FIFOLVL_THRESHOLD 107421875
 
 // Cyan 4r4t Buffer Size
-#define CYAN_4R4T_3G_BUFF_SIZE	(2048*140*512/32)
+// 2^16 * 16
+#define CYAN_4R4T_3G_BUFF_SIZE	(1048576)
 //how full the system shoudl try to keep the buffer
 #define CYAN_4R4T_3G_BUFF_PERCENT 0.7
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
-#define CYAN_4R4T_3G_BUFF_SCALE (8 * 16)
+#define CYAN_4R4T_3G_BUFF_SCALE (16)
 
 // Cyan 4r4t RF Settings
 #define CYAN_4R4T_3G_RF_TX_GAIN_RANGE_START	0.0
@@ -179,6 +180,8 @@
 
 #define CYAN_4R4T_3G_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
 #define CYAN_4R4T_3G_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D"
+
+#define CYAN_4R4T_3G_DEFAULT_RX_MAP {0, 1, 2, 3}
 
 //The cpu scale factor still needs to be changed in io_impl
 #define CYAN_4R4T_3G_OTW_RX "sc12"

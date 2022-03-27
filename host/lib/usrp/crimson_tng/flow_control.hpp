@@ -94,6 +94,25 @@ public:
 	 * @return the buffer level [samples]
 	 */
 	virtual ssize_t get_buffer_level( const uhd::time_spec_t & now ) = 0;
+
+    /**
+	 * Gets the buffer the last know buffer level plus any samples added by update
+     * Used when streaming on trigger events. Not intended to be used during normal continuous streaming,
+     * use get_buffer_level instead
+	 *
+	 * @return the buffer level [samples]
+	 */
+    virtual ssize_t get_buffer_level_no_prediction() = 0;
+    /**
+	 * Get the (approximate) level of the buffer. Under normal operating
+	 * conditions, this reflects the level of the actual tx buffer. Periodic
+	 * updates of actual tx buffer levels are treated as rejected disturbances.
+	 *
+	 * Inter-sample buffer levels use linear approximation based on the
+	 * current sample rate.
+	 *
+	 * @return the buffer level [samples]
+	 */
 	/**
 	 * Set the buffer level, presumably based on valid data.
 	 *
