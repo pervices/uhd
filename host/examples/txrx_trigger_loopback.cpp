@@ -26,6 +26,9 @@
 
 #include <uhd/types/tune_request.hpp>
 
+// do not include brackets, intended use: other variable * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR
+// this is only for until FPGA fixes are made
+#define CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR 3 / 4
 
 namespace po = boost::program_options;
 
@@ -65,7 +68,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     // setup streaming
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE);
 
-    stream_cmd.num_samps  = size_t(samples_per_trigger);
+    stream_cmd.num_samps  = size_t(samples_per_trigger * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(start_time);
 
@@ -88,8 +91,6 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         uhd::rx_metadata_t this_md;
         // The receive command is will to accept more samples than expected in order to detect if the unit is sending to many samples
         size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
-        std::cout << "samples_this_packet: " << samples_this_packet << std::endl;
-        std::cout << "error_code: " << this_md.error_code << std::endl;
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)
         if(vita_enabled) {
@@ -205,6 +206,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     // Check if the user specified the pulse length
     if (not vm.count("samples_per_trigger")){
         std::cerr << "Please specify the number of samples per pulse with --samples_per_trigger" << std::endl;
+        return ~0;
+    }
+
+    // Currently, cyan 4r4t can only send multiples of 2944 samples
+    std::cout << "Rounding requested samples for 3G Cyan" << std::endl;
+
+    samples_per_trigger = (samples_per_trigger / 2944) * 2944;
+    std::cout << "Requesting " << samples_per_trigger << " samples." << std::endl;
+    if(samples_per_trigger == 0) {
+        std::cerr << "Number of samples requested must be a multiple of 2944. This program will round down to meet that requirement." << std::endl;
         return ~0;
     }
 
@@ -335,10 +346,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::signal(SIGINT, &sig_int_handler);
     if(use_tx) {
-        usrp->tx_trigger_setup(channel_nums, setpoint, samples_per_trigger);
+        usrp->tx_trigger_setup(channel_nums, setpoint, samples_per_trigger * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
     }
     if(use_rx) {
-        usrp->rx_trigger_setup(channel_nums, samples_per_trigger);
+        usrp->rx_trigger_setup(channel_nums, samples_per_trigger* CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
     }
 
     if(use_rx) {
