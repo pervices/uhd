@@ -300,12 +300,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    //for the const wave, set the wave freq for small samples per period
-    if (wave_freq == 0 and wave_type == "CONST"){
-        wave_freq = usrp->get_tx_rate()/2;
-    }
-
     if(use_tx) {
+        //for the const wave, set the wave freq for small samples per period
+        if (wave_freq == 0 and wave_type == "CONST"){
+            wave_freq = usrp->get_tx_rate()/2;
+        }
+
         //error when the waveform is not possible to generate
         if (std::abs(wave_freq) > usrp->get_tx_rate()/2){
             throw std::runtime_error("wave freq out of Nyquist zone");
@@ -317,8 +317,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //pre-compute the waveform values
     const wave_table_class wave_table(wave_type, ampl);
-    const size_t step = boost::math::iround(wave_freq/rate * wave_table_len);
+    size_t step = 0;
     size_t index = 0;
+    if(use_tx) {
+        step = boost::math::iround(wave_freq/rate * wave_table_len);
+    }
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
