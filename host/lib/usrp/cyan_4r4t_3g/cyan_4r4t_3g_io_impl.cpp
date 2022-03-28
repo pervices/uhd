@@ -1090,6 +1090,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 }
 
 tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    std::cout << "C0" << std::endl;
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
@@ -1118,6 +1119,9 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
     for( auto & i: args.channels ) {
         xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
+
+    std::cout << "C5" << std::endl;
+
     std::shared_ptr<cyan_4r4t_3g_send_packet_streamer> my_streamer = std::make_shared<cyan_4r4t_3g_send_packet_streamer>( spp );
 
     // Pointers to arrays indicating how many samples to use, and if to disable flow control and only send packets when the buffer says its below the setpoint
@@ -1129,7 +1133,11 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
     my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
     my_streamer->set_enable_trailer( false );
 
+    std::cout << "C9" << std::endl;
+
     my_streamer->set_time_now(boost::bind(&cyan_4r4t_3g_impl::get_time_now,this));
+
+    std::cout << "C10" << std::endl;
 
     //set the converter
     uhd::convert::id_type id;
@@ -1145,6 +1153,8 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
     } else if ( "sc16" == args.cpu_format ) {
         my_streamer->set_scale_factor( 1.0 );
     }
+
+    std::cout << "C15" << std::endl;
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -1187,6 +1197,8 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
         }
     }
 
+    std::cout << "C30" << std::endl;
+
     // XXX: @CF: 20170228: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
@@ -1204,17 +1216,25 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
 		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
     }
 
+    std::cout << "C40" << std::endl;
+
     //sets all tick and samp rates on this streamer
     this->update_rates();
 
+    std::cout << "C50" << std::endl;
+
     // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
-	for( ;! time_diff_converged(); ) {
+	while( (! time_diff_converged()) && _bm_thread_needed ) {
 		usleep( 10000 );
 	}
     //my_streamer->start_packet_streamer_thread();
 
+    std::cout << "C60" << std::endl;
+
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );
+
+    std::cout << "C65" << std::endl;
 
     return my_streamer;
 }
