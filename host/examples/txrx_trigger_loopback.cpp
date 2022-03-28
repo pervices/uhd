@@ -88,6 +88,8 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         uhd::rx_metadata_t this_md;
         // The receive command is will to accept more samples than expected in order to detect if the unit is sending to many samples
         size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
+        std::cout << "samples_this_packet: " << samples_this_packet << std::endl;
+        std::cout << "error_code: " << this_md.error_code << std::endl;
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)
         if(vita_enabled) {
@@ -292,12 +294,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         wave_freq = usrp->get_tx_rate()/2;
     }
 
-    //error when the waveform is not possible to generate
-    if (std::abs(wave_freq) > usrp->get_tx_rate()/2){
-        throw std::runtime_error("wave freq out of Nyquist zone");
-    }
-    if (usrp->get_tx_rate()/std::abs(wave_freq) > wave_table_len/2){
-        throw std::runtime_error("wave freq too small for table");
+    if(use_tx) {
+        //error when the waveform is not possible to generate
+        if (std::abs(wave_freq) > usrp->get_tx_rate()/2){
+            throw std::runtime_error("wave freq out of Nyquist zone");
+        }
+        if (usrp->get_tx_rate()/std::abs(wave_freq) > wave_table_len/2){
+            throw std::runtime_error("wave freq too small for table");
+        }
     }
 
     //pre-compute the waveform values
@@ -317,9 +321,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::complex<float> > tx_buff(samples_per_trigger);
     std::vector<std::complex<float> *> tx_buffs(channel_nums.size(), &tx_buff.front());
 
-    //Fill up the buffer. The same data should be sent for every pulse
-    for (size_t n = 0; n < tx_buff.size(); n++) {
-        tx_buff[n] = wave_table(index += step);
+    if(use_tx) {
+        //Fill up the buffer. The same data should be sent for every pulse
+        for (size_t n = 0; n < tx_buff.size(); n++) {
+            tx_buff[n] = wave_table(index += step);
+        }
     }
 
     uhd::rx_streamer::sptr rx_stream;
