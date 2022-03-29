@@ -228,6 +228,7 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        std::cout << "R1" << std::endl;
         // handle metadata queued from a previous receive
         if (_queue_error_for_next_call) {
             _queue_error_for_next_call = false;
@@ -235,6 +236,7 @@ public:
             // We want to allow a full buffer recv to be cut short by a timeout,
             // but do not want to generate an inline timeout message packet.
             if (_queue_metadata.error_code != rx_metadata_t::ERROR_CODE_TIMEOUT)
+                std::cout << "R2" << std::endl;
                 return 0;
         }
 
@@ -242,11 +244,13 @@ public:
             recv_one_packet(buffs, nsamps_per_buff, metadata, timeout);
 
         if (one_packet or metadata.end_of_burst) {
+            std::cout << "R3" << std::endl;
             return accum_num_samps;
         }
 
         // first recv had an error code set, return immediately
         if (metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) {
+            std::cout << "R4" << std::endl;
             return accum_num_samps;
         }
 
@@ -273,6 +277,7 @@ public:
                 break;
             }
         }
+        std::cout << "R5" << std::endl;
         return accum_num_samps;
     }
 
