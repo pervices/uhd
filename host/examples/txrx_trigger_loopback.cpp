@@ -324,12 +324,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //create a transmit streamer
-    //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("sc16");
-    stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream;
     if(use_tx) {
-        tx_stream = usrp->get_tx_stream(stream_args);
+        uhd::stream_args_t tx_stream_args("fc32");
+        tx_stream_args.channels = channel_nums;
+        tx_stream = usrp->get_tx_stream(tx_stream_args);
     }
 
     std::vector<std::complex<float> > tx_buff(samples_per_trigger);
@@ -344,7 +343,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     uhd::rx_streamer::sptr rx_stream;
     if(use_rx) {
-        rx_stream = usrp->get_rx_stream(stream_args);
+        uhd::stream_args_t rx_stream_args("sc16");
+        rx_stream_args.channels = channel_nums;
+        rx_stream = usrp->get_rx_stream(rx_stream_args);
     }
 
     std::signal(SIGINT, &sig_int_handler);
