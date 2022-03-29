@@ -1563,8 +1563,8 @@ void cyan_4r4t_3g_impl::tx_trigger_setup(
     uint64_t num_samples_per_trigger
 ) {
     for(size_t n = 0; n < channels.size(); n++) {
-        use_simple_fc->at(n) = true;
-        simple_fc_setpoint->at(n) = buffer_setpoint;
+        use_simple_fc->at(channels[n]) = true;
+        simple_fc_setpoint->at(channels[n]) = buffer_setpoint;
         const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
         _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
         _tree->access<std::string>(root + "trigger/trig_sel").set("1");
@@ -1584,7 +1584,7 @@ void cyan_4r4t_3g_impl::tx_trigger_cleanup(
     std::vector<size_t> channels
 ) {
     for(size_t n = 0; n < channels.size(); n++) {
-        use_simple_fc->at(n) = false;
+        use_simple_fc->at(channels[n]) = false;
         const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
         _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
         _tree->access<std::string>(root + "trigger/trig_sel").set("1");
