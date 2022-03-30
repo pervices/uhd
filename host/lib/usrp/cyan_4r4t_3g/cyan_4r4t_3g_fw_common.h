@@ -79,8 +79,8 @@
 #define CYAN_4R4T_3G_SS_FIFOLVL_THRESHOLD 107421875
 
 // Cyan 4r4t Buffer Size
-// 2^14 * 16
-#define CYAN_4R4T_3G_BUFF_SIZE	(262144)
+// 2^13 * 16
+#define CYAN_4R4T_3G_BUFF_SIZE	(131072)
 //how full the system shoudl try to keep the buffer
 #define CYAN_4R4T_3G_BUFF_PERCENT 0.7
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
