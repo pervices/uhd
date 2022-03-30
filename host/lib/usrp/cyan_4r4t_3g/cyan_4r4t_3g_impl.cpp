@@ -1621,8 +1621,6 @@ void cyan_4r4t_3g_impl::rx_trigger_cleanup(
         _tree->access<std::string>(root + "stream").set("0");
         _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
         _tree->access<std::string>(root + "trigger/trig_sel").set("0");
-        // Due to a issue with the fpga, remove the sfp reset when fixed
-        _tree->access<std::string>("/mboards/0/sfp_reset").set("1");
     }
 }
 
