@@ -375,6 +375,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_rx) {
         //TODO make this asynchronous
         rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums);
+        usrp->rx_trigger_cleanup(channel_nums);
     }
 
     // Wait for tx to finish
