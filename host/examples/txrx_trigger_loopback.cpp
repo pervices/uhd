@@ -90,6 +90,9 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     while((num_trigger_passed < num_trigger || num_trigger == 0) && !stop_signal_called) {
         uhd::rx_metadata_t this_md;
         // The receive command is will to accept more samples than expected in order to detect if the unit is sending to many samples
+        for (size_t i = 0; i < buffs.size(); i++) {
+            buff_ptrs[i] = &buffs[i].at(num_samples_this_trigger);
+        }
         size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)
@@ -108,6 +111,9 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
                 std::string burst_path = burst_directory + "/burst_" + std::to_string(num_trigger_passed) + "ch_" + std::to_string(channel_nums[n]) + "_result.dat";
                 std::ofstream outfile;
                 outfile.open(burst_path.c_str(), std::ofstream::binary);
+                for (size_t i = 0; i < buffs.size(); i++) {
+                    buff_ptrs[i] = &buffs[i].front();
+                }
                 outfile.write((const char*)buff_ptrs[n], num_samples_this_trigger * sizeof(buffs[n].at(0)));
                 outfile.close();
 
