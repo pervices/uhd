@@ -45,6 +45,7 @@ set(example_sources
     rfnoc_radio_loopback.cpp
     rfnoc_replay_samples_from_file.cpp
     txrx_trigger_loopback.cpp
+    rx_to_tx_loopback.cpp
     #benchmark_streamer.cpp
 )
 
