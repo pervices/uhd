@@ -2434,10 +2434,9 @@ public:
 
     void tx_trigger_setup(
         std::vector<size_t> channels,
-        ssize_t buffer_setpoint,
         uint64_t num_samples_per_trigger
     ) {
-        get_device()->tx_trigger_setup(channels, buffer_setpoint, num_samples_per_trigger);
+        get_device()->tx_trigger_setup(channels, num_samples_per_trigger);
     }
 
     void tx_trigger_cleanup(

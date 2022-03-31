@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 namespace uhd {
 
@@ -322,6 +323,23 @@ public:
      */
     virtual bool recv_async_msg(
         async_metadata_t& async_metadata, double timeout = 0.1) = 0;
+
+    /*!
+     * Enables blocking flow control. In blocking flow control it will querry the buffer level before decidin to send
+     * This is very slow, and is only useful when transmitting short bursts at high speed on infrequent triggers
+     * \param blocking_setpoint target buffer level
+     */
+    virtual void enable_blocking_fc(uint64_t blocking_setpoint) {
+        (void) blocking_setpoint;
+        throw std::runtime_error("Concrete classes are expected to override this method\n Function may not be implemented for this device");
+    }
+
+    /*!
+     * Disables blocking flow control
+     */
+    virtual void disable_blocking_fc() {
+        throw std::runtime_error("Concrete classes are expected to override this method\n Function may not be implemented for this device");
+    }
 };
 
 } // namespace uhd

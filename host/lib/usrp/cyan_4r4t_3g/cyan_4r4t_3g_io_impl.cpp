@@ -168,13 +168,14 @@ static void shutdown_lingering_rx_streamers() {
 // 2) to wrap sph::send_packet_streamer::send() and use our existing flow control algorithm
 class cyan_4r4t_3g_send_packet_streamer : public sph::send_packet_streamer {
 public:
-
-    std::shared_ptr<std::vector<bool>> streamer_use_simple_fc;
-    std::shared_ptr<std::vector<ssize_t>> streamer_simple_fc_setpoint;
 	typedef boost::function<void(void)> onfini_type;
 	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
 	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
+    typedef boost::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 	typedef boost::function<bool(async_metadata_t&)> async_pusher_type;
+
+    bool use_blocking_fc = false;
+    uint64_t blocking_setpoint;
 
 	cyan_4r4t_3g_send_packet_streamer( const size_t max_num_samps )
 	:
@@ -314,6 +315,16 @@ public:
 
         return r;
     }
+
+    void enable_blocking_fc(uint64_t blocking_setpoint) {
+        use_blocking_fc = true;
+        this->blocking_setpoint = blocking_setpoint;
+    }
+
+    void disable_blocking_fc() {
+        use_blocking_fc = false;
+        blocking_setpoint = 0;
+    }
     
     static managed_send_buffer::sptr get_send_buff( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
 
@@ -360,6 +371,9 @@ public:
     }
     void set_xport_chan_fifo_lvl( size_t chan, xport_chan_fifo_lvl_type get_fifo_lvl ) {
 		_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
+    }
+    void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
+		_eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
     }
     void set_async_pusher( async_pusher_type pusher ) {
 		async_pusher = pusher;
@@ -439,6 +453,7 @@ private:
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
 		xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
+        xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
 		uhd::flow_control::sptr flow_control;
 		uint64_t oflow;
 		uint64_t uflow;
@@ -474,7 +489,7 @@ private:
     // the send function in super_send_packet_handler should poll this function until it returns true
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
-        if(BOOST_LIKELY(!streamer_use_simple_fc->at(chan))) {
+        if(BOOST_LIKELY(!use_blocking_fc)) {
 
 #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
             static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
@@ -516,7 +531,13 @@ private:
 
             return dt.get_full_secs() < timeout;
         } else {
-            bool send_now = _eprops.at( chan ).flow_control->get_buffer_level_no_prediction() < streamer_simple_fc_setpoint->at(chan);
+            uint64_t lvl = 0;
+            uint64_t uflow = 0;
+            uint64_t oflow = 0;
+            uhd::time_spec_t then;
+            _eprops.at( chan ).xport_chan_fifo_lvl_abs( lvl, uflow, oflow, then );
+            bool send_now = lvl < blocking_setpoint;
+
             if(send_now) return true;
             else {
                 // The function that calls function will call it repeatedly until it returns true. This delay creates some rest between checks
@@ -981,7 +1002,7 @@ rx_streamer::sptr cyan_4r4t_3g_impl::get_rx_stream(const uhd::stream_args_t &arg
  * Transmit streamer
  **********************************************************************/
 
-static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 1.0 / CYAN_4R4T_3G_TICK_RATE;
 
@@ -1043,11 +1064,9 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
     //fifo level provided by FPGA
-	int64_t lvl = rsp.header & 0xffff;
+	lvl = rsp.header & 0xffff;
 
     lvl = lvl * CYAN_4R4T_3G_BUFF_SCALE;
-
-	pcnt = (double)lvl / CYAN_4R4T_3G_BUFF_SIZE;
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
@@ -1089,6 +1108,13 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 #endif
 }
 
+static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+    uint64_t lvl = 0;
+    get_fifo_lvl_udp_abs( channel, xport, lvl, uflow, oflow, now);
+    pcnt = (double) lvl / CYAN_4R4T_3G_BUFF_SIZE;
+
+}
+
 tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
@@ -1120,10 +1146,6 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
     }
 
     std::shared_ptr<cyan_4r4t_3g_send_packet_streamer> my_streamer = std::make_shared<cyan_4r4t_3g_send_packet_streamer>( spp );
-
-    // Pointers to arrays indicating how many samples to use, and if to disable flow control and only send packets when the buffer says its below the setpoint
-    my_streamer->streamer_use_simple_fc = use_simple_fc;
-    my_streamer->streamer_simple_fc_setpoint = simple_fc_setpoint;
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -1176,6 +1198,10 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
 
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
+                ));
+
+                my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, boost::bind(
+                    &get_fifo_lvl_udp_abs, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
 
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_4r4t_3g_io_impl->async_msg_fifo), _1, _2));

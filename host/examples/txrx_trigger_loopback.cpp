@@ -335,6 +335,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         uhd::stream_args_t tx_stream_args("fc32");
         tx_stream_args.channels = channel_nums;
         tx_stream = usrp->get_tx_stream(tx_stream_args);
+        tx_stream->enable_blocking_fc(setpoint);
     }
 
     std::vector<std::complex<float> > tx_buff(samples_per_trigger);
@@ -356,7 +357,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::signal(SIGINT, &sig_int_handler);
     if(use_tx) {
-        usrp->tx_trigger_setup(channel_nums, setpoint, samples_per_trigger * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
+        usrp->tx_trigger_setup(channel_nums, samples_per_trigger * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
     }
     if(use_rx) {
         usrp->rx_trigger_setup(channel_nums, samples_per_trigger* CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
@@ -388,6 +389,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_tx) {
         tx_thread.join();
         usrp->tx_trigger_cleanup(channel_nums);
+        tx_stream->disable_blocking_fc();
     }
 
     //finished

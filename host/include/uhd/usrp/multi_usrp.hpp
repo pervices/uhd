@@ -1408,11 +1408,9 @@ public:
     
     virtual void tx_trigger_setup(
         std::vector<size_t> channels,
-        ssize_t buffer_setpoint,
         uint64_t num_samples_per_trigger
     ) {
         (void) channels;
-        (void) buffer_setpoint;
         (void) num_samples_per_trigger;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
