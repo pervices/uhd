@@ -2436,26 +2436,63 @@ public:
         std::vector<size_t> channels,
         uint64_t num_samples_per_trigger
     ) {
-        get_device()->tx_trigger_setup(channels, num_samples_per_trigger);
+        for(size_t n = 0; n < channels.size(); n++) {
+            const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
+            _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
+            _tree->access<std::string>(root + "trigger/trig_sel").set("1");
+            _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
+            _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
+            _tree->access<std::string>(root + "trigger/gating").set("dsp");
+        }
+        _tree->access<std::string>("/mboards/0/trigger/sma_dir").set("in");
+        _tree->access<std::string>("/mboards/0/trigger/sma_pol").set("positive");
+        for(size_t n = 0; n < channels.size(); n++) {
+            const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channels[n]) + "/" };
+            _tree->access<double>(dsp_root + "rstreq").set(1.0);
+        }
     }
 
     void tx_trigger_cleanup(
         std::vector<size_t> channels
     ) {
-        get_device()->tx_trigger_cleanup(channels);
+    for(size_t n = 0; n < channels.size(); n++) {
+        const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
+        _tree->access<std::string>(root + "trigger/trig_sel").set("1");
+    }
     }
 
     void rx_trigger_setup(
         std::vector<size_t> channels,
         uint64_t num_samples_per_trigger
     ) {
-        get_device()->rx_trigger_setup(channels, num_samples_per_trigger);
+        for(size_t n = 0; n < channels.size(); n++) {
+            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+            _tree->access<std::string>(root + "stream").set("0");
+            _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
+            _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
+            _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
+            _tree->access<std::string>(root + "trigger/trig_sel").set("1");
+        }
+
+        _tree->access<std::string>("/mboards/0/trigger/sma_dir").set("in");
+        _tree->access<std::string>("/mboards/0/trigger/sma_pol").set("positive");
+
+        for(size_t n = 0; n < channels.size(); n++) {
+            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+            _tree->access<std::string>(root + "stream").set("1");
+        }
     }
 
     void rx_trigger_cleanup(
         std::vector<size_t> channels
     ) {
-        get_device()->rx_trigger_cleanup(channels);
+    for(size_t n = 0; n < channels.size(); n++) {
+        const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+        _tree->access<std::string>(root + "stream").set("0");
+        _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
+        _tree->access<std::string>(root + "trigger/trig_sel").set("0");
+    }
     }
 
     /*******************************************************************

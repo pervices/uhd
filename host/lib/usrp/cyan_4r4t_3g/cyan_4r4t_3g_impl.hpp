@@ -255,21 +255,6 @@ private:
     uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_tx_freq(size_t chan = 0);
 
-    void tx_trigger_setup(
-        std::vector<size_t> channels,
-        uint64_t num_samples_per_trigger
-    );
-    void tx_trigger_cleanup(
-        std::vector<size_t> channels
-    );
-    void rx_trigger_setup(
-        std::vector<size_t> channels,
-        uint64_t num_samples_per_trigger
-    );
-    void rx_trigger_cleanup(
-        std::vector<size_t> channels
-    );
-
     bool is_tx_sfp_cached[CYAN_4R4T_3G_TX_CHANNELS] = {0};
     std::string tx_sfp_cache[CYAN_4R4T_3G_TX_CHANNELS];
     std::string get_tx_sfp( size_t chan );
