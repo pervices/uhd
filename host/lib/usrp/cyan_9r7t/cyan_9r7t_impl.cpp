@@ -1156,6 +1156,8 @@ cyan_9r7t_impl::cyan_9r7t_impl(const device_addr_t &_device_addr)
 
 		// Power status
 		TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "board/async_pwr", "rx_"+lc_num+"/board/async_pwr", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "board/wait_async_pwr", "rx_"+lc_num+"/board/wait_async_pwr", std::string, string);
 
 		// Channel Stream Status
 		TREE_CREATE_RW(rx_path / dspno / "stream", "rx_"+lc_num+"/stream", std::string, string);
