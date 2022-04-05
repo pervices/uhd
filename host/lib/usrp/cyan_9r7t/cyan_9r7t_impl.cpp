@@ -1306,6 +1306,8 @@ cyan_9r7t_impl::cyan_9r7t_impl(const device_addr_t &_device_addr)
 
 		// Power status
 		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "board/async_pwr", "tx_"+lc_num+"/board/async_pwr", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "board/wait_async_pwr", "tx_"+lc_num+"/board/wait_async_pwr", std::string, string);
 
 		// Codecs, phony properties for Crimson
 		TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);

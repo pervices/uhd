@@ -915,7 +915,7 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
     const size_t packets_per_sock_buff = size_t(50e6/_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size());
     my_streamer->set_alignment_failure_threshold(packets_per_sock_buff);
 
-    // XXX: @CF: 20170227: extra setup for crimson
+    // turn on each board asynchronously, does not perform the rest of the power on process
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -933,14 +933,54 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
                 const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
 
                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
-                // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+                _tree->access<std::string>(rx_path / chan / "board/async_pwr").set("1");
 
-                // power on the channel
+            }
+        }
+    }
+
+    // waits for each board to turn on
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+        size_t num_chan_so_far = 0;
+        for (const std::string &mb : _mbc.keys()) {
+            num_chan_so_far += _mbc[mb].rx_chan_occ;
+            if (chan < num_chan_so_far){
+
+                // XXX: @CF: this is so nasty..
+                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+                const fs_path mb_path   = "/mboards/" + mb;
+                const fs_path rx_path   = mb_path / "rx";
+                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
+                const fs_path rx_link_path  = mb_path / "rx_link" / chan;
+                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
+
+                _tree->access<std::string>(rx_path / chan / "board/wait_async_pwr").set("0");
+            }
+        }
+    }
+
+    // complets the rest of the power on sequence, and enables vita
+    // note: async_pwr only turns on board, it does not perform the rest of the steps involved in powering on a board
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+        size_t num_chan_so_far = 0;
+        for (const std::string &mb : _mbc.keys()) {
+            num_chan_so_far += _mbc[mb].rx_chan_occ;
+            if (chan < num_chan_so_far){
+
+                // XXX: @CF: this is so nasty..
+                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+                const fs_path mb_path   = "/mboards/" + mb;
+                const fs_path rx_path   = mb_path / "rx";
+                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
+                const fs_path rx_link_path  = mb_path / "rx_link" / chan;
+                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
+
                 _tree->access<std::string>(rx_path / chan / "pwr").set("1");
-                // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-                //usleep( 500000 );
-                // stream enable
                 _tree->access<std::string>(rx_path / chan / "stream").set("1");
 
 // FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
@@ -1171,7 +1211,17 @@ tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    // XXX: @CF: 20170228: extra setup for crimson
+    // turn on each board asynchronously, does not perform the rest of the power on process
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        size_t chan = args.channels[ chan_i ];
+        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path tx_path   = mb_path / "tx";
+        const fs_path tx_link_path  = mb_path / "tx_link" / chan;
+		_tree->access<std::string>(tx_path / chan / "board/async_pwr").set("1");
+    }
+
+    // waits for each board to turn on
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
@@ -1179,12 +1229,19 @@ tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_)
         const fs_path tx_path   = mb_path / "tx";
         const fs_path tx_link_path  = mb_path / "tx_link" / chan;
 
-		// power on the channel
-        //_tree->access<std::string>(tx_path / ch / "pwr").set("0");
+		_tree->access<std::string>(tx_path / chan / "board/wait_async_pwr").set("0");
+    }
+
+    // complets the rest of the power on sequence, and enables vita
+    // note: async_pwr only turns on board, it does not perform the rest of the steps involved in powering on a board
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        size_t chan = args.channels[ chan_i ];
+        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path tx_path   = mb_path / "tx";
+        const fs_path tx_link_path  = mb_path / "tx_link" / chan;
+
 		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
-		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-		//usleep( 500000 );
-		// vita enable
 		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
     }
 
