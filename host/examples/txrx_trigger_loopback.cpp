@@ -58,7 +58,7 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     tx_stream->send("", 0, md);
 }
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, double debug_nsamps_modifier) {
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, double debug_nsamps_modifier, bool debug_vita_disable) {
     uhd::rx_metadata_t previous_md;
     bool first_packet_of_trigger = true;
     // setup streaming
@@ -79,7 +79,8 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     for (size_t i = 0; i < buffs.size(); i++)
         buff_ptrs.push_back(&buffs[i].front());
 
-    bool vita_enabled = true;
+    // if the debug vita disable is not set, the if statement that relies on this should never run. If it is set it shoul run once
+    bool vita_enabled = !debug_vita_disable;
 
     uint64_t num_trigger_passed = 0;
     size_t num_samples_this_trigger = 0;
@@ -89,7 +90,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         for (size_t i = 0; i < buffs.size(); i++) {
             buff_ptrs[i] = &buffs[i].at(num_samples_this_trigger);
         }
-        size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
+        size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, start_time + 5, false);
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)
         if(vita_enabled) {
@@ -157,6 +158,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     float ampl;
 
     bool use_rx, use_tx;
+    bool debug_vita_disable;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -181,6 +183,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rx_only", "Do not use tx")
         ("debug_nsamps_multiple", po::value<size_t>(&debug_nsamps_multiple)->default_value(1), "If specified samples_per_trigger will be rounded to be a multiple of this. Must be 2944 for cyan_4r4t_3g, not needed for any other variant")
         ("debug_nsamps_modifier", po::value<double>(&debug_nsamps_modifier)->default_value(1), "Modifies the number of samples per trigger requested from the unit. 0.75 for cyan_4r4t_3g, leave blank for any other variant")
+        ("debug_vita_disable", "Disables waiting for command packts in rx after the start of straming. Use with cyan_4r4t_3g")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -194,6 +197,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     use_rx = !vm.count("tx_only");
     use_tx = !vm.count("rx_only");
+
+    debug_vita_disable = vm.count("debug_vita_disable");
 
     // Check if user specified the sample rate
     if (not vm.count("rate")){
@@ -376,7 +381,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(use_rx) {
         //TODO make this asynchronous
-        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, debug_nsamps_modifier);
+        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, debug_nsamps_modifier, debug_vita_disable);
         usrp->rx_trigger_cleanup(channel_nums);
     }
 
