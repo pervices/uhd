@@ -172,7 +172,11 @@ public:
 	typedef boost::function<void(void)> onfini_type;
 	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
 	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
+    typedef boost::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 	typedef boost::function<bool(async_metadata_t&)> async_pusher_type;
+
+    bool use_blocking_fc = false;
+    uint64_t blocking_setpoint;
 
 	cyan_9r7t_send_packet_streamer( const size_t max_num_samps )
 	:
@@ -311,6 +315,16 @@ public:
 
         return r;
     }
+
+    void enable_blocking_fc(uint64_t blocking_setpoint) {
+        use_blocking_fc = true;
+        this->blocking_setpoint = blocking_setpoint;
+    }
+
+    void disable_blocking_fc() {
+        use_blocking_fc = false;
+        blocking_setpoint = 0;
+    }
     
     static managed_send_buffer::sptr get_send_buff( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
 
@@ -357,6 +371,9 @@ public:
     }
     void set_xport_chan_fifo_lvl( size_t chan, xport_chan_fifo_lvl_type get_fifo_lvl ) {
 		_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
+    }
+    void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
+		_eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
     }
     void set_async_pusher( async_pusher_type pusher ) {
 		async_pusher = pusher;
@@ -436,6 +453,7 @@ private:
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
 		xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
+        xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
 		uhd::flow_control::sptr flow_control;
 		uint64_t oflow;
 		uint64_t uflow;
@@ -472,54 +490,75 @@ private:
     
     bool check_fc_condition( const size_t chan, const double & timeout ) {
 
-        #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-        static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
-        #endif
+        if(BOOST_LIKELY(!use_blocking_fc)) {
 
-        uhd::time_spec_t now, then, dt;
-		struct timespec req,rem;
+            #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+            static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
+            #endif
 
-        now = get_time_now();
-        dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
-        then = now + dt;
+            uhd::time_spec_t now, then, dt;
+            struct timespec req,rem;
 
-        if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
-#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-            std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
-            std::cout << "dt: " << dt << std::endl;
-            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_9R7T_TICK_RATE) << std::endl;
-            std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
-            std::cout << "timout: " << timeout << std::endl;
-#endif
-            return false;
+            now = get_time_now();
+            dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
+            then = now + dt;
+
+            if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
+    #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+                std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
+                std::cout << "dt: " << dt << std::endl;
+                std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_9R7T_TICK_RATE) << std::endl;
+                std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
+                std::cout << "timout: " << timeout << std::endl;
+    #endif
+                return false;
+            }
+
+            #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
+            if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
+                last_print_time = now;
+                next_print_time = last_print_time + 0.2;
+                std::stringstream ss;
+                ss << now << ": " << _eprops.at(chan).name << ": Queued " << std::dec << _actual_num_samps << " Buffer Level: " << std::dec << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl << std::flush;
+                std::cout << ss.str();
+            }
+            #endif
+
+            // The time delta (dt) may be negative from the linear interpolator.
+            // In such a case, do not bother with the delay calculations and send right away.
+            if(dt <= 0.0) {
+    #ifdef FLOW_CONTROL_DEBUG
+                std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
+                std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
+    #endif
+                return true;
+            }
+
+            req.tv_sec = (time_t) dt.get_full_secs();
+            req.tv_nsec = dt.get_frac_secs()*1e9;
+
+            nanosleep(&req, &rem);
+
+            return true;
+        }  else {
+            uint64_t lvl = 0;
+            uint64_t uflow = 0;
+            uint64_t oflow = 0;
+            uhd::time_spec_t then;
+            _eprops.at( chan ).xport_chan_fifo_lvl_abs( lvl, uflow, oflow, then );
+            bool send_now = lvl < blocking_setpoint;
+
+            if(send_now) return true;
+            else {
+                // The function that calls function will call it repeatedly until it returns true. This delay creates some rest between checks
+                // It is done here since in the normal mode its delay is determined by predicted time to send
+                struct timespec req, rem;
+                req.tv_sec = (time_t)(int64_t)timeout;
+                req.tv_nsec = (time_t)(int64_t)((timeout - (int64_t)timeout)*1e9);
+                nanosleep(&req, &rem);
+                return false;
+            }
         }
-
-		#ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-		if ( _eprops.at( chan ).flow_control->start_of_burst_pending( now ) || now >= next_print_time ) {
-			last_print_time = now;
-			next_print_time = last_print_time + 0.2;
-			std::stringstream ss;
-			ss << now << ": " << _eprops.at(chan).name << ": Queued " << std::dec << _actual_num_samps << " Buffer Level: " << std::dec << size_t( _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) * 100 )  << "%, Time to next send: " << dt << std::endl << std::flush;
-			std::cout << ss.str();
-		}
-		#endif
-
-		// The time delta (dt) may be negative from the linear interpolator.
-		// In such a case, do not bother with the delay calculations and send right away.
-		if(dt <= 0.0) {
-#ifdef FLOW_CONTROL_DEBUG
-            std::cout << __func__ << ": returning true, search FLAG655" << std::endl;
-            std::cout << __func__ << ": R1: " << _eprops.at( chan ).flow_control->get_buffer_level_pcnt( now ) << std::endl;
-#endif
-			return true;
-        }
-
-        req.tv_sec = (time_t) dt.get_full_secs();
-		req.tv_nsec = dt.get_frac_secs()*1e9;
-
-        nanosleep(&req, &rem);
-
-        return true;
     }
 
     /***********************************************************************
@@ -969,7 +1008,8 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
 /***********************************************************************
  * Transmit streamer
  **********************************************************************/
-static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+
+static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 1.0 / CYAN_9R7T_TICK_RATE;
 
@@ -1031,11 +1071,9 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	boost::endian::big_to_native_inplace( rsp.tv_tick );
 
     //fifo level provided by FPGA
-	int64_t lvl = rsp.header & 0xffff;
+	lvl = rsp.header & 0xffff;
 
-    lvl = lvl*CYAN_9R7T_BUFF_SCALE;
-
-	pcnt = (double)lvl / CYAN_9R7T_BUFF_SIZE;
+    lvl = lvl * CYAN_9R7T_BUFF_SCALE;
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
@@ -1075,6 +1113,12 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 			<< std::endl << std::flush;
 	std::cout << ss.str();
 #endif
+}
+
+static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+    uint64_t lvl = 0;
+    get_fifo_lvl_udp_abs( channel, xport, lvl, uflow, oflow, now);
+    pcnt = (double) lvl / CYAN_9R7T_BUFF_SIZE;
 }
 
 tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_){
@@ -1159,6 +1203,10 @@ tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
+                ));
+
+                my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, boost::bind(
+                    &get_fifo_lvl_udp_abs, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
 
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_9r7t_io_impl->async_msg_fifo), _1, _2));

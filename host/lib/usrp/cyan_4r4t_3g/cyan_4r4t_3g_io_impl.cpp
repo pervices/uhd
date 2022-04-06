@@ -523,13 +523,12 @@ private:
             }
 #endif
 
-            return dt.get_real_secs() <= timeout;
             req.tv_sec = (time_t) dt.get_full_secs();
             req.tv_nsec = dt.get_frac_secs()*1e9;
 
             nanosleep(&req, &rem);
 
-            return dt.get_full_secs() < timeout;
+            return true;
         } else {
             uint64_t lvl = 0;
             uint64_t uflow = 0;
