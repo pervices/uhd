@@ -26,10 +26,6 @@
 
 #include <uhd/types/tune_request.hpp>
 
-// do not include brackets, intended use: other variable * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR
-// this is only for until FPGA fixes are made
-#define CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR 3 / 4
-
 namespace po = boost::program_options;
 
 static std::atomic<bool> stop_signal_called(false);
@@ -62,13 +58,13 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     tx_stream->send("", 0, md);
 }
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums) {
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, double debug_nsamps_modifier) {
     uhd::rx_metadata_t previous_md;
     bool first_packet_of_trigger = true;
     // setup streaming
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE);
 
-    stream_cmd.num_samps  = size_t(samples_per_trigger * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
+    stream_cmd.num_samps  = size_t(boost::math::iround(samples_per_trigger * debug_nsamps_modifier));
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(start_time);
 
@@ -155,9 +151,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
     std::string args, wave_type, channel_list, results_directory;
-    size_t samples_per_trigger;
+    size_t samples_per_trigger, debug_nsamps_multiple;
     uint64_t num_trigger, setpoint;
-    double rate, freq, tx_gain, rx_gain, wave_freq, start_time;
+    double rate, freq, tx_gain, rx_gain, wave_freq, start_time, debug_nsamps_modifier;
     float ampl;
 
     bool use_rx, use_tx;
@@ -183,6 +179,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
+        ("debug_nsamps_multiple", po::value<size_t>(&debug_nsamps_multiple)->default_value(1), "If specified samples_per_trigger will be rounded to be a multiple of this. Must be 2944 for cyan_4r4t_3g, not needed for any other variant")
+        ("debug_nsamps_modifier", po::value<double>(&debug_nsamps_modifier)->default_value(1), "Modifies the number of samples per trigger requested from the unit. 0.75 for cyan_4r4t_3g, leave blank for any other variant")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -215,13 +213,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    // Currently, cyan 4r4t can only send multiples of 2944 samples
-    std::cout << "Rounding requested samples for 3G Cyan" << std::endl;
-
-    samples_per_trigger = (samples_per_trigger / 2944) * 2944;
+    samples_per_trigger = (samples_per_trigger / debug_nsamps_multiple) * debug_nsamps_multiple;
     std::cout << "Requesting " << samples_per_trigger << " samples." << std::endl;
     if(samples_per_trigger == 0) {
-        std::cerr << "Number of samples requested must be a multiple of 2944. This program will round down to meet that requirement." << std::endl;
+        std::cerr << "Number of samples requested must be a multiple of " << debug_nsamps_multiple << ". This program will round down to meet that requirement." << std::endl;
         return ~0;
     }
 
@@ -249,7 +244,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
     for(size_t ch = 0; ch < channel_strings.size(); ch++){
         size_t chan = std::stoi(channel_strings[ch]);
-        if(chan >= usrp->get_tx_num_channels() || chan >= usrp->get_rx_num_channels())
+        if((chan >= usrp->get_tx_num_channels() && use_tx) || (chan >= usrp->get_rx_num_channels() && use_rx))
             throw std::runtime_error("Invalid channel(s) specified.");
         else
             channel_nums.push_back(std::stoi(channel_strings[ch]));
@@ -357,10 +352,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::signal(SIGINT, &sig_int_handler);
     if(use_tx) {
-        usrp->tx_trigger_setup(channel_nums, samples_per_trigger * CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
+        usrp->tx_trigger_setup(channel_nums, samples_per_trigger * debug_nsamps_modifier);
     }
     if(use_rx) {
-        usrp->rx_trigger_setup(channel_nums, samples_per_trigger* CYAN_4R4T_3G_REQUESTED_SAMPLE_FACTOR);
+        usrp->rx_trigger_setup(channel_nums, samples_per_trigger* debug_nsamps_modifier);
     }
 
     if(use_rx) {
@@ -381,7 +376,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(use_rx) {
         //TODO make this asynchronous
-        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums);
+        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, debug_nsamps_modifier);
         usrp->rx_trigger_cleanup(channel_nums);
     }
 
