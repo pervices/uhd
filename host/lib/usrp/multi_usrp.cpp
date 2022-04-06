@@ -2487,12 +2487,16 @@ public:
     void rx_trigger_cleanup(
         std::vector<size_t> channels
     ) {
-    for(size_t n = 0; n < channels.size(); n++) {
-        const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
-        _tree->access<std::string>(root + "stream").set("0");
-        _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
-        _tree->access<std::string>(root + "trigger/trig_sel").set("0");
-    }
+        //Stream needs to be set to 0 first, since certain channels share certain properties
+        for(size_t n = 0; n < channels.size(); n++) {
+            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+            _tree->access<std::string>(root + "stream").set("0");
+        }
+        for(size_t n = 0; n < channels.size(); n++) {
+            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+            _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
+            _tree->access<std::string>(root + "trigger/trig_sel").set("0");
+        }
     }
 
     /*******************************************************************
