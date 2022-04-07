@@ -129,7 +129,7 @@ public:
      * \param get_buff the getter function
      */
     void set_xport_chan_get_buff(
-        const size_t xport_chan, const get_buff_type& get_buff, const bool flush = false)
+        const size_t xport_chan, const get_buff_type& get_buff, const bool flush = true)
     {
         if (flush) {
             while (get_buff(0.0)) {
@@ -400,8 +400,9 @@ private:
         while (1) {
             // get a single packet from the transport layer
             buff = _props[index].get_buff(timeout);
-            if (buff.get() == nullptr)
+            if (buff.get() == nullptr) {
                 return PACKET_TIMEOUT_ERROR;
+            }
 
 #ifdef ERROR_INJECT_DROPPED_PACKETS
             if (++recvd_packets > 1000) {

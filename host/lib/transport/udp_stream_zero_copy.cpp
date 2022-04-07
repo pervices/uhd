@@ -74,8 +74,9 @@ public:
     }
 
     UHD_INLINE sptr get_new(const double timeout, size_t &index){
-        if (not _claimer.claim_with_wait(timeout))
+        if (not _claimer.claim_with_wait(timeout)) {
             return sptr();
+        }
 
         #ifdef MSG_DONTWAIT //try a non-blocking recv() if supported
         _len = ::recv(_sock_fd, (char *)_mem, _frame_size, MSG_DONTWAIT);
