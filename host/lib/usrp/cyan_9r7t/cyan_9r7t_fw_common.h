@@ -72,7 +72,7 @@
 // Cyan 9r7t min MTU size (typical ethernet frame)
 #define CYAN_9R7T_MIN_MTU		1500
 // Cyan 9r7t max MTU size (jumbo ethernet frame is 9000 bytes)
-#define CYAN_9R7T_MAX_MTU		9000
+#define CYAN_9R7T_MAX_MTU		8992
 
 // Cyan 9r7t Flowcontrol Update Per Second
 #define CYAN_9R7T_UPDATE_PER_SEC	100
