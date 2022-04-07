@@ -81,15 +81,19 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
 
     bool vita_enabled = true;
 
+    double timeout = start_time + 5;
+
     uint64_t num_trigger_passed = 0;
     size_t num_samples_this_trigger = 0;
+
     while((num_trigger_passed < num_trigger || num_trigger == 0) && !stop_signal_called) {
         uhd::rx_metadata_t this_md;
         // The receive command is will to accept more samples than expected in order to detect if the unit is sending to many samples
         for (size_t i = 0; i < buffs.size(); i++) {
             buff_ptrs[i] = &buffs[i].at(num_samples_this_trigger);
         }
-        size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, 10, false);
+        size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, timeout, false);
+        timeout = 1.5;
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)
         if(vita_enabled) {
@@ -124,8 +128,8 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
             num_trigger_passed++;
 
         } else{
-            previous_md = this_md;
             num_samples_this_trigger += samples_this_packet;
+            previous_md = this_md;
             first_packet_of_trigger = false;
         }
     }
