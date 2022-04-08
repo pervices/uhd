@@ -72,7 +72,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
 
     // Vector containing each buffer
     // The buffer must be able to hold a full buffer's worth of data plus data from one more packet
-    std::vector<std::vector<std::complex<short>>> buffs(channel_nums.size(), std::vector<std::complex<short>>(samples_per_trigger*2));
+    std::vector<std::vector<std::complex<short>>> buffs(channel_nums.size(), std::vector<std::complex<short>>(samples_per_trigger*2 + 1));
 
     // Vector pointing to each buffer
     std::vector<std::complex<short>*> buff_ptrs;
