@@ -105,7 +105,11 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
             }
         }
         // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
-        if(this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) {
+        if((this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) || samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
+            if(samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
+                num_samples_this_trigger += samples_this_packet;
+                samples_this_packet = 0;
+            }
             std::cout << "Saving result from trigger " << num_trigger_passed << " containing " << num_samples_this_trigger << " samples" << std::endl;
             for(size_t n = 0; n < buffs.size(); n++) {
                 std::string burst_path = burst_directory + "/burst_" + std::to_string(num_trigger_passed) + "ch_" + std::to_string(channel_nums[n]) + "_result.dat";
