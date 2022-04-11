@@ -1033,7 +1033,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simp
 
 	size_t r = 0;
 
-	for( size_t tries = 0; tries < 1; tries++ ) {
+	for( size_t tries = 0; tries < 100; tries++ ) {
 		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 		if ( sizeof( req ) != r ) {
 			continue;
@@ -1053,7 +1053,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simp
 		break;
 	}
 	if ( 0 == r ) {
-		//UHD_MSG( error ) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) << std::endl;
+		UHD_LOGGER_ERROR(CYAN_4R4T_3G_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
 		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
 	}
 
