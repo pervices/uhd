@@ -73,6 +73,9 @@
 #define CYAN_8R_MIN_MTU		1500
 // Cyan 8r max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_8R_MAX_MTU		9000
+// Amount of the UDP packet used for overhead in data packets
+// 60 bit ipv4 header, 8 bit UDP header
+#define CYAN_8R_UDP_OVERHEAD 68
 
 //Cyan 8r Flowcontrol Update Per Second
 #define CYAN_8R_UPDATE_PER_SEC	100

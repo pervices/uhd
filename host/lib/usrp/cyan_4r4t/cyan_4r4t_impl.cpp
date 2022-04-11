@@ -34,6 +34,8 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
+#include <uhdlib/transport/udp_common.hpp>
+
 namespace link_cyan_4r4t {
     const int num_links = 4;
     const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
@@ -945,7 +947,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CYAN_4R4T_MAX_MTU-CYAN_4R4T_UDP_OVERHEAD))) );
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
