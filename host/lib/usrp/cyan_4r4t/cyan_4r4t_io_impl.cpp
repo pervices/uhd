@@ -1205,6 +1205,10 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                     &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
                 ));
 
+                my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, boost::bind(
+                    &get_fifo_lvl_udp_abs, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
+                ));
+
                 my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_4r4t_io_impl->async_msg_fifo), _1, _2));
 
                 my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_4r4t_io_impl->async_msg_fifo), _1));
