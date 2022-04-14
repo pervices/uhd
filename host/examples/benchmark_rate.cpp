@@ -213,7 +213,6 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     uhd::tx_streamer::sptr tx_stream,
     std::atomic<bool>& burst_timer_elapsed,
     const start_time_type& start_time,
-    const size_t spp,
     bool elevate_priority,
     double tx_delay,
     bool random_nsamps=false,
@@ -243,11 +242,9 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     md.has_time_spec = (buffs.size() != 1);
     md.time_spec     = usrp->get_time_now() + uhd::time_spec_t(tx_delay);
 
-    const float timeout = 1.0;
     md.start_of_burst = true;
 
     int num_tx_channels = tx_stream->get_num_channels();
-    uint64_t target_nsamps_per_channel = target_nsamps/num_tx_channels;
     if (random_nsamps) {
         // this section is very wrong
         //TODO: rewrite this
@@ -362,7 +359,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     bool random_nsamps = false;
     std::atomic<bool> burst_timer_elapsed(false);
     size_t overrun_threshold, underrun_threshold, drop_threshold, seq_threshold;
-    size_t rx_spp, tx_spp;
+    size_t rx_spp;
     double tx_delay, rx_delay;
     std::string priority;
     bool elevate_priority = false;
@@ -382,7 +379,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rx_rate", po::value<double>(&rx_rate), "specify to perform a RX rate test (sps)")
         ("tx_rate", po::value<double>(&tx_rate), "specify to perform a TX rate test (sps)")
         ("rx_spp", po::value<size_t>(&rx_spp), "samples/packet value for RX")
-        ("tx_spp", po::value<size_t>(&tx_spp), "samples/packet value for TX")
         ("rx_otw", po::value<std::string>(&rx_otw)->default_value("sc16"), "specify the over-the-wire sample mode for RX")
         ("tx_otw", po::value<std::string>(&tx_otw)->default_value("sc16"), "specify the over-the-wire sample mode for TX")
         ("rx_cpu", po::value<std::string>(&rx_cpu)->default_value("fc32"), "specify the host/cpu sample mode for RX")
@@ -599,19 +595,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         stream_args.channels             = tx_channel_nums;
         stream_args.args                 = uhd::device_addr_t(tx_stream_args);
         uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
-        const size_t max_spp             = tx_stream->get_max_num_samps();
-        size_t spp                       = max_spp;
-        if (vm.count("tx_spp")) {
-            spp = std::min(spp, tx_spp);
-        }
-        std::cout << boost::format("Setting TX spp to %u\n") % spp;
+
         auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
             benchmark_tx_rate(usrp,
                 tx_cpu,
                 tx_stream,
                 burst_timer_elapsed,
                 start_time,
-                spp,
                 elevate_priority,
                 tx_delay,
                 random_nsamps,
