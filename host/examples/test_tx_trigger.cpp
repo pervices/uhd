@@ -59,9 +59,8 @@ class Fifo
 {
     uhd::transport::udp_simple::sptr link;
 
-    const size_t channel {0};
-    
     uhd::usrp::multi_usrp::sptr usrp;
+    const size_t channel {0};
 
 public:
     Fifo(uhd::usrp::multi_usrp::sptr usrp, const size_t channel)
@@ -175,17 +174,17 @@ private:
         Set(std::string path, std::string value, bool verify) :
             path(path),
             string_value(value),
-            verify(verify),
             use_double(false),
-            double_value(0)
+            double_value(0),
+            verify(verify)
         {}
 
         Set(std::string path, double value, bool verify) :
             path(path),
             string_value(""),
-            verify(verify),
             use_double(true),
-            double_value(value)
+            double_value(value),
+            verify(verify)
         {}
 
         void print() const
