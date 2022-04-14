@@ -365,11 +365,11 @@ void cyan_4r4t_3g_impl::set_user_reg(const std::string key, user_reg_t value) {
 
         std::printf(
             "SHIPPING(set_user_reg):\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n"
-            "0x%016llX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n"
+            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
 
         boost::endian::native_to_big_inplace(pkt.header);
         boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
