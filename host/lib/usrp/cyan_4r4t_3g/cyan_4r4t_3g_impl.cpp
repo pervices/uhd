@@ -74,6 +74,28 @@ namespace asio = boost::asio;
  * Helper Functions
  **********************************************************************/
 
+static std::string mb_root(const size_t mboard = 0) {
+    return "/mboards/" + std::to_string(mboard);
+}
+
+static std::string rx_dsp_root(const size_t channel, const size_t mboard = 0) {
+    return mb_root(mboard) + "/rx_dsps/" + std::to_string(channel);
+}
+
+static std::string rx_rf_fe_root(const size_t channel, const size_t mboard = 0) {
+    auto letter = std::string(1, 'A' + channel);
+    return mb_root(mboard) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
+}
+
+static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
+    return mb_root(mboard) + "/tx_dsps/" + std::to_string(channel);
+}
+
+static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) {
+    auto letter = std::string(1, 'A' + channel);
+    return mb_root(mboard) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
+}
+
 // seperates the input data into the vector tokens based on delim
 static void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
 	int i = 0;
@@ -1804,16 +1826,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 uhd::tune_result_t cyan_4r4t_3g_impl::set_rx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto rx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
-	};
-	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
-	};
 
 	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
 			_tree->subtree(rx_dsp_root(chan)),
@@ -1824,16 +1836,6 @@ uhd::tune_result_t cyan_4r4t_3g_impl::set_rx_freq(
 }
 
 double cyan_4r4t_3g_impl::get_rx_freq(size_t chan) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto rx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
-	};
-	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter; 		
-	};
 
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double cur_lo_freq = 0;
@@ -1846,16 +1848,6 @@ double cyan_4r4t_3g_impl::get_rx_freq(size_t chan) {
 uhd::tune_result_t cyan_4r4t_3g_impl::set_tx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto tx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/tx_dsps/" + std::to_string(chan);
-	};
-	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter; 		
-	};
 
 	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
 			_tree->subtree(tx_dsp_root(chan)),
@@ -1866,16 +1858,6 @@ uhd::tune_result_t cyan_4r4t_3g_impl::set_tx_freq(
 }
 
 double cyan_4r4t_3g_impl::get_tx_freq(size_t chan) {
-	auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto tx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/tx_dsps/" + std::to_string(chan);
-	};
-	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter; 		
-	};
 
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
         double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
@@ -1886,14 +1868,6 @@ double cyan_4r4t_3g_impl::get_tx_freq(size_t chan) {
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
 }
 void cyan_4r4t_3g_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
-
-    auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
-	};
 
     if ( multi_usrp::ALL_CHANS != chan ) {
         (void) name;
@@ -1907,13 +1881,6 @@ void cyan_4r4t_3g_impl::set_tx_gain(double gain, const std::string &name, size_t
 }
 
 double cyan_4r4t_3g_impl::get_tx_gain(const std::string &name, size_t chan) {
-    auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto tx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
-	};
 
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
@@ -1924,20 +1891,6 @@ int64_t cyan_4r4t_3g_impl::get_tx_buff_scale() {
 
 void cyan_4r4t_3g_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
 
-    auto mb_root = [&](size_t mboard) -> std::string {
-		return "/mboards/" + std::to_string(mboard);
-	};
-	auto rx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
-	};
-	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
-	};
-    auto rx_codec_path = [&](size_t chan) -> std::string {
-		auto letter = std::string(1, 'A' + chan);
-		return mb_root(0) + "/rx_codecs/" + letter;
-	};
     //If only one channel is selected sets the values in the state tree for gain, otherwise calls this function for each channel individually
     if ( multi_usrp::ALL_CHANS != chan ) {
 
