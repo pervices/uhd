@@ -23,6 +23,6 @@ IF(ENABLE_CYAN_8R)
     LIBUHD_APPEND_SOURCES(
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_8r_impl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_8r_iface.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/io_impl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_8r_io_impl.cpp
     )
 ENDIF(ENABLE_CYAN_8R)
