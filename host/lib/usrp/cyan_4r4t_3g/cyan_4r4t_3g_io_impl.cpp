@@ -168,6 +168,7 @@ static void shutdown_lingering_rx_streamers() {
 // 2) to wrap sph::send_packet_streamer::send() and use our existing flow control algorithm
 class cyan_4r4t_3g_send_packet_streamer : public sph::send_packet_streamer {
 public:
+
 	typedef boost::function<void(void)> onfini_type;
 	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
 	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
@@ -1115,6 +1116,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 }
 
 tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &args_){
+
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
@@ -1234,7 +1236,7 @@ tx_streamer::sptr cyan_4r4t_3g_impl::get_tx_stream(const uhd::stream_args_t &arg
     this->update_rates();
 
     // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
-	while( (! time_diff_converged()) && _bm_thread_needed ) {
+	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
 	}
     //my_streamer->start_packet_streamer_thread();

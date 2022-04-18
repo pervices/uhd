@@ -1540,7 +1540,6 @@ bool cyan_4r4t_3g_impl::is_bm_thread_needed() {
         "rx_start",
         "rx_stop",
         "uhd_usrp_info",
-        "test_tx_trigger",
 	};
 
 	// see `man 3 program_invocation_short_name'
