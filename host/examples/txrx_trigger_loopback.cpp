@@ -263,48 +263,51 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
-    if(use_tx) {
-        std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
-        usrp->set_tx_rate(rate);
-        //Adjust the requested rate to match the desired rate
-        rate = usrp->get_tx_rate();
-        std::cout << boost::format("Actual TX Rate: %f Msps...") % (rate/1e6) << std::endl << std::endl;
-    }
-    if(use_rx) {
-        std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate/1e6) << std::endl;
-        usrp->set_rx_rate(rate);
-        std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate()/1e6) << std::endl << std::endl;
+    for(size_t ch = 0; ch < channel_nums.size(); ch++) {
+        if(use_tx) {
+            std::cout << boost::format("Setting ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl;
+            usrp->set_tx_rate(rate, channel_nums[ch]);
+            //Adjust the requested rate to match the desired rate
+            rate = usrp->get_tx_rate(channel_nums[ch]);
+            std::cout << boost::format("Actual ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl << std::endl;
+        }
+        if(use_rx) {
+            std::cout << boost::format("Setting ch%i RX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl;
+            usrp->set_rx_rate(rate, channel_nums[ch]);
+            rate = usrp->get_rx_rate(channel_nums[ch]);
+            std::cout << boost::format("Actual ch%i RX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl << std::endl;
+        }
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         if(use_tx) {
-            std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
+            std::cout << boost::format("Setting ch%i TX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
             uhd::tune_request_t tune_request(freq);
             usrp->set_tx_freq(tune_request, channel_nums[ch]);
-            std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i TX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
         }
         if(use_rx) {
-            std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+            std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
             uhd::tune_request_t tune_request(freq);
             usrp->set_rx_freq(tune_request, channel_nums[ch]);
-            std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+            std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_rx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
         }
 
 
         //set the rf gain
         if(use_tx) {
             if (vm.count("tx_gain")){
-                std::cout << boost::format("Setting TX Gain: %f dB...") % tx_gain << std::endl;
+                std::cout << boost::format("Setting ch%i TX Gain: %f dB...") % channel_nums[ch] % tx_gain << std::endl;
                 usrp->set_tx_gain(tx_gain, channel_nums[ch]);
-                std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
+                std::cout << boost::format("Actual ch%i TX Gain: %f dB...") % channel_nums[ch] % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
             }
         }
         //set the rf gain
         if(use_rx) {
             if (vm.count("rx_gain")){
-                std::cout << boost::format("Setting RX Gain: %f dB...") % rx_gain << std::endl;
+                std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % channel_nums[ch] % rx_gain << std::endl;
                 usrp->set_rx_gain(rx_gain, channel_nums[ch]);
-                std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel_nums[ch]) << std::endl << std::endl;
+                std::cout << boost::format("Actual ch%i RX Gain: %f dB...") % channel_nums[ch] % usrp->get_rx_gain(channel_nums[ch]) << std::endl << std::endl;
             }
         }
     }
