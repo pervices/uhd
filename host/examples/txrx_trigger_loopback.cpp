@@ -58,7 +58,7 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     tx_stream->send("", 0, md);
 }
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, double debug_nsamps_modifier) {
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, double debug_nsamps_modifier, bool overwrite) {
     uhd::rx_metadata_t previous_md;
     bool first_packet_of_trigger = true;
     // setup streaming
@@ -112,7 +112,12 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
             }
             std::cout << "Saving result from trigger " << num_trigger_passed << " containing " << num_samples_this_trigger << " samples" << std::endl;
             for(size_t n = 0; n < buffs.size(); n++) {
-                std::string burst_path = burst_directory + "/burst_" + std::to_string(num_trigger_passed) + "ch_" + std::to_string(channel_nums[n]) + "_result.dat";
+                std::string burst_path;
+                if(overwrite) {
+                    burst_path = burst_directory + "/ch_" + std::to_string(channel_nums[n]) + "_result.dat";
+                } else {
+                    burst_path = burst_directory + "/burst_" + std::to_string(num_trigger_passed) + "ch_" + std::to_string(channel_nums[n]) + "_result.dat";
+                }
                 std::ofstream outfile;
                 outfile.open(burst_path.c_str(), std::ofstream::binary);
                 for (size_t i = 0; i < buffs.size(); i++) {
@@ -163,6 +168,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uint64_t num_trigger, setpoint;
     double rate, freq, tx_gain, rx_gain, wave_freq, start_time, debug_nsamps_modifier;
     float ampl;
+    bool overwrite;
 
     bool use_rx, use_tx;
 
@@ -187,6 +193,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
+        ("overwrite", "Overwrite the results files every trigger, instead of creating a new one each time")
         ("debug_nsamps_multiple", po::value<size_t>(&debug_nsamps_multiple)->default_value(1), "If specified samples_per_trigger will be rounded to be a multiple of this. Must be 2944 for cyan_4r4t_3g, not needed for any other variant")
         ("debug_nsamps_modifier", po::value<double>(&debug_nsamps_modifier)->default_value(1), "Modifies the number of samples per trigger requested from the unit. 0.75 for cyan_4r4t_3g, leave blank for any other variant")
     ;
@@ -199,6 +206,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
         return ~0;
     }
+
+    overwrite = vm.count("overwrite");
 
     use_rx = !vm.count("tx_only");
     use_tx = !vm.count("rx_only");
@@ -387,7 +396,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(use_rx) {
         //TODO make this asynchronous
-        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, debug_nsamps_modifier);
+        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, debug_nsamps_modifier, overwrite);
         usrp->rx_trigger_cleanup(channel_nums);
     }
 
