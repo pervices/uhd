@@ -27,10 +27,73 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <math.h>
+#include <thread>
 
 
 
 namespace po = boost::program_options;
+
+void rx_run(uhd::rx_streamer::sptr rx_stream, std::vector<std::vector<std::complex<short>*>> ring_buff_ptrs, size_t data_buffer_length, std::vector<uint64_t> samples_ready, double timeout, size_t total_num_samps) {
+    size_t num_acc_samps = 0;
+    size_t num_buffers = samples_ready.size();
+    size_t active_buffer = 0;
+    uhd::rx_metadata_t rx_md;
+    while (num_acc_samps < total_num_samps || total_num_samps == 0) {
+        while (samples_ready[active_buffer] > 0) {
+            //insert sleep here
+        }
+        // receive a single packet
+        size_t samps_received = rx_stream->recv(ring_buff_ptrs[active_buffer], data_buffer_length, rx_md, timeout, true);
+        //skips recording samples from this, if no samples received
+        if(samps_received == 0) {
+            continue;
+        }
+        //use small timeout for subsequent packets
+        timeout = 0.1;
+        num_acc_samps+=samps_received;        
+        samples_ready[active_buffer] = samps_received;
+        
+        active_buffer++;
+        if(active_buffer >= num_buffers) {
+            active_buffer = 0;
+        }
+    }
+}
+void tx_run( uhd::tx_streamer::sptr tx_stream, std::vector<std::vector<std::complex<short>*>> ring_buff_ptrs, std::vector<uint64_t> samples_ready, double seconds_in_future, size_t total_num_samps) {
+    size_t active_buffer = 0;
+    size_t num_buffers = samples_ready.size();
+    size_t samps_sent = 0;
+    // Set up Tx metadata. We start streaming a bit in the future
+    uhd::tx_metadata_t tx_md;
+    tx_md.start_of_burst = true;
+    tx_md.end_of_burst   = false;
+    tx_md.has_time_spec  = true;
+    tx_md.time_spec = uhd::time_spec_t(seconds_in_future);
+    
+    while (samps_sent < total_num_samps || total_num_samps == 0) {
+        while (samples_ready[active_buffer] == 0) {
+            //insert sleep here
+        }
+        
+        size_t samps_sent_this_buffer = 0;
+        // receive a single packet
+        while(samps_sent_this_buffer < samples_ready[active_buffer]) {
+            samps_sent_this_buffer += tx_stream->send(ring_buff_ptrs[active_buffer], samples_ready[active_buffer]-samps_sent_this_buffer, tx_md);
+        }
+        samps_sent+=samps_sent_this_buffer;
+        samples_ready[active_buffer] = 0;
+        active_buffer++;
+        if(active_buffer >= num_buffers) {
+            active_buffer = 0;
+        }
+        
+        tx_md.start_of_burst = false;
+        tx_md.has_time_spec = false;
+    }
+    tx_md.end_of_burst = true;
+    tx_stream->send("", 0, tx_md);
+}
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
@@ -74,8 +137,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << boost::format("UHD RX_TX continuous stream %s") % desc << std::endl;
         return ~0;
     }
-
-    bool verbose = vm.count("dilv") == 0;
 
     // create a usrp device
     std::cout << std::endl;
@@ -152,12 +213,33 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     stream_cmd.stream_now = false;
 //  stream_cmd.time_spec  = uhd::time_spec_t(seconds_in_future);
     
+    //size of the buffers used to store data from individual send/receive commands
+    size_t sr_buffer_size = rx_stream->get_max_num_samps();
+    //number of sr buffers within the ring buffer, store 1 second's worth of data
+    size_t ring_buffer_size = ceil(rate/sr_buffer_size);
     
+    std::vector<uint64_t> samples_ready(ring_buffer_size);
+    
+    size_t num_channels = channel_nums.size();
     // allocate buffer to receive with samples
-    std::vector<std::vector<std::complex<short>>> buff(rx_stream->get_num_channels(), std::vector<std::complex<short>>(rx_stream->get_max_num_samps()));
-    std::vector<std::complex<short>*> buff_ptrs;
-    for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++)
-        buff_ptrs.push_back(&buff[ch].front()); // same buffer for each channel
+    // This program uses a rung buffer of buffers to send a receive data
+    // [location in ring][channel][location in data buffer]
+    // Data is sent to send/recv functions from the data buffer
+    std::vector<std::vector<std::vector<std::complex<short>>>> ring_buffer(ring_buffer_size);
+    for(size_t a = 0; a < ring_buffer_size; a++) {
+        ring_buffer[a] = std::vector<std::vector<std::complex<short>>>(num_channels);
+        for(size_t b = 0; b < num_channels; b++) {
+            ring_buffer[a][b] = std::vector<std::complex<short>>(sr_buffer_size);
+        }
+    }
+
+    //A ring buffer containg a vector that contains pointers to the start of each data buffer
+    std::vector<std::vector<std::complex<short>*>> ring_buff_ptrs(ring_buffer_size);
+    for(size_t ring_index = 0; ring_index < ring_buff_ptrs.size(); ring_index++) {
+        for (size_t ch = 0; ch < num_channels; ch++) {
+            ring_buff_ptrs[ring_index].push_back(&ring_buffer[ring_index][ch].front()); // same buffer for each channel
+        }
+    }
     
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     usrp->set_time_now(uhd::time_spec_t(0.0));
@@ -166,37 +248,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // meta-data will be filled in by recv()
     uhd::rx_metadata_t rx_md;
-    
-    // Set up Tx metadata. We start streaming a bit in the future
-    uhd::tx_metadata_t tx_md;
-    tx_md.start_of_burst = true;
-    tx_md.end_of_burst   = false;
-    tx_md.has_time_spec  = true;
-    tx_md.time_spec = uhd::time_spec_t(seconds_in_future);
 
     // the first call to recv() will block this many seconds before receiving
     double timeout = seconds_in_future + 0.1; // timeout (delay before receive + padding)
 
+    //the arrays passed here need to be changed to be passed by reference, and locking added
+    std::thread rx_thread(rx_run, rx_stream, ring_buff_ptrs, sr_buffer_size, samples_ready, timeout, total_num_samps);
+
+    //the arrays passed here need to be changed to be passed by reference, and locking added
+    std::thread tx_thread(tx_run, tx_stream, ring_buff_ptrs, samples_ready, seconds_in_future, total_num_samps);
     
-    size_t num_acc_samps = 0; // number of accumulated samples
-    while (num_acc_samps < total_num_samps || total_num_samps == 0) {
-        // receive a single packet
-        size_t samps_received = rx_stream->recv(buff_ptrs, buff.at(0).size(), rx_md, timeout, true);
-        size_t samps_sent = tx_stream->send(buff_ptrs, samps_received, tx_md);
-        std::cout <<"samps_received: " << samps_received << std::endl;
-        std::cout <<"samps_sent: " << samps_sent << std::endl;
-
-        
-
-        // use a small timeout for subsequent packets
-        timeout = 0.1;
-
-        tx_md.start_of_burst = false;
-        tx_md.has_time_spec = false;
-    }
-    //send a mini EOB packet
-    tx_md.end_of_burst = true;
-    tx_stream->send("", 0, tx_md);
+    rx_thread.join();
+    tx_thread.join();
     
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
