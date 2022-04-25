@@ -29,67 +29,136 @@
 #include <chrono>
 #include <math.h>
 #include <thread>
-
-
+#include <mutex>
+#include <unistd.h>
+#include <algorithm>
+#include <semaphore.h>
 
 namespace po = boost::program_options;
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, std::vector<std::vector<std::complex<short>*>> ring_buff_ptrs, size_t data_buffer_length, std::vector<uint64_t> samples_ready, double timeout, size_t total_num_samps) {
-    size_t num_acc_samps = 0;
-    size_t num_buffers = samples_ready.size();
-    size_t active_buffer = 0;
-    uhd::rx_metadata_t rx_md;
-    while (num_acc_samps < total_num_samps || total_num_samps == 0) {
-        while (samples_ready[active_buffer] > 0) {
-            //insert sleep here
-        }
-        // receive a single packet
-        size_t samps_received = rx_stream->recv(ring_buff_ptrs[active_buffer], data_buffer_length, rx_md, timeout, true);
-        //skips recording samples from this, if no samples received
-        if(samps_received == 0) {
-            continue;
-        }
-        //use small timeout for subsequent packets
-        timeout = 0.1;
-        num_acc_samps+=samps_received;        
-        samples_ready[active_buffer] = samps_received;
-        
-        active_buffer++;
-        if(active_buffer >= num_buffers) {
-            active_buffer = 0;
-        }
-    }
+static bool stop_signal_called = false;
+void sig_int_handler(int)
+{
+    stop_signal_called = true;
 }
-void tx_run( uhd::tx_streamer::sptr tx_stream, std::vector<std::vector<std::complex<short>*>> ring_buff_ptrs, std::vector<uint64_t> samples_ready, double seconds_in_future, size_t total_num_samps) {
-    size_t active_buffer = 0;
-    size_t num_buffers = samples_ready.size();
-    size_t samps_sent = 0;
+
+std::mutex mtx;
+const size_t num_buffers = 8;
+//how much percent of required samples between rx and tx buffer are used for each loopback
+const double host_buff_size = 0.25;
+// space at the end of buffer that is used to make it easier to avoid issues when samples can only be sent in specific amounts
+const size_t spare_buffer_space = 10000;
+//TODO change send function so that it will partially send instead of sending the entire buffer when the device's buffer would dip below the setpoint
+const size_t max_samples_per_tx = 10000;
+// The inner buffer is a buffer containing data received from each channel
+// The middle layer groups the buffer for each ch together
+// The outer layer exists so that the rx can receive to once set of buffers and tx the other, so that they don't need to lock and unlock every send/recv
+std::vector<std::vector<std::vector<std::complex<short>>>> buffers;
+std::vector<std::atomic<size_t>> buffer_used(num_buffers);
+std::vector<sem_t> buff_ready(num_buffers);
+
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps) {
+    double timeout = start_time + 0.1; // timeout (delay before receive + padding)
+    size_t num_acc_samps = 0;
+    size_t active_buffer_index = 0;
+    size_t num_channels = buffers[0].size();
+    size_t max_samples_per_buffer = buffers[0][0].size();
+    uhd::rx_metadata_t rx_md;
+
+    while ((num_acc_samps < total_num_samps || total_num_samps == 0) && !stop_signal_called) {
+
+        std::vector<std::vector<std::complex<short>>> *active_buffer;
+        active_buffer = &buffers[active_buffer_index];
+
+        //std::unique_lock<std::mutex> lock(mtx);
+
+        size_t samples_this_buffer = 0;
+
+        while (samples_this_buffer + spare_buffer_space < max_samples_per_buffer && !stop_signal_called) {
+
+            std::vector<std::complex<short>*> active_buff_ptrs(num_channels);
+
+            for(size_t n = 0; n < num_channels; n++) {
+                active_buff_ptrs[n] = &(*active_buffer)[n][samples_this_buffer];
+            }
+
+            // receive a single packet
+            size_t samps_received = rx_stream->recv(active_buff_ptrs, max_samples_per_buffer - samples_this_buffer, rx_md, timeout, true);
+
+            //use small timeout for subsequent packets
+            timeout = 0.1;
+            num_acc_samps+=samps_received;
+            samples_this_buffer+=samps_received;
+        }
+
+
+        buffer_used[active_buffer_index] = samples_this_buffer;
+        //lock.unlock();
+
+        sem_post(&buff_ready[active_buffer_index]);
+
+        active_buffer_index++;
+        if(active_buffer_index >= num_buffers) {
+            active_buffer_index = 0;
+         }
+    }
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+    rx_stream->issue_stream_cmd(stream_cmd);
+}
+void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_num_samps) {
+    size_t num_acc_samps = 0;
+    size_t active_buffer_index = 0;
+    size_t num_channels = buffers[0].size();
+    size_t max_samples_per_buffer = buffers[0][0].size();
     // Set up Tx metadata. We start streaming a bit in the future
     uhd::tx_metadata_t tx_md;
     tx_md.start_of_burst = true;
     tx_md.end_of_burst   = false;
     tx_md.has_time_spec  = true;
-    tx_md.time_spec = uhd::time_spec_t(seconds_in_future);
+    tx_md.time_spec = uhd::time_spec_t(start_time);
+
+    tx_stream->send("", 0, tx_md);
+
+    tx_md.start_of_burst = false;
+    tx_md.has_time_spec = false;
     
-    while (samps_sent < total_num_samps || total_num_samps == 0) {
-        while (samples_ready[active_buffer] == 0) {
-            //insert sleep here
+    while ((num_acc_samps < total_num_samps || total_num_samps == 0) && !stop_signal_called) {
+
+        sem_wait(&buff_ready[active_buffer_index]);
+
+        std::vector<std::vector<std::complex<short>>> *active_buffer;
+        active_buffer = &buffers[active_buffer_index];
+        size_t samples_to_send_this_buffer = buffer_used[active_buffer_index];
+
+        std::unique_lock<std::mutex> lock(mtx);
+
+        size_t samples_this_buffer = 0;
+
+        while (samples_this_buffer + spare_buffer_space < max_samples_per_buffer && !stop_signal_called) {
+
+            std::vector<std::complex<short>*> active_buff_ptrs(num_channels);
+
+            for(size_t n = 0; n < num_channels; n++) {
+                active_buff_ptrs[n] = &(*active_buffer)[n][samples_this_buffer];
+            }
+
+            size_t samples_sent = tx_stream->send(active_buff_ptrs, std::min(samples_to_send_this_buffer - samples_this_buffer, max_samples_per_tx), tx_md);
+
+            tx_md.start_of_burst = false;
+            tx_md.has_time_spec = false;
+
+
+            samples_this_buffer+=samples_sent;
+            num_acc_samps+=samples_sent;
+        }
+
+        lock.unlock();
+
+        active_buffer_index++;
+        if(active_buffer_index >= num_buffers) {
+            active_buffer_index = 0;
         }
         
-        size_t samps_sent_this_buffer = 0;
-        // receive a single packet
-        while(samps_sent_this_buffer < samples_ready[active_buffer]) {
-            samps_sent_this_buffer += tx_stream->send(ring_buff_ptrs[active_buffer], samples_ready[active_buffer]-samps_sent_this_buffer, tx_md);
-        }
-        samps_sent+=samps_sent_this_buffer;
-        samples_ready[active_buffer] = 0;
-        active_buffer++;
-        if(active_buffer >= num_buffers) {
-            active_buffer = 0;
-        }
-        
-        tx_md.start_of_burst = false;
-        tx_md.has_time_spec = false;
     }
     tx_md.end_of_burst = true;
     tx_stream->send("", 0, tx_md);
@@ -98,11 +167,11 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, std::vector<std::vector<std::comp
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
-    std::string args, channel_list;
+    std::string args, channel_list, ref;
     std::string wire;
     double seconds_in_future;
     size_t total_num_samps;
-    double rate,freq,tx_gain, rx_gain;
+    double rate,freq,tx_gain, rx_gain, offset;
 
     // setup the program options
     po::options_description desc("Allowed options");
@@ -110,7 +179,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     desc.add_options()
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
-        ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
+        ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to begin receiving")
+        ("rx_lead", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming (Rx) and outgoing (Tx) samples")
         //("dilv", "specify to disable inner-loop verbose")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
@@ -119,10 +189,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rx_gain", po::value<double>(&rx_gain), "gain for the Rx RF chain")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "Number of samples to relay between tx and rx. Leave at 0 for run continuously")
+        ("offset", po::value<double>(&offset)->default_value(1), "Delay between rx and tx in seconds")
         //("ant", po::value<std::string>(&ant), "antenna selection")
         //("subdev", po::value<std::string>(&subdev), "subdevice specification")
         //("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
-        //("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
+        ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
         //("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo)")
         //("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
         //("int-n", "tune USRP with integer-N tuning")
@@ -174,6 +245,26 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 //         }else
 //             channel_nums.push_back(std::stoi(channel_strings[ch]));
 
+    // set the tx sample rate
+    std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    usrp->set_tx_rate(rate);
+    double actual_tx_rate = usrp->get_tx_rate();
+    std::cout << boost::format("Actual TX Rate: %f Msps...") % (actual_tx_rate / 1e6)
+              << std::endl
+              << std::endl;
+
+    // set the rx sample rate
+    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    usrp->set_rx_rate(rate);
+    double actual_rx_rate = usrp->get_rx_rate();
+    std::cout << boost::format("Actual RX Rate: %f Msps...") % (actual_rx_rate / 1e6)
+              << std::endl
+              << std::endl;
+
+    if(actual_rx_rate != actual_tx_rate) {
+        std::cerr << "Tx and Rx rate mismatch, basing future calculations of of tx" << std::endl;
+    }
+    rate = actual_tx_rate;
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++){
         //set the Rx rf gain
@@ -187,17 +278,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
         
     }
-    
-    
-    // set the rx sample rate
-    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
-    usrp->set_rx_rate(rate);
-    std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate() / 1e6)
-              << std::endl
-              << std::endl;
+
+    // Lock mboard clocks
+    usrp->set_clock_source(ref);
 
     // create a receive streamer
-    uhd::stream_args_t stream_args("sc16"); // complex floats
+    uhd::stream_args_t stream_args("sc16"); //short complex
     stream_args.channels             = channel_nums;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
@@ -211,52 +297,45 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS); 
     stream_cmd.num_samps  = total_num_samps;
     stream_cmd.stream_now = false;
-//  stream_cmd.time_spec  = uhd::time_spec_t(seconds_in_future);
-    
-    //size of the buffers used to store data from individual send/receive commands
-    size_t sr_buffer_size = rx_stream->get_max_num_samps();
-    //number of sr buffers within the ring buffer, store 1 second's worth of data
-    size_t ring_buffer_size = ceil(rate/sr_buffer_size);
-    
-    std::vector<uint64_t> samples_ready(ring_buffer_size);
+    stream_cmd.time_spec  = uhd::time_spec_t(seconds_in_future);
     
     size_t num_channels = channel_nums.size();
+    // space at the end of buffer that is used to make it easier to avoid issues when samples can only be sent in specific amounts
+    //size of the buffers used to store data from individual send/receive commands
+    size_t buffer_size = std::ceil(offset * rate * host_buff_size + spare_buffer_space);
     // allocate buffer to receive with samples
     // This program uses a rung buffer of buffers to send a receive data
-    // [location in ring][channel][location in data buffer]
+    // [which buffer][channel][location in data buffer]
     // Data is sent to send/recv functions from the data buffer
-    std::vector<std::vector<std::vector<std::complex<short>>>> ring_buffer(ring_buffer_size);
-    for(size_t a = 0; a < ring_buffer_size; a++) {
-        ring_buffer[a] = std::vector<std::vector<std::complex<short>>>(num_channels);
+    buffers = std::vector<std::vector<std::vector<std::complex<short>>>>(num_buffers);
+    for(size_t a = 0; a < num_buffers; a++) {
+        buffers[a] = std::vector<std::vector<std::complex<short>>>(num_channels);
         for(size_t b = 0; b < num_channels; b++) {
-            ring_buffer[a][b] = std::vector<std::complex<short>>(sr_buffer_size);
+            buffers[a][b] = std::vector<std::complex<short>>(buffer_size);
         }
     }
 
-    //A ring buffer containg a vector that contains pointers to the start of each data buffer
-    std::vector<std::vector<std::complex<short>*>> ring_buff_ptrs(ring_buffer_size);
-    for(size_t ring_index = 0; ring_index < ring_buff_ptrs.size(); ring_index++) {
-        for (size_t ch = 0; ch < num_channels; ch++) {
-            ring_buff_ptrs[ring_index].push_back(&ring_buffer[ring_index][ch].front()); // same buffer for each channel
-        }
+    for(size_t n = 0; n < num_buffers; n++) {
+        sem_init(&buff_ready[n], 0, 0);
     }
     
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     usrp->set_time_now(uhd::time_spec_t(0.0));
+
     rx_stream->issue_stream_cmd(stream_cmd);
-    
 
-    // meta-data will be filled in by recv()
-    uhd::rx_metadata_t rx_md;
-
-    // the first call to recv() will block this many seconds before receiving
-    double timeout = seconds_in_future + 0.1; // timeout (delay before receive + padding)
+    if (total_num_samps == 0) {
+        std::signal(SIGINT, &sig_int_handler);
+        std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
+    }
 
     //the arrays passed here need to be changed to be passed by reference, and locking added
-    std::thread rx_thread(rx_run, rx_stream, ring_buff_ptrs, sr_buffer_size, samples_ready, timeout, total_num_samps);
+    std::thread rx_thread(rx_run, rx_stream, seconds_in_future, total_num_samps);
 
     //the arrays passed here need to be changed to be passed by reference, and locking added
-    std::thread tx_thread(tx_run, tx_stream, ring_buff_ptrs, samples_ready, seconds_in_future, total_num_samps);
+    std::thread tx_thread(tx_run, tx_stream, seconds_in_future + offset, total_num_samps);
+
+    std::cout << "D1\n";
     
     rx_thread.join();
     tx_thread.join();
