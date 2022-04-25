@@ -12,6 +12,7 @@
 #include <uhdlib/transport/udp_common.hpp>
 #include <boost/format.hpp>
 #include <vector>
+#include <iostream>
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -204,6 +205,7 @@ public:
         , _next_recv_buff_index(0)
         , _next_send_buff_index(0)
     {
+        std::cout << "T1" << std::endl;
 #ifdef CHECK_REG_SEND_THRESH
         check_registry_for_fast_send_threshold(this->get_send_frame_size());
 #endif /*CHECK_REG_SEND_THRESH*/
