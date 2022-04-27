@@ -3055,6 +3055,7 @@ multi_usrp::sptr make_rfnoc_device(
 
 multi_usrp::sptr multi_usrp::make(const device_addr_t& dev_addr)
 {
+    std::cout << "T1" << std::endl;
     UHD_LOGGER_TRACE("MULTI_USRP")
         << "multi_usrp::make with args " << dev_addr.to_pp_string();
 
@@ -3062,7 +3063,9 @@ multi_usrp::sptr multi_usrp::make(const device_addr_t& dev_addr)
 
     auto rfnoc_dev = std::dynamic_pointer_cast<rfnoc::detail::rfnoc_device>(dev);
     if (rfnoc_dev) {
+        std::cout << "T10000" << std::endl;
         return rfnoc::detail::make_rfnoc_device(rfnoc_dev, dev_addr);
     }
+    std::cout << "T10001" << std::endl;
     return std::make_shared<multi_usrp_impl>(dev);
 }
