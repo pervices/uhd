@@ -82,6 +82,7 @@ public:
 
         std::cout << "G1" << std::endl;
         std::cout << "timeout: " << timeout << std::endl;
+        timeout = 0;
 
         //if the timeout requested is different from the previous one
         if(timeout != _current_timout || _timeout_not_set) {
