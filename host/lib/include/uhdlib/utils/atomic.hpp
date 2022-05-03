@@ -35,8 +35,6 @@ UHD_INLINE bool spin_wait_with_timeout(
         if (std::chrono::high_resolution_clock::now() > exit_time) {
             return false;
         }
-        boost::this_thread::interruption_point();
-        boost::this_thread::yield();
     }
     return true;
 }
