@@ -90,6 +90,7 @@ public:
                 index++; //advances the caller's buffer
                 return make(this, _mem, size_t(_len));
             }
+            _claimer.release(); //undo claim
             return sptr(); //null for timeout
         } else {
             //sets timeout if the timeout requested is different from the last one it was set to one
@@ -104,19 +105,18 @@ public:
 
             std::cout << "G3" << std::endl;
 
-            //const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
-            //if (wait_for_recv_ready(_sock_fd, timeout_ms)){
-                std::cout << "G4" << std::endl;
-                _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
-                std::cout << "G5" << std::endl;
-                //TODO: add new error recv checking system, since this would be triggered by timeouts
-                //UHD_ASSERT_THROW(_len > 0); // TODO: Handle case of recv error
+            std::cout << "G4" << std::endl;
+            _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
+            std::cout << "G5" << std::endl;
+            if(_len >0) {
                 index++; //advances the caller's buffer
                 return make(this, _mem, size_t(_len));
-            //}
+            } else {
+                _claimer.release(); //undo claim
+                return sptr(); //null for timeout
+            }
 
-            _claimer.release(); //undo claim
-            return sptr(); //null for timeout
+
         }
     }
 
