@@ -82,7 +82,6 @@ public:
 
         std::cout << "G1" << std::endl;
         std::cout << "timeout: " << timeout << std::endl;
-        double mutable_timeout = 1;
 
         if(timeout == 0) {
             _len = ::recv(_sock_fd, (char *)_mem, _frame_size, MSG_DONTWAIT);
@@ -93,11 +92,11 @@ public:
             return sptr(); //null for timeout
         } else {
             //sets timeout if the timeout requested is different from the last one it was set to one
-            if(mutable_timeout != _current_timout) {
-                _current_timout = mutable_timeout;
+            if(timeout != _current_timout) {
+                _current_timout = timeout;
                 struct timeval tv;
-                tv.tv_sec= (time_t)(mutable_timeout);
-                tv.tv_usec= (suseconds_t)(mutable_timeout*1e6- (time_t)(mutable_timeout));
+                tv.tv_sec= (time_t)(timeout);
+                tv.tv_usec= (suseconds_t)(timeout*1e6- (time_t)(timeout));
                 std::cout << "G2" << std::endl;
                 setsockopt(_sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
             }
