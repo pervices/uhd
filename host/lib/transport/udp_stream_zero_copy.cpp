@@ -76,6 +76,7 @@ public:
     }
 
     UHD_INLINE sptr get_new(const double timeout, size_t &index){
+        std::cout << "G0" << std;:endl;
         if (not _claimer.claim_with_wait(timeout)) {
             return sptr();
         }
