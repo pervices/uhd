@@ -54,7 +54,7 @@ const double host_buff_size = 0.25;
 // space at the end of buffer that is used to make it easier to avoid issues when samples can only be sent in specific amounts
 const size_t spare_buffer_space = 10000;
 //TODO change send function so that it will partially send instead of sending the entire buffer when the device's buffer would dip below the setpoint
-const size_t max_samples_per_tx = 8000;
+const size_t max_samples_per_tx = 6000;
 // The inner buffer is a buffer containing data received from each channel
 // The middle layer groups the buffer for each ch together
 // The outer layer exists so that the rx can receive to once set of buffers and tx the other, so that they don't need to lock and unlock every send/recv
