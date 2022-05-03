@@ -82,7 +82,7 @@ public:
 
         std::cout << "G1" << std::endl;
         std::cout << "timeout: " << timeout << std::endl;
-        double mutable_timeout = 1
+        double mutable_timeout = 1;
 
         //if the timeout requested is different from the previous one
         if(mutable_timeout != _current_timout || _timeout_not_set) {
