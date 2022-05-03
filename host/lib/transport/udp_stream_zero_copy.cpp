@@ -88,7 +88,6 @@ public:
             _len = ::recv(_sock_fd, (char *)_mem, _frame_size, MSG_DONTWAIT);
             if (_len > 0){
                 index++; //advances the caller's buffer
-                _claimer.release(); //undo claim
                 return make(this, _mem, size_t(_len));
             }
             return sptr(); //null for timeout
