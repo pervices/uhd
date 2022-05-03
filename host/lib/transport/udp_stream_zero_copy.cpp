@@ -82,15 +82,15 @@ public:
 
         std::cout << "G1" << std::endl;
         std::cout << "timeout: " << timeout << std::endl;
-        timeout = 0;
+        double mutable_timeout = 1
 
         //if the timeout requested is different from the previous one
-        if(timeout != _current_timout || _timeout_not_set) {
+        if(mutable_timeout != _current_timout || _timeout_not_set) {
             _timeout_not_set = false;
-            _current_timout = timeout;
+            _current_timout = mutable_timeout;
             struct timeval tv;
-            tv.tv_sec= (time_t)(timeout);
-            tv.tv_usec= (suseconds_t)(timeout*1e6- (time_t)(timeout));
+            tv.tv_sec= (time_t)(mutable_timeout);
+            tv.tv_usec= (suseconds_t)(mutable_timeout*1e6- (time_t)(mutable_timeout));
             std::cout << "G2" << std::endl;
             setsockopt(_sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         }
