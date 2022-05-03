@@ -84,31 +84,41 @@ public:
         std::cout << "timeout: " << timeout << std::endl;
         double mutable_timeout = 1;
 
-        //if the timeout requested is different from the previous one
-        if(mutable_timeout != _current_timout || _timeout_not_set) {
-            _timeout_not_set = false;
-            _current_timout = mutable_timeout;
-            struct timeval tv;
-            tv.tv_sec= (time_t)(mutable_timeout);
-            tv.tv_usec= (suseconds_t)(mutable_timeout*1e6- (time_t)(mutable_timeout));
-            std::cout << "G2" << std::endl;
-            setsockopt(_sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        if(timeout == 0) {
+            _len = ::recv(_sock_fd, (char *)_mem, _frame_size, MSG_DONTWAIT);
+            if (_len > 0){
+                index++; //advances the caller's buffer
+                _claimer.release(); //undo claim
+                return make(this, _mem, size_t(_len));
+            }
+            return sptr(); //null for timeout
+        } else {
+            //sets timeout if the timeout requested is different from the last one it was set to one
+            if(mutable_timeout != _current_timout) {
+                _current_timout = mutable_timeout;
+                struct timeval tv;
+                tv.tv_sec= (time_t)(mutable_timeout);
+                tv.tv_usec= (suseconds_t)(mutable_timeout*1e6- (time_t)(mutable_timeout));
+                std::cout << "G2" << std::endl;
+                setsockopt(_sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+            }
+
+            std::cout << "G3" << std::endl;
+
+            //const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
+            //if (wait_for_recv_ready(_sock_fd, timeout_ms)){
+                std::cout << "G4" << std::endl;
+                _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
+                std::cout << "G5" << std::endl;
+                //TODO: add new error recv checking system, since this would be triggered by timeouts
+                //UHD_ASSERT_THROW(_len > 0); // TODO: Handle case of recv error
+                index++; //advances the caller's buffer
+                return make(this, _mem, size_t(_len));
+            //}
+
+            _claimer.release(); //undo claim
+            return sptr(); //null for timeout
         }
-
-        std::cout << "G3" << std::endl;
-
-        //const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
-        //if (wait_for_recv_ready(_sock_fd, timeout_ms)){
-            std::cout << "G4" << std::endl;
-            _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
-            std::cout << "G5" << std::endl;
-            UHD_ASSERT_THROW(_len > 0); // TODO: Handle case of recv error
-            index++; //advances the caller's buffer
-            return make(this, _mem, size_t(_len));
-        //}
-
-        _claimer.release(); //undo claim
-        return sptr(); //null for timeout
     }
 
 private:
@@ -118,7 +128,6 @@ private:
     ssize_t _len;
     simple_claimer _claimer;
     double _current_timout = 0;
-    bool _timeout_not_set = true;
 };
 
 /***********************************************************************
