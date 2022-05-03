@@ -89,12 +89,17 @@ public:
             struct timeval tv;
             tv.tv_sec= (time_t)(timeout);
             tv.tv_usec= (suseconds_t)(timeout*1e6- (time_t)(timeout));
+            std::cout << "G2" << std::endl;
             setsockopt(_sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         }
 
+        std::cout << "G3" << std::endl;
+
         //const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
         //if (wait_for_recv_ready(_sock_fd, timeout_ms)){
+            std::cout << "G4" << std::endl;
             _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
+            std::cout << "G5" << std::endl;
             UHD_ASSERT_THROW(_len > 0); // TODO: Handle case of recv error
             index++; //advances the caller's buffer
             return make(this, _mem, size_t(_len));
