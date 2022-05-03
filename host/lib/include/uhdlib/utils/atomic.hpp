@@ -32,9 +32,12 @@ UHD_INLINE bool spin_wait_with_timeout(
     const auto exit_time = std::chrono::high_resolution_clock::now()
                            + std::chrono::microseconds(int64_t(timeout * 1e6));
     while (cond != value) {
+        std::cout << "Claim in use" << std::endl;
         if (std::chrono::high_resolution_clock::now() > exit_time) {
             return false;
         }
+        boost::this_thread::interruption_point();
+        boost::this_thread::yield();
     }
     return true;
 }
@@ -63,6 +66,7 @@ public:
             _locked = true;
             return true;
         }
+        std::cout << "Failed to get claim" << std::endl;
         return false;
     }
 
