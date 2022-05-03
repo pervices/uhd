@@ -717,6 +717,7 @@ private:
         const double timeout,
         const size_t buffer_offset_bytes = 0)
     {
+        std::cout << "T1" << std::endl;
         // get the next buffer if the current one has expired
         if (get_curr_buffer_info().data_bytes_to_copy == 0) {
             // perform receive with alignment logic
@@ -744,9 +745,9 @@ private:
         _convert_bytes_to_copy       = bytes_to_copy;
 
         // perform N channels of conversion
-        for (size_t i = 0; i < this->size(); i++) {
-            convert_to_out_buff(i);
-        }
+//         for (size_t i = 0; i < this->size(); i++) {
+//             convert_to_out_buff(i);
+//         }
 
         // update the copy buffer's availability
         info.data_bytes_to_copy -= bytes_to_copy;
