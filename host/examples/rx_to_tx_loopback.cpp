@@ -105,6 +105,10 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
         }
     }
 
+    for(size_t n = 0; n < num_buffers; n++) {
+        sem_post(&buff_ready[n]);
+    }
+
     //lock.unlock();
 
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
