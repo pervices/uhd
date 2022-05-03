@@ -166,6 +166,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
+    uhd::set_thread_priority_safe();
     // variables to be set by po
     std::string args, channel_list, ref;
     std::string wire;
