@@ -81,7 +81,6 @@ public:
         }
 
         std::cout << "G1" << std::endl;
-        std::abort();
 
         //if the timeout requested is different from the previous one
         if(timeout != _current_timout || _timeout_not_set) {
