@@ -42,6 +42,7 @@ static void check_priority_range(float priority)
 
 void uhd::set_thread_priority(float priority, bool realtime)
 {
+    std::cout << "Test" << std::endl;
     check_priority_range(priority);
 
     // when realtime is not enabled, use sched other
