@@ -395,7 +395,6 @@ private:
         per_buffer_info_type& curr_buffer_info,
         double timeout)
     {
-        std::cout << "T3" << std::endl;
         managed_recv_buffer::sptr& buff = curr_buffer_info.buff;
         per_buffer_info_type& info      = curr_buffer_info;
         while (1) {
@@ -572,7 +571,6 @@ private:
      ******************************************************************/
     UHD_INLINE void get_aligned_buffs(double timeout)
     {
-        std::cout << "T2" << std::endl;
         get_prev_buffer_info()
             .reset(); // no longer need the previous info - reset it for future use
 
@@ -719,7 +717,6 @@ private:
         const double timeout,
         const size_t buffer_offset_bytes = 0)
     {
-        std::cout << "T1" << std::endl;
         // get the next buffer if the current one has expired
         if (get_curr_buffer_info().data_bytes_to_copy == 0) {
             // perform receive with alignment logic
