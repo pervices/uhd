@@ -408,8 +408,9 @@ public:
             //send a fragment with the helper function
             const size_t num_samps_sent = send_one_packet(buffs, _max_samples_per_packet, if_packet_info, timeout, total_num_samps_sent*_bytes_per_cpu_item);
             total_num_samps_sent += num_samps_sent;
-            if (num_samps_sent == 0)
+            if (total_num_samps_sent == 0) {
                 return total_num_samps_sent;
+            }
 
             //setup metadata for the next fragment
             const time_spec_t time_spec = metadata.time_spec; // + time_spec_t::from_ticks(total_num_samps_sent, _samp_rate);
@@ -746,7 +747,7 @@ private:
 
                     i++;
                 }
-                
+
                 int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
                 
                 if (retval == -1) {
@@ -766,7 +767,10 @@ private:
     }
 
     /*******************************************************************
-     * Send a single packet:
+     * Probably used to send a single packet
+     * Doesn't actually send anything now
+     * Probably involves in preparing packets for the function that is actually a part of the send process (send_multiple_packets)
+     * TODO: refactor the send process to be easier to follow
      ******************************************************************/
     UHD_INLINE size_t send_one_packet(
         const uhd::tx_streamer::buffs_type &buffs,
