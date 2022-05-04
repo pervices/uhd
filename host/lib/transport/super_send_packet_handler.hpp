@@ -27,10 +27,6 @@
 #include <condition_variable>
 #include <sys/socket.h>
 
-//#include "../usrp/crimson_tng/crimson_tng_fw_common.h"
-#ifndef FIXME_BUFF_SIZE
-#define FIXME_BUFF_SIZE  (32768*2)
-#endif
 #include <cmath>
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -74,10 +70,13 @@ public:
 
     /*!
      * Make a new packet handler for send
-     * \param size the number of transport channels
+     * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler(const size_t size = 1):
-        _next_packet_seq(0), _cached_metadata(false)
+    send_packet_handler(const size_t buffer_size):
+        _buffer_size(buffer_size),
+        _next_packet_seq(0),
+        _cached_metadata(false)
+
     {
         this->channel_per_conversion_thread = 8;
         this->set_enable_trailer(true);
@@ -315,15 +314,6 @@ public:
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ){
-        return send(buffs, nsamps_per_buff, metadata, timeout, 640000000);
-    }
-    UHD_INLINE size_t send(
-        const uhd::tx_streamer::buffs_type &buffs,
-        const size_t nsamps_per_buff,
-        const uhd::tx_metadata_t &metadata,
-        const double timeout,
-        const size_t send_rate_threshold
-    ){
         //translate the metadata to vrt if packet info
         vrt::if_packet_info_t if_packet_info;
         if_packet_info.packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
@@ -337,7 +327,7 @@ public:
         if_packet_info.eob     = metadata.end_of_burst;
         if_packet_info.fc_ack  = false; //This is a data packet
 
-        const uint64_t aggregate_samp_rate = metadata.aggregate_samp_rate;
+        const size_t samp_rate_per_ch = metadata.aggregate_samp_rate/this->size();
 
         /*
          * Metadata is cached when we get a send requesting a start of burst with no samples.
@@ -405,9 +395,9 @@ public:
 
         const size_t num_fragments = (nsamps_per_buff-1)/_max_samples_per_packet;
         const size_t final_length = ((nsamps_per_buff-1)%_max_samples_per_packet)+1;
-        const double fc_buff_size_limit_percentage = (aggregate_samp_rate > send_rate_threshold) ? 0.05 :
-                                                     (aggregate_samp_rate > send_rate_threshold/2) ? 0.10 : 0.15;
-        const size_t flow_control_limit = FIXME_BUFF_SIZE*fc_buff_size_limit_percentage;
+        const double fc_buff_size_limit_percentage = (samp_rate_per_ch > 10000*_buffer_size) ? 0.05 :
+                                                     (samp_rate_per_ch > 10000*_buffer_size/2) ? 0.10 : 0.15;
+        const size_t flow_control_limit = _buffer_size*fc_buff_size_limit_percentage;
         const size_t flow_control_passes = ceil(nsamps_per_buff/flow_control_limit);
 
         //loop through the following fragment indexes
@@ -483,7 +473,7 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
     std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
     std::chrono::time_point<std::chrono::high_resolution_clock> last_send = std::chrono::high_resolution_clock::now();
-
+    size_t _buffer_size;
 
     vrt_packer_type _vrt_packer;
     size_t _header_offset_words32;
@@ -892,7 +882,14 @@ private:
 
 class send_packet_streamer : public send_packet_handler, public tx_streamer{
 public:
-    send_packet_streamer(const size_t max_num_samps){
+    send_packet_streamer(const size_t max_num_samps, const size_t buffer_size = 0):
+    sph::send_packet_handler(buffer_size)
+    {
+        try {
+            assert(buffer_size > 0);
+        } catch (...) {
+            std::cerr << "Buffer size not set in send_packet_streamer. Your device is not fully supported with this version of UHD." << std::endl;
+        }
         _max_num_samps = max_num_samps;
         this->set_max_samples_per_packet(_max_num_samps);
     }

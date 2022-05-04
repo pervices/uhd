@@ -180,7 +180,7 @@ public:
 
 	cyan_4r4t_send_packet_streamer( const size_t max_num_samps )
 	:
-		sph::send_packet_streamer( max_num_samps ),
+		sph::send_packet_streamer( max_num_samps, CYAN_4R4T_BUFF_SIZE ),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
