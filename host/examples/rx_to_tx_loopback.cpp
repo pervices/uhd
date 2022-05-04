@@ -33,7 +33,7 @@
 #include <shared_mutex>
 #include <unistd.h>
 #include <algorithm>
-#include <semaphore.h>
+//#include <semaphore.h>
 
 namespace po = boost::program_options;
 
@@ -60,7 +60,8 @@ const size_t max_samples_per_tx = 6000;
 // The outer layer exists so that the rx can receive to once set of buffers and tx the other, so that they don't need to lock and unlock every send/recv
 std::vector<std::vector<std::vector<std::complex<short>>>> buffers;
 std::vector<std::atomic<size_t>> buffer_used(num_buffers);
-std::vector<sem_t> buff_ready(num_buffers);
+//std::vector<sem_t> buff_ready(num_buffers);
+std::vector<std::atomic<bool>> buff_ready(num_buffers);
 
 void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps) {
     uhd::set_thread_priority_safe();
@@ -94,7 +95,8 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
         if(samples_this_buffer + spare_buffer_space > max_samples_per_buffer) {
             //lock.unlock();
             buffer_used[active_buffer_index] = samples_this_buffer;
-            sem_post(&buff_ready[active_buffer_index]);
+            //sem_post(&buff_ready[active_buffer_index]);
+            buff_ready[active_buffer_index] = true;
             active_buffer_index++;
             //caps the active to be less than the number of buffers
             active_buffer_index = active_buffer_index & valid_index_mask;
@@ -107,7 +109,8 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
     }
 
     for(size_t n = 0; n < num_buffers; n++) {
-        sem_post(&buff_ready[n]);
+        //sem_post(&buff_ready[n]);
+        buff_ready[n] = true;
     }
 
     //lock.unlock();
@@ -134,7 +137,10 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
     active_buffer = &buffers[active_buffer_index];
     size_t samples_this_buffer = 0;
 
-    sem_wait(&buff_ready[active_buffer_index]);
+    //sem_wait(&buff_ready[active_buffer_index]);
+    while(!buff_ready[active_buffer_index]) {
+
+    }
     size_t samples_to_send_this_buffer = buffer_used[active_buffer_index];
     //std::shared_lock<std::shared_timed_mutex> lock(mtx);
     
@@ -147,7 +153,10 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
             samples_this_buffer = 0;
             samples_to_send_this_buffer = buffer_used[active_buffer_index];
             active_buffer = &buffers[active_buffer_index];
-            sem_wait(&buff_ready[active_buffer_index]);
+            //sem_wait(&buff_ready[active_buffer_index]);
+            while(!buff_ready[active_buffer_index]) {
+
+            }
             //lock.lock();
         }
 
@@ -318,7 +327,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     for(size_t n = 0; n < num_buffers; n++) {
-        sem_init(&buff_ready[n], 0, 0);
+        //sem_init(&buff_ready[n], 0, 0);
+        buff_ready[n] = false;
     }
     
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
