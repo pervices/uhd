@@ -30,7 +30,7 @@
 #include "uhd/transport/udp_zero_copy.hpp"
 
 #include "crimson_tng_iface.hpp"
-#include "flow_control.hpp"
+#include "../../transport/flow_control.hpp"
 #include "pidc.hpp"
 
 #include "system_time.hpp"
