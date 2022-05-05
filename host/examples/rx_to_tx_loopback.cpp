@@ -5,8 +5,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-
-
 #include <uhd/exception.hpp>
 #include <uhd/types/tune_request.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
@@ -67,13 +65,14 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
     size_t max_samples_per_buffer = buffers[0][0].size();
     uhd::rx_metadata_t rx_md;
 
+
     std::vector<std::vector<std::complex<short>>> *active_buffer;
     std::vector<std::complex<short>*> active_buff_ptrs(num_channels);
 
     size_t samples_this_buffer = 0;
 
     active_buffer = &buffers[active_buffer_index];
-
+    
     while ((num_acc_samps < total_num_samps || total_num_samps == 0) && !stop_signal_called) {
 
         for(size_t n = 0; n < num_channels; n++) {
@@ -98,16 +97,15 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
             samples_this_buffer = 0;
         }
     }
-
+    
     for(size_t n = 0; n < num_buffers; n++) {
         buff_ready[n] = true;
     }
 
-    //lock.unlock();
-
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     rx_stream->issue_stream_cmd(stream_cmd);
 }
+
 void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_num_samps) {
     uhd::set_thread_priority_safe();
     size_t num_acc_samps = 0;
@@ -120,7 +118,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
     tx_md.end_of_burst   = false;
     tx_md.has_time_spec  = true;
     tx_md.time_spec = uhd::time_spec_t(start_time);
-
+    
     std::vector<std::complex<short>*> active_buff_ptrs(num_channels);
 
     std::vector<std::vector<std::complex<short>>> *active_buffer;
@@ -130,7 +128,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
 
     }
     size_t samples_to_send_this_buffer = buffer_used[active_buffer_index];
-    
+        
     while ((num_acc_samps < total_num_samps || total_num_samps == 0) && !stop_signal_called) {
 
         if(samples_this_buffer >= samples_to_send_this_buffer) {
@@ -143,7 +141,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
 
             }
         }
-
+        
         for(size_t n = 0; n < num_channels; n++) {
             active_buff_ptrs[n] = &(*active_buffer)[n][samples_this_buffer];
         }
@@ -162,12 +160,12 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
-    std::string args, channel_list, ref;
+    std::string args, ref, rx_channels, tx_channels;
     std::string wire;
     double seconds_in_future;
     size_t total_num_samps;
     double rate,freq,tx_gain, rx_gain, offset;
-
+    
     // setup the program options
     po::options_description desc("Allowed options");
     // clang-format off
@@ -177,22 +175,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("secs", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to begin receiving")
         ("rx_lead", po::value<double>(&seconds_in_future)->default_value(1.5), "number of seconds in the future to receive")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming (Rx) and outgoing (Tx) samples")
-        //("dilv", "specify to disable inner-loop verbose")
-        ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
-        //("spb", po::value<size_t>(&spb)->default_value(0), "samples per buffer, 0 for default")
+        ("rx_channels", po::value<std::string>(&rx_channels)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("tx_channels", po::value<std::string>(&tx_channels)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("tx_gain", po::value<double>(&tx_gain), "gain for the Tx RF chain")
         ("rx_gain", po::value<double>(&rx_gain), "gain for the Rx RF chain")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "Number of samples to relay between tx and rx. Leave at 0 for run continuously")
         ("offset", po::value<double>(&offset)->default_value(1), "Delay between rx and tx in seconds")
-        //("ant", po::value<std::string>(&ant), "antenna selection")
-        //("subdev", po::value<std::string>(&subdev), "subdevice specification")
-        //("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
-        //("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo)")
-        //("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
-        //("int-n", "tune USRP with integer-N tuning")
     ;
+    
     // clang-format on
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -203,30 +195,31 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << boost::format("UHD RX_TX continuous stream %s") % desc << std::endl;
         return ~0;
     }
-
+    
     // create a usrp device
     std::cout << std::endl;
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    //std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
-    
-
+        
     // detect which channels to use
-    std::vector<std::string> channel_strings;
-        std::vector<size_t> channel_nums;
-    boost::split(channel_strings, channel_list, boost::is_any_of("\"',"));
-    for (size_t ch = 0; ch < channel_strings.size(); ch++) { 
-        size_t chan = std::stoi(channel_strings[ch]) ;
-        usrp->get_tx_num_channels();
-        usrp->get_rx_num_channels();
-        if(chan >= usrp->get_tx_num_channels() || chan >= usrp->get_rx_num_channels()) {
+    std::vector<std::string> rx_channel_strings, tx_channel_strings;
+    std::vector<size_t> rx_channel_nums;
+    std::vector<size_t> tx_channel_nums;
+    boost::split(rx_channel_strings, rx_channels, boost::is_any_of("\"',"));
+    boost::split(tx_channel_strings, tx_channels, boost::is_any_of("\"',"));
+    for (size_t ch = 0; ch < rx_channel_strings.size(); ch++) { 
+        size_t rx_chan = std::stoi(rx_channel_strings[ch]);
+        size_t tx_chan = std::stoi(tx_channel_strings[ch]);
+
+        if(tx_chan >= usrp->get_tx_num_channels() || rx_chan >= usrp->get_rx_num_channels()) {
             throw std::runtime_error("Invalid channel(s) specified.");
         }
         else {
-            channel_nums.push_back(std::stoi(channel_strings[ch]));
+            rx_channel_nums.push_back(rx_chan);
+            tx_channel_nums.push_back(tx_chan);
         }
     }
-
+    
     // set the tx sample rate
     std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate / 1e6) << std::endl;
     usrp->set_tx_rate(rate);
@@ -234,7 +227,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << boost::format("Actual TX Rate: %f Msps...") % (actual_tx_rate / 1e6)
               << std::endl
               << std::endl;
-
+    
     // set the rx sample rate
     std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
     usrp->set_rx_rate(rate);
@@ -242,59 +235,57 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << boost::format("Actual RX Rate: %f Msps...") % (actual_rx_rate / 1e6)
               << std::endl
               << std::endl;
-              
-    // setting tuning Tx frequency  
-    for(size_t ch = 0; ch < channel_nums.size(); ch++){
-        std::cout << boost::format("Setting ch%i TX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
-        uhd::tune_request_t tx_tune_request(freq);
-        usrp->set_tx_freq(tx_tune_request, channel_nums[ch]);
-        std::cout << boost::format("Actual ch%i TX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
-
-        std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
-        uhd::tune_request_t rx_tune_request(freq);
-        usrp->set_rx_freq(rx_tune_request, channel_nums[ch]);
-        std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_rx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
-    }
     
+    // setting tuning Tx frequency  
+    for(size_t ch = 0; ch < tx_channel_nums.size(); ch++){
+        std::cout << boost::format("Setting ch%i TX Freq: %f MHz...") % tx_channel_nums[ch] % (freq/1e6) << std::endl;
+        uhd::tune_request_t tx_tune_request(freq);
+        usrp->set_tx_freq(tx_tune_request, tx_channel_nums[ch]);
+        std::cout << boost::format("Actual ch%i TX Freq: %f MHz...") % tx_channel_nums[ch] % (usrp->get_tx_freq(tx_channel_nums[ch])/1e6) << std::endl << std::endl;
+
+        std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % rx_channel_nums[ch] % (freq/1e6) << std::endl;
+        uhd::tune_request_t rx_tune_request(freq);
+        usrp->set_rx_freq(rx_tune_request, rx_channel_nums[ch]);
+        std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % rx_channel_nums[ch] % (usrp->get_rx_freq(rx_channel_nums[ch])/1e6) << std::endl << std::endl;
+    }
+        
     if(actual_rx_rate != actual_tx_rate) {
         std::cerr << "Tx and Rx rate mismatch, basing future calculations of of tx" << std::endl;
     }
     rate = actual_tx_rate;
-
-    for(size_t ch = 0; ch < channel_nums.size(); ch++){
+    
+    for(size_t ch = 0; ch < rx_channel_nums.size(); ch++){
         //set the Rx rf gain
         std::cout << boost::format("Setting RX Gain: %f dB...") % rx_gain << std::endl;
-        usrp->set_rx_gain(rx_gain, channel_nums[ch]);
-        std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel_nums[ch]) << std::endl << std::endl;
-    
+        usrp->set_rx_gain(rx_gain, rx_channel_nums[ch]);
+        std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(rx_channel_nums[ch]) << std::endl << std::endl;
+            
         //set the Tx rf gain
         std::cout << boost::format("Setting TX Gain: %f dB...") % tx_gain << std::endl;
-        usrp->set_tx_gain(tx_gain, channel_nums[ch]);
-        std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
-        
+        usrp->set_tx_gain(tx_gain, tx_channel_nums[ch]);
+        std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(tx_channel_nums[ch]) << std::endl << std::endl;
     }
-
+    
     // Lock mboard clocks
     usrp->set_clock_source(ref);
-
+    
     // create a receive streamer
-    uhd::stream_args_t stream_args("sc16"); //short complex
-    stream_args.channels             = channel_nums;
-    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-    uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
-
+    uhd::stream_args_t rx_stream_args("sc16"); //short complex
+    uhd::stream_args_t tx_stream_args("sc16"); //short complex
+    rx_stream_args.channels             = rx_channel_nums;
+    tx_stream_args.channels             = tx_channel_nums;
+    
+    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(rx_stream_args);
+    uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(tx_stream_args);
     
     // setup streaming
     std::cout << std::endl;
-    //std::cout << boost::format("Begin streaming %u samples, %f seconds in the future...")
-    //                 % total_num_samps % seconds_in_future
-    //          << std::endl;
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS); 
     stream_cmd.num_samps  = total_num_samps;
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(seconds_in_future);
     
-    size_t num_channels = channel_nums.size();
+    size_t num_channels = rx_channel_nums.size();
     // space at the end of buffer that is used to make it easier to avoid issues when samples can only be sent in specific amounts
     //size of the buffers used to store data from individual send/receive commands
     size_t buffer_size = std::ceil(offset * rate * host_buff_size + spare_buffer_space);
