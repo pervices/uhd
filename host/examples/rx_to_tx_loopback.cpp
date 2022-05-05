@@ -242,7 +242,20 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << boost::format("Actual RX Rate: %f Msps...") % (actual_rx_rate / 1e6)
               << std::endl
               << std::endl;
+              
+    // setting tuning Tx frequency  
+    for(size_t ch = 0; ch < channel_nums.size(); ch++){
+        std::cout << boost::format("Setting ch%i TX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
+        uhd::tune_request_t tx_tune_request(freq);
+        usrp->set_tx_freq(tx_tune_request, channel_nums[ch]);
+        std::cout << boost::format("Actual ch%i TX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
 
+        std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
+        uhd::tune_request_t rx_tune_request(freq);
+        usrp->set_rx_freq(rx_tune_request, channel_nums[ch]);
+        std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_rx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+    }
+    
     if(actual_rx_rate != actual_tx_rate) {
         std::cerr << "Tx and Rx rate mismatch, basing future calculations of of tx" << std::endl;
     }
