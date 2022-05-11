@@ -44,11 +44,14 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <future>
 
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
 #include "system_time.hpp"
+
+#include "semaphore.h"
 
 #if 0
   #ifndef UHD_TXRX_DEBUG_PRINTS
@@ -296,14 +299,6 @@ public:
       //  std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
-        //for( auto & ep: _eprops ) {
-
-           // ep.buffer_mutex.lock();
-			//if (ep._remaining_num_samps <=0) ep._remaining_num_samps = nsamps_per_buff;
-		   // ep.buffer_mutex.unlock();
-      //  }
-
-        now = get_time_now();
         pillage();
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -315,7 +310,7 @@ public:
             am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
-            retreat();
+            //retreat();
         } else {
             r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
         }
@@ -362,6 +357,9 @@ public:
     void set_xport_chan( size_t chan, uhd::transport::zero_copy_if::sptr xport ) {
 		_eprops.at(chan).xport_chan = xport;
     }
+    void set_fifo_ctrl_xports( size_t chan, uhd::transport::udp_simple::sptr xport ) {
+		_eprops.at(chan).fifo_ctrl_xports = xport;
+    }
     void set_xport_chan_fifo_lvl( size_t chan, xport_chan_fifo_lvl_type get_fifo_lvl ) {
 		_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
     }
@@ -375,7 +373,7 @@ public:
     void resize(const size_t size){
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CRIMSON_TNG_BUFF_PERCENT, CRIMSON_TNG_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_sync::make( 1.0, CRIMSON_TNG_BUFF_PERCENT, CRIMSON_TNG_BUFF_SIZE );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -395,7 +393,7 @@ public:
     //create a new viking thread for each zc if (skryke!!)
 	void pillage() {
 		// probably should also (re)start the "bm thread", which currently just manages time diff
-		std::lock_guard<std::mutex> lck( _mutex );
+		//std::lock_guard<std::mutex> lck( _mutex );
 		if ( ! _pillaging ) {
 			_blessbless = false;
 
@@ -407,7 +405,7 @@ public:
             }
 
 			//spawn a new viking to raid the send hoardes
-			_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
+			//_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
 			_pillaging = true;
 		}
 	}
@@ -436,17 +434,36 @@ private:
     timenow_type _time_now;
     std::mutex _mutex;
 
+    #pragma pack(push,1)
+    struct fifo_lvl_req {
+        uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
+    };
+    #pragma pack(pop)
+
+    #pragma pack(push,1)
+	struct fifo_lvl_rsp {
+		uint64_t header; // CCCC00000000FFFF (C := channel bits, F := fifo bits)
+		uint64_t oflow;
+		uint64_t uflow;
+		uint64_t tv_sec;
+		uint64_t tv_tick;
+	};
+	#pragma pack(pop)
+
     // extended per-channel properties, beyond what is available in sph::send_packet_handler::xport_chan_props_type
     struct eprops_type{
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
+        uhd::transport::udp_simple::sptr fifo_ctrl_xports;
 		xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
 		uhd::flow_control::sptr flow_control;
 		uint64_t oflow;
 		uint64_t uflow;
         size_t _remaining_num_samps;
-        std::mutex buffer_mutex;
         std::string name;
+        std::atomic<bool> get_buffer_level_reply_ready;
+        std::future<fifo_lvl_rsp> recv_buffer_lvl_task;
+        bool first_check_fc = true;
         eprops_type() : oflow( -1 ), uflow( -1 ) {}
         eprops_type( const eprops_type & other )
         :
@@ -457,6 +474,7 @@ private:
             uflow( other.uflow )
         {}
     };
+    
     std::vector<eprops_type> _eprops;
 
     void push_async_msg( uhd::async_metadata_t &async_metadata ){
@@ -465,10 +483,80 @@ private:
 		}
     }
 
+    bool issue_buffer_lvl_udp_request( const size_t chan ) {
+
+        fifo_lvl_req req;
+
+        req.header = (uint64_t)0x10001 << 16;
+        req.header |= (chan & 0xffff);
+
+        boost::endian::big_to_native_inplace( req.header );
+
+        size_t r = _eprops.at(chan).fifo_ctrl_xports->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
+
+        if(r != sizeof( req )) {
+            //TODO add send/receive on error
+        }
+
+        return r == sizeof( req );
+    }
+
+    static fifo_lvl_rsp async_buffer_lvl_udp_recv( uhd::transport::udp_simple& fifo_ctrl_xport, std::atomic<bool>& recv_finished) {
+
+        fifo_lvl_rsp rsp;
+
+        size_t r = fifo_ctrl_xport.recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
+        if(r != sizeof( rsp )) {
+            //TODO add send/receive on error
+        }
+
+        ::usleep((1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC) * 1e6);
+
+        recv_finished = true;
+
+        return rsp;
+    }
+
     void check_fc_update( const size_t chan, size_t nsamps) {
-		_eprops.at( chan ).buffer_mutex.lock();
-        _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
-		_eprops.at( chan ).buffer_mutex.unlock();
+        
+        _eprops.at( chan ).flow_control->update( nsamps, NULL );
+        
+        if(_eprops.at( chan ).get_buffer_level_reply_ready) {
+
+            if(!_eprops.at( chan ).first_check_fc) {
+                fifo_lvl_rsp rsp = _eprops.at( chan ).recv_buffer_lvl_task.get();
+
+                boost::endian::big_to_native_inplace( rsp.oflow );
+                _eprops.at( chan ).oflow = rsp.oflow;
+                boost::endian::big_to_native_inplace( rsp.uflow );
+                _eprops.at( chan ).uflow = rsp.uflow;
+                boost::endian::big_to_native_inplace( rsp.tv_sec );
+                boost::endian::big_to_native_inplace( rsp.tv_tick );
+                //TODO: add uflow/oflow detection and logging
+
+                uint16_t buffer_level = rsp.header & 0xffff;
+
+                buffer_level = buffer_level * CRIMSON_TNG_BUFF_SCALE;
+
+                uhd::time_spec_t last_update( rsp.tv_sec, rsp.tv_tick * (1.0/CRIMSON_TNG_MASTER_TICK_RATE) );
+
+                // Updates flow control's buffer level prediction
+                _eprops.at( chan ).flow_control->set_buffer_level(buffer_level, last_update);
+
+                _eprops.at( chan ).uflow = rsp.uflow;
+
+                _eprops.at( chan ).first_check_fc = false;
+            }
+
+            issue_buffer_lvl_udp_request(chan);
+
+            // Creates async task to receive the buffer lvel reply
+            //TODO: add error detection and handling for send/receive
+            _eprops.at( chan ).get_buffer_level_reply_ready = false;
+            uhd::transport::udp_simple *port = _eprops.at(chan).fifo_ctrl_xports.get();
+            _eprops.at( chan ).recv_buffer_lvl_task = std::async(std::launch::async, async_buffer_lvl_udp_recv, std::ref(*port), std::ref(_eprops.at( chan ).get_buffer_level_reply_ready));
+        }
+        
     }
     
     // timeout must be small but non-zero, polling it at the max rate with result in something triggering,
@@ -973,14 +1061,13 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 	};
 	#pragma pack(pop)
 
-	#pragma pack(push,1)
+    #pragma pack(push,1)
 	struct fifo_lvl_rsp {
 		uint64_t header; // CCCC00000000FFFF (C := channel bits, F := fifo bits)
 		uint64_t oflow;
 		uint64_t uflow;
 		uint64_t tv_sec;
 		uint64_t tv_tick;
-		//uint64_t cookie;
 	};
 	#pragma pack(pop)
 
@@ -1141,6 +1228,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
+
+                my_streamer->set_fifo_ctrl_xports(chan_i, _mbc[mb].fifo_ctrl_xports[dsp]);
                 
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &crimson_tng_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1

@@ -59,7 +59,7 @@ std::vector<std::atomic<size_t>> buffer_used(num_buffers);
 std::vector<std::atomic<bool>> buff_ready(num_buffers);
 
 void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps) {
-    uhd::set_thread_priority_safe();
+    uhd::set_thread_priority_safe(0.75, true);
     double timeout = start_time + 0.1; // timeout (delay before receive + padding)
     size_t num_acc_samps = 0;
     size_t active_buffer_index = 0;
@@ -109,7 +109,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
     rx_stream->issue_stream_cmd(stream_cmd);
 }
 void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_num_samps) {
-    uhd::set_thread_priority_safe();
+    uhd::set_thread_priority_safe(0.75, true);
     size_t num_acc_samps = 0;
     size_t active_buffer_index = 0;
     size_t num_channels = buffers[0].size();

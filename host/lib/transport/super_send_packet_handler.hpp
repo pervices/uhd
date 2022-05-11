@@ -695,24 +695,7 @@ private:
         
         while (total_channels_serviced < total_channels_to_service) {
             for (const auto & chan: channels) {
-                if (channels_serviced[chan] == 0) {
-                    if (!(_props.at(chan).check_flow_control(timeout))) {
-//  #ifdef FLOW_CONTROL_DEBUG
-//                          std::cout << "Not time to send yet" << std::endl;
-//  #endif
-                        // The time to send for this channel has not reached.
-                        continue;
-                    } else {
-#ifdef FLOW_CONTROL_DEBUG
-                        std::cout << "Time to send" << std::endl;
-#endif
-                    }
-                                        
-                    // It's time to send for this channel, mark it as serviced.
-                    channels_serviced[chan] = 1;
-                    total_channels_serviced++;
-                } else {
-                    // We've already sent the data for this channel; move on.
+                if (channels_serviced[chan] != 0) {
                     continue;
                 }
                 
@@ -748,7 +731,20 @@ private:
                     i++;
                 }
 
-                int retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, 0);
+                if (!(_props.at(chan).check_flow_control(timeout))) {
+                    // The time to send for this channel has not reached.
+                    continue;
+                }
+
+                // It's time to send for this channel, mark it as serviced.
+                channels_serviced[chan] = 1;
+                total_channels_serviced++;
+
+                int retval;
+
+                do {
+                    retval = sendmmsg(multi_msb.sock_fd, msg, number_of_messages, MSG_DONTWAIT);
+                } while(retval == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
                 
                 if (retval == -1) {
                     std::cout << "XXX: chan " << chan << " sendmmsg failed : " << errno << " : " <<  std::strerror(errno) << "\n";

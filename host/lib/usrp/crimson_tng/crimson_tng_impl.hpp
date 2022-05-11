@@ -104,14 +104,10 @@ public:
         return uhd::get_system_time() + diff;
     }
 
-    std::mutex _time_diff_mutex;
-
     inline double time_diff_get() {
-        std::lock_guard<std::mutex> _lock( _time_diff_mutex );
         return _time_diff;
     }
     inline void time_diff_set( double time_diff ) {
-        std::lock_guard<std::mutex> _lock( _time_diff_mutex );
         _time_diff = time_diff;
     }
 
@@ -193,7 +189,7 @@ private:
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
-    double _time_diff;
+    std::atomic<double> _time_diff;
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );

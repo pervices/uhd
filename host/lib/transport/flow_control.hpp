@@ -105,15 +105,6 @@ public:
 	 * @param now     the current clock time
 	 */
 	virtual void set_buffer_level( const size_t level, const uhd::time_spec_t & now ) = 0;
-	/**
-	 * Set the buffer level asynchronously.
-	 *
-	 * Valid values of buffer level are in the range [0, buffer size), that
-	 * is the range zero-inclusive but strictly less than the buffer size.
-	 *
-	 * @param level   the actual buffer level [samples]
-	 */
-	virtual void set_buffer_level_async( const size_t level ) = 0;
 
 	/**
 	 * Get the (approximate) level of the buffer. Under normal operating
@@ -206,5 +197,6 @@ protected:
 }
 
 #include "flow_control_nonlinear.hpp"
+#include "flow_control_sync.hpp"
 
 #endif /* HOST_LIB_USRP_CRIMSON_TNG_FLOW_CONTROL_HPP_ */

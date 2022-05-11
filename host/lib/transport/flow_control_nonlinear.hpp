@@ -6,7 +6,6 @@
 #include <boost/format.hpp>
 
 #include <uhd/exception.hpp>
-#include "flow_control.hpp"
 #include "uhd/utils/sma.hpp"
 
 #if 0
@@ -93,16 +92,6 @@ public:
 
 		unlocked_set_buffer_level( level );
 		buffer_level_set_time = now;
-	}
-	void set_buffer_level_async( const size_t level ) {
-
-		ssize_t _level = level;
-
-		std::lock_guard<std::mutex> _lock( lock );
-
-		_level = buffer_level + 0.06 * ( _level - buffer_level );
-
-		unlocked_set_buffer_level( _level );
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
