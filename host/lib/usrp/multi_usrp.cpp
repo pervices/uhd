@@ -2432,16 +2432,18 @@ public:
         }
     }
 
-    void tx_trigger_setup(
+    uint64_t tx_trigger_setup(
         std::vector<size_t> channels,
         uint64_t num_samples_per_trigger
     ) {
+        uint64_t actual_num_samples_per_trigger = 0;
         for(size_t n = 0; n < channels.size(); n++) {
             const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
             _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
             _tree->access<std::string>(root + "trigger/trig_sel").set("1");
             _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
             _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
+            actual_num_samples_per_trigger = std::stoul(_tree->access<std::string>(root + "trigger/edge_sample_num").get(),nullptr,10);
             _tree->access<std::string>(root + "trigger/gating").set("dsp");
         }
         _tree->access<std::string>("/mboards/0/trigger/sma_dir").set("in");
@@ -2450,6 +2452,7 @@ public:
             const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channels[n]) + "/" };
             _tree->access<double>(dsp_root + "rstreq").set(1.0);
         }
+        return actual_num_samples_per_trigger;
     }
 
     void tx_trigger_cleanup(
@@ -2462,14 +2465,16 @@ public:
     }
     }
 
-    void rx_trigger_setup(
+    uint64_t rx_trigger_setup(
         std::vector<size_t> channels,
         uint64_t num_samples_per_trigger
     ) {
+        uint64_t actual_num_samples_per_trigger = 0;
         for(size_t n = 0; n < channels.size(); n++) {
             const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
             _tree->access<std::string>(root + "stream").set("0");
             _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
+            actual_num_samples_per_trigger = std::stoul(_tree->access<std::string>(root + "trigger/edge_sample_num").get(),nullptr,10);
             _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
             _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
             _tree->access<std::string>(root + "trigger/trig_sel").set("1");
@@ -2482,6 +2487,7 @@ public:
             const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
             _tree->access<std::string>(root + "stream").set("1");
         }
+        return actual_num_samples_per_trigger;
     }
 
     void rx_trigger_cleanup(

@@ -58,13 +58,13 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     tx_stream->send("", 0, md);
 }
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, double debug_nsamps_modifier, bool overwrite) {
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, bool overwrite) {
     uhd::rx_metadata_t previous_md;
     bool first_packet_of_trigger = true;
     // setup streaming
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
 
-    stream_cmd.num_samps  = size_t(boost::math::iround(samples_per_trigger * debug_nsamps_modifier));
+    stream_cmd.num_samps  = samples_per_trigger;
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(start_time);
 
@@ -164,9 +164,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
     std::string args, wave_type, channel_list, results_directory;
-    size_t samples_per_trigger, debug_nsamps_multiple;
+    size_t samples_per_trigger;
     uint64_t num_trigger, setpoint;
-    double rate, freq, tx_gain, rx_gain, wave_freq, start_time, debug_nsamps_modifier;
+    double rate, freq, tx_gain, rx_gain, wave_freq, start_time;
     float ampl;
     bool overwrite;
 
@@ -194,8 +194,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
         ("overwrite", "Overwrite the results files every trigger, instead of creating a new one each time")
-        ("debug_nsamps_multiple", po::value<size_t>(&debug_nsamps_multiple)->default_value(1), "If specified samples_per_trigger will be rounded to be a multiple of this. Must be 2944 for cyan_4r4t_3g, not needed for any other variant")
-        ("debug_nsamps_modifier", po::value<double>(&debug_nsamps_modifier)->default_value(1), "Modifies the number of samples per trigger requested from the unit. 0.75 for cyan_4r4t_3g, leave blank for any other variant")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -227,13 +225,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     // Check if the user specified the pulse length
     if (not vm.count("samples_per_trigger")){
         std::cerr << "Please specify the number of samples per pulse with --samples_per_trigger" << std::endl;
-        return ~0;
-    }
-
-    samples_per_trigger = (samples_per_trigger / debug_nsamps_multiple) * debug_nsamps_multiple;
-    std::cout << "Requesting " << samples_per_trigger << " samples." << std::endl;
-    if(samples_per_trigger == 0) {
-        std::cerr << "Number of samples requested must be a multiple of " << debug_nsamps_multiple << ". This program will round down to meet that requirement." << std::endl;
         return ~0;
     }
 
@@ -353,6 +344,24 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         tx_stream->enable_blocking_fc(setpoint);
     }
 
+    uhd::rx_streamer::sptr rx_stream;
+    if(use_rx) {
+        uhd::stream_args_t rx_stream_args("sc16");
+        rx_stream_args.channels = channel_nums;
+        rx_stream = usrp->get_rx_stream(rx_stream_args);
+    }
+
+    if(use_rx) {
+        size_t actual_samples_per_trigger = usrp->rx_trigger_setup(channel_nums, samples_per_trigger);
+        if(actual_samples_per_trigger != samples_per_trigger) {
+            std::cout << boost::format("Actual samples per trigger: %lu") % actual_samples_per_trigger << std::endl;
+            samples_per_trigger = actual_samples_per_trigger;
+        }
+    }
+    if(use_tx) {
+        usrp->tx_trigger_setup(channel_nums, samples_per_trigger);
+    }
+
     std::vector<std::complex<float> > tx_buff(samples_per_trigger);
     std::vector<std::complex<float> *> tx_buffs(channel_nums.size(), &tx_buff.front());
 
@@ -363,25 +372,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    uhd::rx_streamer::sptr rx_stream;
-    if(use_rx) {
-        uhd::stream_args_t rx_stream_args("sc16");
-        rx_stream_args.channels = channel_nums;
-        rx_stream = usrp->get_rx_stream(rx_stream_args);
-    }
-
-    std::signal(SIGINT, &sig_int_handler);
-    if(use_tx) {
-        usrp->tx_trigger_setup(channel_nums, samples_per_trigger * debug_nsamps_modifier);
-    }
-    if(use_rx) {
-        usrp->rx_trigger_setup(channel_nums, samples_per_trigger* debug_nsamps_modifier);
-    }
-
     if(use_rx) {
         // This function is in the standard library of c++17
         boost::filesystem::create_directories(results_directory);
     }
+
+    std::signal(SIGINT, &sig_int_handler);
 
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
@@ -396,7 +392,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(use_rx) {
         //TODO make this asynchronous
-        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, debug_nsamps_modifier, overwrite);
+        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, overwrite);
         usrp->rx_trigger_cleanup(channel_nums);
     }
 

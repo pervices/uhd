@@ -1406,7 +1406,7 @@ public:
      * \throws if an invalid spec is provided.
      */
     
-    virtual void tx_trigger_setup(
+    virtual uint64_t tx_trigger_setup(
         std::vector<size_t> channels,
         uint64_t num_samples_per_trigger
     ) {
@@ -1434,7 +1434,7 @@ public:
      * \param channels list of channels
      */
 
-    virtual void rx_trigger_setup(
+    virtual uint64_t rx_trigger_setup(
         std::vector<size_t> channels,
         uint64_t num_samples_per_trigger
     ) {

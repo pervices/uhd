@@ -190,6 +190,11 @@
 #define CYAN_4R4T_3G_OTW_RX "sc12"
 #define CYAN_4R4T_3G_OTW_TX "sc16"
 
+// The FPGA is hard coded assuming each sample contains 16 bits, this unit uses 12 so the stream command needs to say 3/4 of the actual amount, since 12 is 3/4 of 16
+// Equivalents of these also need to be changed on the server
+#define CYAN_4R4T_3G_SAMPS_NUM_RX 3
+#define CYAN_4R4T_3G_SAMPS_DEM_RX 4
+
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
     LOW_BAND = 0,
