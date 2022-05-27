@@ -150,7 +150,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     // Disables the temporary workaround for the lack of STREAM_MODE_NUM_SAMPS_AND_MORE implementation
     for(size_t n = 0; n < channel_nums.size(); n++) {
         const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
-        const std::string value = "0";
+        const std::string value = "1";
         usrp->set_tree_value(path, value);
     }
 
