@@ -408,7 +408,7 @@ public:
             //send a fragment with the helper function
             const size_t num_samps_sent = send_one_packet(buffs, _max_samples_per_packet, if_packet_info, timeout, total_num_samps_sent*_bytes_per_cpu_item);
             total_num_samps_sent += num_samps_sent;
-            if (total_num_samps_sent == 0) {
+            if (num_samps_sent == 0) {
                 return total_num_samps_sent;
             }
 
