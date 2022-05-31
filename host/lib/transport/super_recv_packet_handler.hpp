@@ -569,6 +569,7 @@ private:
      * Handle all of the edge cases like inline messages and errors.
      * The logic will throw out older packets until it finds a match.
      ******************************************************************/
+    size_t oflow_count_this_line = 0;
     UHD_INLINE void get_aligned_buffs(double timeout)
     {
         get_prev_buffer_info()
@@ -676,7 +677,13 @@ private:
                               _samp_rate);
                     curr_info.metadata.out_of_sequence = true;
                     curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-                    UHD_LOG_FASTPATH("D");
+                    if(oflow_count_this_line < 25) {
+                        UHD_LOG_FASTPATH("D");
+                        oflow_count_this_line++;
+                    } else {
+                        UHD_LOG_FASTPATH("D\n");
+                        oflow_count_this_line = 0;
+                    }
                     return;
             }
 
