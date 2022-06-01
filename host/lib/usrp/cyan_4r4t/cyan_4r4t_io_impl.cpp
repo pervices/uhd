@@ -318,6 +318,9 @@ public:
 
     void enable_blocking_fc(uint64_t blocking_setpoint) {
         use_blocking_fc = true;
+        if(blocking_setpoint > 0.9 * CYAN_4R4T_BUFF_SIZE) {
+            blocking_setpoint = (uint64_t) (0.9 * CYAN_4R4T_BUFF_SIZE);
+        };
         this->blocking_setpoint = blocking_setpoint;
     }
 
