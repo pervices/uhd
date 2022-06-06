@@ -30,6 +30,7 @@ set(example_sources
     tx_waveforms.cpp
     tx_waveforms_cyan_16t.cpp
     tx_waveforms_cyan_64t.cpp
+    tx_ramp_test.cpp
     txrx_loopback_to_file.cpp
     usrp_list_sensors.cpp
     latency_test.cpp
