@@ -170,7 +170,7 @@ class cyan_4r4t_send_packet_streamer : public sph::send_packet_streamer {
 public:
 
 	typedef boost::function<void(void)> onfini_type;
-	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
+	typedef boost::function<uhd::time_spec_t(int&)> timenow_type;
 	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
     typedef boost::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 	typedef boost::function<bool(async_metadata_t&)> async_pusher_type;
@@ -220,7 +220,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        
         static const double default_sob = 1.0;
 
         size_t r = 0;
@@ -228,7 +227,7 @@ public:
         uhd::tx_metadata_t metadata = metadata_;
 
         uhd::time_spec_t sob_time;
-        uhd::time_spec_t now = get_time_now();
+        uhd::time_spec_t now = get_time_now(0);
 
         if ( ! metadata.start_of_burst ) {
             //std::cout << "metadata.time_spec: " << metadata.time_spec << " crimson_now: " << now << std::endl << std::flush;
@@ -295,8 +294,6 @@ public:
 			//if (ep._remaining_num_samps <=0) ep._remaining_num_samps = nsamps_per_buff;
 		   // ep.buffer_mutex.unlock();
       //  }
-
-        now = get_time_now();
 
         start_packet_streamer_thread();
 
@@ -366,8 +363,11 @@ public:
     void set_time_now( timenow_type time_now ) {
         _time_now = time_now;
     }
-    uhd::time_spec_t get_time_now() {
-        return _time_now ? _time_now() : get_system_time();
+    uhd::time_spec_t get_time_now(int xg_intf) {
+        return _time_now ? _time_now(xg_intf) : get_system_time();
+    }
+    void set_xg_intf( size_t chan, int xg_intf ) {
+		_eprops.at(chan).xg_intf = xg_intf;
     }
     void set_xport_chan( size_t chan, uhd::transport::zero_copy_if::sptr xport ) {
 		_eprops.at(chan).xport_chan = xport;
@@ -387,18 +387,17 @@ public:
 
     void resize(const size_t size){
 		_eprops.resize( size );
-		for( auto & ep: _eprops ) {
-            // the nominal sample rate (first argument of make) is set later)
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_4R4T_BUFF_PERCENT, CYAN_4R4T_BUFF_SIZE );
-			ep.flow_control->set_buffer_level( 0, get_time_now() );
-		}
+        for(size_t n = 0; n < _eprops.size(); n++) {
+            _eprops[n].flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_4R4T_BUFF_PERCENT, CYAN_4R4T_BUFF_SIZE );
+            _eprops[n].flow_control->set_buffer_level( 0, get_time_now(0) );
+        }
 		sph::send_packet_handler::resize(size);
     }
 
     void set_samp_rate(const double rate){
         sph::send_packet_handler::set_samp_rate( rate );
         _samp_rate = rate;
-        uhd::time_spec_t now = get_time_now();
+        uhd::time_spec_t now = get_time_now(0);
         for( auto & ep: _eprops ) {
             if ( nullptr != ep.flow_control.get() ) {
                 ep.flow_control->set_sample_rate( now, rate );
@@ -418,7 +417,7 @@ public:
             // the buffer level must be set to zero else flow control will crash since it thinks
             // the transfer buffer is already primed.
             for( auto & ep: _eprops ) {
-                ep.flow_control->set_buffer_level(0, get_time_now());
+                ep.flow_control->set_buffer_level(0, get_time_now(ep.xg_intf));
             }
 
 			//spawn a new viking to raid the send hoardes
@@ -455,6 +454,7 @@ private:
     struct eprops_type{
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
+        int xg_intf;
 		xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
         xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
 		uhd::flow_control::sptr flow_control;
@@ -483,7 +483,7 @@ private:
 
     void check_fc_update( const size_t chan, size_t nsamps) {
 		_eprops.at( chan ).buffer_mutex.lock();
-        _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
+        _eprops.at( chan ).flow_control->update( nsamps, get_time_now(_eprops.at( chan ).xg_intf) );
 		_eprops.at( chan ).buffer_mutex.unlock();
     }
     
@@ -496,13 +496,13 @@ private:
         if(BOOST_LIKELY(!use_blocking_fc)) {
 
             #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-            static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now() );
+            static uhd::time_spec_t last_print_time( 0.0 ), next_print_time( get_time_now(_eprops[chan].xg_intf) );
             #endif
 
             uhd::time_spec_t now, then, dt;
             struct timespec req,rem;
 
-            now = get_time_now();
+            now = get_time_now(_eprops[chan].xg_intf);
             dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
             then = now + dt;
 
@@ -616,7 +616,7 @@ private:
 					break;
 				}
 
-				now = self->get_time_now();
+				now = self->get_time_now(ep.xg_intf);
 
 				size_t level = level_pcnt * max_level;
 #ifdef BUFFER_DEBUG
@@ -1195,6 +1195,7 @@ tx_streamer::sptr cyan_4r4t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                     &cyan_4r4t_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
                 ));
 
+                my_streamer->set_xg_intf(chan_i, get_rx_xg_intf(chan));
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
                     &cyan_4r4t_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1

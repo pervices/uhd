@@ -618,7 +618,7 @@ public:
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
-            _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
+            this->get_device()->set_time_now(time_spec, mboard);
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++) {
@@ -2789,8 +2789,6 @@ private:
     fs_path rx_dsp_root(const size_t chan)
     {
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
-
-
 
         if (_tree->exists(mb_root(mcp.mboard) / "rx_chan_dsp_mapping")) {
             std::vector<size_t> map = _tree

@@ -105,15 +105,20 @@ public:
         return uhd::get_system_time() + diff;
     }
 
+    uhd::time_spec_t get_time_now(int xg_intf) {
+        double diff = time_diff_get(xg_intf);
+        return uhd::get_system_time() + diff;
+    }
+
     std::mutex _time_diff_mutex;
 
-    inline double time_diff_get() {
+    inline double time_diff_get(int xg_intf = 0) {
         std::lock_guard<std::mutex> _lock( _time_diff_mutex );
-        return _time_diff;
+        return _time_diff[xg_intf];
     }
-    inline void time_diff_set( double time_diff ) {
+    inline void time_diff_set( double time_diff, int xg_intf ) {
         std::lock_guard<std::mutex> _lock( _time_diff_mutex );
-        _time_diff = time_diff;
+        _time_diff[xg_intf] = time_diff;
     }
 
     bool time_diff_converged();
@@ -195,16 +200,14 @@ private:
 	 *     such that the error is forced to zero.
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
-	uhd::pidc _time_diff_pidc;
-    double _time_diff;
-	bool _time_diff_converged;
+	std::vector<uhd::pidc> _time_diff_pidc;
+    std::vector<double> _time_diff;
+	std::vector<bool> _time_diff_converged;
+    std::vector<bool> _request_reconverge;
 	uhd::time_spec_t _streamer_start_time;
-    void time_diff_send( const uhd::time_spec_t & crimson_now );
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
-    bool time_diff_recv( time_diff_resp & tdr );
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
-    void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
-    void fifo_update_process( const time_diff_resp & tdr );
+    void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now, int xg_intf );
 
     /**
      * Buffer Management Objects
@@ -282,6 +285,7 @@ private:
     double get_tx_gain(const std::string &name, size_t chan);
     void set_rx_gain(double gain, const std::string &name, size_t chan);
     double get_rx_gain(const std::string &name, size_t chan);
+    void set_time_now(const time_spec_t& time_spec, size_t mboard);
 };
 
 }

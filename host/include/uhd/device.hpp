@@ -98,6 +98,13 @@ public:
      * Note: There can always only be one streamer. When calling get_rx_stream()
      * a second time, the first streamer must be destroyed beforehand.
      */
+
+    /*! \brief Utility for determining mboard path
+    */
+    virtual std::string mb_root(const size_t mboard = 0) {
+        return "/mboards/" + std::to_string(mboard);
+    }
+
     virtual rx_streamer::sptr get_rx_stream(const stream_args_t& args) = 0;
 
     /*! \brief Make a new transmit streamer from the streamer arguments
@@ -242,6 +249,10 @@ public:
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
 
+    }
+
+    virtual void set_time_now(const time_spec_t& time_spec, size_t mboard) {
+        _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
     }
 
 protected:

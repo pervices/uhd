@@ -654,21 +654,6 @@ void cyan_4r4t_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
-/// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
-
-	time_diff_req pkt;
-
-	// Input to Process (includes feedback from PID Controller)
-	make_time_diff_packet(
-		pkt,
-		crimson_now
-	);
-
-    // By default send over SFPA
-	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
-}
-
 void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
 
 	time_diff_req pkt;
@@ -683,22 +668,6 @@ void cyan_4r4t_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int x
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
-}
-
-bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr ) {
-
-	size_t r;
-
-	r = _time_diff_iface[0]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
-
-	if ( 0 == r ) {
-		return false;
-	}
-
-	boost::endian::big_to_native_inplace( tdr.tv_sec );
-	boost::endian::big_to_native_inplace( tdr.tv_tick );
-
-	return true;
 }
 
 bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
@@ -721,18 +690,19 @@ bool cyan_4r4t_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
-void cyan_4r4t_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
+void cyan_4r4t_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now, int xg_intf ) {
 
 	static const double sp = 0.0;
 
 	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
-	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
-	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
+	double cv = _time_diff_pidc[xg_intf].update_control_variable( sp, pv, now.get_real_secs() );
+	_time_diff_converged[xg_intf] = _time_diff_pidc[xg_intf].is_converged( now.get_real_secs() );
+    _request_reconverge[xg_intf] = false;
 
 	// For SoB, record the instantaneous time difference + compensation
-	if ( _time_diff_converged ) {
-		time_diff_set( cv );
+	if ( _time_diff_converged[xg_intf] ) {
+		time_diff_set( cv, xg_intf );
 	}
 }
 
@@ -754,7 +724,6 @@ void cyan_4r4t_impl::start_bm() {
 		_bm_thread = std::thread( bm_thread_fn, this );
 
         //waits until the clocks converge
-		_time_diff_converged = false;
 		for(
 			time_spec_t time_then = uhd::get_system_time(),
 				time_now = time_then
@@ -787,7 +756,12 @@ void cyan_4r4t_impl::stop_bm() {
 
 //checks if the clocks are synchronized
 bool cyan_4r4t_impl::time_diff_converged() {
-	return _time_diff_converged;
+    for(uint32_t n = 0; n < _time_diff_converged.size(); n++) {
+        if(!_time_diff_converged[n] || _request_reconverge[n]) {
+            return false;
+        }
+    }
+	return true;
 }
 
 //Synchronizes clocks, this function should be run in its own thread
@@ -795,9 +769,6 @@ bool cyan_4r4t_impl::time_diff_converged() {
 void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 
 	dev->_bm_thread_running = true;
-
-    //the sfp port clock synchronization will be conducted on
-    int xg_intf = 0;
     
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_4R4T_UPDATE_PER_SEC );
 	std::vector<size_t> fifo_lvl( CYAN_4R4T_TX_CHANNELS );
@@ -811,21 +782,19 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 	struct time_diff_resp tdr;
 
 	//Get offset
-	now = uhd::get_system_time();
-	dev->time_diff_send( now, xg_intf );
-	dev->time_diff_recv( tdr, xg_intf );
-	dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+    for(uint32_t xg_intf = 0; xg_intf < dev->_time_diff_pidc.size(); xg_intf++) {
+        now = uhd::get_system_time();
+        dev->time_diff_send( now, xg_intf );
+        dev->time_diff_recv( tdr, xg_intf );
+        dev->_time_diff_pidc[xg_intf].set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+    }
 
 	for(
-		now = uhd::get_system_time(),
-			then = now + T
-			;
+		now = uhd::get_system_time(), then = now + T;
 
-		! dev->_bm_thread_should_exit
-			;
+		! dev->_bm_thread_should_exit;
 
-		then += T,
-			now = uhd::get_system_time()
+		then += T, now = uhd::get_system_time()
 	) {
 
 		dt = then - now;
@@ -835,37 +804,22 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 			nanosleep( &req, &rem );
 		}
 
-		time_diff = dev->_time_diff_pidc.get_control_variable();
-		now = uhd::get_system_time();
-		crimson_now = now + time_diff;
+        for(uint32_t xg_intf = 0; xg_intf < dev->_time_diff_pidc.size(); xg_intf++) {
+            time_diff = dev->_time_diff_pidc[xg_intf].get_control_variable();
+            now = uhd::get_system_time();
+            crimson_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now, xg_intf );
-        //The warning will be triggered during normal operation, so has been commented out
- 		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
- 			//std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
- 			continue;
-         }
-		dev->time_diff_process( tdr, now );
-		//dev->fifo_update_process( tdr );
+            dev->time_diff_send( crimson_now, xg_intf );
+            //The warning will be triggered during normal operation, so has been commented out
+            if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
+                //std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
+                continue;
+            }
+            dev->time_diff_process( tdr, now, xg_intf );
+        }
 
-#if 0
-			// XXX: overruns - we need to fix this
-			now = uhd::get_system_time();
+    }
 
-			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CYAN_4R4T_IMPL" )
-					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
-					<< std::endl;
-			}
-#endif
-        // At every iteration, loop through different interfaces so that we
-        // have an average of the time diffs through different interfaces!
-        /*if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
-            xg_intf++;
-        } else {
-            xg_intf = 0;
-        }*/
-	}
 	dev->_bm_thread_running = false;
 }
 
@@ -911,8 +865,10 @@ UHD_STATIC_BLOCK(register_cyan_4r4t_device)
 cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 :
 	device_addr( _device_addr ),
-	_time_diff( 0 ),
-	_time_diff_converged( false ),
+	_time_diff_pidc( NUMBER_OF_XG_CONTROL_INTF ),
+	_time_diff( NUMBER_OF_XG_CONTROL_INTF ),
+	_time_diff_converged( NUMBER_OF_XG_CONTROL_INTF, false ),
+	_request_reconverge( NUMBER_OF_XG_CONTROL_INTF, false ),
 	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
@@ -1493,22 +1449,26 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		// The problem is that this class does not hold a multi_crimson instance
 		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
 
-		// Tyreus-Luyben tuned PID controller
-		_time_diff_pidc = uhd::pidc_tl(
-			0.0, // desired set point is 0.0s error
-			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CYAN_4R4T_UPDATE_PER_SEC
-		);
+        for(uint32_t xg_intf = 0; xg_intf < _time_diff_pidc.size(); xg_intf++) {
+            // Tyreus-Luyben tuned PID controller
+            _time_diff_pidc[xg_intf] = uhd::pidc_tl(
+                0.0, // desired set point is 0.0s error
+                1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+                // measured P-ultimate is inverse of 1/2 the flow-control sample rate
+                2.0 / (double)CYAN_4R4T_UPDATE_PER_SEC
+            );
 
-		_time_diff_pidc.set_error_filter_length( CYAN_4R4T_UPDATE_PER_SEC );
+            _time_diff_pidc[xg_intf].set_error_filter_length( CYAN_4R4T_UPDATE_PER_SEC );
 
-		// XXX: @CF: 20170720: coarse to fine for convergence
-		// we coarsely lock on at first, to ensure the class instantiates properly
-		// and then switch to a finer error tolerance
-		_time_diff_pidc.set_max_error_for_convergence( 100e-6 );
+            // XXX: @CF: 20170720: coarse to fine for convergence
+            // we coarsely lock on at first, to ensure the class instantiates properly
+            // and then switch to a finer error tolerance
+            _time_diff_pidc[xg_intf].set_max_error_for_convergence( 100e-6 );
+        }
 		start_bm();
-		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
+        for(uint32_t xg_intf = 0; xg_intf < _time_diff_pidc.size(); xg_intf++) {
+            _time_diff_pidc[xg_intf].set_max_error_for_convergence( 10e-6 );
+        }
 	}
 }
 
@@ -1561,12 +1521,20 @@ int cyan_4r4t_impl::get_rx_jesd_num(int channel) {
 
 //the number corresponding to each sfp port
 //i.e. sfpa==0, sfpb==1...
+int rx_xg_intf_cache = 0;
+bool rx_xg_intf_is_cached = false;
 int cyan_4r4t_impl::get_rx_xg_intf(int channel) {
-    const fs_path mb_path   = "/mboards/0";
-    const fs_path rx_link_path  = mb_path / "rx_link" / channel;
-    std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
-    int xg_intf = sfp.back() - 'a';
-    return xg_intf;
+    if(rx_xg_intf_is_cached) {
+        return rx_xg_intf_cache;
+    } else {
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path rx_link_path  = mb_path / "rx_link" / channel;
+        std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
+        int xg_intf = sfp.back() - 'a';
+        rx_xg_intf_cache = true;
+        rx_xg_intf_cache = xg_intf;
+        return xg_intf;
+    }
 }
 
 std::string cyan_4r4t_impl::get_tx_sfp( size_t chan ) {
@@ -1892,6 +1860,26 @@ void cyan_4r4t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
     //calls this function for each channel individually
     for (size_t c = 0; c < CYAN_4R4T_RX_CHANNELS; c++){
         set_rx_gain( gain, name, c );
+    }
+}
+
+void cyan_4r4t_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
+    (void) mboard;
+    _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
+    for(uint32_t n = 0; n < _request_reconverge.size(); n++) {
+        _request_reconverge[n] = true;
+    }
+    int consecutive_convergenced = 0;
+    while (true) {
+        if(time_diff_converged()) {
+            consecutive_convergenced++;
+            if(consecutive_convergenced >= 3) {
+                return;
+            }
+        } else {
+            consecutive_convergenced = 0;
+        }
+        usleep(10000);
     }
 }
 
