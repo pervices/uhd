@@ -7,7 +7,7 @@
 
 #include <uhd/exception.hpp>
 #include "flow_control.hpp"
-#include "sma.hpp"
+#include "uhd/utils/sma.hpp"
 
 #if 0
 #define DEBUG_FLOW_CONTROL
