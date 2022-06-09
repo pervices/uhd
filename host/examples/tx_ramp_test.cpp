@@ -51,6 +51,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
     size_t spb;
     double rate;
+    short i_initial, q_initial, i_increment, q_increment;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -62,6 +63,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
         ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo)")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
+        ("i_initial", po::value<short>(&i_initial)->default_value(0), "Initial value of i")
+        ("q_initial", po::value<short>(&q_initial)->default_value(0), "Initial value of i")
+        ("i_increment", po::value<short>(&i_increment)->default_value(1), "How much to increment i each sample")
+        ("q_increment", po::value<short>(&q_increment)->default_value(0), "How much to increment q each sample")
         ("int-n", "tune USRP with integer-N tuning")
     ;
     po::variables_map vm;
@@ -186,15 +191,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     md.has_time_spec  = true;
     md.time_spec = uhd::time_spec_t(5.0);
 
-    short incrementing_value = -32767;
+    short sample_num = 0;
     //send data until the signal handler gets called
     while(!stop_signal_called){
 
         //fill the buffer with the waveform
         size_t n = 0;
         for (n = 0; n < buff.size(); n++){
-            buff[n] = std::complex<short>(incrementing_value, 0);
-            incrementing_value++;
+            short i = i_initial + (sample_num * i_increment);
+            short q = q_initial + (sample_num * q_increment);
+            buff[n] = std::complex<short>(i, q);
+            sample_num++;
         }
 
         //this statement will block until the data is sent
