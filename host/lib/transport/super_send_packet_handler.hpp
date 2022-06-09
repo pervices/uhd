@@ -311,9 +311,10 @@ public:
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &buffs,
         const size_t nsamps_per_buff,
-        const uhd::tx_metadata_t &metadata,
+        const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        uhd::tx_metadata_t metadata = metadata_;
         //translate the metadata to vrt if packet info
         vrt::if_packet_info_t if_packet_info;
         if_packet_info.packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
@@ -413,7 +414,10 @@ public:
             }
 
             //setup metadata for the next fragment
-            const time_spec_t time_spec = metadata.time_spec; // + time_spec_t::from_ticks(total_num_samps_sent, _samp_rate);
+            const time_spec_t time_spec = metadata.time_spec + time_spec_t::from_ticks(total_num_samps_sent, _samp_rate);
+            if(i > 0) {
+                metadata.start_of_burst = false;
+            }
 
             if_packet_info.tsf = time_spec.to_ticks(_tick_rate);
             if_packet_info.sob = false;

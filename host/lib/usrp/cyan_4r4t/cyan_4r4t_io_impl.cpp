@@ -214,6 +214,9 @@ public:
         return _max_num_samps;
     }
 
+    // The start time of the next batch of samples in ticks
+    uhd::time_spec_t next_send_time;
+
     size_t send(
         const tx_streamer::buffs_type &buffs,
         const size_t nsamps_per_buff,
@@ -226,13 +229,11 @@ public:
 
         uhd::tx_metadata_t metadata = metadata_;
 
-        uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now(0);
 
-        if ( ! metadata.start_of_burst ) {
-            //std::cout << "metadata.time_spec: " << metadata.time_spec << " crimson_now: " << now << std::endl << std::flush;
-            metadata.has_time_spec = false;
-            metadata.time_spec = 0.0;
+        if ( ! metadata.has_time_spec ) {
+            metadata.has_time_spec = true;
+            metadata.time_spec = next_send_time;
         }
         if ( _first_call_to_send ) {
             if ( ! metadata.start_of_burst ) {
@@ -269,7 +270,6 @@ public:
             for( auto & ep: _eprops ) {
                 ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
-            sob_time = metadata.time_spec;
         }
         if ( _first_call_to_send ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -309,6 +309,8 @@ public:
 
             stop_streaming();
         } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
+
+        next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
 
         return r;
     }
