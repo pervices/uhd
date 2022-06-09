@@ -1716,10 +1716,8 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
-	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
-	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
 	int band = select_band( clipped_requested_freq );
 
@@ -1727,7 +1725,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	//-- set the RF frequency depending upon the policy
 	//------------------------------------------------------------------
 	double target_rf_freq = 0.0;
-	double dsp_nco_shift = 0;
 
 	if ( TX_SIGN == xx_sign ) {
 		rf_fe_subtree->access<double>("nco").set( 0.0 );
@@ -1884,7 +1881,6 @@ void cyan_9r7t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
         //sets gain in the rf chain (variable amplifier, variable attenuator, bypassable amplifier
         //currently deciding how to combine them is calculated on the server. On older versions UHD determined how to adjust them
         _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain );
-        double actual_rf_gain = _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 
         return;
     }

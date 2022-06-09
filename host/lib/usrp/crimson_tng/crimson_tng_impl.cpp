@@ -1474,6 +1474,7 @@ std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
 		return "sfpb";
 		break; 
 	}
+	throw std::runtime_error("Invalid channel specified.");
 }
 
 std::string crimson_tng_impl::get_tx_ip( size_t chan ) {

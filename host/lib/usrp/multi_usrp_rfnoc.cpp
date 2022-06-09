@@ -2190,22 +2190,23 @@ public:
     {
         std::vector<std::string> names;
         //the odd and inefficient structure of this code is to keep its behaviour as close as possible to the original
-        for(int n = 0; n <get_rx_num_channels(); n++) {
+        for(uint32_t n = 0; n <get_rx_num_channels(); n++) {
             std::vector<std::string> ch_names = get_rx_filter_names(n);
-            for(int i = 0; i < ch_names.size(); i++) {
+            for(uint32_t i = 0; i < ch_names.size(); i++) {
                 if((search_mask.empty()) || ch_names[i].find(search_mask) != std::string::npos) {
                     names.push_back(ch_names[i]);
                 }
             }
         }
-        for(int n = 0; n <get_tx_num_channels(); n++) {
+        for(uint32_t n = 0; n <get_tx_num_channels(); n++) {
             std::vector<std::string> ch_names = get_tx_filter_names(n);
-            for(int i = 0; i < ch_names.size(); i++) {
+            for(uint32_t i = 0; i < ch_names.size(); i++) {
                 if((search_mask.empty()) || ch_names[i].find(search_mask) != std::string::npos) {
                     names.push_back(ch_names[i]);
                 }
             }
         }
+        return names;
     }
 
     [[deprecated("Use get_tx_filter  or get_rx_filter instead")]]

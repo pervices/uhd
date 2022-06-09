@@ -54,6 +54,7 @@ tune_request_t::tune_request_t(double dsp_freq, double lo_off, int dummy):
     dsp_freq_policy(POLICY_MANUAL),
     dsp_freq(dsp_freq)
 {
+    (void) dummy;
 #ifdef TUNE_DEBUG
     std::cout << "lo_off: " << lo_off << std::endl;
     std::cout << "rf_freq: " << rf_freq << std::endl;

@@ -1685,12 +1685,6 @@ static int select_band( const double freq ) {
         return LOW_BAND;
 }
 
-// XXX: @CF: 20180418: stop-gap until moved to server
-// return true if b is a (not necessarily strict) subset of a
-static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
-	return b.start() >= a.start() && b.stop() <= a.stop();
-}
-
 static double choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree ) {
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
@@ -1733,10 +1727,8 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
-	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
-	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
 	int band = select_band( clipped_requested_freq );
 
@@ -1744,7 +1736,6 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	//-- set the RF frequency depending upon the policy
 	//------------------------------------------------------------------
 	double target_rf_freq = 0.0;
-	double dsp_nco_shift = 0;
 
 	if ( TX_SIGN == xx_sign ) {
 		rf_fe_subtree->access<double>("nco").set( 0.0 );
@@ -1898,7 +1889,6 @@ void cyan_4r4t_3g_impl::set_rx_gain(double gain, const std::string &name, size_t
         //sets gain in the rf chain (variable amplifier, variable attenuator, bypassable amplifier
         //currently deciding how to combine them is calculated on the server. On older versions UHD determined how to adjust them
         _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain );
-        double actual_rf_gain = _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 
         return;
     }
@@ -1912,9 +1902,6 @@ void cyan_4r4t_3g_impl::set_rx_gain(double gain, const std::string &name, size_t
 double cyan_4r4t_3g_impl::get_rx_gain(const std::string &name, size_t chan) {
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
-	};
-	auto rx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
 	};
 	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
 		auto letter = std::string(1, 'A' + chan);

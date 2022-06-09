@@ -88,29 +88,29 @@ struct UHD_API tune_request_t
      * The RF frequency in Hz.
          * This is DAD Datapath plus DAC Channelizer NCO tuning word.
      * Set when the policy is set to manual.
-         *
-         * Note: We must reuse the same name for compatibility with UHD.
-         *       A proper name for this variable would be rf_dp_freq.
+     *
+     * Note: We must reuse the same name for compatibility with UHD.
+     *       A proper name for this variable would be rf_dp_freq.
      */
     double rf_freq;
 
-        /*!
-         * The RF frequency in Hz. This is DAD Datapath NCO tuning word.
-         * Set when the policy is set to manual.
-         */
-        double rf_dp_freq;
+    /*!
+        * The RF frequency in Hz. This is DAD Channel NCO tuning word.
+        * Set when the policy is set to manual.
+        */
+    double rf_ch_freq;
 
-        /*!
-         * The RF frequency in Hz. This is DAD Channel NCO tuning word.
-         * Set when the policy is set to manual.
-         */
-        double rf_ch_freq;
+    /*!
+        * The RF frequency in Hz. This is DAD Datapath NCO tuning word.
+        * Set when the policy is set to manual.
+        */
+    double rf_dp_freq;
 
-        /*!
-         * The External LO frequency in Hz.
-         * Set when the policy is set to manual.
-         */
-        double lo_freq;
+    /*!
+        * The External LO frequency in Hz.
+        * Set when the policy is set to manual.
+        */
+    double lo_freq;
 
     /*!
      * The policy for the DSP frequency.

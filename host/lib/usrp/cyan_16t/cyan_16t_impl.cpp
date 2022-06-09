@@ -1223,12 +1223,6 @@ cyan_16t_impl::cyan_16t_impl(const device_addr_t &_device_addr)
 		zero_copy_xport_params zcxp;
 		udp_zero_copy::buff_params bp;
 
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CYAN_16T_MAX_MTU - ip_udp_size;
-
         //Attempts to bind the ips associated with the ip ports
         //It is neccessary for maximum performance when receiving using uhd
         //However if uhd is only being used to start the stream and something else is handling actually receiving the data this error can be ignored
@@ -1844,9 +1838,6 @@ double cyan_16t_impl::get_tx_gain(const std::string &name, size_t chan) {
 double cyan_16t_impl::get_rx_gain(const std::string &name, size_t chan) {
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
-	};
-	auto rx_dsp_root = [&](size_t chan) -> std::string {
-		return mb_root(0) + "/rx_dsps/" + std::to_string(chan);
 	};
 	auto rx_rf_fe_root = [&](size_t chan) -> std::string {
 		auto letter = std::string(1, 'A' + chan);
