@@ -74,7 +74,7 @@
 //Target buffer level percentage
 #define CRIMSON_TNG_BUFF_PERCENT 0.7
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
-#define CRIMSON_TNG_BUFF_SCALE 1
+#define CRIMSON_TNG_BUFF_SCALE 2
 
 // Crimson RF Settings
 #define CRIMSON_TNG_RF_TX_GAIN_RANGE_START	0.0

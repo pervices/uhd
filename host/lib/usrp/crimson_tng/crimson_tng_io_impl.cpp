@@ -223,6 +223,9 @@ public:
         return _max_num_samps;
     }
 
+    // The start time of the next batch of samples in ticks
+    uhd::time_spec_t next_send_time;
+    
     //send fucntion called by external programs
     size_t send(
         const tx_streamer::buffs_type &buffs,
@@ -246,14 +249,8 @@ public:
         std::cout << "\ttime_spec.get_real_secs(): " << metadata.time_spec.get_real_secs() << std::endl;
 #endif
 
-        uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now();
 
-        if ( ! metadata.start_of_burst ) {
-            //std::cout << "metadata.time_spec: " << metadata.time_spec << " crimson_now: " << now << std::endl << std::flush;
-            metadata.has_time_spec = false;
-            metadata.time_spec = 0.0;
-        }
         if ( _first_call_to_send ) {
             if ( ! metadata.start_of_burst ) {
                 #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -274,6 +271,11 @@ public:
                 metadata.has_time_spec = true;
                 metadata.time_spec = now + default_sob;
             }
+        } else {
+            if ( ! metadata.has_time_spec ) {
+                metadata.has_time_spec = true;
+                metadata.time_spec = next_send_time;
+            }            
         }
 
         if ( metadata.start_of_burst ) {
@@ -291,7 +293,6 @@ public:
             for( auto & ep: _eprops ) {
                 ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
-            sob_time = metadata.time_spec;
         }
         if ( _first_call_to_send ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -332,6 +333,9 @@ public:
         } else {
             r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
         }
+        
+        next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
+        
         return r;
     }
     
