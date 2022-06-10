@@ -63,9 +63,10 @@ public:
         if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms))
             return 0;
         if (_connected) {
-            return _socket->send(asio::buffer(buff));
+            return _socket->recv(asio::buffer(buff));
         }
-        return _socket->send_to(asio::buffer(buff), _recv_endpoint);
+
+        return _socket->recv_from(asio::buffer(buff), _recv_endpoint);
     }
 
     std::string get_recv_addr(void) override
