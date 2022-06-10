@@ -190,7 +190,7 @@ private:
 	 */
 	uhd::pidc _time_diff_pidc;
     std::atomic<double> _time_diff;
-	bool _time_diff_converged;
+	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
     bool time_diff_recv( time_diff_resp & tdr );

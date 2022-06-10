@@ -664,8 +664,6 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 
 void crimson_tng_impl::start_bm() {
 
-	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
-
 	if ( ! _bm_thread_needed ) {
 		return;
 	}
