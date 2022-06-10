@@ -10,6 +10,8 @@
 #include <uhdlib/transport/udp_common.hpp>
 #include <boost/format.hpp>
 
+#include <iostream>
+
 using namespace uhd::transport;
 namespace asio = boost::asio;
 
@@ -46,8 +48,11 @@ public:
 
     size_t send(const asio::const_buffer& buff) override
     {
-        if (_connected)
+        if (_connected) {
+            std::cout << "Sending udp_simple" << std::endl;
             return _socket->send(asio::buffer(buff));
+        }
+        std::cout << "Sending to udp_simple" << std::endl;
         return _socket->send_to(asio::buffer(buff), _send_endpoint);
     }
 
