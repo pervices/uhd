@@ -50,6 +50,7 @@ public:
     {
         if (_connected) {
             std::cout << "Sending udp_simple" << std::endl;
+            std::cout << "_send_endpoint: " << _send_endpoint << std::endl;
             return _socket->send(asio::buffer(buff));
         }
         std::cout << "Sending to udp_simple" << std::endl;
