@@ -521,7 +521,7 @@ private:
         
         _eprops.at( chan ).flow_control->update( nsamps, NULL );
         
-        if(_eprops.at( chan ).get_buffer_level_reply_ready && false) {
+        if(_eprops.at( chan ).get_buffer_level_reply_ready) {
 
             if(!_eprops.at( chan ).first_check_fc) {
                 fifo_lvl_rsp rsp = _eprops.at( chan ).recv_buffer_lvl_task.get();
