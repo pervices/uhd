@@ -42,18 +42,17 @@ public:
         _socket->set_option(asio::socket_base::broadcast(bcast));
 
         // connect the socket
-        if (connect)
+        if (connect) {
             _socket->connect(_send_endpoint);
+            _recv_endpoint = _send_endpoint;
+        }
     }
 
     size_t send(const asio::const_buffer& buff) override
     {
         if (_connected) {
-            std::cout << "Sending udp_simple" << std::endl;
-            std::cout << "_send_endpoint: " << _send_endpoint << std::endl;
             return _socket->send(asio::buffer(buff));
         }
-        std::cout << "Sending to udp_simple" << std::endl;
         return _socket->send_to(asio::buffer(buff), _send_endpoint);
     }
 
@@ -61,11 +60,12 @@ public:
     {
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
 
-        std::cout << "_recv_endpoint: " << _recv_endpoint << std::endl;
-
         if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms))
             return 0;
-        return _socket->receive_from(asio::buffer(buff), _recv_endpoint);
+        if (_connected) {
+            return _socket->send(asio::buffer(buff));
+        }
+        return _socket->send_to(asio::buffer(buff), _recv_endpoint);
     }
 
     std::string get_recv_addr(void) override
