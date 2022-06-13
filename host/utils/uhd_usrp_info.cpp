@@ -174,7 +174,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             try {
                 char path[50];
                 sprintf(path, "rx/%lu/fw_version", rx_chan);
-                std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
+                try {
+                    sprintf(path, "rx/%lu/jesd/status", rx_chan);
+                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                } catch (...) {}
             } catch (...) {
                 all_rx_found = true;
             }
@@ -187,7 +191,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             try {
                 char path[50];
                 sprintf(path, "tx/%lu/fw_version", tx_chan);
-                std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
+                try {
+                    sprintf(path, "tx/%lu/jesd/status", tx_chan);
+                    std::cout << std::string("\ttx(" + std::to_string(tx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                } catch (...) {}
             } catch (...) {
                 all_tx_found = true;
             }

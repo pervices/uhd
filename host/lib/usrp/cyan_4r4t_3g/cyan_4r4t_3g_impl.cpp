@@ -1255,6 +1255,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
+        TREE_CREATE_RW(rx_path / dspno / "jesd" / "status", "rx_"+lc_num+"/jesd/status", std::string, string);
+
 		// Link settings
 		TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);
 		TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
@@ -1398,6 +1400,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
 		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/ch0fpga_nco", double, double);
 		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco/ch0freq", double, double);
+
+        TREE_CREATE_RW(tx_path / dspno / "jesd" / "status", "tx_"+lc_num+"/jesd/status", std::string, string);
 
 		// Link settings
 		TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
