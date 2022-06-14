@@ -865,15 +865,16 @@ UHD_STATIC_BLOCK(register_cyan_4r4t_device)
 cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 :
 	device_addr( _device_addr ),
-	_time_diff_pidc( NUMBER_OF_XG_CONTROL_INTF ),
-	_time_diff( NUMBER_OF_XG_CONTROL_INTF ),
-	_time_diff_converged( NUMBER_OF_XG_CONTROL_INTF, false ),
-	_request_reconverge( NUMBER_OF_XG_CONTROL_INTF, false ),
 	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
     _command_time()
 {
+    for(size_t n; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
+        _time_diff[n] = 0;
+        _time_diff_converged[n] = false;
+        _request_reconverge[n] = false;
+    }
     _type = device::CYAN_4R4T;
     device_addr = _device_addr;
 

@@ -200,11 +200,11 @@ private:
 	 *     such that the error is forced to zero.
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
-	std::vector<uhd::pidc> _time_diff_pidc;
-    std::vector<double> _time_diff;
-	std::vector<bool> _time_diff_converged;
-    std::vector<bool> _request_reconverge;
-	uhd::time_spec_t _streamer_start_time;
+    std::array<uhd::pidc, NUMBER_OF_XG_CONTROL_INTF> _time_diff_pidc;
+    std::array<std::atomic<double>, NUMBER_OF_XG_CONTROL_INTF> _time_diff;
+    std::array<std::atomic<bool>, NUMBER_OF_XG_CONTROL_INTF> _time_diff_converged;
+    std::array<std::atomic<bool>, NUMBER_OF_XG_CONTROL_INTF> _request_reconverge;
+    uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now, int xg_intf );
