@@ -119,7 +119,7 @@ public:
     {
         stream_cmd_t modified_cmd = stream_cmd_t(stream_cmd);
         modified_cmd.num_samps = stream_cmd.num_samps * CYAN_4R4T_3G_SAMPS_NUM_RX / CYAN_4R4T_3G_SAMPS_DEM_RX;
-        return recv_packet_handler::issue_stream_cmd(stream_cmd);
+        return recv_packet_handler::issue_stream_cmd(modified_cmd);
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
