@@ -73,6 +73,8 @@
 #define CYAN_9R7T_MIN_MTU		1500
 // Cyan 9r7t max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_9R7T_MAX_MTU		8992
+// Packaets send to the unit must have a multiple of this many samples
+#define CYAN_9R7T_PACKET_NSAMP_MULTIPLE 4
 // Amount of the UDP packet used for overhead in data packets
 // 60 bit ipv4 header, 8 bit UDP header
 #define CYAN_9R7T_UDP_OVERHEAD 68
