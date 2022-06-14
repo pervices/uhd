@@ -471,7 +471,7 @@ private:
         #endif
 
         uhd::time_spec_t now, then, dt;
-		struct timespec req, rem;
+		struct timespec req;
 
         now = get_time_now();
         dt = _eprops.at( chan ).flow_control->get_time_until_next_send( _actual_num_samps, now );
