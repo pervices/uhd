@@ -1209,6 +1209,11 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(rx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 
+        TREE_CREATE_RW(rx_path / dspno / "/rf/iq/iq_gaincor", "rx_"+lc_num+"/rf/iq/iq_gaincor", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "/rf/iq/iq_phasecor", "rx_"+lc_num+"/rf/iq/iq_phasecor", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "/rf/iq/iq_dcoffset_i", "rx_"+lc_num+"/rf/iq/iq_dcoffset_i", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "/rf/iq/iq_dcoffset_q", "rx_"+lc_num+"/rf/iq/iq_dcoffset_q", std::string, string);
+
 		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
