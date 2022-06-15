@@ -143,6 +143,9 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         }
 
         //Insert modifications to be made between tests here
+        const std::string path { "/mboards/0/rx/0/rf/iq/iq_gaincor" };
+        const std::string value = ".5";
+        usrp->set_tree_value(path, value);
     }
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
