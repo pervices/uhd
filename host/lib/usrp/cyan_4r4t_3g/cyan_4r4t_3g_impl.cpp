@@ -17,7 +17,7 @@
 
 #include <boost/assign.hpp>
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
+#include <functional>
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
@@ -48,6 +48,7 @@ namespace link_cyan_4r4t_3g {
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
+namespace ph = std::placeholders;
 namespace asio = boost::asio;
 
 #ifndef DEFAULT_NUM_FRAMES
@@ -902,15 +903,15 @@ UHD_STATIC_BLOCK(register_cyan_4r4t_3g_device)
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.add_desired_subscriber(boost::bind(&cyan_4r4t_3g_impl::set_ ## HANDLER, this, (PROP), _1))	\
-		.set_publisher(boost::bind(&cyan_4r4t_3g_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.add_desired_subscriber(std::bind(&cyan_4r4t_3g_impl::set_ ## HANDLER, this, (PROP), ph::_1))	\
+		.set_publisher(std::bind(&cyan_4r4t_3g_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.publish  (boost::bind(&cyan_4r4t_3g_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.publish  (std::bind(&cyan_4r4t_3g_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are static
@@ -1054,8 +1055,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_rx_map);
     _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_rx_map);
-    _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_rx_subdev_spec, this, mb, _1));
-    _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_tx_subdev_spec, this, mb, _1));
+    _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_4r4t_3g_impl::update_rx_subdev_spec, this, mb, ph::_1));
+    _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_4r4t_3g_impl::update_tx_subdev_spec, this, mb, ph::_1));
 
     TREE_CREATE_ST(mb_path / "vendor", std::string, "Per Vices");
     TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
@@ -1249,8 +1250,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 
 		_tree->create<double> (rx_dsp_path / "rate" / "value")
 			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_rx_samp_rate, this, mb, (size_t) dspno, _1))
-			.set_publisher(boost::bind(&cyan_4r4t_3g_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
+			.add_desired_subscriber(std::bind(&cyan_4r4t_3g_impl::update_rx_samp_rate, this, mb, (size_t) dspno, ph::_1))
+			.set_publisher(std::bind(&cyan_4r4t_3g_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
@@ -1395,8 +1396,8 @@ cyan_4r4t_3g_impl::cyan_4r4t_3g_impl(const device_addr_t &_device_addr)
 
 		_tree->create<double> (tx_dsp_path / "rate" / "value")
 // 			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(boost::bind(&cyan_4r4t_3g_impl::update_tx_samp_rate, this, mb, (size_t) dspno, _1))
-			.set_publisher(boost::bind(&cyan_4r4t_3g_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
+			.add_desired_subscriber(std::bind(&cyan_4r4t_3g_impl::update_tx_samp_rate, this, mb, (size_t) dspno, ph::_1))
+			.set_publisher(std::bind(&cyan_4r4t_3g_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 

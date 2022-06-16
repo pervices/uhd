@@ -32,7 +32,7 @@
 #include <uhd/utils/thread.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <boost/format.hpp>
-#include <boost/bind.hpp>
+#include <functional>
 #include <boost/asio.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/make_shared.hpp>
@@ -75,13 +75,14 @@
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
+namespace ph = std::placeholders;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
 class cyan_8r_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
-	typedef boost::function<void(void)> onfini_type;
+	typedef std::function<void(void)> onfini_type;
 
 	cyan_8r_recv_packet_streamer(const size_t max_num_samps)
 	: sph::recv_packet_streamer( max_num_samps )
@@ -165,10 +166,10 @@ static void shutdown_lingering_rx_streamers() {
 class cyan_8r_send_packet_streamer : public sph::send_packet_streamer {
 public:
 
-	typedef boost::function<void(void)> onfini_type;
-	typedef boost::function<uhd::time_spec_t(void)> timenow_type;
-	typedef boost::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
-	typedef boost::function<bool(async_metadata_t&)> async_pusher_type;
+	typedef std::function<void(void)> onfini_type;
+	typedef std::function<uhd::time_spec_t(void)> timenow_type;
+	typedef std::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
+	typedef std::function<bool(async_metadata_t&)> async_pusher_type;
 
 	cyan_8r_send_packet_streamer( const size_t max_num_samps )
 	:
@@ -882,12 +883,12 @@ rx_streamer::sptr cyan_8r_impl::get_rx_stream(const uhd::stream_args_t &args_){
                 //stream_cmd_t scmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
                 //scmd.stream_now = true;
                 //set_stream_cmd( scmd_pre, scmd );
-                my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                    &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], _1
+                my_streamer->set_xport_chan_get_buff(chan_i, std::bind(
+                    &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], ph::_1
                 ), true /*flush*/);
-                my_streamer->set_issue_stream_cmd(chan_i, boost::bind(
-                    &cyan_8r_impl::set_stream_cmd, this, scmd_pre, _1));
-                my_streamer->set_on_fini(chan_i, boost::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
+                my_streamer->set_issue_stream_cmd(chan_i, std::bind(
+                    &cyan_8r_impl::set_stream_cmd, this, scmd_pre, ph::_1));
+                my_streamer->set_on_fini(chan_i, std::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
                 _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
@@ -1081,7 +1082,7 @@ tx_streamer::sptr cyan_8r_impl::get_tx_stream(const uhd::stream_args_t &args_){
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
 
     //make the new streamer given the samples per packet
-    cyan_8r_send_packet_streamer::timenow_type timenow_ = boost::bind( & cyan_8r_impl::get_time_now, this );
+    cyan_8r_send_packet_streamer::timenow_type timenow_ = std::bind( & cyan_8r_impl::get_time_now, this );
     std::vector<uhd::transport::zero_copy_if::sptr> xports;
     for( auto & i: args.channels ) {
         xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
@@ -1093,7 +1094,7 @@ tx_streamer::sptr cyan_8r_impl::get_tx_stream(const uhd::stream_args_t &args_){
     my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
     my_streamer->set_enable_trailer( false );
 
-    my_streamer->set_time_now(boost::bind(&cyan_8r_impl::get_time_now,this));
+    my_streamer->set_time_now(std::bind(&cyan_8r_impl::get_time_now,this));
 
     //set the converter
     uhd::convert::id_type id;
@@ -1120,30 +1121,30 @@ tx_streamer::sptr cyan_8r_impl::get_tx_stream(const uhd::stream_args_t &args_){
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
                 my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
-                my_streamer->set_on_fini(chan_i, boost::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
+                my_streamer->set_on_fini(chan_i, std::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
 
                 std::weak_ptr<uhd::tx_streamer> my_streamerp = my_streamer;
 
-                my_streamer->set_xport_chan_get_buff(chan_i, boost::bind(
-                    &cyan_8r_send_packet_streamer::get_send_buff, my_streamerp, chan_i, _1
+                my_streamer->set_xport_chan_get_buff(chan_i, std::bind(
+                    &cyan_8r_send_packet_streamer::get_send_buff, my_streamerp, chan_i, ph::_1
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
-                my_streamer->set_xport_chan_update_fc_send_size(chan_i, boost::bind(
-                    &cyan_8r_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, _1
+                my_streamer->set_xport_chan_update_fc_send_size(chan_i, std::bind(
+                    &cyan_8r_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, ph::_1
                 ));
                 
-                my_streamer->set_xport_chan_check_flow_control(chan_i, boost::bind(
-                    &cyan_8r_send_packet_streamer::check_flow_control, my_streamerp, chan_i, _1
+                my_streamer->set_xport_chan_check_flow_control(chan_i, std::bind(
+                    &cyan_8r_send_packet_streamer::check_flow_control, my_streamerp, chan_i, ph::_1
                 ));
 
-                my_streamer->set_xport_chan_fifo_lvl(chan_i, boost::bind(
-                    &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], _1, _2, _3, _4
+                my_streamer->set_xport_chan_fifo_lvl(chan_i, std::bind(
+                    &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
 
-                my_streamer->set_async_receiver(boost::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_8r_io_impl->async_msg_fifo), _1, _2));
+                my_streamer->set_async_receiver(std::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_8r_io_impl->async_msg_fifo), ph::_1, ph::_2));
 
-                my_streamer->set_async_pusher(boost::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_8r_io_impl->async_msg_fifo), _1));
+                my_streamer->set_async_pusher(std::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_8r_io_impl->async_msg_fifo), ph::_1));
 
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;

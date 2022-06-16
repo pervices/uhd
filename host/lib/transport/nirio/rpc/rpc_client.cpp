@@ -76,7 +76,7 @@ rpc_client::rpc_client(const std::string& server,
                 // Spawn a thread for the io_service callback handler. This thread will
                 // run until rpc_client is destroyed.
                 _io_service_thread.reset(new boost::thread(
-                    boost::bind(&boost::asio::io_service::run, &_io_service)));
+                    std::bind(&boost::asio::io_service::run, &_io_service)));
             } else {
                 UHD_LOGGER_DEBUG("NIRIO") << "rpc_client handshake failed.";
                 _exec_err.assign(boost::asio::error::connection_refused,
@@ -179,7 +179,7 @@ void rpc_client::_handle_response_hdr(
                 boost::asio::async_read(_socket,
                     boost::asio::buffer(
                         &(*_response.data.begin()), _response.data.size()),
-                    boost::bind(&rpc_client::_handle_response_data,
+                    std::bind(&rpc_client::_handle_response_data,
                         this,
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred,
@@ -221,7 +221,7 @@ void rpc_client::_wait_for_next_response_header()
     //_mutex must be locked when this call is made
     boost::asio::async_read(_socket,
         boost::asio::buffer(&_response.header, sizeof(_response.header)),
-        boost::bind(&rpc_client::_handle_response_hdr,
+        std::bind(&rpc_client::_handle_response_hdr,
             this,
             boost::asio::placeholders::error,
             boost::asio::placeholders::bytes_transferred,
