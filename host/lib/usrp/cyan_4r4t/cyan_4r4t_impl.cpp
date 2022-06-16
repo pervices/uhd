@@ -870,7 +870,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 	_bm_thread_should_exit( false ),
     _command_time()
 {
-    for(size_t n; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
+    for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
         _time_diff[n] = 0;
         _time_diff_converged[n] = false;
         _request_reconverge[n] = false;
