@@ -395,20 +395,17 @@ public:
 		// probably should also (re)start the "bm thread", which currently just manages time diff
 		//std::lock_guard<std::mutex> lck( _mutex );
 		if ( ! _pillaging ) {
-            std::cout << "P1" << std::endl;
 			_blessbless = false;
 
             // Assuming pillage is called for each send(), and thus each stacked command,
             // the buffer level must be set to zero else flow control will crash since it thinks
             // the transfer buffer is already primed.
             for( auto & ep: _eprops ) {
-                std::cout << "P2" << std::endl;
                 ep.flow_control->set_buffer_level(0, get_time_now());
             }
 
 			//spawn a new viking to raid the send hoardes
 			for(size_t n = 0; n < _eprops.size(); n++) {
-                std::cout << "T1" << std::endl;
                 uhd::transport::udp_simple *port = _eprops.at(n).fifo_ctrl_xports.get();
                 _eprops[n].recv_buffer_level_thread = std::thread(buffer_lvl_udp_recv_loop, std::ref(*port), std::ref(_eprops[n].get_buffer_level_reply_ready), std::ref(_eprops[n].get_buffer_level_error), std::ref(_eprops[n].buffer_level_last_request), std::ref(_eprops[n].rsp_reply_time_s), std::ref(_eprops[n].rsp_reply_time_ticks), std::ref(_blessbless));
             }

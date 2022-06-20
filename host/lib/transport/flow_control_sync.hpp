@@ -9,11 +9,10 @@
 #include "flow_control.hpp"
 #include "uhd/utils/sma.hpp"
 
-#if 1
+#if 0
 #define DEBUG_FLOW_CONTROL
 #endif
 
-//#define BUFFER_DEBUG
 
 namespace uhd {
 
