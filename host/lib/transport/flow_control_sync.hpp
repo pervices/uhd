@@ -9,11 +9,10 @@
 #include "flow_control.hpp"
 #include "uhd/utils/sma.hpp"
 
-#if 0
+#if 1
 #define DEBUG_FLOW_CONTROL
 #endif
 
-//#define FLOW_CONTROL_DEBUG
 //#define BUFFER_DEBUG
 
 namespace uhd {
@@ -79,7 +78,14 @@ public:
             return buffer_level_at_last_request + samples_sent_since_last_request;
         } else {
             size_t nsamples_consumed = interp( buffer_level_request_time, now, nominal_sample_rate );
-            return buffer_level_at_last_request + samples_sent_since_last_request - nsamples_consumed;
+            ssize_t buffer_level = buffer_level_at_last_request + samples_sent_since_last_request - nsamples_consumed;
+#ifdef DEBUG_FLOW_CONTROL
+			if(buffer_level < 0) {
+				std::cout << "Underflow occuring" << std::endl;
+			}
+#endif
+			return buffer_level;
+
         }
 	}
 	
