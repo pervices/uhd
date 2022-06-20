@@ -745,6 +745,11 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			req.tv_sec = dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
+		} else {
+			//nanosleep 0 to acount for delay from sleep in send calculation
+			req.tv_sec = 0;
+			req.tv_nsec = 0;
+			nanosleep( &req, &rem );
 		}
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
