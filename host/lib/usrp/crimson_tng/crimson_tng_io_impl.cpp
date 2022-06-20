@@ -517,6 +517,7 @@ private:
         // Reset the counter for number of samples since last request issued if the request was issued successfully
         if(r != sizeof( req )) {
             //TODO add send/receive on error
+            std::cout << "Error in sending buffer level request" << std::endl;
             return false;
         } else {
             return true;
