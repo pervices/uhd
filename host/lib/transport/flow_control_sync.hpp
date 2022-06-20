@@ -22,6 +22,7 @@ namespace uhd {
 class flow_control_sync: virtual uhd::flow_control {
 
 public:
+	typedef std::shared_ptr<uhd::flow_control_sync> sptr;
 
 	const size_t buffer_size;
     // target buffer level
@@ -30,18 +31,18 @@ public:
 	double nominal_sample_rate = 0;
     
     // number of samples sent since the last get level request was issued (not nsamps sent since level was recevied)
-    size_t samples_sent_since_lvl_set = 0;
+    size_t samples_sent_since_last_request = 0;
     
     // buffer level at the last nsamps request + number of samples sent between the the buffer level request was issued and the reply was received
-    size_t buffer_level_at_last_set = 0;
+    size_t buffer_level_at_last_request = 0;
     
     // buffer level during the last
-    uhd::time_spec_t buffer_level_set_time = 0.0;
+    uhd::time_spec_t buffer_level_request_time = 0.0;
     
 	uhd::time_spec_t sob_time = 0.0;
 
 	static sptr make( const double nominal_sample_rate, const double nominal_buffer_level_pcnt, const size_t buffer_size ) {
-		return sptr( (uhd::flow_control *) new flow_control_sync( nominal_sample_rate, nominal_buffer_level_pcnt, buffer_size ) );
+		return sptr( (uhd::flow_control_sync *) new flow_control_sync( nominal_sample_rate, nominal_buffer_level_pcnt, buffer_size ) );
 	}
 
 	size_t get_buffer_size() {
@@ -75,21 +76,25 @@ public:
 	ssize_t get_buffer_level( const uhd::time_spec_t & now ) {
         
         if( BOOST_UNLIKELY( start_of_burst_pending( now ) ) ) {
-            return buffer_level_at_last_set + samples_sent_since_lvl_set;
+            return buffer_level_at_last_request + samples_sent_since_last_request;
         } else {
-            size_t nsamples_consumed = interp( buffer_level_set_time, now, nominal_sample_rate );
-            return buffer_level_at_last_set + samples_sent_since_lvl_set - nsamples_consumed;
+            size_t nsamples_consumed = interp( buffer_level_request_time, now, nominal_sample_rate );
+            return buffer_level_at_last_request + samples_sent_since_last_request - nsamples_consumed;
         }
 	}
 	
 	void set_buffer_level( const size_t level, const uhd::time_spec_t & last_known ) {
         if( BOOST_UNLIKELY( start_of_burst_pending( last_known ) ) ) {
-            buffer_level_set_time = sob_time;
+            buffer_level_request_time = sob_time;
         } else {
-            buffer_level_set_time = last_known;
+            buffer_level_request_time = last_known;
         }
-        buffer_level_at_last_set = level + samples_sent_since_lvl_set;
-        samples_sent_since_lvl_set = 0;
+        buffer_level_at_last_request = level + samples_sent_since_last_request;
+	}
+
+	// This flow control tracks the number samples since the the last time the buffer was updated
+	void reset_samples_sent_since_last_request() {
+		samples_sent_since_last_request = 0;
 	}
 
 	uhd::time_spec_t get_time_until_next_send( const size_t nsamples_to_send, const uhd::time_spec_t &now ) {
@@ -119,18 +124,17 @@ public:
 	void update( const size_t nsamples_sent, const uhd::time_spec_t & now ) {
 
         (void)now;        
-        samples_sent_since_lvl_set+= nsamples_sent;
+        samples_sent_since_last_request+= nsamples_sent;
 
 	}
 
-protected:
 	flow_control_sync()
 	:
 		buffer_size( 0 ),
 		nominal_buffer_level( 0 ),
 		nominal_sample_rate( 0 ),
-		samples_sent_since_lvl_set( 0 ),
-        buffer_level_at_last_set( 0 )
+		samples_sent_since_last_request( 0 ),
+        buffer_level_at_last_request( 0 )
 	{
 	}
 
@@ -139,8 +143,8 @@ protected:
 		buffer_size( buffer_size ),
 		nominal_buffer_level( nominal_buffer_level_pcnt * buffer_size ),
 		nominal_sample_rate( nominal_sample_rate ),
-		samples_sent_since_lvl_set( 0 ),
-        buffer_level_at_last_set( 0 )
+		samples_sent_since_last_request( 0 ),
+        buffer_level_at_last_request( 0 )
 	{
 		if (
 			false

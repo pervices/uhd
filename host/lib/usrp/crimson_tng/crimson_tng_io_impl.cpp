@@ -395,19 +395,22 @@ public:
 		// probably should also (re)start the "bm thread", which currently just manages time diff
 		//std::lock_guard<std::mutex> lck( _mutex );
 		if ( ! _pillaging ) {
+            std::cout << "P1" << std::endl;
 			_blessbless = false;
 
             // Assuming pillage is called for each send(), and thus each stacked command,
             // the buffer level must be set to zero else flow control will crash since it thinks
             // the transfer buffer is already primed.
             for( auto & ep: _eprops ) {
+                std::cout << "P2" << std::endl;
                 ep.flow_control->set_buffer_level(0, get_time_now());
             }
 
 			//spawn a new viking to raid the send hoardes
-			for(size_t n; n < _eprops.size(); n++) {
+			for(size_t n = 0; n < _eprops.size(); n++) {
+                std::cout << "T1" << std::endl;
                 uhd::transport::udp_simple *port = _eprops.at(n).fifo_ctrl_xports.get();
-                _eprops[n].recv_buffer_level_thread = std::thread(buffer_lvl_udp_recv_loop, std::ref(*port), std::ref(_eprops[n].get_buffer_level_reply_ready), std::ref(_eprops[n].buffer_level_last_request), std::ref(_eprops[n].rsp_reply_time_s), std::ref(_eprops[n].rsp_reply_time_ticks), std::ref(_blessbless));
+                _eprops[n].recv_buffer_level_thread = std::thread(buffer_lvl_udp_recv_loop, std::ref(*port), std::ref(_eprops[n].get_buffer_level_reply_ready), std::ref(_eprops[n].get_buffer_level_error), std::ref(_eprops[n].buffer_level_last_request), std::ref(_eprops[n].rsp_reply_time_s), std::ref(_eprops[n].rsp_reply_time_ticks), std::ref(_blessbless));
             }
 			//_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
 			_pillaging = true;
@@ -423,7 +426,7 @@ public:
 // 				_pillage_thread.join();
 // 				_pillaging = false;
 // 			}
-            for(size_t n; n < _eprops.size(); n++) {
+            for(size_t n = 0; n < _eprops.size(); n++) {
                 if ( _eprops[n].recv_buffer_level_thread.joinable() ) {
                     _eprops[n].recv_buffer_level_thread.join();
                 }
@@ -466,13 +469,15 @@ private:
 		uhd::transport::zero_copy_if::sptr xport_chan;
         uhd::transport::udp_simple::sptr fifo_ctrl_xports;
 		xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
-		uhd::flow_control::sptr flow_control;
+		uhd::flow_control_sync::sptr flow_control;
 		uint64_t oflow;
 		uint64_t uflow;
         size_t _remaining_num_samps;
         std::string name;
         std::thread recv_buffer_level_thread;
         std::atomic<bool> get_buffer_level_reply_ready;
+        //indicates thatan erro when getting the buffer level
+        std::atomic<bool> get_buffer_level_error;
         // buffer level from the most recent reply to buffer level packets
         std::atomic<size_t> buffer_level_last_request;
         std::atomic<uint64_t> rsp_reply_time_s;
@@ -509,22 +514,31 @@ private:
 
         size_t r = _eprops.at(chan).fifo_ctrl_xports->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
 
+        // Reset the counter for number of samples since last request issued if the request was issued successfully
         if(r != sizeof( req )) {
             //TODO add send/receive on error
+            return false;
+        } else {
+            return true;
         }
-
-        return r == sizeof( req );
     }
 
-    static void buffer_lvl_udp_recv_loop( uhd::transport::udp_simple& fifo_ctrl_xport, std::atomic<bool>& recv_finished, std::atomic<size_t>& buffer_level, std::atomic<uint64_t>& rsp_reply_time_s, std::atomic<uint64_t>& rsp_reply_time_ticks, bool& stop_thread_requested) {
-
+    static void buffer_lvl_udp_recv_loop( uhd::transport::udp_simple& fifo_ctrl_xport, std::atomic<bool>& recv_finished, std::atomic<bool>& recv_error, std::atomic<size_t>& buffer_level, std::atomic<uint64_t>& rsp_reply_time_s, std::atomic<uint64_t>& rsp_reply_time_ticks, bool& stop_thread_requested) {
         fifo_lvl_rsp rsp;
 
         while(!stop_thread_requested) {
+            //wait until a buffer level request was sent
+            while(recv_finished) {
+                usleep(50);
+            }
             size_t r = fifo_ctrl_xport.recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
             if(r != sizeof( rsp )) {
                 std::cout << "Error in receiving buffer level" << std::endl;
-                //TODO add send/receive on error
+                recv_error = true;
+                recv_finished = true;
+                continue;
+            } else {
+                recv_error = false;
             }
 
             ::usleep((1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC) * 1e6);
@@ -554,19 +568,22 @@ private:
         if(_eprops.at( chan ).get_buffer_level_reply_ready) {
 
             if(!_eprops.at( chan ).first_check_fc) {
-            uhd::time_spec_t last_update( _eprops.at( chan ).rsp_reply_time_s, _eprops.at( chan ).rsp_reply_time_ticks * (1.0/CRIMSON_TNG_MASTER_TICK_RATE) );
+                _eprops.at( chan ).first_check_fc = false;
 
-            // Updates flow control's buffer level prediction
-            _eprops.at( chan ).flow_control->set_buffer_level(_eprops.at( chan ).buffer_level_last_request, last_update);
+                uhd::time_spec_t last_update( _eprops.at( chan ).rsp_reply_time_s, _eprops.at( chan ).rsp_reply_time_ticks * (1.0/CRIMSON_TNG_MASTER_TICK_RATE) );
+
+                // Updates flow control's buffer level prediction
+                if(!_eprops[chan].get_buffer_level_error) {
+                    _eprops.at( chan ).flow_control->set_buffer_level(_eprops.at( chan ).buffer_level_last_request, last_update);
+                    // Resets the counts of number of samples since the last buffer level request was issued
+                    _eprops.at( chan ).flow_control->reset_samples_sent_since_last_request();
+                }
             }
 
             issue_buffer_lvl_udp_request(chan);
 
-            // Creates async task to receive the buffer lvel reply
-            //TODO: add error detection and handling for send/receive
             _eprops.at( chan ).get_buffer_level_reply_ready = false;
         }
-        
     }
     
     // timeout must be small but non-zero, polling it at the max rate with result in something triggering,
@@ -644,7 +661,7 @@ private:
 				eprops_type & ep = self->_eprops[ i ];
 
 				xport_chan_fifo_lvl_type get_fifo_level;
-				uhd::flow_control::sptr fc;
+				uhd::flow_control_sync::sptr fc;
 
 				get_fifo_level = ep.xport_chan_fifo_lvl;
 				fc = ep.flow_control;
