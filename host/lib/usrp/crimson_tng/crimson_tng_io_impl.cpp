@@ -405,6 +405,10 @@ public:
             }
 
 			//spawn a new viking to raid the send hoardes
+			for(size_t n; n < _eprops.size(); n++) {
+                uhd::transport::udp_simple *port = _eprops.at(n).fifo_ctrl_xports.get();
+                _eprops[n].recv_buffer_level_thread = std::thread(buffer_lvl_udp_recv_loop, std::ref(*port), std::ref(_eprops[n].get_buffer_level_reply_ready), std::ref(_eprops[n].buffer_level_last_request), std::ref(_eprops[n].rsp_reply_time_s), std::ref(_eprops[n].rsp_reply_time_ticks), std::ref(_blessbless));
+            }
 			//_pillage_thread = std::thread( crimson_tng_send_packet_streamer::send_viking_loop, this );
 			_pillaging = true;
 		}
@@ -415,10 +419,16 @@ public:
 		std::lock_guard<std::mutex> lock( _mutex );
 		if ( _pillaging ) {
 			_blessbless = true;
-			if ( _pillage_thread.joinable() ) {
-				_pillage_thread.join();
-				_pillaging = false;
-			}
+// 			if ( _pillage_thread.joinable() ) {
+// 				_pillage_thread.join();
+// 				_pillaging = false;
+// 			}
+            for(size_t n; n < _eprops.size(); n++) {
+                if ( _eprops[n].recv_buffer_level_thread.joinable() ) {
+                    _eprops[n].recv_buffer_level_thread.join();
+                }
+            }
+            _pillaging = false;
 		}
 	}
 
@@ -429,7 +439,7 @@ private:
     double _samp_rate;
     bool _pillaging;
     bool _blessbless;
-    std::thread _pillage_thread;
+    //std::thread _pillage_thread;
     async_pusher_type async_pusher;
     timenow_type _time_now;
     std::mutex _mutex;
@@ -461,7 +471,12 @@ private:
 		uint64_t uflow;
         size_t _remaining_num_samps;
         std::string name;
+        std::thread recv_buffer_level_thread;
         std::atomic<bool> get_buffer_level_reply_ready;
+        // buffer level from the most recent reply to buffer level packets
+        std::atomic<size_t> buffer_level_last_request;
+        std::atomic<uint64_t> rsp_reply_time_s;
+        std::atomic<uint64_t> rsp_reply_time_ticks;
         std::future<fifo_lvl_rsp> recv_buffer_lvl_task;
         bool first_check_fc = true;
         eprops_type() : oflow( -1 ), uflow( -1 ) {}
@@ -501,20 +516,35 @@ private:
         return r == sizeof( req );
     }
 
-    static fifo_lvl_rsp async_buffer_lvl_udp_recv( uhd::transport::udp_simple& fifo_ctrl_xport, std::atomic<bool>& recv_finished) {
+    static void buffer_lvl_udp_recv_loop( uhd::transport::udp_simple& fifo_ctrl_xport, std::atomic<bool>& recv_finished, std::atomic<size_t>& buffer_level, std::atomic<uint64_t>& rsp_reply_time_s, std::atomic<uint64_t>& rsp_reply_time_ticks, bool& stop_thread_requested) {
 
         fifo_lvl_rsp rsp;
 
-        size_t r = fifo_ctrl_xport.recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
-        if(r != sizeof( rsp )) {
-            //TODO add send/receive on error
+        while(!stop_thread_requested) {
+            size_t r = fifo_ctrl_xport.recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
+            if(r != sizeof( rsp )) {
+                std::cout << "Error in receiving buffer level" << std::endl;
+                //TODO add send/receive on error
+            }
+
+            ::usleep((1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC) * 1e6);
+
+            //TODO: add uflow/oflow detection and logging
+            boost::endian::big_to_native_inplace( rsp.oflow );
+            //_eprops.at( chan ).oflow = rsp.oflow;
+            boost::endian::big_to_native_inplace( rsp.uflow );
+            //_eprops.at( chan ).uflow = rsp.uflow;
+
+
+            boost::endian::big_to_native_inplace( rsp.tv_sec );
+            boost::endian::big_to_native_inplace( rsp.tv_tick );
+            rsp_reply_time_s = rsp.tv_sec;
+            rsp_reply_time_ticks = rsp.tv_tick;
+
+            buffer_level = (rsp.header & 0xffff) * CRIMSON_TNG_BUFF_SCALE;
+
+            recv_finished = true;
         }
-
-        ::usleep((1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC) * 1e6);
-
-        recv_finished = true;
-
-        return rsp;
     }
 
     void check_fc_update( const size_t chan, size_t nsamps) {
@@ -524,28 +554,10 @@ private:
         if(_eprops.at( chan ).get_buffer_level_reply_ready) {
 
             if(!_eprops.at( chan ).first_check_fc) {
-                fifo_lvl_rsp rsp = _eprops.at( chan ).recv_buffer_lvl_task.get();
+            uhd::time_spec_t last_update( _eprops.at( chan ).rsp_reply_time_s, _eprops.at( chan ).rsp_reply_time_ticks * (1.0/CRIMSON_TNG_MASTER_TICK_RATE) );
 
-                boost::endian::big_to_native_inplace( rsp.oflow );
-                _eprops.at( chan ).oflow = rsp.oflow;
-                boost::endian::big_to_native_inplace( rsp.uflow );
-                _eprops.at( chan ).uflow = rsp.uflow;
-                boost::endian::big_to_native_inplace( rsp.tv_sec );
-                boost::endian::big_to_native_inplace( rsp.tv_tick );
-                //TODO: add uflow/oflow detection and logging
-
-                uint16_t buffer_level = rsp.header & 0xffff;
-
-                buffer_level = buffer_level * CRIMSON_TNG_BUFF_SCALE;
-
-                uhd::time_spec_t last_update( rsp.tv_sec, rsp.tv_tick * (1.0/CRIMSON_TNG_MASTER_TICK_RATE) );
-
-                // Updates flow control's buffer level prediction
-                _eprops.at( chan ).flow_control->set_buffer_level(buffer_level, last_update);
-
-                _eprops.at( chan ).uflow = rsp.uflow;
-
-                _eprops.at( chan ).first_check_fc = false;
+            // Updates flow control's buffer level prediction
+            _eprops.at( chan ).flow_control->set_buffer_level(_eprops.at( chan ).buffer_level_last_request, last_update);
             }
 
             issue_buffer_lvl_udp_request(chan);
@@ -553,8 +565,6 @@ private:
             // Creates async task to receive the buffer lvel reply
             //TODO: add error detection and handling for send/receive
             _eprops.at( chan ).get_buffer_level_reply_ready = false;
-            uhd::transport::udp_simple *port = _eprops.at(chan).fifo_ctrl_xports.get();
-            _eprops.at( chan ).recv_buffer_lvl_task = std::async(std::launch::async, async_buffer_lvl_udp_recv, std::ref(*port), std::ref(_eprops.at( chan ).get_buffer_level_reply_ready));
         }
         
     }
