@@ -575,6 +575,9 @@ private:
                     _eprops.at( chan ).flow_control->set_buffer_level(_eprops.at( chan ).buffer_level_last_request, last_update);
                     // Resets the counts of number of samples since the last buffer level request was issued
                     _eprops.at( chan ).flow_control->reset_samples_sent_since_last_request();
+                } else {
+                    // Resets the error
+                    _eprops[chan].get_buffer_level_error = false;
                 }
             }
 
