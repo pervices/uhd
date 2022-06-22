@@ -1008,6 +1008,27 @@ rx_streamer::sptr cyan_4r4t_impl::get_rx_stream(const uhd::stream_args_t &args_)
     //sets all tick and samp rates on this streamer
     this->update_rates();
 
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+        size_t num_chan_so_far = 0;
+        for (const std::string &mb : _mbc.keys()) {
+            num_chan_so_far += _mbc[mb].rx_chan_occ;
+            if (chan < num_chan_so_far){
+
+                // XXX: @CF: this is so nasty..
+                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+                const fs_path mb_path   = "/mboards/" + mb;
+                const fs_path rx_path   = mb_path / "rx";
+
+                _tree->access<std::string>(rx_path / chan / "jesd/status").set("1");
+                std::string jesd_status = _tree->access<std::string>(rx_path / chan / "jesd/status").get();
+                if(jesd_status.compare(0, 4, "good")) {
+                    UHD_LOGGER_WARNING(CYAN_4R4T_DEBUG_NAME_C) << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
+                }
+            }
+        }
+    }
+
     // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
 	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
