@@ -54,7 +54,7 @@ void send_loop(uhd::tx_streamer::sptr tx_stream, double rate, size_t spb, double
         spb = tx_stream->get_max_num_samps()*10;
     }
 
-    size_t num_channels = tx_stream.get_num_channels();
+    size_t num_channels = tx_stream->get_num_channels();
 
     // Vector containing the samples to be sent
     std::vector<std::complex<cpu_format_type>> buff(spb);
