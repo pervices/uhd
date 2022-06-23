@@ -17,10 +17,8 @@
 
 static const size_t wave_table_len = 8192;
 
-typedef wave_table_class<float> wave_table_class;
-
 template <typename cpu_format_type>
-class wave_table_class
+class wave_table_class_multi
 {
 public:
     wave_table_class(const std::string& wave_type, const float ampl)
@@ -102,3 +100,5 @@ private:
     std::vector<std::complex<cpu_format_type>> _wave_table;
     double _power_dbfs;
 };
+
+typedef wave_table_class_multi<float> wave_table_class;

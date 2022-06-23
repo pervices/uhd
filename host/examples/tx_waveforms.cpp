@@ -45,7 +45,7 @@ template <typename cpu_format_type>
 void send_loop(uhd::tx_streamer::sptr tx_stream, double first, double last, double increment, double wave_freq, double ampl) {
 
     //pre-compute the waveform values
-    const wave_table_class<cpu_format_type> wave_table(wave_type, ampl);
+    const wave_table_class_multi<cpu_format_type> wave_table(wave_type, ampl);
     const size_t step = boost::math::iround(wave_freq/rate * wave_table_len);
     size_t index = 0;
 
