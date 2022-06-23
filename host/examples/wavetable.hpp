@@ -22,7 +22,7 @@ class wave_table_class_multi
 {
 public:
     wave_table_class_multi(const std::string& wave_type_s, const cpu_format_type ampl)
-        : _wave_table(wave_table_len, {0.0, 0.0})
+        : _wave_table(wave_table_len, {0, 0})
     {
         // Note: CONST, SQUARE, and RAMP only fill the I portion, since they are
         // amplitude-modulating signals, not phase-modulating.
@@ -30,21 +30,21 @@ public:
         if (wave_type_s == "CONST") {
             // Fill with I == ampl, Q == 0
             std::fill(
-                _wave_table.begin(), _wave_table.end(), std::complex<cpu_format_type>{ampl, 0.0});
+                _wave_table.begin(), _wave_table.end(), std::complex<cpu_format_type>{ampl, 0});
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else if (wave_type_s == "SQUARE") {
             // Fill the second half of the table with ampl, first half with
             // zeros
             std::fill(_wave_table.begin() + wave_table_len / 2,
                 _wave_table.end(),
-                std::complex<cpu_format_type>{ampl, 0.0});
+                std::complex<cpu_format_type>{ampl, 0});
             _power_dbfs = static_cast<double>(20 * std::log10(ampl))
                           - static_cast<double>(10 * std::log10(2.0));
         } else if (wave_type_s == "RAMP") {
             // Fill I values with ramp from -1 to 1, Q with zero
             float energy_acc = 0.0f;
             for (size_t i = 0; i < wave_table_len; i++) {
-                _wave_table[i] = {(2.0f * i / (wave_table_len - 1) - 1.0f) * ampl, 0.0};
+                _wave_table[i] = {(2.0f * i / (wave_table_len - 1) - 1.0f) * ampl, 0};
                 energy_acc += std::norm(_wave_table[i]);
             }
             _power_dbfs = static_cast<double>(energy_acc / wave_table_len);
