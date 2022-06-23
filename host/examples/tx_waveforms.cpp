@@ -21,6 +21,7 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <variant>
 
 //#define DEBUG_TX_WAVE 1
 //#define DEBUG_TX_WAVE_STEP 1
@@ -90,6 +91,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("help")){
         std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
         return ~0;
+    }
+
+    // If possible have the cpu format match the wire format to avoid needing to convert during send
+    // Currently only sc16 and fc32 are implemented in this example program
+    std::string cpu_format;
+    if(otw == "sc16") {
+        cpu_format = "sc16";
+    } else {
+        cpu_format = "fc32";
     }
 
     //create a usrp device
@@ -204,7 +214,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("fc32", otw);
+    uhd::stream_args_t stream_args(cpu_format, otw);
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
@@ -212,8 +222,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
-    std::vector<std::complex<float> > buff(spb);
-    std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
+
+    std::variant<std::vector<std::complex<float>>, std::vector<std::complex<int16_t>>> buff;
+
+    if(cpu_format == "sc16") {
+        buff = std::vector<std::complex<int16_t>>(buff(spb));
+    } else {
+        buff = std::vector<std::complex<float>>(buff(spb));
+    }
+    std::vector<std::complex<float>*> buffs(std::get<std::vector<std::complex<float>>>(channel_nums).size(), &buff.front());
 
 #ifdef DEBUG_TX_WAVE_STEP
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
