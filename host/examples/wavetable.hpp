@@ -21,7 +21,7 @@ template <typename cpu_format_type>
 class wave_table_class_multi
 {
 public:
-    wave_table_class_multi(const std::string& wave_type, const double ampl)
+    wave_table_class_multi(const std::string& wave_type, const cpu_format_type ampl)
         : _wave_table(wave_table_len, {0.0, 0.0})
     {
         // Note: CONST, SQUARE, and RAMP only fill the I portion, since they are
