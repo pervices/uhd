@@ -43,6 +43,7 @@ void sig_int_handler(int){
 
 template <typename cpu_format_type>
 void send_loop(uhd::tx_streamer::sptr tx_stream, double rate, size_t spb, double first, double last, double increment, uint64_t total_num_samps, double wave_freq, std::string wave_type_s, cpu_format_type ampl) {
+    std::cout << "ampl: " << ampl;
 
     //pre-compute the waveform values
     const wave_table_class_multi<cpu_format_type> wave_table(wave_type_s, ampl);
