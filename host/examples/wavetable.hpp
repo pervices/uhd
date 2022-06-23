@@ -89,7 +89,7 @@ public:
 
     inline std::complex<cpu_format_type> operator()(const size_t index) const
     {
-        std::cout "_wave_table[index % wave_table_len]: " << _wave_table[index % wave_table_len] << std::endl;
+        std::cout << "_wave_table[index % wave_table_len]: " << _wave_table[index % wave_table_len] << std::endl;
         return _wave_table[index % wave_table_len];
     }
 
