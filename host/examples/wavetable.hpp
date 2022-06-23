@@ -49,7 +49,7 @@ public:
             // Fill I values with ramp from -1 to 1, Q with zero
             float energy_acc = 0.0f;
             for (size_t i = 0; i < wave_table_len; i++) {
-                _wave_table[i] = {(2.0f * i / (wave_table_len - 1) - 1.0f) * ampl, 0};
+                _wave_table[i] = {(target_type)((2.0f * i / (wave_table_len - 1) - 1.0f)) * ampl, 0};
                 energy_acc += std::norm(_wave_table[i]);
             }
             _power_dbfs = static_cast<double>(energy_acc / wave_table_len);
