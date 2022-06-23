@@ -67,7 +67,7 @@ public:
                 // Directly generate complex sinusoid (a*e^{j 2\pi i/N}). We
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
-                std::complex<double> sample_double = {ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len))};
+                std::complex<double> sample_double(ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len)));
                 _wave_table[i] = cast_complex<cpu_format_type, double>(sample_double);
             }
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
@@ -80,7 +80,7 @@ public:
                 // Directly generate complex sinusoid (a*e^{j 2\pi i/N}). We
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
-                std::complex<double> sample_double = {ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len))};
+                std::complex<double> sample_double(ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len)));
                 _wave_table[i] = cast_complex<cpu_format_type, double>(sample_double);
                 _wave_table[i] = std::complex<cpu_format_type>(std::real(_wave_table[i]));
             }
