@@ -42,10 +42,10 @@ void sig_int_handler(int){
 }
 
 template <typename cpu_format_type>
-void send_loop(uhd::tx_streamer::sptr tx_stream, double first, double last, double increment, double wave_freq, double ampl) {
+void send_loop(uhd::tx_streamer::sptr tx_stream, double first, double last, double increment, double wave_freq, std::string wave_type_s, cpu_format_type ampl) {
 
     //pre-compute the waveform values
-    const wave_table_class_multi<cpu_format_type> wave_table(wave_type, ampl);
+    const wave_table_class_multi<cpu_format_type> wave_table(wave_type_s, ampl);
     const size_t step = boost::math::iround(wave_freq/rate * wave_table_len);
     size_t index = 0;
 
@@ -109,7 +109,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe(0.9, true);
 
     //variables to be set by po
-    std::string args, wave_type, ant, subdev, ref, pps, cpu_format, otw, channel_list;
+    std::string args, wave_type_s, ant, subdev, ref, pps, cpu_format, otw, channel_list;
     uint64_t total_num_samps;
     size_t spb;
     double rate, freq, gain, wave_freq, bw;
@@ -131,7 +131,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
-        ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "waveform type (CONST, SQUARE, RAMP, SINE)")
+        ("wave-type", po::value<std::string>(&wave_type_s)->default_value("CONST"), "waveform type (CONST, SQUARE, RAMP, SINE)")
         //SIN_NO_Q can also be used to generate a sinwave without the q component, whichi s useful when debugging the FPGA
         ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
@@ -247,7 +247,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for some setup time
 
     //for the const wave, set the wave freq for small samples per period
-    if (wave_freq == 0 and wave_type == "CONST"){
+    if (wave_freq == 0 and wave_type_s == "CONST"){
         wave_freq = usrp->get_tx_rate()/2;
     }
 
@@ -341,9 +341,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     usrp->set_time_now(0.0);
     
     if(cpu_format == "sc16") {
-        send_loop<int16_t>(tx_streamer, first, last, increment, wave_freq, ampl * SHRT_MAX);
+        send_loop<int16_t>(tx_streamer, first, last, increment, wave_freq, wave_type_s, ampl * SHRT_MAX);
     } else if (cpu_format == "fc32") {
-        send_loop<float>(tx_streamer, first, last, increment, wave_freq, ampl);
+        send_loop<float>(tx_streamer, first, last, increment, wave_freq, wave_type_s, ampl);
     }
 
 
