@@ -42,7 +42,7 @@ void sig_int_handler(int){
 }
 
 template <typename cpu_format_type>
-void send_loop(uhd::tx_streamer::sptr tx_stream, double rate, double first, double last, double increment, double wave_freq, std::string wave_type_s, cpu_format_type ampl) {
+void send_loop(uhd::tx_streamer::sptr tx_stream, double rate, size_t spb, double first, double last, double increment, double wave_freq, std::string wave_type_s, cpu_format_type ampl) {
 
     //pre-compute the waveform values
     const wave_table_class_multi<cpu_format_type> wave_table(wave_type_s, ampl);
@@ -342,9 +342,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     usrp->set_time_now(0.0);
     
     if(cpu_format == "sc16") {
-        send_loop<int16_t>(tx_stream, rate, first, last, increment, wave_freq, wave_type_s, ampl * SHRT_MAX);
+        send_loop<int16_t>(tx_stream, rate, spb, first, last, increment, wave_freq, wave_type_s, ampl * SHRT_MAX);
     } else if (cpu_format == "fc32") {
-        send_loop<float>(tx_stream, rate, first, last, increment, wave_freq, wave_type_s, ampl);
+        send_loop<float>(tx_stream, rate, spb, first, last, increment, wave_freq, wave_type_s, ampl);
     }
 
 
