@@ -223,7 +223,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps()*10;
     }
 
-    std::variant<std::vector<std::complex<float>>, std::vector<std::complex<int16_t>>> buff;
+    boost::variant<std::vector<std::complex<float>>, std::vector<std::complex<int16_t>>> buff;
 
     if(cpu_format == "sc16") {
         buff = std::vector<std::complex<int16_t>>(buff(spb));
