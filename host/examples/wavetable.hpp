@@ -22,8 +22,8 @@ static const size_t wave_table_len = 8192;
 template <typename cpu_format_type>
 class wave_table_class_multi
 {
-    template <typename target_type, typename source_type> std::complex<target_type> cast_complex(const std::complex<source_type>) {
-        return std::complex<target_type>(source_type.real(), source_type.imag());
+    template <typename target_type, typename source_type> std::complex<target_type> cast_complex(const std::complex<source_type> source) {
+        return std::complex<target_type>(source.real(), source.imag());
     }
 public:
     wave_table_class_multi(const std::string& wave_type_s, const cpu_format_type ampl)
