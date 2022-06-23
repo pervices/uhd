@@ -60,7 +60,7 @@ void send_loop(uhd::tx_streamer::sptr tx_stream, double rate, size_t spb, double
     std::vector<std::complex<cpu_format_type>> buff(spb);
     // A vector to pointers to the start of each buffer
     // Since the same wave is being sent to every channel, every pointer goes to the same place
-    std::vector<std::complex<cpu_format_type>*> buffs(num_channels, &buff.front();;
+    std::vector<std::complex<cpu_format_type>*> buffs(num_channels, &buff.front());
 
     bool ignore_last = first > last;
 
