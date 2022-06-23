@@ -60,7 +60,7 @@ public:
             // just calculate the power on the fly.
         } else if (wave_type_s == "SINE") {
             static const double tau = 2 * std::acos(-1.0);
-            static const std::complex<cpu_format_type> J(0, 1);
+            static const std::complex<double> J(0, 1);
             // Careful: i is the loop counter, not the imaginary unit
 
             for (size_t i = 0; i < wave_table_len; i++) {
@@ -73,7 +73,7 @@ public:
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else if (wave_type_s == "SINE_NO_Q") {
             static const double tau = 2 * std::acos(-1.0);
-            static const std::complex<cpu_format_type> J(0, 1);
+            static const std::complex<double> J(0, 1);
             // Careful: i is the loop counter, not the imaginary unit
 
             for (size_t i = 0; i < wave_table_len; i++) {
