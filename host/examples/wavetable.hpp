@@ -17,6 +17,7 @@
 
 static const size_t wave_table_len = 8192;
 
+template <typename cpu_format_type>
 class wave_table_class
 {
 public:
@@ -29,14 +30,14 @@ public:
         if (wave_type == "CONST") {
             // Fill with I == ampl, Q == 0
             std::fill(
-                _wave_table.begin(), _wave_table.end(), std::complex<float>{ampl, 0.0});
+                _wave_table.begin(), _wave_table.end(), std::complex<cpu_format_type>{ampl, 0.0});
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else if (wave_type == "SQUARE") {
             // Fill the second half of the table with ampl, first half with
             // zeros
             std::fill(_wave_table.begin() + wave_table_len / 2,
                 _wave_table.end(),
-                std::complex<float>{ampl, 0.0});
+                std::complex<cpu_format_type>{ampl, 0.0});
             _power_dbfs = static_cast<double>(20 * std::log10(ampl))
                           - static_cast<double>(10 * std::log10(2.0));
         } else if (wave_type == "RAMP") {
@@ -54,7 +55,7 @@ public:
             // just calculate the power on the fly.
         } else if (wave_type == "SINE") {
             static const double tau = 2 * std::acos(-1.0);
-            static const std::complex<float> J(0, 1);
+            static const std::complex<cpu_format_type> J(0, 1);
             // Careful: i is the loop counter, not the imaginary unit
 
             for (size_t i = 0; i < wave_table_len; i++) {
@@ -62,12 +63,12 @@ public:
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
                 _wave_table[i] =
-                    ampl * std::exp(J * static_cast<float>(tau * i / wave_table_len));
+                    ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len));
             }
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else if (wave_type == "SINE_NO_Q") {
             static const double tau = 2 * std::acos(-1.0);
-            static const std::complex<float> J(0, 1);
+            static const std::complex<cpu_format_type> J(0, 1);
             // Careful: i is the loop counter, not the imaginary unit
 
             for (size_t i = 0; i < wave_table_len; i++) {
@@ -75,8 +76,8 @@ public:
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
                 _wave_table[i] =
-                    ampl * std::exp(J * static_cast<float>(tau * i / wave_table_len));
-                _wave_table[i] = std::complex<float>(std::real(_wave_table[i]));
+                    ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len));
+                _wave_table[i] = std::complex<cpu_format_type>(std::real(_wave_table[i]));
             }
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else {
@@ -84,7 +85,7 @@ public:
         }
     }
 
-    inline std::complex<float> operator()(const size_t index) const
+    inline std::complex<cpu_format_type> operator()(const size_t index) const
     {
         return _wave_table[index % wave_table_len];
     }
@@ -96,6 +97,6 @@ public:
     }
 
 private:
-    std::vector<std::complex<float>> _wave_table;
+    std::vector<std::complex<cpu_format_type>> _wave_table;
     double _power_dbfs;
 };

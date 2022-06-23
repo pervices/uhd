@@ -21,7 +21,6 @@
 #include <string>
 #include <chrono>
 #include <thread>
-#include <variant>
 
 //#define DEBUG_TX_WAVE 1
 //#define DEBUG_TX_WAVE_STEP 1
@@ -40,6 +39,67 @@ void sig_int_handler(int){
     std::cout << "stop_signal_called" << std::endl;
 #endif
     stop_signal_called = true;
+}
+
+template <typename cpu_format_type>
+void send_loop(uhd::tx_streamer::sptr tx_stream, double first, double last, double increment, double wave_freq, double ampl) {
+
+    //pre-compute the waveform values
+    const wave_table_class<cpu_format_type> wave_table(wave_type, ampl);
+    const size_t step = boost::math::iround(wave_freq/rate * wave_table_len);
+    size_t index = 0;
+
+    //allocate a buffer which we re-use for each channel
+    if (spb == 0) {
+        spb = tx_stream->get_max_num_samps()*10;
+    }
+
+    size_t num_channels = tx_stream.get_num_channels();
+
+    // Vector containing the samples to be sent
+    std::vector<std::complex<cpu_format_type>> buff(spb);
+    // A vector to pointers to the start of each buffer
+    // Since the same wave is being sent to every channel, every pointer goes to the same place
+    std::vector<std::complex<cpu_format_type>*> buffs(num_channels, &buff.front();;
+
+    bool ignore_last = first > last;
+
+    for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
+    {
+        // Set up metadata. We start streaming a bit in the future
+        // to allow MIMO operation:
+        uhd::tx_metadata_t md;
+        md.start_of_burst = true;
+        md.end_of_burst   = false;
+        md.has_time_spec  = true;
+        md.time_spec = uhd::time_spec_t(time);
+
+        //send data until the signal handler gets called
+        //or if we accumulate the number of samples specified (unless it's 0)
+        uint64_t num_acc_samps = 0;
+        while(true){
+
+            if (stop_signal_called)
+                break;
+
+            if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
+                break;
+
+            //fill the buffer with the waveform
+            size_t n = 0;
+            for (n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
+                buff[n] = wave_table(index += step);
+            }
+            //this statement will block until the data is sent
+            //send the entire contents of the buffer
+            num_acc_samps += tx_stream->send(buffs, n, md);
+            md.start_of_burst = false;
+            md.has_time_spec = false;
+        }
+        //send a mini EOB packet
+        md.end_of_burst = true;
+        tx_stream->send("", 0, md);
+    }
 }
 
 /***********************************************************************
@@ -199,37 +259,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         throw std::runtime_error("wave freq too small for table");
     }
 
-    //pre-compute the waveform values
-    const wave_table_class wave_table(wave_type, ampl);
-    const size_t step = boost::math::iround(wave_freq/rate * wave_table_len);
-    size_t index = 0;
-
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
     uhd::stream_args_t stream_args(cpu_format, otw);
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
-
-    //allocate a buffer which we re-use for each channel
-    if (spb == 0) {
-        spb = tx_stream->get_max_num_samps()*10;
-    }
-
-    // Vector containing the samples to be send
-    std::variant<std::vector<std::complex<float>>, std::vector<std::complex<int16_t>>> buff;
-    // A vector to pointers to the start of each buffer
-    // Since the same wave is being sent to every channel, every pointer goes to the same place
-    std::variant<std::vector<std::complex<float>*>, std::vector<std::complex<int16_t>*>> buffs;
-
-    if(cpu_format == "sc16") {
-        buff = std::vector<std::complex<int16_t>>(spb);
-        buffs = std::vector<std::complex<int16_t>*>(channel_nums.size(), std::get<std::vector<std::complex<int16_t>*>>(buff).front());
-    } else if (cpu_format == "fc32") {
-        buff = std::vector<std::complex<float>>(spb);
-        buffs = std::vector<std::complex<float>*>(channel_nums.size(), std::get<std::vector<std::complex<float>*>>(buff).front());
-    } else {
-        throw std::runtime_error("Invalid cpu format specified");
-    }
 
 #ifdef DEBUG_TX_WAVE_STEP
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
@@ -305,61 +339,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
     usrp->set_time_now(0.0);
-
-    bool ignore_last = first > last;
     
-
-    for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
-    {
-        // Set up metadata. We start streaming a bit in the future
-        // to allow MIMO operation:
-        uhd::tx_metadata_t md;
-        md.start_of_burst = true;
-        md.end_of_burst   = false;
-        md.has_time_spec  = true;
-        md.time_spec = uhd::time_spec_t(time);
-
-        //send data until the signal handler gets called
-        //or if we accumulate the number of samples specified (unless it's 0)
-        uint64_t num_acc_samps = 0;
-        while(true){
-
-            if (stop_signal_called)
-                break;
-
-            if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
-                break;
-
-            //fill the buffer with the waveform
-            size_t n = 0;
-            for (n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
-                buff[n] = wave_table(index += step);
-            }
-#ifdef DEBUG_TX_WAVE
-            std::cout << "Sending samples" << std::endl;
-#endif
-            //this statement will block until the data is sent
-            //send the entire contents of the buffer
-            num_acc_samps += tx_stream->send(buffs, n, md);
-#ifdef DEBUG_TX_WAVE
-            std::cout << "Sent samples" << std::endl;
-#endif
-            md.start_of_burst = false;
-            md.has_time_spec = false;
-        }
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Creating EOB packet" << std::endl;
-#endif
-        //send a mini EOB packet
-        md.end_of_burst = true;
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Sending EOB packet" << std::endl;
-#endif
-        tx_stream->send("", 0, md);
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Sent EOB packet" << std::endl;
-#endif
+    if(cpu_format == "sc16") {
+        send_loop<int16_t>(tx_streamer, first, last, increment, wave_freq, ampl * SHRT_MAX);
+    } else if (cpu_format == "fc32") {
+        send_loop<float>(tx_streamer, first, last, increment, wave_freq, ampl);
     }
+
+
 #ifdef DELAYED_EXIT
 //waits until told to stop before continuing (allows closing tasks to be delayed)
     while(!stop_signal_called) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
