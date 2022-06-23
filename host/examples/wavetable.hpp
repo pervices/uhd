@@ -17,6 +17,8 @@
 
 static const size_t wave_table_len = 8192;
 
+typedef wave_table_class<float> wave_table_class;
+
 template <typename cpu_format_type>
 class wave_table_class
 {
