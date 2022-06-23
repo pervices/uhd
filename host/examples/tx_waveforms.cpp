@@ -223,13 +223,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(cpu_format == "sc16") {
         buff = std::vector<std::complex<int16_t>>(spb);
-        buffs = std::vector<std::complex<int16_t>*>(channel_nums.size(), buff.front());
-    } else {
+        buffs = std::vector<std::complex<int16_t>*>(channel_nums.size(), std::get<std::vector<std::complex<int16_t>*>>(buff).front());
+    } else if (cpu_format == "fc32") {
         buff = std::vector<std::complex<float>>(spb);
-        buffs = std::vector<std::complex<float>*>(channel_nums.size(), buff.front());
+        buffs = std::vector<std::complex<float>*>(channel_nums.size(), std::get<std::vector<std::complex<float>*>>(buff).front());
+    } else {
+        throw std::runtime_error("Invalid cpu format specified");
     }
-
-    if(buffs(std::get<std::vector<std::complex<float>>>(channel_nums).size(), &buff.front());
 
 #ifdef DEBUG_TX_WAVE_STEP
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
