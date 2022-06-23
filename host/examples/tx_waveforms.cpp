@@ -76,6 +76,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
         ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo)")
+        ("cpu_format", po::value<std::string>(&cpu_format)->default_value("sc16"), "Format of samples on host system. tx_waveforms currently supports fc32 and sc16")
         ("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("int-n", "tune USRP with integer-N tuning")
@@ -91,15 +92,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("help")){
         std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
         return ~0;
-    }
-
-    // If possible have the cpu format match the wire format to avoid needing to convert during send
-    // Currently only sc16 and fc32 are implemented in this example program
-    std::string cpu_format;
-    if(otw == "sc16") {
-        cpu_format = "sc16";
-    } else {
-        cpu_format = "fc32";
     }
 
     //create a usrp device
@@ -223,14 +215,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps()*10;
     }
 
+    // Vector containing the samples to be send
     std::variant<std::vector<std::complex<float>>, std::vector<std::complex<int16_t>>> buff;
+    // A vector to pointers to the start of each buffer
+    // Since the same wave is being sent to every channel, every pointer goes to the same place
+    std::variant<std::vector<std::complex<float>*>, std::vector<std::complex<int16_t>*>> buffs;
 
     if(cpu_format == "sc16") {
         buff = std::vector<std::complex<int16_t>>(spb);
+        buffs = std::vector<std::complex<int16_t>*>(channel_nums.size(), buff.front());
     } else {
         buff = std::vector<std::complex<float>>(spb);
+        buffs = std::vector<std::complex<float>*>(channel_nums.size(), buff.front());
     }
-    std::vector<std::complex<float>*> buffs(std::get<std::vector<std::complex<float>>>(channel_nums).size(), &buff.front());
+
+    if(buffs(std::get<std::vector<std::complex<float>>>(channel_nums).size(), &buff.front());
 
 #ifdef DEBUG_TX_WAVE_STEP
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
