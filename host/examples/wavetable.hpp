@@ -22,6 +22,9 @@ static const size_t wave_table_len = 8192;
 template <typename cpu_format_type>
 class wave_table_class_multi
 {
+    template <typename target_type, typename source_type> cast_complex(const std::complex<source_type>) {
+        return std::complex<target_type>(source_type.real(), source_type.imag());
+    }
 public:
     wave_table_class_multi(const std::string& wave_type_s, const cpu_format_type ampl)
         : _wave_table(wave_table_len, {0, 0})
@@ -64,8 +67,8 @@ public:
                 // Directly generate complex sinusoid (a*e^{j 2\pi i/N}). We
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
-                _wave_table[i] =
-                    ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len));
+                std::complex<double> sample_double = ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len));
+                _wave_table[i] = cast_complex<cpu_format_type, double>(sample_double);
             }
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else if (wave_type_s == "SINE_NO_Q") {
@@ -77,8 +80,8 @@ public:
                 // Directly generate complex sinusoid (a*e^{j 2\pi i/N}). We
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
-                _wave_table[i] =
-                    ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len));
+                std::complex<double> sample_double = ampl * std::exp(J * static_cast<cpu_format_type>(tau * i / wave_table_len));
+                _wave_table[i] = cast_complex<cpu_format_type, double>(sample_double);
                 _wave_table[i] = std::complex<cpu_format_type>(std::real(_wave_table[i]));
             }
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
