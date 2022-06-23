@@ -15,6 +15,8 @@
 #include <vector>
 #include <algorithm>
 
+#include <iostream>
+
 static const size_t wave_table_len = 8192;
 
 template <typename cpu_format_type>
