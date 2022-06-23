@@ -42,7 +42,7 @@ void sig_int_handler(int){
 }
 
 template <typename cpu_format_type>
-void send_loop(uhd::tx_streamer::sptr tx_stream, double first, double last, double increment, double wave_freq, std::string wave_type_s, cpu_format_type ampl) {
+void send_loop(uhd::tx_streamer::sptr tx_stream, double rate, double first, double last, double increment, double wave_freq, std::string wave_type_s, cpu_format_type ampl) {
 
     //pre-compute the waveform values
     const wave_table_class_multi<cpu_format_type> wave_table(wave_type_s, ampl);
@@ -126,7 +126,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("nsamps", po::value<uint64_t>(&total_num_samps)->default_value(0), "total number of samples to transmit")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
-        ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
+        ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7], where 1 is the maximum value of the otw format")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
@@ -199,7 +199,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
     usrp->set_tx_rate(rate);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate()/1e6) << std::endl << std::endl;
+    rate = usrp->get_tx_rate();
+    std::cout << boost::format("Actual TX Rate: %f Msps...") % (rate/1e6) << std::endl << std::endl;
 
     //set the center frequency
     if (not vm.count("freq")){
@@ -341,9 +342,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     usrp->set_time_now(0.0);
     
     if(cpu_format == "sc16") {
-        send_loop<int16_t>(tx_streamer, first, last, increment, wave_freq, wave_type_s, ampl * SHRT_MAX);
+        send_loop<int16_t>(tx_stream, rate, first, last, increment, wave_freq, wave_type_s, ampl * SHRT_MAX);
     } else if (cpu_format == "fc32") {
-        send_loop<float>(tx_streamer, first, last, increment, wave_freq, wave_type_s, ampl);
+        send_loop<float>(tx_stream, rate, first, last, increment, wave_freq, wave_type_s, ampl);
     }
 
 
