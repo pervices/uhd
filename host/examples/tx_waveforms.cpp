@@ -49,7 +49,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe(0.9, true);
 
     //variables to be set by po
-    std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
+    std::string args, wave_type, ant, subdev, ref, pps, cpu_format, otw, channel_list;
     uint64_t total_num_samps;
     size_t spb;
     double rate, freq, gain, wave_freq, bw;
