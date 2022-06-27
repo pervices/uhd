@@ -99,7 +99,7 @@ if(ENABLE_CRIMSON_TNG)
 add_executable(crimson_tng_test
     crimson_tng_test.cpp
     ${CMAKE_SOURCE_DIR}/lib/usrp/crimson_tng/crimson_tng_impl.cpp
-    ${CMAKE_SOURCE_DIR}/lib/usrp/crimson_tng/io_impl.cpp
+    ${CMAKE_SOURCE_DIR}/lib/usrp/crimson_tng/crimson_tng_io_impl.cpp
     ${CMAKE_SOURCE_DIR}/lib/usrp/crimson_tng/crimson_tng_iface.cpp
 )
 target_link_libraries(crimson_tng_test uhd ${Boost_LIBRARIES})
@@ -132,7 +132,8 @@ add_executable(cyan_p1hdr16t_test
 )
 target_link_libraries(cyan_p1hdr16t_test uhd ${Boost_LIBRARIES})
 UHD_ADD_TEST(cyan_p1hdr16t_test cyan_p1hdr16t_test)
-UHD_INSTALL(TARGETS cyan_p1hdr16t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)endif(ENABLE_CYAN_P1HDR16T)
+UHD_INSTALL(TARGETS cyan_p1hdr16t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+endif(ENABLE_CYAN_P1HDR16T)
 
 if(ENABLE_CYAN_P1HDR32T)
 # Cannot call into cyan_p1hdr16t_impl.o that is in libuhd.so due to default visibility=hidden
@@ -147,8 +148,6 @@ target_link_libraries(cyan_p1hdr32t_test uhd ${Boost_LIBRARIES})
 UHD_ADD_TEST(cyan_p1hdr32t_test cyan_p1hdr16t_test)
 UHD_INSTALL(TARGETS cyan_p1hdr32t_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
 endif(ENABLE_CYAN_P1HDR32T)
-uygd
-
 
 if(ENABLE_CYAN_64T)
 # Cannot call into cyan_64t_impl.o that is in libuhd.so due to default visibility=hidden
