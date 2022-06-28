@@ -1536,6 +1536,7 @@ bool cyan_9r7t_impl::is_bm_thread_needed() {
         "uhd_manual_get",
         "rx_start",
         "rx_stop",
+        "uhd_usrp_info",
 	};
 
 	// see `man 3 program_invocation_short_name'
