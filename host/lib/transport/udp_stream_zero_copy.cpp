@@ -78,34 +78,24 @@ public:
             return sptr();
         }
 
-        if(timeout == 0) {
-            _len = ::recv(_sock_fd, (char *)_mem, _frame_size, MSG_DONTWAIT);
-            if (_len > 0){
-                index++; //advances the caller's buffer
-                return make(this, _mem, size_t(_len));
-            }
-            _claimer.release(); //undo claim
-            return sptr(); //null for timeout
-        } else {
-            //sets timeout if the timeout requested is different from the last one it was set to one
-            if(timeout != _current_timout) {
-                _current_timout = timeout;
-                struct timeval tv;
-                tv.tv_sec= (time_t)(timeout);
-                tv.tv_usec= (suseconds_t)(timeout*1e6- (time_t)(timeout));
-                setsockopt(_sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-            }
-            _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
-            if(_len >0) {
-                index++; //advances the caller's buffer
-                return make(this, _mem, size_t(_len));
-            } else {
-                _claimer.release(); //undo claim
-                return sptr(); //null for timeout
-            }
-
-
+        #ifdef MSG_DONTWAIT //try a non-blocking recv() if supported
+        _len = ::recv(_sock_fd, (char *)_mem, _frame_size, MSG_DONTWAIT);
+        if (_len > 0){
+            index++; //advances the caller's buffer
+            return make(this, _mem, size_t(_len));
         }
+        #endif
+
+        const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
+        if (wait_for_recv_ready(_sock_fd, timeout_ms)){
+            _len = ::recv(_sock_fd, (char *)_mem, _frame_size, 0);
+            UHD_ASSERT_THROW(_len > 0); // TODO: Handle case of recv error
+            index++; //advances the caller's buffer
+            return make(this, _mem, size_t(_len));
+        }
+
+        _claimer.release(); //undo claim
+        return sptr(); //null for timeout
     }
 
 private:
@@ -114,7 +104,6 @@ private:
     size_t _frame_size;
     ssize_t _len;
     simple_claimer _claimer;
-    double _current_timout = 0;
 };
 
 /***********************************************************************
