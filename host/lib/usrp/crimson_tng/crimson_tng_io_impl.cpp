@@ -54,6 +54,9 @@
   #ifndef UHD_TXRX_DEBUG_PRINTS
   #define UHD_TXRX_DEBUG_PRINTS
   #endif
+#endif
+
+#if 0
   #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
   #define UHD_TXRX_SEND_DEBUG_PRINTS
   #endif
@@ -227,12 +230,21 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        
+
         static const double default_sob = 1.0;
 
         size_t r = 0;
 
         uhd::tx_metadata_t metadata = metadata_;
+
+#ifdef UHD_TXRX_DEBUG_PRINTS
+        std::cout << "Sending " << nsamps_per_buff << " samples" << std::endl;
+        std::cout << "Tx send metadata: " << std::endl;
+        std::cout << "\tstart_of_burst: " << metadata.start_of_burst << std::endl;
+        std::cout << "\tend_of_burst: " << metadata.end_of_burst << std::endl;
+        std::cout << "\thas_time_spec: " << metadata.has_time_spec << std::endl;
+        std::cout << "\ttime_spec.get_real_secs(): " << metadata.time_spec.get_real_secs() << std::endl;
+#endif
 
         uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now();
@@ -489,9 +501,8 @@ private:
 
         if (( dt > timeout ) and (!_eprops.at( chan ).flow_control->start_of_burst_pending( now ))) {
 #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
-            std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
             std::cout << "dt: " << dt << std::endl;
-            std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_4R4T_TICK_RATE) << std::endl;
+            std::cout << "dt.to_ticks: " << dt.to_ticks(CRIMSON_TNG_MASTER_TICK_RATE) << std::endl;
             std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
             std::cout << "timout: " << timeout << std::endl;
 #endif
@@ -1056,7 +1067,7 @@ static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::
 
 	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
-#ifdef UHD_TXRX_DEBUG_PRINTS
+#ifdef BUFFER_LVL_DEBUG
 	std::stringstream ss;
 	ss
 			<< now << ": "
