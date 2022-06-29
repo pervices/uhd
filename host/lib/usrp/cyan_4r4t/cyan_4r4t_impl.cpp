@@ -927,7 +927,7 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CYAN_4R4T_MAX_MTU-CYAN_4R4T_UDP_OVERHEAD))) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (CYAN_4R4T_NUM_SEND_FRAMES * MAX_ETHERNET_MTU)) ;
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
@@ -1362,15 +1362,9 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 		zero_copy_xport_params zcxp;
 		udp_zero_copy::buff_params bp;
 
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CYAN_4R4T_MAX_MTU - ip_udp_size;
-
-		zcxp.send_frame_size = bpp;
+		zcxp.send_frame_size = MAX_ETHERNET_MTU;
 		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_send_frames = CYAN_4R4T_NUM_SEND_FRAMES;
 		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;

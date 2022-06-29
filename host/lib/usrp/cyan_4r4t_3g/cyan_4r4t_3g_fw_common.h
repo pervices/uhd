@@ -86,6 +86,8 @@
 // Cyan 4r4t Buffer Size
 // 2^13 * 16
 #define CYAN_4R4T_3G_BUFF_SIZE	(131072)
+// Cyan 4r4t Number of frames the send buffer sould be able to hold (host side)
+#define CYAN_4R4T_3G_NUM_SEND_FRAMES ((CYAN_4R4T_3G_BUFF_SIZE * sizeof( std::complex<int16_t> ) / CYAN_4R4T_3G_MAX_MTU) + 1)
 //how full the system shoudl try to keep the buffer
 #define CYAN_4R4T_3G_BUFF_PERCENT 0.7
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer

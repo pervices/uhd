@@ -34,6 +34,8 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
+#include <uhdlib/transport/udp_common.hpp>
+
 namespace link_crimson {
     const int num_links = 2;
     const char *subnets[num_links] = { "10.10.10.", "10.10.11."};
@@ -875,7 +877,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) );
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (CRIMSON_TNG_NUM_SEND_FRAMES * MAX_ETHERNET_MTU)) ;
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
@@ -1162,16 +1164,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		zero_copy_xport_params zcxp;
 		udp_zero_copy::buff_params bp;
 
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
-
-		zcxp.send_frame_size = 0;
-		zcxp.recv_frame_size = bpp;
-		zcxp.num_send_frames = 0;
-		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
+		zcxp.send_frame_size = MAX_ETHERNET_MTU;
+		zcxp.recv_frame_size = 0;
+		zcxp.num_send_frames = CRIMSON_TNG_NUM_SEND_FRAMES;
+		zcxp.num_recv_frames = 0;
 
         //Attempts to bind the ips associated with the ip ports
         //It is neccessary for maximum performance when receiving using uhd

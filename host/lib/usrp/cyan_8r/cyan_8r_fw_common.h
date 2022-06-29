@@ -83,6 +83,8 @@
 
 // Cyan 8r Buffer Size
 #define CYAN_8R_BUFF_SIZE	(2048*140*512/32)
+// Cyan 8r Number of frames the send buffer sould be able to hold (host side)
+#define CYAN_8R_NUM_SEND_FRAMES ((CYAN_8R_BUFF_SIZE * sizeof( std::complex<int16_t> ) / CYAN_8R_MAX_MTU) + 1)
 
 // Cyan 8r RF Settings
 #define CYAN_8R_RF_TX_GAIN_RANGE_START	0.0
