@@ -946,7 +946,6 @@ rx_streamer::sptr cyan_8r_impl::get_rx_stream(const uhd::stream_args_t &args_){
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
 
-                // XXX: @CF: this is so nasty..
                 const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
                 const fs_path mb_path   = "/mboards/" + mb;
                 const fs_path rx_path   = mb_path / "rx";
@@ -954,7 +953,7 @@ rx_streamer::sptr cyan_8r_impl::get_rx_stream(const uhd::stream_args_t &args_){
                 _tree->access<std::string>(rx_path / chan / "jesd/status").set("1");
                 std::string jesd_status = _tree->access<std::string>(rx_path / chan / "jesd/status").get();
                 if(jesd_status.compare(0, 4, "good")) {
-                    UHD_LOGGER_WARNING(CYAN_8R_DEBUG_NAME_C) << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
+                    UHD_LOGGER_WARNING(CYAN_8R_DEBUG_NAME_C) << "rx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
                 }
             }
         }
