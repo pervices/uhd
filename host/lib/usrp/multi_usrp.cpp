@@ -929,9 +929,7 @@ public:
     }
     
     double get_rx_rate(size_t chan){
-        // Keep tmp, for unknown reasons returning _tree->access directly will sometimes cause this function to return 0
-        double tmp = _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
-        return tmp;
+        return _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
     }
 
     meta_range_t get_rx_rates(size_t chan) override
@@ -1975,9 +1973,7 @@ public:
 
     double get_tx_rate(size_t chan) override
     {
-        // Keep tmp, for unknown reasons returning _tree->access directly will sometimes cause this function to return 0
-        double tmp = _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
-        return tmp;
+        return _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
     }
 
     meta_range_t get_tx_rates(size_t chan) override
