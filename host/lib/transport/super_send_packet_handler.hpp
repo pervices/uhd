@@ -636,7 +636,8 @@ private:
                     for (auto data_buff : multi_msb.data_buffs) {
                         // In case of scatter/gather, the VRT header should be in the first iov
                         // and the data should be in the second iov
-                        if (_converter->bypass_conversion_and_use_scatter_gather()) {
+                        //Temporary: never convert
+                        if (true || _converter->bypass_conversion_and_use_scatter_gather()) {
                             iov[(i*2)].iov_base = ((void *)multi_msb.vrt_headers.at(i));
                             iov[(i*2)].iov_len = multi_msb.vrt_header_length.at(i);
                             iov[(i*2)+1].iov_base = ((void *)data_buff);
@@ -727,7 +728,8 @@ private:
                 for (auto data_buff : multi_msb.data_buffs) {
                     // In case of scatter/gather, the VRT header should be in the first iov
                     // and the data should be in the second iov
-                    if (_converter->bypass_conversion_and_use_scatter_gather()) {
+                    //Temporary: never convert
+                    if (true || _converter->bypass_conversion_and_use_scatter_gather()) {
                         iov[(i*2)].iov_base = (void *)multi_msb.vrt_headers.at(i);
                         iov[(i*2)].iov_len = multi_msb.vrt_header_length.at(i);
                         iov[(i*2)+1].iov_base = (void *)data_buff;
@@ -846,7 +848,8 @@ private:
         uint32_t *vrt_header = otw_mem;
         otw_mem += if_packet_info.num_header_words32;
 
-        if (_converter->bypass_conversion_and_use_scatter_gather()) {
+        //Temporary: never convert
+        if (true || _converter->bypass_conversion_and_use_scatter_gather()) {
             // Add buffer to the array to be sent using sendmmsg
             multi_msb_buffs[index].data_buffs.push_back(reinterpret_cast<const void *>(io_buffs[0]));
             multi_msb_buffs[index].data_buff_length.push_back(if_packet_info.num_payload_words32*sizeof(uint32_t));

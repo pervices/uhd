@@ -752,6 +752,7 @@ private:
 
         // perform N channels of conversion
         for (size_t i = 0; i < this->size(); i++) {
+            //Temporary: never convert
             convert_to_out_buff(i);
         }
 
