@@ -1164,10 +1164,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		zero_copy_xport_params zcxp;
 		udp_zero_copy::buff_params bp;
 
-		zcxp.send_frame_size = MAX_ETHERNET_MTU;
-		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CRIMSON_TNG_NUM_SEND_FRAMES;
-		zcxp.num_recv_frames = 0;
+		zcxp.send_frame_size = 0;
+		zcxp.recv_frame_size = MAX_ETHERNET_MTU;
+		zcxp.num_send_frames = 0;
+		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
         //Attempts to bind the ips associated with the ip ports
         //It is neccessary for maximum performance when receiving using uhd
@@ -1315,15 +1315,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		zero_copy_xport_params zcxp;
 		udp_zero_copy::buff_params bp;
 
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
-
-		zcxp.send_frame_size = bpp;
+		zcxp.send_frame_size = MAX_ETHERNET_MTU;
 		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_send_frames = CRIMSON_TNG_NUM_SEND_FRAMES;
 		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;
