@@ -37,10 +37,9 @@
 #include <uhdlib/transport/udp_common.hpp>
 
 namespace link_cyan_4r4t {
-    const int num_links = 4;
-    const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
-    const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2","10.10.12.2","10.10.13.2"};
-    const char *names[num_links] = { "QSFP+A", "QSFP+B", "QSFP+C", "QSFP+D"};
+    const char *subnets[NUMBER_OF_XG_CONTROL_INTF] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
+    const char *addrs[NUMBER_OF_XG_CONTROL_INTF] = { "10.10.10.2", "10.10.11.2","10.10.12.2","10.10.13.2"};
+    const char *names[NUMBER_OF_XG_CONTROL_INTF] = { "QSFP+A", "QSFP+B", "QSFP+C", "QSFP+D"};
 
     const char mtu_ref[8] = {'9','0','0','0'};
 }
@@ -758,7 +757,7 @@ void cyan_4r4t_impl::stop_bm() {
 //checks if the clocks are synchronized
 bool cyan_4r4t_impl::time_diff_converged() {
     for(uint32_t n = 0; n < _time_diff_converged.size(); n++) {
-        if(!_time_diff_converged[n] || _request_reconverge[n]) {
+        if((!_time_diff_converged[n] || _request_reconverge[n]) && _enable_port_time_diff[n]) {
             return false;
         }
     }
@@ -784,6 +783,10 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 
 	//Get offset
     for(uint32_t xg_intf = 0; xg_intf < dev->_time_diff_pidc.size(); xg_intf++) {
+        // Skips interfaces that did not request convergence
+        if(!dev->_enable_port_time_diff[xg_intf]) {
+            continue;
+        }
         now = uhd::get_system_time();
         dev->time_diff_send( now, xg_intf );
         dev->time_diff_recv( tdr, xg_intf );
@@ -806,6 +809,10 @@ void cyan_4r4t_impl::bm_thread_fn( cyan_4r4t_impl *dev ) {
 		}
 
         for(uint32_t xg_intf = 0; xg_intf < dev->_time_diff_pidc.size(); xg_intf++) {
+            // Skips interfaces that did not request convergence
+            if(!dev->_enable_port_time_diff[xg_intf]) {
+                continue;
+            }
             time_diff = dev->_time_diff_pidc[xg_intf].get_control_variable();
             now = uhd::get_system_time();
             crimson_now = now + time_diff;
@@ -888,12 +895,15 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
     char buffer[256];
 
     // FOR EACH INTERFACE
-    for (int j = 0; j < link_cyan_4r4t::num_links; j++) {
+    for (int j = 0; j < NUMBER_OF_XG_CONTROL_INTF; j++) {
         // CHECK PING
         sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_4r4t::addrs[j]); 
         check = system(cmd);
         if (check!=0){
-            UHD_LOG_WARNING("PING", "Failed for " << link_cyan_4r4t::addrs[j] << ", please check " << link_cyan_4r4t::names[j]);
+            UHD_LOG_WARNING("PING", "Failed for " << link_cyan_4r4t::addrs[j] << ", please check " << link_cyan_4r4t::names[j] << ". Clock sync will not occur on this port");
+            _enable_port_time_diff[j] = false;
+        } else {
+            _enable_port_time_diff[j] = true;
         }
         sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_4r4t::subnets[j]); 
         stream = popen(cmd, "r");

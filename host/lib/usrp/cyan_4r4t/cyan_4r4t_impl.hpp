@@ -199,6 +199,7 @@ private:
     std::array<std::atomic<double>, NUMBER_OF_XG_CONTROL_INTF> _time_diff;
     std::array<std::atomic<bool>, NUMBER_OF_XG_CONTROL_INTF> _time_diff_converged;
     std::array<std::atomic<bool>, NUMBER_OF_XG_CONTROL_INTF> _request_reconverge;
+    std::array<std::atomic<bool>, NUMBER_OF_XG_CONTROL_INTF> _enable_port_time_diff;
     uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
