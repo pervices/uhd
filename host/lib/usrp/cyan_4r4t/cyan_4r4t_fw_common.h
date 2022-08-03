@@ -83,11 +83,8 @@
 #define CYAN_4R4T_UPDATE_PER_SEC	100
 #define CYAN_4R4T_SS_FIFOLVL_THRESHOLD 107421875
 
-// Cyan 4r4t Buffer Size (device side)
+// Cyan 4r4t Buffer Size
 #define CYAN_4R4T_BUFF_SIZE	(2048*140*512/32)
-// Cyan 4r4t Number of frames the send buffer sould be able to hold (host side)
-#define CYAN_4R4T_NUM_SEND_FRAMES ((CYAN_4R4T_BUFF_SIZE * sizeof( std::complex<int16_t> ) / CYAN_4R4T_MAX_MTU) + 1)
-
 //how full the system shoudl try to keep the buffer
 #define CYAN_4R4T_BUFF_PERCENT 0.7
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer

@@ -69,11 +69,8 @@
 #define CRIMSON_TNG_UPDATE_PER_SEC	100
 #define CRIMSON_TNG_SS_FIFOLVL_THRESHOLD 107421875
 
-// Crimson Buffer Size (device side)
+// Crimson Buffer Size
 #define CRIMSON_TNG_BUFF_SIZE	65536
-// Crimson Number of frames the send buffer sould be able to hold (host side)
-#define CRIMSON_TNG_NUM_SEND_FRAMES ((CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) / CRIMSON_TNG_MAX_MTU) + 1)
-
 //Target buffer level percentage
 #define CRIMSON_TNG_BUFF_PERCENT 0.7
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
