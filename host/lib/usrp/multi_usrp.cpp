@@ -629,14 +629,22 @@ public:
         if (mboard != ALL_MBOARDS) {
             const auto clock_source_path = mb_root(mboard) / "clock_source/value";
             const auto sync_source_path  = mb_root(mboard) / "sync_source/value";
+            std::string result;
+
             if (_tree->exists(clock_source_path)) {
                 _tree->access<std::string>(clock_source_path).set(source);
+                result = _tree->access<std::string>(clock_source_path).get();
             } else if (_tree->exists(sync_source_path)) {
                 auto sync_source = _tree->access<device_addr_t>(sync_source_path).get();
                 sync_source["clock_source"] = source;
                 _tree->access<device_addr_t>(sync_source_path).set(sync_source);
+                result = sync_source.get("time_source");
             } else {
                 throw uhd::runtime_error("Can't set clock source on this device.");
+            }
+
+            if(result != source) {
+                UHD_LOGGER_WARNING("MULTI_USRP")  <<boost::format( "Unable to set time source. The program attempted to set it to %s but it returned: %s") % source % result ;
             }
             return;
         }
