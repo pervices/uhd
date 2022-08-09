@@ -1705,16 +1705,14 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     }
     else if (lower_target_lo < CYAN_9R7T_MIN_LO) {
         return upper_target_lo;
-    } else {
-        return lower_target_lo;
     }
     //returns whichever of the los is further from the target
-//     else if(upper_target_lo - target_freq >= target_freq - lower_target_lo) {
-//         return upper_target_lo;
-//     }
-//     else {
-//         return lower_target_lo;
-//     }
+    else if(upper_target_lo - target_freq >= target_freq - lower_target_lo) {
+        return upper_target_lo;
+    }
+    else {
+        return lower_target_lo;
+    }
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
