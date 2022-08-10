@@ -18,6 +18,7 @@
 #include <boost/asio.hpp>
 #include <boost/format.hpp>
 #include <thread>
+#include <errno.h>
 
 namespace uhd { namespace transport {
 
@@ -46,7 +47,28 @@ typedef std::shared_ptr<boost::asio::ip::udp::socket> socket_sptr;
  * \param timeout_ms the timeout duration in milliseconds
  * \return true when the socket is ready for receive
  */
-UHD_INLINE bool wait_for_recv_ready(int sock_fd, int32_t timeout_ms)
+
+UHD_INLINE bool wait_for_recv_ready(int sock_fd, int32_t timeout_ms);
+
+/*!
+ * Wait for the socket to become ready for a receive operation.
+ * \param sock_fd the open socket file descriptor
+ * \param timeout_ms the timeout duration in milliseconds
+ * \param error_code the error code from poll or select
+ * \
+ * \return true when the socket is ready for receive
+ */
+
+UHD_INLINE bool wait_for_recv_ready(int sock_fd, int32_t timeout_ms, int *error_code);
+
+UHD_INLINE bool wait_for_recv_ready(int sock_fd, int32_t timeout_ms) {
+    int error_code = 0;
+    return wait_for_recv_ready(sock_fd, timeout_ms, &error_code);
+}
+
+// For will return true if data is ready, false with an error code of 0 on timeout, and false with a different error code if some other error occurs
+// The other error is most likely EINTR
+UHD_INLINE bool wait_for_recv_ready(int sock_fd, int32_t timeout_ms, int *error_code)
 {
 #ifdef UHD_PLATFORM_WIN32 // select is more portable than poll unfortunately
     // setup timeval for timeout
@@ -76,7 +98,22 @@ UHD_INLINE bool wait_for_recv_ready(int sock_fd, int32_t timeout_ms)
     pfd_read.events = POLLIN;
 
     // call poll with timeout on receive socket
-    return ::poll(&pfd_read, 1, (int)timeout_ms) > 0;
+    int poll_result = ::poll(&pfd_read, 1, (int)timeout_ms);
+    // poll will return the number of socket events (i.e. data received) if successful, 0 if it timed out and -1 with an error
+    if(poll_result > 0) {
+        return true;
+        error_code = 0;
+    } else if (poll_result == 0) {
+        error_code = 0;
+        return false;
+    } else {
+        // Sets error code if non-null
+        if(error_code != 0) {
+            *error_code = errno;
+        }
+        return false;
+    }
+    return poll_result;
 #endif
 }
 
@@ -99,7 +136,7 @@ UHD_INLINE socket_sptr open_udp_socket(
 }
 
 UHD_INLINE size_t recv_udp_packet(
-    int sock_fd, void* mem, size_t frame_size, int32_t timeout_ms)
+    int sock_fd, void* mem, size_t frame_size, int32_t timeout_ms, int *error_code)
 {
     ssize_t len;
 
@@ -116,6 +153,7 @@ UHD_INLINE size_t recv_udp_packet(
             throw uhd::io_error("socket closed");
         }
         if (len < 0) {
+            *error_code = errno;
             throw uhd::io_error(
                 str(boost::format("recv error on socket: %s") % strerror(errno)));
         }

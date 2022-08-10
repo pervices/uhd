@@ -878,7 +878,7 @@ rx_streamer::sptr cyan_16t_impl::get_rx_stream(const uhd::stream_args_t &args_){
                 //scmd.stream_now = true;
                 //set_stream_cmd( scmd_pre, scmd );
                 my_streamer->set_xport_chan_get_buff(chan_i, std::bind(
-                    &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], ph::_1
+                    &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], ph::_1, ph::_2
                 ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, std::bind(
                     &cyan_16t_impl::set_stream_cmd, this, scmd_pre, ph::_1));

@@ -164,9 +164,10 @@ public:
     /*!
      * Get a new receive buffer from this transport object.
      * \param timeout the timeout to get the buffer in seconds
+     * \param error_code stores errors from the sys calls
      * \return a managed buffer, or null sptr on timeout/error
      */
-    virtual managed_recv_buffer::sptr get_recv_buff(double timeout = 0.1) = 0;
+    virtual managed_recv_buffer::sptr get_recv_buff(double timeout = 0.1, int *error_code = 0) = 0;
 
     /*!
      * Get the number of receive frames:

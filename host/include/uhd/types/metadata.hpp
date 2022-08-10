@@ -133,7 +133,9 @@ struct UHD_API rx_metadata_t
         //! Multi-channel alignment failed.
         ERROR_CODE_ALIGNMENT = 0xc,
         //! The packet could not be parsed.
-        ERROR_CODE_BAD_PACKET = 0xf
+        ERROR_CODE_BAD_PACKET = 0xf,
+        //! Interrupt received during while receiving/waiting to receive data
+        ERROR_CODE_EINTR = 0x10
     } error_code;
 
     //! Out of sequence.  The transport has either dropped a packet or received data out

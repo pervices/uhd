@@ -19,7 +19,15 @@ namespace uhd { namespace transport {
  * \param buff buffer to be sent or receive buffer being released
  * \return true if OK, false if not
  */
-typedef std::function<bool(managed_buffer::sptr buff)> flow_ctrl_func;
+typedef std::function<bool(managed_buffer::sptr buff)> send_flow_ctrl_func;
+
+/*!
+ * Flow control function.
+ * \param buff buffer to be sent or receive buffer being released
+ * \param error_code error code for sys called, most commonly used to check for EINTR
+ * \return true if OK, false if not
+ */
+typedef std::function<bool(managed_buffer::sptr buff, int *error_code)> recv_flow_ctrl_func;
 
 /*!
  * Adds flow control to any zero_copy_if transport.
@@ -38,8 +46,8 @@ public:
      * buffer released
      */
     static sptr make(zero_copy_if::sptr transport,
-        flow_ctrl_func send_flow_ctrl,
-        flow_ctrl_func recv_flow_ctrl);
+        send_flow_ctrl_func send_flow_ctrl,
+        recv_flow_ctrl_func recv_flow_ctrl);
 };
 
 }} // namespace uhd::transport

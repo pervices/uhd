@@ -160,7 +160,7 @@ private:
             return _recv_frame_size;
         }
 
-        managed_recv_buffer::sptr get_recv_buff(double timeout) override
+        managed_recv_buffer::sptr get_recv_buff(double timeout, int *error_code = 0) override
         {
             managed_recv_buffer::sptr buff;
             if (_buff_queue.pop_with_timed_wait(buff, timeout)) {

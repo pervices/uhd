@@ -195,7 +195,7 @@ public:
      * Receive implementation:
      * Block on the managed buffer's get call and advance the index.
      ******************************************************************/
-    managed_recv_buffer::sptr get_recv_buff(double timeout) override
+    managed_recv_buffer::sptr get_recv_buff(double timeout, int *error_code = 0) override
     {
         if (_next_recv_buff_index == _num_recv_frames)
             _next_recv_buff_index = 0;

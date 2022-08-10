@@ -120,7 +120,8 @@ private:
     // Methods called by recv_link_base
     UHD_FORCE_INLINE size_t get_recv_buff_derived(frame_buff& buff, int32_t timeout_ms)
     {
-        return recv_udp_packet(_sock_fd, buff.data(), get_recv_frame_size(), timeout_ms);
+        int error_code = 0;
+        return recv_udp_packet(_sock_fd, buff.data(), get_recv_frame_size(), timeout_ms, &error_code);
     }
 
     UHD_FORCE_INLINE void release_recv_buff_derived(frame_buff& /*buff*/)

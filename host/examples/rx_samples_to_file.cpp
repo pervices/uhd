@@ -22,6 +22,7 @@
 #include <iostream>
 #include <thread>
 
+#include <errno.h>
 
 namespace po = boost::program_options;
 
@@ -100,7 +101,11 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         size_t num_rx_samps =
             rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
 
-        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
+        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
+            // recv exited due to EINTR (interrupt received while waiting for data, usually the result of ctrl c)
+            continue;
+        }
+        else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << boost::format("Timeout while streaming") << std::endl;
             if(continue_on_bad_packet) continue;
             else {
@@ -108,7 +113,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
                 break;
             }
         }
-        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
+        else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
             if (overflow_message) {
                 overflow_message = false;
                 std::cerr
@@ -122,7 +127,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
             }
             continue;
         }
-        if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
+        else if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
             std::string error = str(boost::format("Receiver error: %s") % md.strerror());
             if (continue_on_bad_packet) {
                 std::cerr << error << std::endl;

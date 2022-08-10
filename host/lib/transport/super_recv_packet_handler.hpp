@@ -49,7 +49,7 @@ static inline void handle_overflow_nop(void) {}
 class recv_packet_handler
 {
 public:
-    typedef std::function<managed_recv_buffer::sptr(double)> get_buff_type;
+    typedef std::function<managed_recv_buffer::sptr(double, int*)> get_buff_type;
     typedef std::function<void(const size_t)> handle_flowctrl_type;
     typedef std::function<void(const uint32_t*)> handle_flowctrl_ack_type;
     typedef std::function<void(const stream_cmd_t&)> issue_stream_cmd_type;
@@ -132,7 +132,8 @@ public:
         const size_t xport_chan, const get_buff_type& get_buff, const bool flush = true)
     {
         if (flush) {
-            while (get_buff(0.0)) {
+            int error_code = 0;
+            while (get_buff(0.0, &error_code)) {
             };
         }
         _props.at(xport_chan).get_buff = get_buff;
@@ -377,7 +378,8 @@ private:
         PACKET_TIMESTAMP_ERROR,
         PACKET_INLINE_MESSAGE,
         PACKET_TIMEOUT_ERROR,
-        PACKET_SEQUENCE_ERROR
+        PACKET_SEQUENCE_ERROR,
+        PACKET_EINTR
     };
 
 #ifdef ERROR_INJECT_DROPPED_PACKETS
@@ -399,9 +401,16 @@ private:
         per_buffer_info_type& info      = curr_buffer_info;
         while (1) {
             // get a single packet from the transport layer
-            buff = _props[index].get_buff(timeout);
+
+            int get_buff_error_code = 0;
+            buff = _props[index].get_buff(timeout, &get_buff_error_code);
             if (buff.get() == nullptr) {
-                return PACKET_TIMEOUT_ERROR;
+                if(get_buff_error_code == EINTR) {
+                    return PACKET_EINTR;
+                } else {
+                    return PACKET_TIMEOUT_ERROR;
+                }
+            } else {
             }
 
 #ifdef ERROR_INJECT_DROPPED_PACKETS
@@ -663,6 +672,14 @@ private:
                         _props[index].handle_flowctrl(next_info[index].ifpi.packet_count);
                     }
                     curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+                    return;
+
+                case PACKET_EINTR:
+                    std::swap(curr_info, next_info); // save progress from curr -> next
+                    if (_props[index].handle_flowctrl) {
+                        _props[index].handle_flowctrl(next_info[index].ifpi.packet_count);
+                    }
+                    curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_EINTR;
                     return;
 
                 case PACKET_SEQUENCE_ERROR:

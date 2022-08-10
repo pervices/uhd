@@ -71,13 +71,13 @@ public:
         _claimer.release();
     }
 
-    UHD_INLINE sptr get_new(const double timeout, size_t& index)
+    UHD_INLINE sptr get_new(const double timeout, size_t& index, int *error_code)
     {
         if (not _claimer.claim_with_wait(timeout))
             return sptr();
 
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
-        _len = recv_udp_packet(_sock_fd, _mem, _frame_size, timeout_ms);
+        _len = recv_udp_packet(_sock_fd, _mem, _frame_size, timeout_ms, error_code);
 
         if (_len > 0) {
             index++;
@@ -208,11 +208,11 @@ public:
      * Receive implementation:
      * Block on the managed buffer's get call and advance the index.
      ******************************************************************/
-    managed_recv_buffer::sptr get_recv_buff(double timeout) override
+    managed_recv_buffer::sptr get_recv_buff(double timeout, int *error_code) override
     {
         if (_next_recv_buff_index == _num_recv_frames)
             _next_recv_buff_index = 0;
-        return _mrb_pool[_next_recv_buff_index]->get_new(timeout, _next_recv_buff_index);
+        return _mrb_pool[_next_recv_buff_index]->get_new(timeout, _next_recv_buff_index, error_code);
     }
 
     size_t get_num_recv_frames(void) const override

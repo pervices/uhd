@@ -26,7 +26,7 @@ typedef bounded_buffer<managed_send_buffer::sptr> bounded_buffer_t;
 class zero_copy_flow_ctrl_msb : public managed_send_buffer
 {
 public:
-    zero_copy_flow_ctrl_msb(flow_ctrl_func flow_ctrl)
+    zero_copy_flow_ctrl_msb(send_flow_ctrl_func flow_ctrl)
         : _mb(nullptr), _flow_ctrl(flow_ctrl)
 
     {
@@ -68,13 +68,13 @@ public:
 
 private:
     sptr _mb;
-    flow_ctrl_func _flow_ctrl;
+    send_flow_ctrl_func _flow_ctrl;
 };
 
 class zero_copy_flow_ctrl_mrb : public managed_recv_buffer
 {
 public:
-    zero_copy_flow_ctrl_mrb(flow_ctrl_func flow_ctrl) : _mb(NULL), _flow_ctrl(flow_ctrl)
+    zero_copy_flow_ctrl_mrb(recv_flow_ctrl_func flow_ctrl) : _mb(NULL), _flow_ctrl(flow_ctrl)
 
     {
         /* NOP */
@@ -96,14 +96,15 @@ public:
     UHD_INLINE sptr get(sptr& mb)
     {
         _mb = mb;
-        while (_flow_ctrl and not _flow_ctrl(_mb)) {
+        int error_code = 0;
+        while (_flow_ctrl and not _flow_ctrl(_mb, &error_code)) {
         }
         return make(this, _mb->cast<void*>(), _mb->size());
     }
 
 private:
     sptr _mb;
-    flow_ctrl_func _flow_ctrl;
+    recv_flow_ctrl_func _flow_ctrl;
 };
 
 /***********************************************************************
@@ -117,8 +118,8 @@ public:
     typedef std::shared_ptr<zero_copy_flow_ctrl_impl> sptr;
 
     zero_copy_flow_ctrl_impl(zero_copy_if::sptr transport,
-        flow_ctrl_func send_flow_ctrl,
-        flow_ctrl_func recv_flow_ctrl)
+        send_flow_ctrl_func send_flow_ctrl,
+        recv_flow_ctrl_func recv_flow_ctrl)
         : _transport(transport)
         , _send_buffers(transport->get_num_send_frames())
         , _recv_buffers(transport->get_num_recv_frames())
@@ -146,10 +147,10 @@ public:
      * Receive implementation:
      * Pop the receive buffer pointer from the underlying transport
      ******************************************************************/
-    UHD_INLINE managed_recv_buffer::sptr get_recv_buff(double timeout) override
+    UHD_INLINE managed_recv_buffer::sptr get_recv_buff(double timeout, int *error_code) override
     {
         managed_recv_buffer::sptr ptr;
-        managed_recv_buffer::sptr buff = _transport->get_recv_buff(timeout);
+        managed_recv_buffer::sptr buff = _transport->get_recv_buff(timeout, error_code);
         if (buff) {
             std::shared_ptr<zero_copy_flow_ctrl_mrb> mb =
                 _recv_buffers[_recv_buff_index++];
@@ -207,14 +208,14 @@ private:
     size_t _recv_buff_index;
 
     // Flow control functions
-    flow_ctrl_func _send_flow_ctrl;
-    flow_ctrl_func _recv_flow_ctrl;
+    send_flow_ctrl_func _send_flow_ctrl;
+    recv_flow_ctrl_func _recv_flow_ctrl;
 };
 
 zero_copy_flow_ctrl::sptr zero_copy_flow_ctrl::make(zero_copy_if::sptr transport,
 
-    flow_ctrl_func send_flow_ctrl,
-    flow_ctrl_func recv_flow_ctrl)
+    send_flow_ctrl_func send_flow_ctrl,
+    recv_flow_ctrl_func recv_flow_ctrl)
 
 {
     zero_copy_flow_ctrl_impl::sptr zero_copy_flow_ctrl(

@@ -511,7 +511,7 @@ rx_streamer::sptr usrp2_impl::get_rx_stream(const uhd::stream_args_t& args_)
                 my_streamer->set_xport_chan_get_buff(chan_i,
                     std::bind(&zero_copy_if::get_recv_buff,
                         _mbc[mb].rx_dsp_xports[dsp],
-                        std::placeholders::_1),
+                        std::placeholders::_1, std::placeholders::_2),
                     true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i,
                     std::bind(&rx_dsp_core_200::issue_stream_command,
