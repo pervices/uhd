@@ -968,6 +968,8 @@ public:
         return get_device()->set_rx_freq(tune_request, chan);
     }
 
+    // Anytime GNU Radio overflows it will try to create a take an get the center frequency
+    // Repeated call to get_rx_freq are a side affect of GNU Radio's error logging when overflows occur and not the root problem
     double get_rx_freq(size_t chan) override
     {
         return get_device()->get_rx_freq(chan);
