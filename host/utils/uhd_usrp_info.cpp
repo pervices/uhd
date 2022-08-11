@@ -179,6 +179,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     sprintf(path, "rx/%lu/jesd/status", rx_chan);
                     std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
                 } catch (...) {}
+                try {
+                    sprintf(path, "rx/%lu/status/lna", rx_chan);
+                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") lna status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                } catch (...) {}
             } catch (...) {
                 all_rx_found = true;
             }

@@ -1215,6 +1215,8 @@ cyan_4r4t_impl::cyan_4r4t_impl(const device_addr_t &_device_addr)
 
         TREE_CREATE_RW(rx_path / dspno / "jesd" / "status", "rx_"+lc_num+"/jesd/status", std::string, string);
 
+        TREE_CREATE_RW(rx_path / dspno / "status" / "lna", "rx_"+lc_num+"/status/lna", std::string, string);
+
 		// Link settings
 		TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);
 		TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
