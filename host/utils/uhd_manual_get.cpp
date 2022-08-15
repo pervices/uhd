@@ -72,7 +72,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         return ~0;
     }
 
-    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
+    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string("bypass_clock_sync=true"));
 
     if(type.compare("double")==0) get_double_at_path(usrp, path);
     else if (type.compare("int")==0) get_int_at_path(usrp, path);

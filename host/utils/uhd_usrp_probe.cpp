@@ -395,11 +395,14 @@ void run_interactive_regs_shell(rfnoc::noc_block_base::sptr blk_ctrl)
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     po::options_description desc("Allowed options");
+
+    std::string args;
+
     // clang-format off
     desc.add_options()
         ("help", "help message")
         ("version", "print the version string and exit")
-        ("args", po::value<std::string>()->default_value(""), "device address args")
+        ("args", po::value<std::string>(&args)->default_value(""), "device address args")
         ("tree", "specify to print a complete property tree")
         ("string", po::value<std::string>(), "query a string value from the property tree")
         ("double", po::value<std::string>(), "query a double precision floating point value from the property tree")
@@ -427,7 +430,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return EXIT_SUCCESS;
     }
 
-    device::sptr dev         = device::make(vm["args"].as<std::string>());
+    args+=",bypass_clock_sync=true";
+    device::sptr dev         = device::make(args);
     property_tree::sptr tree = dev->get_tree();
     rfnoc::rfnoc_graph::sptr graph;
     try {

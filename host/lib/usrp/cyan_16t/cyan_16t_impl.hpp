@@ -226,7 +226,6 @@ private:
     time_spec_t _command_time;
 
 	static void bm_thread_fn( cyan_16t_impl *dev );
-	bool is_bm_thread_needed();
 
     struct mb_container_type{
         cyan_16t_iface::sptr iface;

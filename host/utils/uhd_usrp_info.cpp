@@ -92,6 +92,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // uhd::set_thread_priority_safe();
     po::options_description desc("Allowed options");
 
+    std::string args;
+
     // clang-format off
     desc.add_options()
         ("networking,i", "provide the Management/SFP+ port IP addresses")
@@ -99,7 +101,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("lock,l", "provide the PLL lock status for Rx/Tx/time and if we are using internal/external reference")
         ("boards,r", "provide the RFE front end status for each board")
         ("all,v", "prints all of the information described above.")
-	("args", po::value<std::string>()->default_value(""), "device address args")
+        ("args", po::value<std::string>(&args)->default_value(""), "device address args")
     ;
     // clang-format on
 
@@ -107,8 +109,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
-
-    const uhd::device_addr_t args(vm["args"].as<std::string>());
 
     if (argc <= 1) {
         print_usage(desc);
@@ -131,8 +131,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << std::endl;
     std::cout << ndevices << " SDRs found!" << std::endl << std::endl;
 
+    args+=",bypass_clock_sync=true";
     // create property tree for later
-    uhd::device::sptr dev         = uhd::device::make(vm["args"].as<std::string>());
+    uhd::device::sptr dev         = uhd::device::make(args);
     uhd::property_tree::sptr tree = dev->get_tree();
 
     std::string device_type, device_address;

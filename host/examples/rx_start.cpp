@@ -131,6 +131,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
+    // args is used both for arguments to specify which device to use, and whether or not to use clock sync
+    args+=",bypass_clock_sync=true";
     std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 

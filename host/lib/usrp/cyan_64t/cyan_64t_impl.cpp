@@ -886,6 +886,19 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 	_bm_thread_should_exit( false ),
     _command_time()
 {
+	// Checks the arguments provided by the external program for bypass_clock_sync
+	// This uses a string meant for arguments used to select the device because adding seperate arguments would require overhauling the way devices are initialized
+	try {
+		std::string bypass_clock_sync_s = _device_addr["bypass_clock_sync"];
+		if ("true" == bypass_clock_sync_s) {
+			_bm_thread_needed = false;
+		} else {
+			_bm_thread_needed = true;
+		}
+	// Use clock sync if the program did not specify
+	} catch (uhd::key_error& e) {
+		_bm_thread_needed = true;
+	}
     _type = device::CYAN_64T;
     device_addr = _device_addr;
 
@@ -1467,8 +1480,6 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
         _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
     }
 
-
-	_bm_thread_needed = is_bm_thread_needed();
 	if ( _bm_thread_needed ) {
 
 		//Initialize "Time Diff" mechanism before starting flow control thread
@@ -1500,30 +1511,6 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 cyan_64t_impl::~cyan_64t_impl(void)
 {
        stop_bm();
-}
-
-bool cyan_64t_impl::is_bm_thread_needed() {
-	bool r = true;
-
-#ifndef __APPLE__ // eventually use something like HAVE_PROGRAM_INVOCATION_NAME
-	static const std::vector<std::string> utils {
-		"uhd_find_devices",
-		"uhd_usrp_probe",
-	};
-
-	// see `man 3 program_invocation_short_name'
-	std::string pin( program_invocation_short_name );
-
-	for( auto & s: utils ) {
-		if ( s == pin ) {
-			r = false;
-			break;
-		}
-	}
-
-#endif
-
-	return r;
 }
 
 void cyan_64t_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
