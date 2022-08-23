@@ -288,7 +288,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         tx_usrp->set_time_now(0.0);
     }
 
-    //TODO: add force stream with start time for rx and tx
+    //TODO: add force stream with start time for tx
+    rx_usrp->rx_start_force_stream(rx_channel_nums);
 
     auto current_time = std::chrono::steady_clock::now();
     const auto start_time = current_time;
@@ -305,7 +306,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    //TODO: end force streaming for rx and tx
+    //TODO: end force streaming for tx
+    rx_usrp->rx_start_force_stream(rx_channel_nums);
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
