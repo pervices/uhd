@@ -1461,6 +1461,29 @@ public:
      * \param channels list of channels
      */
 
+    virtual void rx_start_force_stream(
+        std::vector<size_t> channels
+    ) {
+        (void) channels;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Begin streaming data, ignores control packets, unlike normal streaming this does not require clock sync
+     * \param channels list of channels
+     */
+
+    virtual void rx_stop_force_stream(
+        std::vector<size_t> channels
+    ) {
+        (void) channels;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Stops force streaming, resumes paying attention to control packets
+     */
+
     virtual std::string get_tx_sfp( size_t chan ) {
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");

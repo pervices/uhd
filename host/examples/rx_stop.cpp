@@ -153,7 +153,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //stop streaming. This method is different from the conventional method
-    usrp->set_tree_value("/mboards/0/cm/rx/force_stream", 0);
+    usrp->rx_stop_force_stream(channel_nums);
 
     return EXIT_SUCCESS;
 }

@@ -277,14 +277,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-     //start streaming. This method is different from the conventional method of sending a command over the sfp port
-    int stream_mask = 0;
-    for(size_t n = 0; n <channel_nums.size(); n++) {
-        //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
-        stream_mask |= 1 << channel_nums[n];
-    }
-    std::string path_buffer = "/mboards/0/cm/rx/force_stream";
-    usrp->set_tree_value(path_buffer, stream_mask);
+    usrp->rx_start_force_stream(channel_nums);
 
     return EXIT_SUCCESS;
 }

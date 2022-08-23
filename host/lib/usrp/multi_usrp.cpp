@@ -2364,6 +2364,34 @@ public:
         }
     }
 
+    void rx_start_force_stream(std::vector<size_t> channels) {
+        if (_tree->exists("/mboards/0/cm/rx/force_stream")) {
+            int stream_mask = 0;
+            for(size_t n = 0; n <channels.size(); n++) {
+                //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
+                stream_mask |= 1 << channels[n];
+            }
+            _tree->access<int>("/mboards/0/cm/rx/force_stream").set(stream_mask);
+        } else {
+            throw uhd::not_implemented_error("Force stream not implemented for this device");
+        }
+    }
+
+    void rx_stop_force_stream(std::vector<size_t> channels) {
+        if (_tree->exists("/mboards/0/cm/rx/force_stream")) {
+            int active_channels = _tree->access<int>("/mboards/0/cm/rx/force_stream").get();
+            int stream_mask = 0;
+            for(size_t n = 0; n <channels.size(); n++) {
+                //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
+                stream_mask |= 1 << channels[n];
+            }
+            stream_mask = active_channels & ~stream_mask;
+            _tree->access<int>("/mboards/0/cm/rx/force_stream").set(stream_mask);
+        } else {
+            throw uhd::not_implemented_error("Force stream not implemented for this device");
+        }
+    }
+
     /*******************************************************************
      * GPIO methods
      ******************************************************************/
