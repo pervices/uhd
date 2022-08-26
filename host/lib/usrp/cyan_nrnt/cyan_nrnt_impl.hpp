@@ -254,20 +254,20 @@ private:
     uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_tx_freq(size_t chan = 0);
 
-    bool is_tx_sfp_cached[CYAN_NRNT_TX_CHANNELS] = {0};
-    std::string tx_sfp_cache[CYAN_NRNT_TX_CHANNELS];
+    std::vector<bool> is_tx_sfp_cached;
+    std::vector<std::string> tx_sfp_cache;
     std::string get_tx_sfp( size_t chan );
     
-    bool is_tx_ip_cached[CYAN_NRNT_TX_CHANNELS] = {0};
-    std::string tx_ip_cache[CYAN_NRNT_TX_CHANNELS];
+    std::vector<bool> is_tx_ip_cached;
+    std::vector<std::string> tx_ip_cache;
     std::string get_tx_ip( size_t chan );
     
-    bool is_tx_fc_cached[CYAN_NRNT_TX_CHANNELS] = {0};
-    uint16_t tx_fc_cache[CYAN_NRNT_TX_CHANNELS];
+    std::vector<bool> is_tx_fc_cached;
+    std::vector<uint16_t> tx_fc_cache;
     uint16_t get_tx_fc_port( size_t chan );
     
-    bool is_tx_udp_port_cached[CYAN_NRNT_TX_CHANNELS] = {0};
-    uint16_t tx_udp_port_cache[CYAN_NRNT_TX_CHANNELS];
+    std::vector<bool> is_tx_udp_port_cached;
+    std::vector<uint16_t> tx_udp_port_cache;
     uint16_t get_tx_udp_port( size_t chan );
     
     static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );

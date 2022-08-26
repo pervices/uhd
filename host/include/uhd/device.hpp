@@ -33,6 +33,11 @@ public:
     typedef std::function<device_addrs_t(const device_addr_t&)> find_t;
     typedef std::function<sptr(const device_addr_t&)> make_t;
 
+    size_t num_rx_channels;
+    bool is_num_rx_channels_set = false;
+    size_t num_tx_channels;
+    bool is_num_tx_channels_set = false;
+
     //! Device type, used as a filter in make
     enum device_filter_t {
         ANY,

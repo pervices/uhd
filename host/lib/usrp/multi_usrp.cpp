@@ -898,19 +898,18 @@ public:
         return spec;
     }
 
-    bool is_cached_rx_num_channels = false;
-    size_t cached_rx_num_channels = 0;
     size_t get_rx_num_channels(void) override
     {
-        if(is_cached_rx_num_channels) return cached_rx_num_channels;
+
+        if(_dev->is_num_rx_channels_set) return _dev->num_rx_channels;
         else {
             size_t sum = 0;
             for (size_t m = 0; m < get_num_mboards(); m++) {
                 sum += get_rx_subdev_spec(m).size();
             }
-            is_cached_rx_num_channels = true;
-            cached_rx_num_channels = sum;
-            return cached_rx_num_channels;
+            _dev->is_num_rx_channels_set = true;
+            _dev->num_rx_channels = sum;
+            return _dev->num_rx_channels;
         }
     }
 
@@ -1948,19 +1947,17 @@ public:
         return spec;
     }
 
-    bool is_cached_tx_num_channels = false;
-    size_t cached_tx_num_channels = 0;
     size_t get_tx_num_channels(void) override
     {
-        if(is_cached_tx_num_channels) return cached_tx_num_channels;
+        if(_dev->is_num_tx_channels_set) return _dev->num_tx_channels;
         else {
             size_t sum = 0;
             for (size_t m = 0; m < get_num_mboards(); m++) {
                 sum += get_tx_subdev_spec(m).size();
             }
-            is_cached_tx_num_channels = true;
-            cached_tx_num_channels = sum;
-            return cached_tx_num_channels;
+            _dev->is_num_tx_channels_set = true;
+            _dev->num_tx_channels = sum;
+            return _dev->num_tx_channels;
         }
     }
 

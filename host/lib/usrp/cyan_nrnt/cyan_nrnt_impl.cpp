@@ -22,6 +22,8 @@
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
+#include <numeric>
+
 #include "cyan_nrnt_impl.hpp"
 #include "cyan_nrnt_fw_common.h"
 
@@ -70,6 +72,12 @@ namespace asio = boost::asio;
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
+
+// Constants for paths in UHD side state tree
+const fs_path mb_path   = "/mboards/0";
+const fs_path time_path = mb_path / "time";
+const fs_path tx_path   = mb_path / "tx";
+const fs_path rx_path   = mb_path / "rx";
 
 static std::string mb_root(const size_t mboard = 0) {
     return "/mboards/" + std::to_string(mboard);
@@ -801,7 +809,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
     int xg_intf = 0;
     
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_NRNT_UPDATE_PER_SEC );
-	std::vector<size_t> fifo_lvl( CYAN_NRNT_TX_CHANNELS );
+	std::vector<size_t> fifo_lvl( dev->num_tx_channels );
 	uhd::time_spec_t now, then, dt;
     //the predicted time on the unit
 	uhd::time_spec_t crimson_now;
@@ -903,7 +911,7 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
-		.publish  (std::bind(&cyan_nrnt_impl::get_ ## HANDLER, this, (PROP)    ));	\
+		.set_publisher(std::bind(&cyan_nrnt_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are static
@@ -1029,18 +1037,29 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
 
-    // Property paths
-    const fs_path mb_path   = "/mboards/0";
-    const fs_path time_path = mb_path / "time";
-    const fs_path tx_path   = mb_path / "tx";
-    const fs_path rx_path   = mb_path / "rx";
-
     std::string lc_num;
 
     // Create the file tree of properties.
     // Cyan NrNt only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
+
+    TREE_CREATE_RO(mb_path / "system/num_rx", "system/num_rx", int, int);
+    TREE_CREATE_RO(mb_path / "system/num_tx", "system/num_tx", int, int);
+    num_rx_channels = (size_t) (_tree->access<int>(mb_path / "system/num_rx").get());
+    is_num_rx_channels_set = true;
+    num_tx_channels = (size_t) (_tree->access<int>(mb_path / "system/num_tx").get());
+    is_num_tx_channels_set = true;
+
+    //Initializes the vectors contain caches of constant data
+    is_tx_sfp_cached.resize(num_tx_channels, false);
+    tx_sfp_cache.resize(num_tx_channels);
+    is_tx_ip_cached.resize(num_tx_channels,false);
+    tx_ip_cache.resize(num_tx_channels);
+    is_tx_fc_cached.resize(num_tx_channels, false);
+    tx_fc_cache.resize(num_tx_channels);
+    is_tx_udp_port_cached.resize(num_tx_channels, false);
+    tx_udp_port_cache.resize(num_tx_channels);
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(mb_path / "time_source" / "options").set(time_sources);
@@ -1056,10 +1075,14 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     // create frontend mapping
     ////////////////////////////////////////////////////////////////////
 
-    static const std::vector<size_t> default_rx_map CYAN_NRNT_DEFAULT_RX_MAP;
+    std::vector<size_t> default_rx_map(num_rx_channels);
+    std::iota(default_rx_map.begin(), default_rx_map.end(), 0);
+    std::vector<size_t> default_tx_map(num_tx_channels);
+    std::iota(default_tx_map.begin(), default_tx_map.end(), 0);
+
 
     _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_rx_map);
-    _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_rx_map);
+    _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_tx_map);
     _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_rx_subdev_spec, this, mb, ph::_1));
     _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_tx_subdev_spec, this, mb, ph::_1));
 
@@ -1156,7 +1179,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
-    for( size_t dspno = 0; dspno < CYAN_NRNT_RX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < num_rx_channels; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1305,7 +1328,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     }
 
     // initializes all TX chains
-    for( int dspno = 0; dspno < CYAN_NRNT_TX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < num_tx_channels; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1537,7 +1560,6 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
 //Note: these are relative to the sfp port
 //i.e. 0 for all channels in 9r7t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
 int cyan_nrnt_impl::get_rx_jesd_num(int channel) {
-    const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
     return jesd_num;
@@ -1546,7 +1568,6 @@ int cyan_nrnt_impl::get_rx_jesd_num(int channel) {
 //the number corresponding to each sfp port
 //i.e. sfpa==0, sfpb==1...
 int cyan_nrnt_impl::get_rx_xg_intf(int channel) {
-    const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
     std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
     int xg_intf = sfp.back() - 'a';
@@ -1554,14 +1575,13 @@ int cyan_nrnt_impl::get_rx_xg_intf(int channel) {
 }
 
 std::string cyan_nrnt_impl::get_tx_sfp( size_t chan ) {
-    if ( chan >= CYAN_NRNT_TX_CHANNELS ) {
+    if ( chan >= num_tx_channels ) {
         std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested sfp port of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_tx_sfp_cached[chan] ) {
         return tx_sfp_cache[chan];
     } else {
-        const fs_path mb_path   = "/mboards/0";
         const fs_path tx_link_path  = mb_path / "tx_link" / chan;
         tx_sfp_cache[chan] = _tree->access<std::string>( tx_link_path / "iface" ).get();
         is_tx_sfp_cached[chan] = true;
@@ -1570,7 +1590,7 @@ std::string cyan_nrnt_impl::get_tx_sfp( size_t chan ) {
 }
 
 std::string cyan_nrnt_impl::get_tx_ip( size_t chan ) {
-    if ( chan >= CYAN_NRNT_TX_CHANNELS ) {
+    if ( chan >= num_tx_channels ) {
         std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested ip of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
@@ -1579,8 +1599,6 @@ std::string cyan_nrnt_impl::get_tx_ip( size_t chan ) {
     } else {
         std::string sfp = get_tx_sfp(chan);
 
-        const fs_path mb_path = "/mboards/0";
-
         tx_ip_cache[chan] = _tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
         is_tx_ip_cached[chan] = true;
         return tx_ip_cache[chan];
@@ -1588,15 +1606,13 @@ std::string cyan_nrnt_impl::get_tx_ip( size_t chan ) {
 }
 
 uint16_t cyan_nrnt_impl::get_tx_fc_port( size_t chan ) {
-    if ( chan >= CYAN_NRNT_TX_CHANNELS ) {
+    if ( chan >= num_tx_channels ) {
         std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested fc port of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_tx_fc_cached[chan] ) {
         return tx_fc_cache[chan];
     } else {
-    
-        const fs_path mb_path   = "/mboards/0";
         const fs_path fc_port_path = mb_path / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
     
         tx_fc_cache[chan] = (uint16_t) _tree->access<int>( fc_port_path ).get();
@@ -1606,15 +1622,13 @@ uint16_t cyan_nrnt_impl::get_tx_fc_port( size_t chan ) {
 }
 
 uint16_t cyan_nrnt_impl::get_tx_udp_port( size_t chan ) {
-    if ( chan >= CYAN_NRNT_TX_CHANNELS ) {
+    if ( chan >= num_tx_channels ) {
         std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested udp port of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_tx_udp_port_cached[chan] ) {
         return tx_udp_port_cache[chan];
     } else {
-    
-        const fs_path mb_path   = "/mboards/0";
         const fs_path prop_path = mb_path / "tx_link";
 
         const std::string udp_port_str = _tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
@@ -1633,7 +1647,6 @@ uint16_t cyan_nrnt_impl::get_tx_udp_port( size_t chan ) {
 void cyan_nrnt_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
 	const std::string chan_str( 1, 'A' + chan );
-	const fs_path mb_path   = "/mboards/0";
 	const fs_path prop_path = mb_path / "tx_link";
 
     sfp = tree->access<std::string>(prop_path / std::to_string( chan ) / "iface").get();
@@ -1840,12 +1853,13 @@ void cyan_nrnt_impl::set_tx_gain(double gain, const std::string &name, size_t ch
         _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
         return;
     }
-    for (size_t c = 0; c < CYAN_NRNT_TX_CHANNELS; c++){
+    for (size_t c = 0; c < num_tx_channels; c++){
         set_tx_gain(gain, name, c);
     }
 }
 
 double cyan_nrnt_impl::get_tx_gain(const std::string &name, size_t chan) {
+    (void) name;
 
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
@@ -1869,12 +1883,13 @@ void cyan_nrnt_impl::set_rx_gain(double gain, const std::string &name, size_t ch
     }
     
     //calls this function for each channel individually
-    for (size_t c = 0; c < CYAN_NRNT_RX_CHANNELS; c++){
+    for (size_t c = 0; c < num_rx_channels; c++){
         set_rx_gain( gain, name, c );
     }
 }
 
 double cyan_nrnt_impl::get_rx_gain(const std::string &name, size_t chan) {
-    
+    (void) name;
+
     return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 }

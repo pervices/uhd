@@ -37,10 +37,6 @@
 
 #define CYAN_NRNT_FW_COMMS_UDP_PORT	42799
 
-// TODO: get this info from device
-#define CYAN_NRNT_RX_CHANNELS 9
-#define CYAN_NRNT_TX_CHANNELS 7
-
 // Cyan NrNt max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_NRNT_MAX_MTU		8992
 // Packaets send to the unit must have a multiple of this many samples
@@ -142,9 +138,6 @@
 // TODO: generate this dynamically from the number of channels
 #define CYAN_NRNT_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I"
 #define CYAN_NRNT_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G"
-
-// TODO: generate this dynamically from the number of channels
-#define CYAN_NRNT_DEFAULT_RX_MAP {0, 1, 2, 3, 4, 5, 6, 7, 8}
 
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {

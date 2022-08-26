@@ -745,8 +745,8 @@ void cyan_nrnt_impl::io_init(void){
 
     //allocate streamer weak ptrs containers
     for (const std::string &mb : _mbc.keys()) {
-        _mbc[mb].rx_streamers.resize( CYAN_NRNT_RX_CHANNELS );
-        _mbc[mb].tx_streamers.resize( CYAN_NRNT_TX_CHANNELS );
+        _mbc[mb].rx_streamers.resize( num_rx_channels );
+        _mbc[mb].tx_streamers.resize( num_tx_channels );
     }
 }
 
@@ -780,7 +780,7 @@ void cyan_nrnt_impl::update_rates(void){
     for (const std::string &mb : _mbc.keys()) {
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
-        if(CYAN_NRNT_RX_CHANNELS > 0) {
+        if(num_rx_channels > 0) {
             //and now that the tick rate is set, init the host rates to something
             for(const std::string &name : _tree->list(root / "rx_dsps")) {
                 // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
@@ -792,7 +792,7 @@ void cyan_nrnt_impl::update_rates(void){
             }
         }
 
-        if(CYAN_NRNT_TX_CHANNELS > 0) {
+        if(num_tx_channels > 0) {
             for(const std::string &name : _tree->list(root / "tx_dsps")) {
                 // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
                 // if the current application does not require tx, then we should not enable it
