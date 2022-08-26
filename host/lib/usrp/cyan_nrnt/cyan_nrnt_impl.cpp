@@ -1501,8 +1501,26 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 //            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
 //        }
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( CYAN_NRNT_SUBDEV_SPEC_RX ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( CYAN_NRNT_SUBDEV_SPEC_TX ));
+        std::string sub_spec_rx;
+        for(size_t n =0; n < num_rx_channels; n++) {
+            sub_spec_rx.push_back(n+'A');
+            sub_spec_rx+= ":Channel_";
+            sub_spec_rx.push_back(n+'A');
+            if(n+1 !=num_rx_channels) {
+                sub_spec_rx+=" ";
+            }
+        }
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( sub_spec_rx ));
+        std::string sub_spec_tx;
+        for(size_t n = 0; n < num_tx_channels; n++) {
+            sub_spec_tx.push_back(n+'A');
+            sub_spec_tx+= ":Channel_";
+            sub_spec_tx.push_back(n+'A');
+            if(n+1 !=num_tx_channels) {
+                sub_spec_tx+=" ";
+            }
+        }
+		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
         _tree->access<std::string>(root / "clock_source/value").set("internal");
         _tree->access<std::string>(root / "time_source/value").set("none");
 

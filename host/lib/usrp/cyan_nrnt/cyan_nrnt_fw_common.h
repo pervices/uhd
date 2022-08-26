@@ -135,10 +135,6 @@
 #define CYAN_NRNT_DEBUG_NAME_S "Cyan NrNt"
 #define CYAN_NRNT_DEBUG_NAME_C "CYAN_NRNT"
 
-// TODO: generate this dynamically from the number of channels
-#define CYAN_NRNT_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I"
-#define CYAN_NRNT_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G"
-
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
     LOW_BAND = 0,
