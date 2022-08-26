@@ -33,44 +33,13 @@
 #define CYAN_NRNT_FW_COMPAT_MINOR 0
 #define CYAN_NRNT_FPGA_COMPAT_MAJOR 1
 
-#define CYAN_NRNT_FW_NUM_BYTES (1 << 15) //64k
 #define CYAN_NRNT_FW_COMMS_MTU (1 << 13) //8k
 
 #define CYAN_NRNT_FW_COMMS_UDP_PORT	42799
-#define CYAN_NRNT_FLOW_CNTRL_UDP_PORT	42808
-
-#define CYAN_NRNT_DEFAULT_MAC_ADDR_0         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xff}
-#define CYAN_NRNT_DEFAULT_MAC_ADDR_1         {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x33}
-#define CYAN_NRNT_DEFAULT_MAC_ADDR_2          {0x00, 0x50, 0xC2, 0x85, 0x3f, 0xaa}
-#define CYAN_NRNT_DEFAULT_MAC_ADDR_3          {0x00, 0x50, 0xC2, 0x85, 0x3f, 0x22}
-
-#define CYAN_NRNT_DEFAULT_GATEWAY            (192 << 24 | 168 << 16 | 10  << 8  | 1 << 0)
-
-#define CYAN_NRNT_DEFAULT_IP_ETH0_1G         (192 << 24 | 168 << 16 | 10  << 8  | 2 << 0)
-#define CYAN_NRNT_DEFAULT_NETMASK_ETH0_1G    (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_NRNT_DEFAULT_IP_ETH0_10G        (192 << 24 | 168 << 16 | 30  << 8  | 2 << 0)
-#define CYAN_NRNT_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_NRNT_DEFAULT_IP_ETH1_10G        (192 << 24 | 168 << 16 | 40  << 8  | 2 << 0)
-#define CYAN_NRNT_DEFAULT_NETMASK_ETH1_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_NRNT_DEFAULT_IP_ETH2_10G        (10 << 24 | 10 << 16 | 12  << 8  | 2 << 0)
-#define CYAN_NRNT_DEFAULT_NETMASK_ETH2_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
-
-#define CYAN_NRNT_DEFAULT_IP_ETH3_10G        (10 << 24 | 10 << 16 | 13  << 8  | 2 << 0)
-#define CYAN_NRNT_DEFAULT_NETMASK_ETH3_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
 #define CYAN_NRNT_RX_CHANNELS 9
 #define CYAN_NRNT_TX_CHANNELS 7
 
-#define CYAN_NRNT_FW_COMMS_FLAGS_ACK        (1 << 0)
-#define CYAN_NRNT_FW_COMMS_FLAGS_ERROR      (1 << 1)
-#define CYAN_NRNT_FW_COMMS_FLAGS_POKE32     (1 << 2)
-#define CYAN_NRNT_FW_COMMS_FLAGS_PEEK32     (1 << 3)
-
-// Cyan NrNt min MTU size (typical ethernet frame)
-#define CYAN_NRNT_MIN_MTU		1500
 // Cyan NrNt max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_NRNT_MAX_MTU		8992
 // Packaets send to the unit must have a multiple of this many samples
@@ -81,7 +50,6 @@
 
 // Cyan NrNt Flowcontrol Update Per Second
 #define CYAN_NRNT_UPDATE_PER_SEC	100
-#define CYAN_NRNT_SS_FIFOLVL_THRESHOLD 107421875
 
 // Cyan NrNt Buffer Size
 #define CYAN_NRNT_BUFF_SIZE	(2048*140*512/32)
@@ -90,12 +58,12 @@
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
 #define CYAN_NRNT_BUFF_SCALE (8 * 16)
 
-// Cyan NrNt RF Settings
+// Cyan NrNt tx RF gain limits, this is definitely wrong
 #define CYAN_NRNT_RF_TX_GAIN_RANGE_START	0.0
 #define CYAN_NRNT_RF_TX_GAIN_RANGE_STOP	31.75
 #define CYAN_NRNT_RF_TX_GAIN_RANGE_STEP	0.25
 
-//Most of the stuff relying on this has been moved to the server
+// Cyan NrNt rx RF gain limits, this is definitely wrong
 #define CYAN_NRNT_RF_RX_GAIN_RANGE_START -6
 #define CYAN_NRNT_RF_RX_GAIN_RANGE_STOP	 33
 #define CYAN_NRNT_RF_RX_GAIN_RANGE_STEP	 1
@@ -110,41 +78,32 @@
 // Cyan NrNt Tuning Range Settings
 #define CYAN_NRNT_FREQ_RANGE_START	0
 #define CYAN_NRNT_FREQ_RANGE_STOP	20000000000.0
+// The step is wrong, the nco will often end ep with decimal results
 #define CYAN_NRNT_FREQ_RANGE_STEP	1.0
 
 // Cyan NrNt Sample Rate Settings
 #define CYAN_NRNT_RATE_RANGE_START	(CYAN_NRNT_MASTER_CLOCK_RATE/65536)
 #define CYAN_NRNT_RATE_RANGE_STOP_FULL	CYAN_NRNT_MASTER_CLOCK_RATE
 #define CYAN_NRNT_RATE_RANGE_STOP_QUARTER     (CYAN_NRNT_MASTER_CLOCK_RATE/4.0)
+// Step is wrong, rate will often have a decimal value
 #define CYAN_NRNT_RATE_RANGE_STEP	1.0
 
+/*TODO: fix the below comment and associated constants, the thing mentione dbelow only applies to Crimson not Cyan*/
 // All ADCs and DACs take complex sample at 325MSPS,
 // and so all share a static front end bandwidth of 325MHz
 // However, for user throughput, DACs A/B have a max user complex samplerate of
 // 162.5MSPS, and DACs C/D have 81.25MSPS due to backhaul bandwidth limitations
 // and FPGA transciever clocking limitaions.
-#define CYAN_NRNT_ADC_BW                  (CYAN_NRNT_MASTER_CLOCK_RATE/2.0)
-#define CYAN_NRNT_ADC_FREQ_RANGE_ROLLOFF      (0.8*CYAN_NRNT_ADC_BW)
 #define CYAN_NRNT_BW_FULL                 (CYAN_NRNT_RATE_RANGE_STOP_FULL/2.0)
-#define CYAN_NRNT_BW_QUARTER              CYAN_NRNT_RATE_RANGE_STOP_QUARTER
-#define CYAN_NRNT_BW_RANGE_STEP	1.0
-#define CYAN_NRNT_ADC_FREQ_RANGE_STEP	        1.0
-
-// There's a lower limit on the DC component we can pass. This is just an approximation.
-#define CYAN_NRNT_DC_LOWERLIMIT	3000000
-#define CYAN_NRNT_FM_LOWERLIMIT	86900000
-#define CYAN_NRNT_FM_UPPERLIMIT	107900000
 
 // Cyan NrNt DSP Freq Settings
 // NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
 #define CYAN_NRNT_DSP_BW_START    0
 #define CYAN_NRNT_DSP_BW_STOP_FULL            CYAN_NRNT_BW_FULL
-#define CYAN_NRNT_DSP_BW_STOP_QUARTER         CYAN_NRNT_BW_QUARTER
 #define CYAN_NRNT_DSP_BW_STEPSIZE     1.0
 #define CYAN_NRNT_DSP_FREQ_RANGE_START_FULL	(-CYAN_NRNT_RATE_RANGE_STOP_FULL/2.0)
 #define CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL	(CYAN_NRNT_RATE_RANGE_STOP_FULL/2.0)
-#define CYAN_NRNT_DSP_FREQ_RANGE_START_QUARTER	(-CYAN_NRNT_RATE_RANGE_STOP_QUARTER/2.0)
-#define CYAN_NRNT_DSP_FREQ_RANGE_STOP_QUARTER	(CYAN_NRNT_RATE_RANGE_STOP_QUARTER/2.0)
+// The step is wrong, the nco will often end ep with decimal results
 #define CYAN_NRNT_DSP_FREQ_RANGE_STEP	1.0
 
 //Cyan NrNt LO Tuning Range Step Size
@@ -155,14 +114,9 @@
 #define CYAN_NRNT_LO_DIFF_RANGE       {200000000, 500000000, 1000000001}
 #define CYAN_NRNT_MIN_LO CYAN_NRNT_LO_STEPSIZE
 #define CYAN_NRNT_MAX_LO CYAN_NRNT_FREQ_RANGE_STOP
-#define CYAN_NRNT_LO_GUARDBAND	5000000 //probably no longer needed
-#define CYAN_NRNT_LO_OFFSET           25000000 //probably no longer neded
+#define CYAN_NRNT_LO_OFFSET           25000000 // Probably either wrong or obsolete
 
 //Cyan NrNt VITA settings
-#define CYAN_NRNT_VITA_HDR_TYPE	0x1
-
-#define CYAN_NRNT_VITA_HDR
-#define CYAN_NRNT_VITA_STREAM
 
 #define CYAN_NRNT_VITA_TLR_EN	0xe00
 #define CYAN_NRNT_VITA_TLR_IND	0x0
