@@ -1216,7 +1216,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
-		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CYAN_NRNT_LO_OFFSET );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) CYAN_NRNT_FREQ_RANGE_STOP, (double) CYAN_NRNT_FREQ_RANGE_STEP));
@@ -1366,8 +1365,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
-
-        TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CYAN_NRNT_LO_OFFSET );
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) CYAN_NRNT_FREQ_RANGE_STOP, (double) CYAN_NRNT_FREQ_RANGE_STEP));
@@ -1828,9 +1825,7 @@ double cyan_nrnt_impl::get_tx_freq(size_t chan) {
 
         //gets FPGA nco
         double cur_nco = _tree->access<double>(tx_dsp_root(chan) / "freq" / "value").get();
-        //gets DAC nco
-        cur_nco = _tree->access<double>(tx_dsp_root(chan) / "freq" / "value").get();
-        //The system does not currently use then channelizer nco, but if a future version begins using this it will need to be added
+        //The system does not currently use then channelizer nco are DAC, but if a future version begins using this it will need to be added
         double cur_lo_freq = 0;
         if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() != LOW_BAND) {
                 cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();

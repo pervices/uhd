@@ -37,6 +37,7 @@
 
 #define CYAN_NRNT_FW_COMMS_UDP_PORT	42799
 
+// TODO: get this info from device
 #define CYAN_NRNT_RX_CHANNELS 9
 #define CYAN_NRNT_TX_CHANNELS 7
 
@@ -52,6 +53,7 @@
 #define CYAN_NRNT_UPDATE_PER_SEC	100
 
 // Cyan NrNt Buffer Size
+// TODO: get this info from device
 #define CYAN_NRNT_BUFF_SIZE	(2048*140*512/32)
 //how full the system shoudl try to keep the buffer
 #define CYAN_NRNT_BUFF_PERCENT 0.7
@@ -59,17 +61,20 @@
 #define CYAN_NRNT_BUFF_SCALE (8 * 16)
 
 // Cyan NrNt tx RF gain limits, this is definitely wrong
+// TODO: get this info from device
 #define CYAN_NRNT_RF_TX_GAIN_RANGE_START	0.0
 #define CYAN_NRNT_RF_TX_GAIN_RANGE_STOP	31.75
 #define CYAN_NRNT_RF_TX_GAIN_RANGE_STEP	0.25
 
 // Cyan NrNt rx RF gain limits, this is definitely wrong
+//TODO:get this info from device
 #define CYAN_NRNT_RF_RX_GAIN_RANGE_START -6
 #define CYAN_NRNT_RF_RX_GAIN_RANGE_STOP	 33
 #define CYAN_NRNT_RF_RX_GAIN_RANGE_STEP	 1
 
 // Cyan NrNt Clk Settings
 // max number of samples per second
+//TODO get this info fromthe device
 #define CYAN_NRNT_MASTER_CLOCK_RATE	1000000000
 #define CYAN_NRNT_DSP_CLOCK_RATE (CYAN_NRNT_MASTER_CLOCK_RATE/4)
 // number of clock cycles per second
@@ -114,7 +119,6 @@
 #define CYAN_NRNT_LO_DIFF_RANGE       {200000000, 500000000, 1000000001}
 #define CYAN_NRNT_MIN_LO CYAN_NRNT_LO_STEPSIZE
 #define CYAN_NRNT_MAX_LO CYAN_NRNT_FREQ_RANGE_STOP
-#define CYAN_NRNT_LO_OFFSET           25000000 // Probably either wrong or obsolete
 
 //Cyan NrNt VITA settings
 
@@ -135,9 +139,11 @@
 #define CYAN_NRNT_DEBUG_NAME_S "Cyan NrNt"
 #define CYAN_NRNT_DEBUG_NAME_C "CYAN_NRNT"
 
+// TODO: generate this dynamically from the number of channels
 #define CYAN_NRNT_SUBDEV_SPEC_RX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G H:Channel_H I:Channel_I"
 #define CYAN_NRNT_SUBDEV_SPEC_TX "A:Channel_A B:Channel_B C:Channel_C D:Channel_D E:Channel_E F:Channel_F G:Channel_G"
 
+// TODO: generate this dynamically from the number of channels
 #define CYAN_NRNT_DEFAULT_RX_MAP {0, 1, 2, 3, 4, 5, 6, 7, 8}
 
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
