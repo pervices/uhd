@@ -44,6 +44,7 @@ public:
         CYAN_9R7T,
         CYAN_4R4T_3G,
         CYAN_8R,
+        CYAN_NRNT,
         CYAN_16T,
         CYAN_P1HDR16T,
         CYAN_P1HDR32T,
