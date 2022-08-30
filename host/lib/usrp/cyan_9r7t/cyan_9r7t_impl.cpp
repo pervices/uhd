@@ -1850,6 +1850,7 @@ void cyan_9r7t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
 }
 
 double cyan_9r7t_impl::get_tx_gain(const std::string &name, size_t chan) {
+    (void) name;
 
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
@@ -1879,6 +1880,7 @@ void cyan_9r7t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
 }
 
 double cyan_9r7t_impl::get_rx_gain(const std::string &name, size_t chan) {
+    (void) name;
     
     return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 }

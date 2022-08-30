@@ -1829,6 +1829,7 @@ void cyan_4r4t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
 }
 
 double cyan_4r4t_impl::get_tx_gain(const std::string &name, size_t chan) {
+    (void) name;
 
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
@@ -1878,6 +1879,7 @@ void cyan_4r4t_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
 }
 
 double cyan_4r4t_impl::get_rx_gain(const std::string &name, size_t chan) {
+    (void) name;
     
     return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 }

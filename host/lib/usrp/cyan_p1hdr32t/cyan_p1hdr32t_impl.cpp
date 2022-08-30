@@ -1581,12 +1581,15 @@ void cyan_p1hdr32t_impl::set_tx_gain(double gain, const std::string &name, size_
 }
 
 double cyan_p1hdr32t_impl::get_tx_gain(const std::string &name, size_t chan) {
+    (void) name;
+    (void) chan;
     //TODO: implement get_tx_gain
     //due to an old bug get_tx_gain would always return 0, this keeps that behaviour
     return 0;
 }
 
 double cyan_p1hdr32t_impl::get_rx_gain(const std::string &name, size_t chan) {
+    (void) name;
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
 	};

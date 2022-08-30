@@ -1863,6 +1863,7 @@ void cyan_4r4t_3g_impl::set_tx_gain(double gain, const std::string &name, size_t
 }
 
 double cyan_4r4t_3g_impl::get_tx_gain(const std::string &name, size_t chan) {
+    (void) name;
 
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
@@ -1892,6 +1893,8 @@ void cyan_4r4t_3g_impl::set_rx_gain(double gain, const std::string &name, size_t
 }
 
 double cyan_4r4t_3g_impl::get_rx_gain(const std::string &name, size_t chan) {
+    (void) name;
+    
     auto mb_root = [&](size_t mboard) -> std::string {
 		return "/mboards/" + std::to_string(mboard);
 	};
