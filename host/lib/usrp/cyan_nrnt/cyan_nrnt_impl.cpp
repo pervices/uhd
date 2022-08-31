@@ -988,40 +988,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
             device_addr["recv_buff_size"] = "50e6";
         #endif
     }
-    if (not device_addr.has_key("send_buff_size")){
-        //The buffer should be the size of the SRAM on the device,
-        //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (CYAN_NRNT_BUFF_SIZE * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CYAN_NRNT_MAX_MTU-CYAN_NRNT_UDP_OVERHEAD))) );
-    }
-
-    device_addrs_t device_args = separate_device_addr(device_addr);
-
-    // XXX: @CF: 20180227: we need the property tree to extract actual values from hardware
-    //extract the user's requested MTU size or default
-//    mtu_result_t user_mtu;
-//    user_mtu.recv_mtu = size_t(device_addr.cast<double>("recv_frame_size", udp_simple::mtu));
-//    user_mtu.send_mtu = size_t(device_addr.cast<double>("send_frame_size", udp_simple::mtu));
-//
-//    try{
-//        //calculate the minimum send and recv mtu of all devices
-//        mtu_result_t mtu = determine_mtu(device_args[0]["addr"], user_mtu);
-//        for (size_t i = 1; i < device_args.size(); i++){
-//            mtu_result_t mtu_i = determine_mtu(device_args[i]["addr"], user_mtu);
-//            mtu.recv_mtu = std::min(mtu.recv_mtu, mtu_i.recv_mtu);
-//            mtu.send_mtu = std::min(mtu.send_mtu, mtu_i.send_mtu);
-//        }
-//
-//        device_addr["recv_frame_size"] = boost::lexical_cast<std::string>(mtu.recv_mtu);
-//        device_addr["send_frame_size"] = boost::lexical_cast<std::string>(mtu.send_mtu);
-//
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
-//    }
-//    catch(const uhd::not_implemented_error &){
-//        //just ignore this error, makes older fw work...
-//    }
-
-    device_args = separate_device_addr(device_addr); //update args for new frame sizes
 
     static const size_t mbi = 0;
     static const std::string mb = std::to_string( mbi );
@@ -1037,12 +1003,23 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
 
-    std::string lc_num;
-
     // Create the file tree of properties.
     // Cyan NrNt only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
+
+    // The buffer size in number of samples
+    TREE_CREATE_RW(mb_path / "system/get_max_buffer_level", "system/get_max_buffer_level", int, int);
+    max_buffer_level = (int) (_tree->access<int>(mb_path / "system/get_max_buffer_level").get());
+    // The number to multiply get buffer level requests by to get the actual buffer level in number of samples
+    TREE_CREATE_RW(mb_path / "system/get_buffer_level_multiple", "system/get_buffer_level_multiple", int, int);
+    buffer_level_multiple = (int) (_tree->access<int>(mb_path / "system/get_buffer_level_multiple").get());
+
+    if (not device_addr.has_key("send_buff_size")){
+        //The buffer should be the size of the SRAM on the device,
+        //because we will never commit more than the SRAM can hold.
+        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (max_buffer_level * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CYAN_NRNT_MAX_MTU-CYAN_NRNT_UDP_OVERHEAD))) );
+    }
 
     TREE_CREATE_RO(mb_path / "system/num_rx", "system/num_rx", int, int);
     TREE_CREATE_RO(mb_path / "system/num_tx", "system/num_tx", int, int);
@@ -1448,7 +1425,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 
 		zcxp.send_frame_size = bpp;
 		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CYAN_NRNT_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
+		zcxp.num_send_frames = max_buffer_level * sizeof( std::complex<int16_t> ) / bpp;
 		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;
@@ -1883,7 +1860,7 @@ double cyan_nrnt_impl::get_tx_gain(const std::string &name, size_t chan) {
 }
 
 int64_t cyan_nrnt_impl::get_tx_buff_scale() {
-    return CYAN_NRNT_BUFF_SCALE;
+    return buffer_level_multiple;
 }
 
 void cyan_nrnt_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {

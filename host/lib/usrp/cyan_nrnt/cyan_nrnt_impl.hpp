@@ -126,6 +126,11 @@ public:
     static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
 private:
+    // The buffer size in number of samples
+    int64_t max_buffer_level;
+    // The number to multiply get buffer level requests by to get the actual buffer level in number of samples
+    int64_t buffer_level_multiple;
+
     // helper functions to wrap send and recv as get and set
     std::string get_string(std::string req);
     void set_string(const std::string pre, std::string data);

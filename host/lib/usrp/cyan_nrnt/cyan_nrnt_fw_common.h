@@ -48,13 +48,8 @@
 // Cyan NrNt Flowcontrol Update Per Second
 #define CYAN_NRNT_UPDATE_PER_SEC	100
 
-// Cyan NrNt Buffer Size
-// TODO: get this info from device
-#define CYAN_NRNT_BUFF_SIZE	(2048*140*512/32)
-//how full the system shoudl try to keep the buffer
+//how full UHD should try to keep the buffer
 #define CYAN_NRNT_BUFF_PERCENT 0.7
-// conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
-#define CYAN_NRNT_BUFF_SCALE (8 * 16)
 
 // Cyan NrNt tx RF gain limits, this is definitely wrong
 // TODO: get this info from device

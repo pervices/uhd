@@ -178,16 +178,19 @@ public:
 
     bool use_blocking_fc = false;
     uint64_t blocking_setpoint;
+    // Maximum buffer level in nsamps. Named this way to avoid confusion with the same variable belonging to different stuff
+    int64_t stream_max_bl;
 
-	cyan_nrnt_send_packet_streamer( const size_t max_num_samps )
+	cyan_nrnt_send_packet_streamer( const size_t max_num_samps, const size_t max_bl )
 	:
-		sph::send_packet_streamer( max_num_samps, CYAN_NRNT_BUFF_SIZE ),
+		sph::send_packet_streamer( max_num_samps, max_bl ),
+		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
 		_streaming( false ),
-		_stop_streaming( false ) // icelandic (viking) for bye
+		_stop_streaming( false )
 
 	{
 	}
@@ -326,8 +329,8 @@ public:
 
     void enable_blocking_fc(uint64_t blocking_setpoint) {
         use_blocking_fc = true;
-        if(blocking_setpoint > 0.9 * CYAN_NRNT_BUFF_SIZE) {
-            blocking_setpoint = (uint64_t) (0.9 * CYAN_NRNT_BUFF_SIZE);
+        if(blocking_setpoint > 0.9 * stream_max_bl) {
+            blocking_setpoint = (uint64_t) (0.9 * stream_max_bl);
         };
         this->blocking_setpoint = blocking_setpoint;
     }
@@ -397,7 +400,7 @@ public:
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
             // the nominal sample rate (first argument of make) is set later)
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_NRNT_BUFF_PERCENT, CYAN_NRNT_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_NRNT_BUFF_PERCENT, stream_max_bl );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -1040,7 +1043,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
  * Transmit streamer
  **********************************************************************/
 
-static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 1.0 / CYAN_NRNT_TICK_RATE;
 
@@ -1104,7 +1107,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simp
     //fifo level provided by FPGA
 	lvl = rsp.header & 0xffff;
 
-    lvl = lvl * CYAN_NRNT_BUFF_SCALE;
+    lvl = lvl * bl_multiple;
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
@@ -1146,10 +1149,10 @@ static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simp
 #endif
 }
 
-static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp( const size_t channel, const int64_t max_bl, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
     uint64_t lvl = 0;
-    get_fifo_lvl_udp_abs( channel, xport, lvl, uflow, oflow, now);
-    pcnt = (double) lvl / CYAN_NRNT_BUFF_SIZE;
+    get_fifo_lvl_udp_abs( channel, bl_multiple, xport, lvl, uflow, oflow, now);
+    pcnt = (double) lvl / max_bl;
 }
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
@@ -1181,7 +1184,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     for( auto & i: args.channels ) {
         xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( spp );
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( spp, max_buffer_level );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -1233,11 +1236,11 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 ));
 
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, std::bind(
-                    &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
+                    &get_fifo_lvl_udp, chan, max_buffer_level, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
 
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                    &get_fifo_lvl_udp_abs, chan, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
+                    &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
 
                 my_streamer->set_async_receiver(std::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_nrnt_io_impl->async_msg_fifo), ph::_1, ph::_2));
