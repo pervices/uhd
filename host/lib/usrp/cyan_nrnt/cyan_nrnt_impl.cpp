@@ -1008,12 +1008,13 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
+    // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
-    TREE_CREATE_RW(mb_path / "system/get_max_buffer_level", "system/get_max_buffer_level", int, int);
-    max_buffer_level = (int) (_tree->access<int>(mb_path / "system/get_max_buffer_level").get());
+    TREE_CREATE_RW(mb_path / "system/get_max_buffer_level", "system/get_max_buffer_level", double, double);
+    max_buffer_level = (int64_t) (_tree->access<double>(mb_path / "system/get_max_buffer_level").get());
     // The number to multiply get buffer level requests by to get the actual buffer level in number of samples
-    TREE_CREATE_RW(mb_path / "system/get_buffer_level_multiple", "system/get_buffer_level_multiple", int, int);
-    buffer_level_multiple = (int) (_tree->access<int>(mb_path / "system/get_buffer_level_multiple").get());
+    TREE_CREATE_RW(mb_path / "system/get_buffer_level_multiple", "system/get_buffer_level_multiple", double, double);
+    buffer_level_multiple = (int64_t) (_tree->access<double>(mb_path / "system/get_buffer_level_multiple").get());
 
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
@@ -1027,6 +1028,17 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     is_num_rx_channels_set = true;
     num_tx_channels = (size_t) (_tree->access<int>(mb_path / "system/num_tx").get());
     is_num_tx_channels_set = true;
+
+    TREE_CREATE_RO(mb_path / "system/max_rate", "system/max_rate", double, double);
+    max_sample_rate = (_tree->access<double>(mb_path / "system/max_rate").get());
+
+    TREE_CREATE_RO(mb_path / "system/otw_rx", "system/otw_rx", int, int);
+    otw_rx = (_tree->access<int>(mb_path / "system/otw_rx").get());
+    otw_rx_s = "sc" + std::to_string(otw_rx);
+
+    TREE_CREATE_RO(mb_path / "system/otw_tx", "system/otw_tx", int, int);
+    otw_tx = (_tree->access<int>(mb_path / "system/otw_tx").get());
+    otw_tx_s = "sc" + std::to_string(otw_tx);
 
     //Initializes the vectors contain caches of constant data
     is_tx_sfp_cached.resize(num_tx_channels, false);

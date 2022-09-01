@@ -88,10 +88,11 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const size_t max_num_samps)
+	cyan_nrnt_recv_packet_streamer(const size_t max_num_samps, const int otw_format)
 	: sph::recv_packet_streamer( max_num_samps )
 	{
         _max_num_samps = max_num_samps;
+        _otw_format = otw_format;
     }
 
 	virtual ~cyan_nrnt_recv_packet_streamer() {
@@ -118,7 +119,12 @@ public:
 
     void issue_stream_cmd(const stream_cmd_t &stream_cmd)
     {
-        return recv_packet_handler::issue_stream_cmd(stream_cmd);
+        stream_cmd_t modified_cmd = stream_cmd_t(stream_cmd);
+        // The part of the FPGA that tracks how many samples are sent is hard coded to assume sc16
+        // Therefore, we need to actually request a number of samples with the same amount of data if it were sc16 as what we actually want
+        // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
+        modified_cmd.num_samps = stream_cmd.num_samps * _otw_format / 16;
+        return recv_packet_handler::issue_stream_cmd(modified_cmd);
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
@@ -141,6 +147,7 @@ public:
 
 private:
     size_t _max_num_samps;
+    int _otw_format;
 
     struct eprops_type{
         onfini_type on_fini;
@@ -274,9 +281,6 @@ public:
                 std::cout << "UHD::" CYAN_NRNT_DEBUG_NAME_C "::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
                 #endif
             }
-            #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::" CYAN_NRNT_DEBUG_NAME_C "::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_NRNT_DSP_CLOCK_RATE ) << std::endl;
-            #endif
 
             for( auto & ep: _eprops ) {
                 ep.flow_control->set_start_of_burst_time( metadata.time_spec );
@@ -871,10 +875,10 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
+    args.otw_format = args.otw_format.empty()? otw_rx_s : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16"){
+    if (args.otw_format != otw_rx_s){
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
 
@@ -890,7 +894,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     const size_t spp = args.args.cast<size_t>("spp", bpp/bpi);
 
     //make the new streamer given the samples per packet
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(spp);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(spp, otw_rx);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -904,11 +908,10 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     id.num_outputs = 1;
     my_streamer->set_converter(id);
 
-    if ( false ) {
-    } else if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 / (double)((1<<15)-1) );
+    if ( "fc32" == args.cpu_format ) {
+        my_streamer->set_scale_factor( 1.0 / (double)((1<<(otw_rx))-1) );
     } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 );
+        my_streamer->set_scale_factor( 16.0 / otw_rx );
     }
 
     // XXX: @CF: 20180424: Also nasty.. if crimson did not shut down properly last time
@@ -1159,10 +1162,10 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
+    args.otw_format = args.otw_format.empty()? otw_tx_s : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16"){
+    if (args.otw_format != otw_tx_s){
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
 
@@ -1203,9 +1206,9 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     if ( false ) {
     } else if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( (double)((1<<15)-1) );
+        my_streamer->set_scale_factor( (double)((1<<(otw_rx))-1) );
     } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 );
+        my_streamer->set_scale_factor( otw_tx / 16 );
     }
 
     //bind callbacks for the handler

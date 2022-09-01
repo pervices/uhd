@@ -63,7 +63,6 @@
 // max number of samples per second
 //TODO get this info fromthe device
 #define CYAN_NRNT_MASTER_CLOCK_RATE	1000000000
-#define CYAN_NRNT_DSP_CLOCK_RATE (CYAN_NRNT_MASTER_CLOCK_RATE/4)
 // number of clock cycles per second
 #define CYAN_NRNT_TICK_RATE 250000000
 #define CYAN_NRNT_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
@@ -74,11 +73,10 @@
 #define CYAN_NRNT_FREQ_RANGE_STEP	1.0
 
 // Cyan NrNt Sample Rate Settings
-#define CYAN_NRNT_RATE_RANGE_START	(CYAN_NRNT_MASTER_CLOCK_RATE/65536)
-#define CYAN_NRNT_RATE_RANGE_STOP_FULL	CYAN_NRNT_MASTER_CLOCK_RATE
-#define CYAN_NRNT_RATE_RANGE_STOP_QUARTER     (CYAN_NRNT_MASTER_CLOCK_RATE/4.0)
-// Step is wrong, rate will often have a decimal value
-#define CYAN_NRNT_RATE_RANGE_STEP	1.0
+#define CYAN_NRNT_RATE_RANGE_START	(max_sample_rate/65536)
+#define CYAN_NRNT_RATE_RANGE_STOP_FULL	max_sample_rate
+#define CYAN_NRNT_RATE_RANGE_STOP_QUARTER     (max_sample_rate/4.0)
+#define CYAN_NRNT_RATE_RANGE_STEP	(max_sample_rate/65536 - (max_sample_rate/65536))
 
 /*TODO: fix the below comment and associated constants, the thing mentione dbelow only applies to Crimson not Cyan*/
 // All ADCs and DACs take complex sample at 325MSPS,

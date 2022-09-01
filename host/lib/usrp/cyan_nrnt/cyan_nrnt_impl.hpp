@@ -131,6 +131,15 @@ private:
     // The number to multiply get buffer level requests by to get the actual buffer level in number of samples
     int64_t buffer_level_multiple;
 
+    // The maximum smaple rate of the unit
+    double max_sample_rate;
+
+    // Over the wire format, int bits per half of the iq pair. i.e. 16 = sc16
+    int otw_rx;
+    std::string otw_rx_s;
+    int otw_tx;
+    std::string otw_tx_s;
+
     // helper functions to wrap send and recv as get and set
     std::string get_string(std::string req);
     void set_string(const std::string pre, std::string data);
