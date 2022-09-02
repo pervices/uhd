@@ -215,6 +215,9 @@ public:
         return _max_num_samps;
     }
 
+    // The start time of the next batch of samples in ticks
+    uhd::time_spec_t next_send_time;
+
     size_t send(
         const tx_streamer::buffs_type &buffs,
         const size_t nsamps_per_buff_,
@@ -235,58 +238,27 @@ public:
 
         uhd::tx_metadata_t metadata = metadata_;
 
-        uhd::time_spec_t sob_time;
         uhd::time_spec_t now = get_time_now(0);
 
-        if ( ! metadata.start_of_burst ) {
-            //std::cout << "metadata.time_spec: " << metadata.time_spec << " crimson_now: " << now << std::endl << std::flush;
-            metadata.has_time_spec = false;
-            metadata.time_spec = 0.0;
-        }
         if ( _first_call_to_send ) {
             if ( ! metadata.start_of_burst ) {
                 #ifdef UHD_TXRX_DEBUG_PRINTS
                 std::cout << "Warning: first call to send but no start of burst!" << std::endl;
                 #endif
                 metadata.start_of_burst = true;
-
-				//for( auto & ep: _eprops ) {
-				//	ep._remaining_num_samps = 0;
-				//}
+                metadata.time_spec = now + default_sob;
             }
-        }
-        if ( _first_call_to_send ) {
+        } else {
             if ( ! metadata.has_time_spec ) {
-                #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "Warning: first call to send but no time spec supplied" << std::endl;
-                #endif
                 metadata.has_time_spec = true;
-                metadata.time_spec = now + default_sob;
+                metadata.time_spec = next_send_time;
             }
         }
-        if ( metadata.start_of_burst ) {
-            if ( metadata.time_spec < now + default_sob ) {
-                metadata.time_spec = now + default_sob;
-                #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Warning: time_spec was too soon for start of burst and has been adjusted!" << std::endl;
-                #endif
-            }
-            #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::" CYAN_4R4T_DEBUG_NAME_C "::Info: " << get_time_now() << ": sob @ " << metadata.time_spec << " | " << metadata.time_spec.to_ticks( CYAN_4R4T_DSP_CLOCK_RATE ) << std::endl;
-            #endif
 
+        if ( metadata.start_of_burst ) {
             for( auto & ep: _eprops ) {
                 ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
-            sob_time = metadata.time_spec;
-        }
-        if ( _first_call_to_send ) {
-            #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "first call to send: nsamps_per_buff: " << nsamps_per_buff << std::endl;
-            #endif
-           // for( auto & ep: _eprops ) {
-            //	ep._remaining_num_samps = nsamps_per_buff;
-           // }
         }
 
         _first_call_to_send = false;
@@ -297,12 +269,7 @@ public:
 
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
-        //for( auto & ep: _eprops ) {
-
-           // ep.buffer_mutex.lock();
-			//if (ep._remaining_num_samps <=0) ep._remaining_num_samps = nsamps_per_buff;
-		   // ep.buffer_mutex.unlock();
-      //  }
+        now = get_time_now(0);
 
         start_packet_streamer_thread();
 
@@ -318,6 +285,8 @@ public:
 
             stop_streaming();
         } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
+
+        next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
 
         return r;
     }

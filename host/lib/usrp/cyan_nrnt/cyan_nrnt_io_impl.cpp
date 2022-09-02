@@ -279,13 +279,6 @@ public:
 
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
-        //for( auto & ep: _eprops ) {
-
-           // ep.buffer_mutex.lock();
-			//if (ep._remaining_num_samps <=0) ep._remaining_num_samps = nsamps_per_buff;
-		   // ep.buffer_mutex.unlock();
-      //  }
-
         now = get_time_now();
 
         start_packet_streamer_thread();
