@@ -82,8 +82,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, type, ant, subdev, ref, wirefmt, channel_list;
-    size_t spb;
+    std::string args, ant, subdev, ref, wirefmt, channel_list;
     double rate, gain, bw, setup_time, lo_freq, dsp_freq;
 
     //setup the program options
@@ -91,8 +90,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     desc.add_options()
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
-        ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
-        ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<double>(&rate)->default_value(1e6), "rate of incoming samples")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
