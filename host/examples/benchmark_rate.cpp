@@ -92,11 +92,16 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     std::cout << boost::format("[%s] Testing receive rate %f Msps on %u channels\n")
                      % time_stamp % rx_rate % num_channels;
 
+    size_t max_samps_per_recv;
+    if (target_nsamps == 0 || target_nsamps > rx_stream->get_max_num_samps()) {
+        max_samps_per_recv = rx_stream->get_max_num_samps();
+    } else {
+        max_samps_per_recv = target_nsamps;
+    }
     // setup variables and allocate buffer
     uhd::rx_metadata_t md;
-    const size_t max_samps_per_packet = rx_stream->get_max_num_samps();
     std::vector<char> buff(
-        max_samps_per_packet * uhd::convert::get_bytes_per_item(rx_cpu));
+        max_samps_per_recv * uhd::convert::get_bytes_per_item(rx_cpu));
     std::vector<void*> buffs;
     for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++)
         buffs.push_back(&buff.front()); // same buffer for each channel
@@ -114,7 +119,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     rx_stream->issue_stream_cmd(cmd);
 
     const float burst_pkt_time =
-        std::max<float>(0.100f, (2 * max_samps_per_packet / rate));
+        std::max<float>(0.100f, (2 * max_samps_per_recv / rate));
     float recv_timeout = burst_pkt_time + rx_delay;
 
     bool stop_called = false;
@@ -125,11 +130,11 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             stop_called = true;
         }
         if (random_nsamps) {
-            cmd.num_samps = rand() % max_samps_per_packet;
+            cmd.num_samps = rand() % max_samps_per_recv;
             rx_stream->issue_stream_cmd(cmd);
         }
         try {
-            num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout)
+            num_rx_samps += rx_stream->recv(buffs, buff.size(), md, recv_timeout)
                             * rx_stream->get_num_channels();
             recv_timeout = burst_pkt_time;
         } catch (uhd::io_error& e) {
