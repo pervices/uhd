@@ -87,10 +87,11 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     // print pre-test summary
     auto time_stamp   = NOW();
-    auto rx_rate      = usrp->get_rx_rate() / 1e6;
+    auto rx_rate      = usrp->get_rx_rate();
+    auto rx_rate_msps = rx_rate / 1e6;
     auto num_channels = rx_stream->get_num_channels();
     std::cout << boost::format("[%s] Testing receive rate %f Msps on %u channels\n")
-                     % time_stamp % rx_rate % num_channels;
+                     % time_stamp % rx_rate_msps % num_channels;
 
     size_t max_samps_per_recv;
     if (target_nsamps == 0 || target_nsamps > rx_stream->get_max_num_samps()) {
@@ -107,7 +108,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         buffs.push_back(&buff.front()); // same buffer for each channel
     bool had_an_overflow = false;
     uhd::time_spec_t last_time;
-    const double rate = usrp->get_rx_rate();
 
     uhd::stream_cmd_t cmd((target_nsamps == 0)?
         uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
@@ -116,10 +116,11 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     cmd.num_samps = target_nsamps;
     cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(rx_delay);
     cmd.stream_now = (0);
+    // Send the stream cmd before some part ofht etx chain results in it failing
     rx_stream->issue_stream_cmd(cmd);
 
     const float burst_pkt_time =
-        std::max<float>(0.100f, (2 * max_samps_per_recv / rate));
+        std::max<float>(0.100f, (2 * max_samps_per_recv / rx_rate));
     float recv_timeout = burst_pkt_time + rx_delay;
 
     bool stop_called = false;
@@ -148,7 +149,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             case uhd::rx_metadata_t::ERROR_CODE_NONE:
                 if (had_an_overflow) {
                     had_an_overflow          = false;
-                    const long dropped_samps = (md.time_spec - last_time).to_ticks(rate);
+                    const long dropped_samps = (md.time_spec - last_time).to_ticks(rx_rate);
                     if (dropped_samps < 0) {
                         std::cerr << "[" << NOW()
                                   << "] Timestamp after overrun recovery "
@@ -563,10 +564,20 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_time_now(0.0);
     }
 
-    // spawn the receive test thread
+    bool use_rx = vm.count("rx_rate");
+    bool use_tx = vm.count("tx_rate");
 
-    if (vm.count("rx_rate")) {
+    // Must set rates before issuing stream commands. Setting rates has the side effect of turning on the relevant channels
+    // Turning on the relevant channels resets JESD. Any commands issued before a JESD reset will be lost
+    if(use_rx) {
         usrp->set_rx_rate(rx_rate);
+    }
+    if(use_tx) {
+        usrp->set_tx_rate(tx_rate);
+    }
+
+    // spawn the receive test thread
+    if (vm.count("rx_rate")) {
         if (vm.count("rx_spp")) {
             std::cout << boost::format("Setting RX spp to %u\n") % rx_spp;
             usrp->set_rx_spp(rx_spp);
@@ -592,9 +603,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         uhd::set_thread_name(rx_thread, "bmark_rx_stream");
     }
 
-    // spawn the transmit test thread
+    // Spawn the transmit test thread
     if (vm.count("tx_rate")) {
-        usrp->set_tx_rate(tx_rate);
         // create a transmit streamer
         uhd::stream_args_t stream_args(tx_cpu, tx_otw);
         stream_args.channels             = tx_channel_nums;
