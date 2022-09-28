@@ -131,6 +131,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         try {
             num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout)
                             * rx_stream->get_num_channels();
+            std::cout << "num_rx_samps: " << num_rx_samps << std::endl;
             recv_timeout = burst_pkt_time;
         } catch (uhd::io_error& e) {
             std::cerr << "[" << NOW() << "] Caught an IO exception. " << std::endl;
