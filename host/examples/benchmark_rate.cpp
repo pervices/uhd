@@ -135,8 +135,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             rx_stream->issue_stream_cmd(cmd);
         }
         try {
-            num_rx_samps += rx_stream->recv(buffs, buff.size(), md, recv_timeout)
-                            * rx_stream->get_num_channels();
+            num_rx_samps += rx_stream->recv(buffs, buff.size(), md, recv_timeout);
             recv_timeout = burst_pkt_time;
         } catch (uhd::io_error& e) {
             std::cerr << "[" << NOW() << "] Caught an IO exception. " << std::endl;
@@ -597,7 +596,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 burst_timer_elapsed,
                 elevate_priority,
                 rx_delay,
-                nsamps*rx_channel_nums.size()
+                nsamps
             );
         });
         uhd::set_thread_name(rx_thread, "bmark_rx_stream");
@@ -620,7 +619,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 elevate_priority,
                 tx_delay,
                 random_nsamps,
-                nsamps*tx_channel_nums.size()
+                nsamps
             );
         });
         uhd::set_thread_name(tx_thread, "bmark_tx_stream");
