@@ -47,7 +47,8 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     bool stats                  = false,
     bool null                   = false,
     bool enable_size_map        = false,
-    bool continue_on_bad_packet = false)
+    bool continue_on_bad_packet = false,
+    double start_delay = 0)
 {
     unsigned long long num_total_samps = 0;
     // create a receive streamer
@@ -70,8 +71,14 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
                                      : uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
 
     stream_cmd.num_samps  = size_t(num_requested_samples);
-    stream_cmd.stream_now = true;
-    stream_cmd.time_spec  = uhd::time_spec_t();
+    if(start_delay == 0) {
+        stream_cmd.stream_now = true;
+        stream_cmd.time_spec  = uhd::time_spec_t(start_delay);
+    } else {
+        stream_cmd.stream_now = false;
+        usrp->set_time_now(0.0);
+        stream_cmd.time_spec  = uhd::time_spec_t(start_delay);
+    }
 #ifdef SAMPES_TO_FILE_DEBUG
     std::cout << "Press enter to issue start stream cmd" << std::endl;
     std::string tmp42;
@@ -99,7 +106,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         const auto now = std::chrono::steady_clock::now();
 
         size_t num_rx_samps =
-            rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
+            rx_stream->recv(&buff.front(), buff.size(), md, start_delay + 3, enable_size_map);
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
             // recv exited due to EINTR (interrupt received while waiting for data, usually the result of ctrl c)
@@ -249,7 +256,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // variables to be set by po
     std::string args, file, type, ant, subdev, ref, wirefmt;
     size_t channel, total_num_samps, spb;
-    double rate, freq, gain, bw, total_time, setup_time, lo_offset;
+    double rate, freq, gain, bw, total_time, setup_time, lo_offset, start_delay;
 
     // setup the program options
     po::options_description desc("Allowed options");
@@ -273,7 +280,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "reference source (internal, external, mimo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8, sc16 or s16)")
-        ("setup", po::value<double>(&setup_time)->default_value(1.0), "seconds of setup time")
+        ("start_delay", po::value<double>(&start_delay)->default_value(0.0), "The number of seconds to wait between issuing the stream command and starting streaming")
+        ("setup", po::value<double>(&setup_time)->default_value(1.0), "Delay to allow rx settings time ti stabilize")
         ("progress", "periodically display short-term bandwidth")
         ("stats", "show average bandwidth on exit")
         ("sizemap", "track packet size and display breakdown on exit")
@@ -465,7 +473,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         stats,                    \
         null,                     \
         enable_size_map,          \
-        continue_on_bad_packet)
+        continue_on_bad_packet,   \
+        start_delay)
     // recv to file
     if (wirefmt == "s16") {
         if (type == "double")
