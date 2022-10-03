@@ -88,11 +88,10 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const size_t max_num_samps, const int otw_format)
+	cyan_nrnt_recv_packet_streamer(const size_t max_num_samps)
 	: sph::recv_packet_streamer( max_num_samps )
 	{
         _max_num_samps = max_num_samps;
-        _otw_format = otw_format;
     }
 
 	virtual ~cyan_nrnt_recv_packet_streamer() {
@@ -119,12 +118,7 @@ public:
 
     void issue_stream_cmd(const stream_cmd_t &stream_cmd)
     {
-        stream_cmd_t modified_cmd = stream_cmd_t(stream_cmd);
-        // The part of the FPGA that tracks how many samples are sent is hard coded to assume sc16
-        // Therefore, we need to actually request a number of samples with the same amount of data if it were sc16 as what we actually want
-        // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
-        modified_cmd.num_samps = stream_cmd.num_samps * _otw_format / 16;
-        return recv_packet_handler::issue_stream_cmd(modified_cmd);
+        return recv_packet_handler::issue_stream_cmd(stream_cmd);
     }
 
     void set_on_fini( size_t chan, onfini_type on_fini ) {
@@ -147,7 +141,6 @@ public:
 
 private:
     size_t _max_num_samps;
-    int _otw_format;
 
     struct eprops_type{
         onfini_type on_fini;
@@ -864,7 +857,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     const size_t spp = args.args.cast<size_t>("spp", bpp/bpi);
 
     //make the new streamer given the samples per packet
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(spp, otw_rx);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(spp);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

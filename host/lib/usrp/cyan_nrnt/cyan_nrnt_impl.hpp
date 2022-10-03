@@ -131,6 +131,8 @@ private:
     // The number to multiply get buffer level requests by to get the actual buffer level in number of samples
     int64_t buffer_level_multiple;
 
+    int nsamps_multiple_rx;
+
     // The maximum smaple rate of the unit
     double max_sample_rate;
 
