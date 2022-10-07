@@ -488,38 +488,40 @@ public:
 
     void set_time_unknown_pps(const time_spec_t& time_spec) override
     {
-        UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
-        auto end_time =
-            std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
-        time_spec_t time_start_last_pps = get_time_last_pps();
-        while (time_start_last_pps == get_time_last_pps()) {
-            if (std::chrono::steady_clock::now() > end_time) {
-                throw uhd::runtime_error("Board 0 may not be getting a PPS signal!\n"
-                                         "No PPS detected within the time interval.\n"
-                                         "See the application notes for your device.\n");
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-
-        UHD_LOGGER_INFO("MULTI_USRP") << "    2) set times next pps (synchronously)";
-        set_time_next_pps(time_spec, ALL_MBOARDS);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        // verify that the time registers are read to be within a few RTT
-        for (size_t m = 1; m < get_num_mboards(); m++) {
-            time_spec_t time_0 = this->get_time_now(0);
-            time_spec_t time_i = this->get_time_now(m);
-            if (time_i < time_0
-                or (time_i - time_0)
-                       > time_spec_t(0.01)) { // 10 ms: greater than RTT but not too big
-                UHD_LOGGER_WARNING("MULTI_USRP")
-                    << boost::format(
-                           "Detected time deviation between board %d and board 0.\n"
-                           "Board 0 time is %f seconds.\n"
-                           "Board %d time is %f seconds.\n")
-                           % m % time_0.get_real_secs() % m % time_i.get_real_secs();
-            }
-        }
+        // TMP, set_time_unknown_pps results in rx start time not being respected
+        set_time_now(time_spec, 0);
+//         UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
+//         auto end_time =
+//             std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
+//         time_spec_t time_start_last_pps = get_time_last_pps();
+//         while (time_start_last_pps == get_time_last_pps()) {
+//             if (std::chrono::steady_clock::now() > end_time) {
+//                 throw uhd::runtime_error("Board 0 may not be getting a PPS signal!\n"
+//                                          "No PPS detected within the time interval.\n"
+//                                          "See the application notes for your device.\n");
+//             }
+//             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+//         }
+//
+//         UHD_LOGGER_INFO("MULTI_USRP") << "    2) set times next pps (synchronously)";
+//         set_time_next_pps(time_spec, ALL_MBOARDS);
+//         std::this_thread::sleep_for(std::chrono::seconds(1));
+//
+//         // verify that the time registers are read to be within a few RTT
+//         for (size_t m = 1; m < get_num_mboards(); m++) {
+//             time_spec_t time_0 = this->get_time_now(0);
+//             time_spec_t time_i = this->get_time_now(m);
+//             if (time_i < time_0
+//                 or (time_i - time_0)
+//                        > time_spec_t(0.01)) { // 10 ms: greater than RTT but not too big
+//                 UHD_LOGGER_WARNING("MULTI_USRP")
+//                     << boost::format(
+//                            "Detected time deviation between board %d and board 0.\n"
+//                            "Board 0 time is %f seconds.\n"
+//                            "Board %d time is %f seconds.\n")
+//                            % m % time_0.get_real_secs() % m % time_i.get_real_secs();
+//             }
+//         }
     }
 
     bool get_time_synchronized(void) override
