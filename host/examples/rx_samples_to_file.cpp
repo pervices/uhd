@@ -100,7 +100,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     // the requested number of samples were collected (if such a number was
     // given), or until Ctrl-C was pressed.
     while (not stop_signal_called
-           and (num_requested_samples >= num_total_samps or num_requested_samples == 0)
+           and (num_requested_samples > num_total_samps or num_requested_samples == 0)
            and (time_requested == 0.0 or std::chrono::steady_clock::now() <= stop_time)) {
 
         const auto now = std::chrono::steady_clock::now();
@@ -116,7 +116,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
             std::cout << boost::format("Timeout while streaming") << std::endl;
             if(continue_on_bad_packet) continue;
             else {
-                std::cout << num_total_samps << "samples received before timeout" << std::endl;
+                std::cout << num_total_samps << " samples received before timeout" << std::endl;
                 break;
             }
         }
