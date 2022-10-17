@@ -287,7 +287,8 @@ public:
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
             stop_streaming();
-        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
+        }
+        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
 
         next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
 
