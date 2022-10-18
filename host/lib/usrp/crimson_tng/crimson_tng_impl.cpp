@@ -455,7 +455,22 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
         new_addr["type"]    = tokens[2];
         new_addr["addr"]    = comm->get_recv_addr();
         new_addr["name"]    = "";
-        new_addr["serial"]  = "001"; // tokens[2];
+
+        //Note: this is not the serial number, it is actually the chip ID of the FPGA
+        comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
+        comm->recv(asio::buffer(buff), 10);
+        tokens.clear();
+        tng_csv_parse(tokens, buff, ',');
+        if (tokens.size() < 3) {
+            UHD_LOGGER_ERROR("CRIMSON_IMPL" " failed to get serial number");
+            new_addr["serial"]  = "0000000000000000";
+        }
+        else if (tokens[1].c_str()[0] == CMD_ERROR) {
+            UHD_LOGGER_ERROR("CRIMSON_IMPL" " failed to get serial number");
+            new_addr["serial"]  = "0000000000000000";
+        } else {
+            new_addr["serial"] = tokens[2];
+        }
 
         //filter the discovered device below by matching optional keys
         if (

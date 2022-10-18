@@ -506,7 +506,22 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint)
         new_addr["type"]    = tokens[2];
         new_addr["addr"]    = comm->get_recv_addr();
         new_addr["name"]    = "";
-        new_addr["serial"]  = "001"; // tokens[2];
+
+        //Note: this is not the serial number, it is actually the chip ID of the FPGA
+        comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
+        comm->recv(asio::buffer(buff), 10);
+        tokens.clear();
+        tng_csv_parse(tokens, buff, ',');
+        if (tokens.size() < 3) {
+            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C " failed to get serial number");
+            new_addr["serial"]  = "0000000000000000";
+        }
+        else if (tokens[1].c_str()[0] == CMD_ERROR) {
+            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C " failed to get serial number");
+            new_addr["serial"]  = "0000000000000000";
+        } else {
+            new_addr["serial"] = tokens[2];
+        }
 
         //filter the discovered device below by matching optional keys
         if (
@@ -551,7 +566,9 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
     device_addr_t hint = hints[0];
     device_addrs_t addrs;
 
-    if (hint.has_key("type") and hint["type"] != "cyan_nrnt") return addrs;
+    if (hint.has_key("type") and hint["type"] != "cyan_nrnt") {
+        return addrs;
+    }
 
     //use the address given
     if (hint.has_key("addr"))
@@ -563,11 +580,11 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CYAN_NRNT") << "CYAN_NRNT Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "CYAN_NRNT Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CYAN_NRNT") << "CYAN_NRNT Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "CYAN_NRNT Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
