@@ -307,6 +307,8 @@ public:
     void send_eob_packet(const uhd::tx_streamer::buffs_type &buffs, vrt::if_packet_info_t if_packet_info, const double timeout) {
         if_packet_info.eob = true;
         if_packet_info.sob = false;
+        // EOB cannot have timestamps
+        if_packet_info.has_tsf = false;
         static const uint64_t zero = 0;
         _zero_buffs.resize(buffs.size(), &zero);
         // Prepared the packets
