@@ -317,6 +317,7 @@ public:
         // Sends the packets
         send_multiple_packets();
     }
+
     /*******************************************************************
      * Send:
      * The entry point for the fast-path send calls.
@@ -328,7 +329,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-
         uhd::tx_metadata_t metadata = metadata_;
         //translate the metadata to vrt if packet info
         vrt::if_packet_info_t if_packet_info;
@@ -343,7 +343,7 @@ public:
         // End of burst should be an empty packet after all the data packets
         // = false makes all the data packets get sent without EOB set, eob_requested tracks if an empty EOB packet should be sent at the end
         bool eob_requested = metadata.end_of_burst;
-        if_packet_info.eob = false;
+        if_packet_info.eob     = false;
         if_packet_info.fc_ack  = false; //This is a data packet
 
         const size_t samp_rate_per_ch = metadata.aggregate_samp_rate/this->size();
@@ -367,43 +367,41 @@ public:
             _cached_metadata = false;
         }
 
-        //TODO remove this code when sample counts of zero are supported by hardware
-#ifndef SSPH_DONT_PAD_TO_ONE
-        if (nsamps_per_buff == 0)
-        {
-            // if this is a start of a burst and there are no samples
-            if (metadata.start_of_burst)
-            {
-                // cache metadata and apply on the next send()
-                _metadata_cache = metadata;
-                _cached_metadata = true;
-                return 0;
-            } else if (eob_requested) {
-                send_eob_packet(buffs, if_packet_info, timeout);
-                return 0;
-            } else {
-                if_packet_info.eob = eob_requested;
-                static const uint64_t zero = 0;
-                _zero_buffs.resize(buffs.size(), &zero);
-                send_one_packet(_zero_buffs, 1, if_packet_info, timeout, 0);
-                this->samps_per_buffer = 1;
-                send_multiple_packets();
-                return 0;
-            }
-        }
-#endif
-
         if (nsamps_per_buff <= _max_samples_per_packet){
 
-            // Cyan/Crimson requires that end of burst be in an empty packet.
-            // if final_length sends the final samples from this call (if applicable), then if metatdata.end_of_burst sends the empty end of burst packet
-            size_t nsamps_sent = 0;
-            if(nsamps_per_buff) {
-                if_packet_info.eob = false;
-                nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout, nsamps_per_buff * _bytes_per_cpu_item);
-                this->samps_per_buffer = nsamps_per_buff;
-                send_multiple_packets();
-            }
+            //TODO remove this code when sample counts of zero are supported by hardware
+            #ifndef SSPH_DONT_PAD_TO_ONE
+                static const uint64_t zero = 0;
+                _zero_buffs.resize(buffs.size(), &zero);
+
+                if (nsamps_per_buff == 0)
+                {
+                    // if this is a start of a burst and there are no samples
+                    if (metadata.start_of_burst)
+                    {
+                        // cache metadata and apply on the next send()
+                        _metadata_cache = metadata;
+                        _cached_metadata = true;
+                        return 0;
+                    } else if (eob_requested)
+                    {
+                        send_eob_packet(buffs, if_packet_info, timeout);
+                        return 0;
+                    }
+                    else
+                    {
+                        // send requests with no samples are handled here (such as end of burst)
+                        send_one_packet(_zero_buffs, 1, if_packet_info, timeout, 0);
+                        this->samps_per_buffer = 1;
+                        send_multiple_packets();
+                        return 0;
+                    }
+                }
+            #endif
+
+            size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout, 0);
+            this->samps_per_buffer = nsamps_per_buff;
+            send_multiple_packets();
             if(eob_requested) {
                 send_eob_packet(buffs, if_packet_info, timeout);
             }
@@ -455,13 +453,15 @@ public:
                 send_multiple_packets();
             }
             i++;
-        }
 
+        }
+        
         // Cyan/Crimson requires that end of burst be in an empty packet.
         // if final_length sends the final samples from this call (if applicable), then if metatdata.end_of_burst sends the empty end of burst packet
+        size_t nsamps_sent = 0;
         if(final_length) {
             //send the final fragment with the helper function
-            size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
+             nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
 
             this->samps_per_buffer = nsamps_sent - total_num_samps_sent;
             total_num_samps_sent += nsamps_sent;
@@ -475,7 +475,7 @@ public:
 #ifdef UHD_TXRX_DEBUG_PRINTS
 		dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
-		return total_num_samps_sent;
+		return nsamps_sent;
     }
 
 private:
@@ -835,7 +835,7 @@ private:
         for (size_t i = 0; i < this->size(); i++) {
             convert_to_in_buff(i);
         }
-
+        
         _next_packet_seq++; //increment sequence after commits
         
         return nsamps_per_buff;
