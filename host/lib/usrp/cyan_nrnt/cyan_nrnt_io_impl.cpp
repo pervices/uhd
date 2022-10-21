@@ -873,9 +873,9 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     my_streamer->set_converter(id);
 
     if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 / (double)((1<<(otw_rx))-1) );
+        my_streamer->set_scale_factor( 1.0 / (double)((1<<(otw_rx-1))-1) );
     } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 16.0 / otw_rx );
+        my_streamer->set_scale_factor( 16.0 / otw_rx-1 );
     }
 
     // XXX: @CF: 20180424: Also nasty.. if crimson did not shut down properly last time
@@ -1170,9 +1170,9 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     if ( false ) {
     } else if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( (double)((1<<(otw_rx))-1) );
+        my_streamer->set_scale_factor( (double)((1<<(otw_tx-1))-1) );
     } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( otw_tx / 16 );
+        my_streamer->set_scale_factor( otw_tx / 16.0 );
     }
 
     //bind callbacks for the handler
