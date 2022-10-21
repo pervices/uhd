@@ -205,7 +205,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("fc32", otw);
+    uhd::stream_args_t stream_args("sc16", otw);
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
@@ -213,8 +213,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
-    std::vector<std::complex<float> > buff(spb);
-    std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
+    std::vector<std::complex<short> > buff(1);
+    std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
+    buff[0] = std::complex<short>(0xbeef, 0xc0de);
 
 #ifdef DEBUG_TX_WAVE_STEP
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
@@ -222,35 +223,35 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cin >> tmp;
 #endif
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-    if (channel_nums.size() > 1)
-    {
-        // Sync times
-        if (pps == "mimo")
-        {
-            UHD_ASSERT_THROW(usrp->get_num_mboards() == 2);
-
-            //make mboard 1 a slave over the MIMO Cable
-            usrp->set_time_source("mimo", 1);
-
-            //set time on the master (mboard 0)
-            usrp->set_time_now(uhd::time_spec_t(0.0), 0);
-
-            //sleep a bit while the slave locks its time to the master
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        else
-        {
-            if (pps == "internal" or pps == "external" or pps == "gpsdo")
-                usrp->set_time_source(pps);
-            usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
-            std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
-        }
-    }
-    else
-    {
-        usrp->set_time_now(0.0);
-    }
+//     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+//     if (channel_nums.size() > 1)
+//     {
+//         // Sync times
+//         if (pps == "mimo")
+//         {
+//             UHD_ASSERT_THROW(usrp->get_num_mboards() == 2);
+//
+//             //make mboard 1 a slave over the MIMO Cable
+//             usrp->set_time_source("mimo", 1);
+//
+//             //set time on the master (mboard 0)
+//             usrp->set_time_now(uhd::time_spec_t(0.0), 0);
+//
+//             //sleep a bit while the slave locks its time to the master
+//             std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//         }
+//         else
+//         {
+//             if (pps == "internal" or pps == "external" or pps == "gpsdo")
+//                 usrp->set_time_source(pps);
+//             usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
+//             std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
+//         }
+//     }
+//     else
+//     {
+//         usrp->set_time_now(0.0);
+//     }
 
 #ifdef DEBUG_TX_WAVE_STEP
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
@@ -258,27 +259,27 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cin >> tmp;
 #endif
 
-    //Check Ref and LO Lock detect
-    std::vector<std::string> sensor_names;
-    const size_t tx_sensor_chan = channel_nums.empty() ? 0 : channel_nums[0];
-    sensor_names = usrp->get_tx_sensor_names(tx_sensor_chan);
-    if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
-        uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
-        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(lo_locked.to_bool());
-    }
-    const size_t mboard_sensor_idx = 0;
-    sensor_names = usrp->get_mboard_sensor_names(mboard_sensor_idx);
-    if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {
-        uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(mimo_locked.to_bool());
-    }
-    if ((ref == "external") and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end())) {
-        uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(ref_locked.to_bool());
-    }
+//     //Check Ref and LO Lock detect
+//     std::vector<std::string> sensor_names;
+//     const size_t tx_sensor_chan = channel_nums.empty() ? 0 : channel_nums[0];
+//     sensor_names = usrp->get_tx_sensor_names(tx_sensor_chan);
+//     if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
+//         uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
+//         std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
+//         UHD_ASSERT_THROW(lo_locked.to_bool());
+//     }
+//     const size_t mboard_sensor_idx = 0;
+//     sensor_names = usrp->get_mboard_sensor_names(mboard_sensor_idx);
+//     if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {
+//         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", mboard_sensor_idx);
+//         std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
+//         UHD_ASSERT_THROW(mimo_locked.to_bool());
+//     }
+//     if ((ref == "external") and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end())) {
+//         uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", mboard_sensor_idx);
+//         std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
+//         UHD_ASSERT_THROW(ref_locked.to_bool());
+//     }
 
 #ifdef DEBUG_TX_WAVE_STEP
     std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
@@ -294,61 +295,62 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     bool ignore_last = first > last;
     
 
-    for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
-    {
+//     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
+//     {
         // Set up metadata. We start streaming a bit in the future
         // to allow MIMO operation:
         uhd::tx_metadata_t md;
-        md.start_of_burst = true;
+        md.start_of_burst = false;
         md.end_of_burst   = false;
         md.has_time_spec  = true;
-        md.time_spec = uhd::time_spec_t(time);
-
-        //send data until the signal handler gets called
-        //or if we accumulate the number of samples specified (unless it's 0)
+        //md.time_spec = uhd::time_spec_t(time);
+//
+//         //send data until the signal handler gets called
+//         //or if we accumulate the number of samples specified (unless it's 0)
         uint64_t num_acc_samps = 0;
-        while(true){
-
-            if (stop_signal_called)
-                break;
-
-            if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
-                break;
-
-            //fill the buffer with the waveform
-            size_t n = 0;
-            for (n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
-                buff[n] = wave_table(index += step);
-            }
-#ifdef DEBUG_TX_WAVE
-            std::cout << "Sending samples" << std::endl;
-#endif
-            //this statement will block until the data is sent
-            //send the entire contents of the buffer
-            num_acc_samps += tx_stream->send(buffs, n, md);
-#ifdef DEBUG_TX_WAVE
-            std::cout << "Sent samples" << std::endl;
-#endif
-            md.start_of_burst = false;
-            md.has_time_spec = false;
-        }
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Creating EOB packet" << std::endl;
-#endif
-        //send a mini EOB packet
-        md.end_of_burst = true;
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Sending EOB packet" << std::endl;
-#endif
-        tx_stream->send("", 0, md);
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Sent EOB packet" << std::endl;
-#endif
-    }
-#ifdef DELAYED_EXIT
+//         while(true){
+//
+//             if (stop_signal_called)
+//                 break;
+//
+//             if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
+//                 break;
+//
+//             //fill the buffer with the waveform
+//             size_t n = 0;
+//             for (n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
+//                 buff[n] = wave_table(index += step);
+//             }
+// #ifdef DEBUG_TX_WAVE
+//             std::cout << "Sending samples" << std::endl;
+// #endif
+//             //this statement will block until the data is sent
+//             //send the entire contents of the buffer
+            num_acc_samps += tx_stream->send(buffs, 1, md);
+// #ifdef DEBUG_TX_WAVE
+//             std::cout << "Sent samples" << std::endl;
+// #endif
+//             md.start_of_burst = false;
+//             md.has_time_spec = false;
+//         }
+// #ifdef DEBUG_TX_WAVE
+//         std::cout << "Creating EOB packet" << std::endl;
+// #endif
+//         md.has_time_spec  = false;
+//         //send a mini EOB packet
+//         md.end_of_burst = true;
+// #ifdef DEBUG_TX_WAVE
+//         std::cout << "Sending EOB packet" << std::endl;
+// #endif
+//         tx_stream->send("", 0, md);
+// #ifdef DEBUG_TX_WAVE
+//         std::cout << "Sent EOB packet" << std::endl;
+// #endif
+    //}
+//#ifdef DELAYED_EXIT
 //waits until told to stop before continuing (allows closing tasks to be delayed)
     while(!stop_signal_called) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
-#endif
+//#endif
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;

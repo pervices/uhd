@@ -191,7 +191,7 @@ public:
 	crimson_tng_send_packet_streamer( const size_t max_num_samps )
 	:
 		sph::send_packet_streamer( max_num_samps, CRIMSON_TNG_BUFF_SIZE ),
-		_first_call_to_send( true ),
+		_first_call_to_send( false ),
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
@@ -319,7 +319,7 @@ public:
 
         now = get_time_now();
         pillage();
-        if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
+        if ( /*0 == nsamps_per_buff &&*/ metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
             std::cout << "UHD::CRIMSON_TNG::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CRIMSON_TNG_MASTER_TICK_RATE ) << std::endl;
             #endif
@@ -547,111 +547,112 @@ private:
      * - put async message packets into queue
      **********************************************************************/
 	static void send_viking_loop( crimson_tng_send_packet_streamer *self ) {
-		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
-
-		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
-
-		for( ; ! self->_blessbless; ) {
-
-			const auto t0 = std::chrono::high_resolution_clock::now();
-
-			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
-
-				eprops_type & ep = self->_eprops[ i ];
-
-				xport_chan_fifo_lvl_type get_fifo_level;
-				uhd::flow_control::sptr fc;
-
-				get_fifo_level = ep.xport_chan_fifo_lvl;
-				fc = ep.flow_control;
-
-				if ( !( get_fifo_level && fc.get() ) ) {
-					continue;
-				}
-
-				uhd::time_spec_t now, then;
-				double level_pcnt;
-				uint64_t uflow;
-				uint64_t oflow;
-				async_metadata_t metadata;
-
-				size_t max_level = fc->get_buffer_size();
-
-				try {
-					get_fifo_level( level_pcnt, uflow, oflow, then );
-				} catch( ... ) {
-
-#ifdef DEBUG_FC
-				  std::printf("%10d\t", -1);
-#endif
-					continue;
-				}
-
-				if ( self->_blessbless ) {
-					break;
-				}
-
-				now = self->get_time_now();
-
-				size_t level = level_pcnt * max_level;
-
-				if ( ! fc->start_of_burst_pending( then ) ) {
-					level -= ( now - then ).get_real_secs() / self->_samp_rate;
-					fc->set_buffer_level( level, now );
-#ifdef DEBUG_FC
-				    std::printf("%10lu\t", level);
-#endif
-				}
-#ifdef DEBUG_FC
-				std::printf("%10ld\t", uflow);
-#endif
-				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/crimson_tng_io_impl.cpp
-					// async_metadata_t metadata;
-					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
-					metadata.channel = i;
-					metadata.has_time_spec = true;
-					metadata.time_spec = then;
-					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
-					// assumes that underflow counter is monotonically increasing
-					self->push_async_msg( metadata );
-				}
-				ep.uflow = uflow;
-
-#ifdef DEBUG_FC
-				std::printf("%10ld", oflow);
-#endif
-				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/crimson_tng_io_impl.cpp
-					// async_metadata_t metadata;
-					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
-					metadata.channel = i;
-					metadata.has_time_spec = true;
-					metadata.time_spec = then;
-					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
-					// assumes that overflow counter is monotonically increasing
-					self->push_async_msg( metadata );
-				}
-				ep.oflow = oflow;
-			}
-
-			const auto t1 = std::chrono::high_resolution_clock::now();
-			const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-			const long long usloop = 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6;
-			const long long usdelay = usloop - us;
-
-#ifdef DEBUG_FC
-			std::printf("%10lld %10lld %10lld\n", us, usloop, usdelay);
-#endif
-
-#ifdef UHD_TXRX_DEBUG_TIME
-			::usleep( 200000 );
-#else
-			::usleep( usdelay < 0 ? 0 : usdelay );
-#endif
-		}
-		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
-	}
+// 		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
+//
+// 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
+//
+ 		for( ; ! self->_blessbless; ) {
+            usleep(10000);
+//
+// 			const auto t0 = std::chrono::high_resolution_clock::now();
+//
+// 			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
+//
+// 				eprops_type & ep = self->_eprops[ i ];
+//
+// 				xport_chan_fifo_lvl_type get_fifo_level;
+// 				uhd::flow_control::sptr fc;
+//
+// 				get_fifo_level = ep.xport_chan_fifo_lvl;
+// 				fc = ep.flow_control;
+//
+// 				if ( !( get_fifo_level && fc.get() ) ) {
+// 					continue;
+// 				}
+//
+// 				uhd::time_spec_t now, then;
+// 				double level_pcnt;
+// 				uint64_t uflow;
+// 				uint64_t oflow;
+// 				async_metadata_t metadata;
+//
+// 				size_t max_level = fc->get_buffer_size();
+//
+// 				try {
+// 					get_fifo_level( level_pcnt, uflow, oflow, then );
+// 				} catch( ... ) {
+//
+// #ifdef DEBUG_FC
+// 				  std::printf("%10d\t", -1);
+// #endif
+// 					continue;
+// 				}
+//
+// 				if ( self->_blessbless ) {
+// 					break;
+// 				}
+//
+// 				now = self->get_time_now();
+//
+// 				size_t level = level_pcnt * max_level;
+//
+// 				if ( ! fc->start_of_burst_pending( then ) ) {
+// 					level -= ( now - then ).get_real_secs() / self->_samp_rate;
+// 					fc->set_buffer_level( level, now );
+// #ifdef DEBUG_FC
+// 				    std::printf("%10lu\t", level);
+// #endif
+// 				}
+// #ifdef DEBUG_FC
+// 				std::printf("%10ld\t", uflow);
+// #endif
+// 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
+// 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/crimson_tng_io_impl.cpp
+// 					// async_metadata_t metadata;
+// 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+// 					metadata.channel = i;
+// 					metadata.has_time_spec = true;
+// 					metadata.time_spec = then;
+// 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
+// 					// assumes that underflow counter is monotonically increasing
+// 					self->push_async_msg( metadata );
+// 				}
+// 				ep.uflow = uflow;
+//
+// #ifdef DEBUG_FC
+// 				std::printf("%10ld", oflow);
+// #endif
+// 				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
+// 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/crimson_tng_io_impl.cpp
+// 					// async_metadata_t metadata;
+// 					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+// 					metadata.channel = i;
+// 					metadata.has_time_spec = true;
+// 					metadata.time_spec = then;
+// 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
+// 					// assumes that overflow counter is monotonically increasing
+// 					self->push_async_msg( metadata );
+// 				}
+// 				ep.oflow = oflow;
+// 			}
+//
+// 			const auto t1 = std::chrono::high_resolution_clock::now();
+// 			const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+// 			const long long usloop = 1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6;
+// 			const long long usdelay = usloop - us;
+//
+// #ifdef DEBUG_FC
+// 			std::printf("%10lld %10lld %10lld\n", us, usloop, usdelay);
+// #endif
+//
+// #ifdef UHD_TXRX_DEBUG_TIME
+// 			::usleep( 200000 );
+// #else
+// 			::usleep( usdelay < 0 ? 0 : usdelay );
+// #endif
+ 		}
+// 		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
+ 	}
 };
 
 static std::vector<std::weak_ptr<crimson_tng_send_packet_streamer>> allocated_tx_streamers;
@@ -1199,9 +1200,9 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     this->update_rates();
 
     // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
-	for( ;! time_diff_converged(); ) {
-		usleep( 10000 );
-	}
+// 	for( ;! time_diff_converged(); ) {
+// 		usleep( 10000 );
+// 	}
     //my_streamer->pillage();
 
     allocated_tx_streamers.push_back( my_streamer );

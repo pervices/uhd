@@ -757,35 +757,36 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		then += T,
 			now = uhd::get_system_time()
 	) {
+        usleep( 100000 );
 
-		dt = then - now;
-		if ( dt > 0.0 ) {
-			req.tv_sec = dt.get_full_secs();
-			req.tv_nsec = dt.get_frac_secs() * 1e9;
-			nanosleep( &req, &rem );
-		}
-
-		time_diff = dev->_time_diff_pidc.get_control_variable();
-		now = uhd::get_system_time();
-		crimson_now = now + time_diff;
-
-		dev->time_diff_send( crimson_now );
-		if ( ! dev->time_diff_recv( tdr ) ) {
-			continue;
-		}
-		dev->time_diff_process( tdr, now );
-		//dev->fifo_update_process( tdr );
-
-#if 0
-			// XXX: overruns - we need to fix this
-			now = uhd::get_system_time();
-
-			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CRIMSON_IMPL" )
-					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
-					<< std::endl;
-			}
-#endif
+// 		dt = then - now;
+// 		if ( dt > 0.0 ) {
+// 			req.tv_sec = dt.get_full_secs();
+// 			req.tv_nsec = dt.get_frac_secs() * 1e9;
+// 			nanosleep( &req, &rem );
+// 		}
+//
+// 		time_diff = dev->_time_diff_pidc.get_control_variable();
+// 		now = uhd::get_system_time();
+// 		crimson_now = now + time_diff;
+//
+// 		dev->time_diff_send( crimson_now );
+// 		if ( ! dev->time_diff_recv( tdr ) ) {
+// 			continue;
+// 		}
+// 		dev->time_diff_process( tdr, now );
+// 		//dev->fifo_update_process( tdr );
+//
+// #if 0
+// 			// XXX: overruns - we need to fix this
+// 			now = uhd::get_system_time();
+//
+// 			if ( now >= then + T ) {
+// 				UHD_LOGGER_INFO( "CRIMSON_IMPL" )
+// 					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
+// 					<< std::endl;
+// 			}
+// #endif
 	}
 	dev->_bm_thread_running = false;
 }

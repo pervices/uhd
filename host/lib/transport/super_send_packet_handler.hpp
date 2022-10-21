@@ -309,8 +309,11 @@ public:
         if_packet_info.sob = false;
         // EOB cannot have timestamps
         if_packet_info.has_tsf = false;
-        static const uint64_t zero = 0;
-        _zero_buffs.resize(buffs.size(), &zero);
+        static const uint64_t zero = 0xBEEFC0DE;
+        _zero_buffs.resize(0);
+        std::cout << "&zero: " << &zero << std::endl;
+        _zero_buffs.resize(1, &zero);
+
         // Prepared the packets
         send_one_packet(_zero_buffs, 1, if_packet_info, timeout, 0);
         this->samps_per_buffer = 1;
@@ -337,35 +340,35 @@ public:
         if_packet_info.has_cid = false;
         if_packet_info.has_tlr = _has_tlr;
         if_packet_info.has_tsi = false;
-        if_packet_info.has_tsf = metadata.has_time_spec;
+        if_packet_info.has_tsf = false; //metadata.has_time_spec;
         if_packet_info.tsf     = metadata.time_spec.to_ticks(_tick_rate);
         if_packet_info.sob     = metadata.start_of_burst;
         // End of burst should be an empty packet after all the data packets
         // = false makes all the data packets get sent without EOB set, eob_requested tracks if an empty EOB packet should be sent at the end
         bool eob_requested = metadata.end_of_burst;
-        if_packet_info.eob     = false;
+        if_packet_info.eob     = true;
         if_packet_info.fc_ack  = false; //This is a data packet
 
         const size_t samp_rate_per_ch = metadata.aggregate_samp_rate/this->size();
 
-        /*
-         * Metadata is cached when we get a send requesting a start of burst with no samples.
-         * It is applied here on the next call to send() that actually has samples to send.
-         */
-        if (_cached_metadata && nsamps_per_buff != 0)
-        {
-            // If the new metada has a time_spec, do not use the cached time_spec.
-            if (!metadata.has_time_spec)
-            {
-                if_packet_info.has_tsf = _metadata_cache.has_time_spec;
-                if_packet_info.tsf     = _metadata_cache.time_spec.to_ticks(_tick_rate);
-            }
-            if_packet_info.sob     = _metadata_cache.start_of_burst;
-            // EOB packets need to be empty, eob_requested is used to track if an empty EOB packet should be sent after sneding all data packets
-            // if_packet_info.sob should be left false until its time to send that final empty packet
-            eob_requested = _metadata_cache.end_of_burst;
-            _cached_metadata = false;
-        }
+//         /*
+//          * Metadata is cached when we get a send requesting a start of burst with no samples.
+//          * It is applied here on the next call to send() that actually has samples to send.
+//          */
+//         if (_cached_metadata && nsamps_per_buff != 0)
+//         {
+//             // If the new metada has a time_spec, do not use the cached time_spec.
+//             if (!metadata.has_time_spec)
+//             {
+//                 if_packet_info.has_tsf = _metadata_cache.has_time_spec;
+//                 if_packet_info.tsf     = _metadata_cache.time_spec.to_ticks(_tick_rate);
+//             }
+//             if_packet_info.sob     = _metadata_cache.start_of_burst;
+//             // EOB packets need to be empty, eob_requested is used to track if an empty EOB packet should be sent after sneding all data packets
+//             // if_packet_info.sob should be left false until its time to send that final empty packet
+//             eob_requested = _metadata_cache.end_of_burst;
+//             _cached_metadata = false;
+//         }
 
         if (nsamps_per_buff <= _max_samples_per_packet){
 
@@ -399,12 +402,12 @@ public:
                 }
             #endif
 
-            size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout, 0);
-            this->samps_per_buffer = nsamps_per_buff;
+            size_t nsamps_sent = send_one_packet(buffs, 1, if_packet_info, timeout, 0);
+            //this->samps_per_buffer = nsamps_per_buff;
             send_multiple_packets();
-            if(eob_requested) {
-                send_eob_packet(buffs, if_packet_info, timeout);
-            }
+//             if(eob_requested) {
+//                 send_eob_packet(buffs, if_packet_info, timeout);
+//             }
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
