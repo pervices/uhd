@@ -75,7 +75,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     uhd::rx_streamer::sptr rx_stream,
     bool random_nsamps,
     const start_time_type& start_time,
-    std::atomic<bool>& burst_timer_elapsed,
+    std::atomic<bool>& rx_burst_timer_elapsed,
     bool elevate_priority,
     double rx_delay,
     //number of samples to receive per channel
@@ -126,7 +126,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     bool stop_called = false;
     while (true) {
 
-        if (burst_timer_elapsed and not stop_called) {
+        if (rx_burst_timer_elapsed and not stop_called) {
             rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
             stop_called = true;
         }
@@ -159,7 +159,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                     }
                     num_dropped_samps += std::max<long>(1, dropped_samps);
                 }
-                if ((burst_timer_elapsed or stop_called) and md.end_of_burst) {
+                if ((rx_burst_timer_elapsed or stop_called) and md.end_of_burst) {
                     return;
                 }
                 break;
@@ -191,7 +191,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
 
             case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
-                if (burst_timer_elapsed || (target_nsamps != 0 && num_rx_samps >= target_nsamps)) {
+                if (rx_burst_timer_elapsed || (target_nsamps != 0 && num_rx_samps >= target_nsamps)) {
                     return;
                 }
                 std::cerr << "[" << NOW() << "] Receiver error: " << md.strerror()
@@ -216,7 +216,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const std::string& tx_cpu,
     uhd::tx_streamer::sptr tx_stream,
-    std::atomic<bool>& burst_timer_elapsed,
+    std::atomic<bool>& tx_burst_timer_elapsed,
     const start_time_type& start_time,
     bool elevate_priority,
     double tx_delay,
@@ -254,7 +254,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         // this section is very wrong
         //TODO: rewrite this
         std::srand((unsigned int)time(NULL));
-        while (not burst_timer_elapsed && (num_tx_attempted < target_nsamps || target_nsamps == 0)) {
+        while (not tx_burst_timer_elapsed && (num_tx_attempted < target_nsamps || target_nsamps == 0)) {
             uint64_t samps_to_attempt_now_per_ch;
             if(target_nsamps != 0) {
                 samps_to_attempt_now_per_ch = std::min((target_nsamps - num_tx_attempted)/num_tx_channels, max_samps_per_packet);
@@ -275,7 +275,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
             md.has_time_spec = false;
         }
     } else {
-        while (not burst_timer_elapsed && (num_tx_attempted < target_nsamps || target_nsamps ==0 )) {
+        while (not tx_burst_timer_elapsed && (num_tx_attempted < target_nsamps || target_nsamps ==0 )) {
             uint64_t samps_to_attempt_now_per_ch;
             if(target_nsamps != 0) {
                 samps_to_attempt_now_per_ch = std::min((target_nsamps - num_tx_attempted)/num_tx_channels, max_samps_per_packet);
@@ -304,14 +304,14 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
     const start_time_type& start_time,
-    std::atomic<bool>& burst_timer_elapsed)
+    std::atomic<bool>& tx_burst_timer_elapsed)
 {
     // setup variables and allocate buffer
     uhd::async_metadata_t async_md;
     bool exit_flag = false;
 
     while (true) {
-        if (burst_timer_elapsed) {
+        if (tx_burst_timer_elapsed) {
             exit_flag = true;
         }
 
@@ -362,7 +362,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::string ref, pps;
     std::string channel_list, rx_channel_list, tx_channel_list;
     bool random_nsamps = false;
-    std::atomic<bool> burst_timer_elapsed(false);
+    std::atomic<bool> rx_burst_timer_elapsed(false);
+    std::atomic<bool> tx_burst_timer_elapsed(false);
     size_t overrun_threshold, underrun_threshold, drop_threshold, seq_threshold;
     size_t rx_spp;
     double tx_delay, rx_delay;
@@ -586,14 +587,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         stream_args.channels             = rx_channel_nums;
         stream_args.args                 = uhd::device_addr_t(rx_stream_args);
         uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-        auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+        auto rx_thread = thread_group.create_thread([=, &rx_burst_timer_elapsed]() {
             benchmark_rx_rate(usrp,
-
                 rx_cpu,
                 rx_stream,
                 random_nsamps,
                 start_time,
-                burst_timer_elapsed,
+                rx_burst_timer_elapsed,
                 elevate_priority,
                 rx_delay,
                 nsamps
@@ -610,11 +610,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         stream_args.args                 = uhd::device_addr_t(tx_stream_args);
         uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
-        auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+        auto tx_thread = thread_group.create_thread([=, &tx_burst_timer_elapsed]() {
             benchmark_tx_rate(usrp,
                 tx_cpu,
                 tx_stream,
-                burst_timer_elapsed,
+                tx_burst_timer_elapsed,
                 start_time,
                 elevate_priority,
                 tx_delay,
@@ -623,37 +623,62 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             );
         });
         uhd::set_thread_name(tx_thread, "bmark_tx_stream");
-        auto tx_async_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
-            benchmark_tx_rate_async_helper(tx_stream, start_time, burst_timer_elapsed);
+        auto tx_async_thread = thread_group.create_thread([=, &tx_burst_timer_elapsed]() {
+            benchmark_tx_rate_async_helper(tx_stream, start_time, tx_burst_timer_elapsed);
         });
         uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
 
     }
 
-    double longer_delay = std::max(tx_delay, rx_delay);
-    if(nsamps == 0) {
-        duration+= longer_delay;
+    double rx_wait_time;
+    if(vm.count("rx_rate")) {
+        rx_wait_time = (nsamps / rx_rate) + rx_delay + 1;
     } else {
-        if(vm.count("rx_rate") && vm.count("tx_rate")){
-            double longer_run_rate = std::min(rx_rate, tx_rate);
-            duration = (nsamps / longer_run_rate) + longer_delay + 1;
-        }
-        else if(vm.count("tx_rate")) duration = (nsamps/tx_rate) + longer_delay + 1;
-        else if(vm.count("rx_rate")) duration = (nsamps/rx_rate) + longer_delay + 1;
-
-        //when using nsamps mode the tests should stop on their own
-        //this setup waits an additional second to give time for host timer innacuracies before attempting to stop the threads
-        //TODO:display erro message if the threads are not finished after waiting in nsamps mode
+        rx_wait_time = 0;
     }
-    const int64_t secs = int64_t(duration);
-    const int64_t usecs = int64_t((duration - secs) * 1e6);
+    double tx_wait_time;
+    if(vm.count("tx_rate")) {
+        tx_wait_time = (nsamps / tx_rate) + tx_delay + 1;
+    } else {
+        tx_wait_time = 0;
+    }
+
+    // shorter_wait_time is how long until the the first of rx or tx needs to stop, remaining_wait_time is how long to wait
+    bool rx_is_shorter = rx_wait_time < tx_wait_time;
+    double shorter_wait_time;
+    double remaining_wait_time;
+    if(rx_is_shorter) {
+        shorter_wait_time = rx_wait_time;
+        remaining_wait_time = tx_wait_time - shorter_wait_time;
+    } else {
+        shorter_wait_time = tx_wait_time;
+        remaining_wait_time = rx_wait_time - shorter_wait_time;
+    }
+
+    int64_t secs = int64_t(shorter_wait_time);
+    int64_t usecs = int64_t((shorter_wait_time - secs) * 1e6);
     std::this_thread::sleep_for(
         std::chrono::seconds(secs) +
         std::chrono::microseconds(usecs)
     );
 
-    //interrupt and join the threads
-    burst_timer_elapsed = true;
+    if(rx_is_shorter) {
+        rx_burst_timer_elapsed = true;
+    } else {
+        tx_burst_timer_elapsed = true;
+    }
+
+    secs = int64_t(remaining_wait_time);
+    usecs = int64_t((remaining_wait_time - secs) * 1e6);
+    std::this_thread::sleep_for(
+        std::chrono::seconds(secs) +
+        std::chrono::microseconds(usecs)
+    );
+
+
+    rx_burst_timer_elapsed = true;
+    tx_burst_timer_elapsed = true;
+
     thread_group.join_all();
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
