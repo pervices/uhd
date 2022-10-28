@@ -257,14 +257,14 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         while (not tx_burst_timer_elapsed && (num_tx_attempted < target_nsamps || target_nsamps == 0)) {
             uint64_t samps_to_attempt_now_per_ch;
             if(target_nsamps != 0) {
-                samps_to_attempt_now_per_ch = std::min((target_nsamps - num_tx_attempted)/num_tx_channels, max_samps_per_packet);
+                samps_to_attempt_now_per_ch = std::min(target_nsamps - num_tx_attempted, max_samps_per_packet);
             }
             else {
                 samps_to_attempt_now_per_ch = max_samps_per_packet;
             }
             uint64_t num_tx_samps_sent_now_per_ch = tx_stream->send(buffs, samps_to_attempt_now_per_ch, md);
-            num_tx_samps += num_tx_samps_sent_now_per_ch * num_tx_channels;
-            num_tx_attempted += samps_to_attempt_now_per_ch*num_tx_channels;
+            num_tx_samps += num_tx_samps_sent_now_per_ch;
+            num_tx_attempted += samps_to_attempt_now_per_ch;
             if (num_tx_samps_sent_now_per_ch == 0) {
                 num_timeouts_tx++;
                 if ((num_timeouts_tx % 10000) == 1) {
