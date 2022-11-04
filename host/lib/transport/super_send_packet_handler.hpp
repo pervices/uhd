@@ -303,6 +303,21 @@ public:
         return false;
     }
 
+    // Sends an end of burst packet with 1 sample (since Crimson/Cyan can't handle 0 length packets)
+    void send_eob_packet(const uhd::tx_streamer::buffs_type &buffs, vrt::if_packet_info_t if_packet_info, const double timeout) {
+        if_packet_info.eob = true;
+        if_packet_info.sob = false;
+        // EOB cannot have timestamps
+        if_packet_info.has_tsf = false;
+        static const uint64_t zero = 0;
+        _zero_buffs.resize(buffs.size(), &zero);
+        // Prepared the packets
+        send_one_packet(_zero_buffs, 1, if_packet_info, timeout, 0);
+        this->samps_per_buffer = 1;
+        // Sends the packets
+        send_multiple_packets();
+    }
+
     /*******************************************************************
      * Send:
      * The entry point for the fast-path send calls.
@@ -325,7 +340,10 @@ public:
         if_packet_info.has_tsf = metadata.has_time_spec;
         if_packet_info.tsf     = metadata.time_spec.to_ticks(_tick_rate);
         if_packet_info.sob     = metadata.start_of_burst;
-        if_packet_info.eob     = metadata.end_of_burst;
+        // End of burst should be an empty packet after all the data packets
+        // = false makes all the data packets get sent without EOB set, eob_requested tracks if an empty EOB packet should be sent at the end
+        bool eob_requested = metadata.end_of_burst;
+        if_packet_info.eob     = false;
         if_packet_info.fc_ack  = false; //This is a data packet
 
         const size_t samp_rate_per_ch = metadata.aggregate_samp_rate/this->size();
@@ -343,7 +361,9 @@ public:
                 if_packet_info.tsf     = _metadata_cache.time_spec.to_ticks(_tick_rate);
             }
             if_packet_info.sob     = _metadata_cache.start_of_burst;
-            if_packet_info.eob     = _metadata_cache.end_of_burst;
+            // EOB packets need to be empty, eob_requested is used to track if an empty EOB packet should be sent after sneding all data packets
+            // if_packet_info.sob should be left false until its time to send that final empty packet
+            eob_requested = _metadata_cache.end_of_burst;
             _cached_metadata = false;
         }
 
@@ -363,7 +383,13 @@ public:
                         _metadata_cache = metadata;
                         _cached_metadata = true;
                         return 0;
-                    } else {
+                    } else if (eob_requested)
+                    {
+                        send_eob_packet(buffs, if_packet_info, timeout);
+                        return 0;
+                    }
+                    else
+                    {
                         // send requests with no samples are handled here (such as end of burst)
                         send_one_packet(_zero_buffs, 1, if_packet_info, timeout, 0);
                         this->samps_per_buffer = 1;
@@ -373,14 +399,11 @@ public:
                 }
             #endif
 
-			size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout, 0);
+            size_t nsamps_sent = send_one_packet(buffs, nsamps_per_buff, if_packet_info, timeout, 0);
             this->samps_per_buffer = nsamps_per_buff;
             send_multiple_packets();
-            for (auto &multi_msb : this->multi_msb_buffs) {
-                multi_msb.data_buffs.clear();
-                multi_msb.data_buff_length.clear();
-                multi_msb.vrt_headers.clear();
-                multi_msb.vrt_header_length.clear();
+            if(eob_requested) {
+                send_eob_packet(buffs, if_packet_info, timeout);
             }
 #ifdef UHD_TXRX_DEBUG_PRINTS
 			dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
@@ -428,34 +451,27 @@ public:
                 this->samps_per_buffer = total_num_samps_sent - prev_total_num_samps_sent;
                 prev_total_num_samps_sent = total_num_samps_sent;
                 send_multiple_packets();
-                for (auto &multi_msb : this->multi_msb_buffs) {
-                    multi_msb.data_buffs.clear();
-                    multi_msb.data_buff_length.clear();
-                    multi_msb.vrt_headers.clear();
-                    multi_msb.vrt_header_length.clear();
-                }
             }
             i++;
+
         }
         
-        //send the final fragment with the helper function
-        if_packet_info.eob = metadata.end_of_burst;
-		size_t nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
+        // Cyan/Crimson requires that end of burst be in an empty packet.
+        // if final_length sends the final samples from this call (if applicable), then if metatdata.end_of_burst sends the empty end of burst packet
+        size_t nsamps_sent = 0;
+        if(final_length) {
+            //send the final fragment with the helper function
+             nsamps_sent = total_num_samps_sent + send_one_packet(buffs, final_length, if_packet_info, timeout, total_num_samps_sent * _bytes_per_cpu_item);
 
-        this->samps_per_buffer = nsamps_sent - total_num_samps_sent;
-        send_multiple_packets();
-        for (auto &multi_msb : this->multi_msb_buffs) {
-            multi_msb.data_buffs.clear();
-            multi_msb.data_buff_length.clear();
-            multi_msb.vrt_headers.clear();
-            multi_msb.vrt_header_length.clear();
+            this->samps_per_buffer = nsamps_sent - total_num_samps_sent;
+            total_num_samps_sent += nsamps_sent;
+
+            send_multiple_packets();
+        }
+        if(eob_requested) {
+            send_eob_packet(buffs, if_packet_info, timeout);
         }
 
-        // end_time = std::chrono::high_resolution_clock::now();
-        // if (end_time > start_time) {
-        //     elapsed.push_back(end_time-start_time);
-        // }
-        // start_time = std::chrono::high_resolution_clock::now();
 #ifdef UHD_TXRX_DEBUG_PRINTS
 		dbg_print_send(nsamps_per_buff, nsamps_sent, metadata, timeout);
 #endif
@@ -589,6 +605,14 @@ private:
                     std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
                 }
             }
+        }
+
+        // Clears the buffer of packets that were sent
+        for (auto &multi_msb : this->multi_msb_buffs) {
+            multi_msb.data_buffs.clear();
+            multi_msb.data_buff_length.clear();
+            multi_msb.vrt_headers.clear();
+            multi_msb.vrt_header_length.clear();
         }
         return 0;
     }
@@ -808,7 +832,6 @@ private:
         _convert_if_packet_info = &if_packet_info;
 
         //perform N channels of conversion
-
         for (size_t i = 0; i < this->size(); i++) {
             convert_to_in_buff(i);
         }
@@ -861,7 +884,6 @@ private:
             const size_t num_vita_words32 = _header_offset_words32+if_packet_info.num_packet_words32;
             //perform the conversion operation
             _converter->conv(in_buffs, otw_mem, _convert_nsamps);
-
             multi_msb_buffs[index].data_buffs.push_back(buff->cast<const void *>());
             multi_msb_buffs[index].data_buff_length.push_back(num_vita_words32*sizeof(uint32_t));
             multi_msb_buffs[index].sock_fd = buff->get_socket();

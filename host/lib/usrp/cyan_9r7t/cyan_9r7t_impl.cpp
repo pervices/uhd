@@ -282,7 +282,6 @@ void cyan_9r7t_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
     //Inside the stream packet there is an argument for channel
     //The channel argument is actually the jesd number relative to the sfp port
     //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
-    //9r7t only has one channel per port so it
     size_t jesd_num = cyan_9r7t_impl::get_rx_jesd_num(ch);
 #ifdef DEBUG_COUT
     std::cout << "Creating packet with jesd_num: " << jesd_num << std::endl;
@@ -1538,7 +1537,7 @@ cyan_9r7t_impl::~cyan_9r7t_impl(void)
 
 //gets the jesd number to be used in creating stream command packets
 //Note: these are relative to the sfp port
-//i.e. 0 for all channels in 9r7t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
+//i.e. 0 for all channels in 4r4t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
 int cyan_9r7t_impl::get_rx_jesd_num(int channel) {
     const fs_path mb_path   = "/mboards/0";
     const fs_path rx_link_path  = mb_path / "rx_link" / channel;
@@ -1851,6 +1850,7 @@ void cyan_9r7t_impl::set_tx_gain(double gain, const std::string &name, size_t ch
 }
 
 double cyan_9r7t_impl::get_tx_gain(const std::string &name, size_t chan) {
+    (void) name;
 
     return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
@@ -1880,6 +1880,7 @@ void cyan_9r7t_impl::set_rx_gain(double gain, const std::string &name, size_t ch
 }
 
 double cyan_9r7t_impl::get_rx_gain(const std::string &name, size_t chan) {
+    (void) name;
     
     return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 }

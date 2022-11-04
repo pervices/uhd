@@ -24,8 +24,8 @@
 #include "../../transport/super_recv_packet_handler.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
-#include "cyan_9r7t_impl.hpp"
-#include "cyan_9r7t_fw_common.h"
+#include "cyan_nrnt_impl.hpp"
+#include "cyan_nrnt_fw_common.h"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/exception.hpp>
@@ -84,17 +84,17 @@ namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
 // XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
-class cyan_9r7t_recv_packet_streamer : public sph::recv_packet_streamer {
+class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_9r7t_recv_packet_streamer(const size_t max_num_samps)
+	cyan_nrnt_recv_packet_streamer(const size_t max_num_samps)
 	: sph::recv_packet_streamer( max_num_samps )
 	{
         _max_num_samps = max_num_samps;
     }
 
-	virtual ~cyan_9r7t_recv_packet_streamer() {
+	virtual ~cyan_nrnt_recv_packet_streamer() {
 		teardown();
 	}
 
@@ -148,13 +148,13 @@ private:
     std::vector<eprops_type> _eprops;
 };
 
-static std::vector<std::weak_ptr<cyan_9r7t_recv_packet_streamer>> allocated_rx_streamers;
+static std::vector<std::weak_ptr<cyan_nrnt_recv_packet_streamer>> allocated_rx_streamers;
 static void shutdown_lingering_rx_streamers() {
 	// This is required as a workaround, because the relevent destructurs are not called
 	// when you close the top block in gnu radio. Unsolved mystery for the time being.
 	for( auto & rx: allocated_rx_streamers ) {
 		if ( ! rx.expired() ) {
-			std::shared_ptr<cyan_9r7t_recv_packet_streamer> my_streamer = rx.lock();
+			std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = rx.lock();
 			if ( my_streamer ) {
 				my_streamer->teardown();
 			}
@@ -167,7 +167,7 @@ static void shutdown_lingering_rx_streamers() {
 // XXX: @CF: 20180227: We need this for several reasons
 // 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
 // 2) to wrap sphc::send_packet_streamer::send() and use our existing flow control algorithm
-class cyan_9r7t_send_packet_streamer : public sph::send_packet_streamer {
+class cyan_nrnt_send_packet_streamer : public sph::send_packet_streamer {
 public:
 
 	typedef std::function<void(void)> onfini_type;
@@ -178,21 +178,24 @@ public:
 
     bool use_blocking_fc = false;
     uint64_t blocking_setpoint;
+    // Maximum buffer level in nsamps. Named this way to avoid confusion with the same variable belonging to different stuff
+    int64_t stream_max_bl;
 
-	cyan_9r7t_send_packet_streamer( const size_t max_num_samps )
+	cyan_nrnt_send_packet_streamer( const size_t max_num_samps, const size_t max_bl )
 	:
-		sph::send_packet_streamer( max_num_samps, CYAN_9R7T_BUFF_SIZE ),
+		sph::send_packet_streamer( max_num_samps, max_bl ),
+		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
 		_actual_num_samps( max_num_samps ),
 		_samp_rate( 1.0 ),
 		_streaming( false ),
-		_stop_streaming( false ) // icelandic (viking) for bye
+		_stop_streaming( false )
 
 	{
 	}
 
-	virtual ~cyan_9r7t_send_packet_streamer() {
+	virtual ~cyan_nrnt_send_packet_streamer() {
 		teardown();
 	}
 
@@ -224,11 +227,11 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        size_t nsamps_per_buff = ((size_t)(nsamps_per_buff_/CYAN_9R7T_PACKET_NSAMP_MULTIPLE)) * CYAN_9R7T_PACKET_NSAMP_MULTIPLE;
+        size_t nsamps_per_buff = ((size_t)(nsamps_per_buff_/CYAN_NRNT_PACKET_NSAMP_MULTIPLE)) * CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
         if(nsamps_per_buff_ != nsamps_per_buff) {
-            std::cout << "Warning: the number of samples attempted must be a multiple of " << CYAN_9R7T_PACKET_NSAMP_MULTIPLE << ", this will call will only attempt to send " << nsamps_per_buff << std::endl;
+            std::cout << "Warning: the number of samples attempted must be a multiple of " << CYAN_NRNT_PACKET_NSAMP_MULTIPLE << ", this will call will only attempt to send " << nsamps_per_buff << std::endl;
         }
 #endif
         
@@ -275,7 +278,7 @@ public:
 
         if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
             #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::" CYAN_9R7T_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CYAN_9R7T_TICK_RATE ) << std::endl;
+            std::cout << "UHD::" CYAN_NRNT_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CYAN_NRNT_TICK_RATE ) << std::endl;
             #endif
 
             async_metadata_t am;
@@ -284,15 +287,18 @@ public:
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
 
             stop_streaming();
-        } else   r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
+        }
+        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
+
+        next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
 
         return r;
     }
 
     void enable_blocking_fc(uint64_t blocking_setpoint) {
         use_blocking_fc = true;
-        if(blocking_setpoint > 0.9 * CYAN_9R7T_BUFF_SIZE) {
-            blocking_setpoint = (uint64_t) (0.9 * CYAN_9R7T_BUFF_SIZE);
+        if(blocking_setpoint > 0.9 * stream_max_bl) {
+            blocking_setpoint = (uint64_t) (0.9 * stream_max_bl);
         };
         this->blocking_setpoint = blocking_setpoint;
     }
@@ -304,8 +310,8 @@ public:
     
     static managed_send_buffer::sptr get_send_buff( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
 
-        std::shared_ptr<cyan_9r7t_send_packet_streamer> my_streamer =
-            std::dynamic_pointer_cast<cyan_9r7t_send_packet_streamer>( tx_streamer.lock() );
+        std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
+            std::dynamic_pointer_cast<cyan_nrnt_send_packet_streamer>( tx_streamer.lock() );
 
         if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
 
@@ -320,15 +326,15 @@ public:
 
     static void update_fc_send_count( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
-        std::shared_ptr<cyan_9r7t_send_packet_streamer> my_streamer =
-            std::dynamic_pointer_cast<cyan_9r7t_send_packet_streamer>( tx_streamer.lock() );
+        std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
+            std::dynamic_pointer_cast<cyan_nrnt_send_packet_streamer>( tx_streamer.lock() );
 
         my_streamer->check_fc_update( chan, nsamps);
     }
     
     static bool check_flow_control(std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
-        std::shared_ptr<cyan_9r7t_send_packet_streamer> my_streamer =
-            std::dynamic_pointer_cast<cyan_9r7t_send_packet_streamer>( tx_streamer.lock() );
+        std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
+            std::dynamic_pointer_cast<cyan_nrnt_send_packet_streamer>( tx_streamer.lock() );
 
         return my_streamer->check_fc_condition( chan, timeout);
     }
@@ -362,7 +368,7 @@ public:
 		_eprops.resize( size );
 		for( auto & ep: _eprops ) {
             // the nominal sample rate (first argument of make) is set later)
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_9R7T_BUFF_PERCENT, CYAN_9R7T_BUFF_SIZE );
+			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_NRNT_BUFF_PERCENT, stream_max_bl );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
@@ -395,7 +401,7 @@ public:
             }
 
 			//spawn a new viking to raid the send hoardes
-			_streamer_thread = std::thread( cyan_9r7t_send_packet_streamer::send_viking_loop, this );
+			_streamer_thread = std::thread( cyan_nrnt_send_packet_streamer::send_viking_loop, this );
 			_streaming = true;
 		}
 	}
@@ -483,7 +489,7 @@ private:
     #ifdef UHD_TXRX_SEND_DEBUG_PRINTS
                 std::cout << __func__ << ": returning false, search FLAG216" << std::endl;
                 std::cout << "dt: " << dt << std::endl;
-                std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_9R7T_TICK_RATE) << std::endl;
+                std::cout << "dt.to_ticks: " << dt.to_ticks(CYAN_NRNT_TICK_RATE) << std::endl;
                 std::cout << "dt.get_real_secs: " << dt.get_real_secs() << std::endl;
                 std::cout << "timout: " << timeout << std::endl;
     #endif
@@ -544,7 +550,7 @@ private:
      * - update over / underflow counters
      * - put async message packets into queue
      **********************************************************************/
-	static void send_viking_loop( cyan_9r7t_send_packet_streamer *self ) {
+	static void send_viking_loop( cyan_nrnt_send_packet_streamer *self ) {
 		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
 
 		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
@@ -642,7 +648,7 @@ private:
 
 			const auto t1 = std::chrono::high_resolution_clock::now();
 			const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-			const long long usloop = 1.0 / (double)CYAN_9R7T_UPDATE_PER_SEC * 1e6;
+			const long long usloop = 1.0 / (double)CYAN_NRNT_UPDATE_PER_SEC * 1e6;
 			const long long usdelay = usloop - us;
 
 #ifdef DEBUG_FC
@@ -659,13 +665,13 @@ private:
 	}
 };
 
-static std::vector<std::weak_ptr<cyan_9r7t_send_packet_streamer>> allocated_tx_streamers;
+static std::vector<std::weak_ptr<cyan_nrnt_send_packet_streamer>> allocated_tx_streamers;
 static void shutdown_lingering_tx_streamers() {
 	// This is required as a workaround, because the relevent destructurs are not called
 	// when you close the top block in gnu radio. Unsolved mystery for the time being.
 	for( auto & tx: allocated_tx_streamers ) {
 		if ( ! tx.expired() ) {
-			std::shared_ptr<cyan_9r7t_send_packet_streamer> my_streamer = tx.lock();
+			std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = tx.lock();
 			if ( my_streamer ) {
 				my_streamer->teardown();
 			}
@@ -683,69 +689,69 @@ static const size_t vrt_send_header_offset_words32 = 0;
  * io impl details (internal to this file)
  * - alignment buffer
  **********************************************************************/
-struct cyan_9r7t_impl::cyan_9r7t_io_impl{
+struct cyan_nrnt_impl::cyan_nrnt_io_impl{
 
-    cyan_9r7t_io_impl(void):
+    cyan_nrnt_io_impl(void):
         async_msg_fifo(1000/*messages deep*/)
     {
         /* NOP */
     }
 
-    ~cyan_9r7t_io_impl(void){
+    ~cyan_nrnt_io_impl(void){
     }
 
     //methods and variables for the viking scourge
     bounded_buffer<async_metadata_t> async_msg_fifo;
 
-    // TODO: @CF: 20180301: move time diff code into cyan_9r7t_io_impl
+    // TODO: @CF: 20180301: move time diff code into cyan_nrnt_io_impl
 };
 
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-void cyan_9r7t_impl::io_init(void){
+void cyan_nrnt_impl::io_init(void){
 
-	// TODO: @CF: 20180301: move time diff code into cyan_9r7t_io_impl
-	_cyan_9r7t_io_impl = UHD_PIMPL_MAKE(cyan_9r7t_io_impl, ());
+	// TODO: @CF: 20180301: move time diff code into cyan_nrnt_io_impl
+	_cyan_nrnt_io_impl = UHD_PIMPL_MAKE(cyan_nrnt_io_impl, ());
 
     //allocate streamer weak ptrs containers
     for (const std::string &mb : _mbc.keys()) {
-        _mbc[mb].rx_streamers.resize( CYAN_9R7T_RX_CHANNELS );
-        _mbc[mb].tx_streamers.resize( CYAN_9R7T_TX_CHANNELS );
+        _mbc[mb].rx_streamers.resize( num_rx_channels );
+        _mbc[mb].tx_streamers.resize( num_tx_channels );
     }
 }
 
-void cyan_9r7t_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
+void cyan_nrnt_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
 
     set_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
     double rate = get_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
 
-    std::shared_ptr<cyan_9r7t_recv_packet_streamer> my_streamer =
-        std::dynamic_pointer_cast<cyan_9r7t_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer =
+        std::dynamic_pointer_cast<cyan_nrnt_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_9R7T_TICK_RATE );
+    my_streamer->set_tick_rate( CYAN_NRNT_TICK_RATE );
 }
 
-void cyan_9r7t_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
+void cyan_nrnt_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
     set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
     double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
 
-	std::shared_ptr<cyan_9r7t_send_packet_streamer> my_streamer =
-        std::dynamic_pointer_cast<cyan_9r7t_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
+	std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
+        std::dynamic_pointer_cast<cyan_nrnt_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_9R7T_TICK_RATE );
+    my_streamer->set_tick_rate( CYAN_NRNT_TICK_RATE );
 }
 
-void cyan_9r7t_impl::update_rates(void){
+void cyan_nrnt_impl::update_rates(void){
     for (const std::string &mb : _mbc.keys()) {
         fs_path root = "/mboards/" + mb;
         _tree->access<double>(root / "tick_rate").update();
-        if(CYAN_9R7T_RX_CHANNELS > 0) {
+        if(num_rx_channels > 0) {
             //and now that the tick rate is set, init the host rates to something
             for(const std::string &name : _tree->list(root / "rx_dsps")) {
                 // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
@@ -757,7 +763,7 @@ void cyan_9r7t_impl::update_rates(void){
             }
         }
 
-        if(CYAN_9R7T_TX_CHANNELS > 0) {
+        if(num_tx_channels > 0) {
             for(const std::string &name : _tree->list(root / "tx_dsps")) {
                 // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
                 // if the current application does not require tx, then we should not enable it
@@ -770,7 +776,7 @@ void cyan_9r7t_impl::update_rates(void){
     }
 }
 
-void cyan_9r7t_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
+void cyan_nrnt_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
     fs_path root = "/mboards/" + which_mb + "/dboards";
 
     //sanity checking
@@ -791,7 +797,7 @@ void cyan_9r7t_impl::update_rx_subdev_spec(const std::string &which_mb, const su
     for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].rx_chan_occ;
 }
 
-void cyan_9r7t_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
+void cyan_nrnt_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
     fs_path root = "/mboards/" + which_mb + "/dboards";
 
     //sanity checking
@@ -819,25 +825,25 @@ static void tx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path
 /***********************************************************************
  * Async Data
  **********************************************************************/
-bool cyan_9r7t_impl::recv_async_msg(
+bool cyan_nrnt_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
     boost::this_thread::disable_interruption di; //disable because the wait can throw
-    return _cyan_9r7t_io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
+    return _cyan_nrnt_io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
 }
 
 /***********************************************************************
  * Receive streamer
  **********************************************************************/
-rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_){
+rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
+    args.otw_format = args.otw_format.empty()? otw_rx_s : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16"){
-        throw uhd::value_error(CYAN_9R7T_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+    if (args.otw_format != otw_rx_s){
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -852,7 +858,7 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
     const size_t spp = args.args.cast<size_t>("spp", bpp/bpi);
 
     //make the new streamer given the samples per packet
-    std::shared_ptr<cyan_9r7t_recv_packet_streamer> my_streamer = std::make_shared<cyan_9r7t_recv_packet_streamer>(spp);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(spp);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -866,11 +872,10 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
     id.num_outputs = 1;
     my_streamer->set_converter(id);
 
-    if ( false ) {
-    } else if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 / (double)((1<<15)-1) );
+    if ( "fc32" == args.cpu_format ) {
+        my_streamer->set_scale_factor( 1.0 / (double)((1<<(otw_rx-1))-1) );
     } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 );
+        my_streamer->set_scale_factor( 16.0 / otw_rx-1 );
     }
 
     // XXX: @CF: 20180424: Also nasty.. if crimson did not shut down properly last time
@@ -918,7 +923,7 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
                     &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], ph::_1, ph::_2
                 ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, std::bind(
-                    &cyan_9r7t_impl::set_stream_cmd, this, scmd_pre, ph::_1));
+                    &cyan_nrnt_impl::set_stream_cmd, this, scmd_pre, ph::_1));
                 my_streamer->set_on_fini(chan_i, std::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
                 _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
                 break;
@@ -984,7 +989,7 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
                 _tree->access<std::string>(rx_path / chan / "jesd/status").set("1");
                 std::string jesd_status = _tree->access<std::string>(rx_path / chan / "jesd/status").get();
                 if(jesd_status.compare(0, 4, "good")) {
-                    UHD_LOGGER_WARNING(CYAN_9R7T_DEBUG_NAME_C) << "rx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
+                    UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "rx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
                 }
             }
         }
@@ -1005,9 +1010,9 @@ rx_streamer::sptr cyan_9r7t_impl::get_rx_stream(const uhd::stream_args_t &args_)
  * Transmit streamer
  **********************************************************************/
 
-static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 1.0 / CYAN_9R7T_TICK_RATE;
+	static constexpr double tick_period_ps = 1.0 / CYAN_NRNT_TICK_RATE;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
@@ -1057,7 +1062,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simp
 		break;
 	}
 	if ( 0 == r ) {
-		UHD_LOGGER_ERROR(CYAN_9R7T_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+		UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
 		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
 	}
 
@@ -1069,7 +1074,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simp
     //fifo level provided by FPGA
 	lvl = rsp.header & 0xffff;
 
-    lvl = lvl * CYAN_9R7T_BUFF_SCALE;
+    lvl = lvl * bl_multiple;
 
 #ifdef BUFFER_LVL_DEBUG
     static uint32_t last[4];
@@ -1111,21 +1116,21 @@ static void get_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simp
 #endif
 }
 
-static void get_fifo_lvl_udp( const size_t channel, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp( const size_t channel, const int64_t max_bl, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
     uint64_t lvl = 0;
-    get_fifo_lvl_udp_abs( channel, xport, lvl, uflow, oflow, now);
-    pcnt = (double) lvl / CYAN_9R7T_BUFF_SIZE;
+    get_fifo_lvl_udp_abs( channel, bl_multiple, xport, lvl, uflow, oflow, now);
+    pcnt = (double) lvl / max_bl;
 }
 
-tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_){
+tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
+    args.otw_format = args.otw_format.empty()? otw_tx_s : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != "sc16"){
-        throw uhd::value_error(CYAN_9R7T_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
+    if (args.otw_format != otw_tx_s){
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
 
     //calculate packet size
@@ -1141,19 +1146,19 @@ tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_)
     const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
 
     //make the new streamer given the samples per packet
-    cyan_9r7t_send_packet_streamer::timenow_type timenow_ = std::bind( & cyan_9r7t_impl::get_time_now, this );
+    cyan_nrnt_send_packet_streamer::timenow_type timenow_ = std::bind( & cyan_nrnt_impl::get_time_now, this );
     std::vector<uhd::transport::zero_copy_if::sptr> xports;
     for( auto & i: args.channels ) {
         xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
-    std::shared_ptr<cyan_9r7t_send_packet_streamer> my_streamer = std::make_shared<cyan_9r7t_send_packet_streamer>( spp );
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( spp, max_buffer_level );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
     my_streamer->set_enable_trailer( false );
 
-    my_streamer->set_time_now(std::bind(&cyan_9r7t_impl::get_time_now,this));
+    my_streamer->set_time_now(std::bind(&cyan_nrnt_impl::get_time_now,this));
 
     //set the converter
     uhd::convert::id_type id;
@@ -1165,9 +1170,9 @@ tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     if ( false ) {
     } else if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( (double)((1<<15)-1) );
+        my_streamer->set_scale_factor( (double)((1<<(otw_tx-1))-1) );
     } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 );
+        my_streamer->set_scale_factor( otw_tx / 16.0 );
     }
 
     //bind callbacks for the handler
@@ -1185,29 +1190,29 @@ tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 std::weak_ptr<uhd::tx_streamer> my_streamerp = my_streamer;
 
                 my_streamer->set_xport_chan_get_buff(chan_i, std::bind(
-                    &cyan_9r7t_send_packet_streamer::get_send_buff, my_streamerp, chan_i, ph::_1
+                    &cyan_nrnt_send_packet_streamer::get_send_buff, my_streamerp, chan_i, ph::_1
                 ));
 
                 my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, std::bind(
-                    &cyan_9r7t_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, ph::_1
+                    &cyan_nrnt_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, ph::_1
                 ));
                 
                 my_streamer->set_xport_chan_check_flow_control(chan_i, std::bind(
-                    &cyan_9r7t_send_packet_streamer::check_flow_control, my_streamerp, chan_i, ph::_1
+                    &cyan_nrnt_send_packet_streamer::check_flow_control, my_streamerp, chan_i, ph::_1
                 ));
 
                 my_streamer->set_xport_chan_fifo_lvl(chan_i, std::bind(
-                    &get_fifo_lvl_udp, chan, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
+                    &get_fifo_lvl_udp, chan, max_buffer_level, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
 
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                    &get_fifo_lvl_udp_abs, chan, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
+                    &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
 
-                my_streamer->set_async_receiver(std::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_9r7t_io_impl->async_msg_fifo), ph::_1, ph::_2));
+                my_streamer->set_async_receiver(std::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_nrnt_io_impl->async_msg_fifo), ph::_1, ph::_2));
 
-                my_streamer->set_async_pusher(std::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_9r7t_io_impl->async_msg_fifo), ph::_1));
+                my_streamer->set_async_pusher(std::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_nrnt_io_impl->async_msg_fifo), ph::_1));
 
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;
@@ -1249,7 +1254,7 @@ tx_streamer::sptr cyan_9r7t_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 _tree->access<std::string>(tx_path / chan / "jesd/status").set("1");
                 std::string jesd_status = _tree->access<std::string>(tx_path / chan / "jesd/status").get();
                 if(jesd_status.compare(0, 4, "good")) {
-                    UHD_LOGGER_WARNING(CYAN_9R7T_DEBUG_NAME_C) << "tx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
+                    UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "tx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
                 }
             }
         }

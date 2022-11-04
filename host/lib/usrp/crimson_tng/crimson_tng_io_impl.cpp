@@ -328,11 +328,9 @@ public:
             am.has_time_spec = true;
             am.time_spec = now;
             am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
-
             retreat();
-        } else {
-            r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
         }
+        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
         
         next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
         

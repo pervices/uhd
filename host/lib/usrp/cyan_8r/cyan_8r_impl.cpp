@@ -1748,6 +1748,7 @@ void cyan_8r_impl::set_rx_gain(double gain, const std::string &name, size_t chan
 }
 
 double cyan_8r_impl::get_rx_gain(const std::string &name, size_t chan) {
+    (void) name;
     
     return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
 }
