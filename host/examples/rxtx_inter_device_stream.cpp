@@ -67,6 +67,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
+    // Lets UHD knwo no to use clock sync when creating the device
+    rx_args+=",bypass_clock_sync=true";
+    tx_args+=",bypass_clock_sync=true";
+
     //create a usrp device
     std::cout << std::endl;
     const bool use_rx = rx_args!="";
