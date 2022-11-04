@@ -310,8 +310,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    //TODO: end force streaming for tx
-    rx_usrp->rx_start_force_stream(rx_channel_nums);
+    try {
+        rx_usrp->rx_start_force_stream(rx_channel_nums);
+    } catch (...) {
+        std::cout << "Error while attempting to begin force streaming. Force stream is only supported on Cyan" << std::endl;
+    }
 
     //finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
