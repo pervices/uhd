@@ -154,14 +154,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_rx) {
         std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate/1e6) << std::endl;
         rx_usrp->set_rx_rate(rate);
-        rate = rx_usrp->get_rx_rate()/1e6;
+        rate = rx_usrp->get_rx_rate();
         std::cout << boost::format("Actual RX Rate: %f Msps...") % (rate/1e6) << std::endl << std::endl;
     }
 
     if(use_tx) {
         std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
         tx_usrp->set_tx_rate(rate);
-        rate = tx_usrp->get_tx_rate()/1e6;
+        rate = tx_usrp->get_tx_rate();
         std::cout << boost::format("Actual TX Rate: %f Msps....") % (rate/1e6) << std::endl << std::endl;
     }
 
