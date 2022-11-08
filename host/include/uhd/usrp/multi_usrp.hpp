@@ -1485,10 +1485,11 @@ public:
      * \param channels list of channels
      */
 
-    void rx_to_tx(uhd::usrp::multi_usrp::sptr tx_usrp, std::vector<size_t> rx_channels, std::vector<size_t> tx_channels) {
+    virtual void rx_to_tx(uhd::usrp::multi_usrp::sptr tx_usrp, std::vector<size_t> rx_channels, std::vector<size_t> tx_channels) {
         (void) tx_usrp;
         (void) rx_channels;
         (void) tx_channels;
+        std::cout << "T1" << std::endl;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 

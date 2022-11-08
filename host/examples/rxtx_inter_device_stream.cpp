@@ -285,6 +285,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
+    if(use_rx && use_tx) {
+        rx_usrp->rx_to_tx(tx_usrp, rx_channel_nums, tx_channel_nums);
+    }
+
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
@@ -294,10 +298,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_tx) {
         tx_usrp->set_time_now(0.0);
     }
-
-    rx_usrp->rx_to_tx(tx_usrp, rx_channel_nums, tx_channel_nums);
-
-    rx_usrp->rx_start_force_stream(rx_channel_nums);
+    if(use_rx) {
+        try {
+            rx_usrp->rx_start_force_stream(rx_channel_nums);
+        } catch (...) {
+            std::cout << "Error while attempting to begin force streaming" << std::endl;
+        }
+    }
 
     auto current_time = std::chrono::steady_clock::now();
     const auto start_time = current_time;
@@ -312,12 +319,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         if(duration_specified) {
             current_time = std::chrono::steady_clock::now();
         }
-    }
-
-    try {
-        rx_usrp->rx_start_force_stream(rx_channel_nums);
-    } catch (...) {
-        std::cout << "Error while attempting to begin force streaming" << std::endl;
     }
 
     //finished
