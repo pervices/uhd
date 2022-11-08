@@ -292,7 +292,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         tx_usrp->set_time_now(0.0);
     }
 
-    //TODO: add force stream with start time for tx
+    rx_usrp->rx_to_tx(tx_usrp, rx_channel_nums, tx_channel_nums);
+
     rx_usrp->rx_start_force_stream(rx_channel_nums);
 
     auto current_time = std::chrono::steady_clock::now();

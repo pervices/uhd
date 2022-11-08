@@ -2391,6 +2391,16 @@ public:
         }
     }
 
+    // Sets the destination IP and port of rx to match the tx IP and port
+    void rx_to_tx(uhd::usrp::multi_usrp::sptr tx_usrp, std::vector<size_t> rx_channels, std::vector<size_t> tx_channels) {
+        for(size_t n = 0; n < rx_channels.size(); n++) {
+            std::string tx_ip = tx_usrp->get_tree()->access<std::string>(tx_link_root(tx_channels[n]) + "iface").get();
+            std::cout << "tx_ip: " << tx_ip << std::endl;
+            std::string tx_port = tx_usrp->get_tree()->access<std::string>(tx_link_root(tx_channels[n]) + "port").get();
+            std::cout << "tx_port: " << tx_port << std::endl;
+        }
+    }
+
     /*******************************************************************
      * GPIO methods
      ******************************************************************/
@@ -2744,6 +2754,11 @@ private:
         }
     }
 
+    fs_path rx_link_root(const size_t chan)
+    {
+        return "/mboards/0/rx_link/" + std::to_string(chan);
+    }
+
     fs_path tx_fe_root(const size_t chan)
     {
         mboard_chan_pair mcp = tx_chan_to_mcp(chan);
@@ -2755,6 +2770,11 @@ private:
                 str(boost::format("multi_usrp::tx_fe_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
+    }
+
+    fs_path tx_link_root(const size_t chan)
+    {
+        return "/mboards/0/tx_link/" + std::to_string(chan);
     }
 
     size_t get_radio_index(const std::string slot_name)
