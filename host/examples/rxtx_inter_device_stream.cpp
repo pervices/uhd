@@ -44,8 +44,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "help message")
-        ("rx_args", po::value<std::string>(&rx_args)->default_value(""), "Identifying info unit receiving rf data. Example: args=\"addr=192.168.10.2\"")
-        ("tx_args", po::value<std::string>(&tx_args)->default_value(""), "Identifying info unit receiving rf data. Example: args=\"addr=192.168.11.2\"")
+        ("rx_args", po::value<std::string>(&rx_args)->default_value(""), "Identifying info unit receiving rf data. Example: rx_args=\"addr=192.168.10.2\"")
+        ("tx_args", po::value<std::string>(&tx_args)->default_value(""), "Identifying info unit receiving rf data. Example: tx_args=\"addr=192.168.11.2\"")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("rx_freq", po::value<double>(&rx_freq)->default_value(0), "rx RF center frequency in Hz")
         ("tx_freq", po::value<double>(&tx_freq)->default_value(0), "tx RF center frequency in Hz")
@@ -67,14 +67,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
+    // Stores whether or not to use rx or tx, useful for debugging
+    //Must be set before adjusting args to bypass clock sync
+    const bool use_rx = rx_args!="";
+    const bool use_tx = tx_args!="";
+
     // Lets UHD knwo no to use clock sync when creating the device
     rx_args+=",bypass_clock_sync=true";
     tx_args+=",bypass_clock_sync=true";
 
     //create a usrp device
     std::cout << std::endl;
-    const bool use_rx = rx_args!="";
-    const bool use_tx = tx_args!="";
     uhd::usrp::multi_usrp::sptr rx_usrp;
     uhd::usrp::multi_usrp::sptr tx_usrp;
     if(!use_rx && !use_tx) {
