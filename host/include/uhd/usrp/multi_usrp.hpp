@@ -1489,7 +1489,6 @@ public:
         (void) tx_usrp;
         (void) rx_channels;
         (void) tx_channels;
-        std::cout << "T1" << std::endl;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 

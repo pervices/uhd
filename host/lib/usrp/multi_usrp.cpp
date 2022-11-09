@@ -31,6 +31,7 @@
 #include <functional>
 #include <memory>
 #include <thread>
+#include <assert.h>
 
 namespace uhd { namespace rfnoc {
 
@@ -2393,9 +2394,10 @@ public:
 
     // Sets the destination IP and port of rx to match the tx IP and port
     void rx_to_tx(uhd::usrp::multi_usrp::sptr tx_usrp, std::vector<size_t> rx_channels, std::vector<size_t> tx_channels) override {
+        assert(rx_channels.size() == tx_channels.size());
         for(size_t n = 0; n < rx_channels.size(); n++) {
             std::string tx_sfp = tx_usrp->get_tree()->access<std::string>(tx_link_root(tx_channels[n]) / "iface").get();
-            std::string tx_ip = tx_usrp->get_tree()->access<std::string>("/mboards/0" / tx_sfp / "ip_addr").get();
+            std::string tx_ip = tx_usrp->get_tree()->access<std::string>("/mboards/0/link" / tx_sfp / "ip_addr").get();
             _tree->access<std::string>(rx_link_root(rx_channels[n]) / "ip_dest").set(tx_ip);
             std::string tx_port = tx_usrp->get_tree()->access<std::string>(tx_link_root(tx_channels[n]) / "port").get();
             _tree->access<std::string>(rx_link_root(rx_channels[n]) / "port").set(tx_port);
