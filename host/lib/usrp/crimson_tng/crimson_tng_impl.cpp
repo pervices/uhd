@@ -1392,6 +1392,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	TREE_CREATE_RW(cm_path / "rx/gain/val", "cm/rx/gain/val", double, double);
     TREE_CREATE_RW(cm_path / "rx/force_stream", "cm/rx/force_stream", int, int);
 	TREE_CREATE_RW(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
+    TREE_CREATE_RW(cm_path / "tx/force_stream", "cm/tx/force_stream", int, int);
 	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
 	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
 

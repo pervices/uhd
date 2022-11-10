@@ -2404,6 +2404,35 @@ public:
         }
     }
 
+    // Enables tx force stream (transmit starting when buffer reaches a desired target)
+    void tx_start_force_stream(std::vector<size_t> channels)
+    override {
+        int stream_mask = 0;
+        for(size_t n = 0; n < channels.size(); n++) {
+            // Resets the dsp (clearing the buffer)
+            // Resetting is done as part of enabling boards from disabled, but not when enabling if already enabled
+            _tree->access<double>(tx_dsp_root(channels[n]) / "rstreq").set(1);
+            // Enables boards
+            _tree->access<std::string>(tx_root(channels[n]) / "pwr").set("1");
+            //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
+            stream_mask |= 1 << channels[n];
+        }
+        _tree->access<int>("/mboards/0/cm/tx/force_stream").set(stream_mask);
+    }
+
+    // Disables tx force stream (transmit starting when buffer reaches a desired target)
+    void tx_stop_force_stream(std::vector<size_t> channels)
+    override {
+        int stream_mask = 0;
+        for(size_t n = 0; n < channels.size(); n++) {
+            // Disables boards
+            _tree->access<std::string>(tx_root(channels[n]) / "pwr").set("0");
+            //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
+            stream_mask |= 1 << channels[n];
+        }
+        _tree->access<int>("/mboards/0/cm/tx/force_stream").set(stream_mask);
+    }
+
     /*******************************************************************
      * GPIO methods
      ******************************************************************/
@@ -2685,6 +2714,11 @@ private:
         }
     }
 
+    fs_path rx_root(const size_t chan)
+    {
+        return "/mboards/0/rx/" + std::to_string(chan);
+    }
+
     fs_path rx_dsp_root(const size_t chan)
     {
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
@@ -2713,6 +2747,11 @@ private:
                 str(boost::format("multi_usrp::rx_dsp_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
+    }
+
+    fs_path tx_root(const size_t chan)
+    {
+        return "/mboards/0/tx/" + std::to_string(chan);
     }
 
     fs_path tx_dsp_root(const size_t chan)

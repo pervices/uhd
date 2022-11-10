@@ -1494,7 +1494,26 @@ public:
 
     /*!
      * Sets the desination IP and port of rx to match tx
-     * \param channels list of channels
+     * \param tx_usrp tx device to copy IP and port from
+     * \param rx_channels List of channels to send from (copy IP and dst to)
+     * \param tx_channels List of channels to send to (copy IP and dst from)
+     */
+
+
+    virtual void tx_start_force_stream(std::vector<size_t> channels) {
+        (void) channels;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    /*! Enable a mode where tx streams when the buffer reaches the desired level instead of using the normal start and stop commands
+     * \param channels THe list of channels to use
+     */
+
+    virtual void tx_stop_force_stream(std::vector<size_t> channels) {
+        (void) channels;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+    /*! Disables a mode where tx streams when the buffer reaches the desired level instead of using the normal start and stop commands
+     * \param channels THe list of channels to use
      */
 
     virtual std::string get_tx_sfp( size_t chan ) {
