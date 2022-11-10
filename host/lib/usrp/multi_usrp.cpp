@@ -673,6 +673,16 @@ public:
         throw uhd::runtime_error("Cannot query clock_source on this device!");
     }
 
+    // Set the expected frequency of an external reference clock
+    void set_clock_reference_freq(int freq) override
+    {
+        try {
+            _tree->access<int>("/mboards/0/time_source/freq").set(freq);
+        } catch (uhd::lookup_error& e) {
+            UHD_LOGGER_ERROR("MULTI_USRP") << "This device does not support changing the external reference clock's frequency" << std::endl;
+        }
+    }
+
     void set_sync_source(const std::string& clock_source,
         const std::string& time_source,
         const size_t mboard) override

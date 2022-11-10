@@ -39,6 +39,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //variables to be set by po
     std::string rx_args, tx_args, ref, pps, rx_channel_list, tx_channel_list;
     double rate, rx_freq, tx_freq, rx_gain, tx_gain, duration;
+    int ref_clock_freq;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -51,7 +52,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx_freq", po::value<double>(&tx_freq)->default_value(0), "tx RF center frequency in Hz")
         ("rx_gain", po::value<double>(&rx_gain)->default_value(0), "gain for the rx RF chain")
         ("tx_gain", po::value<double>(&tx_gain)->default_value(0), "gain for the tx RF chain")
-        ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
+        ("ref_clock_freq", po::value<int>(&ref_clock_freq), "Frequency of external reference clock. Program will use an internal 10MHz clock if not specified")
+        ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external)")
         ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo)")
         ("rx_channels", po::value<std::string>(&rx_channel_list)->default_value("0"), "which rx channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("tx_channels", po::value<std::string>(&tx_channel_list)->default_value("0"), "which tx channels to use (specify \"0\", \"1\", \"0,1\", etc)")
@@ -133,12 +135,22 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    //Lock mboard clocks
-    if(use_rx) {
-        rx_usrp->set_clock_source(ref);
-    }
-    if(use_tx) {
-        tx_usrp->set_clock_source(ref);
+    if(vm.count("ref_clock_freq")) {
+        if(use_rx) {
+            rx_usrp->set_clock_reference_freq(ref_clock_freq);
+            rx_usrp->set_clock_source("external");
+        }
+        if(use_tx) {
+            tx_usrp->set_clock_reference_freq(ref_clock_freq);
+            tx_usrp->set_clock_source("external");
+        }
+    } else {
+        if(use_rx) {
+            rx_usrp->set_clock_source("internal");
+        }
+        if(use_tx) {
+            tx_usrp->set_clock_source("internal");
+        }
     }
 
     if(use_rx) {

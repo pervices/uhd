@@ -1193,6 +1193,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 
     // This property chooses internal or external clock source
     TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
+    TREE_CREATE_RW(mb_path / "time_source"  / "freq",  	    "time/source/freq",  	int, int);
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
     TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CYAN_NRNT_EXT_CLK_RATE);

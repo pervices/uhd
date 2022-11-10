@@ -450,6 +450,16 @@ public:
     virtual std::string get_clock_source(const size_t mboard) = 0;
 
     /*!
+     * Sets the expected frequency of the external reference clock
+     * \param freq which motherboard to get the config
+     * \return the string representing the clock source
+     */
+    virtual void set_clock_reference_freq(int freq) {
+        (void) freq;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
      * Get a list of possible clock sources.
      * \param mboard which motherboard to get the list
      * \return a vector of strings for possible settings
