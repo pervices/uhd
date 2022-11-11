@@ -54,7 +54,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx_gain", po::value<double>(&tx_gain)->default_value(0), "gain for the tx RF chain")
         ("ref_clock_freq", po::value<int>(&ref_clock_freq), "Frequency of external reference clock. Program will use an internal 10MHz clock if not specified")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external)")
-        ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo)")
         ("rx_channels", po::value<std::string>(&rx_channel_list)->default_value("0"), "which rx channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("tx_channels", po::value<std::string>(&tx_channel_list)->default_value("0"), "which tx channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("duration", po::value<double>(&duration), "How long to stream for, will stream until the program is exited if unspecified")
@@ -207,95 +206,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for some setup time
-
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-    if(use_rx) {
-        if (rx_channel_nums.size() > 1)
-        {
-            // Sync times
-            if (pps == "mimo")
-            {
-                UHD_ASSERT_THROW(rx_usrp->get_num_mboards() == 2);
-
-                //make mboard 1 a slave over the MIMO Cable
-                rx_usrp->set_time_source("mimo", 1);
-
-                //set time on the master (mboard 0)
-                rx_usrp->set_time_now(uhd::time_spec_t(0.0), 0);
-
-                //sleep a bit while the slave locks its time to the master
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-            else
-            {
-                if (pps == "internal" or pps == "external" or pps == "gpsdo") {
-                    rx_usrp->set_time_source(pps);
-                }
-                rx_usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
-                std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
-            }
-        }
-        else
-        {
-            rx_usrp->set_time_now(0.0);
-        }
-    }
-
-    if(use_tx) {
-        if (tx_channel_nums.size() > 1)
-        {
-            // Sync times
-            if (pps == "mimo")
-            {
-                UHD_ASSERT_THROW(tx_usrp->get_num_mboards() == 2);
-
-                //make mboard 1 a slave over the MIMO Cable
-                tx_usrp->set_time_source("mimo", 1);
-
-                //set time on the master (mboard 0)
-                tx_usrp->set_time_now(uhd::time_spec_t(0.0), 0);
-
-                //sleep a bit while the slave locks its time to the master
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-            else
-            {
-                if (pps == "internal" or pps == "external" or pps == "gpsdo") {
-                    tx_usrp->set_time_source(pps);
-                }
-                tx_usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
-                std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
-            }
-        }
-        else
-        {
-            tx_usrp->set_time_now(0.0);
-        }
-    }
-
-    if(use_tx) {
-        //Check Ref and LO Lock detect for tx
-        std::vector<std::string> tx_sensor_names;
-        const size_t tx_sensor_chan = tx_channel_nums.empty() ? 0 : tx_channel_nums[0];
-        tx_sensor_names = tx_usrp->get_tx_sensor_names(tx_sensor_chan);
-        if (std::find(tx_sensor_names.begin(), tx_sensor_names.end(), "lo_locked") != tx_sensor_names.end()) {
-            uhd::sensor_value_t tx_lo_locked = tx_usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
-            std::cout << boost::format("Checking TX: %s ...") % tx_lo_locked.to_pp_string() << std::endl;
-            UHD_ASSERT_THROW(tx_lo_locked.to_bool());
-        }
-        const size_t tx_mboard_sensor_idx = 0;
-        tx_sensor_names = tx_usrp->get_mboard_sensor_names(tx_mboard_sensor_idx);
-        if ((ref == "mimo") and (std::find(tx_sensor_names.begin(), tx_sensor_names.end(), "mimo_locked") != tx_sensor_names.end())) {
-            uhd::sensor_value_t tx_mimo_locked = tx_usrp->get_mboard_sensor("mimo_locked", tx_mboard_sensor_idx);
-            std::cout << boost::format("Checking TX: %s ...") % tx_mimo_locked.to_pp_string() << std::endl;
-            UHD_ASSERT_THROW(tx_mimo_locked.to_bool());
-        }
-        if ((ref == "external") and (std::find(tx_sensor_names.begin(), tx_sensor_names.end(), "ref_locked") != tx_sensor_names.end())) {
-            uhd::sensor_value_t tx_ref_locked = tx_usrp->get_mboard_sensor("ref_locked", tx_mboard_sensor_idx);
-            std::cout << boost::format("Checking TX: %s ...") % tx_ref_locked.to_pp_string() << std::endl;
-            UHD_ASSERT_THROW(tx_ref_locked.to_bool());
-        }
-    }
 
     if(use_rx && use_tx) {
         rx_usrp->rx_to_tx(tx_usrp, rx_channel_nums, tx_channel_nums);
