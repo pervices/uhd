@@ -137,12 +137,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(vm.count("ref_clock_freq")) {
         if(use_rx) {
+            // Implicilty sets source to external
             rx_usrp->set_clock_reference_freq(ref_clock_freq);
-            rx_usrp->set_clock_source("external");
         }
         if(use_tx) {
+            // Implicilty sets source to external
             tx_usrp->set_clock_reference_freq(ref_clock_freq);
-            tx_usrp->set_clock_source("external");
         }
     } else {
         if(use_rx) {
