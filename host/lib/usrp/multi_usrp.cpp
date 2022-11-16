@@ -2383,7 +2383,7 @@ public:
             }
             _tree->access<int>("/mboards/0/cm/rx/force_stream").set(stream_mask);
         } else {
-            throw uhd::not_implemented_error("Force stream not implemented for this device");
+            throw uhd::not_implemented_error("Rx force stream not implemented for this device");
         }
     }
 
@@ -2398,7 +2398,7 @@ public:
             stream_mask = active_channels & ~stream_mask;
             _tree->access<int>("/mboards/0/cm/rx/force_stream").set(stream_mask);
         } else {
-            throw uhd::not_implemented_error("Force stream not implemented for this device");
+            throw uhd::not_implemented_error("Rx force stream not implemented for this device");
         }
     }
 
@@ -2417,30 +2417,40 @@ public:
     // Enables tx force stream (transmit starting when buffer reaches a desired target)
     void tx_start_force_stream(std::vector<size_t> channels)
     override {
-        int stream_mask = 0;
-        for(size_t n = 0; n < channels.size(); n++) {
-            // Resets the dsp (clearing the buffer)
-            // Resetting is done as part of enabling boards from disabled, but not when enabling if already enabled
-            _tree->access<double>(tx_dsp_root(channels[n]) / "rstreq").set(1);
-            // Enables boards
-            _tree->access<std::string>(tx_root(channels[n]) / "pwr").set("1");
-            //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
-            stream_mask |= 1 << channels[n];
+        if (_tree->exists("/mboards/0/cm/tx/force_stream")) {
+            int stream_mask = 0;
+            for(size_t n = 0; n < channels.size(); n++) {
+                // Resets the dsp (clearing the buffer)
+                // Resetting is done as part of enabling boards from disabled, but not when enabling if already enabled
+                _tree->access<double>(tx_dsp_root(channels[n]) / "rstreq").set(1);
+                // Enables boards
+                _tree->access<std::string>(tx_root(channels[n]) / "pwr").set("1");
+                //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
+                stream_mask |= 1 << channels[n];
+            }
+            _tree->access<int>("/mboards/0/cm/tx/force_stream").set(stream_mask);
+        } else {
+            throw uhd::not_implemented_error("Tx force stream not implemented for this device");
         }
-        _tree->access<int>("/mboards/0/cm/tx/force_stream").set(stream_mask);
     }
 
     // Disables tx force stream (transmit starting when buffer reaches a desired target)
     void tx_stop_force_stream(std::vector<size_t> channels)
     override {
-        int stream_mask = 0;
-        for(size_t n = 0; n < channels.size(); n++) {
-            // Disables boards
-            _tree->access<std::string>(tx_root(channels[n]) / "pwr").set("0");
-            //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
-            stream_mask |= 1 << channels[n];
+        if (_tree->exists("/mboards/0/cm/tx/force_stream")) {
+            int active_channels = _tree->access<int>("/mboards/0/cm/tx/force_stream").get();
+            int new_channel_mask = 0;
+            for(size_t n = 0; n < channels.size(); n++) {
+                // Disables boards
+                _tree->access<std::string>(tx_root(channels[n]) / "pwr").set("0");
+                //when seting cm force stream, bit 0 corresponds to chA, bit 1 to chB, etc
+                new_channel_mask |= 1 << channels[n];
+            }
+            int stream_mask = active_channels & ~new_channel_mask;
+            _tree->access<int>("/mboards/0/cm/tx/force_stream").set(stream_mask);
+        } else {
+            throw uhd::not_implemented_error("Tx force stream not implemented for this device");
         }
-        _tree->access<int>("/mboards/0/cm/tx/force_stream").set(stream_mask);
     }
 
     /*******************************************************************
