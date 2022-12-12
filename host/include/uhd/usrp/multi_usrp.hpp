@@ -1092,6 +1092,23 @@ public:
      */
     virtual void set_rx_gain(double gain, const std::string& name, size_t chan = 0) = 0;
 
+    /*! Gets whether or not self calibration is required
+     *
+     * \return 0 for self calibration required, non-0 for no self calibration required
+     */
+
+    virtual int is_device_is_self_calibration_required() {
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*! Gets the maximum sample rate in mmhz
+     *
+     * \return maximum rate
+     */
+    virtual double get_max_rate_mhz() {
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
     /*! Get a list of possible RX gain profile options
      *
      * Example: On the TwinRX, this will return "low-noise", "low-distortion" or
@@ -1104,6 +1121,7 @@ public:
      * \return a vector of strings for possible gain profile options, or an empty list of
      *         this doesn't apply.
      */
+
     virtual std::vector<std::string> get_rx_gain_profile_names(const size_t chan = 0) = 0;
 
     /*! Set the RX gain profile.

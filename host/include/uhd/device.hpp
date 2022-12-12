@@ -261,6 +261,10 @@ public:
         _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
     }
 
+    virtual double get_max_rate_mhz() {
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
 protected:
     uhd::property_tree::sptr _tree;
     device_filter_t _type;

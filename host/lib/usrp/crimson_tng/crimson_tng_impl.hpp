@@ -258,6 +258,7 @@ private:
     void set_rx_gain(double gain, const std::string &name, size_t chan);
     
     double get_rx_gain(const std::string &name, size_t chan);
+    double get_max_rate_mhz();
 };
 
 }

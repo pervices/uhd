@@ -1510,6 +1510,21 @@ public:
         return "";
     }
 
+    int is_device_is_self_calibration_required()
+    override {
+        if (_tree->exists("/mboards/0/system/self_calibration")) {
+            return _tree->access<int>( "/mboards/0/system/self_calibration" ).get();
+        }
+        else {
+            return 0;
+        }
+    }
+
+    double get_max_rate_mhz()
+    override {
+        return this->get_device()->get_max_rate_mhz();
+    }
+
     std::vector<std::string> get_rx_gain_profile_names(const size_t chan) override
     {
         if (chan != ALL_CHANS) {

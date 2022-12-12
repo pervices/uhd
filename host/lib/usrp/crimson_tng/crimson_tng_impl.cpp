@@ -1975,3 +1975,7 @@ double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
 
     return r;
 }
+
+double crimson_tng_impl::get_max_rate_mhz() {
+    return CRIMSON_TNG_MASTER_CLOCK_RATE/(1e6);
+}

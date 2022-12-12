@@ -297,6 +297,8 @@ private:
     double get_tx_gain(const std::string &name, size_t chan);
     void set_rx_gain(double gain, const std::string &name, size_t chan);
     double get_rx_gain(const std::string &name, size_t chan);
+    int is_device_self_calibration_required();
+    double get_max_rate_mhz();
 };
 
 }
