@@ -476,6 +476,8 @@ private:
             (info.ifpi.link_type == vrt::if_packet_info_t::LINK_TYPE_NONE) ? 0xf : 0xfff;
         const size_t expected_packet_count = _props[index].packet_count;
         _props[index].packet_count         = (info.ifpi.packet_count + 1) & seq_mask;
+        std::cout << "expected_packet_count: " << expected_packet_count << std::endl;
+        std::cout << "info.ifpi.packet_count: " << info.ifpi.packet_count << std::endl;
         if (expected_packet_count != info.ifpi.packet_count) {
             // UHD_LOGGER_INFO("STREAMER") << "expected: " << expected_packet_count << "
             // got: " << info.ifpi.packet_count;
