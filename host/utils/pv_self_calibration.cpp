@@ -57,14 +57,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if(usrp->is_device_is_self_calibration_required()) {
             std::cout << "Self calibration is either not required for this device or has already been run" << std::endl;
             std::cout << "To run self callibration on a unit where self calibration has already been performed run this program with --force" << std::endl;
+            std::exit(0);
         }
     }
+
+    std::cout << "Beging self calibration" << std::endl;
 
     // set the rx sample rate to maximum
     // The server will clip this value down to the maximum
     usrp->set_rx_rate(usrp->get_max_rate_mhz());
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+    std::cout << "Setting device timestamp to 0" << std::endl;
     usrp->set_time_now(uhd::time_spec_t(0.0));
 
     // detect which channels to use

@@ -1602,9 +1602,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     _tree->access<int>( mb_path / "system/self_calibration" ).get();
 
     UHD_LOGGER_WARNING("MULTI_USRP")
-        << "Self calibration has not been run"
-        << "We recomend you run self_calibration before running this program"
-        << "pv_self_calibration should after boot for variants that require it";
+        << "Self calibration has not been run\n"
+        << "We recomend you run pv_self_calibration to perform self-calibration program\n";
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)
