@@ -164,6 +164,12 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
+    virtual int64_t rx_mute(bool mute, size_t chan) {
+        (void) mute;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
     /*!
      * Set the RX center frequency.
      * \param tune_request tune request instructions

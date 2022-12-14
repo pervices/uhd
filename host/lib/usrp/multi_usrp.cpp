@@ -987,6 +987,16 @@ public:
         return get_device()->get_rx_freq(chan);
     }
 
+    int64_t rx_mute(bool mute, size_t chan) override
+    {
+        try {
+            return get_device()->rx_mute(mute, chan);
+        } catch(const std::runtime_error& e) {
+            UHD_LOGGER_ERROR("MULTI_USRP") << "RX mute not supported on this device";
+            return 1;
+        }
+    }
+
 
     freq_range_t get_rx_freq_range(size_t chan) override
     {

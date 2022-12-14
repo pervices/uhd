@@ -267,6 +267,7 @@ private:
 
     uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_rx_freq(size_t chan = 0);
+    int64_t rx_mute(bool mute, size_t chan);
     uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_tx_freq(size_t chan = 0);
 

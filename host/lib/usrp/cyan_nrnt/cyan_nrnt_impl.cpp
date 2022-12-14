@@ -1877,6 +1877,18 @@ double cyan_nrnt_impl::get_rx_freq(size_t chan) {
         return cur_lo_freq - cur_dsp_nco;
 }
 
+int64_t cyan_nrnt_impl::rx_mute(bool mute, size_t chan) {
+
+    // Sets to low band if unmuting
+    // Sets to low band then to an invalid band when muting
+    _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(0);
+    if(mute) {
+        _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").set(-1);
+    }
+
+    return 0;
+}
+
 uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {

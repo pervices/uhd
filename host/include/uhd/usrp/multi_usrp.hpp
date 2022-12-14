@@ -752,6 +752,19 @@ public:
     virtual double get_rx_freq(size_t chan = 0) = 0;
 
     /*!
+     * Puts rx into/out of muted mode
+     * \param mute true to put rx into muted mode, false to unmute and set it to low band
+     * \param chan the channel index 0 to N-1
+     * \return error code (0 for good, anything else for error)
+     */
+
+    virtual int64_t rx_mute(bool mute, size_t chan) {
+        (void) mute;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
      * Get the RX center frequency range.
      * This range includes the overall tunable range of the RX chain,
      * including frontend chain and digital down conversion chain.
