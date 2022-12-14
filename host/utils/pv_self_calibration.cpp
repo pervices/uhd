@@ -113,12 +113,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->get_rx_num_channels(), std::vector<std::complex<short>>(samps_per_buff));
 
 
-    size_t num_acc_samps = 0; // number of accumulated samples
     double timeout = 5;
-
     while(true) {
+        size_t num_acc_samps = 0;
         while (num_acc_samps < self_calibration_nsamps) {
-
             // create a vector of pointers to point to each of the channel buffers
             std::vector<std::complex<short>*> buff_ptrs;
             for (size_t i = 0; i < buffs.size(); i++) {
@@ -131,8 +129,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             timeout = 0.1;
 
             // handle the error code
-            if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT)
-                break;
             if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
                 throw std::runtime_error(
                     str(boost::format("Receiver error %s") % md.strerror()));
@@ -140,9 +136,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
             num_acc_samps += num_rx_samps;
         }
-        if (num_acc_samps < self_calibration_nsamps) {
-            std::cerr << "Error while receving samples, re-attempting" << std::endl;
-        }
+
+        //TODO: add logic to check if output good, change settings, then try again
+        break;
     }
 
     // finished
