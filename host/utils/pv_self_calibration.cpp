@@ -100,8 +100,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // setup streaming
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
     stream_cmd.num_samps  = self_calibration_nsamps;
-    stream_cmd.stream_now = true;
-    stream_cmd.time_spec  = uhd::time_spec_t(0.0);
+    stream_cmd.stream_now = false;
+    stream_cmd.time_spec  = uhd::time_spec_t(2.0);
     rx_stream->issue_stream_cmd(stream_cmd); // tells all channels to stream
 
     // meta-data will be filled in by recv()
@@ -109,8 +109,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // allocate buffers to receive with samples (one buffer per channel)
     const size_t samps_per_buff = std::min(rx_stream->get_max_num_samps(), self_calibration_nsamps);
-    std::vector<std::vector<std::complex<float>>> buffs(
-        usrp->get_rx_num_channels(), std::vector<std::complex<float>>(samps_per_buff));
+    std::vector<std::vector<std::complex<short>>> buffs(
+        usrp->get_rx_num_channels(), std::vector<std::complex<short>>(samps_per_buff));
 
 
     size_t num_acc_samps = 0; // number of accumulated samples
@@ -120,7 +120,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         while (num_acc_samps < self_calibration_nsamps) {
 
             // create a vector of pointers to point to each of the channel buffers
-            std::vector<std::complex<float>*> buff_ptrs;
+            std::vector<std::complex<short>*> buff_ptrs;
             for (size_t i = 0; i < buffs.size(); i++) {
                 buff_ptrs.push_back(&buffs[i].at(num_acc_samps));
             }
