@@ -125,20 +125,25 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
     active_buffer = &buffers[active_buffer_index];
     size_t samples_this_buffer = 0;
     while(!buff_ready[active_buffer_index]) {
-
     }
+
     size_t samples_to_send_this_buffer = buffer_used[active_buffer_index];
         
     while ((num_acc_samps < total_num_samps || total_num_samps == 0) && !stop_signal_called) {
 
+        // Moves onto the next buffer
         if(samples_this_buffer >= samples_to_send_this_buffer) {
+            //Indicates the current buffer has been consumed
+            buff_ready[active_buffer_index] = false;
             active_buffer_index++;
+            //caps the active to be less than the number of buffers
             active_buffer_index = active_buffer_index & valid_index_mask;
             samples_this_buffer = 0;
             samples_to_send_this_buffer = buffer_used[active_buffer_index];
+            // Updates the active buffer
             active_buffer = &buffers[active_buffer_index];
+            // Waits for the new active buffer to be ready
             while(!buff_ready[active_buffer_index]) {
-
             }
         }
         
