@@ -185,7 +185,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rx_gain", po::value<double>(&rx_gain), "gain for the Rx RF chain")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "Number of samples to relay between tx and rx. Leave at 0 for run continuously")
-        ("offset", po::value<double>(&offset)->default_value(1), "Delay between rx and tx in seconds")
+        ("offset", po::value<double>(&offset)->default_value(10), "Delay between rx and tx in seconds. If you are experiencing underflows increase this value")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
     ;
     
