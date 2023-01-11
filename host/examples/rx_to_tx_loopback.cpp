@@ -301,7 +301,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     for(size_t a = 0; a < num_buffers; a++) {
         buffers[a] = std::vector<std::vector<std::complex<short>>>(num_channels);
         for(size_t b = 0; b < num_channels; b++) {
-            buffers[a][b] = std::vector<std::complex<short>>(buffer_size);
+            // Must initialize the vector. Otherwise lazy allocation will result overflows on the rx side when the vecotrs are first used
+            buffers[a][b] = std::vector<std::complex<short>>(buffer_size, std::complex<short>(0, 0));
         }
     }
 
