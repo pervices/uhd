@@ -29,6 +29,7 @@
 #include <thread>
 #include <unistd.h>
 #include <algorithm>
+#include <semaphore.h>
 
 namespace po = boost::program_options;
 
@@ -51,10 +52,13 @@ const size_t spare_buffer_space = 10000;
 const size_t max_samples_per_tx = 6000;
 // The inner buffer is a buffer containing data received from each channel
 // The middle layer groups the buffer for each ch together
-// The outer layer exists so that the rx can receive to once set of buffers and tx the other, so that they don't need to lock and unlock every send/recv
+// The outer layer exists so that the rx can receive to once set of buffers and tx the other, so that they don't need to lock and unlock every send/recv. It forms a pseudo ring buffer.
 std::vector<std::vector<std::vector<std::complex<short>>>> buffers;
+// How much of each buffer has been used
 std::vector<std::atomic<size_t>> buffer_used(num_buffers);
-std::vector<std::atomic<bool>> buff_ready(num_buffers);
+
+// Semaphore to count the number of buffers ready to send
+sem_t buffer_ready;
 
 void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps) {
     uhd::set_thread_priority_safe();
@@ -65,6 +69,13 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
     size_t max_samples_per_buffer = buffers[0][0].size();
     uhd::rx_metadata_t rx_md;
 
+    for(size_t a = 0; a < num_buffers; a++) {
+        for(size_t b = 0; b < buffers[a].size(); b++) {
+            // Must initialize the vector. Otherwise lazy allocation will result overflows on the rx side when the vecotrs are first used
+            buffers[a][b] = std::vector<std::complex<short>>(buffers[a][b].size(), std::complex<short>(0, 0));
+        }
+    }
+
 
     std::vector<std::vector<std::complex<short>>> *active_buffer;
     std::vector<std::complex<short>*> active_buff_ptrs(num_channels);
@@ -72,7 +83,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
     size_t samples_this_buffer = 0;
 
     active_buffer = &buffers[active_buffer_index];
-    
+
     while ((num_acc_samps < total_num_samps || total_num_samps == 0) && !stop_signal_called) {
 
         for(size_t n = 0; n < num_channels; n++) {
@@ -87,7 +98,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
 
         if(samples_this_buffer + spare_buffer_space > max_samples_per_buffer) {
             buffer_used[active_buffer_index] = samples_this_buffer;
-            buff_ready[active_buffer_index] = true;
+            sem_post(&buffer_ready);
             active_buffer_index++;
             //caps the active to be less than the number of buffers
             active_buffer_index = active_buffer_index & valid_index_mask;
@@ -95,15 +106,26 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
             active_buffer = &buffers[active_buffer_index];
 
             samples_this_buffer = 0;
+            
+            // Prints warning if the ring buffer of rx buffers is full
+            // This should be impossible if the rest of the program is working
+            int num_buffers_ready = 0;
+            sem_getvalue(&buffer_ready, &num_buffers_ready);
+            if((uint32_t) num_buffers_ready >= num_buffers) {
+                std::cerr << "Ring buffer full. Tx send is running slow\n";
+                sem_getvalue(&buffer_ready, &num_buffers_ready);
+                while((uint32_t) num_buffers_ready >= num_buffers) {
+                }
+            }
         }
     }
-    
-    for(size_t n = 0; n < num_buffers; n++) {
-        buff_ready[n] = true;
-    }
+
+     // Increments the semaphore counter so that tx will finish its last loop
+    sem_post(&buffer_ready);
 
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     rx_stream->issue_stream_cmd(stream_cmd);
+
 }
 
 void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_num_samps) {
@@ -124,17 +146,20 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
     std::vector<std::vector<std::complex<short>>> *active_buffer;
     active_buffer = &buffers[active_buffer_index];
     size_t samples_this_buffer = 0;
-    while(!buff_ready[active_buffer_index]) {
-    }
+    //while(num_buffers_consumed >= num_buffers_prepared) {
+    //}
+    sem_wait(&buffer_ready);
 
     size_t samples_to_send_this_buffer = buffer_used[active_buffer_index];
-        
+
     while ((num_acc_samps < total_num_samps || total_num_samps == 0) && !stop_signal_called) {
 
         // Moves onto the next buffer
         if(samples_this_buffer >= samples_to_send_this_buffer) {
-            //Indicates the current buffer has been consumed
-            buff_ready[active_buffer_index] = false;
+            
+            struct timespec begin_buffer_change_time;
+            clock_gettime(CLOCK_PROCESS_CPUTIME_ID,  &begin_buffer_change_time);
+            
             active_buffer_index++;
             //caps the active to be less than the number of buffers
             active_buffer_index = active_buffer_index & valid_index_mask;
@@ -142,19 +167,20 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
             samples_to_send_this_buffer = buffer_used[active_buffer_index];
             // Updates the active buffer
             active_buffer = &buffers[active_buffer_index];
+            
             // Waits for the new active buffer to be ready
-            while(!buff_ready[active_buffer_index]) {
-            }
+            sem_wait(&buffer_ready);
         }
         
         for(size_t n = 0; n < num_channels; n++) {
             active_buff_ptrs[n] = &(*active_buffer)[n][samples_this_buffer];
         }
-
+        
         size_t samples_sent = tx_stream->send(active_buff_ptrs, std::min(samples_to_send_this_buffer - samples_this_buffer, max_samples_per_buffer), tx_md);
+        
         samples_this_buffer+=samples_sent;
         num_acc_samps+=samples_sent;
-
+        
         tx_md.start_of_burst = false;
         tx_md.has_time_spec = false;
     }
@@ -171,6 +197,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     size_t total_num_samps;
     double rate,freq,tx_gain, rx_gain, offset;
     bool no_tx_delay = false;
+
+    sem_init(&buffer_ready, 0, 0);
     
     // setup the program options
     po::options_description desc("Allowed options");
@@ -205,7 +233,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         no_tx_delay = false;
     } else {
         no_tx_delay = true;
-        offset = 1;
+        offset = 5;
     }
     
     // create a usrp device
@@ -313,14 +341,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             buffers[a][b] = std::vector<std::complex<short>>(buffer_size, std::complex<short>(0, 0));
         }
     }
-
-    for(size_t n = 0; n < num_buffers; n++) {
-        buff_ready[n] = false;
-    }
     
     // In tx force stream mode the device will begin streaming as soon as it reaches a target buffer level
+    double tx_start_time;
     if(no_tx_delay) {
         usrp->tx_start_force_stream(tx_channel_nums);
+        // When using force stream, set tx start time to 0 to prevent UHD from waiting to send
+        tx_start_time = 0;
+    } else {
+        tx_start_time = seconds_in_future + offset;
     }
     
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
@@ -337,7 +366,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::thread rx_thread(rx_run, rx_stream, seconds_in_future, total_num_samps);
 
     //the arrays passed here need to be changed to be passed by reference, and locking added
-    std::thread tx_thread(tx_run, tx_stream, seconds_in_future + offset, total_num_samps);
+    std::thread tx_thread(tx_run, tx_stream, tx_start_time, total_num_samps);
     
     rx_thread.join();
     tx_thread.join();
