@@ -58,6 +58,7 @@ std::vector<std::vector<std::vector<std::complex<short>>>> buffers;
 std::vector<std::atomic<size_t>> buffer_used(num_buffers);
 
 // Semaphore to count the number of buffers ready to send
+// Ideally we would use polling instead of semaphores for performance but either the OS or CPU will periodically sleep the thread during polling loops for a system dependend amount of time
 sem_t buffer_ready;
 
 void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps) {
@@ -214,7 +215,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rx_gain", po::value<double>(&rx_gain), "gain for the Rx RF chain")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "Number of samples to relay between tx and rx. Leave at 0 for run continuously")
-        ("offset", po::value<double>(&offset), "Delay between rx and tx in seconds. If you are experiencing underflows increase this value. If unspecified tx will begin transmitting as soon as it's buffer is mostly full")
+        ("offset", po::value<double>(&offset)->default_value(10), "Delay between rx and tx in seconds. If you are experiencing underflows increase this value. If unspecified tx will begin transmitting as soon as it's buffer is mostly full")
+        ("no-wait", po::value<double>(&offset), "Use a special mode to stream as soon as the buffer is full. This is mode primarily meant for debugging and is likely to cause buffer management issues. Attempting to use the unit in normal mode after running this requires rebooting")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
     ;
     
@@ -229,7 +231,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
     
-    if (vm.count("offset")) {
+    if (vm.count("no-wait")) {
         no_tx_delay = false;
     } else {
         no_tx_delay = true;
