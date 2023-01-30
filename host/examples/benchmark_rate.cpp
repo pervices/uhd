@@ -80,6 +80,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     //number of samples to receive per channel
     uint64_t target_nsamps)
 {
+
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
     }
@@ -100,13 +101,18 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     }
     // setup variables and allocate buffer
     uhd::rx_metadata_t md;
-    std::vector<char> buff(
-        max_samps_per_recv * uhd::convert::get_bytes_per_item(rx_cpu));
-    std::vector<void*> buffs;
-    for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++)
-        buffs.push_back(&buff.front()); // same buffer for each channel
+
+
+    size_t recv_buffer_byte_size = max_samps_per_recv * uhd::convert::get_bytes_per_item(rx_cpu);
+    std::vector<std::vector<uint8_t>> buffs(num_channels, std::vector<uint8_t>(recv_buffer_byte_size, 0));
+    std::vector<void*> buff_ptrs(num_channels);
+    for(size_t n = 0; n < num_channels; n++) {
+        buff_ptrs[n] = &(buffs[n].front());
+    }
+
     bool had_an_overflow = false;
     uhd::time_spec_t last_time;
+
 
     uhd::stream_cmd_t cmd((target_nsamps == 0)?
         uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
@@ -134,7 +140,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             rx_stream->issue_stream_cmd(cmd);
         }
         try {
-            num_rx_samps += rx_stream->recv(buffs, buff.size(), md, recv_timeout);
+            num_rx_samps += rx_stream->recv(buff_ptrs,max_samps_per_recv, md, recv_timeout);
             recv_timeout = burst_pkt_time;
         } catch (uhd::io_error& e) {
             std::cerr << "[" << NOW() << "] Caught an IO exception. " << std::endl;
