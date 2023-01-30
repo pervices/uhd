@@ -11,7 +11,6 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
-#include <boost/thread/thread.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <iostream>
@@ -79,7 +78,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     bool elevate_priority,
     double rx_delay,
     //number of samples to receive per channel
-    uint64_t target_nsamps=0)
+    uint64_t target_nsamps)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
@@ -461,8 +460,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
     int num_mboards = usrp->get_num_mboards();
 
-    boost::thread_group thread_group;
-
     if (vm.count("ref")) {
         if (ref == "mimo") {
             if (num_mboards != 2) {
@@ -577,7 +574,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // spawn the receive test thread
-    if (vm.count("rx_rate")) {
+    std::thread rx_thread;
+    if (use_rx) {
         if (vm.count("rx_spp")) {
             std::cout << boost::format("Setting RX spp to %u\n") % rx_spp;
             usrp->set_rx_spp(rx_spp);
@@ -587,57 +585,58 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         stream_args.channels             = rx_channel_nums;
         stream_args.args                 = uhd::device_addr_t(rx_stream_args);
         uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-        auto rx_thread = thread_group.create_thread([=, &rx_burst_timer_elapsed]() {
-            benchmark_rx_rate(usrp,
-                rx_cpu,
-                rx_stream,
-                random_nsamps,
-                start_time,
-                rx_burst_timer_elapsed,
-                elevate_priority,
-                rx_delay,
-                nsamps
-            );
-        });
-        uhd::set_thread_name(rx_thread, "bmark_rx_stream");
+        rx_thread = std::thread(
+            benchmark_rx_rate,
+                 usrp,
+                 rx_cpu,
+                 rx_stream,
+                 random_nsamps,
+                 start_time,
+                 std::ref(rx_burst_timer_elapsed),
+                 elevate_priority,
+                 rx_delay,
+                 nsamps
+        );
     }
 
+    std::thread tx_thread;
+    std::thread tx_helper_thread;
     // Spawn the transmit test thread
-    if (vm.count("tx_rate")) {
+    if (use_tx) {
         // create a transmit streamer
         uhd::stream_args_t stream_args(tx_cpu, tx_otw);
         stream_args.channels             = tx_channel_nums;
         stream_args.args                 = uhd::device_addr_t(tx_stream_args);
         uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
-        auto tx_thread = thread_group.create_thread([=, &tx_burst_timer_elapsed]() {
-            benchmark_tx_rate(usrp,
+        tx_thread = std::thread(
+            benchmark_tx_rate,
+                usrp,
                 tx_cpu,
                 tx_stream,
-                tx_burst_timer_elapsed,
+                std::ref(tx_burst_timer_elapsed),
                 start_time,
                 elevate_priority,
                 tx_delay,
                 random_nsamps,
                 nsamps
-            );
-        });
-        uhd::set_thread_name(tx_thread, "bmark_tx_stream");
-        auto tx_async_thread = thread_group.create_thread([=, &tx_burst_timer_elapsed]() {
-            benchmark_tx_rate_async_helper(tx_stream, start_time, tx_burst_timer_elapsed);
-        });
-        uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
-
+        );
+        tx_helper_thread = std::thread(
+            benchmark_tx_rate_async_helper,
+                tx_stream,
+                start_time,
+                std::ref(tx_burst_timer_elapsed)
+        );
     }
 
     double rx_wait_time;
-    if(vm.count("rx_rate")) {
+    if(use_rx) {
         rx_wait_time = (nsamps / rx_rate) + rx_delay + 1;
     } else {
         rx_wait_time = 0;
     }
     double tx_wait_time;
-    if(vm.count("tx_rate")) {
+    if(use_tx) {
         tx_wait_time = (nsamps / tx_rate) + tx_delay + 1;
     } else {
         tx_wait_time = 0;
@@ -679,7 +678,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     rx_burst_timer_elapsed = true;
     tx_burst_timer_elapsed = true;
 
-    thread_group.join_all();
+    if(use_rx) {
+        rx_thread.join();
+    }
+    if(use_tx) {
+        tx_thread.join();
+        tx_helper_thread.join();
+    }
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
