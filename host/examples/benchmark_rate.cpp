@@ -288,9 +288,9 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
             else {
                 samps_to_attempt_now_per_ch = max_samps_per_packet;
             }
-            uint64_t num_tx_samps_sent_now = tx_stream->send(buffs, samps_to_attempt_now_per_ch, md) * num_tx_channels;
+            uint64_t num_tx_samps_sent_now = tx_stream->send(buffs, samps_to_attempt_now_per_ch, md);
             num_tx_samps += num_tx_samps_sent_now;
-            num_tx_attempted += samps_to_attempt_now_per_ch*num_tx_channels;
+            num_tx_attempted += samps_to_attempt_now_per_ch;
             if (num_tx_samps_sent_now == 0) {
                 num_timeouts_tx++;
                 if ((num_timeouts_tx % 10000) == 1) {
