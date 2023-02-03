@@ -37,7 +37,7 @@ public:
     {
         //Create the receive thread to poll the underlying transport
         //and classify packets into queues
-        _recv_thread = boost::thread(
+        _recv_thread = 
             boost::thread(std::bind(&muxed_zero_copy_if_impl::_update_queues, this));
     }
 
