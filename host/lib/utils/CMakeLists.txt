@@ -224,7 +224,6 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/compat_check.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/eeprom_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gain_group.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ihex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/load_modules.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/log.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/paths.cpp
