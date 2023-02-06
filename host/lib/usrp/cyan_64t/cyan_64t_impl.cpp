@@ -83,7 +83,7 @@ static std::string rx_dsp_root(const size_t channel, const size_t mboard = 0) {
 
 static std::string rx_rf_fe_root(const size_t channel, const size_t mboard = 0) {
     auto letter = std::string(1, 'A' + channel);
-    return mb_root(mboard) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
+    return mb_root(mboard) + "/dboards/" + letter + "/rx_frontends/Channel_" + std::to_string(channel);
 }
 
 static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
@@ -92,7 +92,8 @@ static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
 
 static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) {
     auto letter = std::string(1, 'A' + channel);
-    return mb_root(mboard) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
+    std::string dboard_num(1, (char)(channel/4 + 'A'));
+    return mb_root(0) + "/dboards/" + dboard_num + "/tx_frontends/Channel_" + std::to_string(channel);
 }
 
 // seperates the input data into the vector tokens based on delim
@@ -1651,15 +1652,13 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-static tune_result_t tune_xx_subdev_and_dsp(const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
-
+static tune_result_t tune_xx_subdev_and_dsp(const int is_tx, const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
 	enum {
 		LOW_BAND = 0,
 		HIGH_BAND = 1,
 		SUPER_LOW_BAND = 9,
 	};
 
-	const bool is_tx = (TX_SIGN == xx_sign);
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t adc_range( dsp_range.start(), CYAN_64T_DSP_CLOCK_RATE, 0.0001 ); //Assume ADC bandwidth is the same as DSP rate.
@@ -1769,46 +1768,31 @@ static tune_result_t tune_xx_subdev_and_dsp(const double xx_sign, property_tree:
 uhd::tune_result_t cyan_64t_impl::set_rx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {
-
-	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
-			_tree->subtree(rx_dsp_root(chan)),
-			_tree->subtree(rx_rf_fe_root(chan)),
-			tune_request);
-	return result;
-
+    return uhd::tune_result_t();
 }
 
 double cyan_64t_impl::get_rx_freq(size_t chan) {
-
-        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
-        double cur_lo_freq = 0;
-        if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-            cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
-        }
-        return cur_lo_freq - cur_dsp_nco;
+    return 0;
 }
 
-uhd::tune_result_t cyan_64t_impl::set_tx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
-) {
-
-	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
-			_tree->subtree(tx_dsp_root(chan)),
-			_tree->subtree(tx_rf_fe_root(chan)),
-			tune_request);
-	return result;
-
+uhd::tune_result_t cyan_64t_impl::set_tx_freq(const tune_request_t &tune_request, size_t chan){
+    tune_result_t result = tune_xx_subdev_and_dsp(1, TX_SIGN,
+            _tree->subtree(tx_dsp_root(chan)),
+            _tree->subtree(tx_rf_fe_root(chan)),
+            tune_request);
+    //do_tune_freq_results_message(tune_request, result, get_tx_freq(chan), "TX");
+    return result;
 }
 
 double cyan_64t_impl::get_tx_freq(size_t chan) {
-
-	double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-	double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
-	double cur_lo_freq = 0;
-	if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-			cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
-	}
-	return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
+    double cur_dac_ch_nco = _tree->access<double>(tx_rf_fe_root(chan) / "chnco").get();
+    double cur_dac_dp_nco = _tree->access<double>(tx_rf_fe_root(chan) / "dpnco").get();
+    double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
+    double cur_lo_freq = 0;
+    if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+        cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
+    }
+    return cur_lo_freq + cur_dac_ch_nco + cur_dac_dp_nco + cur_dsp_nco;
 }
 
 void cyan_64t_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
@@ -1823,6 +1807,7 @@ void cyan_64t_impl::set_tx_gain(double gain, const std::string &name, size_t cha
         else if (gain < MIN_GAIN) gain = MIN_GAIN;
 
         gain = round(gain / 0.25);
+
         //if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
             _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
         //} else {
@@ -1836,9 +1821,7 @@ void cyan_64t_impl::set_tx_gain(double gain, const std::string &name, size_t cha
 }
 
 double cyan_64t_impl::get_tx_gain(const std::string &name, size_t chan) {
-    //TODO: implement get_tx_gain
-    //due to an old bug get_tx_gain would always return 0, this keeps that behaviour
-    return 0;
+    return _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").get();
 }
 
 double cyan_64t_impl::get_rx_gain(const std::string &name, size_t chan) {
