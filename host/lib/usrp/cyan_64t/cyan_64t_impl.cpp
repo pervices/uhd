@@ -93,7 +93,7 @@ static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
 static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) {
     auto letter = std::string(1, 'A' + channel);
     std::string dboard_num(1, (char)(channel/4 + 'A'));
-    return mb_root(0) + "/dboards/" + dboard_num + "/tx_frontends/Channel_" + std::to_string(channel);
+    return mb_root(0) + "/dboards/" + dboard_num + "/tx_frontends/Channel_" + std::to_string(channel%CYAN_64T_DSP_PER_RFE);
 }
 
 // seperates the input data into the vector tokens based on delim
