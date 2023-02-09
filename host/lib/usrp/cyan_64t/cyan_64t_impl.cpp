@@ -81,9 +81,11 @@ static std::string rx_dsp_root(const size_t channel, const size_t mboard = 0) {
     return mb_root(mboard) + "/rx_dsps/" + std::to_string(channel);
 }
 
-static std::string rx_rf_fe_root(const size_t channel, const size_t mboard = 0) {
+// CYAN_64T has no rx, treat all as using ch 0 to minimize issues
+static std::string rx_rf_fe_root(size_t channel, const size_t mboard = 0) {
+    channel = 0;
     auto letter = std::string(1, 'A' + channel);
-    return mb_root(mboard) + "/dboards/" + letter + "/rx_frontends/Channel_" + std::to_string(channel);
+    return mb_root(mboard) + "/dboards/" + letter + "/rx_frontends/Channel_0" + std::to_string(channel);
 }
 
 static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
