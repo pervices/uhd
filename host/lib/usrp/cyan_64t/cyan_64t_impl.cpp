@@ -1349,7 +1349,6 @@ cyan_64t_impl::cyan_64t_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset"                 , bool                                          , false);
 		TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value"           , "tx_"+lc_num+"/rf/dac/nco"                    , double, double);
-        std::cout << tx_fe_path / "freq" / "range" << std::endl;
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range"                , meta_range_t                                  , meta_range_t(CYAN_64T_FREQ_RANGE_START, CYAN_64T_FREQ_RANGE_STOP, CYAN_64T_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_fe_path / "gain" / "range"                , meta_range_t                                  , meta_range_t(CYAN_64T_RF_TX_GAIN_RANGE_START, CYAN_64T_RF_TX_GAIN_RANGE_STOP, CYAN_64T_RF_TX_GAIN_RANGE_STEP));
 
