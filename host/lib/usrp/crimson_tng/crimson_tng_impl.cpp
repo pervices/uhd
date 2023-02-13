@@ -579,13 +579,13 @@ static inline int64_t nsecs_to_ticks( int64_t tv_nsec ) {
 }
 
 static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
-	pkt.header = (uint64_t)0x20002 << 16;
-	pkt.tv_sec = ts.get_full_secs();
-	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
+    pkt.header = 1;
+    pkt.tv_sec = ts.get_full_secs();
+    pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
 
-	boost::endian::native_to_big_inplace( pkt.header );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+    boost::endian::native_to_big_inplace( pkt.header );
+    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
 void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
