@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <semaphore.h>
+#include <atomic>
 
 namespace po = boost::program_options;
 
@@ -60,6 +61,11 @@ std::vector<std::atomic<size_t>> buffer_used(num_buffers);
 // Semaphore to count the number of buffers ready to send
 // Ideally we would use polling instead of semaphores for performance but either the OS or CPU will periodically sleep the thread during polling loops for a system dependend amount of time
 sem_t buffer_ready;
+// Number of buffers filled
+std::atomic<uint64_t> num_buffers_prepared(0);
+// Number of buffers that have been sent/started to be sent
+std::atomic<uint64_t> num_buffers_consumed(0);
+std::atomic<bool> tx_reached_rx(false);
 
 void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps) {
     uhd::set_thread_priority_safe();
@@ -98,8 +104,15 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
         samples_this_buffer+=samps_received;
 
         if(samples_this_buffer + spare_buffer_space > max_samples_per_buffer) {
+            // Stores the number of samples instered into the buffer
             buffer_used[active_buffer_index] = samples_this_buffer;
-            sem_post(&buffer_ready);
+            // Increments the count for the total number of rx samples consumed
+            num_buffers_prepared++;
+            // Tx sets this flag when it catches up to rx, and will then wait for a semaphore
+            // This is done to minimize delays from unneeded semaphores while avoiding issues caused by polling
+            if(tx_reached_rx) {
+                sem_post(&buffer_ready);
+            }
             active_buffer_index++;
             //caps the active to be less than the number of buffers
             active_buffer_index = active_buffer_index & valid_index_mask;
@@ -110,12 +123,9 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
             
             // Prints warning if the ring buffer of rx buffers is full
             // This should be impossible if the rest of the program is working
-            int num_buffers_ready = 0;
-            sem_getvalue(&buffer_ready, &num_buffers_ready);
-            if((uint32_t) num_buffers_ready >= num_buffers) {
+            if( num_buffers_prepared == num_buffers + num_buffers_consumed) {
                 std::cerr << "Ring buffer full. Tx send is running slow\n";
-                sem_getvalue(&buffer_ready, &num_buffers_ready);
-                while((uint32_t) num_buffers_ready >= num_buffers) {
+                while(num_buffers_prepared == num_buffers + num_buffers_consumed) {
                 }
             }
         }
@@ -127,6 +137,15 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     rx_stream->issue_stream_cmd(stream_cmd);
 
+}
+
+void tx_wait_for_rx() {
+    // If there are no buffers ready to be used, set flag requesting semaphore signal when a buffer is ready, otherwise immediatly start sending data
+    if(num_buffers_consumed == num_buffers_prepared) {
+        tx_reached_rx = true;
+        sem_wait(&buffer_ready);
+    }
+    num_buffers_consumed++;
 }
 
 void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_num_samps) {
@@ -147,9 +166,8 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
     std::vector<std::vector<std::complex<short>>> *active_buffer;
     active_buffer = &buffers[active_buffer_index];
     size_t samples_this_buffer = 0;
-    //while(num_buffers_consumed >= num_buffers_prepared) {
-    //}
-    sem_wait(&buffer_ready);
+
+    tx_wait_for_rx();
 
     size_t samples_to_send_this_buffer = buffer_used[active_buffer_index];
 
@@ -158,7 +176,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
         // Moves onto the next buffer
         if(samples_this_buffer >= samples_to_send_this_buffer) {
             // Waits for the new active buffer to be ready
-            sem_wait(&buffer_ready);
+            tx_wait_for_rx();
             
             active_buffer_index++;
             //caps the active to be less than the number of buffers
