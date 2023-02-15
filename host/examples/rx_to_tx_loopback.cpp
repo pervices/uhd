@@ -125,7 +125,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
             // This should be impossible if the rest of the program is working
             if( num_buffers_prepared == num_buffers + num_buffers_consumed) {
                 std::cerr << "Ring buffer full. Tx send is running slow\n";
-                while(num_buffers_prepared == num_buffers + num_buffers_consumed) {
+                while(num_buffers_prepared == num_buffers + num_buffers_consumed && !stop_signal_called) {
                 }
             }
         }
