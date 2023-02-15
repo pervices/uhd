@@ -157,9 +157,8 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
 
         // Moves onto the next buffer
         if(samples_this_buffer >= samples_to_send_this_buffer) {
-            
-            struct timespec begin_buffer_change_time;
-            clock_gettime(CLOCK_PROCESS_CPUTIME_ID,  &begin_buffer_change_time);
+            // Waits for the new active buffer to be ready
+            sem_wait(&buffer_ready);
             
             active_buffer_index++;
             //caps the active to be less than the number of buffers
@@ -168,9 +167,6 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
             samples_to_send_this_buffer = buffer_used[active_buffer_index];
             // Updates the active buffer
             active_buffer = &buffers[active_buffer_index];
-            
-            // Waits for the new active buffer to be ready
-            sem_wait(&buffer_ready);
         }
         
         for(size_t n = 0; n < num_channels; n++) {
