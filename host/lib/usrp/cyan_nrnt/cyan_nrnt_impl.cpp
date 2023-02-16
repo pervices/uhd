@@ -33,7 +33,7 @@
 #include "uhd/types/stream_cmd.hpp"
 #include "uhd/utils/static.hpp"
 
-#include "../../transport/super_recv_packet_handler.hpp"
+#include "../../transport/super_recv_packet_handler_mmsg.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 
 #include <uhdlib/transport/udp_common.hpp>
@@ -1337,21 +1337,23 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
         //Attempts to bind the ips associated with the ip ports
         //It is neccessary for maximum performance when receiving using uhd
         //However if uhd is only being used to start the stream and something else is handling actually receiving the data this error can be ignored
-        try {
-            _mbc[mb].rx_dsp_xports.push_back(
-                udp_stream_zero_copy::make(
-                    _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-                    std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-                    "127.0.0.1",
-                    1,
-                    zcxp,
-                    bp,
-                    device_addr
-                )
-            );
-        } catch (...) {
-            UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
-        }
+//         std::cout << "Creating rx sockets + buffers" << std::endl;
+//         try {
+//             _mbc[mb].rx_dsp_xports.push_back(
+//                 udp_stream_zero_copy::make(
+//                     _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
+//                     std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
+//                     "127.0.0.1",
+//                     1,
+//                     zcxp,
+//                     bp,
+//                     device_addr
+//                 )
+//             );
+//         } catch (...) {
+//             UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
+//         }
+//         std::cout << "Finished creating rx sockets + buffers" << std::endl;
     }
 
     // initializes all TX chains
@@ -1595,6 +1597,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		start_bm();
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
+
+	std::cout << "I50" << std::endl;
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)

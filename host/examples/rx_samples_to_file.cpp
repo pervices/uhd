@@ -84,7 +84,9 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     std::string tmp42;
     std::cin >> tmp42;
 #endif
+    std::cout << "R20" << std::endl;
     rx_stream->issue_stream_cmd(stream_cmd);
+    std::cout << "R21" << std::endl;
 
     typedef std::map<size_t, size_t> SizeMap;
     SizeMap mapSizes;
@@ -105,8 +107,10 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
 
         const auto now = std::chrono::steady_clock::now();
 
+        std::cout << "R25" << std::endl;
         size_t num_rx_samps =
             rx_stream->recv(&buff.front(), buff.size(), md, start_delay + 3, enable_size_map);
+        std::cout << "R26" << std::endl;
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
             // recv exited due to EINTR (interrupt received while waiting for data, usually the result of ctrl c)
