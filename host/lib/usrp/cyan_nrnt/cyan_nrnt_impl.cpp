@@ -1120,6 +1120,13 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(mb_path / "sw_version", "fpga/about/sw_ver", std::string, string);
+    TREE_CREATE_RW(mb_path / "imgparam/backplane_pinout", "fpga/about/imgparam/backplane_pinout", int, int);
+    TREE_CREATE_RW(mb_path / "imgparam/ddr_used", "fpga/about/imgparam/ddr_used", int, int);
+    TREE_CREATE_RW(mb_path / "imgparam/hps_only", "fpga/about/imgparam/hps_only", int, int);
+    TREE_CREATE_RW(mb_path / "imgparam/num_rx", "fpga/about/imgparam/num_rx", int, int);
+    TREE_CREATE_RW(mb_path / "imgparam/num_tx", "fpga/about/imgparam/num_tx", int, int);
+    TREE_CREATE_RW(mb_path / "imgparam/rate", "fpga/about/imgparam/rate", int, int);
+    TREE_CREATE_RW(mb_path / "imgparam/rtm", "fpga/about/imgparam/rtm", int, int);
     TREE_CREATE_RW(mb_path / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(mb_path / "temp", "fpga/board/temp", std::string, string);
 

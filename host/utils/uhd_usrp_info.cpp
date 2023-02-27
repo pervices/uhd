@@ -167,6 +167,30 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             std::cout << "FPGA version lookup not implemented" << std::endl;
         }
 
+        try {
+        std::cout << "FPGA maximum SFP link rate: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
+        } catch (const uhd::lookup_error&) {
+            std::cout << "FPGA version lookup not implemented" << std::endl;
+        }
+
+        try {
+            std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
+
+            std::cout << "FPGA DDR in use: " << get_from_tree_int(tree, i, "imgparam/ddr_used") << std::endl;
+
+            std::cout << "FPGA is hps only image: " << get_from_tree_int(tree, i, "imgparam/hps_only") << std::endl;
+
+            std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
+
+            std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
+
+            std::cout << "FPGA sample rate: " << get_from_tree_int(tree, i, "imgparam/rate") << std::endl;
+
+            std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
+        } catch (const uhd::lookup_error&) {
+            std::cout << "FPGA version lookup not implemented" << std::endl;
+        }
+
         std::cout << "Board MCU revision: " << std::endl;
         std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
         bool all_rx_found = false;
