@@ -1,8 +1,10 @@
 #include <uhd/device.hpp>
+#include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/property_tree.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/version.hpp>
 #include <boost/program_options.hpp>
+#include <boost/format.hpp>
 #include <cstdlib>
 #include <iostream>
 namespace po = boost::program_options;
@@ -22,20 +24,6 @@ uhd::device_addr_t append_findall(const uhd::device_addr_t& device_args)
 
 typedef std::map<std::string, std::set<std::string>> device_multi_addrs_t;
 typedef std::map<std::string, device_multi_addrs_t> device_addrs_filtered_t;
-
-void print_usage(po::options_description desc)
-{
-    std::cout << "Usage: uhd_usrp_init [OPTIONS]..." << std::endl
-              << "Diagnostic script that completely captures the state, code, and "
-                 "revision of a Per Vices SDR"
-              << std::endl
-              << std::endl
-              << desc << std::endl
-              << std::endl
-              << "Examples:" << std::endl
-              << "    uhd_usrp_init -v" << std::endl
-              << std::endl;
-}
 
 std::string get_from_tree(
     uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
@@ -96,24 +84,38 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // clang-format off
     desc.add_options()
-        ("networking,i", "provide the Management/SFP+ port IP addresses")
-        ("time,t", "provide the SOC: 'date' 'hwclock' and the time on SDR")
-        ("lock,l", "provide the PLL lock status for Rx/Tx/time and if we are using internal/external reference")
-        ("boards,r", "provide the RFE front end status for each board")
-        ("all,v", "prints all of the information described above.")
+        ("help,h", "help message")
+        ("all,v", "prints all information")
+        ("server,s", "prints all information related to the server")
+        ("fpga,f", "prints all information related to the fpga")
+        ("tx,t", "prints all information related to tx")
+        ("rx,r", "prints all information related to rx")
+        ("time,c", "prints all information related to the time board")
+        ("network,i", "provide the Management/SFP+ port IP addresses")
         ("args", po::value<std::string>(&args)->default_value(""), "device address args")
     ;
     // clang-format on
-
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-    if (argc <= 1) {
-        print_usage(desc);
-        return EXIT_SUCCESS;
+        //print the help message
+    if (vm.count("help") || argc <= 1) {
+        std::cout << boost::format("UHD_USRP_INFO %s") % desc << std::endl;
+                std::cout << std::endl
+                  << "This application gets various parameters related to the system. It is primarily meant for disagnostic/checking versions\n"
+                  << std::endl;
+        return ~0;
     }
+
+    bool all_info = vm.count("all");
+    bool server_info = all_info || vm.count("server");
+    bool fpga_info = all_info || vm.count("fpga");
+    bool tx_info = all_info || vm.count("tx");
+    bool rx_info = all_info || vm.count("rx");
+    bool time_info = all_info || vm.count("time");
+    bool network_info = all_info || vm.count("network");
 
     std::cout << "UHD Software Library : " << uhd::get_version_string() << std::endl;
 
@@ -133,7 +135,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     args+=",bypass_clock_sync=true";
     // create property tree for later
-    uhd::device::sptr dev         = uhd::device::make(args);
+    uhd::usrp::multi_usrp::sptr dev         = uhd::usrp::multi_usrp::make(args);
     uhd::property_tree::sptr tree = dev->get_tree();
 
     std::string device_type, device_address;
@@ -153,99 +155,103 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         std::cout << "Device Type    : " << device_type << std::endl;
 
-        try {
-        std::cout << "Server Version : " << get_from_tree(tree, i, "server_version")
-                  << std::endl;
-        } catch (const uhd::lookup_error&) {
-            std::cout << "Server version lookup not implemented" << std::endl;
-        }
-
-        try {
-        std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version")
-                  << std::endl;
-        } catch (const uhd::lookup_error&) {
-            std::cout << "FPGA version lookup not implemented" << std::endl;
-        }
-
-        try {
-        std::cout << "FPGA maximum SFP link rate: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
-        } catch (const uhd::lookup_error&) {
-            std::cout << "FPGA version lookup not implemented" << std::endl;
-        }
-
-        try {
-            std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
-
-            std::cout << "FPGA DDR in use: " << get_from_tree_int(tree, i, "imgparam/ddr_used") << std::endl;
-
-            std::cout << "FPGA is hps only image: " << get_from_tree_int(tree, i, "imgparam/hps_only") << std::endl;
-
-            std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
-
-            std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
-
-            std::cout << "FPGA sample rate: " << get_from_tree_int(tree, i, "imgparam/rate") << std::endl;
-
-            std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
-        } catch (const uhd::lookup_error&) {
-            std::cout << "FPGA version lookup not implemented" << std::endl;
-        }
-
-        std::cout << "Board MCU revision: " << std::endl;
-        std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
-        bool all_rx_found = false;
-        size_t rx_chan = 0;
-        while(!all_rx_found) {
+        if(server_info) {
             try {
-                char path[50];
-                sprintf(path, "rx/%lu/fw_version", rx_chan);
-                std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
-                try {
-                    sprintf(path, "rx/%lu/jesd/status", rx_chan);
-                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
-                } catch (...) {}
-                try {
-                    sprintf(path, "rx/%lu/status/lna", rx_chan);
-                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") lna status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
-                } catch (...) {}
-            } catch (...) {
-                all_rx_found = true;
+            std::cout << "Server Version : " << get_from_tree(tree, i, "server_version")
+                    << std::endl;
+            } catch (const uhd::lookup_error&) {
+                std::cout << "Server version lookup not implemented" << std::endl;
             }
-            rx_chan++;
         }
 
-        size_t tx_chan = 0;
-        bool all_tx_found = false;
-        while(!all_tx_found) {
+        if(fpga_info) {
             try {
-                char path[50];
-                sprintf(path, "tx/%lu/fw_version", tx_chan);
-                std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
-                try {
-                    sprintf(path, "tx/%lu/jesd/status", tx_chan);
-                    std::cout << std::string("\ttx(" + std::to_string(tx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
-                } catch (...) {}
-            } catch (...) {
-                all_tx_found = true;
+            std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version")
+                    << std::endl;
+            } catch (const uhd::lookup_error&) {
+                std::cout << "FPGA version lookup not implemented" << std::endl;
             }
-            tx_chan++;
+
+            try {
+            } catch (const uhd::lookup_error&) {
+                std::cout << "FPGA version lookup not implemented" << std::endl;
+            }
+
+            try {
+                std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
+
+                std::cout << "FPGA DDR in use: " << get_from_tree_int(tree, i, "imgparam/ddr_used") << std::endl;
+
+                std::cout << "FPGA is hps only image: " << get_from_tree_int(tree, i, "imgparam/hps_only") << std::endl;
+
+                std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
+
+                std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
+
+                std::cout << "FPGA sample rate: " << get_from_tree_int(tree, i, "imgparam/rate") << std::endl;
+
+                std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
+            } catch (const uhd::lookup_error&) {
+                std::cout << "FPGA version lookup not implemented" << std::endl;
+            }
+        }
+
+        if(rx_info) {
+            size_t num_rx_channels = dev->get_rx_num_channels();
+            std::cout << num_rx_channels << " rx channels should present on the unit" << std::endl;
+            for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
+                try {
+                    char path[50];
+                    sprintf(path, "rx/%lu/fw_version", rx_chan);
+                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
+                    try {
+                        sprintf(path, "rx/%lu/jesd/status", rx_chan);
+                        std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                    } catch (...) {}
+                    try {
+                        sprintf(path, "rx/%lu/status/lna", rx_chan);
+                        std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") lna status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                    } catch (...) {}
+                } catch (...) {
+                }
+            }
+        }
+
+        if(tx_info) {
+            size_t num_tx_channels = dev->get_tx_num_channels();
+            std::cout << num_tx_channels << " tx channels should be present on the unit" << std::endl;
+            for(size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
+                try {
+                    char path[50];
+                    sprintf(path, "tx/%lu/fw_version", tx_chan);
+                    std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
+                    try {
+                        sprintf(path, "tx/%lu/jesd/status", tx_chan);
+                        std::cout << std::string("\ttx(" + std::to_string(tx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                    } catch (...) {}
+                } catch (...) {
+                }
+            }
         }
 
         try {
-            if (vm.count("networking") || vm.count("all")) {
+            if (network_info) {
                 std::cout << "Device Address : " << std::endl;
                 std::cout << "\tManagement IP: " << device_address << std::endl;
                 std::cout << "\tSFP A IP     : " << get_from_tree(tree, i, "sfpa/ip_addr")
                       << std::endl;
                 std::cout << "\tSFP B IP     : " << get_from_tree(tree, i, "sfpb/ip_addr")
                         << std::endl;
+                std::cout << "Maximum SFP link rate: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
             }
         } catch (...) {
             std::cout << "Unable to get all network info" << std::endl;
         }
 
         try {
-            if (vm.count("time") || vm.count("all")) {
+            if (time_info) {
+                std::cout << "Board MCU revision: " << std::endl;
+                std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
                 std::cout << "Time (fpga/gps_time) : " << get_from_tree_int(tree, i,"gps_time") << std::endl;
                 std::cout << "Time (time/curr_time): " << get_from_tree_int(tree, i,"time/now") << std::endl;
             }
