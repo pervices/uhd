@@ -95,7 +95,9 @@ public:
     }
 
 	virtual ~cyan_nrnt_recv_packet_streamer() {
+        std::cout << "I1" << std::endl;
 		teardown();
+        std::cout << "I2" << std::endl;
 	}
 
     size_t get_num_channels(void) const{
@@ -688,6 +690,7 @@ struct cyan_nrnt_impl::cyan_nrnt_io_impl{
     }
 
     ~cyan_nrnt_io_impl(void){
+        std::cout << "~IO" << std::endl;
     }
 
     //methods and variables for the viking scourge

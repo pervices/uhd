@@ -49,7 +49,7 @@ public:
      */
     // TODO: get real values for each of the effective constants
     recv_packet_handler_mmsg(const size_t size = 1)
-    : recv_packet_handler(size), MAX_DATA_PER_PACKET(9000), HEADER_SIZE(200), MAX_PACKETS_AT_A_TIME(32)
+    : recv_packet_handler(size), MAX_DATA_PER_PACKET(9000), HEADER_SIZE(16), MAX_PACKETS_AT_A_TIME(32)
     {
         std::cout << "T50" << std::endl;
         //TODO: get this as a parameter
@@ -134,6 +134,8 @@ public:
             nsamps_received[ch] = num_packets_received * (MAX_DATA_PER_PACKET/4);
         }
 
+        //TODO: fix endianness(swap A, B, C,D bytes to be B, A, D, C
+
         // TODO: set this correctly once the rest of the code is completed
         return nsamps_received[0];
     }
@@ -161,14 +163,18 @@ public:
         struct mmsghdr msgs[num_packets_to_recv];
         // Contains data about where to store received data
         // Currently all data is written to one section, TODO: write the header and data to seperate locations
-        struct iovec iovecs[num_packets_to_recv];
+        struct iovec iovecs[2*num_packets_to_recv];
 
         memset(msgs, 0, sizeof(msgs));
         for (size_t n = 0; n < num_packets_to_recv; n++) {
-            iovecs[n].iov_base         = data_buffers[n];
-            iovecs[n].iov_len          = MAX_DATA_PER_PACKET;
-            msgs[n].msg_hdr.msg_iov    = &iovecs[n];
-            msgs[n].msg_hdr.msg_iovlen = 1;
+            // Location to write header data to
+            iovecs[2*n].iov_base         = &ch_recv_buffer_info_group[channel].headers[n];
+            iovecs[2*n].iov_len          = HEADER_SIZE;
+            // Location to write sample data to
+            iovecs[2*n+1].iov_base         = data_buffers[n];
+            iovecs[2*n+1].iov_len          = MAX_DATA_PER_PACKET;
+            msgs[n].msg_hdr.msg_iov    = &iovecs[2*n];
+            msgs[n].msg_hdr.msg_iovlen = 2;
         }
 
         struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};

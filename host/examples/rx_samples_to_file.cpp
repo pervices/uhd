@@ -112,7 +112,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         std::cout << "R27" << std::endl;
         size_t num_rx_samps =
             rx_stream->recv(&buff.front(), buff.size(), md, start_delay + 3, enable_size_map);
-        std::cout << "R27" << std::endl;
+        std::cout << "R28" << std::endl;
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
             // recv exited due to EINTR (interrupt received while waiting for data, usually the result of ctrl c)
@@ -178,14 +178,21 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
             }
         }
     }
+
+    std::cout << "E1" << std::endl;
     const auto actual_stop_time = std::chrono::steady_clock::now();
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
+
+    std::cout << "E5" << std::endl;
     rx_stream->issue_stream_cmd(stream_cmd);
+    std::cout << "E6" << std::endl;
 
     if (outfile.is_open()) {
         outfile.close();
     }
+
+    std::cout << "E7" << std::endl;
 
     if (stats) {
         std::cout << std::endl;
@@ -206,6 +213,8 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
                 std::cout << it->first << ":\t" << it->second << std::endl;
         }
     }
+
+    std::cout << "E20" << std::endl;
 }
 
 typedef std::function<uhd::sensor_value_t(const std::string&)> get_sensor_fn_t;
