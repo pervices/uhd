@@ -108,9 +108,11 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         const auto now = std::chrono::steady_clock::now();
 
         std::cout << "R25" << std::endl;
+        std::cout << "&buff.front(): " << &buff.front() << std::endl;
+        std::cout << "R27" << std::endl;
         size_t num_rx_samps =
             rx_stream->recv(&buff.front(), buff.size(), md, start_delay + 3, enable_size_map);
-        std::cout << "R26" << std::endl;
+        std::cout << "R27" << std::endl;
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
             // recv exited due to EINTR (interrupt received while waiting for data, usually the result of ctrl c)
