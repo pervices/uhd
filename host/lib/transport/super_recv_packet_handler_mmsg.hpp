@@ -179,7 +179,7 @@ public:
             iovecs[2*n].iov_len = HEADER_SIZE;
             // Location to write sample data to
             iovecs[2*n+1].iov_base = data_buffers[n];
-            iovecs[2*n+1].iov_len = MAX_DATA_PER_PACKET;
+            iovecs[2*n+1].iov_len = 8880;//MAX_DATA_PER_PACKET;
             msgs[n].msg_hdr.msg_iov = &iovecs[2*n];
             msgs[n].msg_hdr.msg_iovlen = 2;
         }
