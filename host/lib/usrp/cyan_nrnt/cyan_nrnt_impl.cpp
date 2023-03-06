@@ -1603,9 +1603,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)
 {
-    std::cout << "EIMPL1" << std::endl;
     stop_bm();
-    std::cout << "EIMPL2" << std::endl;
 }
 
 //gets the jesd number to be used in creating stream command packets

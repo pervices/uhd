@@ -33,6 +33,8 @@
 #include <thread>
 #include <assert.h>
 
+#include <iostream>
+
 namespace uhd { namespace rfnoc {
 
 //! Factory function for RFNoC devices specifically
@@ -3012,6 +3014,7 @@ private:
 multi_usrp::~multi_usrp(void)
 {
     /* NOP */
+    std::cout << "MU1" << std::endl;
 }
 
 

@@ -63,6 +63,7 @@ public:
             struct sockaddr_in dst_address;
             int recv_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
             if(recv_socket_fd < 0) {
+                //TODO: make this error more descriptive
                 std::cerr << "Failed to create recv socket" << std::endl;
                 std::exit(1);
             }
@@ -73,6 +74,7 @@ public:
 
             if(bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
             {
+                //TODO: make this error more descriptive
                 std::cerr << "Unable to bind ip adress, receive may not work. \n IP: " << ips[n] << std::endl;
             } else {
                 std::cout << "Successfully bind to socket" << std::endl;
@@ -92,7 +94,12 @@ public:
 
     }
 
-    //TODO: unbind ports in destructor
+    ~recv_packet_handler_mmsg(void)
+    {
+        for(size_t n = 0; n < recv_sockets.size(); n++) {
+            close(recv_sockets[n]);
+        }
+    }
 
     /*******************************************************************
      * Receive:
@@ -162,18 +169,18 @@ public:
         // Stores data about the recv for each packet
         struct mmsghdr msgs[num_packets_to_recv];
         // Contains data about where to store received data
-        // Currently all data is written to one section, TODO: write the header and data to seperate locations
+        // Alternating between pointer to header, pointer to data
         struct iovec iovecs[2*num_packets_to_recv];
 
         memset(msgs, 0, sizeof(msgs));
         for (size_t n = 0; n < num_packets_to_recv; n++) {
             // Location to write header data to
-            iovecs[2*n].iov_base         = &ch_recv_buffer_info_group[channel].headers[n];
-            iovecs[2*n].iov_len          = HEADER_SIZE;
+            iovecs[2*n].iov_base =ch_recv_buffer_info_group[channel].headers[n].data();
+            iovecs[2*n].iov_len = HEADER_SIZE;
             // Location to write sample data to
-            iovecs[2*n+1].iov_base         = data_buffers[n];
-            iovecs[2*n+1].iov_len          = MAX_DATA_PER_PACKET;
-            msgs[n].msg_hdr.msg_iov    = &iovecs[2*n];
+            iovecs[2*n+1].iov_base = data_buffers[n];
+            iovecs[2*n+1].iov_len = MAX_DATA_PER_PACKET;
+            msgs[n].msg_hdr.msg_iov = &iovecs[2*n];
             msgs[n].msg_hdr.msg_iovlen = 2;
         }
 
