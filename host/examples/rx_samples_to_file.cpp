@@ -108,6 +108,12 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         size_t num_rx_samps =
             rx_stream->recv(&buff.front(), buff.size(), md, start_delay + 3, enable_size_map);
 
+        std::cout << "RECV BUF 10" << std::endl;
+        for (int i = 0; i < 30; i++) {
+            printf("%02x ", ((unsigned char *) &buff.front())[i]);
+        }
+        printf("\n");
+
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
             // recv exited due to EINTR (interrupt received while waiting for data, usually the result of ctrl c)
             continue;

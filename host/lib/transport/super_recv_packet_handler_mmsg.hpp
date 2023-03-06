@@ -49,7 +49,7 @@ public:
      */
     // TODO: get real values for each of the effective constants
     recv_packet_handler_mmsg(const size_t size = 1)
-    : recv_packet_handler(size), MAX_DATA_PER_PACKET(9000), HEADER_SIZE(16), MAX_PACKETS_AT_A_TIME(32)
+    : recv_packet_handler(size), MAX_DATA_PER_PACKET(8880), HEADER_SIZE(16), MAX_PACKETS_AT_A_TIME(32)
     {
         std::cout << "T50" << std::endl;
         //TODO: get this as a parameter
@@ -123,15 +123,11 @@ public:
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             //TODO copy cached data from previous recv to this one
 
-            std::cout << "buffs[ch]: " << buffs[ch] << std::endl;
-
             // Creates a vector of pointers to where to store the samples from each packet
             // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
             std::vector<void*> data_buffers;
             for(size_t p = 0; p + MAX_DATA_PER_PACKET < bytes_per_buff && (p == 0 || !one_packet); p += MAX_DATA_PER_PACKET) {
-                std::cout << "p: " << p << std::endl;
                 data_buffers.push_back(p+buffs[0]);
-                std::cout << "data_buffers.back(): " << data_buffers.back() << std::endl;
             }
 
             size_t num_packets_received = recv_multiple_packets(ch, data_buffers, timeout);
@@ -160,7 +156,7 @@ public:
 
         size_t num_packets_to_recv = data_buffers.size();
 
-        // TODO: resize metadata buffer
+        // TODO: resize metadata buffer as needed
         if(num_packets_to_recv > MAX_PACKETS_AT_A_TIME) {
             std::cerr << "Receive metadata collection buffer resizing not implemented yet" << std::endl;
             std::exit(~0);
@@ -186,7 +182,15 @@ public:
 
         struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};
 
+        uint8_t buffer[9000];
+
         int num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, 0, &ts_timeout);
+
+        std::cout << "RECV BUF 1" << std::endl;
+        for (int i = 0; i < 30; i++) {
+            printf("%02x ", ((unsigned char *) iovecs[1].iov_base)[i]);
+        }
+        printf("\n");
 
         if(num_packets_received == -1) {
             std::cout << "recvmmsg error" << std::endl;
