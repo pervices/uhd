@@ -86,8 +86,8 @@ public:
             ch_recv_buffer_info tmp = {
                 std::vector<std::vector<int8_t>>(MAX_PACKETS_AT_A_TIME, std::vector<int8_t>(HEADER_SIZE, 0)), // headers
                 std::vector<size_t>(MAX_PACKETS_AT_A_TIME, 0), // data_bytes_from_packet
-                std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // data_cache
-                (uint64_t) 0 // data_cache_used
+                std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // sample_cache
+                (uint64_t) 0 // sample_cache_used
             };
             ch_recv_buffer_info_group.push_back(tmp);
         }
@@ -113,7 +113,6 @@ public:
         const bool one_packet)
     {
         std::cout << "nsamps_per_buff: " << nsamps_per_buff << std::endl;
-        //TODO soft code number of bytes per buffer
         size_t bytes_per_buff = nsamps_per_buff * BYTES_PER_SAMPLE;
 
         std::vector<size_t> nsamps_received(NUM_CHANNELS, 0);
@@ -122,15 +121,15 @@ public:
         // TODO: experiment if parallelizing this helps performance
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             // Copies cached data from previous recv
-            size_t cached_bytes_to_copy = std::min(ch_recv_buffer_info_group[ch].data_cache_used, bytes_per_buff);
-            memcpy(buffs[ch], ch_recv_buffer_info_group[ch].data_cache.data(), cached_bytes_to_copy);
+            size_t cached_bytes_to_copy = std::min(ch_recv_buffer_info_group[ch].sample_cache_used, bytes_per_buff);
+            memcpy(buffs[ch], ch_recv_buffer_info_group[ch].sample_cache.data(), cached_bytes_to_copy);
             // How many bytes still need to be received after copying from the cache
             size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
             if(one_packet) {
                 remaining_nbytes_per_buff = std::min(remaining_nbytes_per_buff, MAX_DATA_PER_PACKET - cached_bytes_to_copy);
             }
             // Indicates that the cache is clear
-            ch_recv_buffer_info_group[ch].data_cache_used-= cached_bytes_to_copy;
+            ch_recv_buffer_info_group[ch].sample_cache_used-= cached_bytes_to_copy;
 
             nsamps_received[ch] += cached_bytes_to_copy / BYTES_PER_SAMPLE;
 
@@ -148,14 +147,18 @@ public:
             nsamps_received[ch] += num_bytes_received / BYTES_PER_SAMPLE;
         }
 
-        //TODO: fix endianness(swap A, B, C,D bytes to be B, A, D, C
-
         // TODO: extract metadata and set error codes
 
         // TODO: drop samples in the event of an overflow to keep buffers aligned
 
-        // TODO: set this correctly once the rest of the code is completed
-        return nsamps_received[0];
+        //TODO: fix endianness(swap A, B, C,D bytes to be B, A, D, C
+
+        // Returns the number of samples received on the channel with the lowest number of samples
+        size_t lowest_nsamps_received = 0;
+        for(size_t n = 0; n < nsamps_received.size(); n++) {
+            lowest_nsamps_received = std::min(lowest_nsamps_received, nsamps_received[n]);
+        }
+        return lowest_nsamps_received;
     }
 
     /*******************************************************************
@@ -211,7 +214,7 @@ public:
         iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[n_last_packet];
         iovecs[2*n_last_packet+1].iov_len = MAX_DATA_PER_PACKET - excess_data_in_last_packet;
         // Location to write samples that don't fit in sample_buffer to
-        iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_group[channel].data_cache.data();
+        iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_group[channel].sample_cache.data();
         iovecs[2*n_last_packet+2].iov_len = excess_data_in_last_packet;
         msgs[n_last_packet].msg_hdr.msg_iov = &iovecs[2*n_last_packet];
         msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
@@ -233,10 +236,29 @@ public:
             return 0;
         }
 
-        ch_recv_buffer_info_group[channel].data_cache_used = excess_data_in_last_packet;
+        size_t num_bytes_received = 0;
+        for(size_t n = 0; n < num_packets_to_recv; n++) {
+            // Check if an invalid packet was received
+            if(msgs[n].msg_len < HEADER_SIZE) {
+                throw std::runtime_error("Received sample packet smaller than header size");
+            }
+            uint32_t num_bytes_this_packets = msgs[n].msg_len - HEADER_SIZE;
+            if(num_bytes_this_packets != MAX_DATA_PER_PACKET) {
+                // TODO: add support for packets not of max length
+                std::cerr << "Only max length packets supported, pretending packet is max length" << std::endl;
+                num_bytes_received = MAX_DATA_PER_PACKET;
+            }
+            // Don't count the data stored in sample_cache
+            if(n + 1 == num_packets_to_recv) {
+                num_bytes_received += num_bytes_this_packets - excess_data_in_last_packet;
+            } else {
+                num_bytes_received += num_bytes_this_packets;
+            }
+        }
 
-        // TODO: get the actual value, instead of assuming the correct ammount were read
-        return nbytes_per_buff;
+        ch_recv_buffer_info_group[channel].sample_cache_used = excess_data_in_last_packet;
+
+        return num_bytes_received;
     }
 
 private:
@@ -255,9 +277,9 @@ private:
         //Stores how many bytes of sample data are from each packet
         std::vector<size_t> data_bytes_from_packet;
         // Stores extra data from packets between recvs
-        std::vector<int8_t> data_cache;
+        std::vector<int8_t> sample_cache;
         // Stores amount of extra data cached from previous recv in byte
-        uint64_t data_cache_used;
+        uint64_t sample_cache_used;
     };
     // Group of recv info for each channels
     std::vector<ch_recv_buffer_info> ch_recv_buffer_info_group;
