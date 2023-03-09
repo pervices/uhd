@@ -123,11 +123,16 @@ public:
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             // Copies cached data from previous recv
             size_t cached_bytes_to_copy = std::min(ch_recv_buffer_info_group[ch].data_cache_used, bytes_per_buff);
-            memcpy(buffs[0], ch_recv_buffer_info_group[ch].data_cache.data(), cached_bytes_to_copy);
+            memcpy(buffs[ch], ch_recv_buffer_info_group[ch].data_cache.data(), cached_bytes_to_copy);
             // How many bytes still need to be received after copying from the cache
             size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
+            if(one_packet) {
+                remaining_nbytes_per_buff = std::min(remaining_nbytes_per_buff, MAX_DATA_PER_PACKET - cached_bytes_to_copy);
+            }
             // Indicates that the cache is clear
             ch_recv_buffer_info_group[ch].data_cache_used-= cached_bytes_to_copy;
+
+            nsamps_received[ch] += cached_bytes_to_copy / BYTES_PER_SAMPLE;
 
             // Skip receiving data from network if the cache had all the data requested
             // TODO: make sure this doesn't skip conversion to other CPU formats after that is implemented
@@ -135,24 +140,19 @@ public:
                 break;
             }
 
-            // Creates a vector of pointers to where to store the samples from each packet
-            // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
-            std::vector<void*> data_buffers;
-
-            size_t p;
-            for(p = cached_bytes_to_copy; p + MAX_DATA_PER_PACKET < bytes_per_buff && (p == 0 || !one_packet); p += MAX_DATA_PER_PACKET) {
-                data_buffers.push_back(p+buffs[0]);
-            }
-            data_buffers.push_back(p+buffs[0]);
-
-            size_t num_bytes_received = recv_multiple_packets(ch, data_buffers, remaining_nbytes_per_buff, timeout);
+            // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
+            size_t num_bytes_received = recv_multiple_packets(ch, buffs[ch]+cached_bytes_to_copy, remaining_nbytes_per_buff, timeout);
             std::cout << "num_bytes_received: " << num_bytes_received << std::endl;
 
             // TODO: set this correctly once the rest of the code is completed
-            nsamps_received[ch] = num_bytes_received / BYTES_PER_SAMPLE;
+            nsamps_received[ch] += num_bytes_received / BYTES_PER_SAMPLE;
         }
 
         //TODO: fix endianness(swap A, B, C,D bytes to be B, A, D, C
+
+        // TODO: extract metadata and set error codes
+
+        // TODO: drop samples in the event of an overflow to keep buffers aligned
 
         // TODO: set this correctly once the rest of the code is completed
         return nsamps_received[0];
@@ -162,15 +162,22 @@ public:
      * recv_multiple_packets:
      * channel: which channel to receive data for
      * receives multiple packets on a given channel
-     * data_buffers: where to store the samples. Each element in the vector should be a pointer to the start of an array that can contain MAX_DATA_PER_PACKET
+     * sample_buffer: start of location in memory to store samples from received packets
      * timeout: timout, TODO: make sure call for other channels take into account time taken by the previous channel
      * one_packet: only receive one packet
-     * returns the number of bytes received
+     * returns the number of bytes written to buffer (does not include bytes written to the cache
      ******************************************************************/
-    UHD_INLINE size_t recv_multiple_packets(size_t channel, std::vector<void*> data_buffers, size_t nbytes_per_buff, double timeout) {
+    UHD_INLINE size_t recv_multiple_packets(size_t channel, void* sample_buffer, size_t nbytes_per_buff, double timeout) {
 
-        size_t num_packets_to_recv = data_buffers.size();
+        // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
+        // Pointers for where to write samples to from each packet using scatter gather
+        std::vector<void*> samples_sg_dst;
 
+        for(size_t p = 0; p < nbytes_per_buff; p += MAX_DATA_PER_PACKET) {
+            samples_sg_dst.push_back(p+sample_buffer);
+        }
+
+        size_t num_packets_to_recv = samples_sg_dst.size();
         // TODO: resize metadata buffer as needed
         if(num_packets_to_recv > MAX_PACKETS_AT_A_TIME) {
             std::cerr << "Receive metadata collection buffer resizing not implemented yet" << std::endl;
@@ -189,7 +196,7 @@ public:
             iovecs[2*n].iov_base =ch_recv_buffer_info_group[channel].headers[n].data();
             iovecs[2*n].iov_len = HEADER_SIZE;
             // Location to write sample data to
-            iovecs[2*n+1].iov_base = data_buffers[n];
+            iovecs[2*n+1].iov_base = samples_sg_dst[n];
             iovecs[2*n+1].iov_len = MAX_DATA_PER_PACKET;
             msgs[n].msg_hdr.msg_iov = &iovecs[2*n];
             msgs[n].msg_hdr.msg_iovlen = 2;
@@ -197,13 +204,13 @@ public:
 
         size_t n_last_packet = num_packets_to_recv - 1;
         size_t excess_data_in_last_packet = num_packets_to_recv * MAX_DATA_PER_PACKET - nbytes_per_buff;
-        std::cout << "excess_data_in_last_packet: " << excess_data_in_last_packet << std::endl;
         // Location to write header data to
         iovecs[2*n_last_packet].iov_base =ch_recv_buffer_info_group[channel].headers[n_last_packet].data();
         iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
         // Location to write sample data to
-        iovecs[2*n_last_packet+1].iov_base = data_buffers[n_last_packet];
+        iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[n_last_packet];
         iovecs[2*n_last_packet+1].iov_len = MAX_DATA_PER_PACKET - excess_data_in_last_packet;
+        // Location to write samples that don't fit in sample_buffer to
         iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_group[channel].data_cache.data();
         iovecs[2*n_last_packet+2].iov_len = excess_data_in_last_packet;
         msgs[n_last_packet].msg_hdr.msg_iov = &iovecs[2*n_last_packet];
@@ -211,6 +218,7 @@ public:
 
         struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};
 
+        // TODO: consider enabling return after any packets read so give other channels a chance to receive data, before making the thing calling this function repeat to fill up the remaining space in the buffer
         int num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, 0, &ts_timeout);
 
         std::cout << "RECV BUF 1" << std::endl;
