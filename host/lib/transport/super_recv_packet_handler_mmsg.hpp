@@ -51,7 +51,6 @@ public:
     recv_packet_handler_mmsg(const size_t size = 1)
     : recv_packet_handler(size), MAX_DATA_PER_PACKET(8880), HEADER_SIZE(16), MAX_PACKETS_AT_A_TIME(32), BYTES_PER_SAMPLE(4)
     {
-        std::cout << "T50" << std::endl;
         //TODO: get this as a parameter
         channels = {0};
         std::vector<std::string> ips = {"10.10.10.10"};
@@ -84,10 +83,12 @@ public:
 
         for(size_t n = 0; n < NUM_CHANNELS; n++) {
             ch_recv_buffer_info tmp = {
+                (size_t) 0, // sample_cache_used
                 std::vector<std::vector<int8_t>>(MAX_PACKETS_AT_A_TIME, std::vector<int8_t>(HEADER_SIZE, 0)), // headers
+                std::vector<vrt::if_packet_info_t>(HEADER_SIZE), // vrt_metadata
                 std::vector<size_t>(MAX_PACKETS_AT_A_TIME, 0), // data_bytes_from_packet
                 std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // sample_cache
-                (uint64_t) 0 // sample_cache_used
+                (size_t) 0 // previous_sample_cache_used
             };
             ch_recv_buffer_info_group.push_back(tmp);
         }
@@ -112,6 +113,14 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        // Clears the metadata struct, theoretically not required but included to make sure mistakes don't cause non-deterministic behaviour
+        metadata.reset();
+
+        // Clears number of headers used
+        for(size_t n = 0; n < ch_recv_buffer_info_group.size(); n++) {
+            ch_recv_buffer_info_group[0].num_headers_used = 0;
+        }
+
         std::cout << "nsamps_per_buff: " << nsamps_per_buff << std::endl;
         size_t bytes_per_buff = nsamps_per_buff * BYTES_PER_SAMPLE;
 
@@ -119,6 +128,7 @@ public:
 
         // received data for every channel sequentially
         // TODO: experiment if parallelizing this helps performance
+        // ch refers to which element in ch_recv_buffer_info_group not the actual channel number
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             // Copies cached data from previous recv
             size_t cached_bytes_to_copy = std::min(ch_recv_buffer_info_group[ch].sample_cache_used, bytes_per_buff);
@@ -147,11 +157,9 @@ public:
             nsamps_received[ch] += num_bytes_received / BYTES_PER_SAMPLE;
         }
 
-        // TODO: extract metadata and set error codes
+        extract_vrt_metadata();
 
         // TODO: drop samples in the event of an overflow to keep buffers aligned
-
-        //TODO: fix endianness(swap A, B, C,D bytes to be B, A, D, C
 
         // Returns the number of samples received on the channel with the lowest number of samples
         size_t lowest_nsamps_received = 0;
@@ -163,7 +171,7 @@ public:
 
     /*******************************************************************
      * recv_multiple_packets:
-     * channel: which channel to receive data for
+     * channel: which ch_recv_buffer_info_group to receive for
      * receives multiple packets on a given channel
      * sample_buffer: start of location in memory to store samples from received packets
      * timeout: timout, TODO: make sure call for other channels take into account time taken by the previous channel
@@ -182,7 +190,7 @@ public:
 
         size_t num_packets_to_recv = samples_sg_dst.size();
         // TODO: resize metadata buffer as needed
-        if(num_packets_to_recv > MAX_PACKETS_AT_A_TIME) {
+        if(num_packets_to_recv + ch_recv_buffer_info_group[channel].num_headers_used > MAX_PACKETS_AT_A_TIME) {
             std::cerr << "Receive metadata collection buffer resizing not implemented yet" << std::endl;
             std::exit(~0);
         }
@@ -194,9 +202,9 @@ public:
         struct iovec iovecs[2*num_packets_to_recv+1];
 
         memset(msgs, 0, sizeof(msgs));
-        for (size_t n = 0; n < num_packets_to_recv - 1; n++) {
+        for (size_t n = 0; n + ch_recv_buffer_info_group[channel].num_headers_used < num_packets_to_recv - 1; n++) {
             // Location to write header data to
-            iovecs[2*n].iov_base =ch_recv_buffer_info_group[channel].headers[n].data();
+            iovecs[2*n].iov_base =ch_recv_buffer_info_group[channel].headers[n+ch_recv_buffer_info_group[channel].num_headers_used].data();
             iovecs[2*n].iov_len = HEADER_SIZE;
             // Location to write sample data to
             iovecs[2*n+1].iov_base = samples_sg_dst[n];
@@ -224,17 +232,14 @@ public:
         // TODO: consider enabling return after any packets read so give other channels a chance to receive data, before making the thing calling this function repeat to fill up the remaining space in the buffer
         int num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, 0, &ts_timeout);
 
-        std::cout << "RECV BUF 1" << std::endl;
-        for (int i = 0; i < 30; i++) {
-            printf("%02x ", ((unsigned char *) iovecs[1].iov_base)[i]);
-        }
-        printf("\n");
-
+        // TODO: add propert error handling
         if(num_packets_received == -1) {
             std::cout << "recvmmsg error" << std::endl;
             std::cout << "errno" << strerror(errno) << std::endl;
             return 0;
         }
+
+        ch_recv_buffer_info_group[channel].num_headers_used+= (size_t) num_packets_received;
 
         size_t num_bytes_received = 0;
         for(size_t n = 0; n < num_packets_to_recv; n++) {
@@ -261,6 +266,29 @@ public:
         return num_bytes_received;
     }
 
+
+    virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
+
+    /*******************************************************************
+     * extract_vrt_metadata:
+     * extracts metadata fromthe vrt headers in ch_recv_buffer_info.headers and stores in ch_recv_buffer_info.vrt_metadata
+     ******************************************************************/
+    UHD_INLINE void extract_vrt_metadata() {
+
+        for(size_t ch_i = 0; ch_i < ch_recv_buffer_info_group.size(); ch_i++) {
+            for(size_t packet_i = 0; packet_i < ch_recv_buffer_info_group[ch_i].num_headers_used; packet_i++) {
+                // Number of 32 bit words per vrt packet
+                // will be compared against packet length field
+                // TODO: get actual amount of bytes received from recvmmg, instead of assuming full packet
+                ch_recv_buffer_info_group[ch_i].vrt_metadata[packet_i].num_packet_words32 = (HEADER_SIZE + MAX_DATA_PER_PACKET)/sizeof(uint32_t);
+                // First word of the packet
+                const uint32_t* vrt_hdr = (uint32_t*) ch_recv_buffer_info_group[ch_i].headers[packet_i].data();
+                //ifpi.has_tsf = true;
+                if_hdr_unpack(vrt_hdr, ch_recv_buffer_info_group[ch_i].vrt_metadata[packet_i]);
+            }
+        }
+    }
+
 private:
     int MAX_DATA_PER_PACKET;
     int HEADER_SIZE;
@@ -269,17 +297,23 @@ private:
     size_t BYTES_PER_SAMPLE;
     std::vector<size_t> channels;
     std::vector<int> recv_sockets;
+    size_t previous_sample_cache_used = 0;
     // Stores information about packets received for each channel
     // Note: this is not meant to be persistent between reads, it is done this way to avoid deallocating and reallocating memory
     struct ch_recv_buffer_info {
+        // Stores number of headers used in this recv
+        size_t num_headers_used;
         // Stores the headers of each packet
         std::vector<std::vector<int8_t>> headers;
+        // Metadata contained in vrt header;
+        std::vector<vrt::if_packet_info_t> vrt_metadata;
         //Stores how many bytes of sample data are from each packet
         std::vector<size_t> data_bytes_from_packet;
         // Stores extra data from packets between recvs
         std::vector<int8_t> sample_cache;
         // Stores amount of extra data cached from previous recv in byte
-        uint64_t sample_cache_used;
+        size_t sample_cache_used;
+
     };
     // Group of recv info for each channels
     std::vector<ch_recv_buffer_info> ch_recv_buffer_info_group;
@@ -292,7 +326,6 @@ class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_str
 public:
     recv_packet_streamer_mmsg(const size_t max_num_samps)
     {
-        std::cout << "T10" << std::endl;
     }
 
     //Consider merging recv_packet_streamer_mmsg and recv_packet_handler_mmsg
@@ -303,7 +336,6 @@ public:
         const double timeout,
         const bool one_packet) override
     {
-        std::cout << "T80" << std::endl;
         return recv_packet_handler_mmsg::recv(
             buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }

@@ -120,6 +120,10 @@ public:
         sph::recv_packet_streamer_mmsg::resize( size );
     }
 
+    void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
+        vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
+    }
+
 	void teardown() {
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
@@ -828,8 +832,6 @@ bool cyan_nrnt_impl::recv_async_msg(
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
-    std::cout<< "O1" << std::endl;
-
     //setup defaults for unspecified values
     args.otw_format = args.otw_format.empty()? otw_rx_s : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
@@ -924,8 +926,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    std::cout << "O25" << std::endl;
-
     //set the packet threshold to be an entire socket buffer's worth
     const size_t packets_per_sock_buff = size_t(50e6/9000);//_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size());
     my_streamer->set_alignment_failure_threshold(packets_per_sock_buff);
@@ -997,8 +997,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     allocated_rx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_rx_streamers );
-
-    std::cout<< "O50" << std::endl;
 
     return my_streamer;
 }

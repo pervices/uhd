@@ -3014,7 +3014,6 @@ private:
 multi_usrp::~multi_usrp(void)
 {
     /* NOP */
-    std::cout << "MU1" << std::endl;
 }
 
 
