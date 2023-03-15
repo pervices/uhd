@@ -1603,7 +1603,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
 
-	std::cout << "I50" << std::endl;
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)

@@ -57,9 +57,6 @@ private:
 buffer_pool::sptr buffer_pool::make(
     const size_t num_buffs, const size_t buff_size, const size_t alignment)
 {
-    std::cout << "num_buffs: " << num_buffs << std::endl;
-    std::cout << "buff_size: " << buff_size << std::endl;
-    std::cout << "alignment: " << alignment << std::endl;
     // 1) pad the buffer size to be a multiple of alignment
     // 2) pad the overall memory size for room after alignment
     // 3) allocate the memory in one block of sufficient size
