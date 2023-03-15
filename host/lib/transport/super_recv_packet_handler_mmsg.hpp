@@ -48,14 +48,12 @@ public:
      * \param size the number of transport channels
      */
     // TODO: get real values for each of the effective constants
-    recv_packet_handler_mmsg(const size_t size = 1)
-    : recv_packet_handler(size), MAX_DATA_PER_PACKET(8880), HEADER_SIZE(16), MAX_PACKETS_AT_A_TIME(32), BYTES_PER_SAMPLE(4)
+    recv_packet_handler_mmsg(const std::vector<size_t>& channels, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
+    : recv_packet_handler(max_sample_bytes_per_packet + header_size), NUM_CHANNELS(channels.size()), MAX_DATA_PER_PACKET(max_sample_bytes_per_packet), BYTES_PER_SAMPLE(bytes_per_sample), HEADER_SIZE(header_size)
     {
         //TODO: get this as a parameter
-        channels = {0};
         std::vector<std::string> ips = {"10.10.10.10"};
         std::vector<int> ports = {42836};
-        NUM_CHANNELS = channels.size();
 
         // Creates and binds to sockets
         for(size_t n = 0; n < NUM_CHANNELS; n++) {
@@ -289,13 +287,15 @@ public:
         }
     }
 
-private:
-    int MAX_DATA_PER_PACKET;
-    int HEADER_SIZE;
-    int MAX_PACKETS_AT_A_TIME;
+protected:
     size_t NUM_CHANNELS;
+    size_t MAX_DATA_PER_PACKET;
     size_t BYTES_PER_SAMPLE;
-    std::vector<size_t> channels;
+
+private:
+    size_t HEADER_SIZE;
+    // Number of existing header buffers, which is the current maximum number of packets to receive at a time, TODO: dynamically increase this when user requests more data at a time than can be contained in this many packets
+    size_t MAX_PACKETS_AT_A_TIME = 32;
     std::vector<int> recv_sockets;
     size_t previous_sample_cache_used = 0;
     // Stores information about packets received for each channel
@@ -324,7 +324,8 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const size_t max_num_samps)
+    recv_packet_streamer_mmsg(const std::vector<size_t>& channels, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
+    : recv_packet_handler_mmsg(channels, max_sample_bytes_per_packet, header_size, bytes_per_sample)
     {
     }
 
@@ -338,6 +339,15 @@ public:
     {
         return recv_packet_handler_mmsg::recv(
             buffs, nsamps_per_buff, metadata, timeout, one_packet);
+    }
+
+    UHD_INLINE size_t get_num_channels(void) const{
+        return NUM_CHANNELS;
+    }
+
+    // Gets the maximum number of samples per packet
+    UHD_INLINE size_t get_max_num_samps(void) const{
+        return MAX_DATA_PER_PACKET/BYTES_PER_SAMPLE;
     }
 };
 

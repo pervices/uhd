@@ -35,6 +35,13 @@
 
 // Cyan NrNt max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CYAN_NRNT_MAX_MTU		8992
+
+// Maximum number of bytes used to store sample data
+#define CYAN_NRNT_MAX_NBYTES 8880
+
+// Size of the vrt header in bytes
+#define CYAN_NRNT_HEADER_SIZE 16
+
 // Packaets send to the unit must have a multiple of this many samples
 #define CYAN_NRNT_PACKET_NSAMP_MULTIPLE 4
 // Amount of the UDP packet used for overhead in data packets

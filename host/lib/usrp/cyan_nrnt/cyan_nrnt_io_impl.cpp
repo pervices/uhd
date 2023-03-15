@@ -88,23 +88,15 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const size_t max_num_samps)
-	: sph::recv_packet_streamer_mmsg( max_num_samps )
+	cyan_nrnt_recv_packet_streamer(const std::vector<size_t>& channels)
+    //TODO: soft code bytes_per sample (3G has 12 bit samples, currently will only work for 1G). Also might need to change CYAN_NRNT_MAX_NBYTES to be dynamic
+	: sph::recv_packet_streamer_mmsg(channels, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, /*(bytes_per_sample)*/ 4)
 	{
-        _max_num_samps = max_num_samps;
     }
 
 	virtual ~cyan_nrnt_recv_packet_streamer() {
 		teardown();
 	}
-
-    size_t get_num_channels(void) const{
-        return this->size();
-    }
-
-    size_t get_max_num_samps(void) const{
-        return _max_num_samps;
-    }
 
     void issue_stream_cmd(const stream_cmd_t &stream_cmd)
     {
@@ -134,7 +126,6 @@ public:
 	}
 
 private:
-    size_t _max_num_samps;
 
     struct eprops_type{
         onfini_type on_fini;
@@ -847,12 +838,9 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
     ;
-    const size_t bpp = 9000;//_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size() - hdr_size;
-    const size_t bpi = convert::get_bytes_per_item(args.otw_format);
-    const size_t spp = args.args.cast<size_t>("spp", bpp/bpi);
 
     //make the new streamer given the samples per packet
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(spp);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
