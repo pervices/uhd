@@ -45,15 +45,16 @@ public:
 
     /*!
      * Make a new packet handler for receive
-     * \param size the number of transport channels
+     * \param dst_ip the IPV4 desination IP address of packets for each channe;
+     * \param dst_port the detination port of packet for each channel
+     * \param max_sample_bytes_per_packet the number of transport channels
+     * \param header_size the number of transport channels
+     * \param bytes_per_sample the number of transport channels
      */
     // TODO: get real values for each of the effective constants
-    recv_packet_handler_mmsg(const std::vector<size_t>& channels, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
-    : recv_packet_handler(max_sample_bytes_per_packet + header_size), NUM_CHANNELS(channels.size()), MAX_DATA_PER_PACKET(max_sample_bytes_per_packet), BYTES_PER_SAMPLE(bytes_per_sample), HEADER_SIZE(header_size)
+    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
+    : recv_packet_handler(max_sample_bytes_per_packet + header_size), NUM_CHANNELS(dst_ip.size()), MAX_DATA_PER_PACKET(max_sample_bytes_per_packet), BYTES_PER_SAMPLE(bytes_per_sample), HEADER_SIZE(header_size)
     {
-        //TODO: get this as a parameter
-        std::vector<std::string> ips = {"10.10.10.10"};
-        std::vector<int> ports = {42836};
 
         // Creates and binds to sockets
         for(size_t n = 0; n < NUM_CHANNELS; n++) {
@@ -66,13 +67,13 @@ public:
             }
 
             dst_address.sin_family = AF_INET;
-            dst_address.sin_addr.s_addr = inet_addr(ips[n].c_str());
-            dst_address.sin_port = htons(ports[n]);
+            dst_address.sin_addr.s_addr = inet_addr(dst_ip[n].c_str());
+            dst_address.sin_port = htons(dst_port[n]);
 
             if(bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
             {
                 //TODO: make this error more descriptive
-                std::cerr << "Unable to bind ip adress, receive may not work. \n IP: " << ips[n] << std::endl;
+                std::cerr << "Unable to bind ip adress, receive may not work. \n IP: " << dst_ip[n] << std::endl;
             } else {
                 std::cout << "Successfully bind to socket" << std::endl;
             }
@@ -324,8 +325,8 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<size_t>& channels, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
-    : recv_packet_handler_mmsg(channels, max_sample_bytes_per_packet, header_size, bytes_per_sample)
+    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
+    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, bytes_per_sample)
     {
     }
 

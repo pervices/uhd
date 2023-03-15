@@ -88,9 +88,9 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const std::vector<size_t>& channels)
+	cyan_nrnt_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port)
     //TODO: soft code bytes_per sample (3G has 12 bit samples, currently will only work for 1G). Also might need to change CYAN_NRNT_MAX_NBYTES to be dynamic
-	: sph::recv_packet_streamer_mmsg(channels, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, /*(bytes_per_sample)*/ 4)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, /*(bytes_per_sample)*/ 4)
 	{
     }
 
@@ -839,8 +839,20 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
     ;
 
+    std::vector<std::string> dst_ip(args.channels.size());
+    for(size_t n = 0; n < dst_ip.size(); n++) {
+        dst_ip[n] = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/ip_dest" ).get();
+        std::cout << "dst_ip[n]: " << dst_ip[n] << std::endl;
+    }
+
+    std::vector<int> dst_port(args.channels.size());
+    for(size_t n = 0; n < dst_port.size(); n++) {
+        dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
+        std::cout << "dst_port[n]: " << dst_port[n] << std::endl;
+    }
+
     //make the new streamer given the samples per packet
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(dst_ip, dst_port);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
