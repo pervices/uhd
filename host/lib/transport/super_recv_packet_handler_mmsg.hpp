@@ -120,7 +120,6 @@ public:
             ch_recv_buffer_info_group[0].num_headers_used = 0;
         }
 
-        std::cout << "nsamps_per_buff: " << nsamps_per_buff << std::endl;
         size_t bytes_per_buff = nsamps_per_buff * BYTES_PER_SAMPLE;
 
         std::vector<size_t> nsamps_received(NUM_CHANNELS, 0);
@@ -150,7 +149,6 @@ public:
 
             // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
             size_t num_bytes_received = recv_multiple_packets(ch, buffs[ch]+cached_bytes_to_copy, remaining_nbytes_per_buff, timeout);
-            std::cout << "num_bytes_received: " << num_bytes_received << std::endl;
 
             // TODO: set this correctly once the rest of the code is completed
             nsamps_received[ch] += num_bytes_received / BYTES_PER_SAMPLE;
@@ -161,8 +159,9 @@ public:
         // TODO: drop samples in the event of an overflow to keep buffers aligned
 
         // Returns the number of samples received on the channel with the lowest number of samples
-        size_t lowest_nsamps_received = 0;
-        for(size_t n = 0; n < nsamps_received.size(); n++) {
+        // This can probably be changed since every channel received the same number of bytes
+        size_t lowest_nsamps_received = nsamps_received[0];
+        for(size_t n = 1; n < nsamps_received.size(); n++) {
             lowest_nsamps_received = std::min(lowest_nsamps_received, nsamps_received[n]);
         }
         return lowest_nsamps_received;
