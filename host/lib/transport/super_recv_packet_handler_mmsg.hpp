@@ -85,6 +85,7 @@ public:
                 (size_t) 0, // sample_cache_used
                 std::vector<std::vector<int8_t>>(MAX_PACKETS_AT_A_TIME, std::vector<int8_t>(HEADER_SIZE, 0)), // headers
                 std::vector<vrt::if_packet_info_t>(HEADER_SIZE), // vrt_metadata
+                0, //previous_packet_count
                 std::vector<size_t>(MAX_PACKETS_AT_A_TIME, 0), // data_bytes_from_packet
                 std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // sample_cache
                 (size_t) 0 // previous_sample_cache_used
@@ -155,6 +156,10 @@ public:
         }
 
         extract_vrt_metadata();
+
+        size_t aligned_bytes = 0;
+        // Check for overflow errors and (when implemented) shifts data to keep buffers aligned after an overflow)
+        int error_code = align_buffs(buffs, 0, bytes_per_buff, aligned_bytes);
 
         // TODO: drop samples in the event of an overflow to keep buffers aligned
 
@@ -305,6 +310,44 @@ public:
         }
     }
 
+    /*******************************************************************
+     * align_buffs:
+     * Checks for sequence number or timestamp errors and drops samples to keep channels aligned. Also shifts buffer to account for smaller packets (although variable size packets will result in a massive performance drop off because of all the copying)
+     * sample_buffers: buffer containing samples
+     * sample_buffer_offset: offset (in bytes) in the samples buffer of where data to align begins. Must correspond to the data associated with headers[0]
+     * buffer_size: size of sample_buffer in bytes, used to determine how many samples to copy from the cache if applicable
+     * aligned_samples: stores the number of aligned sample
+     * return: rx metadata error code
+     ******************************************************************/
+    UHD_INLINE int align_buffs(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_size, size_t& aligned_bytes) {
+
+        int error_codes = 0;
+
+        // Calculates how many packets to align
+        // TODO: implement aligning varying number of packets
+        size_t num_packets_to_align = ch_recv_buffer_info_group[0].num_headers_used;
+        for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
+            if(num_packets_to_align != ch_recv_buffer_info_group[ch].num_headers_used) {
+                std::cerr << "recv number of packets mismatch. Aligning a non matching number of samples not implemented yet" << std::endl;
+                std::exit(~0);
+            }
+        }
+        for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
+            for(size_t header_i = 0; header_i < ch_recv_buffer_info_group[ch].num_headers_used; header_i++) {
+                //assume vrt_metadata.hst_tsf is true
+                // Checks if sequence number is correct, ignore check if timestamp is 0
+                if((ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count != (0xf & (ch_recv_buffer_info_group[ch].previous_packet_count + 1)))  && (ch_recv_buffer_info_group[ch].vrt_metadata[header_i].tsf != 0)) {
+                    error_codes = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                    UHD_LOG_FASTPATH("D");
+                    //TODO: implement aligning buffs after an overflow
+                }
+                ch_recv_buffer_info_group[ch].previous_packet_count = ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count;
+            }
+        }
+
+        return error_codes;
+    }
+
 protected:
     size_t NUM_CHANNELS;
     size_t MAX_DATA_PER_PACKET;
@@ -325,6 +368,8 @@ private:
         std::vector<std::vector<int8_t>> headers;
         // Metadata contained in vrt header;
         std::vector<vrt::if_packet_info_t> vrt_metadata;
+        // Sequence number from the last packet processed
+        size_t previous_packet_count;
         //Stores how many bytes of sample data are from each packet
         std::vector<size_t> data_bytes_from_packet;
         // Stores extra data from packets between recvs
