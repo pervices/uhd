@@ -132,12 +132,14 @@ public:
 
         std::vector<size_t> nsamps_received(NUM_CHANNELS, 0);
 
+        // Number of bytes copied from the cache (should be the same for every channel)
+        size_t cached_bytes_to_copy;
         // received data for every channel sequentially
         // TODO: experiment if parallelizing this helps performance
         // ch refers to which element in ch_recv_buffer_info_group not the actual channel number
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             // Copies cached data from previous recv
-            size_t cached_bytes_to_copy = std::min(ch_recv_buffer_info_group[ch].sample_cache_used, bytes_per_buff);
+            cached_bytes_to_copy = std::min(ch_recv_buffer_info_group[ch].sample_cache_used, bytes_per_buff);
             memcpy(buffs[ch], ch_recv_buffer_info_group[ch].sample_cache.data(), cached_bytes_to_copy);
             // How many bytes still need to be received after copying from the cache
             size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
@@ -156,27 +158,21 @@ public:
             }
 
             // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
-            size_t num_bytes_received = recv_multiple_packets(ch, buffs[ch]+cached_bytes_to_copy, remaining_nbytes_per_buff, timeout);
+            metadata.error_code = recv_multiple_packets(ch, buffs[ch]+cached_bytes_to_copy, remaining_nbytes_per_buff, timeout);
 
-            // TODO: set this correctly once the rest of the code is completed
-            nsamps_received[ch] += num_bytes_received / BYTES_PER_SAMPLE;
+            // TODO implement returning data that is received prior to encountering an error, currently acts as if no samples received
+            if(metadata.error_code) {
+                return 0;
+            }
         }
 
         extract_vrt_metadata();
 
         size_t aligned_bytes = 0;
         // Check for overflow errors and (when implemented) shifts data to keep buffers aligned after an overflow)
-        int error_code = align_buffs(buffs, 0, bytes_per_buff, aligned_bytes);
+        metadata.error_code = align_buffs(buffs, cached_bytes_to_copy, bytes_per_buff, aligned_bytes);
 
-        // TODO: drop samples in the event of an overflow to keep buffers aligned
-
-        // Returns the number of samples received on the channel with the lowest number of samples
-        // This can probably be changed since every channel received the same number of bytes
-        size_t lowest_nsamps_received = nsamps_received[0];
-        for(size_t n = 1; n < nsamps_received.size(); n++) {
-            lowest_nsamps_received = std::min(lowest_nsamps_received, nsamps_received[n]);
-        }
-        return lowest_nsamps_received;
+        return aligned_bytes;
     }
 
     /*******************************************************************
@@ -188,7 +184,7 @@ public:
      * one_packet: only receive one packet
      * returns error code
      ******************************************************************/
-    UHD_INLINE size_t recv_multiple_packets(size_t channel, void* sample_buffer, size_t nbytes_per_buff, double timeout) {
+    UHD_INLINE uhd::rx_metadata_t::error_code_t recv_multiple_packets(size_t channel, void* sample_buffer, size_t nbytes_per_buff, double timeout) {
 
         // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
         // Pointers for where to write samples to from each packet using scatter gather
@@ -304,7 +300,7 @@ public:
         } else {
         }
 
-        return 0;
+        return rx_metadata_t::ERROR_CODE_NONE;
     }
 
 
@@ -339,9 +335,9 @@ public:
      * aligned_samples: stores the number of aligned sample
      * return: rx metadata error code
      ******************************************************************/
-    UHD_INLINE int align_buffs(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_size, size_t& aligned_bytes) {
+    UHD_INLINE uhd::rx_metadata_t::error_code_t align_buffs(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_size, size_t& aligned_bytes) {
 
-        int error_codes = 0;
+        uhd::rx_metadata_t::error_code_t error_code = rx_metadata_t::ERROR_CODE_NONE;
 
         aligned_bytes = sample_buffer_offset;
 
@@ -359,7 +355,7 @@ public:
                 //assume vrt_metadata.hst_tsf is true
                 // Checks if sequence number is correct, ignore check if timestamp is 0
                 if((ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count != (0xf & (ch_recv_buffer_info_group[ch].previous_packet_count + 1)))  && (ch_recv_buffer_info_group[ch].vrt_metadata[header_i].tsf != 0)) {
-                    error_codes = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                    error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     UHD_LOG_FASTPATH("D");
                     //TODO: implement aligning buffs after an overflow
                 }
@@ -368,7 +364,7 @@ public:
             }
         }
 
-        return error_codes;
+        return error_code;
     }
 
 protected:
