@@ -236,7 +236,11 @@ public:
         struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};
 
         // TODO: consider enabling return after any packets read so give other channels a chance to receive data, before making the thing calling this function repeat to fill up the remaining space in the buffer
-        int num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, MSG_WAITFORONE, &ts_timeout);
+        int num_packets_received;
+        do {
+             num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, MSG_WAITFORONE | MSG_DONTWAIT, &ts_timeout);
+            //TODO: change it so that if this is met the returns and it moves onto the next channel, then comes back to this
+        } while (num_packets_received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
 
         // TODO: add propert error handling
         if(num_packets_received == -1) {
@@ -278,7 +282,7 @@ public:
             }
         }
 
-        // Records the
+        // Records the amount of data stored in the cache
         if(num_packets_to_recv == (size_t)num_packets_received) {
             ch_recv_buffer_info_group[channel].sample_cache_used = excess_data_in_last_packet;
         } else {
