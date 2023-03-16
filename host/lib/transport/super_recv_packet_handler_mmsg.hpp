@@ -88,10 +88,10 @@ public:
         for(size_t n = 0; n < NUM_CHANNELS; n++) {
             ch_recv_buffer_info tmp = {
                 (size_t) 0, // sample_cache_used
-                std::vector<std::vector<int8_t>>(MAX_PACKETS_AT_A_TIME, std::vector<int8_t>(HEADER_SIZE, 0)), // headers
-                std::vector<vrt::if_packet_info_t>(HEADER_SIZE), // vrt_metadata
+                std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE, 0)), // headers
+                std::vector<vrt::if_packet_info_t>(_num_header_buffers), // vrt_metadata
                 0, //previous_packet_count
-                std::vector<size_t>(MAX_PACKETS_AT_A_TIME, 0), // data_bytes_from_packet
+                std::vector<size_t>(_num_header_buffers, 0), // data_bytes_from_packet
                 std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // sample_cache
                 (size_t) 0 // previous_sample_cache_used
             };
@@ -197,10 +197,15 @@ public:
         }
 
         size_t num_packets_to_recv = samples_sg_dst.size();
-        // TODO: resize metadata buffer as needed
-        if(num_packets_to_recv + ch_recv_buffer_info_group[channel].num_headers_used > MAX_PACKETS_AT_A_TIME) {
-            std::cerr << "Receive metadata collection buffer resizing not implemented yet" << std::endl;
-            std::exit(~0);
+
+        // Adds for room to store metadata if required
+        if(num_packets_to_recv + ch_recv_buffer_info_group[channel].num_headers_used > _num_header_buffers) {
+            for(size_t n = 0; n < NUM_CHANNELS; n++) {
+                _num_header_buffers = num_packets_to_recv + ch_recv_buffer_info_group[channel].num_headers_used;
+                ch_recv_buffer_info_group[n].headers.resize(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE, 0));
+                ch_recv_buffer_info_group[n].vrt_metadata.resize(_num_header_buffers);
+                ch_recv_buffer_info_group[channel].data_bytes_from_packet.resize(_num_header_buffers, 0);
+            }
         }
 
         // Stores data about the recv for each packet
@@ -365,7 +370,7 @@ protected:
 private:
     size_t HEADER_SIZE;
     // Number of existing header buffers, which is the current maximum number of packets to receive at a time, TODO: dynamically increase this when user requests more data at a time than can be contained in this many packets
-    size_t MAX_PACKETS_AT_A_TIME = 32;
+    size_t _num_header_buffers = 32;
     std::vector<int> recv_sockets;
     size_t previous_sample_cache_used = 0;
     // Stores information about packets received for each channel
