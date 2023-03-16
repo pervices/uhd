@@ -77,6 +77,11 @@ public:
             } else {
                 std::cout << "Successfully bind to socket" << std::endl;
             }
+
+            int recv_buff_size = 1048576;
+            int rc = setsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &recv_buff_size, sizeof(recv_buff_size));
+            printf("rc: %i\n", rc);
+
             recv_sockets.push_back(recv_socket_fd);
         }
 
