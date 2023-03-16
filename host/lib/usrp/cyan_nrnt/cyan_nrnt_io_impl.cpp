@@ -842,13 +842,11 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     std::vector<std::string> dst_ip(args.channels.size());
     for(size_t n = 0; n < dst_ip.size(); n++) {
         dst_ip[n] = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/ip_dest" ).get();
-        std::cout << "dst_ip[n]: " << dst_ip[n] << std::endl;
     }
 
     std::vector<int> dst_port(args.channels.size());
     for(size_t n = 0; n < dst_port.size(); n++) {
         dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
-        std::cout << "dst_port[n]: " << dst_port[n] << std::endl;
     }
 
     //make the new streamer given the samples per packet

@@ -61,9 +61,7 @@ public:
             struct sockaddr_in dst_address;
             int recv_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
             if(recv_socket_fd < 0) {
-                //TODO: make this error more descriptive
-                std::cerr << "Failed to create recv socket" << std::endl;
-                std::exit(1);
+                throw uhd::runtime_error( "Failed to create recv socket. Error code:" + std::string(strerror(errno)));
             }
 
             dst_address.sin_family = AF_INET;
@@ -74,13 +72,17 @@ public:
             {
                 //TODO: make this error more descriptive
                 std::cerr << "Unable to bind ip adress, receive may not work. \n IP: " << dst_ip[n] << std::endl;
-            } else {
-                std::cout << "Successfully bind to socket" << std::endl;
             }
 
+            // TODO add the warning from old UHD that says how to change the socket buffer size limit
+            // Sets receive buffer size to (probably) maximum
+            // TODO: verify if recv buffer can be set higher
             int recv_buff_size = 1048576;
-            int rc = setsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &recv_buff_size, sizeof(recv_buff_size));
-            printf("rc: %i\n", rc);
+            if(setsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &recv_buff_size, sizeof(recv_buff_size))) {
+                std::cerr << "Error while setting recv buffer size, performance may be affected" << std::endl;
+            }
+
+            // TODO: empty socket buffer
 
             recv_sockets.push_back(recv_socket_fd);
         }
@@ -184,7 +186,7 @@ public:
      * sample_buffer: start of location in memory to store samples from received packets
      * timeout: timout, TODO: make sure call for other channels take into account time taken by the previous channel
      * one_packet: only receive one packet
-     * returns the number of bytes written to buffer (does not include bytes written to the cache TODO change the return to an error code
+     * returns error code
      ******************************************************************/
     UHD_INLINE size_t recv_multiple_packets(size_t channel, void* sample_buffer, size_t nbytes_per_buff, double timeout) {
 
@@ -245,18 +247,22 @@ public:
 
         struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};
 
-        // TODO: consider enabling return after any packets read so give other channels a chance to receive data, before making the thing calling this function repeat to fill up the remaining space in the buffer
-        int num_packets_received;
+        int num_packets_received = 0;
+        int num_packets_received_this_recv = 0;
         do {
-             num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, MSG_WAITFORONE | MSG_DONTWAIT, &ts_timeout);
-            //TODO: change it so that if this is met the returns and it moves onto the next channel, then comes back to this
-        } while (num_packets_received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+            //MSG_DONTWAIT is used so to make sure the schedueler doesn't deprioritize this thread while waiting for data
+            num_packets_received_this_recv = recvmmsg(recv_sockets[channel], &msgs[num_packets_received], (int) num_packets_to_recv - num_packets_received, MSG_DONTWAIT, 0);
+            if(num_packets_received_this_recv >= 0) {
+                num_packets_received += num_packets_received_this_recv;
+            }
+        } while ((num_packets_received_this_recv == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) || num_packets_received < num_packets_to_recv );
 
-        // TODO: add propert error handling
         if(num_packets_received == -1) {
-            std::cout << "recvmmsg error" << std::endl;
-            std::cout << "errno" << strerror(errno) << std::endl;
-            return 0;
+            if(errno == EINTR) {
+                return rx_metadata_t::ERROR_CODE_EINTR;
+            } else {
+                throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(errno)));
+            }
         }
 
         ch_recv_buffer_info_group[channel].num_headers_used = (size_t) num_packets_received;
@@ -298,7 +304,7 @@ public:
         } else {
         }
 
-        return num_bytes_received;
+        return 0;
     }
 
 
@@ -337,6 +343,8 @@ public:
 
         int error_codes = 0;
 
+        aligned_bytes = sample_buffer_offset;
+
         // Calculates how many packets to align
         // TODO: implement aligning varying number of packets
         size_t num_packets_to_align = ch_recv_buffer_info_group[0].num_headers_used;
@@ -356,6 +364,7 @@ public:
                     //TODO: implement aligning buffs after an overflow
                 }
                 ch_recv_buffer_info_group[ch].previous_packet_count = ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count;
+                aligned_bytes += ch_recv_buffer_info_group[ch].data_bytes_from_packet[header_i];
             }
         }
 
