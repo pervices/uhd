@@ -236,7 +236,7 @@ public:
         struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};
 
         // TODO: consider enabling return after any packets read so give other channels a chance to receive data, before making the thing calling this function repeat to fill up the remaining space in the buffer
-        int num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, 0, &ts_timeout);
+        int num_packets_received = recvmmsg(recv_sockets[channel], msgs, num_packets_to_recv, MSG_WAITFORONE, &ts_timeout);
 
         // TODO: add propert error handling
         if(num_packets_received == -1) {
