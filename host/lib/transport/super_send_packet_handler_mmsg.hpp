@@ -54,9 +54,10 @@ public:
         : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * BYTES_PER_SAMPLE), _num_channels(channels.size())
     {
         std::cout << "T50" << std::endl;
-        // TODO IP and port are parameter in constructor
+        // TODO get these are parameters in constructor
         std::vector<std::string> dst_ips = {"10.10.10.2"};
         std::vector<int> dst_ports = {42836};
+        child_channels = std::vector<size_t>(1, 0);
         
         // Creates and binds to sockets
         for(size_t n = 0; n < _num_channels; n++) {
@@ -95,7 +96,7 @@ public:
      * Dispatch into combinations of single packet send calls.
      ******************************************************************/
     UHD_INLINE size_t send(
-        const uhd::tx_streamer::buffs_type &buffs,
+        const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
         const uhd::tx_metadata_t &metadata_,
         const double timeout
@@ -109,26 +110,78 @@ public:
         // Number of packets to send
         size_t num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
 
-        std::vector<size_t> bytes_per_packet(num_packets, _max_samples_per_packet);
-
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
-        bytes_per_packet[num_packets - 1] = samples_in_last_packet;
 
-        // VRT header for data packets
-        std::vector<vrt::if_packet_info_t> packet_headers(num_packets);
+        //TODO: make this work for multiple channels
+        // VRT header info for data packets
+        std::vector<vrt::if_packet_info_t> packet_header_infos(num_packets);
         for(size_t n = 0; n < num_packets; n++) {
-            packet_headers[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
-            packet_headers[n].has_sid = false;
-            packet_headers[n].has_cid = false;
-            packet_headers[n].has_tlr = false; // No trailer
-            packet_headers[n].has_tsi = false; // No integer timestamp
-            packet_headers[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
-            packet_headers[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _samp_rate)).to_ticks(_tick_rate);
-            packet_headers[n].sob = (n == 0) && metadata_.start_of_burst;
+            packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
+            packet_header_infos[n].has_sid = false;
+            packet_header_infos[n].has_cid = false;
+            packet_header_infos[n].has_tlr = false; // No trailer
+            packet_header_infos[n].has_tsi = false; // No integer timestamp
+            packet_header_infos[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
+            packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _samp_rate)).to_ticks(_tick_rate);
+            packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
-            packet_headers[n].eob     = false;
-            packet_headers[n].fc_ack  = false; // Is not a flow control packet
+            packet_header_infos[n].eob     = false;
+            packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
         }
+
+        std::vector<std::vector<uint32_t>> vrt_headers(num_packets, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0));
+
+        for(size_t n = 0; n < num_packets; n++) {
+            if_hdr_pack(vrt_headers[n].data(), packet_header_infos[n]);
+        }
+
+        // Pointer to the start of the data to send in each packet for each channels
+        std::vector<const void*> sample_data_start_for_packet(num_packets);
+        for(size_t n = 0; n < num_packets; n++) {
+            //TODO: sample_buffs 0 is for ch 0, make this work for more channels
+            sample_data_start_for_packet[n] = sample_buffs[0] + (n * _max_sample_bytes_per_packet);
+        }
+
+        mmsghdr msgs[num_packets];
+        // Pointers to buffers
+        // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
+        iovec iovecs[2*num_packets];
+
+        for(size_t n = 0; n < num_packets - 1; n++) {
+            // VRT Header
+            iovecs[2*n].iov_base = vrt_headers[n].data();
+            iovecs[2*n].iov_len = HEADER_SIZE;
+            // Samples
+            // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
+            iovecs[2*n+1].iov_base = const_cast<void*>(sample_data_start_for_packet[n]);
+            iovecs[2*n+1].iov_len = _max_sample_bytes_per_packet;
+
+            msgs[n].msg_hdr.msg_iov = &iovecs[2*n];
+            msgs[n].msg_hdr.msg_iovlen = 2;
+
+            // Setting optional data to none
+            msgs[n].msg_hdr.msg_name = NULL;
+            msgs[n].msg_hdr.msg_namelen = 0;
+            msgs[n].msg_hdr.msg_control = NULL;
+            msgs[n].msg_hdr.msg_controllen = 0;
+        }
+
+        size_t n_last_packet = num_packets - 1;
+        iovecs[2*n_last_packet].iov_base = vrt_headers[n_last_packet].data();
+        iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
+
+        iovecs[2*n_last_packet+1].iov_base = const_cast<void*>(sample_data_start_for_packet[n_last_packet]);
+        iovecs[2*n_last_packet+1].iov_len = samples_in_last_packet * BYTES_PER_SAMPLE;
+
+        msgs[n_last_packet].msg_hdr.msg_iov = &iovecs[2*n_last_packet];
+        msgs[n_last_packet].msg_hdr.msg_iovlen = 2;
+
+        msgs[n_last_packet].msg_hdr.msg_name = NULL;
+        msgs[n_last_packet].msg_hdr.msg_namelen = 0;
+        msgs[n_last_packet].msg_hdr.msg_control = NULL;
+        msgs[n_last_packet].msg_hdr.msg_controllen = 0;
+
+        std::vector<size_t> packets_sent_per_ch = std::vector<size_t>(_num_channels, 0);
 
         return 0;
     }
@@ -138,10 +191,21 @@ protected:
     size_t _max_sample_bytes_per_packet;
     size_t _num_channels;
 
+    /*******************************************************************
+     * converts vrt packet info into header
+     * packet_buff: buffer to write vrt data to
+     * if_packet_info: packet info to be used to calculate the header
+     ******************************************************************/
+    virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
+
 private:
     //TODO soft code this
     size_t BYTES_PER_SAMPLE = 4;
+    // Size of the vrt header in bytes
+    size_t HEADER_SIZE = 16;
     std::vector<int> send_sockets;
+    //TODO: rename this to just channels when seperating this class from old version
+    std::vector<size_t> child_channels;
 
 };
 

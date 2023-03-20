@@ -411,6 +411,11 @@ public:
 		}
 	}
 
+protected:
+    void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
+        vrt::if_hdr_pack_be(packet_buff, if_packet_info);
+    }
+
 private:
 	bool _first_call_to_send;
     size_t _max_num_samps;
