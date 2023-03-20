@@ -53,6 +53,7 @@ public:
     send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size)
         : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _num_channels(channels.size())
     {
+        std::cout << "T50" << std::endl;
         // TODO IP and port are parameter in constructor
         std::vector<std::string> dst_ips = {"10.10.10.2"};
         std::vector<int> dst_ports = {42836};
@@ -69,9 +70,9 @@ public:
             dst_address.sin_addr.s_addr = inet_addr(dst_ips[n].c_str());
             dst_address.sin_port = htons(dst_ports[n]);
 
-            if(bind(send_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
+            if(connect(send_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
             {
-                std::cerr << "Unable to bind send ip adress, receive may not work. \n IP: " << dst_ips[n] << std::endl;
+                std::cerr << "Unable to bind send ip adress, receive may not work. \n IP: " << dst_ips[n] << " " <<  std::string(strerror(errno)) << std::endl;
             }
 
             // TODO: implement send buffer resizing
@@ -100,6 +101,7 @@ public:
         const double timeout
     ) {
         // TODO: implement send
+        std::cout << "Start of new send" << std::endl;
         return 0;
     }
     

@@ -1501,13 +1501,14 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 // 				device_addr
 // 			)
 // 		);
-// 
-// 		_mbc[mb].fifo_ctrl_xports.push_back(
-// 			udp_simple::make_connected(
-// 				_tree->access<std::string>( mb_path / "link" / sfp / "ip_addr" ).get(),
-// 				std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
-// 			)
-// 		);
+
+        // Creates socket for getting buffer level
+		_mbc[mb].fifo_ctrl_xports.push_back(
+			udp_simple::make_connected(
+				_tree->access<std::string>( mb_path / "link" / sfp / "ip_addr" ).get(),
+				std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
+			)
+		);
     }
 
 	const fs_path cm_path  = mb_path / "cm";

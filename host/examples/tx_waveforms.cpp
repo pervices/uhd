@@ -207,7 +207,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
     uhd::stream_args_t stream_args("fc32", otw);
     stream_args.channels = channel_nums;
+    std::cout << "T1" << std::endl;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
+    std::cout << "T200" << std::endl;
 
     //allocate a buffer which we re-use for each channel
     if (spb == 0) {
@@ -325,7 +327,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #endif
             //this statement will block until the data is sent
             //send the entire contents of the buffer
+            std::cout << "T300" << std::endl;
             num_acc_samps += tx_stream->send(buffs, n, md);
+            std::cout << "T500" << std::endl;
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sent samples" << std::endl;
 #endif

@@ -212,6 +212,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        std::cout << "301" << std::endl;
         size_t nsamps_per_buff = ((size_t)(nsamps_per_buff_/CYAN_NRNT_PACKET_NSAMP_MULTIPLE)) * CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -248,6 +249,8 @@ public:
                 ep.flow_control->set_start_of_burst_time( metadata.time_spec );
             }
         }
+        
+        std::cout << "350" << std::endl;
 
         _first_call_to_send = false;
 
@@ -273,9 +276,14 @@ public:
 
             stop_streaming();
         }
-        r = send_packet_handler::send(buffs, nsamps_per_buff, metadata, 0.00);
+        std::cout << "400" << std::endl;
+        r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, 0.00);
+        
+        std::cout << "490" << std::endl;
 
         next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
+        
+        std::cout << "499" << std::endl;
 
         return r;
     }
@@ -1116,11 +1124,14 @@ static void get_fifo_lvl_udp( const size_t channel, const int64_t max_bl, const 
 }
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    std::cout << "T2" << std::endl;
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
     args.otw_format = args.otw_format.empty()? otw_tx_s : args.otw_format;
+    std::cout << "T3" << std::endl;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
+    std::cout << "T4" << std::endl;
 
     if (args.otw_format != otw_tx_s){
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
@@ -1135,16 +1146,16 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
         ;
 
-    const size_t bpp = _mbc[_mbc.keys().front()].tx_dsp_xports[0]->get_send_frame_size() - hdr_size;
-    const size_t spp = bpp/convert::get_bytes_per_item(args.otw_format);
+    std::cout << "T40" << std::endl;
+    const size_t spp = CYAN_NRNT_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
 
+    std::cout << "T50" << std::endl;
     //make the new streamer given the samples per packet
     cyan_nrnt_send_packet_streamer::timenow_type timenow_ = std::bind( & cyan_nrnt_impl::get_time_now, this );
-    std::vector<uhd::transport::zero_copy_if::sptr> xports;
-    for( auto & i: args.channels ) {
-        xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
-    }
+
+    std::cout << "T100" << std::endl;
     std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level );
+    std::cout << "T140" << std::endl;
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -1168,6 +1179,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         my_streamer->set_scale_factor( otw_tx / 16.0 );
     }
 
+    std::cout << "T142" << std::endl;
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
@@ -1186,7 +1198,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                     &cyan_nrnt_send_packet_streamer::get_send_buff, my_streamerp, chan_i, ph::_1
                 ));
 
-                my_streamer->set_xport_chan(chan_i,_mbc[mb].tx_dsp_xports[dsp]);
+                std::cout << "T145" << std::endl;
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, std::bind(
                     &cyan_nrnt_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, ph::_1
                 ));
@@ -1202,6 +1214,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
                     &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
+                std::cout << "T148" << std::endl;
 
                 my_streamer->set_async_receiver(std::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_nrnt_io_impl->async_msg_fifo), ph::_1, ph::_2));
 
@@ -1212,6 +1225,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
             }
         }
     }
+    std::cout << "T150" << std::endl;
 
     // XXX: @CF: 20170228: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -1261,6 +1275,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );
+    
+    std::cout << "T199" << std::endl;
 
     return my_streamer;
 }
