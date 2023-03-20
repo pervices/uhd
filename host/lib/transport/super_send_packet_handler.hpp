@@ -478,6 +478,9 @@ public:
 		return nsamps_sent;
     }
 
+protected:
+    double _tick_rate, _samp_rate;
+
 private:
 
     // apparatus for multi-threaded execution of convert_to_in_buff
@@ -498,7 +501,6 @@ private:
 
     vrt_packer_type _vrt_packer;
     size_t _header_offset_words32;
-    double _tick_rate, _samp_rate;
     struct xport_chan_props_type{
         xport_chan_props_type(void):has_sid(false),sid(0){}
         get_buff_type get_buff;

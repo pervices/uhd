@@ -51,7 +51,7 @@ public:
      * \param buffer_size size of the buffer on the unit
      */
     send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size)
-        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _num_channels(channels.size())
+        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * BYTES_PER_SAMPLE), _num_channels(channels.size())
     {
         std::cout << "T50" << std::endl;
         // TODO IP and port are parameter in constructor
@@ -96,20 +96,51 @@ public:
      ******************************************************************/
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &buffs,
-        const size_t nsamps_per_buff,
+        const size_t nsamps_to_send,
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ) {
-        // TODO: implement send
-        std::cout << "Start of new send" << std::endl;
+        // TODO: implement handling for length 0 packets (SOB with no samples and EOB)
+        if(nsamps_to_send == 0) {
+            std::cout << "0 length packets not implemented yet" << std::endl;
+            return 0;
+        }
+
+        // Number of packets to send
+        size_t num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
+
+        std::vector<size_t> bytes_per_packet(num_packets, _max_samples_per_packet);
+
+        size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
+        bytes_per_packet[num_packets - 1] = samples_in_last_packet;
+
+        // VRT header for data packets
+        std::vector<vrt::if_packet_info_t> packet_headers(num_packets);
+        for(size_t n = 0; n < num_packets; n++) {
+            packet_headers[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
+            packet_headers[n].has_sid = false;
+            packet_headers[n].has_cid = false;
+            packet_headers[n].has_tlr = false; // No trailer
+            packet_headers[n].has_tsi = false; // No integer timestamp
+            packet_headers[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
+            packet_headers[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _samp_rate)).to_ticks(_tick_rate);
+            packet_headers[n].sob = (n == 0) && metadata_.start_of_burst;
+            // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
+            packet_headers[n].eob     = false;
+            packet_headers[n].fc_ack  = false; // Is not a flow control packet
+        }
+
         return 0;
     }
     
 protected:
     size_t _max_samples_per_packet;
+    size_t _max_sample_bytes_per_packet;
     size_t _num_channels;
 
 private:
+    //TODO soft code this
+    size_t BYTES_PER_SAMPLE = 4;
     std::vector<int> send_sockets;
 
 };
