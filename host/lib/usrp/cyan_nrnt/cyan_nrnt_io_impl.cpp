@@ -212,7 +212,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        std::cout << "301" << std::endl;
         size_t nsamps_per_buff = ((size_t)(nsamps_per_buff_/CYAN_NRNT_PACKET_NSAMP_MULTIPLE)) * CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
@@ -250,8 +249,6 @@ public:
             }
         }
         
-        std::cout << "350" << std::endl;
-
         _first_call_to_send = false;
 
         // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
@@ -276,15 +273,11 @@ public:
 
             stop_streaming();
         }
-        std::cout << "400" << std::endl;
+
         r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, 0.00);
         
-        std::cout << "490" << std::endl;
-
         next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
         
-        std::cout << "499" << std::endl;
-
         return r;
     }
 

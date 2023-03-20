@@ -44,6 +44,11 @@ namespace sph {
 
 class send_packet_handler_mmsg : public send_packet_handler
 {
+// Declare constants first so they are initialized before constructor
+private:
+    const size_t BYTES_PER_SAMPLE = 4;
+    // Size of the vrt header in bytes
+    const size_t HEADER_SIZE = 16;
 public:
 
     /*!
@@ -53,7 +58,10 @@ public:
     send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size)
         : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * BYTES_PER_SAMPLE), _num_channels(channels.size())
     {
-        std::cout << "T50" << std::endl;
+        std::cout << "_max_samples_per_packet: " << _max_samples_per_packet << std::endl;
+        std::cout << "max_samples_per_packet: " << max_samples_per_packet << std::endl;
+        std::cout << "_max_sample_bytes_per_packet: " << _max_sample_bytes_per_packet << std::endl;
+        std::cout << "BYTES_PER_SAMPLE: " << BYTES_PER_SAMPLE << std::endl;
         // TODO get these are parameters in constructor
         std::vector<std::string> dst_ips = {"10.10.10.2"};
         std::vector<int> dst_ports = {42836};
@@ -101,6 +109,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ) {
+        std::cout << "nsamps_to_send: " << nsamps_to_send << std::endl;
         // TODO: implement handling for length 0 packets (SOB with no samples and EOB)
         if(nsamps_to_send == 0) {
             std::cout << "0 length packets not implemented yet" << std::endl;
@@ -147,6 +156,7 @@ public:
         // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
         iovec iovecs[2*num_packets];
 
+        std::cout << "_max_sample_bytes_per_packet: " << _max_sample_bytes_per_packet << std::endl;
         for(int n = 0; n < num_packets - 1; n++) {
             // VRT Header
             iovecs[2*n].iov_base = vrt_headers[n].data();
@@ -187,6 +197,7 @@ public:
         while(channels_serviced < _num_channels) {
             for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
                 size_t ch = child_channels[ch_i];
+                // TODO: change check_flow_control to get the number of samples that can be sent now instead of a simple true/false, this is for future code that will prevent large send buffers from causing overflows on Crimson
                 if (!(_props.at(ch).check_flow_control(0))) {
                     // The time to send for this channel has not reached.
                     continue;
@@ -195,6 +206,7 @@ public:
                 int num_packets_alread_sent = packets_sent_per_ch[ch_i];
                 int num_packets_to_send = num_packets - num_packets_alread_sent;
                 int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[num_packets_alread_sent], num_packets_to_send, 0);
+                std::cout << "num_packets_sent_this_send: " << num_packets_sent_this_send << std::endl;
 
                 if(num_packets_sent_this_send < 0) {
                     std::cerr << "sendmmsg on ch " << child_channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
@@ -219,6 +231,7 @@ public:
         }
 
         // All channels should always send the same number of samples
+        std::cout << "samples_sent_per_ch[0]: " << samples_sent_per_ch[0] << std::endl;
         return samples_sent_per_ch[0];
     }
     
@@ -235,10 +248,6 @@ protected:
     virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
-    //TODO soft code this
-    size_t BYTES_PER_SAMPLE = 4;
-    // Size of the vrt header in bytes
-    size_t HEADER_SIZE = 16;
     std::vector<int> send_sockets;
     //TODO: rename this to just channels when seperating this class from old version
     std::vector<size_t> child_channels;
