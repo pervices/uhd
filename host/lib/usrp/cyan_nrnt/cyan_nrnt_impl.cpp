@@ -97,6 +97,11 @@ std::string cyan_nrnt_impl::rx_link_root(const size_t channel, const size_t mboa
     return mb_root(mboard) + "/rx_link/" + std::to_string(channel);
 }
 
+std::string cyan_nrnt_impl::tx_link_root(const size_t channel, const size_t mboard)
+{
+    return mb_root(mboard) + "/tx_link/" + std::to_string(channel);
+}
+
 static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
     return mb_root(mboard) + "/tx_dsps/" + std::to_string(channel);
 }

@@ -166,9 +166,9 @@ public:
     // Maximum buffer level in nsamps. Named this way to avoid confusion with the same variable belonging to different stuff
     int64_t stream_max_bl;
 
-	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl)
+	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports ),
 		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
@@ -1122,14 +1122,11 @@ static void get_fifo_lvl_udp( const size_t channel, const int64_t max_bl, const 
 }
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
-    std::cout << "T2" << std::endl;
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
     args.otw_format = args.otw_format.empty()? otw_tx_s : args.otw_format;
-    std::cout << "T3" << std::endl;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
-    std::cout << "T4" << std::endl;
 
     if (args.otw_format != otw_tx_s){
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
@@ -1144,15 +1141,22 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
         ;
 
-    std::cout << "T40" << std::endl;
     const size_t spp = CYAN_NRNT_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
 
-    std::cout << "T50" << std::endl;
     //make the new streamer given the samples per packet
     cyan_nrnt_send_packet_streamer::timenow_type timenow_ = std::bind( & cyan_nrnt_impl::get_time_now, this );
 
+    std::vector<std::string> dst_ips(args.channels.size());
+    std::vector<int> dst_ports(args.channels.size());
+    for(size_t n = 0; n < args.channels.size(); n++) {
+        uint16_t dst_port = 0;
+        std::string sfp = "";
+        get_tx_endpoint( _tree, args.channels[n], dst_ips[n], dst_port, sfp );
+        dst_ports[n] = dst_port;
+    }
+
     std::cout << "T100" << std::endl;
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level );
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports);
     std::cout << "T140" << std::endl;
 
     //init some streamer stuff

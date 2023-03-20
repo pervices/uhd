@@ -55,14 +55,10 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size)
-        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * _bytes_per_sample), _num_channels(channels.size())
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports)
+        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * _bytes_per_sample), _num_channels(channels.size()),
+        _channels(channels)
     {
-        // TODO get these are parameters in constructor
-        std::vector<std::string> dst_ips = {"10.10.10.2"};
-        std::vector<int> dst_ports = {42836};
-        child_channels = std::vector<size_t>(1, 0);
-        
         // Creates and binds to sockets
         for(size_t n = 0; n < _num_channels; n++) {
             struct sockaddr_in dst_address;
@@ -197,7 +193,7 @@ public:
         std::vector<size_t> samples_sent_per_ch(_num_channels, 0);
         while(channels_serviced < _num_channels) {
             for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
-                size_t ch = child_channels[ch_i];
+                size_t ch = _channels[ch_i];
                 // TODO: change check_flow_control to get the number of samples that can be sent now instead of a simple true/false, this is for future code that will prevent large send buffers from causing overflows on Crimson
                 if (!(_props.at(ch).check_flow_control(0))) {
                     // The time to send for this channel has not reached.
@@ -209,7 +205,7 @@ public:
                 int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[num_packets_alread_sent], num_packets_to_send, 0);
 
                 if(num_packets_sent_this_send < 0) {
-                    std::cerr << "sendmmsg on ch " << child_channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
+                    std::cerr << "sendmmsg on ch " << _channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
                 } else {
                     packets_sent_per_ch[ch_i] += num_packets_sent_this_send;
                     // Update buffer level record
@@ -225,7 +221,7 @@ public:
                     // Update counter for number of samples sent this send
                     samples_sent_per_ch[ch_i] += nsamps_sent;
                     // Update buffer level count
-                    _props.at(child_channels[ch_i]).update_fc_send_count(nsamps_sent);
+                    _props.at(_channels[ch_i]).update_fc_send_count(nsamps_sent);
                 }
             }
         }
@@ -249,15 +245,15 @@ protected:
 private:
     std::vector<int> send_sockets;
     //TODO: rename this to just channels when seperating this class from old version
-    std::vector<size_t> child_channels;
+    std::vector<size_t> _channels;
 
 };
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports)
     {
     }
 

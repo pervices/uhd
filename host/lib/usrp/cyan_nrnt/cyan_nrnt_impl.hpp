@@ -127,6 +127,7 @@ public:
 
 private:
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
+    std::string tx_link_root(const size_t channel, const size_t mboard = 0);
 
     // The buffer size in number of samples
     int64_t max_buffer_level;
