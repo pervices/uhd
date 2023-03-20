@@ -48,7 +48,7 @@ class send_packet_handler_mmsg : public send_packet_handler
 private:
     const size_t _bytes_per_sample = 4;
     // Size of the vrt header in bytes
-    const size_t HEADER_SIZE = 16;
+    const size_t HEADER_SIZE = 12;
 public:
 
     /*!
