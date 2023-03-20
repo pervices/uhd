@@ -46,7 +46,7 @@ class send_packet_handler_mmsg : public send_packet_handler
 {
 // Declare constants first so they are initialized before constructor
 private:
-    const size_t BYTES_PER_SAMPLE = 4;
+    const size_t _bytes_per_sample = 4;
     // Size of the vrt header in bytes
     const size_t HEADER_SIZE = 16;
 public:
@@ -56,12 +56,12 @@ public:
      * \param buffer_size size of the buffer on the unit
      */
     send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size)
-        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * BYTES_PER_SAMPLE), _num_channels(channels.size())
+        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * _bytes_per_sample), _num_channels(channels.size())
     {
         std::cout << "_max_samples_per_packet: " << _max_samples_per_packet << std::endl;
         std::cout << "max_samples_per_packet: " << max_samples_per_packet << std::endl;
         std::cout << "_max_sample_bytes_per_packet: " << _max_sample_bytes_per_packet << std::endl;
-        std::cout << "BYTES_PER_SAMPLE: " << BYTES_PER_SAMPLE << std::endl;
+        std::cout << "_bytes_per_sample: " << _bytes_per_sample << std::endl;
         // TODO get these are parameters in constructor
         std::vector<std::string> dst_ips = {"10.10.10.2"};
         std::vector<int> dst_ports = {42836};
@@ -136,7 +136,14 @@ public:
             // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
             packet_header_infos[n].eob     = false;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
+
+            packet_header_infos[n].num_payload_bytes = _max_sample_bytes_per_packet;
+            packet_header_infos[n].num_payload_words32 = (_max_sample_bytes_per_packet + 3/*round up*/)/sizeof(uint32_t);
         }
+
+        //Set payload size info for last packet
+        packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
+        packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3/*round up*/)/sizeof(uint32_t);
 
         std::vector<std::vector<uint32_t>> vrt_headers(num_packets, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0));
 
@@ -181,7 +188,7 @@ public:
         iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
 
         iovecs[2*n_last_packet+1].iov_base = const_cast<void*>(sample_data_start_for_packet[n_last_packet]);
-        iovecs[2*n_last_packet+1].iov_len = samples_in_last_packet * BYTES_PER_SAMPLE;
+        iovecs[2*n_last_packet+1].iov_len = samples_in_last_packet * _bytes_per_sample;
 
         msgs[n_last_packet].msg_hdr.msg_iov = &iovecs[2*n_last_packet];
         msgs[n_last_packet].msg_hdr.msg_iovlen = 2;
