@@ -1339,6 +1339,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		zcxp.num_send_frames = 0;
 		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
 
+        // TODO: old method of creating send socket, make it so this is only done in the old mode
         //Attempts to bind the ips associated with the ip ports
         //It is neccessary for maximum performance when receiving using uhd
         //However if uhd is only being used to start the stream and something else is handling actually receiving the data this error can be ignored
@@ -1490,22 +1491,23 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		std::string sfp;
 		get_tx_endpoint( _tree, dspno, ip_addr, udp_port, sfp );
 
-		_mbc[mb].tx_dsp_xports.push_back(
-			udp_zero_copy::make(
-				ip_addr,
-				std::to_string( udp_port ),
-				zcxp,
-				bp,
-				device_addr
-			)
-		);
-
-		_mbc[mb].fifo_ctrl_xports.push_back(
-			udp_simple::make_connected(
-				_tree->access<std::string>( mb_path / "link" / sfp / "ip_addr" ).get(),
-				std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
-			)
-		);
+        // TODO: old method of creating send socket, make it so this is only done in the old mode
+// 		_mbc[mb].tx_dsp_xports.push_back(
+// 			udp_zero_copy::make(
+// 				ip_addr,
+// 				std::to_string( udp_port ),
+// 				zcxp,
+// 				bp,
+// 				device_addr
+// 			)
+// 		);
+// 
+// 		_mbc[mb].fifo_ctrl_xports.push_back(
+// 			udp_simple::make_connected(
+// 				_tree->access<std::string>( mb_path / "link" / sfp / "ip_addr" ).get(),
+// 				std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
+// 			)
+// 		);
     }
 
 	const fs_path cm_path  = mb_path / "cm";

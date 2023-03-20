@@ -22,7 +22,7 @@
 #include <mutex>
 
 #include "../../transport/super_recv_packet_handler_mmsg.hpp"
-#include "../../transport/super_send_packet_handler.hpp"
+#include "../../transport/super_send_packet_handler_mmsg.hpp"
 
 #include "cyan_nrnt_impl.hpp"
 #include "cyan_nrnt_fw_common.h"
@@ -152,7 +152,7 @@ static void shutdown_lingering_rx_streamers() {
 // XXX: @CF: 20180227: We need this for several reasons
 // 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
 // 2) to wrap sphc::send_packet_streamer::send() and use our existing flow control algorithm
-class cyan_nrnt_send_packet_streamer : public sph::send_packet_streamer {
+class cyan_nrnt_send_packet_streamer : public sph::send_packet_streamer_mmsg {
 public:
 
 	typedef std::function<void(void)> onfini_type;
@@ -166,9 +166,9 @@ public:
     // Maximum buffer level in nsamps. Named this way to avoid confusion with the same variable belonging to different stuff
     int64_t stream_max_bl;
 
-	cyan_nrnt_send_packet_streamer( const size_t max_num_samps, const size_t max_bl )
+	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl)
 	:
-		sph::send_packet_streamer( max_num_samps, max_bl ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl ),
 		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
@@ -1144,7 +1144,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     for( auto & i: args.channels ) {
         xports.push_back( _mbc[ _mbc.keys().front() ].tx_dsp_xports[ i ] );
     }
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( spp, max_buffer_level );
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
