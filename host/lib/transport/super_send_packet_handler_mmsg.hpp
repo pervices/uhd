@@ -193,9 +193,8 @@ public:
         std::vector<size_t> samples_sent_per_ch(_num_channels, 0);
         while(channels_serviced < _num_channels) {
             for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
-                size_t ch = _channels[ch_i];
                 // TODO: change check_flow_control to get the number of samples that can be sent now instead of a simple true/false, this is for future code that will prevent large send buffers from causing overflows on Crimson
-                if (!(_props.at(ch).check_flow_control(0))) {
+                if (!(_props.at(ch_i).check_flow_control(0))) {
                     // The time to send for this channel has not reached.
                     continue;
                 }
@@ -221,7 +220,7 @@ public:
                     // Update counter for number of samples sent this send
                     samples_sent_per_ch[ch_i] += nsamps_sent;
                     // Update buffer level count
-                    _props.at(_channels[ch_i]).update_fc_send_count(nsamps_sent);
+                    _props.at(ch_i).update_fc_send_count(nsamps_sent);
                 }
             }
         }
