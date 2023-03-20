@@ -480,6 +480,17 @@ public:
 
 protected:
     double _tick_rate, _samp_rate;
+    struct xport_chan_props_type{
+        xport_chan_props_type(void):has_sid(false),sid(0){}
+        get_buff_type get_buff;
+        update_fc_send_count_type update_fc_send_count;
+        check_flow_control_type check_flow_control;
+        post_send_cb_type go_postal;
+        bool has_sid;
+        uint32_t sid;
+        managed_send_buffer::sptr buff;
+    };
+    std::vector<xport_chan_props_type> _props;
 
 private:
 
@@ -501,17 +512,6 @@ private:
 
     vrt_packer_type _vrt_packer;
     size_t _header_offset_words32;
-    struct xport_chan_props_type{
-        xport_chan_props_type(void):has_sid(false),sid(0){}
-        get_buff_type get_buff;
-        update_fc_send_count_type update_fc_send_count;
-        check_flow_control_type check_flow_control;
-        post_send_cb_type go_postal;
-        bool has_sid;
-        uint32_t sid;
-        managed_send_buffer::sptr buff;
-    };
-    std::vector<xport_chan_props_type> _props;
 
     // This structure will hold a vector of buffers of data to be sent to a single socket
     // using sendmmsg system call.

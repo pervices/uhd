@@ -108,14 +108,14 @@ public:
         }
 
         // Number of packets to send
-        size_t num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
+        int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
 
         //TODO: make this work for multiple channels
         // VRT header info for data packets
         std::vector<vrt::if_packet_info_t> packet_header_infos(num_packets);
-        for(size_t n = 0; n < num_packets; n++) {
+        for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
             packet_header_infos[n].has_sid = false;
             packet_header_infos[n].has_cid = false;
@@ -131,13 +131,13 @@ public:
 
         std::vector<std::vector<uint32_t>> vrt_headers(num_packets, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0));
 
-        for(size_t n = 0; n < num_packets; n++) {
+        for(int n = 0; n < num_packets; n++) {
             if_hdr_pack(vrt_headers[n].data(), packet_header_infos[n]);
         }
 
         // Pointer to the start of the data to send in each packet for each channels
         std::vector<const void*> sample_data_start_for_packet(num_packets);
-        for(size_t n = 0; n < num_packets; n++) {
+        for(int n = 0; n < num_packets; n++) {
             //TODO: sample_buffs 0 is for ch 0, make this work for more channels
             sample_data_start_for_packet[n] = sample_buffs[0] + (n * _max_sample_bytes_per_packet);
         }
@@ -147,7 +147,7 @@ public:
         // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
         iovec iovecs[2*num_packets];
 
-        for(size_t n = 0; n < num_packets - 1; n++) {
+        for(int n = 0; n < num_packets - 1; n++) {
             // VRT Header
             iovecs[2*n].iov_base = vrt_headers[n].data();
             iovecs[2*n].iov_len = HEADER_SIZE;
@@ -166,7 +166,7 @@ public:
             msgs[n].msg_hdr.msg_controllen = 0;
         }
 
-        size_t n_last_packet = num_packets - 1;
+        int n_last_packet = num_packets - 1;
         iovecs[2*n_last_packet].iov_base = vrt_headers[n_last_packet].data();
         iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
 
@@ -181,9 +181,45 @@ public:
         msgs[n_last_packet].msg_hdr.msg_control = NULL;
         msgs[n_last_packet].msg_hdr.msg_controllen = 0;
 
-        std::vector<size_t> packets_sent_per_ch = std::vector<size_t>(_num_channels, 0);
+        size_t channels_serviced = 0;
+        std::vector<int> packets_sent_per_ch(_num_channels, 0);
+        std::vector<size_t> samples_sent_per_ch(_num_channels, 0);
+        while(channels_serviced < _num_channels) {
+            for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+                size_t ch = child_channels[ch_i];
+                if (!(_props.at(ch).check_flow_control(0))) {
+                    // The time to send for this channel has not reached.
+                    continue;
+                }
 
-        return 0;
+                int num_packets_alread_sent = packets_sent_per_ch[ch_i];
+                int num_packets_to_send = num_packets - num_packets_alread_sent;
+                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[num_packets_alread_sent], num_packets_to_send, 0);
+
+                if(num_packets_sent_this_send < 0) {
+                    std::cerr << "sendmmsg on ch " << child_channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
+                } else {
+                    packets_sent_per_ch[ch_i] += num_packets_sent_this_send;
+                    // Update buffer level record
+                    size_t nsamps_sent;
+                    if(num_packets_to_send == num_packets_sent_this_send) {
+                        // This send included the last packet (which may not be the maximum length)
+                        nsamps_sent = ((num_packets_sent_this_send - 1) * _max_samples_per_packet) + samples_in_last_packet;
+                        channels_serviced+=1;
+                    } else {
+                        // This send did not include the max packet (which which always be the maximum length)
+                        nsamps_sent = num_packets_sent_this_send * _max_samples_per_packet;
+                    }
+                    // Update counter for number of samples sent this send
+                    samples_sent_per_ch[ch_i] += nsamps_sent;
+                    // Update buffer level count
+                    _props.at(child_channels[ch_i]).update_fc_send_count(nsamps_sent);
+                }
+            }
+        }
+
+        // All channels should always send the same number of samples
+        return samples_sent_per_ch[0];
     }
     
 protected:
