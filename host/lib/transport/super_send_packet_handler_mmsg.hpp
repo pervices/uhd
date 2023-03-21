@@ -120,9 +120,19 @@ public:
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
 
-        //TODO: make this work for multiple channels
-        // VRT header info for data packets
-        std::vector<vrt::if_packet_info_t> packet_header_infos(num_packets);
+        if(packet_helper_buffer_sizes < num_packets) {
+            packet_helper_buffer_sizes = num_packets;
+            // VRT header info for data packets
+            packet_header_infos.resize(num_packets);
+            packet_header_infos = std::vector<vrt::if_packet_info_t>(num_packets);
+
+            //Vector containing a vector containing the vrt headers for each channel
+            vrt_headers = std::vector<std::vector<std::vector<uint32_t>>>(_num_channels, std::vector<std::vector<uint32_t>>(packet_helper_buffer_sizes, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0)));
+
+            // Pointer to the start of the data to send in each packet for each channels
+            sample_data_start_for_packet = std::vector<std::vector<const void*>>(_num_channels, std::vector<const void*>(num_packets));
+        }
+
         for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
             packet_header_infos[n].has_sid = false;
@@ -144,17 +154,11 @@ public:
         packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
         packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3/*round up*/)/sizeof(uint32_t);
 
-        //Vector containing a vector containing the vrt headers for each channel
-        std::vector<std::vector<std::vector<uint32_t>>> vrt_headers(_num_channels, std::vector<std::vector<uint32_t>>(num_packets, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0)));
-
         for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
                 if_hdr_pack(vrt_headers[ch_i][n].data(), packet_header_infos[n]);
             }
         }
-
-        // Pointer to the start of the data to send in each packet for each channels
-        std::vector<std::vector<const void*>> sample_data_start_for_packet(_num_channels, std::vector<const void*>(num_packets));
 
         for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
@@ -262,6 +266,12 @@ private:
     std::vector<int> send_sockets;
     //TODO: rename this to just channels when seperating this class from old version
     std::vector<size_t> _channels;
+    // Sizes of the various buffers used in send
+    // To avoid reallocating the buffers each time the buffers are kept and resized anytime they aren't large enough
+    size_t packet_helper_buffer_sizes = 0;
+    std::vector<vrt::if_packet_info_t> packet_header_infos;
+    std::vector<std::vector<std::vector<uint32_t>>> vrt_headers;
+    std::vector<std::vector<const void*>> sample_data_start_for_packet;
 
 };
 
