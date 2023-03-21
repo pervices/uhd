@@ -213,7 +213,7 @@ public:
         while(channels_serviced < _num_channels) {
             for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
                 // TODO: change check_flow_control to get the number of samples that can be sent now instead of a simple true/false, this is for future code that will prevent large send buffers from causing overflows on Crimson
-                if (!(_props.at(ch_i).check_flow_control(0))) {
+                if (!(_props.at(ch_i).check_flow_control(0)) || packets_sent_per_ch[ch_i] == num_packets) {
                     // The time to send for this channel has not reached.
                     continue;
                 }
