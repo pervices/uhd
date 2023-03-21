@@ -136,57 +136,64 @@ public:
         packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
         packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3/*round up*/)/sizeof(uint32_t);
 
-        std::vector<std::vector<uint32_t>> vrt_headers(num_packets, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0));
+        //Vector containing a vector containing the vrt headers for each channel
+        std::vector<std::vector<std::vector<uint32_t>>> vrt_headers(_num_channels, std::vector<std::vector<uint32_t>>(num_packets, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0)));
 
-        for(int n = 0; n < num_packets; n++) {
-            if_hdr_pack(vrt_headers[n].data(), packet_header_infos[n]);
+        for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+            for(int n = 0; n < num_packets; n++) {
+                if_hdr_pack(vrt_headers[ch_i][n].data(), packet_header_infos[n]);
+            }
         }
 
         // Pointer to the start of the data to send in each packet for each channels
-        std::vector<const void*> sample_data_start_for_packet(num_packets);
-        for(int n = 0; n < num_packets; n++) {
-            //TODO: sample_buffs 0 is for ch 0, make this work for more channels
-            sample_data_start_for_packet[n] = sample_buffs[0] + (n * _max_sample_bytes_per_packet);
+        std::vector<std::vector<const void*>> sample_data_start_for_packet(_num_channels, std::vector<const void*>(num_packets));
+
+        for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+            for(int n = 0; n < num_packets; n++) {
+                sample_data_start_for_packet[ch_i][n] = sample_buffs[ch_i] + (n * _max_sample_bytes_per_packet);
+            }
         }
 
-        mmsghdr msgs[num_packets];
+        mmsghdr msgs[_num_channels][num_packets];
         // Pointers to buffers
         // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
-        iovec iovecs[2*num_packets];
+        iovec iovecs[_num_channels][2*num_packets];
 
-        for(int n = 0; n < num_packets - 1; n++) {
-            // VRT Header
-            iovecs[2*n].iov_base = vrt_headers[n].data();
-            iovecs[2*n].iov_len = HEADER_SIZE;
-            // Samples
-            // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
-            iovecs[2*n+1].iov_base = const_cast<void*>(sample_data_start_for_packet[n]);
-            iovecs[2*n+1].iov_len = _max_sample_bytes_per_packet;
+        for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+            for(int n = 0; n < num_packets - 1; n++) {
+                // VRT Header
+                iovecs[ch_i][2*n].iov_base = vrt_headers[ch_i][n].data();
+                iovecs[ch_i][2*n].iov_len = HEADER_SIZE;
+                // Samples
+                // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
+                iovecs[ch_i][2*n+1].iov_base = const_cast<void*>(sample_data_start_for_packet[ch_i][n]);
+                iovecs[ch_i][2*n+1].iov_len = _max_sample_bytes_per_packet;
 
-            msgs[n].msg_hdr.msg_iov = &iovecs[2*n];
-            msgs[n].msg_hdr.msg_iovlen = 2;
+                msgs[ch_i][n].msg_hdr.msg_iov = &iovecs[ch_i][2*n];
+                msgs[ch_i][n].msg_hdr.msg_iovlen = 2;
 
-            // Setting optional data to none
-            msgs[n].msg_hdr.msg_name = NULL;
-            msgs[n].msg_hdr.msg_namelen = 0;
-            msgs[n].msg_hdr.msg_control = NULL;
-            msgs[n].msg_hdr.msg_controllen = 0;
+                // Setting optional data to none
+                msgs[ch_i][n].msg_hdr.msg_name = NULL;
+                msgs[ch_i][n].msg_hdr.msg_namelen = 0;
+                msgs[ch_i][n].msg_hdr.msg_control = NULL;
+                msgs[ch_i][n].msg_hdr.msg_controllen = 0;
+            }
+
+            int n_last_packet = num_packets - 1;
+            iovecs[ch_i][2*n_last_packet].iov_base = vrt_headers[ch_i][n_last_packet].data();
+            iovecs[ch_i][2*n_last_packet].iov_len = HEADER_SIZE;
+
+            iovecs[ch_i][2*n_last_packet+1].iov_base = const_cast<void*>(sample_data_start_for_packet[ch_i][n_last_packet]);
+            iovecs[ch_i][2*n_last_packet+1].iov_len = samples_in_last_packet * _bytes_per_sample;
+
+            msgs[ch_i][n_last_packet].msg_hdr.msg_iov = &iovecs[ch_i][2*n_last_packet];
+            msgs[ch_i][n_last_packet].msg_hdr.msg_iovlen = 2;
+
+            msgs[ch_i][n_last_packet].msg_hdr.msg_name = NULL;
+            msgs[ch_i][n_last_packet].msg_hdr.msg_namelen = 0;
+            msgs[ch_i][n_last_packet].msg_hdr.msg_control = NULL;
+            msgs[ch_i][n_last_packet].msg_hdr.msg_controllen = 0;
         }
-
-        int n_last_packet = num_packets - 1;
-        iovecs[2*n_last_packet].iov_base = vrt_headers[n_last_packet].data();
-        iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
-
-        iovecs[2*n_last_packet+1].iov_base = const_cast<void*>(sample_data_start_for_packet[n_last_packet]);
-        iovecs[2*n_last_packet+1].iov_len = samples_in_last_packet * _bytes_per_sample;
-
-        msgs[n_last_packet].msg_hdr.msg_iov = &iovecs[2*n_last_packet];
-        msgs[n_last_packet].msg_hdr.msg_iovlen = 2;
-
-        msgs[n_last_packet].msg_hdr.msg_name = NULL;
-        msgs[n_last_packet].msg_hdr.msg_namelen = 0;
-        msgs[n_last_packet].msg_hdr.msg_control = NULL;
-        msgs[n_last_packet].msg_hdr.msg_controllen = 0;
 
         size_t channels_serviced = 0;
         std::vector<int> packets_sent_per_ch(_num_channels, 0);
@@ -201,7 +208,7 @@ public:
 
                 int num_packets_alread_sent = packets_sent_per_ch[ch_i];
                 int num_packets_to_send = num_packets - num_packets_alread_sent;
-                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[num_packets_alread_sent], num_packets_to_send, 0);
+                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[ch_i][num_packets_alread_sent], num_packets_to_send, 0);
 
                 if(num_packets_sent_this_send < 0) {
                     std::cerr << "sendmmsg on ch " << _channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
