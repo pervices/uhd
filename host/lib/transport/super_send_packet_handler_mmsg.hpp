@@ -76,6 +76,14 @@ public:
                 std::cerr << "Unable to bind send ip adress, receive may not work. \n IP: " << dst_ips[n] << " " <<  std::string(strerror(errno)) << std::endl;
             }
 
+            // TODO add the warning from old UHD that says how to change the socket buffer size limit
+            // Sets receive buffer size to (probably) maximum
+            // TODO: verify if recv buffer can be set higher
+            int send_buff_size = 1048576;
+            if(setsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &send_buff_size, sizeof(send_buff_size))) {
+                std::cerr << "Error while setting recv buffer size, performance may be affected" << std::endl;
+            }
+
             // TODO: implement send buffer resizing
 
             send_sockets.push_back(send_socket_fd);
