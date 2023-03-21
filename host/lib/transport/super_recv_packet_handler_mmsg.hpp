@@ -82,8 +82,6 @@ public:
                 std::cerr << "Error while setting recv buffer size, performance may be affected" << std::endl;
             }
 
-            // TODO: empty socket buffer
-
             recv_sockets.push_back(recv_socket_fd);
         }
 
@@ -95,9 +93,16 @@ public:
                 0, //previous_packet_count
                 std::vector<size_t>(_num_header_buffers, 0), // data_bytes_from_packet
                 std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // sample_cache
-                (size_t) 0 // previous_sample_cache_used
+                (size_t) 0, // previous_sample_cache_used
+                (size_t) _num_header_buffers, // max_num_packets_to_flush
+                std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE + MAX_DATA_PER_PACKET, 0)) // flush_buffer
             };
             ch_recv_buffer_info_group.push_back(tmp);
+        }
+
+        // Empties the socket buffer
+        for(size_t n = 0; n < NUM_CHANNELS; n++) {
+            flush_packets(n, 0, true);
         }
 
     }
@@ -395,10 +400,58 @@ private:
         std::vector<int8_t> sample_cache;
         // Stores amount of extra data cached from previous recv in byte
         size_t sample_cache_used;
+        // Maximum number of packets that can be flushed at a time
+        size_t max_num_packets_to_flush;
+        // Dummy recv buffer to be used when flushing
+        std::vector<std::vector<int8_t>> flush_buffer;
 
     };
     // Group of recv info for each channels
     std::vector<ch_recv_buffer_info> ch_recv_buffer_info_group;
+
+    /*******************************************************************
+     * flush_packets:
+     * Flushes the buffer by receiving packets but doing nothing with them
+     * ch: channel to receive packets for
+     * limit: maximum number of packets
+     * no_limit: ignore the limit
+     * aligned_samples: stores the number of aligned sample
+     * return: rx metadata error code
+     ******************************************************************/
+    size_t flush_packets(size_t ch, int limit, bool no_limit) {
+        int num_packets;
+        if(no_limit) {
+            num_packets = ch_recv_buffer_info_group[ch].max_num_packets_to_flush;
+        } else {
+            //TODO resize buffer if requested limit exceeds the buffer size
+            num_packets = std::min((int)ch_recv_buffer_info_group[ch].max_num_packets_to_flush, limit);
+        }
+        struct mmsghdr msgs[num_packets];
+        struct iovec iovecs[num_packets];
+
+        memset(msgs, 0, sizeof(msgs));
+
+        for (size_t n = 0; n < (size_t) num_packets; n++) {
+            iovecs[n].iov_base = ch_recv_buffer_info_group[ch].flush_buffer[n].data();
+            iovecs[n].iov_len = HEADER_SIZE + MAX_DATA_PER_PACKET;
+            msgs[n].msg_hdr.msg_iov = &iovecs[n];
+            msgs[n].msg_hdr.msg_iovlen = 1;
+        }
+
+        int total_packets_received = 0;
+        do {
+            int packets_received = recvmmsg(recv_sockets[ch], msgs, num_packets, MSG_DONTWAIT, 0);
+            if(packets_received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                // MSG_DONTWAIT + EAGAIN or EWOULDBLOCK indicate that there are no more packets to receive in the buffer
+                return total_packets_received;
+            } else if(packets_received == -1) {
+                throw uhd::runtime_error( "System recvmmsg error while flushing buffer:" + std::string(strerror(errno)));
+            } else {
+                total_packets_received+=packets_received;
+            }
+        } while(total_packets_received < limit || no_limit);
+        return total_packets_received;
+    }
 
 
 };
