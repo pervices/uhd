@@ -216,10 +216,12 @@ public:
 
                 int num_packets_alread_sent = packets_sent_per_ch[ch_i];
                 int num_packets_to_send = num_packets - num_packets_alread_sent;
-                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[ch_i][num_packets_alread_sent], num_packets_to_send, 0);
+                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[ch_i][num_packets_alread_sent], num_packets_to_send, MSG_DONTWAIT);
 
                 if(num_packets_sent_this_send < 0) {
-                    std::cerr << "sendmmsg on ch " << _channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
+                    if(errno != EAGAIN && errno != EWOULDBLOCK) {
+                        std::cerr << "sendmmsg on ch " << _channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
+                    }
                 } else {
                     packets_sent_per_ch[ch_i] += num_packets_sent_this_send;
                     // Update buffer level record
