@@ -339,8 +339,6 @@ public:
 
         uhd::rx_metadata_t::error_code_t error_code = rx_metadata_t::ERROR_CODE_NONE;
 
-        aligned_bytes = sample_buffer_offset;
-
         // Calculates how many packets to align
         // TODO: implement aligning varying number of packets
         size_t num_packets_to_align = ch_recv_buffer_info_group[0].num_headers_used;
@@ -351,6 +349,8 @@ public:
             }
         }
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
+            // Each channel should end up with the same number of aligned bytes so its fine to reset the counter each channel which will end up using the last one
+            aligned_bytes = sample_buffer_offset;
             for(size_t header_i = 0; header_i < ch_recv_buffer_info_group[ch].num_headers_used; header_i++) {
                 //assume vrt_metadata.hst_tsf is true
                 // Checks if sequence number is correct, ignore check if timestamp is 0
