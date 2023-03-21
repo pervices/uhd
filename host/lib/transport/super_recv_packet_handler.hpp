@@ -476,7 +476,8 @@ private:
             (info.ifpi.link_type == vrt::if_packet_info_t::LINK_TYPE_NONE) ? 0xf : 0xfff;
         const size_t expected_packet_count = _props[index].packet_count;
         _props[index].packet_count         = (info.ifpi.packet_count + 1) & seq_mask;
-        if (expected_packet_count != info.ifpi.packet_count) {
+        // Skip checking sequence number if timestamp is 0
+        if (expected_packet_count != info.ifpi.packet_count && !(info.time == 0 && info.ifpi.packet_count == 0)) {
             // UHD_LOGGER_INFO("STREAMER") << "expected: " << expected_packet_count << "
             // got: " << info.ifpi.packet_count;
             if (_props[index].handle_flowctrl) {
@@ -490,7 +491,8 @@ private:
 #endif
 
         // 3) check for out of order timestamps
-        if (info.ifpi.has_tsf and prev_buffer_info.time > info.time) {
+        // Skip check if timestamp and sequence number are 0 (timestamp and sequence number get reset when streaming on a trigger)
+        if (info.ifpi.has_tsf && prev_buffer_info.time > info.time && !(info.time == 0 && info.ifpi.packet_count == 0)) {
             return PACKET_TIMESTAMP_ERROR;
         }
 

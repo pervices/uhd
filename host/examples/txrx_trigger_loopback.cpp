@@ -92,7 +92,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         for (size_t i = 0; i < buffs.size(); i++) {
             buff_ptrs[i] = &buffs[i].at(num_samples_this_trigger);
         }
-        size_t samples_this_packet = rx_stream->recv(buff_ptrs, (samples_per_trigger*2) - num_samples_this_trigger, this_md, timeout, false);
+        size_t samples_this_packet = rx_stream->recv(buff_ptrs, samples_per_trigger - num_samples_this_trigger, this_md, timeout, false);
         timeout = 1.5;
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)

@@ -37,9 +37,10 @@ void sig_int_handler(int){
 int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
-    std::string rx_args, tx_args, ref, pps, rx_channel_list, tx_channel_list;
-    double rate, rx_freq, tx_freq, rx_gain, tx_gain, duration;
+    std::string rx_args, tx_args, ref, pps, rx_channel_list, tx_channel_list, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg;
+    double rate, duration;
     int ref_clock_freq;
+    std::vector<double> tx_gains, rx_gains, tx_freqs, rx_freqs;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -48,10 +49,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rx_args", po::value<std::string>(&rx_args)->default_value(""), "Identifying info unit receiving rf data. Example: rx_args=\"addr=192.168.10.2\"")
         ("tx_args", po::value<std::string>(&tx_args)->default_value(""), "Identifying info unit receiving rf data. Example: tx_args=\"addr=192.168.11.2\"")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
-        ("rx_freq", po::value<double>(&rx_freq)->default_value(0), "rx RF center frequency in Hz")
-        ("tx_freq", po::value<double>(&tx_freq)->default_value(0), "tx RF center frequency in Hz")
-        ("rx_gain", po::value<double>(&rx_gain)->default_value(0), "gain for the rx RF chain")
-        ("tx_gain", po::value<double>(&tx_gain)->default_value(0), "gain for the tx RF chain")
+        ("rx_freq", po::value<std::string>(&rx_freq_arg), "RF center frequency in Hz. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+        ("tx_freq", po::value<std::string>(&tx_freq_arg), "RF center frequency in Hz. Enter one number to set all the tx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+        ("rx_gain", po::value<std::string>(&rx_gain_arg)->default_value("0"), "gain for the Rx RF chain. Enter one number to set all the channels to said gain i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+        ("tx_gain", po::value<std::string>(&tx_gain_arg)->default_value("0"), "gain for the Tx RF chain. Enter one number to set all the channels to said gain i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
         ("ref_clock_freq", po::value<int>(&ref_clock_freq), "Frequency of external reference clock. Program will use an internal 10MHz clock if not specified")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external)")
         ("rx_channels", po::value<std::string>(&rx_channel_list)->default_value("0"), "which rx channels to use (specify \"0\", \"1\", \"0,1\", etc)")
@@ -134,6 +135,71 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
+    size_t num_channels = tx_channel_strings.size();
+    if(num_channels != rx_channel_strings.size()) {
+        throw std::runtime_error("Mistmatch between number of rx and tx channels requested");
+    }
+
+std::vector<std::string> tx_gain_strings, rx_gain_strings, tx_freq_strings, rx_freq_strings;
+    boost::split(tx_gain_strings, tx_gain_arg, boost::is_any_of("\"',"));
+    boost::split(rx_gain_strings, rx_gain_arg, boost::is_any_of("\"',"));
+    boost::split(tx_freq_strings, tx_freq_arg, boost::is_any_of("\"',"));
+    boost::split(rx_freq_strings, rx_freq_arg, boost::is_any_of("\"',"));
+
+    // Error checking to make sure number of channels specific settings are provided for matches the number of channels
+    bool all_tx_same_gain = tx_gain_strings.size() == 1;
+    if((!all_tx_same_gain) && num_channels != tx_gain_strings.size()) {
+        throw std::runtime_error("Mistmatch between number of tx channels specified and number of channels gain is provided for");
+    }
+    bool all_rx_same_gain = rx_gain_strings.size() == 1;
+    if((!all_rx_same_gain) && num_channels != rx_gain_strings.size()) {
+        throw std::runtime_error("Mistmatch between number of rx channels specified and number of channels gain is provided for");
+    }
+    bool all_tx_same_freq = tx_freq_strings.size() == 1;
+    if((!all_tx_same_gain) && num_channels != tx_gain_strings.size()) {
+        throw std::runtime_error("Mistmatch between number of tx channels specified and number of channels gain is provided for");
+    }
+    bool all_rx_same_freq = rx_freq_strings.size() == 1;
+    if((!all_rx_same_freq) && num_channels != rx_freq_strings.size()) {
+        throw std::runtime_error("Mistmatch between number of tx channels specified and number of channels gain is provided for");
+    }
+
+    if(all_tx_same_gain) {
+        tx_gains = std::vector<double>(num_channels, std::stod(tx_gain_strings[0]));
+    } else {
+        tx_gains = std::vector<double>(num_channels);
+        for(size_t n = 0; n < num_channels; n++) {
+            tx_gains[n] = std::stod(tx_gain_strings[n]);
+        }
+    }
+
+    if(all_rx_same_gain) {
+        rx_gains = std::vector<double>(num_channels, std::stod(rx_gain_strings[0]));
+    } else {
+        rx_gains = std::vector<double>(num_channels);
+        for(size_t n = 0; n < num_channels; n++) {
+            rx_gains[n] = std::stod(rx_gain_strings[n]);
+        }
+    }
+
+    if(all_tx_same_freq) {
+        tx_freqs = std::vector<double>(num_channels, std::stod(tx_freq_strings[0]));
+    } else {
+        tx_freqs = std::vector<double>(num_channels);
+        for(size_t n = 0; n < num_channels; n++) {
+            tx_freqs[n] = std::stod(tx_freq_strings[n]);
+        }
+    }
+
+    if(all_rx_same_freq) {
+        rx_freqs = std::vector<double>(num_channels, std::stod(rx_freq_strings[0]));
+    } else {
+        rx_freqs = std::vector<double>(num_channels);
+        for(size_t n = 0; n < num_channels; n++) {
+            rx_freqs[n] = std::stod(rx_freq_strings[n]);
+        }
+    }
+
     if(vm.count("ref_clock_freq")) {
         if(use_rx) {
             // Implicilty sets source to external
@@ -181,27 +247,27 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(use_rx) {
         for(size_t ch = 0; ch < rx_channel_nums.size(); ch++) {
-            std::cout << boost::format("Setting RX ch %u Freq: %f MHz...") % rx_channel_nums[ch] % (rx_freq/1e6) << std::endl;
-            uhd::tune_request_t tune_request(rx_freq);
-            rx_usrp->set_rx_freq(tune_request, rx_channel_nums[ch]);
+            std::cout << boost::format("Setting ch %u RX Freq: %f MHz...") % rx_channel_nums[ch] % (rx_freqs[ch]/1e6) << std::endl;
+            uhd::tune_request_t rx_tune_request(rx_freqs[ch]);
+            rx_usrp->set_rx_freq(rx_tune_request, rx_channel_nums[ch]);
             std::cout << boost::format("Actual RX ch %u Freq: %f MHz...") % rx_channel_nums[ch] % (rx_usrp->get_rx_freq(rx_channel_nums[ch])/1e6) << std::endl << std::endl;
 
-            std::cout << boost::format("Setting RX ch %u Gain: %f dB...") % rx_channel_nums[ch] % rx_gain << std::endl;
-            rx_usrp->set_rx_gain(rx_gain, rx_channel_nums[ch]);
-            std::cout << boost::format("Actual RX ch %u Gain: %f dB...") % rx_channel_nums[ch] % rx_usrp->get_rx_gain(rx_channel_nums[ch]) << std::endl << std::endl;
+            std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % rx_channel_nums[ch] % rx_gains[ch] << std::endl;
+            rx_usrp->set_rx_gain(rx_gains[ch], rx_channel_nums[ch]);
+            std::cout << boost::format("Actual ch%i RX Gain: %f dB...") % rx_channel_nums[ch] % rx_usrp->get_rx_gain(rx_channel_nums[ch]) << std::endl << std::endl;
         }
     }
 
     if(use_tx) {
         for(size_t ch = 0; ch < tx_channel_nums.size(); ch++) {
-            std::cout << boost::format("Setting TX ch %u Freq: %f MHz...") % tx_channel_nums[ch] % (tx_freq/1e6) << std::endl;
-            uhd::tune_request_t tune_request(tx_freq);
-            tx_usrp->set_tx_freq(tune_request, tx_channel_nums[ch]);
+            std::cout << boost::format("Setting ch %u TX Freq: %f MHz...") % tx_channel_nums[ch] % (tx_freqs[ch]/1e6) << std::endl;
+            uhd::tune_request_t tx_tune_request(tx_freqs[ch]);
+            tx_usrp->set_tx_freq(tx_tune_request, tx_channel_nums[ch]);
             std::cout << boost::format("Actual TX ch %u Freq: %f MHz...") % tx_channel_nums[ch] % (tx_usrp->get_tx_freq(tx_channel_nums[ch])/1e6) << std::endl << std::endl;
 
-            std::cout << boost::format("Setting TX ch %u Gain: %f dB...") % tx_channel_nums[ch] % tx_gain << std::endl;
-            tx_usrp->set_tx_gain(tx_gain, tx_channel_nums[ch]);
-            std::cout << boost::format("Actual TX ch %u Gain: %f dB...") % tx_channel_nums[ch] % tx_usrp->get_tx_gain(tx_channel_nums[ch]) << std::endl << std::endl;
+            std::cout << boost::format("Setting ch%i TX Gain: %f dB...") % tx_channel_nums[ch] % tx_gains[ch] << std::endl;
+            tx_usrp->set_tx_gain(tx_gains[ch], tx_channel_nums[ch]);
+            std::cout << boost::format("Actual ch%i TX Gain: %f dB...") % tx_channel_nums[ch] % tx_usrp->get_tx_gain(tx_channel_nums[ch]) << std::endl << std::endl;
         }
     }
 
