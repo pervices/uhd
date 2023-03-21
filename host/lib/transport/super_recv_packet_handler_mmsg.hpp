@@ -125,7 +125,7 @@ public:
 
         // Clears number of headers used
         for(size_t n = 0; n < ch_recv_buffer_info_group.size(); n++) {
-            ch_recv_buffer_info_group[0].num_headers_used = 0;
+            ch_recv_buffer_info_group[n].num_headers_used = 0;
         }
 
         size_t bytes_per_buff = nsamps_per_buff * BYTES_PER_SAMPLE;
@@ -200,9 +200,9 @@ public:
         if(num_packets_to_recv + ch_recv_buffer_info_group[channel].num_headers_used > _num_header_buffers) {
             for(size_t n = 0; n < NUM_CHANNELS; n++) {
                 _num_header_buffers = num_packets_to_recv + ch_recv_buffer_info_group[channel].num_headers_used;
-                ch_recv_buffer_info_group[n].headers.resize(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE, 0));
-                ch_recv_buffer_info_group[n].vrt_metadata.resize(_num_header_buffers);
-                ch_recv_buffer_info_group[channel].data_bytes_from_packet.resize(_num_header_buffers, 0);
+                ch_recv_buffer_info_group[n].headers.resize(_num_header_buffers + ch_recv_buffer_info_group[channel].num_headers_used, std::vector<int8_t>(HEADER_SIZE, 0));
+                ch_recv_buffer_info_group[n].vrt_metadata.resize(_num_header_buffers + ch_recv_buffer_info_group[channel].num_headers_used);
+                ch_recv_buffer_info_group[channel].data_bytes_from_packet.resize(_num_header_buffers + ch_recv_buffer_info_group[channel].num_headers_used, 0);
             }
         }
 
