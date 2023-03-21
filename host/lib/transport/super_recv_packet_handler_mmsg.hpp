@@ -172,7 +172,7 @@ public:
         // Check for overflow errors and (when implemented) shifts data to keep buffers aligned after an overflow)
         metadata.error_code = align_buffs(buffs, cached_bytes_to_copy, bytes_per_buff, aligned_bytes);
 
-        return aligned_bytes;
+        return aligned_bytes/BYTES_PER_SAMPLE;
     }
 
     /*******************************************************************
