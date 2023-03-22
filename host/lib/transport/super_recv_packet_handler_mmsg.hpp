@@ -77,7 +77,7 @@ public:
             // TODO add the warning from old UHD that says how to change the socket buffer size limit
             // Sets receive buffer size to (probably) maximum
             // TODO: verify if recv buffer can be set higher
-            int recv_buff_size = 1048576;
+            int recv_buff_size = 500000000;
             if(setsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &recv_buff_size, sizeof(recv_buff_size))) {
                 std::cerr << "Error while setting recv buffer size, performance may be affected" << std::endl;
             }
@@ -443,6 +443,7 @@ private:
             int packets_received = recvmmsg(recv_sockets[ch], msgs, num_packets, MSG_DONTWAIT, 0);
             if(packets_received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                 // MSG_DONTWAIT + EAGAIN or EWOULDBLOCK indicate that there are no more packets to receive in the buffer
+                printf("T1 total_packets_received: %i\n", total_packets_received);
                 return total_packets_received;
             } else if(packets_received == -1) {
                 throw uhd::runtime_error( "System recvmmsg error while flushing buffer:" + std::string(strerror(errno)));
@@ -450,6 +451,7 @@ private:
                 total_packets_received+=packets_received;
             }
         } while(total_packets_received < limit || no_limit);
+        printf("T2 total_packets_received: %i\n", total_packets_received);
         return total_packets_received;
     }
 
