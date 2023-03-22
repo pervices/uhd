@@ -1155,9 +1155,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
     }
 
-    std::cout << "T100" << std::endl;
     std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports);
-    std::cout << "T140" << std::endl;
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -1181,7 +1179,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         my_streamer->set_scale_factor( otw_tx / 16.0 );
     }
 
-    std::cout << "T142" << std::endl;
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
@@ -1200,7 +1197,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                     &cyan_nrnt_send_packet_streamer::get_send_buff, my_streamerp, chan_i, ph::_1
                 ));
 
-                std::cout << "T145" << std::endl;
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, std::bind(
                     &cyan_nrnt_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, ph::_1
                 ));
@@ -1216,7 +1212,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
                     &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
-                std::cout << "T148" << std::endl;
 
                 my_streamer->set_async_receiver(std::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_nrnt_io_impl->async_msg_fifo), ph::_1, ph::_2));
 
@@ -1227,7 +1222,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
             }
         }
     }
-    std::cout << "T150" << std::endl;
 
     // XXX: @CF: 20170228: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -1278,7 +1272,5 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );
     
-    std::cout << "T199" << std::endl;
-
     return my_streamer;
 }
