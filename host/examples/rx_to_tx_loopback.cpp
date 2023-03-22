@@ -142,6 +142,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
 void tx_wait_for_rx() {
     // If there are no buffers ready to be used, set flag requesting semaphore signal when a buffer is ready, otherwise immediatly start sending data
     if(num_buffers_consumed == num_buffers_prepared) {
+        std::cout << "Waiting for rx" << std::endl;
         tx_reached_rx = true;
         sem_wait(&buffer_ready);
     }
