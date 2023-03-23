@@ -97,6 +97,14 @@ public:
                 (size_t) _num_header_buffers, // max_num_packets_to_flush
                 std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE + MAX_DATA_PER_PACKET, 0)) // flush_buffer
             };
+            tmp.msgs.resize(_num_header_buffers);
+            // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
+            memset(tmp.msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
+            // Contains data about where to store received data
+            // Alternating between pointer to header, pointer to data
+            tmp.iovecs.resize(2*_num_header_buffers+1);
+            memset(tmp.iovecs.data(), 0, sizeof(iovec)*tmp.iovecs.size());
+
             ch_recv_buffer_info_group.push_back(tmp);
         }
 
@@ -213,16 +221,16 @@ public:
                 ch_recv_buffer_info_group[ch].headers.resize(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE, 0));
                 ch_recv_buffer_info_group[ch].vrt_metadata.resize(_num_header_buffers);
                 ch_recv_buffer_info_group[ch].data_bytes_from_packet.resize(_num_header_buffers, 0);
+                ch_recv_buffer_info_group[ch].msgs.resize(_num_header_buffers);
+                // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
+                memset(ch_recv_buffer_info_group[ch].msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
+                // Contains data about where to store received data
+                // Alternating between pointer to header, pointer to data
+                ch_recv_buffer_info_group[ch].iovecs.resize(2*_num_header_buffers+1);
+                memset(ch_recv_buffer_info_group[ch].iovecs.data(), 0, sizeof(iovec)*ch_recv_buffer_info_group[ch].iovecs.size());
             }
         }
 
-        // Stores data about the recv for each packet
-        struct mmsghdr msgs[NUM_CHANNELS][num_packets_to_recv];
-        // Contains data about where to store received data
-        // Alternating between pointer to header, pointer to data
-        struct iovec iovecs[NUM_CHANNELS][2*num_packets_to_recv+1];
-
-        memset(msgs, 0, sizeof(msgs));
 
         // Amount of data stored in the cache betwen recv
         size_t excess_data_in_last_packet = num_packets_to_recv * MAX_DATA_PER_PACKET - nbytes_to_recv;
@@ -232,27 +240,30 @@ public:
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             for (size_t n = 0; n < num_packets_to_recv - 1; n++) {
                 // Location to write header data to
-                iovecs[ch][2*n].iov_base =ch_recv_buffer_info_group[ch].headers[n].data();
-                iovecs[ch][2*n].iov_len = HEADER_SIZE;
+                ch_recv_buffer_info_group[ch].iovecs[2*n].iov_base = 0;
+                ch_recv_buffer_info_group[ch].iovecs[2*n].iov_base = ch_recv_buffer_info_group[ch].headers[n].data();
+                ch_recv_buffer_info_group[ch].iovecs[2*n].iov_len = HEADER_SIZE;
+                ch_recv_buffer_info_group[ch].iovecs[2*n+1].iov_base = 0;
                 // Location to write sample data to
-                iovecs[ch][2*n+1].iov_base = samples_sg_dst[ch][n];
-                iovecs[ch][2*n+1].iov_len = MAX_DATA_PER_PACKET;
-                msgs[ch][n].msg_hdr.msg_iov = &iovecs[ch][2*n];
-                msgs[ch][n].msg_hdr.msg_iovlen = 2;
+                ch_recv_buffer_info_group[ch].iovecs[2*n+1].iov_base = samples_sg_dst[ch][n];
+                ch_recv_buffer_info_group[ch].iovecs[2*n+1].iov_len = MAX_DATA_PER_PACKET;
+                ch_recv_buffer_info_group[ch].msgs[n].msg_hdr.msg_iov = &ch_recv_buffer_info_group[ch].iovecs[2*n];
+                ch_recv_buffer_info_group[ch].msgs[n].msg_hdr.msg_iovlen = 2;
             }
+
 
             size_t n_last_packet = num_packets_to_recv - 1;
             // Location to write header data to
-            iovecs[ch][2*n_last_packet].iov_base =ch_recv_buffer_info_group[ch].headers[n_last_packet].data();
-            iovecs[ch][2*n_last_packet].iov_len = HEADER_SIZE;
+            ch_recv_buffer_info_group[ch].iovecs[2*n_last_packet].iov_base =ch_recv_buffer_info_group[ch].headers[n_last_packet].data();
+            ch_recv_buffer_info_group[ch].iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
             // Location to write sample data to
-            iovecs[ch][2*n_last_packet+1].iov_base = samples_sg_dst[ch][n_last_packet];
-            iovecs[ch][2*n_last_packet+1].iov_len = data_in_last_packet;
+            ch_recv_buffer_info_group[ch].iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[ch][n_last_packet];
+            ch_recv_buffer_info_group[ch].iovecs[2*n_last_packet+1].iov_len = data_in_last_packet;
             // Location to write samples that don't fit in sample_buffer to
-            iovecs[ch][2*n_last_packet+2].iov_base = ch_recv_buffer_info_group[ch].sample_cache.data();
-            iovecs[ch][2*n_last_packet+2].iov_len = excess_data_in_last_packet;
-            msgs[ch][n_last_packet].msg_hdr.msg_iov = &iovecs[ch][2*n_last_packet];
-            msgs[ch][n_last_packet].msg_hdr.msg_iovlen = 3;
+            ch_recv_buffer_info_group[ch].iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_group[ch].sample_cache.data();
+            ch_recv_buffer_info_group[ch].iovecs[2*n_last_packet+2].iov_len = excess_data_in_last_packet;
+            ch_recv_buffer_info_group[ch].msgs[n_last_packet].msg_hdr.msg_iov = &ch_recv_buffer_info_group[ch].iovecs[2*n_last_packet];
+            ch_recv_buffer_info_group[ch].msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
         }
 
         struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};
@@ -266,7 +277,7 @@ public:
                 }
 
                 // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &msgs[ch][ch_recv_buffer_info_group[ch].num_headers_used], (int) (num_packets_to_recv - ch_recv_buffer_info_group[ch].num_headers_used), MSG_DONTWAIT, 0);
+                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_group[ch].msgs[ch_recv_buffer_info_group[ch].num_headers_used], (int) (num_packets_to_recv - ch_recv_buffer_info_group[ch].num_headers_used), MSG_DONTWAIT, 0);
 
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
@@ -295,14 +306,14 @@ public:
             // Records the amount of data received from each packet
             for(size_t n = 0; n < ch_recv_buffer_info_group[ch].num_headers_used; n++) {
                 // Check if an invalid packet was received
-                if(msgs[ch][n].msg_len < HEADER_SIZE) {
+                if(ch_recv_buffer_info_group[ch].msgs[n].msg_len < HEADER_SIZE) {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
-                uint32_t num_bytes_this_packets = msgs[ch][n].msg_len - HEADER_SIZE;
+                uint32_t num_bytes_this_packets = ch_recv_buffer_info_group[ch].msgs[n].msg_len - HEADER_SIZE;
 
                 // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
                 if(n + 1 == num_packets_to_recv) {
-                    size_t received_data_in_last_packet = msgs[ch][n].msg_len - HEADER_SIZE;
+                    size_t received_data_in_last_packet = ch_recv_buffer_info_group[ch].msgs[n].msg_len - HEADER_SIZE;
                     if(received_data_in_last_packet > data_in_last_packet) {
                         ch_recv_buffer_info_group[ch].data_bytes_from_packet[n] = data_in_last_packet;
                         ch_recv_buffer_info_group[ch].sample_cache_used = received_data_in_last_packet - data_in_last_packet;
@@ -314,7 +325,7 @@ public:
                     }
                 // Records the amount of data received from most packets
                 } else {
-                    ch_recv_buffer_info_group[ch].data_bytes_from_packet[n] = msgs[ch][n].msg_len - HEADER_SIZE;
+                    ch_recv_buffer_info_group[ch].data_bytes_from_packet[n] = ch_recv_buffer_info_group[ch].msgs[n].msg_len - HEADER_SIZE;
                     num_bytes_received += num_bytes_this_packets;
                 }
             }
@@ -425,6 +436,10 @@ private:
         size_t max_num_packets_to_flush;
         // Dummy recv buffer to be used when flushing
         std::vector<std::vector<int8_t>> flush_buffer;
+        // Stores data about the recv for each packet
+        std::vector<mmsghdr> msgs;
+        /// Pointers to where to store recveived data in
+        std::vector<iovec> iovecs;
 
     };
     // Group of recv info for each channels
