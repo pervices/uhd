@@ -98,7 +98,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
         }
 
         // receive a single packet
-        size_t samps_received = rx_stream->recv(active_buff_ptrs, max_samples_per_buffer - samples_this_buffer, rx_md, timeout, false);
+        size_t samps_received = rx_stream->recv(active_buff_ptrs, max_samples_per_buffer - samples_this_buffer, rx_md, timeout, true);
 
         num_acc_samps+=samps_received;
         samples_this_buffer+=samps_received;
@@ -192,7 +192,8 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
             active_buff_ptrs[n] = &(*active_buffer)[n][samples_this_buffer];
         }
         
-        size_t samples_sent = tx_stream->send(active_buff_ptrs, std::min(samples_to_send_this_buffer - samples_this_buffer, max_samples_per_buffer), tx_md);
+        //size_t samples_sent = tx_stream->send(active_buff_ptrs, std::min(samples_to_send_this_buffer - samples_this_buffer, max_samples_per_buffer), tx_md);
+        size_t samples_sent = std::min(samples_to_send_this_buffer - samples_this_buffer, max_samples_per_buffer);
         
         samples_this_buffer+=samples_sent;
         num_acc_samps+=samples_sent;

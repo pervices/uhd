@@ -90,7 +90,7 @@ public:
                 (size_t) 0, // sample_cache_used
                 std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE, 0)), // headers
                 std::vector<vrt::if_packet_info_t>(_num_header_buffers), // vrt_metadata
-                0, //previous_packet_count
+                sequence_number_mask, //previous_sequence_number
                 std::vector<size_t>(_num_header_buffers, 0), // data_bytes_from_packet
                 std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // sample_cache
                 (size_t) 0, // previous_sample_cache_used
@@ -142,15 +142,18 @@ public:
 
         // Number of bytes copied from the cache (should be the same for every channel)
         size_t cached_bytes_to_copy;
-        // received data for every channel sequentially
-        // TODO: experiment if parallelizing this helps performance
-        // ch refers to which element in ch_recv_buffer_info_group not the actual channel number
+        // Number of samples to copy, this will be reduced by the number cached samples copied
+        size_t bytes_to_recv = bytes_per_buff;
+        // Copies the data from the sample cache
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             // Copies cached data from previous recv
             cached_bytes_to_copy = std::min(ch_recv_buffer_info_group[ch].sample_cache_used, bytes_per_buff);
             memcpy(buffs[ch], ch_recv_buffer_info_group[ch].sample_cache.data(), cached_bytes_to_copy);
             // How many bytes still need to be received after copying from the cache
             size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
+
+            // Sets the number of bytes to receive to whichever channel has the fewest bytes to receive per buffer, they should all be the same, this is in case changes to underflow handling result in different amounts of bytes needing to be received per channel
+            bytes_to_recv = std::min(bytes_to_recv, remaining_nbytes_per_buff);
             if(one_packet) {
                 bytes_per_buff = std::min(nsamps_per_buff, MAX_DATA_PER_PACKET);
             }
@@ -158,20 +161,20 @@ public:
             ch_recv_buffer_info_group[ch].sample_cache_used-= cached_bytes_to_copy;
 
             nsamps_received[ch] += cached_bytes_to_copy / BYTES_PER_SAMPLE;
+        }
 
-            // Skip receiving data from network if the cache had all the data requested
-            // TODO: make sure this doesn't skip conversion to other CPU formats after that is implemented
-            if(!remaining_nbytes_per_buff) {
-                break;
-            }
+        // Returns the number of samples requested, if there were enough samples in the cache
+        if(!bytes_to_recv) {
+            metadata.error_code = rx_metadata_t::ERROR_CODE_NONE;
+            return nsamps_per_buff;
+        }
 
-            // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
-            metadata.error_code = recv_multiple_packets(buffs, cached_bytes_to_copy, bytes_per_buff, timeout);
+        // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
+        metadata.error_code = recv_multiple_packets(buffs, cached_bytes_to_copy, bytes_to_recv, timeout);
 
-            // TODO implement returning data that is received prior to encountering an error, currently acts as if no samples received
-            if(metadata.error_code) {
-                return 0;
-            }
+        // TODO implement returning data that is received prior to encountering an error, currently acts as if no samples received
+        if(metadata.error_code) {
+            return 0;
         }
 
         extract_vrt_metadata();
@@ -275,9 +278,8 @@ public:
                 if(ch_recv_buffer_info_group[ch].num_headers_used >= num_packets_to_recv) {
                     continue;
                 }
-
                 // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_group[ch].msgs[ch_recv_buffer_info_group[ch].num_headers_used], (int) (num_packets_to_recv - ch_recv_buffer_info_group[ch].num_headers_used), MSG_DONTWAIT, 0);
+                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_group[ch].msgs[ch_recv_buffer_info_group[ch].num_headers_used], (int) (num_packets_to_recv - ch_recv_buffer_info_group[ch].num_headers_used), 0 /*MSG_DONTWAIT*/, 0);
 
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
@@ -388,15 +390,16 @@ public:
         for(size_t ch = 0; ch < NUM_CHANNELS; ch++) {
             // Each channel should end up with the same number of aligned bytes so its fine to reset the counter each channel which will end up using the last one
             aligned_bytes = sample_buffer_offset;
-            for(size_t header_i = 0; header_i < ch_recv_buffer_info_group[ch].num_headers_used; header_i++) {
+            size_t header_i = 0;
+            for(header_i = 0; header_i < ch_recv_buffer_info_group[ch].num_headers_used; header_i++) {
                 //assume vrt_metadata.hst_tsf is true
                 // Checks if sequence number is correct, ignore check if timestamp is 0
-                if((ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count != (0xf & (ch_recv_buffer_info_group[ch].previous_packet_count + 1)))  && (ch_recv_buffer_info_group[ch].vrt_metadata[header_i].tsf != 0)) {
+                if((ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count != (sequence_number_mask & (ch_recv_buffer_info_group[ch].previous_sequence_number + 1)))  && (ch_recv_buffer_info_group[ch].vrt_metadata[header_i].tsf != 0)) {
                     error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     UHD_LOG_FASTPATH("D");
                     //TODO: implement aligning buffs after an overflow
                 }
-                ch_recv_buffer_info_group[ch].previous_packet_count = ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count;
+                ch_recv_buffer_info_group[ch].previous_sequence_number = ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count;
                 aligned_bytes += ch_recv_buffer_info_group[ch].data_bytes_from_packet[header_i];
             }
         }
@@ -415,6 +418,8 @@ private:
     size_t _num_header_buffers = 32;
     std::vector<int> recv_sockets;
     size_t previous_sample_cache_used = 0;
+    // Maximum sequence number
+    const size_t sequence_number_mask = 0xf;
     // Stores information about packets received for each channel
     // Note: this is not meant to be persistent between reads, it is done this way to avoid deallocating and reallocating memory
     struct ch_recv_buffer_info {
@@ -425,7 +430,7 @@ private:
         // Metadata contained in vrt header;
         std::vector<vrt::if_packet_info_t> vrt_metadata;
         // Sequence number from the last packet processed
-        size_t previous_packet_count;
+        size_t previous_sequence_number;
         //Stores how many bytes of sample data are from each packet
         std::vector<size_t> data_bytes_from_packet;
         // Stores extra data from packets between recvs
