@@ -98,7 +98,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
         }
 
         // receive a single packet
-        size_t samps_received = rx_stream->recv(active_buff_ptrs, max_samples_per_buffer - samples_this_buffer, rx_md, timeout, true);
+        size_t samps_received = rx_stream->recv(active_buff_ptrs, max_samples_per_buffer - samples_this_buffer, rx_md, timeout, false);
 
         num_acc_samps+=samps_received;
         samples_this_buffer+=samps_received;
