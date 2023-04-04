@@ -302,6 +302,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.start_of_burst = true;
         md.end_of_burst   = false;
         md.has_time_spec  = true;
+        printf("tx time: %lf\n", time);
         md.time_spec = uhd::time_spec_t(time);
 
         //send data until the signal handler gets called
