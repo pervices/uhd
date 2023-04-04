@@ -74,13 +74,19 @@ public:
                 std::cerr << "Unable to bind ip adress, receive may not work. \n IP: " << dst_ip[n] << std::endl;
             }
 
-            // TODO add the warning from old UHD that says how to change the socket buffer size limit
-            // Sets receive buffer size to (probably) maximum
-            // TODO: verify if recv buffer can be set higher
-            int recv_buff_size = 500000000;
-            if(setsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &recv_buff_size, sizeof(recv_buff_size))) {
-                std::cerr << "Error while setting recv buffer size, performance may be affected" << std::endl;
+            // Sets the recv buffer size
+            setsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
+
+            // Checks the recv buffer size
+            socklen_t opt_len = sizeof(_ACTUAL_RECV_BUFFER_SIZE);
+            getsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &_ACTUAL_RECV_BUFFER_SIZE, &opt_len);
+
+            // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
+            if(_ACTUAL_RECV_BUFFER_SIZE < 2*_DEFAULT_RECV_BUFFER_SIZE) {
+                fprintf(stderr, "Unable to set recv buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.rmem_max=%i\"\n", _DEFAULT_RECV_BUFFER_SIZE, _ACTUAL_RECV_BUFFER_SIZE/2, _DEFAULT_RECV_BUFFER_SIZE);
             }
+
+            _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/2)/(HEADER_SIZE + MAX_DATA_PER_PACKET));
 
             recv_sockets.push_back(recv_socket_fd);
         }
@@ -279,7 +285,7 @@ public:
                     continue;
                 }
                 // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_group[ch].msgs[ch_recv_buffer_info_group[ch].num_headers_used], (int) (num_packets_to_recv - ch_recv_buffer_info_group[ch].num_headers_used), 0 /*MSG_DONTWAIT*/, 0);
+                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_group[ch].msgs[ch_recv_buffer_info_group[ch].num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_group[ch].num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
 
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
@@ -413,6 +419,13 @@ protected:
     size_t BYTES_PER_SAMPLE;
 
 private:
+    // TODO dynamically adjust recv buffer size based on system RAM, number of channels, and maximum sample rate
+    // Desired recv buffer size
+    const int _DEFAULT_RECV_BUFFER_SIZE = 50000000;
+    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
+    int _ACTUAL_RECV_BUFFER_SIZE;
+    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
+    int _MAX_PACKETS_TO_RECV;
     size_t HEADER_SIZE;
     // Number of existing header buffers, which is the current maximum number of packets to receive at a time, TODO: dynamically increase this when user requests more data at a time than can be contained in this many packets
     size_t _num_header_buffers = 32;
