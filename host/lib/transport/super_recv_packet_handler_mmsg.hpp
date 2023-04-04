@@ -51,7 +51,6 @@ public:
      * \param header_size the number of transport channels
      * \param bytes_per_sample the number of transport channels
      */
-    // TODO: get real values for each of the effective constants
     recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
     : recv_packet_handler(max_sample_bytes_per_packet + header_size), NUM_CHANNELS(dst_ip.size()), MAX_DATA_PER_PACKET(max_sample_bytes_per_packet), BYTES_PER_SAMPLE(bytes_per_sample), HEADER_SIZE(header_size)
     {
@@ -209,7 +208,7 @@ private:
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
     int _MAX_PACKETS_TO_RECV;
     size_t HEADER_SIZE;
-    // Number of existing header buffers, which is the current maximum number of packets to receive at a time, TODO: dynamically increase this when user requests more data at a time than can be contained in this many packets
+    // Number of existing header buffers, which is the current maximum number of packets to receive at a time
     size_t _num_header_buffers = 32;
     std::vector<int> recv_sockets;
     size_t previous_sample_cache_used = 0;
@@ -336,6 +335,7 @@ private:
                 if(ch_recv_buffer_info_group[ch].num_headers_used >= num_packets_to_recv) {
                     continue;
                 }
+                //TODO: implement timeout
                 // Receive packets system call
                 int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_group[ch].msgs[ch_recv_buffer_info_group[ch].num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_group[ch].num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
 
@@ -409,7 +409,6 @@ private:
             for(size_t packet_i = 0; packet_i < ch_recv_buffer_info_group[ch_i].num_headers_used; packet_i++) {
                 // Number of 32 bit words per vrt packet
                 // will be compared against packet length field
-                // TODO: get actual amount of bytes received from recvmmg, instead of assuming full packet
                 ch_recv_buffer_info_group[ch_i].vrt_metadata[packet_i].num_packet_words32 = (HEADER_SIZE + MAX_DATA_PER_PACKET)/sizeof(uint32_t);
                 // First word of the packet
                 const uint32_t* vrt_hdr = (uint32_t*) ch_recv_buffer_info_group[ch_i].headers[packet_i].data();
