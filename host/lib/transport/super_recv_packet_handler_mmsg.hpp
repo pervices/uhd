@@ -193,7 +193,59 @@ public:
         return final_nsamps;
     }
 
-    /*******************************************************************
+protected:
+    size_t NUM_CHANNELS;
+    size_t MAX_DATA_PER_PACKET;
+    size_t BYTES_PER_SAMPLE;
+
+    virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
+
+private:
+    // TODO dynamically adjust recv buffer size based on system RAM, number of channels, and maximum sample rate
+    // Desired recv buffer size
+    const int _DEFAULT_RECV_BUFFER_SIZE = 50000000;
+    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
+    int _ACTUAL_RECV_BUFFER_SIZE;
+    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
+    int _MAX_PACKETS_TO_RECV;
+    size_t HEADER_SIZE;
+    // Number of existing header buffers, which is the current maximum number of packets to receive at a time, TODO: dynamically increase this when user requests more data at a time than can be contained in this many packets
+    size_t _num_header_buffers = 32;
+    std::vector<int> recv_sockets;
+    size_t previous_sample_cache_used = 0;
+    // Maximum sequence number
+    const size_t sequence_number_mask = 0xf;
+    // Stores information about packets received for each channel
+    // Note: this is not meant to be persistent between reads, it is done this way to avoid deallocating and reallocating memory
+    struct ch_recv_buffer_info {
+        // Stores number of headers used in this recv
+        size_t num_headers_used;
+        // Stores the headers of each packet
+        std::vector<std::vector<int8_t>> headers;
+        // Metadata contained in vrt header;
+        std::vector<vrt::if_packet_info_t> vrt_metadata;
+        // Sequence number from the last packet processed
+        size_t previous_sequence_number;
+        //Stores how many bytes of sample data are from each packet
+        std::vector<size_t> data_bytes_from_packet;
+        // Stores extra data from packets between recvs
+        std::vector<int8_t> sample_cache;
+        // Stores amount of extra data cached from previous recv in byte
+        size_t sample_cache_used;
+        // Maximum number of packets that can be flushed at a time
+        size_t max_num_packets_to_flush;
+        // Dummy recv buffer to be used when flushing
+        std::vector<std::vector<int8_t>> flush_buffer;
+        // Stores data about the recv for each packet
+        std::vector<mmsghdr> msgs;
+        /// Pointers to where to store recveived data in
+        std::vector<iovec> iovecs;
+
+    };
+    // Group of recv info for each channels
+    std::vector<ch_recv_buffer_info> ch_recv_buffer_info_group;
+
+        /*******************************************************************
      * recv_multiple_packets:
      * receives multiple packets on a given channel
      * sample_buffer: vector of pointer to the start of the recv buffer for each channel
@@ -347,9 +399,6 @@ public:
         return rx_metadata_t::ERROR_CODE_NONE;
     }
 
-
-    virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
-
     /*******************************************************************
      * extract_vrt_metadata:
      * extracts metadata fromthe vrt headers in ch_recv_buffer_info.headers and stores in ch_recv_buffer_info.vrt_metadata
@@ -412,56 +461,6 @@ public:
 
         return error_code;
     }
-
-protected:
-    size_t NUM_CHANNELS;
-    size_t MAX_DATA_PER_PACKET;
-    size_t BYTES_PER_SAMPLE;
-
-private:
-    // TODO dynamically adjust recv buffer size based on system RAM, number of channels, and maximum sample rate
-    // Desired recv buffer size
-    const int _DEFAULT_RECV_BUFFER_SIZE = 50000000;
-    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
-    int _ACTUAL_RECV_BUFFER_SIZE;
-    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
-    int _MAX_PACKETS_TO_RECV;
-    size_t HEADER_SIZE;
-    // Number of existing header buffers, which is the current maximum number of packets to receive at a time, TODO: dynamically increase this when user requests more data at a time than can be contained in this many packets
-    size_t _num_header_buffers = 32;
-    std::vector<int> recv_sockets;
-    size_t previous_sample_cache_used = 0;
-    // Maximum sequence number
-    const size_t sequence_number_mask = 0xf;
-    // Stores information about packets received for each channel
-    // Note: this is not meant to be persistent between reads, it is done this way to avoid deallocating and reallocating memory
-    struct ch_recv_buffer_info {
-        // Stores number of headers used in this recv
-        size_t num_headers_used;
-        // Stores the headers of each packet
-        std::vector<std::vector<int8_t>> headers;
-        // Metadata contained in vrt header;
-        std::vector<vrt::if_packet_info_t> vrt_metadata;
-        // Sequence number from the last packet processed
-        size_t previous_sequence_number;
-        //Stores how many bytes of sample data are from each packet
-        std::vector<size_t> data_bytes_from_packet;
-        // Stores extra data from packets between recvs
-        std::vector<int8_t> sample_cache;
-        // Stores amount of extra data cached from previous recv in byte
-        size_t sample_cache_used;
-        // Maximum number of packets that can be flushed at a time
-        size_t max_num_packets_to_flush;
-        // Dummy recv buffer to be used when flushing
-        std::vector<std::vector<int8_t>> flush_buffer;
-        // Stores data about the recv for each packet
-        std::vector<mmsghdr> msgs;
-        /// Pointers to where to store recveived data in
-        std::vector<iovec> iovecs;
-
-    };
-    // Group of recv info for each channels
-    std::vector<ch_recv_buffer_info> ch_recv_buffer_info_group;
 
     /*******************************************************************
      * flush_packets:
