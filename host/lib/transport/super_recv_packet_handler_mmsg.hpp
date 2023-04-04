@@ -101,14 +101,14 @@ public:
                 std::vector<int8_t>(MAX_DATA_PER_PACKET, 0), // sample_cache
                 (size_t) 0, // previous_sample_cache_used
                 (size_t) _num_header_buffers, // max_num_packets_to_flush
-                std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE + MAX_DATA_PER_PACKET, 0)) // flush_buffer
+                std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(HEADER_SIZE + MAX_DATA_PER_PACKET, 0)), // flush_buffer
+                std::vector<mmsghdr>(_num_header_buffers),
+                std::vector<iovec>(2*_num_header_buffers+1)
             };
-            tmp.msgs.resize(_num_header_buffers);
             // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
             memset(tmp.msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
             // Contains data about where to store received data
             // Alternating between pointer to header, pointer to data
-            tmp.iovecs.resize(2*_num_header_buffers+1);
             memset(tmp.iovecs.data(), 0, sizeof(iovec)*tmp.iovecs.size());
 
             ch_recv_buffer_info_group.push_back(tmp);
