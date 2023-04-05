@@ -56,11 +56,11 @@ public:
      * \param buffer_size size of the buffer on the unit
      */
     send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports)
-        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _max_sample_bytes_per_packet(max_samples_per_packet * _bytes_per_sample), _num_channels(channels.size()),
+        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
         _channels(channels)
     {
         // Creates and binds to sockets
-        for(size_t n = 0; n < _num_channels; n++) {
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             struct sockaddr_in dst_address;
             int send_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
             if(send_socket_fd < 0) {
@@ -127,10 +127,10 @@ public:
             packet_header_infos = std::vector<vrt::if_packet_info_t>(num_packets);
 
             //Vector containing a vector containing the vrt headers for each channel
-            vrt_headers = std::vector<std::vector<std::vector<uint32_t>>>(_num_channels, std::vector<std::vector<uint32_t>>(packet_helper_buffer_sizes, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0)));
+            vrt_headers = std::vector<std::vector<std::vector<uint32_t>>>(_NUM_CHANNELS, std::vector<std::vector<uint32_t>>(packet_helper_buffer_sizes, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0)));
 
             // Pointer to the start of the data to send in each packet for each channels
-            sample_data_start_for_packet = std::vector<std::vector<const void*>>(_num_channels, std::vector<const void*>(num_packets));
+            sample_data_start_for_packet = std::vector<std::vector<const void*>>(_NUM_CHANNELS, std::vector<const void*>(num_packets));
         }
 
         for(int n = 0; n < num_packets; n++) {
@@ -146,32 +146,32 @@ public:
             packet_header_infos[n].eob     = false;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
 
-            packet_header_infos[n].num_payload_bytes = _max_sample_bytes_per_packet;
-            packet_header_infos[n].num_payload_words32 = (_max_sample_bytes_per_packet + 3/*round up*/)/sizeof(uint32_t);
+            packet_header_infos[n].num_payload_bytes = _MAX_SAMPLE_BYTES_PER_PACKET;
+            packet_header_infos[n].num_payload_words32 = (_MAX_SAMPLE_BYTES_PER_PACKET + 3/*round up*/)/sizeof(uint32_t);
         }
 
         //Set payload size info for last packet
         packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
         packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3/*round up*/)/sizeof(uint32_t);
 
-        for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+        for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
                 if_hdr_pack(vrt_headers[ch_i][n].data(), packet_header_infos[n]);
             }
         }
 
-        for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+        for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
-                sample_data_start_for_packet[ch_i][n] = sample_buffs[ch_i] + (n * _max_sample_bytes_per_packet);
+                sample_data_start_for_packet[ch_i][n] = sample_buffs[ch_i] + (n * _MAX_SAMPLE_BYTES_PER_PACKET);
             }
         }
 
-        mmsghdr msgs[_num_channels][num_packets];
+        mmsghdr msgs[_NUM_CHANNELS][num_packets];
         // Pointers to buffers
         // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
-        iovec iovecs[_num_channels][2*num_packets];
+        iovec iovecs[_NUM_CHANNELS][2*num_packets];
 
-        for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+        for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets - 1; n++) {
                 // VRT Header
                 iovecs[ch_i][2*n].iov_base = vrt_headers[ch_i][n].data();
@@ -179,7 +179,7 @@ public:
                 // Samples
                 // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
                 iovecs[ch_i][2*n+1].iov_base = const_cast<void*>(sample_data_start_for_packet[ch_i][n]);
-                iovecs[ch_i][2*n+1].iov_len = _max_sample_bytes_per_packet;
+                iovecs[ch_i][2*n+1].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET;
 
                 msgs[ch_i][n].msg_hdr.msg_iov = &iovecs[ch_i][2*n];
                 msgs[ch_i][n].msg_hdr.msg_iovlen = 2;
@@ -208,10 +208,10 @@ public:
         }
 
         size_t channels_serviced = 0;
-        std::vector<int> packets_sent_per_ch(_num_channels, 0);
-        std::vector<size_t> samples_sent_per_ch(_num_channels, 0);
-        while(channels_serviced < _num_channels) {
-            for(size_t ch_i = 0; ch_i < _num_channels; ch_i++) {
+        std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
+        std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
+        while(channels_serviced < _NUM_CHANNELS) {
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 // TODO: change check_flow_control to get the number of samples that can be sent now instead of a simple true/false, this is for future code that will prevent large send buffers from causing overflows on Crimson
                 if (!(_props.at(ch_i).check_flow_control(0)) || packets_sent_per_ch[ch_i] == num_packets) {
                     // The time to send for this channel has not reached.
@@ -252,8 +252,8 @@ public:
     
 protected:
     size_t _max_samples_per_packet;
-    size_t _max_sample_bytes_per_packet;
-    size_t _num_channels;
+    size_t _MAX_SAMPLE_BYTES_PER_PACKET;
+    size_t _NUM_CHANNELS;
 
     /*******************************************************************
      * converts vrt packet info into header
@@ -284,7 +284,7 @@ public:
     }
 
     size_t get_num_channels(void) const{
-        return _num_channels;
+        return _NUM_CHANNELS;
     }
 
     size_t get_max_num_samps(void) const{
