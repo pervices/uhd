@@ -69,8 +69,12 @@ public:
 
             if(bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
             {
-                //TODO: make this error more descriptive
-                std::cerr << "Unable to bind ip adress, receive may not work. \n IP: " << dst_ip[n] << std::endl;
+                fprintf(stderr, "Unable to bind to IP address %s and port %i\n", dst_ip[n], dst_port[n]);
+                if(errno == EADDRINUSE) {
+                    fprintf(stderr, "Address already in use. This is usually caused by attempting to run multiple UHD programs at once\n");
+                } else {
+                    fprintf(stderr, "Bind failed with error: %s\n", strerror(errno));
+                }
             }
 
             // Sets the recv buffer size
