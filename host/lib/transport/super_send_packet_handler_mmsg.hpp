@@ -76,15 +76,17 @@ public:
                 std::cerr << "Unable to bind send ip adress, receive may not work. \n IP: " << dst_ips[n] << " " <<  std::string(strerror(errno)) << std::endl;
             }
 
-            // TODO add the warning from old UHD that says how to change the socket buffer size limit
-            // Sets receive buffer size to (probably) maximum
-            // TODO: verify if recv buffer can be set higher
-            int send_buff_size = 1048576;
-            if(setsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &send_buff_size, sizeof(send_buff_size))) {
-                std::cerr << "Error while setting recv buffer size, performance may be affected" << std::endl;
-            }
+            // Sets the recv buffer size
+            setsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_DEFAULT_SEND_BUFFER_SIZE, sizeof(_DEFAULT_SEND_BUFFER_SIZE));
 
-            // TODO: implement send buffer resizing
+            // Checks the recv buffer size
+            socklen_t opt_len = sizeof(_ACTUAL_SEND_BUFFER_SIZE);
+            getsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_ACTUAL_SEND_BUFFER_SIZE, &opt_len);
+
+            // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
+            if(_ACTUAL_SEND_BUFFER_SIZE < 2*_DEFAULT_SEND_BUFFER_SIZE) {
+                fprintf(stderr, "Unable to set send buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.wmem_max=%i\"\n", _DEFAULT_SEND_BUFFER_SIZE, _ACTUAL_SEND_BUFFER_SIZE/2, _DEFAULT_SEND_BUFFER_SIZE);
+            }
 
             send_sockets.push_back(send_socket_fd);
         }
@@ -263,6 +265,12 @@ protected:
     virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
+    // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
+    // Desired send buffer size
+    const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
+    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
+    int _ACTUAL_SEND_BUFFER_SIZE;
+    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
     std::vector<int> send_sockets;
     //TODO: rename this to just channels when seperating this class from old version
     std::vector<size_t> _channels;
