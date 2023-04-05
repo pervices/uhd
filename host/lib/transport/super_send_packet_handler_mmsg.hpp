@@ -60,6 +60,10 @@ public:
         _channels(channels),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps)
     {
+        for(size_t n; n < _NUM_CHANNELS; n++) {
+            ch_send_buffer_info_group.push_back(ch_send_buffer_info(0, HEADER_SIZE));
+        }
+
         // Creates and binds to sockets
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             struct sockaddr_in dst_address;
@@ -128,18 +132,8 @@ public:
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
 
-        if(packet_helper_buffer_sizes < num_packets) {
-            packet_helper_buffer_sizes = num_packets;
-            // VRT header info for data packets
-            packet_header_infos.resize(num_packets);
-            packet_header_infos = std::vector<vrt::if_packet_info_t>(num_packets);
-
-            //Vector containing a vector containing the vrt headers for each channel
-            vrt_headers = std::vector<std::vector<std::vector<uint32_t>>>(_NUM_CHANNELS, std::vector<std::vector<uint32_t>>(packet_helper_buffer_sizes, std::vector<uint32_t>(HEADER_SIZE/sizeof(uint32_t), 0)));
-
-            // Pointer to the start of the data to send in each packet for each channels
-            sample_data_start_for_packet = std::vector<std::vector<const void*>>(_NUM_CHANNELS, std::vector<const void*>(num_packets));
-        }
+        // Expands size of buffers used to store data to be sent
+        expand_send_buffer_info(num_packets);
 
         for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
@@ -164,55 +158,50 @@ public:
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
-                if_hdr_pack(vrt_headers[ch_i][n].data(), packet_header_infos[n]);
+                if_hdr_pack(ch_send_buffer_info_group[ch_i].vrt_headers[n].data(), packet_header_infos[n]);
             }
         }
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
-                sample_data_start_for_packet[ch_i][n] = sample_buffs[ch_i] + (n * _MAX_SAMPLE_BYTES_PER_PACKET);
+                ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n] = sample_buffs[ch_i] + (n * _MAX_SAMPLE_BYTES_PER_PACKET);
             }
         }
-
-        mmsghdr msgs[_NUM_CHANNELS][num_packets];
-        // Pointers to buffers
-        // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
-        iovec iovecs[_NUM_CHANNELS][2*num_packets];
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets - 1; n++) {
                 // VRT Header
-                iovecs[ch_i][2*n].iov_base = vrt_headers[ch_i][n].data();
-                iovecs[ch_i][2*n].iov_len = HEADER_SIZE;
+                ch_send_buffer_info_group[ch_i].iovecs[2*n].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n].data();
+                ch_send_buffer_info_group[ch_i].iovecs[2*n].iov_len = HEADER_SIZE;
                 // Samples
                 // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
-                iovecs[ch_i][2*n+1].iov_base = const_cast<void*>(sample_data_start_for_packet[ch_i][n]);
-                iovecs[ch_i][2*n+1].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET;
+                ch_send_buffer_info_group[ch_i].iovecs[2*n+1].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n]);
+                ch_send_buffer_info_group[ch_i].iovecs[2*n+1].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET;
 
-                msgs[ch_i][n].msg_hdr.msg_iov = &iovecs[ch_i][2*n];
-                msgs[ch_i][n].msg_hdr.msg_iovlen = 2;
+                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[2*n];
+                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_iovlen = 2;
 
                 // Setting optional data to none
-                msgs[ch_i][n].msg_hdr.msg_name = NULL;
-                msgs[ch_i][n].msg_hdr.msg_namelen = 0;
-                msgs[ch_i][n].msg_hdr.msg_control = NULL;
-                msgs[ch_i][n].msg_hdr.msg_controllen = 0;
+                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_name = NULL;
+                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_namelen = 0;
+                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_control = NULL;
+                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_controllen = 0;
             }
 
             int n_last_packet = num_packets - 1;
-            iovecs[ch_i][2*n_last_packet].iov_base = vrt_headers[ch_i][n_last_packet].data();
-            iovecs[ch_i][2*n_last_packet].iov_len = HEADER_SIZE;
+            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n_last_packet].data();
+            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
 
-            iovecs[ch_i][2*n_last_packet+1].iov_base = const_cast<void*>(sample_data_start_for_packet[ch_i][n_last_packet]);
-            iovecs[ch_i][2*n_last_packet+1].iov_len = samples_in_last_packet * _bytes_per_sample;
+            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet+1].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n_last_packet]);
+            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet+1].iov_len = samples_in_last_packet * _bytes_per_sample;
 
-            msgs[ch_i][n_last_packet].msg_hdr.msg_iov = &iovecs[ch_i][2*n_last_packet];
-            msgs[ch_i][n_last_packet].msg_hdr.msg_iovlen = 2;
+            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet];
+            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_iovlen = 2;
 
-            msgs[ch_i][n_last_packet].msg_hdr.msg_name = NULL;
-            msgs[ch_i][n_last_packet].msg_hdr.msg_namelen = 0;
-            msgs[ch_i][n_last_packet].msg_hdr.msg_control = NULL;
-            msgs[ch_i][n_last_packet].msg_hdr.msg_controllen = 0;
+            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_name = NULL;
+            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_namelen = 0;
+            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_control = NULL;
+            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_controllen = 0;
         }
 
         size_t channels_serviced = 0;
@@ -221,6 +210,7 @@ public:
         while(channels_serviced < _NUM_CHANNELS) {
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
+                printf("T1 packets_to_send_this_sendmmsg: %i\n", packets_to_send_this_sendmmsg);
 
                 // Skip channel if it either is not time to send any packets yet of the desired number of packets have already been sent
                 if(packets_to_send_this_sendmmsg <= 0 || packets_sent_per_ch[ch_i] == num_packets) {
@@ -231,7 +221,8 @@ public:
                 int num_packets_to_send = num_packets - num_packets_alread_sent;
                 packets_to_send_this_sendmmsg = std::min(packets_to_send_this_sendmmsg, num_packets_to_send);
 
-                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[ch_i][num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_DONTWAIT);
+                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_DONTWAIT);
+                printf("ch_i: %lu, num_packets_sent_this_send: %i\n", ch_i, num_packets_sent_this_send);
 
                 if(num_packets_sent_this_send < 0) {
                     if(errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -291,14 +282,60 @@ private:
     // Desired number of samples in the tx buffer on the unit
     const ssize_t _DEVICE_TARGET_NSAMPS;
 
-    // Sizes of the various buffers used in send
-    // To avoid reallocating the buffers each time the buffers are kept and resized anytime they aren't large enough
-    size_t packet_helper_buffer_sizes = 0;
+    // Header info for each packet, the VITA (not UDP) header is the same for every channel
     std::vector<vrt::if_packet_info_t> packet_header_infos;
-    std::vector<std::vector<std::vector<uint32_t>>> vrt_headers;
-    std::vector<std::vector<const void*>> sample_data_start_for_packet;
+
+    //TODO move all the vectors with channel specific info here
+    // Stores information about packets to send for each channel
+    // Sizes of the various buffers used in send
+    size_t send_buffer_info_size = 0;
+    struct ch_send_buffer_info {
+        const size_t _vrt_header_size;
+        // Stores data about the send for each packet
+        std::vector<mmsghdr> msgs;
+        // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
+        std::vector<iovec> iovecs;
+
+        // Contains vrt header data for each packet
+        std::vector<std::vector<uint32_t>> vrt_headers;
+
+        // Stores where the samples start for each packet
+        std::vector<const void*> sample_data_start_for_packet;
+
+        ch_send_buffer_info(const size_t size, const size_t vrt_header_size)
+        : _vrt_header_size(vrt_header_size)
+        {
+            resize_and_clear(size);
+        }
+
+        // Resizes and clears the buffers to match packet_helper_buffer_size
+        void resize_and_clear(size_t new_size) {
+            msgs.resize(new_size);
+            memset(msgs.data(), 0, sizeof(mmsghdr)*new_size);
+            iovecs.resize(2*new_size);
+            memset(iovecs.data(), 0, sizeof(iovec)*2*new_size);
+            vrt_headers.resize(new_size);
+            std::fill(vrt_headers.begin(), vrt_headers.end(), std::vector<uint32_t>(_vrt_header_size/sizeof(uint32_t), 0));
+            sample_data_start_for_packet.resize(new_size, 0);
+        }
+
+    };
+    // Group of recv info for each channels
+    std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
     //TODO: implement blocking flow control
     bool use_blocking_fc = false;
+
+    // Expands the buffers used in the send command, does nothing if already large enough
+    void expand_send_buffer_info(size_t new_size) {
+        // Resizes the per channel buffers used in the send command
+        if(new_size > send_buffer_info_size) {
+            send_buffer_info_size = new_size;
+            packet_header_infos.resize(new_size);
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                ch_send_buffer_info_group[ch_i].resize_and_clear(new_size);
+            }
+        }
+    }
 
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i) {
