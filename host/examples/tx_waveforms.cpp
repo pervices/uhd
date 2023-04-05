@@ -22,9 +22,6 @@
 #include <chrono>
 #include <thread>
 
-//#define DEBUG_TX_WAVE 1
-//#define DEBUG_TX_WAVE_STEP 1
-
 //wait for user to press cntrl c before closing
 //#define DELAYED_EXIT
 
@@ -113,23 +110,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             channel_nums.push_back(std::stoi(channel_strings[ch]));
     }
 
-#ifdef DEBUG_TX_WAVE_STEP
-    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
-    std::cout << "T7: Type any letter then enter to continue" << std::endl;
-    std::string tmp;
-    std::cin >> tmp;
-#endif
-
     //Lock mboard clocks
     usrp->set_clock_source(ref);
 
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
-
-#ifdef DEBUG_TX_WAVE_STEP
-    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
-    std::cout << "T6: Type any letter then enter to continue" << std::endl;
-    std::cin >> tmp;
-#endif
 
     //set the sample rate
     if (not vm.count("rate")){
@@ -145,12 +129,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cerr << "Please specify the center frequency with --freq" << std::endl;
         return ~0;
     }
-
-#ifdef DEBUG_TX_WAVE_STEP
-    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
-    std::cout << "T5: Type any letter then enter to continue" << std::endl;
-    std::cin >> tmp;
-#endif
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
@@ -176,12 +154,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         //set the antenna
         if (vm.count("ant")) usrp->set_tx_antenna(ant, channel_nums[ch]);
     }
-
-#ifdef DEBUG_TX_WAVE_STEP
-    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
-    std::cout << "T4: Type any letter then enter to continue" << std::endl;
-    std::cin >> tmp;
-#endif
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for some setup time
 
@@ -216,12 +188,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::complex<float> > buff(spb);
     std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
 
-#ifdef DEBUG_TX_WAVE_STEP
-    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
-    std::cout << "T3: Type any letter then enter to continue" << std::endl;
-    std::cin >> tmp;
-#endif
-
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if (channel_nums.size() > 1)
     {
@@ -252,12 +218,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         usrp->set_time_now(0.0);
     }
 
-#ifdef DEBUG_TX_WAVE_STEP
-    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
-    std::cout << "T2: Type any letter then enter to continue" << std::endl;
-    std::cin >> tmp;
-#endif
-
     //Check Ref and LO Lock detect
     std::vector<std::string> sensor_names;
     const size_t tx_sensor_chan = channel_nums.empty() ? 0 : channel_nums[0];
@@ -280,12 +240,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         UHD_ASSERT_THROW(ref_locked.to_bool());
     }
 
-#ifdef DEBUG_TX_WAVE_STEP
-    std::cout << "Manually configure the state tree now (if necessary)" << std::endl;
-    std::cout << "T1: Type any letter then enter to continue" << std::endl;
-    std::cin >> tmp;
-#endif
-
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
@@ -302,7 +256,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.start_of_burst = true;
         md.end_of_burst   = false;
         md.has_time_spec  = true;
-        printf("tx time: %lf\n", time);
         md.time_spec = uhd::time_spec_t(time);
 
         //send data until the signal handler gets called
