@@ -110,6 +110,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
             // Tx sets this flag when it catches up to rx, and will then wait for a semaphore
             // This is done to minimize delays from unneeded semaphores while avoiding issues caused by polling
             if(tx_reached_rx) {
+                tx_reached_rx = false;
                 sem_post(&buffer_ready);
             }
             active_buffer_index++;
