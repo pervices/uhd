@@ -166,9 +166,9 @@ public:
     // Maximum buffer level in nsamps. Named this way to avoid confusion with the same variable belonging to different stuff
     int64_t stream_max_bl;
 
-	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports)
+	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps ),
 		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
@@ -455,6 +455,13 @@ private:
 		_eprops.at( chan ).buffer_mutex.lock();
         _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
 		_eprops.at( chan ).buffer_mutex.unlock();
+    }
+
+    int64_t get_fc_buffer_level(const size_t chan, const uhd::time_spec_t & now ) {
+        _eprops.at( chan ).buffer_mutex.lock();
+        int64_t buffer_level = _eprops.at( chan ).flow_control->get_buffer_level(now);
+        _eprops.at( chan ).buffer_mutex.unlock();
+        return buffer_level;
     }
     
     // timeout must be small but non-zero, polling it at the max rate with result in something triggering,
@@ -1155,7 +1162,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
     }
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports);
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level));
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

@@ -49,8 +49,6 @@ const size_t valid_index_mask = num_buffers - 1;
 const double host_buff_size = 0.25;
 // space at the end of buffer that is used to make it easier to avoid issues when samples can only be sent in specific amounts
 const size_t spare_buffer_space = 10000;
-//TODO change send function so that it will partially send instead of sending the entire buffer when the device's buffer would dip below the setpoint
-const size_t max_samples_per_tx = 6000;
 // The inner buffer is a buffer containing data received from each channel
 // The middle layer groups the buffer for each ch together
 // The outer layer exists so that the rx can receive to once set of buffers and tx the other, so that they don't need to lock and unlock every send/recv. It forms a pseudo ring buffer.
@@ -106,6 +104,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
         if(samples_this_buffer + spare_buffer_space > max_samples_per_buffer) {
             // Stores the number of samples instered into the buffer
             buffer_used[active_buffer_index] = samples_this_buffer;
+            printf("rx active_buffer_index %li samples_this_buffer: %lu\n", active_buffer_index, samples_this_buffer);
             // Increments the count for the total number of rx samples consumed
             num_buffers_prepared++;
             // Tx sets this flag when it catches up to rx, and will then wait for a semaphore
@@ -154,7 +153,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
     size_t num_acc_samps = 0;
     size_t active_buffer_index = 0;
     size_t num_channels = buffers[0].size();
-    size_t max_samples_per_buffer = std::min(buffers[0][0].size(), max_samples_per_tx);
+    size_t max_samples_per_buffer = buffers[0][0].size();
     // Set up Tx metadata. We start streaming a bit in the future
     uhd::tx_metadata_t tx_md;
     tx_md.start_of_burst = true;
@@ -184,6 +183,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
             active_buffer_index = active_buffer_index & valid_index_mask;
             samples_this_buffer = 0;
             samples_to_send_this_buffer = buffer_used[active_buffer_index];
+            printf("tx active_buffer_index %li samples_this_buffer: %lu\n", active_buffer_index, samples_to_send_this_buffer);
             // Updates the active buffer
             active_buffer = &buffers[active_buffer_index];
         }
@@ -191,7 +191,6 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
         for(size_t n = 0; n < num_channels; n++) {
             active_buff_ptrs[n] = &(*active_buffer)[n][samples_this_buffer];
         }
-        
         size_t samples_sent = tx_stream->send(active_buff_ptrs, std::min(samples_to_send_this_buffer - samples_this_buffer, max_samples_per_buffer), tx_md);
         //size_t samples_sent = std::min(samples_to_send_this_buffer - samples_this_buffer, max_samples_per_buffer);
         

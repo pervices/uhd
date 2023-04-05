@@ -55,9 +55,10 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
         : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
-        _channels(channels)
+        _channels(channels),
+        _DEVICE_TARGET_NSAMPS(device_target_nsamps)
     {
         // Creates and binds to sockets
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -219,15 +220,18 @@ public:
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
         while(channels_serviced < _NUM_CHANNELS) {
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                // TODO: change check_flow_control to get the number of samples that can be sent now instead of a simple true/false, this is for future code that will prevent large send buffers from causing overflows on Crimson
-                if (!(_props.at(ch_i).check_flow_control(0)) || packets_sent_per_ch[ch_i] == num_packets) {
-                    // The time to send for this channel has not reached.
+                int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
+
+                // Skip channel if it either is not time to send any packets yet of the desired number of packets have already been sent
+                if(packets_to_send_this_sendmmsg <= 0 || packets_sent_per_ch[ch_i] == num_packets) {
                     continue;
                 }
 
                 int num_packets_alread_sent = packets_sent_per_ch[ch_i];
                 int num_packets_to_send = num_packets - num_packets_alread_sent;
-                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[ch_i][num_packets_alread_sent], num_packets_to_send, MSG_DONTWAIT);
+                packets_to_send_this_sendmmsg = std::min(packets_to_send_this_sendmmsg, num_packets_to_send);
+
+                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &msgs[ch_i][num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_DONTWAIT);
 
                 if(num_packets_sent_this_send < 0) {
                     if(errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -253,7 +257,6 @@ public:
             }
         }
 
-        // All channels should always send the same number of samples
         return samples_sent_per_ch[0];
     }
     
@@ -261,6 +264,10 @@ protected:
     size_t _max_samples_per_packet;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
     size_t _NUM_CHANNELS;
+
+    // Gets the the time on the unit when a packet sent now would arrive
+    virtual uhd::time_spec_t get_time_now() = 0;
+    virtual int64_t get_fc_buffer_level(const size_t chan, const uhd::time_spec_t & now) = 0;
 
     /*******************************************************************
      * converts vrt packet info into header
@@ -270,6 +277,8 @@ protected:
     virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
+    //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
+    const size_t _BYTES_PER_SAMPLE = 4;
     // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
     // Desired send buffer size
     const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
@@ -279,20 +288,42 @@ private:
     std::vector<int> send_sockets;
     //TODO: rename this to just channels when seperating this class from old version
     std::vector<size_t> _channels;
+    // Desired number of samples in the tx buffer on the unit
+    const ssize_t _DEVICE_TARGET_NSAMPS;
+
     // Sizes of the various buffers used in send
     // To avoid reallocating the buffers each time the buffers are kept and resized anytime they aren't large enough
     size_t packet_helper_buffer_sizes = 0;
     std::vector<vrt::if_packet_info_t> packet_header_infos;
     std::vector<std::vector<std::vector<uint32_t>>> vrt_headers;
     std::vector<std::vector<const void*>> sample_data_start_for_packet;
+    //TODO: implement blocking flow control
+    bool use_blocking_fc = false;
+
+    // Gets the number of samples that can be sent now (can be less than 0)
+    int check_fc_npackets(const size_t ch_i) {
+        if(BOOST_LIKELY(!use_blocking_fc)) {
+
+            // Get the buffer level on the unit
+            uhd::time_spec_t device_time = get_time_now();
+            // TODO create new atomic flow control system
+            int64_t buffer_level =get_fc_buffer_level(ch_i, device_time);
+
+            return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
+
+        } else {
+            std::cerr << "Blocking fc now implemented yet" << std::endl;
+            return 0;
+        }
+    }
 
 };
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps)
     {
     }
 
