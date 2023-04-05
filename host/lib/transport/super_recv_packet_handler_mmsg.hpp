@@ -69,7 +69,7 @@ public:
 
             if(bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
             {
-                fprintf(stderr, "ERROR Unable to bind to IP address %s and port %i\n", dst_ip[n], dst_port[n]);
+                fprintf(stderr, "ERROR Unable to bind to IP address %s and port %i\n", dst_ip[n].c_str(), dst_port[n]);
                 if(errno == EADDRINUSE) {
                     fprintf(stderr, "Address already in use. This is usually caused by attempting to run multiple UHD programs at once\n");
                 } else {
