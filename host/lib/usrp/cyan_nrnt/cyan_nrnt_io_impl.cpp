@@ -168,7 +168,7 @@ public:
 
 	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE ),
 		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
@@ -208,17 +208,10 @@ public:
 
     size_t send(
         const tx_streamer::buffs_type &buffs,
-        const size_t nsamps_per_buff_,
+        const size_t nsamps_per_buff,
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        size_t nsamps_per_buff = ((size_t)(nsamps_per_buff_/CYAN_NRNT_PACKET_NSAMP_MULTIPLE)) * CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
-
-#ifdef UHD_TXRX_DEBUG_PRINTS
-        if(nsamps_per_buff_ != nsamps_per_buff) {
-            std::cout << "Warning: the number of samples attempted must be a multiple of " << CYAN_NRNT_PACKET_NSAMP_MULTIPLE << ", this will call will only attempt to send " << nsamps_per_buff << std::endl;
-        }
-#endif
         
         static const double default_sob = 1.0;
 

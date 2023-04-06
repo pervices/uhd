@@ -183,6 +183,7 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
             active_buffer_index = active_buffer_index & valid_index_mask;
             samples_this_buffer = 0;
             samples_to_send_this_buffer = buffer_used[active_buffer_index];
+            assert(samples_to_send_this_buffer > 0);
             // Updates the active buffer
             active_buffer = &buffers[active_buffer_index];
         }

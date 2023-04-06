@@ -55,13 +55,14 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple)
         : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
         _channels(channels),
-        _DEVICE_TARGET_NSAMPS(device_target_nsamps)
+        _DEVICE_TARGET_NSAMPS(device_target_nsamps),
+        _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple)
     {
-        for(size_t n; n < _NUM_CHANNELS; n++) {
-            ch_send_buffer_info_group.push_back(ch_send_buffer_info(0, HEADER_SIZE));
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            ch_send_buffer_info_group.push_back(ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1)));
         }
 
         // Creates and binds to sockets
@@ -121,16 +122,20 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ) {
+        // FPGAs can sometimes only receive multiples of a set number of samples
+        size_t actual_nsamps_to_send = (((cached_nsamps + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
+        size_t nsamps_to_cache = nsamps_to_send - actual_nsamps_to_send;
+
         // TODO: implement handling for length 0 packets (SOB with no samples and EOB)
-        if(nsamps_to_send == 0) {
+        if(actual_nsamps_to_send == 0) {
             std::cout << "0 length packets not implemented yet" << std::endl;
             return 0;
         }
 
         // Number of packets to send
-        int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
+        int num_packets = std::ceil(((double)actual_nsamps_to_send)/_max_samples_per_packet);
 
-        size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
+        size_t samples_in_last_packet = actual_nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
 
         // Expands size of buffers used to store data to be sent
         expand_send_buffer_info(num_packets);
@@ -169,16 +174,38 @@ public:
         }
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+            // Sets up iovecs for the first packets
+            // VRT Header
+            ch_send_buffer_info_group[ch_i].iovecs[0].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[0].data();
+            ch_send_buffer_info_group[ch_i].iovecs[0].iov_len = HEADER_SIZE;
+            // Cached samples
+            ch_send_buffer_info_group[ch_i].iovecs[1].iov_base = ch_send_buffer_info_group[ch_i].sample_cache.data();
+            ch_send_buffer_info_group[ch_i].iovecs[1].iov_len = cached_nsamps * _bytes_per_sample;
+            // Samples
+            // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
+            ch_send_buffer_info_group[ch_i].iovecs[2].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[0]);
+            ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET - cached_nsamps;
+
+            ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[0];
+            ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_iovlen = 3;
+
+            // Setting optional data to none
+            ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_name = NULL;
+            ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_namelen = 0;
+            ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_control = NULL;
+            ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_controllen = 0;
+
+            // Sets up iovecs and msg for packets 1 to n -1
             for(int n = 0; n < num_packets - 1; n++) {
                 // VRT Header
-                ch_send_buffer_info_group[ch_i].iovecs[2*n].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n].data();
-                ch_send_buffer_info_group[ch_i].iovecs[2*n].iov_len = HEADER_SIZE;
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n].data();
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)].iov_len = HEADER_SIZE;
                 // Samples
                 // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
-                ch_send_buffer_info_group[ch_i].iovecs[2*n+1].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n]);
-                ch_send_buffer_info_group[ch_i].iovecs[2*n+1].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET;
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)+1].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n]);
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)+1].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET;
 
-                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[2*n];
+                ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)];
                 ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_iovlen = 2;
 
                 // Setting optional data to none
@@ -188,20 +215,23 @@ public:
                 ch_send_buffer_info_group[ch_i].msgs[n].msg_hdr.msg_controllen = 0;
             }
 
-            int n_last_packet = num_packets - 1;
-            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n_last_packet].data();
-            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet].iov_len = HEADER_SIZE;
+            // Sets up iovecs and msgs for last packet
+            if(num_packets > 1) {
+                int n_last_packet = num_packets - 1;
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n_last_packet)].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n_last_packet].data();
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n_last_packet)].iov_len = HEADER_SIZE;
 
-            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet+1].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n_last_packet]);
-            ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet+1].iov_len = samples_in_last_packet * _bytes_per_sample;
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n_last_packet)+1].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n_last_packet]);
+                ch_send_buffer_info_group[ch_i].iovecs[1+(2*n_last_packet)+1].iov_len = samples_in_last_packet * _bytes_per_sample;
 
-            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[2*n_last_packet];
-            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_iovlen = 2;
+                ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[1+(2*n_last_packet)];
+                ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_iovlen = 2;
 
-            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_name = NULL;
-            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_namelen = 0;
-            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_control = NULL;
-            ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_controllen = 0;
+                ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_name = NULL;
+                ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_namelen = 0;
+                ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_control = NULL;
+                ch_send_buffer_info_group[ch_i].msgs[n_last_packet].msg_hdr.msg_controllen = 0;
+            }
         }
 
         size_t channels_serviced = 0;
@@ -235,7 +265,7 @@ public:
                         nsamps_sent = ((num_packets_sent_this_send - 1) * _max_samples_per_packet) + samples_in_last_packet;
                         channels_serviced+=1;
                     } else {
-                        // This send did not include the max packet (which which always be the maximum length)
+                        // Every packet except the last one will have the maximum length
                         nsamps_sent = num_packets_sent_this_send * _max_samples_per_packet;
                     }
                     // Update counter for number of samples sent this send
@@ -246,7 +276,17 @@ public:
             }
         }
 
-        return samples_sent_per_ch[0];
+        // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
+        if(nsamps_to_cache > 0) {
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), sample_buffs[ch_i] + (nsamps_to_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+            }
+        }
+        // Copies excess samples to the cache. Also reports that samples in the cache as sent
+        size_t samples_sent = samples_sent_per_ch[0] + nsamps_to_cache;
+        cached_nsamps = nsamps_to_cache;
+
+        return samples_sent;
     }
     
 protected:
@@ -280,6 +320,11 @@ private:
     // Desired number of samples in the tx buffer on the unit
     const ssize_t _DEVICE_TARGET_NSAMPS;
 
+    // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
+    const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
+    // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
+    size_t cached_nsamps;
+
     // Header info for each packet, the VITA (not UDP) header is the same for every channel
     std::vector<vrt::if_packet_info_t> packet_header_infos;
 
@@ -289,6 +334,8 @@ private:
     size_t send_buffer_info_size = 0;
     struct ch_send_buffer_info {
         const size_t _vrt_header_size;
+        // Stores samples between sends, to account for limitations in number samples that can be sent at once
+        std::vector<int8_t> sample_cache;
         // Stores data about the send for each packet
         std::vector<mmsghdr> msgs;
         // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
@@ -300,8 +347,15 @@ private:
         // Stores where the samples start for each packet
         std::vector<const void*> sample_data_start_for_packet;
 
-        ch_send_buffer_info(const size_t size, const size_t vrt_header_size)
-        : _vrt_header_size(vrt_header_size)
+        /*!
+        * Make a new ch_send_buffer_info
+        * \param size number of packets that can be handled at once
+        * \param vrt_header_size size of the vrt header
+        * \param cache_size number of bytes in the sample cache
+        */
+        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, size_t cache_size)
+        : _vrt_header_size(vrt_header_size),
+        sample_cache(std::vector<int8_t>(cache_size))
         {
             resize_and_clear(size);
         }
@@ -310,7 +364,8 @@ private:
         void resize_and_clear(size_t new_size) {
             msgs.resize(new_size);
             memset(msgs.data(), 0, sizeof(mmsghdr)*new_size);
-            iovecs.resize(2*new_size);
+            // 1 VRT header and 1 data section in every packet, plus the cached samples in the first packet
+            iovecs.resize(2*new_size + 1);
             memset(iovecs.data(), 0, sizeof(iovec)*2*new_size);
             vrt_headers.resize(new_size);
             std::fill(vrt_headers.begin(), vrt_headers.end(), std::vector<uint32_t>(_vrt_header_size/sizeof(uint32_t), 0));
@@ -357,8 +412,8 @@ private:
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple)
     {
     }
 
