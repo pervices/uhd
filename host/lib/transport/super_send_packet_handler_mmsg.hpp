@@ -55,7 +55,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
         : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
         _channels(channels),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps)
@@ -210,7 +210,6 @@ public:
         while(channels_serviced < _NUM_CHANNELS) {
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
-                printf("T1 packets_to_send_this_sendmmsg: %i\n", packets_to_send_this_sendmmsg);
 
                 // Skip channel if it either is not time to send any packets yet of the desired number of packets have already been sent
                 if(packets_to_send_this_sendmmsg <= 0 || packets_sent_per_ch[ch_i] == num_packets) {
@@ -222,7 +221,6 @@ public:
                 packets_to_send_this_sendmmsg = std::min(packets_to_send_this_sendmmsg, num_packets_to_send);
 
                 int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_DONTWAIT);
-                printf("ch_i: %lu, num_packets_sent_this_send: %i\n", ch_i, num_packets_sent_this_send);
 
                 if(num_packets_sent_this_send < 0) {
                     if(errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -252,7 +250,7 @@ public:
     }
     
 protected:
-    size_t _max_samples_per_packet;
+    ssize_t _max_samples_per_packet;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
     size_t _NUM_CHANNELS;
 
@@ -359,7 +357,7 @@ private:
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, size_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps):
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps):
     sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps)
     {
     }

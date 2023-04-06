@@ -104,7 +104,6 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_nu
         if(samples_this_buffer + spare_buffer_space > max_samples_per_buffer) {
             // Stores the number of samples instered into the buffer
             buffer_used[active_buffer_index] = samples_this_buffer;
-            printf("rx active_buffer_index %li samples_this_buffer: %lu\n", active_buffer_index, samples_this_buffer);
             // Increments the count for the total number of rx samples consumed
             num_buffers_prepared++;
             // Tx sets this flag when it catches up to rx, and will then wait for a semaphore
@@ -184,7 +183,6 @@ void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_n
             active_buffer_index = active_buffer_index & valid_index_mask;
             samples_this_buffer = 0;
             samples_to_send_this_buffer = buffer_used[active_buffer_index];
-            printf("tx active_buffer_index %li samples_this_buffer: %lu\n", active_buffer_index, samples_to_send_this_buffer);
             // Updates the active buffer
             active_buffer = &buffers[active_buffer_index];
         }
