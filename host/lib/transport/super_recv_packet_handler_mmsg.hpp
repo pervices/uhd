@@ -454,7 +454,7 @@ private:
                 // Checks if sequence number is correct, ignore check if timestamp is 0
                 if((ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count != (sequence_number_mask & (ch_recv_buffer_info_group[ch].previous_sequence_number + 1)))  && (ch_recv_buffer_info_group[ch].vrt_metadata[header_i].tsf != 0)) {
                     error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-                    UHD_LOG_FASTPATH("D");
+                    UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_group[ch].vrt_metadata[header_i].tsf) + "\n");
                     //TODO: implement aligning buffs after an overflow
                 }
                 ch_recv_buffer_info_group[ch].previous_sequence_number = ch_recv_buffer_info_group[ch].vrt_metadata[header_i].packet_count;
