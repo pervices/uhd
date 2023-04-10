@@ -142,7 +142,6 @@ public:
         const double timeout,
         const bool one_packet)
     {
-        printf("New recv\n");
         // Clears the metadata struct, theoretically not required but included to make sure mistakes don't cause non-deterministic behaviour
         metadata.reset();
 
@@ -335,10 +334,19 @@ private:
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
         }
 
-        struct timespec ts_timeout{(int)timeout, (int) ((timeout - ((int)timeout))*1000000000)};
+        struct timespec recv_start_time;
+        clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
+        int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(timeout * 1000000000);
 
         size_t num_channels_serviced = 0;
         while(num_channels_serviced < _NUM_CHANNELS) {
+            struct timespec current_time;
+            clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+            int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
+            if(current_time_ns > recv_timeout_time_ns) {
+                return rx_metadata_t::ERROR_CODE_TIMEOUT;
+            }
+
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
                 // Skip this channel if it has already received enough packets

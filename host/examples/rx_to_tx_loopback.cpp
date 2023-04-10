@@ -65,9 +65,9 @@ std::atomic<uint64_t> num_buffers_prepared(0);
 std::atomic<uint64_t> num_buffers_consumed(0);
 std::atomic<bool> tx_reached_rx(false);
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps) {
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps, double offset) {
     uhd::set_thread_priority_safe();
-    double timeout = start_time + 0.1; // timeout (delay before receive + padding)
+    double timeout = start_time +  offset; // timeout (delay before receive + padding)
     size_t num_acc_samps = 0;
     size_t active_buffer_index = 0;
     size_t num_channels = buffers[0].size();
@@ -445,7 +445,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     //the arrays passed here need to be changed to be passed by reference, and locking added
-    std::thread rx_thread(rx_run, rx_stream, seconds_in_future, total_num_samps);
+    std::thread rx_thread(rx_run, rx_stream, seconds_in_future, total_num_samps, offset);
 
     //the arrays passed here need to be changed to be passed by reference, and locking added
     std::thread tx_thread(tx_run, tx_stream, tx_start_time, total_num_samps);
