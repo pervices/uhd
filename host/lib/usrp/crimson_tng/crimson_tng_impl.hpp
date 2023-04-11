@@ -99,10 +99,7 @@ public:
 
     uhd::device_addr_t device_addr;
 
-    uhd::time_spec_t get_time_now() {
-        double diff = time_diff_get();
-        return uhd::get_system_time() + diff;
-    }
+    uhd::time_spec_t get_time_now();
 
     inline double time_diff_get() {
         return _time_diff;

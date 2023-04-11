@@ -169,6 +169,11 @@ void crimson_tng_impl::set_int(const std::string pre, int data){
 	} catch (...) { }
 }
 
+uhd::time_spec_t crimson_tng_impl::get_time_now() {
+    double diff = time_diff_get();
+    return uhd::get_system_time() + diff;
+}
+
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
 mboard_eeprom_t crimson_tng_impl::get_mboard_eeprom(std::string req) {
 	(void)req;
