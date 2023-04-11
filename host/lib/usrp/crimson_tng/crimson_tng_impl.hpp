@@ -33,7 +33,7 @@
 #include "../../transport/flow_control.hpp"
 #include "pidc.hpp"
 
-#include "system_time.hpp"
+#include <uhdlib/utils/system_time.hpp>
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 

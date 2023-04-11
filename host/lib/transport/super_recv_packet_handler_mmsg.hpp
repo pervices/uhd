@@ -335,6 +335,7 @@ private:
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
         }
 
+        // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
         struct timespec recv_start_time;
         clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
         int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(timeout * 1000000000);

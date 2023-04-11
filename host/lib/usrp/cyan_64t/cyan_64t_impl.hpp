@@ -37,7 +37,7 @@
 #include "cyan_64t_iface.hpp"
 #include "../../transport/flow_control.hpp"
 #include "../crimson_tng/pidc.hpp"
-#include "../crimson_tng/system_time.hpp"
+#include <uhdlib/utils/system_time.hpp>
 
 #include <uhd/utils/gain_group.hpp>
 

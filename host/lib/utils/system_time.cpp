@@ -5,13 +5,13 @@
 //
 
 #include <uhdlib/utils/system_time.hpp>
-#include <chrono>
+#include <time.h>
 
 uhd::time_spec_t uhd::get_system_time(void)
 {
-    const auto now     = std::chrono::steady_clock::now().time_since_epoch();
-    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now);
-    const auto nanoseconds =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(now - seconds);
-    return uhd::time_spec_t(seconds.count(), nanoseconds.count(), 1e9);
+    struct ::timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    const auto seconds = time.tv_sec;
+    const auto nanoseconds = time.tv_nsec;
+    return uhd::time_spec_t(seconds, nanoseconds, 1e9);
 }
