@@ -26,7 +26,6 @@
 #include <thread>
 #include <chrono>
 #include <math.h>
-#include <thread>
 #include <unistd.h>
 #include <algorithm>
 #include <semaphore.h>
