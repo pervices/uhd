@@ -89,7 +89,8 @@ public:
                 fprintf(stderr, "Unable to set recv buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.rmem_max=%i\"\n", _DEFAULT_RECV_BUFFER_SIZE, _ACTUAL_RECV_BUFFER_SIZE/2, _DEFAULT_RECV_BUFFER_SIZE);
             }
 
-            _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/2)/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET));
+            // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
+            _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/(_NUM_CHANNELS + 1))/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET + 42));
 
             recv_sockets.push_back(recv_socket_fd);
         }
