@@ -206,9 +206,9 @@ protected:
     virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
-    // TODO dynamically adjust recv buffer size based on system RAM, number of channels, and maximum sample rate
+    // TODO dynamically adjust recv buffer size based on system RAM, number of channels, and maximum sample rate. Should be capable of storing 100ms of data
     // Desired recv buffer size
-    const int _DEFAULT_RECV_BUFFER_SIZE = 50000000;
+    const int _DEFAULT_RECV_BUFFER_SIZE = 500000000;
     // Actual recv buffer size, not the Kernel will set the real size to be double the requested
     int _ACTUAL_RECV_BUFFER_SIZE;
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
