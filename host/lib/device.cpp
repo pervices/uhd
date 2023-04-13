@@ -95,7 +95,7 @@ device_addrs_t device::find(const device_addr_t& hint, device_filter_t filter)
         try {
             device_addrs_t discovered_addrs = find_task.get();
             device_addrs.insert(
-                device_addrs.begin(), discovered_addrs.begin(), discovered_addrs.end());
+                device_addrs.end(), discovered_addrs.begin(), discovered_addrs.end());
         } catch (const std::exception& e) {
             UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what();
         }
