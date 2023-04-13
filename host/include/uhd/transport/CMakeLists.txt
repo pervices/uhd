@@ -10,6 +10,7 @@ UHD_INSTALL(FILES
     bounded_buffer.hpp
     bounded_buffer.ipp
     buffer_pool.hpp
+    buffer_tracker.hpp
     chdr.hpp
     frame_buff.hpp
     if_addrs.hpp

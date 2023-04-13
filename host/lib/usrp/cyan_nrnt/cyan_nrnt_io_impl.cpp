@@ -235,12 +235,6 @@ public:
                 metadata.time_spec = next_send_time;
             }
         }
-
-        if ( metadata.start_of_burst ) {
-            for( auto & ep: _eprops ) {
-                ep.flow_control->set_start_of_burst_time( metadata.time_spec );
-            }
-        }
         
         _first_call_to_send = false;
 
@@ -303,6 +297,7 @@ public:
         return buff;
     }
 
+    //TODO remove, system replaced/moved to packet_handler_mmsg"
     static void update_fc_send_count( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
 
         std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
@@ -311,6 +306,7 @@ public:
         my_streamer->check_fc_update( chan, nsamps);
     }
     
+    //TODO remove, system replaced/moved to packet_handler_mmsg"
     static bool check_flow_control(std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout) {
         std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
             std::dynamic_pointer_cast<cyan_nrnt_send_packet_streamer>( tx_streamer.lock() );
@@ -353,7 +349,9 @@ public:
 		sph::send_packet_handler::resize(size);
     }
 
+    // Eventually should just be able to rely on send_packet_handler_mmsg set rate
     void set_samp_rate(const double rate){
+        sph::send_packet_handler_mmsg::set_samp_rate( rate );
         sph::send_packet_handler::set_samp_rate( rate );
         _samp_rate = rate;
         uhd::time_spec_t now = get_time_now();

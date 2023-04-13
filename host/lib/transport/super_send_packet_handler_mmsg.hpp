@@ -30,6 +30,8 @@
 
 #include <cmath>
 
+#include <uhd/transport/buffer_tracker.hpp>
+
 namespace uhd {
 namespace transport {
 namespace sph {
@@ -62,7 +64,7 @@ public:
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple)
     {
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            ch_send_buffer_info_group.push_back(ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1)));
+            ch_send_buffer_info_group.push_back(ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
         }
 
         // Creates and binds to sockets
@@ -122,6 +124,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ) {
+        printf("T1\n");
         // FPGAs can sometimes only receive multiples of a set number of samples
         size_t actual_nsamps_to_send = (((cached_nsamps + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
         size_t nsamps_to_cache = nsamps_to_send - actual_nsamps_to_send;
@@ -140,6 +143,14 @@ public:
         // Expands size of buffers used to store data to be sent
         expand_send_buffer_info(num_packets);
 
+        if(metadata_.start_of_burst) {
+            for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+                ch_send_buffer_info_i.buffer_level_manager.set_start_of_burst_time(metadata_.time_spec);
+            }
+        }
+
+        printf("T10\n");
+
         for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
             packet_header_infos[n].has_sid = false;
@@ -147,7 +158,7 @@ public:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
-            packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _samp_rate)).to_ticks(_tick_rate);
+            packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
             packet_header_infos[n].eob     = false;
@@ -156,6 +167,8 @@ public:
             packet_header_infos[n].num_payload_bytes = _MAX_SAMPLE_BYTES_PER_PACKET;
             packet_header_infos[n].num_payload_words32 = (_MAX_SAMPLE_BYTES_PER_PACKET + 3/*round up*/)/sizeof(uint32_t);
         }
+
+        printf("T20\n");
 
         //Set payload size info for last packet
         packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
@@ -234,6 +247,8 @@ public:
             }
         }
 
+        printf("T60\n");
+
         size_t channels_serviced = 0;
         std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
@@ -271,7 +286,7 @@ public:
                     // Update counter for number of samples sent this send
                     samples_sent_per_ch[ch_i] += nsamps_sent;
                     // Update buffer level count
-                    _props.at(ch_i).update_fc_send_count(nsamps_sent);
+                    ch_send_buffer_info_group[ch_i].buffer_level_manager.update(nsamps_sent);
                 }
             }
         }
@@ -286,7 +301,15 @@ public:
         size_t samples_sent = samples_sent_per_ch[0] + nsamps_to_cache;
         cached_nsamps = nsamps_to_cache;
 
+        printf("T200\n");
         return samples_sent;
+    }
+
+    void set_samp_rate(const double rate) {
+        _sample_rate = rate;
+        for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+            ch_send_buffer_info_i.buffer_level_manager.set_sample_rate(rate);
+        }
     }
     
 protected:
@@ -296,7 +319,6 @@ protected:
 
     // Gets the the time on the unit when a packet sent now would arrive
     virtual uhd::time_spec_t get_time_now() = 0;
-    virtual int64_t get_fc_buffer_level(const size_t chan, const uhd::time_spec_t & now) = 0;
 
     /*******************************************************************
      * converts vrt packet info into header
@@ -325,6 +347,8 @@ private:
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
     size_t cached_nsamps;
 
+    double _sample_rate = 0;
+
     // Header info for each packet, the VITA (not UDP) header is the same for every channel
     std::vector<vrt::if_packet_info_t> packet_header_infos;
 
@@ -347,15 +371,19 @@ private:
         // Stores where the samples start for each packet
         std::vector<const void*> sample_data_start_for_packet;
 
+        // Calculates the predicted buffer level
+        buffer_tracker buffer_level_manager;
+
         /*!
         * Make a new ch_send_buffer_info
         * \param size number of packets that can be handled at once
         * \param vrt_header_size size of the vrt header
         * \param cache_size number of bytes in the sample cache
         */
-        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, size_t cache_size)
+        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate)
         : _vrt_header_size(vrt_header_size),
-        sample_cache(std::vector<int8_t>(cache_size))
+        sample_cache(std::vector<int8_t>(cache_size)),
+        buffer_level_manager(device_target_nsamps, rate)
         {
             resize_and_clear(size);
         }
@@ -396,8 +424,7 @@ private:
 
             // Get the buffer level on the unit
             uhd::time_spec_t device_time = get_time_now();
-            // TODO create new atomic flow control system
-            int64_t buffer_level =get_fc_buffer_level(ch_i, device_time);
+            int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
 
             return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
 
