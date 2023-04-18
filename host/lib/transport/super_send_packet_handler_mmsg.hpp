@@ -352,6 +352,9 @@ private:
     // Header info for each packet, the VITA (not UDP) header is the same for every channel
     std::vector<vrt::if_packet_info_t> packet_header_infos;
 
+    // The start time of the next batch of samples in ticks
+    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+
     //TODO move all the vectors with channel specific info here
     // Stores information about packets to send for each channel
     // Sizes of the various buffers used in send
