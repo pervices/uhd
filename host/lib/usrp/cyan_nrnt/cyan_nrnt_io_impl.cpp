@@ -203,9 +203,6 @@ public:
         return _max_num_samps;
     }
 
-    // The start time of the next batch of samples in ticks
-    uhd::time_spec_t next_send_time;
-
     size_t send(
         const tx_streamer::buffs_type &buffs,
         const size_t nsamps_per_buff,
@@ -233,13 +230,7 @@ public:
         
         _first_call_to_send = false;
 
-        // XXX: @CF: 20180320: Our strategy of predictive flow control is not 100% compatible with
-        // the UHD API. As such, we need to bury this variable in order to pass it to check_fc_condition.
-        // std::cout<<"nsamps_per_buff: " << nsamps_per_buff <<" Max samps: "<<_max_num_samps<< std::endl;
-
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
-
-        now = get_time_now();
 
         start_packet_streamer_thread();
 
@@ -257,8 +248,6 @@ public:
         }
 
         r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, 0.00);
-        
-        next_send_time = metadata.time_spec + time_spec_t::from_ticks(r, _samp_rate);
         
         return r;
     }
@@ -342,12 +331,6 @@ public:
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
 		sph::send_packet_handler::resize(size);
-    }
-
-    // Eventually should just be able to rely on send_packet_handler_mmsg set rate
-    void set_samp_rate(const double rate){
-        sph::send_packet_handler_mmsg::set_samp_rate( rate );
-        _samp_rate = rate;
     }
 
     //create a new viking thread for each zc if (skryke!!)
