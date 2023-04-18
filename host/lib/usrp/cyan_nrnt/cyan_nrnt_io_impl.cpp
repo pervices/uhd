@@ -352,14 +352,7 @@ public:
     // Eventually should just be able to rely on send_packet_handler_mmsg set rate
     void set_samp_rate(const double rate){
         sph::send_packet_handler_mmsg::set_samp_rate( rate );
-        sph::send_packet_handler::set_samp_rate( rate );
         _samp_rate = rate;
-        uhd::time_spec_t now = get_time_now();
-        for( auto & ep: _eprops ) {
-            if ( nullptr != ep.flow_control.get() ) {
-                ep.flow_control->set_sample_rate( now, rate );
-            }
-        }
     }
 
     //create a new viking thread for each zc if (skryke!!)
