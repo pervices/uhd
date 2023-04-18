@@ -158,7 +158,13 @@ public:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
-            packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
+            if(metadata_.has_time_spec) {
+                // Sets the timestamp based on what's specified by the user
+                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
+            } else {
+                // Sets the timestamp to follow from the previous send
+                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
+            }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
             packet_header_infos[n].eob     = false;
@@ -302,6 +308,15 @@ public:
         cached_nsamps = nsamps_to_cache;
 
         printf("T200\n");
+
+        // Updates the next timestamp to follow from the end of this send
+        if(metadata_.has_time_spec) {
+            next_send_time = metadata_.time_spec + time_spec_t::from_ticks(samples_sent, _sample_rate);
+        } else {
+            next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
+        }
+
+        printf("T210\n");
         return samples_sent;
     }
 
@@ -353,6 +368,7 @@ private:
     std::vector<vrt::if_packet_info_t> packet_header_infos;
 
     // The start time of the next batch of samples in ticks
+    // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
     uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
 
     //TODO move all the vectors with channel specific info here

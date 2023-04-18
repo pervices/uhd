@@ -229,11 +229,6 @@ public:
                 metadata.start_of_burst = true;
                 metadata.time_spec = now + default_sob;
             }
-        } else {
-            if ( ! metadata.has_time_spec ) {
-                metadata.has_time_spec = true;
-                metadata.time_spec = next_send_time;
-            }
         }
         
         _first_call_to_send = false;
