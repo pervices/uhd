@@ -23,20 +23,11 @@ void buffer_tracker::set_start_of_burst_time( const uhd::time_spec_t & sob ) {
 int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
     if(start_of_burst_pending(now)) {
         // TODO: make sure the proper behaviour is kept while overflowing int64_t
-        printf("T80\n");
         return (int64_t)(total_samples_sent + buffer_level_bias);
     } else {
-        printf("T100\n");
         uhd::time_spec_t time_streaming = now - sob_time;
         uint64_t samples_consumed = (time_streaming.get_full_secs() * nominal_sample_rate) + (uint64_t) (time_streaming.get_frac_secs() * nominal_sample_rate);
         int64_t predicted_buffer_level = int64_t(total_samples_sent - samples_consumed);
-        printf("time_streaming.get_frac_secs(): %lf\n", time_streaming.get_frac_secs());
-        printf("nominal_sample_rate: %lf\n", nominal_sample_rate);
-        printf("time_streaming.get_real_secs(): %lf\n", time_streaming.get_real_secs());
-        printf("(time_streaming.get_frac_secs() * nominal_sample_rate): %lf\n", (time_streaming.get_frac_secs() * nominal_sample_rate));
-        printf("samples_consumed: %lu\n", samples_consumed);
-        printf("total_samples_sent: %lu\n", total_samples_sent);
-        printf("predicted_buffer_level: %li\n", predicted_buffer_level);
         return predicted_buffer_level + buffer_level_bias;
     }
 }
