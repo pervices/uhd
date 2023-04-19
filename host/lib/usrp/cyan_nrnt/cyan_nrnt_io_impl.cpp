@@ -168,7 +168,7 @@ public:
 
 	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE ),
 		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_max_num_samps( max_num_samps ),
@@ -673,7 +673,6 @@ void cyan_nrnt_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_NRNT_TICK_RATE );
 }
 
 void cyan_nrnt_impl::update_rates(void){

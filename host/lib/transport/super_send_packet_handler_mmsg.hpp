@@ -57,11 +57,12 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate)
         : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
         _channels(channels),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
-        _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple)
+        _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
+        _TICK_RATE(tick_rate)
     {
         ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
 
@@ -156,10 +157,10 @@ public:
             packet_header_infos[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
-                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
+                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
             } else {
                 // Sets the timestamp to follow from the previous send
-                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
+                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
             }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
@@ -352,6 +353,8 @@ private:
 
     // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
     const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
+
+    const double _TICK_RATE;
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
     size_t cached_nsamps;
 
@@ -451,8 +454,8 @@ private:
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate)
     {
     }
 
