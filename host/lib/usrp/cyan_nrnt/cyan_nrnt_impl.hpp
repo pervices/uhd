@@ -32,6 +32,7 @@
 #include "cyan_nrnt_iface.hpp"
 #include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
+#include <uhd/transport/bounded_buffer.hpp>
 
 #define NUMBER_OF_XG_CONTROL_INTF 4
 
@@ -95,6 +96,8 @@ public:
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);
     virtual uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 
+    bool recv_async_msg_deprecated_warning = false;
+    std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> _async_msg_fifo;
     bool recv_async_msg(uhd::async_metadata_t &, double);
 
     uhd::device_addr_t device_addr;
@@ -250,7 +253,6 @@ private:
     };
     uhd::dict<std::string, mb_container_type> _mbc;
 
-    UHD_PIMPL_DECL(cyan_nrnt_io_impl) _cyan_nrnt_io_impl;
     void io_init(void);
     //void update_tick_rate(const double rate);
     void update_rx_samp_rate(const std::string & mb, const size_t chan, const double rate);

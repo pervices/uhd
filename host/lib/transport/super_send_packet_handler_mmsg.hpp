@@ -57,9 +57,9 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo)
         : _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
-        async_msg_fifo(1000/*messages deep*/),
+        _async_msg_fifo(async_msg_fifo),
         _channels(channels),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
@@ -345,7 +345,7 @@ protected:
     size_t _NUM_CHANNELS;
 
     // Buffer containing asynchronous messages related to underflows/overflows
-    bounded_buffer<async_metadata_t> async_msg_fifo;
+    const std::shared_ptr<bounded_buffer<async_metadata_t>> _async_msg_fifo;
 
     // Gets the the time on the unit when a packet sent now would arrive
     virtual uhd::time_spec_t get_time_now() = 0;
@@ -475,8 +475,8 @@ private:
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo)
     {
     }
 
@@ -493,12 +493,12 @@ public:
         uhd::async_metadata_t &async_metadata, double timeout = 0.1
     ){
         boost::this_thread::disable_interruption di; //disable because the wait can throw
-        return async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
+        return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
     }
 
     // Asynchronously send messages notifying of overflow/underflows
     bool push_async_msg( uhd::async_metadata_t &async_metadata ){
-		return async_msg_fifo.push_with_pop_on_full(async_metadata);
+		return _async_msg_fifo->push_with_pop_on_full(async_metadata);
     }
 };
 

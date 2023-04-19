@@ -158,16 +158,15 @@ public:
 	typedef std::function<void(void)> onfini_type;
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
-	typedef std::function<bool(async_metadata_t&)> async_pusher_type;
 
     bool use_blocking_fc = false;
     uint64_t blocking_setpoint;
     // Maximum buffer level in nsamps. Named this way to avoid confusion with the same variable belonging to different stuff
     int64_t stream_max_bl;
 
-	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps)
+	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo ),
 		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
 		_streaming( false ),
@@ -291,11 +290,9 @@ protected:
 
 private:
 	bool _first_call_to_send;
-    size_t _max_num_samps;
     bool _streaming;
     bool _stop_streaming;
     std::thread _buffer_monitor_thread;
-    async_pusher_type async_pusher;
     timenow_type _time_now;
 
     // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
@@ -417,33 +414,9 @@ static void shutdown_lingering_tx_streamers() {
 static const size_t vrt_send_header_offset_words32 = 0;
 
 /***********************************************************************
- * io impl details (internal to this file)
- * - alignment buffer
- **********************************************************************/
-struct cyan_nrnt_impl::cyan_nrnt_io_impl{
-
-    cyan_nrnt_io_impl(void):
-        async_msg_fifo(1000/*messages deep*/)
-    {
-        /* NOP */
-    }
-
-    ~cyan_nrnt_io_impl(void){
-    }
-
-    //methods and variables for the viking scourge
-    bounded_buffer<async_metadata_t> async_msg_fifo;
-
-    // TODO: @CF: 20180301: move time diff code into cyan_nrnt_io_impl
-};
-
-/***********************************************************************
  * Helper Functions
  **********************************************************************/
 void cyan_nrnt_impl::io_init(void){
-
-	// TODO: @CF: 20180301: move time diff code into cyan_nrnt_io_impl
-	_cyan_nrnt_io_impl = UHD_PIMPL_MAKE(cyan_nrnt_io_impl, ());
 
     //allocate streamer weak ptrs containers
     for (const std::string &mb : _mbc.keys()) {
@@ -545,11 +518,16 @@ static void tx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path
 /***********************************************************************
  * Async Data
  **********************************************************************/
+// Deprecated, use streamer message instead
 bool cyan_nrnt_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
+    if(!recv_async_msg_deprecated_warning) {
+        std::cout << "device recv_async_msg function is deprecated. Stream to tx_streamer.recv_async_msg\n";
+        recv_async_msg_deprecated_warning = true;
+    }
     boost::this_thread::disable_interruption di; //disable because the wait can throw
-    return _cyan_nrnt_io_impl->async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
+    return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
 }
 
 /***********************************************************************
@@ -861,7 +839,12 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
     }
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level));
+    // Each streamer has its own FIFO buffer that can operate independantly
+    // However there is a deprecated function in device for reading async message
+    // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
+    _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
+
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

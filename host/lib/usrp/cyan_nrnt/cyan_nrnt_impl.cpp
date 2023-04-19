@@ -1342,7 +1342,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(rx_link_path / "jesd_num",   "rx_"+lc_num+"/link/jesd_num",   int, int);
 
 		zero_copy_xport_params zcxp;
-		udp_zero_copy::buff_params bp;
 
 	    static const size_t ip_udp_size = 0
 	    	+ 60 // IPv4 Header
@@ -1489,7 +1488,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 
 
 		zero_copy_xport_params zcxp;
-		udp_zero_copy::buff_params bp;
 
 	    static const size_t ip_udp_size = 0
 	    	+ 60 // IPv4 Header
