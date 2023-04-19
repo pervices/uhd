@@ -185,7 +185,7 @@ public:
 	}
 
 	void teardown() {
-		stop_streaming();
+		stop_buffer_monitor_thread();
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -232,22 +232,13 @@ public:
 
         _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
-        start_packet_streamer_thread();
-
-        if ( 0 == nsamps_per_buff && metadata.end_of_burst ) {
-            #ifdef UHD_TXRX_DEBUG_PRINTS
-            std::cout << "UHD::" CYAN_NRNT_DEBUG_NAME_C "::Info: " << now << ": " << "eob @ " << now << " | " << now.to_ticks( CYAN_NRNT_TICK_RATE ) << std::endl;
-            #endif
-
-            async_metadata_t am;
-            am.has_time_spec = true;
-            am.time_spec = now;
-            am.event_code = async_metadata_t::EVENT_CODE_BURST_ACK;
-
-            stop_streaming();
-        }
+        start_buffer_monitor_thread();
 
         r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, 0.00);
+
+        if ( metadata.end_of_burst ) {
+            stop_buffer_monitor_thread();
+        }
         
         return r;
     }
@@ -301,34 +292,22 @@ public:
 		sph::send_packet_handler::resize(size);
     }
 
-    //create a new viking thread for each zc if (skryke!!)
-    //starts the tx packet streamer, I think. This section all has viking names so I might be wrong and it might be rx
-	void start_packet_streamer_thread() {
-		// probably should also (re)start the "bm thread", which currently just manages time diff
-		std::lock_guard<std::mutex> lck( _mutex );
+    // Starts buffer monitor thread if it is not already running
+	inline void start_buffer_monitor_thread() {
 		if ( ! _streaming ) {
 			_stop_streaming = false;
 
-            // Assuming pillage is called for each send(), and thus each stacked command,
-            // the buffer level must be set to zero else flow control will crash since it thinks
-            // the transfer buffer is already primed.
-            for( auto & ep: _eprops ) {
-                ep.flow_control->set_buffer_level(0, get_time_now());
-            }
-
 			//spawn a new viking to raid the send hoardes
-			_streamer_thread = std::thread( cyan_nrnt_send_packet_streamer::send_viking_loop, this );
+			_buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::send_viking_loop, this );
 			_streaming = true;
 		}
 	}
 
-	void stop_streaming() {
-		// probably should also stop the "bm thread", which currently just manages time diff
-		std::lock_guard<std::mutex> lock( _mutex );
+	void stop_buffer_monitor_thread() {
 		if ( _streaming ) {
 			_stop_streaming = true;
-			if ( _streamer_thread.joinable() ) {
-				_streamer_thread.join();
+			if ( _buffer_monitor_thread.joinable() ) {
+				_buffer_monitor_thread.join();
 				_streaming = false;
 			}
 		}
@@ -346,7 +325,7 @@ private:
     double _samp_rate;
     bool _streaming;
     bool _stop_streaming;
-    std::thread _streamer_thread;
+    std::thread _buffer_monitor_thread;
     async_pusher_type async_pusher;
     timenow_type _time_now;
     std::mutex _mutex;
@@ -1161,7 +1140,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
 	}
-    //my_streamer->start_packet_streamer_thread();
 
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );
