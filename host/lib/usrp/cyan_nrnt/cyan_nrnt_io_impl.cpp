@@ -234,7 +234,7 @@ public:
 
         start_buffer_monitor_thread();
 
-        r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, 0.00);
+        r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
         if ( metadata.end_of_burst ) {
             stop_buffer_monitor_thread();

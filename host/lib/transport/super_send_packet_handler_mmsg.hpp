@@ -248,10 +248,23 @@ public:
             }
         }
 
+        // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
+        struct timespec send_start_time;
+        clock_gettime(CLOCK_MONOTONIC_COARSE, &send_start_time);
+        int64_t send_timeout_time_ns = (send_start_time.tv_sec * 1000000000) + send_start_time.tv_nsec + (int64_t)(timeout * 1000000000);
+
         size_t channels_serviced = 0;
         std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
         while(channels_serviced < _NUM_CHANNELS) {
+            //Checks for timeout
+            struct timespec current_time;
+            clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+            int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
+            if(current_time_ns > send_timeout_time_ns) {
+                break;
+            }
+
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
 
@@ -296,8 +309,12 @@ public:
                 memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), sample_buffs[ch_i] + (nsamps_to_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
             }
         }
-        // Copies excess samples to the cache. Also reports that samples in the cache as sent
-        size_t samples_sent = samples_sent_per_ch[0] + nsamps_to_cache;
+        // Acts as though the channel with the most samples sent had samples sent
+        size_t samples_sent = samples_sent_per_ch[0];
+        for(size_t ch_i = 1; ch_i < _NUM_CHANNELS; ch_i++) {
+            samples_sent = std::min(samples_sent_per_ch[ch_i], samples_sent);
+        }
+        samples_sent+= nsamps_to_cache;
         cached_nsamps = nsamps_to_cache;
 
         // Updates the next timestamp to follow from the end of this send
