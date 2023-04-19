@@ -255,9 +255,6 @@ public:
     void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
 		_eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
     }
-    void set_async_pusher( async_pusher_type pusher ) {
-		async_pusher = pusher;
-    }
     void set_channel_name( size_t chan, std::string name ) {
         _eprops.at(chan).name = name;
     }
@@ -269,7 +266,6 @@ public:
 			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_NRNT_BUFF_PERCENT, stream_max_bl );
 			ep.flow_control->set_buffer_level( 0, get_time_now() );
 		}
-		sph::send_packet_handler::resize(size);
     }
 
     // Starts buffer monitor thread if it is not already running
@@ -326,12 +322,6 @@ private:
         {}
     };
     std::vector<eprops_type> _eprops;
-
-    void push_async_msg( uhd::async_metadata_t &async_metadata ){
-		if ( async_pusher ) {
-			async_pusher( async_metadata );
-		}
-    }
 
     /***********************************************************************
      * buffer_monitor_loop
@@ -885,20 +875,21 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     my_streamer->set_time_now_function(std::bind(&cyan_nrnt_impl::get_time_now,this));
 
-    //set the converter
-    uhd::convert::id_type id;
-    id.input_format = args.cpu_format;
-    id.num_inputs = 1;
-    id.output_format = args.otw_format + "_item32_be";
-    id.num_outputs = 1;
-    my_streamer->set_converter(id);
-
-    if ( false ) {
-    } else if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( (double)((1<<(otw_tx-1))-1) );
-    } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( otw_tx / 16.0 );
-    }
+    // TODO: implement conversion for other CPU formats
+//     //set the converter
+//     uhd::convert::id_type id;
+//     id.input_format = args.cpu_format;
+//     id.num_inputs = 1;
+//     id.output_format = args.otw_format + "_item32_be";
+//     id.num_outputs = 1;
+//     my_streamer->set_converter(id);
+//
+//     if ( false ) {
+//     } else if ( "fc32" == args.cpu_format ) {
+//         my_streamer->set_scale_factor( (double)((1<<(otw_tx-1))-1) );
+//     } else if ( "sc16" == args.cpu_format ) {
+//         my_streamer->set_scale_factor( otw_tx / 16.0 );
+//     }
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -915,10 +906,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
                     &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
-
-                my_streamer->set_async_receiver(std::bind(&bounded_buffer<async_metadata_t>::pop_with_timed_wait, &(_cyan_nrnt_io_impl->async_msg_fifo), ph::_1, ph::_2));
-
-                my_streamer->set_async_pusher(std::bind(&bounded_buffer<async_metadata_t>::push_with_pop_on_full, &(_cyan_nrnt_io_impl->async_msg_fifo), ph::_1));
 
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
                 break;

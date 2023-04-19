@@ -31,6 +31,7 @@
 #include <cmath>
 
 #include <uhd/transport/buffer_tracker.hpp>
+#include <uhd/transport/bounded_buffer.hpp>
 
 namespace uhd {
 namespace transport {
@@ -44,7 +45,7 @@ namespace sph {
  * All channels are sent in unison in send().
  **********************************************************************/
 
-class send_packet_handler_mmsg : public send_packet_handler
+class send_packet_handler_mmsg
 {
 // Declare constants first so they are initialized before constructor
 private:
@@ -57,8 +58,8 @@ public:
      * \param buffer_size size of the buffer on the unit
      */
     send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate)
-        : send_packet_handler(device_buffer_size),
-        _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
+        : _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
+        async_msg_fifo(1000/*messages deep*/),
         _channels(channels),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
@@ -343,6 +344,9 @@ protected:
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
     size_t _NUM_CHANNELS;
 
+    // Buffer containing asynchronous messages related to underflows/overflows
+    bounded_buffer<async_metadata_t> async_msg_fifo;
+
     // Gets the the time on the unit when a packet sent now would arrive
     virtual uhd::time_spec_t get_time_now() = 0;
 
@@ -483,21 +487,18 @@ public:
     size_t get_max_num_samps(void) const{
         return _max_samples_per_packet;
     }
-
-    size_t send(
-        const tx_streamer::buffs_type &buffs,
-        const size_t nsamps_per_buff,
-        const uhd::tx_metadata_t &metadata,
-        const double timeout
-    ){
-        return send_packet_handler::send(buffs, nsamps_per_buff, metadata, timeout);
-    }
     
-    //TODO; figure out what this async message is (probably getting buffer level)
+    // Asynchronously receive messages notifying of overflow/underflows
     bool recv_async_msg(
         uhd::async_metadata_t &async_metadata, double timeout = 0.1
     ){
-        return send_packet_handler_mmsg::recv_async_msg(async_metadata, timeout);
+        boost::this_thread::disable_interruption di; //disable because the wait can throw
+        return async_msg_fifo.pop_with_timed_wait(async_metadata, timeout);
+    }
+
+    // Asynchronously send messages notifying of overflow/underflows
+    bool push_async_msg( uhd::async_metadata_t &async_metadata ){
+		return async_msg_fifo.push_with_pop_on_full(async_metadata);
     }
 };
 
