@@ -157,7 +157,6 @@ public:
 
 	typedef std::function<void(void)> onfini_type;
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
-	typedef std::function<void(double&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 	typedef std::function<bool(async_metadata_t&)> async_pusher_type;
 
@@ -247,17 +246,11 @@ public:
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
-    void set_time_now( timenow_type time_now ) {
+    void set_time_now_function( timenow_type time_now ) {
         _time_now = time_now;
     }
     uhd::time_spec_t get_time_now() {
         return _time_now ? _time_now() : get_system_time();
-    }
-    void set_xport_chan( size_t chan, uhd::transport::zero_copy_if::sptr xport ) {
-		_eprops.at(chan).xport_chan = xport;
-    }
-    void set_xport_chan_fifo_lvl( size_t chan, xport_chan_fifo_lvl_type get_fifo_lvl ) {
-		_eprops.at(chan).xport_chan_fifo_lvl = get_fifo_lvl;
     }
     void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
 		_eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
@@ -318,7 +311,6 @@ private:
     struct eprops_type{
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
-		xport_chan_fifo_lvl_type xport_chan_fifo_lvl;
         xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
 		uhd::flow_control::sptr flow_control;
 		uint64_t oflow;
@@ -328,7 +320,6 @@ private:
         eprops_type( const eprops_type & other )
         :
             xport_chan( other.xport_chan ),
-            xport_chan_fifo_lvl( other.xport_chan_fifo_lvl ),
             flow_control( other.flow_control ),
             oflow( other.oflow ),
             uflow( other.uflow )
@@ -358,10 +349,10 @@ private:
 
 				eprops_type & ep = self->_eprops[ i ];
 
-				xport_chan_fifo_lvl_type get_fifo_level;
+				xport_chan_fifo_lvl_abs_type get_fifo_level;
 				uhd::flow_control::sptr fc;
 
-				get_fifo_level = ep.xport_chan_fifo_lvl;
+				get_fifo_level = ep.xport_chan_fifo_lvl_abs;
 				fc = ep.flow_control;
 
 				if ( !( get_fifo_level && fc.get() ) ) {
@@ -382,15 +373,13 @@ private:
 					return;
 				}
 
+				size_t level;
                 //gets buffer level
 				try {
-					get_fifo_level( level_pcnt, uflow, oflow, then );
+					get_fifo_level( level, uflow, oflow, then );
 				} catch( ... ) {
                     continue;
                 }
-
-
-				size_t level = level_pcnt * max_level;
 
                 self->update_buffer_level(i, level, then);
 
@@ -879,12 +868,6 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 #endif
 }
 
-static void get_fifo_lvl_udp( const size_t channel, const int64_t max_bl, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, double & pcnt, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
-    uint64_t lvl = 0;
-    get_fifo_lvl_udp_abs( channel, bl_multiple, xport, lvl, uflow, oflow, now);
-    pcnt = (double) lvl / max_bl;
-}
-
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
@@ -924,7 +907,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
 
-    my_streamer->set_time_now(std::bind(&cyan_nrnt_impl::get_time_now,this));
+    my_streamer->set_time_now_function(std::bind(&cyan_nrnt_impl::get_time_now,this));
 
     //set the converter
     uhd::convert::id_type id;
@@ -952,13 +935,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
                 my_streamer->set_on_fini(chan_i, std::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
-
-                std::weak_ptr<uhd::tx_streamer> my_streamerp = my_streamer;
-                
-
-                my_streamer->set_xport_chan_fifo_lvl(chan_i, std::bind(
-                    &get_fifo_lvl_udp, chan, max_buffer_level, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
-                ));
 
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
                     &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
