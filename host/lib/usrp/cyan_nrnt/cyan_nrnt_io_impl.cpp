@@ -357,13 +357,10 @@ private:
 					continue;
 				}
 
-				uhd::time_spec_t now, then;
-				double level_pcnt;
+				uhd::time_spec_t then;
 				uint64_t uflow;
 				uint64_t oflow;
 				async_metadata_t metadata;
-
-                now = self->get_time_now();
 
                 if ( self->_stop_streaming ) {
 					return;
@@ -586,13 +583,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
 
-    //calculate packet size
-    static const size_t hdr_size = 0
-        + vrt::max_if_hdr_words32*sizeof(uint32_t)
-        + sizeof(vrt::if_packet_info_t().tlr) //forced to have trailer
-        - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
-        - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
-    ;
 
     std::vector<std::string> dst_ip(args.channels.size());
     for(size_t n = 0; n < dst_ip.size(); n++) {
@@ -657,7 +647,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         for (const std::string &mb : _mbc.keys()) {
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
-                const size_t dsp = chan + _mbc[mb].rx_chan_occ - num_chan_so_far;
                 std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
                 /* XXX: @CF: 20180321: This causes QA to issue 'd' and then 'o' and fail.
                  * Shouldn't _really_ need it here, but it was originally here to shut down
@@ -874,15 +863,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     if (args.otw_format != otw_tx_s){
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
     }
-
-    //calculate packet size
-    static const size_t hdr_size = 0
-        + vrt_send_header_offset_words32*sizeof(uint32_t)
-        + vrt::max_if_hdr_words32*sizeof(uint32_t)
-        - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
-        - sizeof(vrt::if_packet_info_t().sid) //no stream id ever used
-        - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
-        ;
 
     const size_t spp = CYAN_NRNT_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
 
