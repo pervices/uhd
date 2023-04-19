@@ -30,7 +30,6 @@
 #include "uhd/transport/udp_zero_copy.hpp"
 
 #include "cyan_nrnt_iface.hpp"
-#include "../../transport/flow_control.hpp"
 #include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
 

@@ -261,11 +261,6 @@ public:
 
     void resize(const size_t size){
 		_eprops.resize( size );
-		for( auto & ep: _eprops ) {
-            // the nominal sample rate (first argument of make) is set later)
-			ep.flow_control = uhd::flow_control_nonlinear::make( 1.0, CYAN_NRNT_BUFF_PERCENT, stream_max_bl );
-			ep.flow_control->set_buffer_level( 0, get_time_now() );
-		}
     }
 
     // Starts buffer monitor thread if it is not already running
@@ -308,7 +303,6 @@ private:
 		onfini_type on_fini;
 		uhd::transport::zero_copy_if::sptr xport_chan;
         xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
-		uhd::flow_control::sptr flow_control;
 		uint64_t oflow;
 		uint64_t uflow;
         std::string name;
@@ -316,7 +310,6 @@ private:
         eprops_type( const eprops_type & other )
         :
             xport_chan( other.xport_chan ),
-            flow_control( other.flow_control ),
             oflow( other.oflow ),
             uflow( other.uflow )
         {}

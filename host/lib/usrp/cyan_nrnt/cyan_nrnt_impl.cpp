@@ -34,7 +34,6 @@
 #include "uhd/utils/static.hpp"
 
 #include "../../transport/super_recv_packet_handler_mmsg.hpp"
-#include "../../transport/super_send_packet_handler.hpp"
 
 #include <uhdlib/transport/udp_common.hpp>
 
