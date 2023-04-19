@@ -171,9 +171,6 @@ public:
 		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE ),
 		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
-		_max_num_samps( max_num_samps ),
-		_actual_num_samps( max_num_samps ),
-		_samp_rate( 1.0 ),
 		_streaming( false ),
 		_stop_streaming( false )
 
@@ -194,14 +191,6 @@ public:
 		}
 		_eprops.clear();
 	}
-
-    size_t get_num_channels(void) const{
-        return this->size();
-    }
-
-    size_t get_max_num_samps(void) const{
-        return _max_num_samps;
-    }
 
     size_t send(
         const tx_streamer::buffs_type &buffs,
@@ -229,8 +218,6 @@ public:
         }
         
         _first_call_to_send = false;
-
-        _actual_num_samps = nsamps_per_buff > _max_num_samps ? _max_num_samps : nsamps_per_buff;
 
         start_buffer_monitor_thread();
 
@@ -321,14 +308,11 @@ protected:
 private:
 	bool _first_call_to_send;
     size_t _max_num_samps;
-    size_t _actual_num_samps;
-    double _samp_rate;
     bool _streaming;
     bool _stop_streaming;
     std::thread _buffer_monitor_thread;
     async_pusher_type async_pusher;
     timenow_type _time_now;
-    std::mutex _mutex;
 
     // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
     struct eprops_type{
@@ -339,8 +323,6 @@ private:
 		uhd::flow_control::sptr flow_control;
 		uint64_t oflow;
 		uint64_t uflow;
-        size_t _remaining_num_samps;
-        std::mutex buffer_mutex;
         std::string name;
         eprops_type() : oflow( -1 ), uflow( -1 ) {}
         eprops_type( const eprops_type & other )
