@@ -297,8 +297,8 @@ public:
 		if ( ! _streaming ) {
 			_stop_streaming = false;
 
-			//spawn a new viking to raid the send hoardes
-			_buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::send_viking_loop, this );
+			//spawn a thread to monitor the buffer level
+			_buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
 			_streaming = true;
 		}
 	}
@@ -451,16 +451,12 @@ private:
     }
 
     /***********************************************************************
-     * Send Viking Loop
-     * - while pillaging, raid for message packet
+     * buffer_monitor_loop
      * - update buffer levels
      * - update over / underflow counters
      * - put async message packets into queue
      **********************************************************************/
-	static void send_viking_loop( cyan_nrnt_send_packet_streamer *self ) {
-		// pillage! plunder! (S)he who peaks at the buffer levels, will find her or his way to Valhalla!
-
-		// std::cout << __func__ << "(): beginning viking loop for tx streamer @ " << (void *) self << std::endl;
+	static void buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self ) {
 
 		for( ; ! self->_stop_streaming; ) {
 
@@ -490,19 +486,21 @@ private:
 
                 now = self->get_time_now();
 
+                if ( self->_stop_streaming ) {
+					return;
+				}
+
+                //gets buffer level
 				try {
 					get_fifo_level( level_pcnt, uflow, oflow, then );
 				} catch( ... ) {
                     continue;
                 }
 
-				if ( self->_stop_streaming ) {
-					break;
-				}
 
 				size_t level = level_pcnt * max_level;
 
-                self->update_buffer_level(i, level, now);
+                self->update_buffer_level(i, level, then);
 
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
