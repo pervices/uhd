@@ -350,12 +350,10 @@ private:
 				eprops_type & ep = self->_eprops[ i ];
 
 				xport_chan_fifo_lvl_abs_type get_fifo_level;
-				uhd::flow_control::sptr fc;
 
 				get_fifo_level = ep.xport_chan_fifo_lvl_abs;
-				fc = ep.flow_control;
 
-				if ( !( get_fifo_level && fc.get() ) ) {
+				if ( !( get_fifo_level) ) {
 					continue;
 				}
 
@@ -364,8 +362,6 @@ private:
 				uint64_t uflow;
 				uint64_t oflow;
 				async_metadata_t metadata;
-
-                size_t max_level = fc->get_buffer_size();
 
                 now = self->get_time_now();
 

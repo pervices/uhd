@@ -52,13 +52,13 @@ private:
     // Size of the vrt header in bytes
     const size_t HEADER_SIZE = 12;
 public:
-
     /*!
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
     send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate)
-        : send_packet_handler(device_buffer_size), _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
+        : send_packet_handler(device_buffer_size),
+        _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
         _channels(channels),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
