@@ -264,22 +264,6 @@ public:
         use_blocking_fc = false;
         blocking_setpoint = 0;
     }
-    
-    static managed_send_buffer::sptr get_send_buff( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, double timeout ){
-
-        std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
-            std::dynamic_pointer_cast<cyan_nrnt_send_packet_streamer>( tx_streamer.lock() );
-
-        if (my_streamer.get() == NULL) return managed_send_buffer::sptr();
-
-        //wait on flow control w/ timeout
-        //if (not my_streamer->check_fc_condition( chan, timeout) ) return managed_send_buffer::sptr();
-
-        //get a buffer from the transport w/ timeout
-        managed_send_buffer::sptr buff = my_streamer->_eprops.at( chan ).xport_chan->get_send_buff( timeout );
-
-        return buff;
-    }
 
     //TODO remove, system replaced/moved to packet_handler_mmsg"
     static void update_fc_send_count( std::weak_ptr<uhd::tx_streamer> tx_streamer, const size_t chan, size_t nsamps ){
@@ -1129,10 +1113,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 my_streamer->set_on_fini(chan_i, std::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
 
                 std::weak_ptr<uhd::tx_streamer> my_streamerp = my_streamer;
-
-                my_streamer->set_xport_chan_get_buff(chan_i, std::bind(
-                    &cyan_nrnt_send_packet_streamer::get_send_buff, my_streamerp, chan_i, ph::_1
-                ));
 
                 my_streamer->set_xport_chan_update_fc_send_size(chan_i, std::bind(
                     &cyan_nrnt_send_packet_streamer::update_fc_send_count, my_streamerp, chan_i, ph::_1
