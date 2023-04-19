@@ -359,19 +359,6 @@ private:
 			async_pusher( async_metadata );
 		}
     }
-
-    void check_fc_update( const size_t chan, size_t nsamps) {
-		_eprops.at( chan ).buffer_mutex.lock();
-        _eprops.at( chan ).flow_control->update( nsamps, get_time_now() );
-		_eprops.at( chan ).buffer_mutex.unlock();
-    }
-
-    int64_t get_fc_buffer_level(const size_t chan, const uhd::time_spec_t & now ) {
-        _eprops.at( chan ).buffer_mutex.lock();
-        int64_t buffer_level = _eprops.at( chan ).flow_control->get_buffer_level(now);
-        _eprops.at( chan ).buffer_mutex.unlock();
-        return buffer_level;
-    }
     
     // timeout must be small but non-zero, polling it at the max rate with result in something triggering,
     // which results in a 35ms pause every 1s
@@ -627,23 +614,13 @@ void cyan_nrnt_impl::update_rates(void){
         if(num_rx_channels > 0) {
             //and now that the tick rate is set, init the host rates to something
             for(const std::string &name : _tree->list(root / "rx_dsps")) {
-                // XXX: @CF: 20180301: on the server, we currently turn rx power (briefly) on any time that rx properties are set.
-                // if the current application does not require rx, then we should not enable it
-                // just checking for power is not a great way to do this, but it mostly works
-                if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
-                    _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
-                }
+            _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
             }
         }
 
         if(num_tx_channels > 0) {
             for(const std::string &name : _tree->list(root / "tx_dsps")) {
-                // XXX: @CF: 20180301: on the server, we currently turn tx power on any time that tx properties are set.
-                // if the current application does not require tx, then we should not enable it
-                // just checking for power is not a great way to do this, but it mostly works
-                if ( "1" == _tree->access<std::string>( root / "tx" / name / "pwr").get() ) {
-                    _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
-                }
+                _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
             }
         }
     }
@@ -1041,8 +1018,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
-    my_streamer->set_vrt_packer(&vrt::if_hdr_pack_be, vrt_send_header_offset_words32);
-    my_streamer->set_enable_trailer( false );
 
     my_streamer->set_time_now(std::bind(&cyan_nrnt_impl::get_time_now,this));
 
@@ -1094,7 +1069,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    // XXX: @CF: 20170228: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
@@ -1103,10 +1077,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         const fs_path tx_link_path  = mb_path / "tx_link" / chan;
 
 		// power on the channel
-        //_tree->access<std::string>(tx_path / ch / "pwr").set("0");
 		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
-		// XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-		//usleep( 500000 );
+
 		// vita enable
 		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
     }
@@ -1134,7 +1106,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
+    // Waits for time diff to converge
+    // TODO: add timeout and remove wait to converge (but keep starting converging) from main usrp make, since its only needed when using tx streamers
 	for( ;! time_diff_converged(); ) {
 		usleep( 10000 );
 	}
