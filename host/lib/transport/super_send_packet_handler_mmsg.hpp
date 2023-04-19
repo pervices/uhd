@@ -63,9 +63,7 @@ public:
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple)
     {
-        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            ch_send_buffer_info_group.push_back(ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
-        }
+        ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
 
         // Creates and binds to sockets
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -124,12 +122,12 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ) {
-        printf("T1\n");
         // FPGAs can sometimes only receive multiples of a set number of samples
         size_t actual_nsamps_to_send = (((cached_nsamps + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
         size_t nsamps_to_cache = nsamps_to_send - actual_nsamps_to_send;
 
         // TODO: implement handling for length 0 packets (SOB with no samples and EOB)
+        // TODO: reset buffer management when issuing EOB
         if(actual_nsamps_to_send == 0) {
             std::cout << "0 length packets not implemented yet" << std::endl;
             return 0;
@@ -149,8 +147,6 @@ public:
             }
         }
 
-        printf("T10\n");
-
         for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
             packet_header_infos[n].has_sid = false;
@@ -160,10 +156,10 @@ public:
             packet_header_infos[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
-                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
+                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
             } else {
                 // Sets the timestamp to follow from the previous send
-                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(num_packets * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
+                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_tick_rate);
             }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
@@ -173,8 +169,6 @@ public:
             packet_header_infos[n].num_payload_bytes = _MAX_SAMPLE_BYTES_PER_PACKET;
             packet_header_infos[n].num_payload_words32 = (_MAX_SAMPLE_BYTES_PER_PACKET + 3/*round up*/)/sizeof(uint32_t);
         }
-
-        printf("T20\n");
 
         //Set payload size info for last packet
         packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
@@ -253,8 +247,6 @@ public:
             }
         }
 
-        printf("T60\n");
-
         size_t channels_serviced = 0;
         std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
@@ -307,8 +299,6 @@ public:
         size_t samples_sent = samples_sent_per_ch[0] + nsamps_to_cache;
         cached_nsamps = nsamps_to_cache;
 
-        printf("T200\n");
-
         // Updates the next timestamp to follow from the end of this send
         if(metadata_.has_time_spec) {
             next_send_time = metadata_.time_spec + time_spec_t::from_ticks(samples_sent, _sample_rate);
@@ -316,7 +306,6 @@ public:
             next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
         }
 
-        printf("T210\n");
         return samples_sent;
     }
 
@@ -325,6 +314,10 @@ public:
         for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
             ch_send_buffer_info_i.buffer_level_manager.set_sample_rate(rate);
         }
+    }
+
+    void update_buffer_level(const uint64_t ch, const uint64_t level, const uhd::time_spec_t & now) {
+        ch_send_buffer_info_group[ch].buffer_level_manager.update_buffer_level_bias(level, now);
     }
     
 protected:
@@ -448,7 +441,7 @@ private:
             return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
 
         } else {
-            std::cerr << "Blocking fc now implemented yet" << std::endl;
+            std::cerr << "Blocking fc not implemented yet" << std::endl;
             return 0;
         }
     }

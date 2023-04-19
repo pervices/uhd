@@ -539,43 +539,24 @@ private:
 				uint64_t oflow;
 				async_metadata_t metadata;
 
-				size_t max_level = fc->get_buffer_size();
+                size_t max_level = fc->get_buffer_size();
+
+                now = self->get_time_now();
 
 				try {
 					get_fifo_level( level_pcnt, uflow, oflow, then );
 				} catch( ... ) {
-
-#ifdef DEBUG_FC
-				  std::printf("%10d\t", -1);
-#endif
-					continue;
-				}
+                    continue;
+                }
 
 				if ( self->_stop_streaming ) {
 					break;
 				}
 
-				now = self->get_time_now();
-
 				size_t level = level_pcnt * max_level;
-#ifdef BUFFER_DEBUG
-                std::cout << __func__ << ": max_level: " << max_level << std::endl;
-                std::cout << __func__ << ": level_pcnt: " << level_pcnt << std::endl;
-#endif
 
-				if ( ! fc->start_of_burst_pending( then ) ) {
-					level -= ( now - then ).get_real_secs() / self->_samp_rate;
-#ifdef BUFFER_DEBUG
-                    std::cout << __func__ << ": level: " << level << std::endl;
-#endif
-					fc->set_buffer_level( level, now );
-#ifdef DEBUG_FC
-				    std::printf("%10lu\t", level);
-#endif
-				}
-#ifdef DEBUG_FC
-				std::printf("%10ld\t", uflow);
-#endif
+                self->update_buffer_level(i, level, now);
+
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 					// async_metadata_t metadata;
@@ -589,9 +570,6 @@ private:
 				}
 				ep.uflow = uflow;
 
-#ifdef DEBUG_FC
-				std::printf("%10ld", oflow);
-#endif
 				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
 					// async_metadata_t metadata;
@@ -611,17 +589,8 @@ private:
 			const long long usloop = 1.0 / (double)CYAN_NRNT_UPDATE_PER_SEC * 1e6;
 			const long long usdelay = usloop - us;
 
-#ifdef DEBUG_FC
-			std::printf("%10lld %10lld %10lld\n", us, usloop, usdelay);
-#endif
-
-#ifdef UHD_TXRX_DEBUG_TIME
-			::usleep( 200000 );
-#else
 			::usleep( usdelay < 0 ? 0 : usdelay );
-#endif
 		}
-		//std::cout << __func__ << "(): ending viking loop for tx streamer @ " << (void *) self << std::endl;
 	}
 };
 

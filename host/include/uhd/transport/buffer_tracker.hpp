@@ -11,7 +11,7 @@ class buffer_tracker {
 public:
 
     // Target buffer level
-	const uint64_t nominal_buffer_level;
+	const int64_t nominal_buffer_level;
 
 	void set_sample_rate( const double rate );
 
@@ -20,13 +20,18 @@ public:
 
 	int64_t get_buffer_level( const uhd::time_spec_t & now );
 
-	void update_buffer_level_bias( const uint64_t level );
+	void update_buffer_level_bias( const int64_t level, const uhd::time_spec_t & now );
 
 	void update( const uint64_t nsamples_sent );
 
-	buffer_tracker( const uint64_t targer_buffer_level, const double rate );
+	buffer_tracker( const int64_t targer_buffer_level, const double rate );
+
+//     buffer_tracker& operator=(const buffer_tracker&) {
+//         return &buffer_tracker(nominal_buffer_level, nominal_sample_rate);
+//     }
 
 private:
+    bool sob_reset = false;
     double nominal_sample_rate = 0;
 
     // Total number of samples sent, will roll over
