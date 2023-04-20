@@ -1028,8 +1028,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
-    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", int, int);
-    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
+    // String is used because this is a 64 bit number and won't fit in int
+    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", std::string, string);
+    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", std::string, string);
     TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
