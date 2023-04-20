@@ -490,7 +490,7 @@ public:
     void set_time_unknown_pps(const time_spec_t& time_spec) override
     {
         // TMP, set_time_unknown_pps results in rx start time not being respected
-        set_time_now(time_spec, 0);
+        set_time_next_pps(time_spec, 0);
 //         UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
 //         auto end_time =
 //             std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
