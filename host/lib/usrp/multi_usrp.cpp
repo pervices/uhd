@@ -455,11 +455,14 @@ public:
         return _tree->access<std::string>(mb_root(mboard) / "name").get();
     }
 
+    // TODO see if this should get the current time instead
+    // Currently this only checks the last time it was set to
     time_spec_t get_time_now(size_t mboard = 0) override
     {
         return _tree->access<time_spec_t>(mb_root(mboard) / "time/now").get();
     }
 
+    // TODO: see what this should return, since currently it just checks what set_time_next_pps was last set to
     time_spec_t get_time_last_pps(size_t mboard = 0) override
     {
         return _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").get();
@@ -575,17 +578,7 @@ public:
     void set_time_source(const std::string& source, const size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
-            const auto time_source_path = mb_root(mboard) / "time_source/value";
-            const auto sync_source_path = mb_root(mboard) / "sync_source/value";
-            if (_tree->exists(time_source_path)) {
-                _tree->access<std::string>(time_source_path).set(source);
-            } else if (_tree->exists(sync_source_path)) {
-                auto sync_source = _tree->access<device_addr_t>(sync_source_path).get();
-                sync_source["time_source"] = source;
-                _tree->access<device_addr_t>(sync_source_path).set(sync_source);
-            } else {
-                throw uhd::runtime_error("Can't set time source on this device.");
-            }
+            _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").set(source);
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++) {

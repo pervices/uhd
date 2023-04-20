@@ -1079,8 +1079,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     temp["serial"]   = "";
     TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, temp);
 
-    // This property chooses internal or external clock source
-    TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
+    // This property chooses internal or external time (usually pps) source
+    TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/set_time_source",  	std::string, string);
+    // Sets whether to use internal or external clock source
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
     TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CRIMSON_TNG_EXT_CLK_RATE);
