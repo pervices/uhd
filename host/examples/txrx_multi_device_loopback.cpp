@@ -85,6 +85,7 @@ inline bool validate_number_of_channel_arguments(size_t num_channels, std::vecto
     return channel_arguments.size() == 1 || channel_arguments.size() == num_channels;
 }
 
+// Contains the parameters for each individual connected device
 struct device_parameters {
     std::string args;
     size_t num_tx_channels;
@@ -286,7 +287,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
-    std::vector<device_parameters> parameter = parse_device_parameters(args, ref, tx_channel_arg, rx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg);
+    std::vector<device_parameters> parameters = parse_device_parameters(args, ref, tx_channel_arg, rx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg);
+
+    std::vector<uhd::usrp::multi_usrp::sptr> devices(parameters.size());
+    // Connects to each device
+    // TODO: parallelize connecting to devices
+    for(size_t n = 0; n < devices.size(); n++) {
+        std::cout << boost::format("Creating the usrp device with: %s...") % parameters[n].args << std::endl;
+        devices[n] = uhd::usrp::multi_usrp::make(parameters[n].args);
+    }
     
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
