@@ -255,7 +255,6 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
  * @param device The device to be configured
  * @param rate Pointer to samples rate, will be modified to what the actual rate is
  * @param parameters A struct containing various settings for the device
- * @param return A vector of strings for each channel
  */
 void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parameters& parameters) {
     printf("Configuring device with args: %s\n", parameters.args.c_str());
@@ -310,6 +309,44 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
     }
 }
 
+/**
+ * Sets all device times to 0, synchronized to pps
+ * @param devices The devices to be synced
+ */
+void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices) {
+    printf("Starting device synchronization\n");
+    // Sets the time on device 0 to be 0. Function shoudl return immediatly after a pps
+    devices[0]->set_time_unknown_pps(uhd::time_spec_t(0.0));
+
+    // Sets the time on all other devices to be 0
+    // Must be done with 1s of set_time_unknown_pps finishing
+    uhd::time_spec_t pps_time = devices[0]->get_time_last_pps();
+    for(size_t n = 1; n < devices.size(); n++) {
+        devices[n]->set_time_next_pps(pps_time);
+    }
+
+    // Waits for next pps
+    auto timeout_time = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
+    uhd::time_spec_t latest_pps_time;
+    do {
+        if (std::chrono::steady_clock::now() > timeout_time) {
+            throw uhd::runtime_error("Device 0 no PPS detected\n");
+        }
+        latest_pps_time = devices[0]->get_time_last_pps();
+    } while (pps_time == latest_pps_time); {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    // Verifies that all clocks are synced to the same pps. Must be completed within 1s of the wait for the previous pps finishing
+    for(size_t n = 1; n < devices.size(); n++) {
+        uhd::time_spec_t other_device_pps_time = devices[n]->get_time_last_pps();
+        if(latest_pps_time != other_device_pps_time) {
+            throw uhd::runtime_error("Desync between devices 0 and " + std::to_string(n) + "\n");
+        }
+    }
+    printf("All devices synchronized\n");
+}
+
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
@@ -360,6 +397,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     for(size_t n = 0; n < devices.size(); n++) {
         configure_device(devices[n].get(), rate, parameters[n]);
     }
+
+    sync_devices(devices);
     
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
