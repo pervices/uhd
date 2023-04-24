@@ -250,6 +250,66 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
     return parameters;
 }
 
+/**
+ * Configures the device
+ * @param device The device to be configured
+ * @param rate Pointer to samples rate, will be modified to what the actual rate is
+ * @param parameters A struct containing various settings for the device
+ * @param return A vector of strings for each channel
+ */
+void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parameters& parameters) {
+    printf("Configuring device with args: %s\n", parameters.args.c_str());
+
+    device->set_time_source(parameters.time_reference);
+
+    device->set_tx_rate(rate);
+    double actual_tx_rate = device->get_tx_rate();
+    if(std::abs(actual_tx_rate - rate) > 1) {
+        printf("Desired tx rate: %lfMsps, actual tx rate: %lfMsps\n", rate/1e6, actual_tx_rate);
+    }
+    device->set_rx_rate(actual_tx_rate);
+    double actual_rx_rate = device->get_rx_rate();
+    if(std::abs(actual_rx_rate - rate) > 1) {
+        printf("Desired rx rate: %lfMsps, actual rx rate: %lfMsps\n", actual_tx_rate/1e6, actual_rx_rate/1e6);
+    }
+    if(actual_tx_rate != actual_rx_rate) {
+        fprintf(stderr, "Mistmatch between tx rate: %lfMsps, rx rate: %lfMsps\n The rest of the program will use tx rate\n", actual_tx_rate/1e6, actual_rx_rate/1e6);
+    }
+    rate = actual_tx_rate;
+
+    for(size_t n = 0; n < parameters.num_tx_channels; n++) {
+        // Setting tx gain
+        device->set_tx_gain(parameters.tx_channels[n], parameters.tx_gains[n]);
+        double actual_tx_gain = device->get_tx_gain(parameters.tx_channels[n]);
+        if(std::abs(actual_tx_gain - parameters.tx_gains[n]) > 0.1) {
+            fprintf(stderr, "Unable to set tx gain on ch %lu. Actual gain: %lfdB, desired gain: %lfdB\n", parameters.tx_channels[n], actual_tx_gain, parameters.tx_gains[n]);
+        }
+
+        // Setting tx freq
+        device->set_tx_freq(parameters.tx_channels[n], parameters.tx_freqs[n]);
+        double actual_tx_freq = device->get_tx_freq(parameters.tx_channels[n]);
+        if(std::abs(actual_tx_gain - parameters.tx_freqs[n]) > 1) {
+            fprintf(stderr, "Unable to set tx frequency on ch %lu. Actual frequency: %lfMHz, desired frequency: %lfMHz\n", parameters.tx_channels[n], actual_tx_freq, parameters.tx_freqs[n]);
+        }
+    }
+
+    for(size_t n = 0; n < parameters.num_rx_channels; n++) {
+        // Setting rx gain
+        device->set_rx_gain(parameters.rx_channels[n], parameters.rx_gains[n]);
+        double actual_rx_gain = device->get_rx_gain(parameters.rx_channels[n]);
+        if(std::abs(actual_rx_gain - parameters.rx_gains[n]) > 0.1) {
+            fprintf(stderr, "Unable to set rx gain on ch %lu. Actual gain: %lfdB, desired gain: %lfdB\n", parameters.rx_channels[n], actual_rx_gain, parameters.rx_gains[n]);
+        }
+
+        // Setting rx freq
+        device->set_rx_freq(parameters.rx_channels[n], parameters.rx_freqs[n]);
+        double actual_rx_freq = device->get_rx_freq(parameters.rx_channels[n]);
+        if(std::abs(actual_rx_gain - parameters.rx_freqs[n]) > 1) {
+            fprintf(stderr, "Unable to set rx frequency on ch %lu. Actual frequency: %lfMHz, desired frequency: %lfMHz\n", parameters.rx_channels[n], actual_rx_freq, parameters.rx_freqs[n]);
+        }
+    }
+}
+
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
@@ -263,17 +323,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // clang-format off
     desc.add_options()
         ("help", "Transmits a sinewave on multiple channels on multiple devices and receive data from multiple channels. Arguments with device specific parameter are sperated by spaces between devices and seperated by commas within a device. \"n\" indicates don't use this parameter for this device. Only specifying for one channel on a device indicates use the argument is for all channels on that device")
-        ("args", po::value<std::string>(&args)->default_value(""), "Arguments for selecting devices. Provide device specific parameters")
+        ("args", po::value<std::string>(&args)->default_value("192.168.10.2"), "Arguments for selecting devices. Provide device specific parameters")
         ("start_time", po::value<double>(&start_time)->default_value(2), "number of seconds in the future to begin receiving. (From when iniialization is complete, not from when the program is called")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming (Rx) and outgoing (Tx) samples")
         ("rx_channels", po::value<std::string>(&rx_channel_arg)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc). Provide device specific parameters")
         ("tx_channels", po::value<std::string>(&tx_channel_arg)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc). Provide device specific parameters")
         ("tx_gain", po::value<std::string>(&tx_gain_arg)->default_value("0"), "gain for the Tx RF chain. Enter one number to set all the channels to said gain i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
         ("rx_gain", po::value<std::string>(&rx_gain_arg)->default_value("0"), "gain for the Rx RF chain. Enter one number to set all the channels to said gain i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
-        ("tx_freq", po::value<std::string>(&tx_freq_arg), "RF center frequency in Hz. Enter one number to set all the tx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
-        ("rx_freq", po::value<std::string>(&rx_freq_arg), "RF center frequency in Hz. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
+        ("tx_freq", po::value<std::string>(&tx_freq_arg)->default_value("0"), "RF center frequency in Hz. Enter one number to set all the tx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
+        ("rx_freq", po::value<std::string>(&rx_freq_arg)->default_value("0"), "RF center frequency in Hz. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "Numer of samples to send/receive")
-        ("ref", po::value<std::string>(&ref)->default_value("internal"), "Whether to use an internal or external clock reference (internal, external)")
+        ("ref", po::value<std::string>(&ref)->default_value("internal"), "Whether to use an internal or external time reference (internal, external)")
     ;
     
     // clang-format on
@@ -295,6 +355,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     for(size_t n = 0; n < devices.size(); n++) {
         std::cout << boost::format("Creating the usrp device with: %s...") % parameters[n].args << std::endl;
         devices[n] = uhd::usrp::multi_usrp::make(parameters[n].args);
+    }
+
+    for(size_t n = 0; n < devices.size(); n++) {
+        configure_device(devices[n].get(), rate, parameters[n]);
     }
     
     std::cout << std::endl << "Done!" << std::endl << std::endl;
