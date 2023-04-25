@@ -36,11 +36,11 @@ void sig_int_handler(int)
 /**
  * Receives and saves rx data
  * @param rx_stream The streamer to receive data from
+ * @param device_number The index of the device in the argument list. Used to figure out the path to save data to
  * @param start_time The time in seconds to start streaming at
  * @param total_num_samps The number of samples to receive
- * @param data_file_fd File descriptor of the file to save data to
  */
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, size_t total_num_samps, std::vector<int> recv_file_fd) {
+void rx_run(uhd::rx_streamer* rx_stream, const std::string& output_folder, size_t device_number, double start_time, size_t total_num_samps) {
 
 }
 
@@ -350,7 +350,7 @@ void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices) {
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
-    std::string args, ref, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg;
+    std::string args, ref, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, rx_folder;
     double start_time;
     size_t total_num_samps;
     double rate;
@@ -361,7 +361,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     desc.add_options()
         ("help", "Transmits a sinewave on multiple channels on multiple devices and receive data from multiple channels. Arguments with device specific parameter are sperated by spaces between devices and seperated by commas within a device. \"n\" indicates don't use this parameter for this device. Only specifying for one channel on a device indicates use the argument is for all channels on that device")
         ("args", po::value<std::string>(&args)->default_value("192.168.10.2"), "Arguments for selecting devices. Provide device specific parameters")
-        ("start_time", po::value<double>(&start_time)->default_value(2), "number of seconds in the future to begin receiving. (From when iniialization is complete, not from when the program is called")
+        ("start_time", po::value<double>(&start_time)->default_value(5), "number of seconds in the future to begin receiving. (From when iniialization is complete, not from when the program is called")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming (Rx) and outgoing (Tx) samples")
         ("rx_channels", po::value<std::string>(&rx_channel_arg)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc). Provide device specific parameters")
         ("tx_channels", po::value<std::string>(&tx_channel_arg)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc). Provide device specific parameters")
@@ -369,7 +369,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rx_gain", po::value<std::string>(&rx_gain_arg)->default_value("0"), "gain for the Rx RF chain. Enter one number to set all the channels to said gain i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
         ("tx_freq", po::value<std::string>(&tx_freq_arg)->default_value("0"), "RF center frequency in Hz. Enter one number to set all the tx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
         ("rx_freq", po::value<std::string>(&rx_freq_arg)->default_value("0"), "RF center frequency in Hz. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
-        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "Numer of samples to send/receive")
+        ("rx_folder", po::value<std::string>(&rx_folder)->default_value("output"), "Folder to store rx data. Files will be saved as rx_<device number>_ch_<channel_number>.dat")
+        ("no_save", "Do not save rx data")
+        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(100000), "Numer of samples to send/receive")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "Whether to use an internal or external time reference (internal, external)")
     ;
     
@@ -398,7 +400,27 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         configure_device(devices[n].get(), rate, parameters[n]);
     }
 
+    // Create rx streamers
+    std::vector<uhd::rx_streamer::sptr> rx_streamers;
+    for(size_t n = 0; n < devices.size(); n++) {
+        // create receive streamers
+        uhd::stream_args_t rx_stream_args("sc16"); //short complex
+        rx_stream_args.channels = parameters[n].rx_channels;
+        rx_streamers.push_back(devices[n]->get_rx_stream(rx_stream_args));
+    }
+
     sync_devices(devices);
+
+    std::vector<std::thread> rx_threads;
+
+    for(size_t n = 0; n < devices.size(); n++) {
+        rx_threads.push_back(std::thread(rx_run, rx_streamers[n].get(), rx_folder, n, start_time, total_num_samps));
+    }
+
+    //Waits for rx to finish
+    for(size_t n = 0; n < devices.size(); n++) {
+        rx_threads[n].join();
+    }
     
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
