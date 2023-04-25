@@ -347,16 +347,16 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
 
     for(size_t n = 0; n < parameters.num_rx_channels; n++) {
         // Setting rx gain
-        device->set_rx_gain(parameters.rx_channels[n], parameters.rx_gains[n]);
+        device->set_rx_gain(parameters.rx_gains[n], parameters.rx_channels[n]);
         double actual_rx_gain = device->get_rx_gain(parameters.rx_channels[n]);
         if(std::abs(actual_rx_gain - parameters.rx_gains[n]) > 0.1) {
             fprintf(stderr, "Unable to set rx gain on ch %lu. Actual gain: %lfdB, desired gain: %lfdB\n", parameters.rx_channels[n], actual_rx_gain, parameters.rx_gains[n]);
         }
 
         // Setting rx freq
-        device->set_rx_freq(parameters.rx_channels[n], parameters.rx_freqs[n]);
+        device->set_rx_freq(parameters.rx_freqs[n], parameters.rx_channels[n]);
         double actual_rx_freq = device->get_rx_freq(parameters.rx_channels[n]);
-        if(std::abs(actual_rx_gain - parameters.rx_freqs[n]) > 1) {
+        if(std::abs(actual_rx_freq - parameters.rx_freqs[n]) > 1) {
             fprintf(stderr, "Unable to set rx frequency on ch %lu. Actual frequency: %lfMHz, desired frequency: %lfMHz\n", parameters.rx_channels[n], actual_rx_freq, parameters.rx_freqs[n]);
         }
     }
