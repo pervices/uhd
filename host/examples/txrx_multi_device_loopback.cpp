@@ -14,10 +14,12 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 #include "wavetable.hpp"
 #include <stdint.h>
 #include <complex>
 #include <csignal>
+#include <fstream>
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -26,6 +28,9 @@
 #include <vector>
 
 namespace po = boost::program_options;
+
+// Maximum size of the receive buffer, mainly to avoid using to much RAM
+const size_t max_receive_buffer_size = 100000000;
 
 static bool stop_signal_called = false;
 void sig_int_handler(int)
@@ -36,12 +41,60 @@ void sig_int_handler(int)
 /**
  * Receives and saves rx data
  * @param rx_stream The streamer to receive data from
+ * @param output_folder The folder to save data to
  * @param device_number The index of the device in the argument list. Used to figure out the path to save data to
  * @param start_time The time in seconds to start streaming at
- * @param total_num_samps The number of samples to receive
+ * @param requested_num_samps The number of samples to receive
+ * @param rate The sample rate
+ * @param save_rx set to false to disable saving rx data
  */
-void rx_run(uhd::rx_streamer* rx_stream, const std::string& output_folder, size_t device_number, double start_time, size_t total_num_samps) {
+void rx_run(uhd::rx_streamer* rx_stream, std::string output_folder, size_t device_number, std::vector<size_t> rx_channels, double start_time, size_t requested_num_samps, double rate, bool save_rx) {
+    size_t receive_buffer_size = std::min(requested_num_samps, max_receive_buffer_size);
+    std::vector<std::vector<std::complex<short>>> buffers(rx_channels.size(), std::vector<std::complex<short>>(receive_buffer_size));
 
+    std::vector<std::complex<short>*> buffer_ptrs(rx_channels.size());
+
+    for(size_t n = 0; n < rx_channels.size(); n++) {
+            buffer_ptrs[n] = &buffers[n].front();
+    }
+
+    std::vector<std::ofstream> outfiles(rx_channels.size());
+    if (save_rx) {
+        for(size_t n = 0; n < rx_channels.size(); n++) {
+            std::string path = output_folder + "/rx_" + std::to_string(device_number) + "_ch_" + std::to_string(rx_channels[n]) + ".dat";
+            outfiles[n].open(path.c_str(), std::ofstream::binary);
+        }
+    }
+
+    // Metadata return struct
+    uhd::rx_metadata_t md;
+
+    // Configure stream command
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
+    stream_cmd.num_samps  = size_t(requested_num_samps);
+    stream_cmd.stream_now = false;
+    stream_cmd.time_spec  = uhd::time_spec_t(start_time);
+
+    rx_stream->issue_stream_cmd(stream_cmd);
+
+    size_t total_rx_samps = 0;
+    while(total_rx_samps < requested_num_samps && !stop_signal_called) {
+        // Receives rx data
+        size_t nsamps_to_recv = std::min(requested_num_samps - total_rx_samps, receive_buffer_size);
+        size_t num_rx_samps = rx_stream->recv(buffer_ptrs, nsamps_to_recv, md, start_time + (requested_num_samps/rate) + 3, false);
+
+        //TODO add error checking
+
+        // Saves rx data
+        if(save_rx) {
+            for(size_t n = 0; n < rx_channels.size(); n++) {
+                outfiles[n].write((const char*)&buffers[n].front(), num_rx_samps * sizeof(std::complex<short>));
+            }
+        }
+        total_rx_samps += num_rx_samps;
+    }
+
+    printf("Received %lu samples of %lu requested from device %lu\n", total_rx_samps, requested_num_samps, device_number);
 }
 
 /**
@@ -412,9 +465,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     sync_devices(devices);
 
     std::vector<std::thread> rx_threads;
+    bool save_rx = !vm.count("no_save");
+
+    if(save_rx) {
+        // This function is in the standard library of c++17
+        boost::filesystem::create_directories(rx_folder);
+    }
 
     for(size_t n = 0; n < devices.size(); n++) {
-        rx_threads.push_back(std::thread(rx_run, rx_streamers[n].get(), rx_folder, n, start_time, total_num_samps));
+        rx_threads.push_back(std::thread(rx_run, rx_streamers[n].get(), rx_folder, n, parameters[n].rx_channels, start_time, total_num_samps, rate ,save_rx));
     }
 
     //Waits for rx to finish
