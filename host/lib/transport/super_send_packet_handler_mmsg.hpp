@@ -58,9 +58,12 @@ public:
      * \param buffer_size size of the buffer on the unit
      */
     send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo)
-        : _max_samples_per_packet(max_samples_per_packet), _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample), _NUM_CHANNELS(channels.size()),
+        : _max_samples_per_packet(max_samples_per_packet),
+        _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample),
+        _NUM_CHANNELS(channels.size()),
         _async_msg_fifo(async_msg_fifo),
         _channels(channels),
+        _DEVICE_BUFFER_SIZE(device_buffer_size),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
         _TICK_RATE(tick_rate)
@@ -338,6 +341,18 @@ public:
     void update_buffer_level(const uint64_t ch, const uint64_t level, const uhd::time_spec_t & now) {
         ch_send_buffer_info_group[ch].buffer_level_manager.update_buffer_level_bias(level, now);
     }
+
+    void enable_blocking_fc(uint64_t blocking_setpoint) {
+        use_blocking_fc = true;
+        if(blocking_setpoint > 0.9 * _DEVICE_BUFFER_SIZE) {
+            blocking_setpoint = (uint64_t) (0.9*_DEVICE_BUFFER_SIZE);
+        };
+        this->blocking_setpoint = _DEVICE_BUFFER_SIZE;
+    }
+
+    void disable_blocking_fc() {
+        use_blocking_fc = false;
+    }
     
 protected:
     ssize_t _max_samples_per_packet;
@@ -358,6 +373,9 @@ protected:
     virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
+    bool use_blocking_fc = false;
+    uint64_t blocking_setpoint = 0;
+
     //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
     const size_t _BYTES_PER_SAMPLE = 4;
     // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
@@ -369,6 +387,9 @@ private:
     std::vector<int> send_sockets;
     //TODO: rename this to just channels when seperating this class from old version
     std::vector<size_t> _channels;
+    // Device buffer size
+    const uint64_t _DEVICE_BUFFER_SIZE;
+
     // Desired number of samples in the tx buffer on the unit
     const ssize_t _DEVICE_TARGET_NSAMPS;
 
@@ -439,8 +460,6 @@ private:
     };
     // Group of recv info for each channels
     std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
-    //TODO: implement blocking flow control
-    bool use_blocking_fc = false;
 
     // Expands the buffers used in the send command, does nothing if already large enough
     void expand_send_buffer_info(size_t new_size) {

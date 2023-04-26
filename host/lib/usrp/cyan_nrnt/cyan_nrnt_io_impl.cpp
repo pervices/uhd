@@ -228,20 +228,6 @@ public:
         return r;
     }
 
-    void enable_blocking_fc(uint64_t blocking_setpoint) {
-        use_blocking_fc = true;
-        if(blocking_setpoint > 0.9 * stream_max_bl) {
-            blocking_setpoint = (uint64_t) (0.9 * stream_max_bl);
-        };
-        this->blocking_setpoint = blocking_setpoint;
-    }
-
-    void disable_blocking_fc() {
-        use_blocking_fc = false;
-        blocking_setpoint = 0;
-    }
-    
-
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
