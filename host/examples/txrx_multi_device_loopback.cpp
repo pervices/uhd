@@ -115,7 +115,7 @@ void rx_run(uhd::rx_streamer* rx_stream, std::string output_folder, size_t devic
  * @param start_time The time in seconds to start streaming at
  * @param requested_num_samps The number of samples to receive
  */
-void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, double start_time, size_t requested_num_samps, double rate) {
+void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t device_number, double start_time, size_t requested_num_samps, double rate) {
     size_t spb = tx_stream->get_max_num_samps()*10;
 
     // Buffer contains samples for each channel
@@ -144,6 +144,8 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, double 
     while(total_samples_sent < requested_num_samps && !stop_signal_called) {
 
         size_t samples_to_send = std::min(requested_num_samps - total_samples_sent, spb);
+        // Currently will send starting at the begining of the buffer each time
+        // TODO: fixed part of the buffer that is sent to minimize discontinuity in the sinewave
         total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md, timeout);
 
         // Indicate packets are no longer at the start
@@ -153,6 +155,8 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, double 
 
     md.end_of_burst = true;
     tx_stream->send("", 0, md);
+
+    printf("Send %lu samples of %lu attempted to device %lu\n", total_samples_sent, requested_num_samps, device_number);
 }
 
 /**
@@ -584,8 +588,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::vector<std::thread> tx_threads;
     for(size_t n = 0; n < devices.size(); n++) {
-        tx_threads.push_back(std::thread(tx_run, tx_streamers[n].get(), &parameters[n], start_time, total_num_samps, rate));
+        tx_threads.push_back(std::thread(tx_run, tx_streamers[n].get(), &parameters[n], n, start_time, total_num_samps, rate));
     }
+
+    printf("\nPress Ctrl + C to stop streaming...\n");
 
     //Waits for rx to finish
     for(size_t n = 0; n < devices.size(); n++) {
