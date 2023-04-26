@@ -227,7 +227,7 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
         throw std::runtime_error("Incorrect number of devices amplitude were specified for");
     }
 
-    std::vector<std::string> device_wave_freq_arg = seperate_device_argument(rx_freqs_s);
+    std::vector<std::string> device_wave_freq_arg = seperate_device_argument(wave_freq_s);
     if(!validate_number_of_device_arguments(num_devices, device_wave_freq_arg)) {
         throw std::runtime_error("Incorrect number of devices wave frequencies were specified for");
     }
@@ -261,7 +261,7 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
         // Parse the gains
         if(device_tx_gain_arg[n] == "n") {
             if(parameters[n].num_tx_channels != 0) {
-                throw std::runtime_error("Tx gains specified for a devie without tx channels");
+                throw std::runtime_error("Tx gains unspecified for a device with tx channels");
             }
         } else {
             std::vector<std::string> tx_gain_arg_s = seperate_channel_argument(device_tx_gain_arg[n]);
@@ -283,7 +283,7 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
 
         if(device_rx_gain_arg[n] == "n") {
             if(parameters[n].num_rx_channels != 0) {
-                throw std::runtime_error("Rx gains specified for a device without rx channels");
+                throw std::runtime_error("Rx gains unspecified for a device with rx channels");
             }
         } else {
             std::vector<std::string> rx_gain_arg_s = seperate_channel_argument(device_rx_gain_arg[n]);
@@ -306,7 +306,7 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
         // Parse the frequencies
         if(device_tx_freq_arg[n] == "n") {
             if(parameters[n].num_tx_channels != 0) {
-                throw std::runtime_error("Tx frequencies specified for a device without tx channels");
+                throw std::runtime_error("Tx frequencies unspecified for a device with tx channels");
             }
         } else {
             std::vector<std::string> tx_freq_arg_s = seperate_channel_argument(device_tx_freq_arg[n]);
@@ -328,7 +328,7 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
 
         if(device_rx_freq_arg[n] == "n") {
             if(parameters[n].num_rx_channels != 0) {
-                throw std::runtime_error("Rx frequencies specified for a device without rx channels");
+                throw std::runtime_error("Rx frequencies unspecified for a device with rx channels");
             }
         } else {
             std::vector<std::string> rx_freq_arg_s = seperate_channel_argument(device_rx_freq_arg[n]);
@@ -349,8 +349,8 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
         }
 
         if(device_ampl_arg[n] == "n") {
-            if(parameters[n].num_rx_channels != 0) {
-                throw std::runtime_error("Rx frequencies specified for a device without rx channels");
+            if(parameters[n].num_tx_channels != 0) {
+                throw std::runtime_error("Tx amplitude unspecified, even though tx is being used");
             }
         } else {
             std::vector<std::string> ampl_arg_s = seperate_channel_argument(device_ampl_arg[n]);
@@ -363,8 +363,30 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
                     }
                 }
                 else {
-                    for(size_t i = 0; i < parameters[n].num_rx_channels; i++) {
+                    for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
                         parameters[n].amplitude.push_back(std::stod(ampl_arg_s[i]));
+                    }
+                }
+            }
+        }
+
+        if(device_wave_freq_arg[n] == "n") {
+            if(parameters[n].num_tx_channels != 0) {
+                throw std::runtime_error("Tx wave frequencies unspecified, even though tx is being used");
+            }
+        } else {
+            std::vector<std::string> wave_freq_arg_s = seperate_channel_argument(device_wave_freq_arg[n]);
+            if(!validate_number_of_channel_arguments(parameters[n].num_tx_channels, wave_freq_arg_s)) {
+                throw std::runtime_error("Mistmatch between number of tx channels specified and number of tx amplitudes for a device");
+            } else {
+                if(wave_freq_arg_s.size()==1) {
+                    for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
+                        parameters[n].amplitude.push_back(std::stod(wave_freq_arg_s[0]));
+                    }
+                }
+                else {
+                    for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
+                        parameters[n].amplitude.push_back(std::stod(wave_freq_arg_s[i]));
                     }
                 }
             }
