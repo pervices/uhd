@@ -38,6 +38,17 @@ void sig_int_handler(int)
     stop_signal_called = true;
 }
 
+// Contains the parameters for each individual connected device
+struct device_parameters {
+    std::string args;
+    size_t num_tx_channels;
+    size_t num_rx_channels;
+    std::vector<size_t> tx_channels, rx_channels;
+    std::vector<double> tx_gains, rx_gains, tx_freqs, rx_freqs, amplitude, wave_freq;
+    std::string time_reference;
+
+};
+
 /**
  * Receives and saves rx data
  * @param rx_stream The streamer to receive data from
@@ -100,11 +111,48 @@ void rx_run(uhd::rx_streamer* rx_stream, std::string output_folder, size_t devic
 /**
  * Send tx data
  * @param tx_stream The streamer to receive data from
+ * @param parameters Struct containing various paramters. The relevant ones for this wave wave_freq and ampl
  * @param start_time The time in seconds to start streaming at
- * @param total_num_samps The number of samples to receive
+ * @param requested_num_samps The number of samples to receive
  */
-void tx_run( uhd::tx_streamer::sptr tx_stream, double start_time, size_t total_num_samps) {
+void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, double start_time, size_t requested_num_samps, double rate) {
+    size_t spb = tx_stream->get_max_num_samps()*10;
 
+    // Buffer contains samples for each channel
+    std::vector<std::vector<std::complex<short>>> buffer(parameters->num_tx_channels, std::vector<std::complex<short>>(spb));
+    // Vector containing pointers to the start of the sample buffer for each channel
+    std::vector<std::complex<short> *> buffer_ptrs(parameters->num_tx_channels);
+
+    for(size_t n = 0; n < parameters->num_tx_channels; n++) {
+        buffer_ptrs[n] = &buffer[n].front();
+    }
+
+    // TODO fill buffer with sinewave
+
+    for(size_t n = 0; n < parameters->num_tx_channels; n++) {
+        buffer_ptrs[n] = &buffer[n].front();
+    }
+
+    uhd::tx_metadata_t md;
+    md.start_of_burst = true;
+    md.end_of_burst   = false;
+    md.has_time_spec  = true;
+    md.time_spec = uhd::time_spec_t(start_time);
+    double timeout = start_time + (requested_num_samps/rate) + 3;
+    size_t total_samples_sent = 0;
+
+    while(total_samples_sent < requested_num_samps && !stop_signal_called) {
+
+        size_t samples_to_send = std::min(requested_num_samps - total_samples_sent, spb);
+        total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md, timeout);
+
+        // Indicate packets are no longer at the start
+        md.start_of_burst = false;
+        md.has_time_spec = false;
+    }
+
+    md.end_of_burst = true;
+    tx_stream->send("", 0, md);
 }
 
 /**
@@ -138,17 +186,7 @@ inline bool validate_number_of_channel_arguments(size_t num_channels, std::vecto
     return channel_arguments.size() == 1 || channel_arguments.size() == num_channels;
 }
 
-// Contains the parameters for each individual connected device
-struct device_parameters {
-    std::string args;
-    size_t num_tx_channels;
-    size_t num_rx_channels;
-    std::vector<size_t> tx_channels, rx_channels;
-    std::vector<double> tx_gains, rx_gains, tx_freqs, rx_freqs;
-    std::string time_reference;
-};
-
-std::vector<device_parameters> parse_device_parameters(std::string args, std::string ref, std::string tx_channels_s, std::string rx_channels_s, std::string tx_gains_s, std::string rx_gains_s, std::string tx_freqs_s, std::string rx_freqs_s) {
+std::vector<device_parameters> parse_device_parameters(std::string args, std::string ref, std::string tx_channels_s, std::string rx_channels_s, std::string tx_gains_s, std::string rx_gains_s, std::string tx_freqs_s, std::string rx_freqs_s, std::string ampl_s, std::string wave_freq_s) {
     std::vector<std::string> device_args = seperate_device_argument(args);
     size_t num_devices = device_args.size();
 
@@ -182,6 +220,16 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
     std::vector<std::string> device_rx_freq_arg = seperate_device_argument(rx_freqs_s);
     if(!validate_number_of_device_arguments(num_devices, device_rx_freq_arg)) {
         throw std::runtime_error("Incorrect number of devices rx frequencies were specified for");
+    }
+
+    std::vector<std::string> device_ampl_arg = seperate_device_argument(ampl_s);
+    if(!validate_number_of_device_arguments(num_devices, device_ampl_arg)) {
+        throw std::runtime_error("Incorrect number of devices amplitude were specified for");
+    }
+
+    std::vector<std::string> device_wave_freq_arg = seperate_device_argument(rx_freqs_s);
+    if(!validate_number_of_device_arguments(num_devices, device_wave_freq_arg)) {
+        throw std::runtime_error("Incorrect number of devices wave frequencies were specified for");
     }
 
     std::vector<device_parameters> parameters(num_devices);
@@ -299,6 +347,28 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
                 }
             }
         }
+
+        if(device_ampl_arg[n] == "n") {
+            if(parameters[n].num_rx_channels != 0) {
+                throw std::runtime_error("Rx frequencies specified for a device without rx channels");
+            }
+        } else {
+            std::vector<std::string> ampl_arg_s = seperate_channel_argument(device_ampl_arg[n]);
+            if(!validate_number_of_channel_arguments(parameters[n].num_tx_channels, ampl_arg_s)) {
+                throw std::runtime_error("Mistmatch between number of tx channels specified and number of tx amplitudes for a device");
+            } else {
+                if(ampl_arg_s.size()==1) {
+                    for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
+                        parameters[n].amplitude.push_back(std::stod(ampl_arg_s[0]));
+                    }
+                }
+                else {
+                    for(size_t i = 0; i < parameters[n].num_rx_channels; i++) {
+                        parameters[n].amplitude.push_back(std::stod(ampl_arg_s[i]));
+                    }
+                }
+            }
+        }
     }
     return parameters;
 }
@@ -403,7 +473,7 @@ void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices) {
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
-    std::string args, ref, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, rx_folder;
+    std::string args, ref, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, rx_folder, ampl_arg, wave_freq_arg;
     double start_time;
     size_t total_num_samps;
     double rate;
@@ -424,8 +494,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rx_freq", po::value<std::string>(&rx_freq_arg)->default_value("0"), "RF center frequency in Hz. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
         ("rx_folder", po::value<std::string>(&rx_folder)->default_value("output"), "Folder to store rx data. Files will be saved as rx_<device number>_ch_<channel_number>.dat")
         ("no_save", "Do not save rx data")
+        ("rx_only", "Do not use rx")
+        ("tx_only", "Do not use tx")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(100000), "Numer of samples to send/receive")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "Whether to use an internal or external time reference (internal, external)")
+        ("ampl", po::value<std::string>(&ampl_arg)->default_value("0.7"), "Amplitude of the wave in tx samples. B Enter one number to set all the tx channels to said amplitude i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
+        ("wave_freq", po::value<std::string>(&wave_freq_arg)->default_value("0"), "Amplitude of the wave in tx samples. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
     ;
     
     // clang-format on
@@ -439,7 +513,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
-    std::vector<device_parameters> parameters = parse_device_parameters(args, ref, tx_channel_arg, rx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg);
+    std::vector<device_parameters> parameters = parse_device_parameters(args, ref, tx_channel_arg, rx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ampl_arg, wave_freq_arg);
 
     std::vector<uhd::usrp::multi_usrp::sptr> devices(parameters.size());
     // Connects to each device
@@ -462,7 +536,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         rx_streamers.push_back(devices[n]->get_rx_stream(rx_stream_args));
     }
 
+    // Create tx streamers
+    std::vector<uhd::tx_streamer::sptr> tx_streamers;
+    for(size_t n = 0; n < devices.size(); n++) {
+        // create receive streamers
+        uhd::stream_args_t tx_stream_args("sc16"); //short complex
+        tx_stream_args.channels = parameters[n].rx_channels;
+        tx_streamers.push_back(devices[n]->get_tx_stream(tx_stream_args));
+    }
+
     sync_devices(devices);
+
 
     std::vector<std::thread> rx_threads;
     bool save_rx = !vm.count("no_save");
@@ -476,9 +560,19 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         rx_threads.push_back(std::thread(rx_run, rx_streamers[n].get(), rx_folder, n, parameters[n].rx_channels, start_time, total_num_samps, rate ,save_rx));
     }
 
+    std::vector<std::thread> tx_threads;
+    for(size_t n = 0; n < devices.size(); n++) {
+        tx_threads.push_back(std::thread(tx_run, tx_streamers[n].get(), &parameters[n], start_time, total_num_samps, rate));
+    }
+
     //Waits for rx to finish
     for(size_t n = 0; n < devices.size(); n++) {
         rx_threads[n].join();
+    }
+
+    //Waits for tx to finish
+    for(size_t n = 0; n < devices.size(); n++) {
+        tx_threads[n].join();
     }
     
     std::cout << std::endl << "Done!" << std::endl << std::endl;
