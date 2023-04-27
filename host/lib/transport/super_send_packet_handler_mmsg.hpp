@@ -355,6 +355,7 @@ public:
     }
     
 protected:
+    bool use_blocking_fc = false;
     ssize_t _max_samples_per_packet;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
     size_t _NUM_CHANNELS;
@@ -373,7 +374,6 @@ protected:
     virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
-    bool use_blocking_fc = false;
     uint64_t blocking_setpoint = 0;
 
     //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)

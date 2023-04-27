@@ -159,18 +159,12 @@ public:
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
-    bool use_blocking_fc = false;
-    uint64_t blocking_setpoint;
-    // Maximum buffer level in nsamps. Named this way to avoid confusion with the same variable belonging to different stuff
-    int64_t stream_max_bl;
-
 	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo)
 	:
 		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo ),
-		stream_max_bl(max_bl),
 		_first_call_to_send( true ),
-		_streaming( false ),
-		_stop_streaming( false )
+		_buffer_monitor_running( false ),
+		_stop_buffer_monitor( false )
 
 	{
 	}
@@ -217,7 +211,9 @@ public:
         
         _first_call_to_send = false;
 
-        start_buffer_monitor_thread();
+        if( ! _buffer_monitor_running && !use_blocking_fc ) {
+            start_buffer_monitor_thread();
+        }
 
         r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
@@ -250,21 +246,19 @@ public:
 
     // Starts buffer monitor thread if it is not already running
 	inline void start_buffer_monitor_thread() {
-		if ( ! _streaming ) {
-			_stop_streaming = false;
+        _stop_buffer_monitor = false;
 
-			//spawn a thread to monitor the buffer level
-			_buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
-			_streaming = true;
-		}
+        //spawn a thread to monitor the buffer level
+        _buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
+        _buffer_monitor_running = true;
 	}
 
 	void stop_buffer_monitor_thread() {
-		if ( _streaming ) {
-			_stop_streaming = true;
+		if ( _buffer_monitor_running ) {
+			_stop_buffer_monitor = true;
 			if ( _buffer_monitor_thread.joinable() ) {
 				_buffer_monitor_thread.join();
-				_streaming = false;
+				_buffer_monitor_running = false;
 			}
 		}
 	}
@@ -276,8 +270,8 @@ protected:
 
 private:
 	bool _first_call_to_send;
-    bool _streaming;
-    bool _stop_streaming;
+    bool _buffer_monitor_running;
+    bool _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
     timenow_type _time_now;
 
@@ -307,7 +301,7 @@ private:
      **********************************************************************/
 	static void buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self ) {
 
-		for( ; ! self->_stop_streaming; ) {
+		for( ; ! self->_stop_buffer_monitor; ) {
 
 			const auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -328,7 +322,7 @@ private:
 				uint64_t oflow;
 				async_metadata_t metadata;
 
-                if ( self->_stop_streaming ) {
+                if ( self->_stop_buffer_monitor ) {
 					return;
 				}
 
