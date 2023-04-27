@@ -148,10 +148,6 @@ static void shutdown_lingering_rx_streamers() {
 	allocated_rx_streamers.clear();
 }
 
-
-// XXX: @CF: 20180227: We need this for several reasons
-// 1) need to power-down the tx channel (similar to sending STOP on rx) when the streamer is finalized
-// 2) to wrap sphc::send_packet_streamer::send() and use our existing flow control algorithm
 class cyan_nrnt_send_packet_streamer : public sph::send_packet_streamer_mmsg {
 public:
 
@@ -224,12 +220,16 @@ public:
         return r;
     }
 
+    // Sets function to be run on close
     void set_on_fini( size_t chan, onfini_type on_fini ) {
 		_eprops.at(chan).on_fini = on_fini;
     }
+
+    // Sets the function from the device to be used to get the expected time on the device
     void set_time_now_function( timenow_type time_now ) {
         _time_now = time_now;
     }
+    // Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
     uhd::time_spec_t get_time_now() {
         return _time_now ? _time_now() : get_system_time();
     }
