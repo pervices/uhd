@@ -268,6 +268,17 @@ protected:
         vrt::if_hdr_pack_be(packet_buff, if_packet_info);
     }
 
+    // TODO: refactor this so that it does not rely on binding to a function in the device
+    int64_t get_buffer_level_from_device(const size_t ch_i) {
+
+        uint64_t level;
+        uint64_t uflow;
+        uint64_t oflow;
+        uhd::time_spec_t then;
+        _eprops[ch_i].xport_chan_fifo_lvl_abs(level, uflow, oflow, then);
+        return level;
+    }
+
 private:
 	bool _first_call_to_send;
     bool _buffer_monitor_running;

@@ -373,6 +373,9 @@ protected:
      ******************************************************************/
     virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
+    // Sends a request for the buffer level from the device, returns the result of that request
+    virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
+
 private:
     uint64_t blocking_setpoint = 0;
 
@@ -484,11 +487,10 @@ private:
             return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
 
         } else {
-            std::cerr << "Blocking fc not implemented yet" << std::endl;
-            return 0;
+            int64_t buffer_level = get_buffer_level_from_device(ch_i);
+            return (int) ((blocking_setpoint - buffer_level) / (_max_samples_per_packet));
         }
     }
-
 };
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
