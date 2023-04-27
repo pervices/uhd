@@ -567,8 +567,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         my_streamer->set_scale_factor( 16.0 / otw_rx-1 );
     }
 
-    // XXX: @CF: 20180424: Also nasty.. if crimson did not shut down properly last time
-    // then the "/*flush*/" below will not work unless we turn it off ahead of time.
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -586,6 +584,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
                 // stop streaming
                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
+                // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
+                _tree->access<int>(rx_link_path / "endian_swap").set(1);
                 // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
             }
@@ -889,6 +889,9 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
 		// power on the channel
 		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
+
+        // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
+        _tree->access<int>(tx_link_path / "endian_swap").set(1);
 
 		// vita enable
 		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
