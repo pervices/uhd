@@ -167,7 +167,7 @@ public:
             // Sets the number of bytes to receive to whichever channel has the fewest bytes to receive per buffer, they should all be the same, this is in case changes to underflow handling result in different amounts of bytes needing to be received per channel
             bytes_to_recv = std::min(bytes_to_recv, remaining_nbytes_per_buff);
             if(one_packet) {
-                bytes_per_buff = std::min(nsamps_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET);
+                bytes_per_buff = std::min(bytes_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET);
             }
             // Indicates that the cache is clear
             ch_recv_buffer_info_i.sample_cache_used-= cached_bytes_to_copy;
