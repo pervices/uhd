@@ -182,7 +182,7 @@ public:
         }
 
         // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
-        metadata.error_code = recv_multiple_packets(buffs, cached_bytes_to_copy, bytes_to_recv, timeout);
+        metadata.error_code = recv_multiple_packets(buffs, cached_bytes_to_copy, bytes_per_buff, timeout);
 
         // TODO implement returning data that is received prior to encountering an error, currently acts as if no samples received
         if(metadata.error_code) {
@@ -256,7 +256,7 @@ private:
      * receives multiple packets on a given channel
      * sample_buffer: vector of pointer to the start of the recv buffer for each channel
      * sample_buffer_offset: offset of where to start writing to in the recv buffers
-     * buffer_length_b: size of recv buffers
+     * buffer_length_bytes: size of recv buffers (inluding before the offset
      * timeout: timeout, not implemented yet
      * returns error code
      ******************************************************************/
