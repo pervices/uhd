@@ -52,7 +52,7 @@ public:
      * \param bytes_per_sample the number of transport channels
      */
     recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
-    : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(dst_ip.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet), BYTES_PER_SAMPLE(bytes_per_sample), _HEADER_SIZE(header_size)
+    : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(dst_ip.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet), _BYTES_PER_SAMPLE(bytes_per_sample), _HEADER_SIZE(header_size)
     {
 
         // Creates and binds to sockets
@@ -146,12 +146,13 @@ public:
         // Clears the metadata struct, theoretically not required but included to make sure mistakes don't cause non-deterministic behaviour
         metadata.reset();
 
-        size_t bytes_per_buff = nsamps_per_buff * BYTES_PER_SAMPLE;
+        size_t bytes_per_buff = nsamps_per_buff * _BYTES_PER_SAMPLE;
+        printf("\nbytes_per_buff: %lu\n", bytes_per_buff);
 
         std::vector<size_t> nsamps_received(_NUM_CHANNELS, 0);
 
         // Number of bytes copied from the cache (should be the same for every channel)
-        size_t cached_bytes_to_copy;
+        size_t cached_bytes_to_copy = 0;
         // Number of samples to copy, this will be reduced by the number cached samples copied
         size_t bytes_to_recv = bytes_per_buff;
         // Copies the data from the sample cache
@@ -164,16 +165,20 @@ public:
             // How many bytes still need to be received after copying from the cache
             size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
 
-            // Sets the number of bytes to receive to whichever channel has the fewest bytes to receive per buffer, they should all be the same, this is in case changes to underflow handling result in different amounts of bytes needing to be received per channel
-            bytes_to_recv = std::min(bytes_to_recv, remaining_nbytes_per_buff);
             if(one_packet) {
-                bytes_per_buff = std::min(bytes_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET);
+                bytes_to_recv = std::min(remaining_nbytes_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET);
+            } else {
+                bytes_to_recv = remaining_nbytes_per_buff;
             }
             // Indicates that the cache is clear
             ch_recv_buffer_info_i.sample_cache_used-= cached_bytes_to_copy;
 
-            nsamps_received[ch] += cached_bytes_to_copy / BYTES_PER_SAMPLE;
+            nsamps_received[ch] += cached_bytes_to_copy / _BYTES_PER_SAMPLE;
+            printf("4 bytes_to_recv: %lu\n", bytes_to_recv);
         }
+
+        printf("T20\n");
+        printf("5 bytes_to_recv: %lu\n", bytes_to_recv);
 
         // Returns the number of samples requested, if there were enough samples in the cache
         if(!bytes_to_recv) {
@@ -182,27 +187,24 @@ public:
         }
 
         // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
-        metadata.error_code = recv_multiple_packets(buffs, cached_bytes_to_copy, bytes_per_buff, timeout);
-
-        // TODO implement returning data that is received prior to encountering an error, currently acts as if no samples received
-        if(metadata.error_code) {
-            return 0;
-        }
+        metadata.error_code = recv_multiple_packets(buffs, cached_bytes_to_copy, cached_bytes_to_copy + bytes_to_recv, timeout);
 
         extract_vrt_metadata();
 
-        size_t aligned_bytes = 0;
         // Check for overflow errors and (when implemented) shifts data to keep buffers aligned after an overflow)
-        metadata.error_code = align_buffs(buffs, cached_bytes_to_copy, aligned_bytes);
+        size_t aligned_bytes = align_buffs(metadata.error_code) + cached_bytes_to_copy;
+        printf("cached_bytes_to_copy: %lu\n", cached_bytes_to_copy);
 
-        size_t final_nsamps = aligned_bytes/BYTES_PER_SAMPLE;
+        size_t final_nsamps = aligned_bytes/_BYTES_PER_SAMPLE;
+        std::cout << "metadata.error_code: " << metadata.error_code << std::endl;
+        printf("final_nsamps: %lu\n", final_nsamps);
         return final_nsamps;
     }
 
 protected:
     size_t _NUM_CHANNELS;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
-    size_t BYTES_PER_SAMPLE;
+    size_t _BYTES_PER_SAMPLE;
 
     virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
@@ -262,6 +264,9 @@ private:
      ******************************************************************/
     UHD_INLINE uhd::rx_metadata_t::error_code_t recv_multiple_packets(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_length_bytes, double timeout) {
         size_t nbytes_to_recv = buffer_length_bytes - sample_buffer_offset;
+        printf("T40\n");
+        printf("sample_buffer_offset: %lu\n", sample_buffer_offset);
+        printf("buffer_length_bytes: %lu\n", buffer_length_bytes);
 
         // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
         // Pointers for where to write samples to from each packet using scatter gather
@@ -279,6 +284,7 @@ private:
                 samples_sg_dst[ch].push_back(p+sample_buffers[ch]);
             }
         }
+        printf("T50\n");
 
         size_t num_packets_to_recv = samples_sg_dst[0].size();
 
@@ -304,6 +310,8 @@ private:
         size_t excess_data_in_last_packet = num_packets_to_recv * _MAX_SAMPLE_BYTES_PER_PACKET - nbytes_to_recv;
         // Amount of data in the last packet copied directly to buffer
         size_t data_in_last_packet = _MAX_SAMPLE_BYTES_PER_PACKET - excess_data_in_last_packet;
+
+        printf("num_packets_to_recv: %lu\n", num_packets_to_recv);
 
         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
@@ -334,6 +342,8 @@ private:
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n_last_packet];
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
         }
+
+        printf("T100\n");
 
         // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
         struct timespec recv_start_time;
@@ -395,10 +405,12 @@ private:
                 if(n + 1 == num_packets_to_recv) {
                     size_t received_data_in_last_packet = ch_recv_buffer_info_i.msgs[n].msg_len - _HEADER_SIZE;
                     if(received_data_in_last_packet > data_in_last_packet) {
+                        printf("T105\n");
                         ch_recv_buffer_info_i.data_bytes_from_packet[n] = data_in_last_packet;
                         ch_recv_buffer_info_i.sample_cache_used = received_data_in_last_packet - data_in_last_packet;
                         num_bytes_received += data_in_last_packet;
                     } else {
+                        printf("T110\n");
                         ch_recv_buffer_info_i.data_bytes_from_packet[n] = received_data_in_last_packet;
                         // sample_cache_used already set to 0 before this loop so doesn;t need to be set to 0 here
                         num_bytes_received += received_data_in_last_packet;
@@ -440,45 +452,79 @@ private:
 
     /*******************************************************************
      * align_buffs:
-     * Checks for sequence number or timestamp errors and drops samples to keep channels aligned. Also shifts buffer to account for smaller packets (although variable size packets will result in a massive performance drop off because of all the copying)
-     * sample_buffers: buffer containing samples
-     * sample_buffer_offset: offset (in bytes) in the samples buffer of where data to align begins. Must correspond to the data associated with headers[0]
-     * buffer_size: size of sample_buffer in bytes, used to determine how many samples to copy from the cache if applicable
-     * aligned_samples: stores the number of aligned sample
-     * return: rx metadata error code
+     * Checks for sequence number or timestamp errors and drops samples to keep channels aligned
+     * error_code where to store the error code
+     * return: Number of aligned bytes
      ******************************************************************/
-    UHD_INLINE uhd::rx_metadata_t::error_code_t align_buffs(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t& aligned_bytes) {
+    UHD_INLINE uint64_t align_buffs(uhd::rx_metadata_t::error_code_t& error_code) {
 
-        uhd::rx_metadata_t::error_code_t error_code = rx_metadata_t::ERROR_CODE_NONE;
+        bool oflow_error = false;
 
-        // Calculates how many packets to align
-        // TODO: implement aligning varying number of packets
-        size_t num_packets_to_align = ch_recv_buffer_info_group[0].num_headers_used;
-        for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-            if(num_packets_to_align != ch_recv_buffer_info_i.num_headers_used) {
-                std::cerr << "recv number of packets mismatch. Aligning a non matching number of samples not implemented yet" << std::endl;
-                std::exit(~0);
-            }
-        }
-        //TODO: shift samples in the event a packet was not the same length as the max length
+        std::vector<uint64_t> aligned_bytes(_NUM_CHANNELS, 0);
+
+        // Checks for overflows
+        size_t ch = 0;
         for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
             // Each channel should end up with the same number of aligned bytes so its fine to reset the counter each channel which will end up using the last one
-            aligned_bytes = sample_buffer_offset;
-            size_t header_i = 0;
-            for(header_i = 0; header_i < ch_recv_buffer_info_i.num_headers_used; header_i++) {
+            for(size_t header_i = 0; header_i < ch_recv_buffer_info_i.num_headers_used; header_i++) {
                 //assume vrt_metadata.hst_tsf is true
                 // Checks if sequence number is correct, ignore check if timestamp is 0
                 if((ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count != (sequence_number_mask & (ch_recv_buffer_info_i.previous_sequence_number + 1)))  && (ch_recv_buffer_info_i.vrt_metadata[header_i].tsf != 0)) {
-                    error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                    oflow_error = true;
                     UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
                     //TODO: implement aligning buffs after an overflow
                 }
                 ch_recv_buffer_info_i.previous_sequence_number = ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count;
-                aligned_bytes += ch_recv_buffer_info_i.data_bytes_from_packet[header_i];
+                aligned_bytes[ch] += ch_recv_buffer_info_i.data_bytes_from_packet[header_i];
+            }
+            ch++;
+        }
+
+        bool alignment_required = (error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) || oflow_error;
+
+        // Will acts as if the channel with the lowest number of samples is the amount of samples received for all
+        uint64_t smallest_aligned_bytes = aligned_bytes[0];
+        for(size_t n = 1; n < _NUM_CHANNELS; n++) {
+            // Alignment is required if a different number of samples was received on each channel
+            alignment_required = alignment_required || (smallest_aligned_bytes != aligned_bytes[n]);
+            printf("alignment_required: %hhu, smallest_aligned_bytes: %lu, aligned_bytes[n]: %lu\n", alignment_required, smallest_aligned_bytes, aligned_bytes[n]);
+            smallest_aligned_bytes = std::min(smallest_aligned_bytes, aligned_bytes[n]);
+        }
+
+        if(alignment_required) {
+            // Sets the error code to overflow if not already seat to something
+            // Done here to avoid an extra if in a pass without errors
+            if(error_code == uhd::rx_metadata_t::ERROR_CODE_NONE && oflow_error) {
+                error_code = uhd::rx_metadata_t::ERROR_CODE_OVERFLOW;
+            }
+            std::vector<uint64_t> last_tsf(_NUM_CHANNELS);
+            uint64_t latest_tsf = 0;
+            uint64_t last_packet_count = 0;
+            // Figures out how many packets to drop
+            for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+                // Skips if no packets were received on this channel
+                if(ch_recv_buffer_info_group[n].num_headers_used == 0) {
+                    continue;
+                }
+                // Gets the last timestamp and last sequence number on every channel
+                size_t last_header = ch_recv_buffer_info_group[n].num_headers_used - 1;
+                last_tsf[n] = ch_recv_buffer_info_group[n].vrt_metadata[last_header].tsf;
+                if(latest_tsf< last_tsf[n]) {
+                    latest_tsf = last_tsf[n];
+                    last_packet_count = ch_recv_buffer_info_group[n].vrt_metadata[last_header].packet_count;
+                }
+            }
+            for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+                // Receives packets and does nothing with them to realign
+                // Not the most robust system, but anything more through would slow
+                int num_packet_to_drop =(int) ((latest_tsf - last_tsf[n]) / (_MAX_SAMPLE_BYTES_PER_PACKET/_BYTES_PER_SAMPLE));
+                flush_packets(n, num_packet_to_drop);
+                // Sets packets count to match what
+                ch_recv_buffer_info_group[n].previous_sequence_number = last_packet_count;
             }
         }
 
-        return error_code;
+        return smallest_aligned_bytes;
     }
 
     /*******************************************************************
@@ -490,7 +536,7 @@ private:
      * aligned_samples: stores the number of aligned sample
      * return: rx metadata error code
      ******************************************************************/
-    size_t flush_packets(size_t ch, int limit, bool no_limit) {
+    size_t flush_packets(size_t ch, int limit, bool no_limit = false) {
         int num_packets;
         ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
         if(no_limit) {
@@ -555,7 +601,7 @@ public:
 
     // Gets the maximum number of samples per packet
     UHD_INLINE size_t get_max_num_samps(void) const{
-        return _MAX_SAMPLE_BYTES_PER_PACKET/BYTES_PER_SAMPLE;
+        return _MAX_SAMPLE_BYTES_PER_PACKET/_BYTES_PER_SAMPLE;
     }
 };
 
