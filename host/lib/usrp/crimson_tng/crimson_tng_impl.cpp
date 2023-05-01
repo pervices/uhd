@@ -1564,7 +1564,7 @@ constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
-	return freq + bw / 2.0 >= dsp_range.stop();
+	return freq + bw / 2.0 > dsp_range.stop();
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
