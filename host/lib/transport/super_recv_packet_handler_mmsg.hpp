@@ -165,8 +165,8 @@ public:
             // How many bytes still need to be received after copying from the cache
             size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
 
-            if(one_packet) {
-                bytes_to_recv = std::min(remaining_nbytes_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET);
+            if(one_packet && 0) {
+                bytes_to_recv = std::min(remaining_nbytes_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET - cached_bytes_to_copy);
             } else {
                 bytes_to_recv = remaining_nbytes_per_buff;
             }

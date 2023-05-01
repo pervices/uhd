@@ -135,6 +135,7 @@ private:
 
 static std::vector<std::weak_ptr<cyan_nrnt_recv_packet_streamer>> allocated_rx_streamers;
 static void shutdown_lingering_rx_streamers() {
+    printf("Starting shutdown_lingering_rx_streamers\n");
 	// This is required as a workaround, because the relevent destructurs are not called
 	// when you close the top block in gnu radio. Unsolved mystery for the time being.
 	for( auto & rx: allocated_rx_streamers ) {
@@ -146,6 +147,7 @@ static void shutdown_lingering_rx_streamers() {
 		}
 	}
 	allocated_rx_streamers.clear();
+    printf("Finished shutdown_lingering_rx_streamers\n");
 }
 
 class cyan_nrnt_send_packet_streamer : public sph::send_packet_streamer_mmsg {
