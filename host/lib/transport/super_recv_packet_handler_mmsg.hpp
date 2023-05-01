@@ -147,7 +147,6 @@ public:
         metadata.reset();
 
         size_t bytes_per_buff = nsamps_per_buff * _BYTES_PER_SAMPLE;
-        printf("\nbytes_per_buff: %lu\n", bytes_per_buff);
 
         std::vector<size_t> nsamps_received(_NUM_CHANNELS, 0);
 
@@ -174,11 +173,7 @@ public:
             ch_recv_buffer_info_i.sample_cache_used-= cached_bytes_to_copy;
 
             nsamps_received[ch] += cached_bytes_to_copy / _BYTES_PER_SAMPLE;
-            printf("4 bytes_to_recv: %lu\n", bytes_to_recv);
         }
-
-        printf("T20\n");
-        printf("5 bytes_to_recv: %lu\n", bytes_to_recv);
 
         // Returns the number of samples requested, if there were enough samples in the cache
         if(!bytes_to_recv) {
@@ -191,13 +186,13 @@ public:
 
         extract_vrt_metadata();
 
+        metadata.has_time_spec = true;
+        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _samp_rate);
+
         // Check for overflow errors and (when implemented) shifts data to keep buffers aligned after an overflow)
         size_t aligned_bytes = align_buffs(metadata.error_code) + cached_bytes_to_copy;
-        printf("cached_bytes_to_copy: %lu\n", cached_bytes_to_copy);
 
         size_t final_nsamps = aligned_bytes/_BYTES_PER_SAMPLE;
-        std::cout << "metadata.error_code: " << metadata.error_code << std::endl;
-        printf("final_nsamps: %lu\n", final_nsamps);
         return final_nsamps;
     }
 
@@ -264,9 +259,6 @@ private:
      ******************************************************************/
     UHD_INLINE uhd::rx_metadata_t::error_code_t recv_multiple_packets(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_length_bytes, double timeout) {
         size_t nbytes_to_recv = buffer_length_bytes - sample_buffer_offset;
-        printf("T40\n");
-        printf("sample_buffer_offset: %lu\n", sample_buffer_offset);
-        printf("buffer_length_bytes: %lu\n", buffer_length_bytes);
 
         // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
         // Pointers for where to write samples to from each packet using scatter gather
@@ -284,7 +276,6 @@ private:
                 samples_sg_dst[ch].push_back(p+sample_buffers[ch]);
             }
         }
-        printf("T50\n");
 
         size_t num_packets_to_recv = samples_sg_dst[0].size();
 
@@ -310,8 +301,6 @@ private:
         size_t excess_data_in_last_packet = num_packets_to_recv * _MAX_SAMPLE_BYTES_PER_PACKET - nbytes_to_recv;
         // Amount of data in the last packet copied directly to buffer
         size_t data_in_last_packet = _MAX_SAMPLE_BYTES_PER_PACKET - excess_data_in_last_packet;
-
-        printf("num_packets_to_recv: %lu\n", num_packets_to_recv);
 
         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
@@ -343,8 +332,6 @@ private:
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
         }
 
-        printf("T100\n");
-
         // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
         struct timespec recv_start_time;
         clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
@@ -365,7 +352,6 @@ private:
                 if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
                     continue;
                 }
-                //TODO: implement timeout
                 // Receive packets system call
                 int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
 
@@ -405,12 +391,10 @@ private:
                 if(n + 1 == num_packets_to_recv) {
                     size_t received_data_in_last_packet = ch_recv_buffer_info_i.msgs[n].msg_len - _HEADER_SIZE;
                     if(received_data_in_last_packet > data_in_last_packet) {
-                        printf("T105\n");
                         ch_recv_buffer_info_i.data_bytes_from_packet[n] = data_in_last_packet;
                         ch_recv_buffer_info_i.sample_cache_used = received_data_in_last_packet - data_in_last_packet;
                         num_bytes_received += data_in_last_packet;
                     } else {
-                        printf("T110\n");
                         ch_recv_buffer_info_i.data_bytes_from_packet[n] = received_data_in_last_packet;
                         // sample_cache_used already set to 0 before this loop so doesn;t need to be set to 0 here
                         num_bytes_received += received_data_in_last_packet;
@@ -487,7 +471,6 @@ private:
         for(size_t n = 1; n < _NUM_CHANNELS; n++) {
             // Alignment is required if a different number of samples was received on each channel
             alignment_required = alignment_required || (smallest_aligned_bytes != aligned_bytes[n]);
-            printf("alignment_required: %hhu, smallest_aligned_bytes: %lu, aligned_bytes[n]: %lu\n", alignment_required, smallest_aligned_bytes, aligned_bytes[n]);
             smallest_aligned_bytes = std::min(smallest_aligned_bytes, aligned_bytes[n]);
         }
 

@@ -277,10 +277,13 @@ public:
         return accum_num_samps;
     }
 
+protected:
+    double _samp_rate;
+
 private:
     vrt_unpacker_type _vrt_unpacker;
     size_t _header_offset_words32;
-    double _tick_rate, _samp_rate;
+    double _tick_rate;
     bool _queue_error_for_next_call;
     size_t _alignment_failure_threshold;
     rx_metadata_t _queue_metadata;
