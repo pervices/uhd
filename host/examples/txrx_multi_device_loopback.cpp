@@ -46,6 +46,7 @@ struct device_parameters {
     std::vector<size_t> tx_channels, rx_channels;
     std::vector<double> tx_gains, rx_gains, tx_freqs, rx_freqs, amplitude, wave_freq;
     std::string time_reference;
+    std::string clock_reference;
 
 };
 
@@ -190,12 +191,17 @@ inline bool validate_number_of_channel_arguments(size_t num_channels, std::vecto
     return channel_arguments.size() == 1 || channel_arguments.size() == num_channels;
 }
 
-std::vector<device_parameters> parse_device_parameters(std::string args, std::string ref, std::string tx_channels_s, std::string rx_channels_s, std::string tx_gains_s, std::string rx_gains_s, std::string tx_freqs_s, std::string rx_freqs_s, std::string ampl_s, std::string wave_freq_s) {
+std::vector<device_parameters> parse_device_parameters(std::string args, std::string time_ref_s, std::string clock_ref_s,  std::string tx_channels_s, std::string rx_channels_s, std::string tx_gains_s, std::string rx_gains_s, std::string tx_freqs_s, std::string rx_freqs_s, std::string ampl_s, std::string wave_freq_s) {
     std::vector<std::string> device_args = seperate_device_argument(args);
     size_t num_devices = device_args.size();
 
-    std::vector<std::string> device_ref = seperate_device_argument(ref);
-    if(!validate_number_of_device_arguments(num_devices, device_ref)) {
+    std::vector<std::string> device_time_ref = seperate_device_argument(time_ref_s);
+    if(!validate_number_of_device_arguments(num_devices, device_time_ref)) {
+        throw std::runtime_error("Incorrect number of devices a time reference was specified for");
+    }
+
+    std::vector<std::string> device_clock_ref = seperate_device_argument(clock_ref_s);
+    if(!validate_number_of_device_arguments(num_devices, device_clock_ref)) {
         throw std::runtime_error("Incorrect number of devices a time reference was specified for");
     }
 
@@ -239,7 +245,8 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
     std::vector<device_parameters> parameters(num_devices);
     for(size_t n = 0; n < num_devices; n++) {
         parameters[n].args = device_args[n];
-        parameters[n].time_reference = device_ref[n];
+        parameters[n].time_reference = device_time_ref[n];
+        parameters[n].clock_reference = device_clock_ref[n];
 
         // Parse the channels
         if(device_tx_channels_arg[n] == "n") {
@@ -410,6 +417,8 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
 
     device->set_time_source(parameters.time_reference);
 
+    device->set_clock_source(parameters.clock_reference);
+
     device->set_tx_rate(rate);
     double actual_tx_rate = device->get_tx_rate();
     if(std::abs(actual_tx_rate - rate) > 1) {
@@ -499,7 +508,7 @@ void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices) {
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
-    std::string args, ref, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, rx_folder, ampl_arg, wave_freq_arg;
+    std::string args, time_ref, clock_ref, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, rx_folder, ampl_arg, wave_freq_arg;
     double start_time;
     size_t total_num_samps;
     double rate;
@@ -523,7 +532,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rx_only", "Do not use rx")
         ("tx_only", "Do not use tx")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(100000), "Numer of samples to send/receive")
-        ("ref", po::value<std::string>(&ref)->default_value("internal"), "Whether to use an internal or external time reference (internal, external)")
+        ("time_ref", po::value<std::string>(&time_ref)->default_value("internal"), "Whether to use an internal or external time (PPS) reference (internal, external)")
+        ("clock_ref", po::value<std::string>(&clock_ref)->default_value("internal"), "Whether to use an internal or external clock reference (internal, external)")
+
         ("ampl", po::value<std::string>(&ampl_arg)->default_value("0.7"), "Amplitude of the wave in tx samples. B Enter one number to set all the tx channels to said amplitude i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
         ("wave_freq", po::value<std::string>(&wave_freq_arg)->default_value("0"), "Amplitude of the wave in tx samples. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
     ;
@@ -539,7 +550,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
-    std::vector<device_parameters> parameters = parse_device_parameters(args, ref, tx_channel_arg, rx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ampl_arg, wave_freq_arg);
+    std::vector<device_parameters> parameters = parse_device_parameters(args, time_ref, clock_ref, tx_channel_arg, rx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ampl_arg, wave_freq_arg);
 
     std::vector<uhd::usrp::multi_usrp::sptr> devices(parameters.size());
     // Connects to each device
