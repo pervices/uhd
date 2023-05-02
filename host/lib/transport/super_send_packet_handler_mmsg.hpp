@@ -244,7 +244,7 @@ private:
 
     const double _TICK_RATE;
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
-    size_t cached_nsamps;
+    size_t cached_nsamps = 0;
 
     double _sample_rate = 0;
 
