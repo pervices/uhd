@@ -157,7 +157,7 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
         }
 
         // Currently will send starting at the begining of the buffer each time
-        total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md, timeout);
+        total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md, 20);
 
         // Indicate packets are no longer at the start
         md.start_of_burst = false;
@@ -167,7 +167,7 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
     md.end_of_burst = true;
     tx_stream->send("", 0, md);
 
-    printf("Send %lu samples of %lu attempted to device %lu\n", total_samples_sent, requested_num_samps, device_number);
+    printf("Sent %lu samples of %lu attempted to device %lu\n", total_samples_sent, requested_num_samps, device_number);
 }
 
 /**
