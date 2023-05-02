@@ -121,8 +121,10 @@ public:
      * The entry point for the fast-path send calls.
      * Dispatch into combinations of single packet send calls.
      ******************************************************************/
+private:
     bool cached_sob = false;
     uhd::time_spec_t sob_time_cache;
+public:
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -136,10 +138,11 @@ public:
         size_t nsamps_to_cache = nsamps_to_send - actual_nsamps_to_send;
 
         if(actual_nsamps_to_send == 0) {
+            // If a start of burst command has no packets, cache timestamp and keep until next call
             if(metadata.start_of_burst) {
                 cached_sob = true;
                 sob_time_cache = metadata.time_spec;
-                printf("TODO: use sob cache\n");
+                return 0;
             } else if(metadata.end_of_burst) {
                 printf("TODO: send eob packet\n");
             } else {
@@ -148,8 +151,16 @@ public:
             }
         }
 
+        uhd::tx_metadata_t modified_metadata = metadata;
+        if(cached_sob) {
+            cached_sob = false;
+            modified_metadata.start_of_burst = true;
+            modified_metadata.has_time_spec = true;
+            modified_metadata.time_spec = sob_time_cache;
+        }
+
         // Create and sends packets
-        size_t actual_samples_send = send_multiple_packets(sample_buffs, actual_nsamps_to_send, metadata, timeout);
+        size_t actual_samples_send = send_multiple_packets(sample_buffs, actual_nsamps_to_send, modified_metadata, timeout);
 
         // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
         if(nsamps_to_cache > 0) {
