@@ -465,13 +465,6 @@ private:
         std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
         while(channels_serviced < _NUM_CHANNELS) {
-            //Checks for timeout
-            struct timespec current_time;
-            clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
-            int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
-            if(current_time_ns > send_timeout_time_ns) {
-                break;
-            }
 
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
@@ -508,6 +501,13 @@ private:
                     // Update buffer level count
                     ch_send_buffer_info_group[ch_i].buffer_level_manager.update(nsamps_sent);
                 }
+            }
+            //Checks for timeout
+            struct timespec current_time;
+            clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+            int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
+            if(current_time_ns > send_timeout_time_ns) {
+                break;
             }
         }
 
