@@ -121,27 +121,220 @@ public:
      * The entry point for the fast-path send calls.
      * Dispatch into combinations of single packet send calls.
      ******************************************************************/
+    bool cached_sob = false;
+    uhd::time_spec_t sob_time_cache;
     UHD_INLINE size_t send(
+        const uhd::tx_streamer::buffs_type &sample_buffs,
+        const size_t nsamps_to_send,
+        const uhd::tx_metadata_t &metadata,
+        const double timeout
+    ) {
+        size_t previous_cached_nsamps = cached_nsamps;
+
+        // FPGAs can sometimes only receive multiples of a set number of samples
+        size_t actual_nsamps_to_send = (((cached_nsamps + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
+        size_t nsamps_to_cache = nsamps_to_send - actual_nsamps_to_send;
+
+        if(actual_nsamps_to_send == 0) {
+            if(metadata.start_of_burst) {
+                cached_sob = true;
+                sob_time_cache = metadata.time_spec;
+                printf("TODO: use sob cache\n");
+            } else if(metadata.end_of_burst) {
+                printf("TODO: send eob packet\n");
+            } else {
+                fprintf(stderr, "Send request with no samples, no start of burst or end of burst flag detected\n");
+                return 0;
+            }
+        }
+
+        // Create and sends packets
+        size_t actual_samples_send = send_multiple_packets(sample_buffs, actual_nsamps_to_send, metadata, timeout);
+
+        // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
+        if(nsamps_to_cache > 0) {
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), sample_buffs[ch_i] + (actual_samples_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+            }
+        }
+        cached_nsamps = nsamps_to_cache;
+
+        // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
+        return actual_samples_send + nsamps_to_cache - previous_cached_nsamps;
+    }
+
+    void set_samp_rate(const double rate) {
+        _sample_rate = rate;
+        for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+            ch_send_buffer_info_i.buffer_level_manager.set_sample_rate(rate);
+        }
+    }
+
+    void update_buffer_level(const uint64_t ch, const uint64_t level, const uhd::time_spec_t & now) {
+        ch_send_buffer_info_group[ch].buffer_level_manager.update_buffer_level_bias(level, now);
+    }
+
+    void enable_blocking_fc(uint64_t blocking_setpoint) {
+        use_blocking_fc = true;
+        if(blocking_setpoint > 0.9 * _DEVICE_BUFFER_SIZE) {
+            blocking_setpoint = (uint64_t) (0.9*_DEVICE_BUFFER_SIZE);
+        };
+        this->blocking_setpoint = _DEVICE_BUFFER_SIZE;
+    }
+
+    void disable_blocking_fc() {
+        use_blocking_fc = false;
+    }
+    
+protected:
+    bool use_blocking_fc = false;
+    ssize_t _max_samples_per_packet;
+    size_t _MAX_SAMPLE_BYTES_PER_PACKET;
+    size_t _NUM_CHANNELS;
+
+    // Buffer containing asynchronous messages related to underflows/overflows
+    const std::shared_ptr<bounded_buffer<async_metadata_t>> _async_msg_fifo;
+
+    // Gets the the time on the unit when a packet sent now would arrive
+    virtual uhd::time_spec_t get_time_now() = 0;
+
+    /*******************************************************************
+     * converts vrt packet info into header
+     * packet_buff: buffer to write vrt data to
+     * if_packet_info: packet info to be used to calculate the header
+     ******************************************************************/
+    virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
+
+    // Sends a request for the buffer level from the device, returns the result of that request
+    virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
+
+private:
+    uint64_t blocking_setpoint = 0;
+
+    //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
+    const size_t _BYTES_PER_SAMPLE = 4;
+    // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
+    // Desired send buffer size
+    const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
+    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
+    int _ACTUAL_SEND_BUFFER_SIZE;
+    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
+    std::vector<int> send_sockets;
+    //TODO: rename this to just channels when seperating this class from old version
+    std::vector<size_t> _channels;
+    // Device buffer size
+    const uint64_t _DEVICE_BUFFER_SIZE;
+
+    // Desired number of samples in the tx buffer on the unit
+    const ssize_t _DEVICE_TARGET_NSAMPS;
+
+    // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
+    const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
+
+    const double _TICK_RATE;
+    // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
+    size_t cached_nsamps;
+
+    double _sample_rate = 0;
+
+    // Header info for each packet, the VITA (not UDP) header is the same for every channel
+    std::vector<vrt::if_packet_info_t> packet_header_infos;
+
+    // The start time of the next batch of samples in ticks
+    // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
+    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+
+    //TODO move all the vectors with channel specific info here
+    // Stores information about packets to send for each channel
+    // Sizes of the various buffers used in send
+    size_t send_buffer_info_size = 0;
+    struct ch_send_buffer_info {
+        const size_t _vrt_header_size;
+        // Stores samples between sends, to account for limitations in number samples that can be sent at once
+        std::vector<int8_t> sample_cache;
+        // Stores data about the send for each packet
+        std::vector<mmsghdr> msgs;
+        // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
+        std::vector<iovec> iovecs;
+
+        // Contains vrt header data for each packet
+        std::vector<std::vector<uint32_t>> vrt_headers;
+
+        // Stores where the samples start for each packet
+        std::vector<const void*> sample_data_start_for_packet;
+
+        // Calculates the predicted buffer level
+        buffer_tracker buffer_level_manager;
+
+        /*!
+        * Make a new ch_send_buffer_info
+        * \param size number of packets that can be handled at once
+        * \param vrt_header_size size of the vrt header
+        * \param cache_size number of bytes in the sample cache
+        */
+        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate)
+        : _vrt_header_size(vrt_header_size),
+        sample_cache(std::vector<int8_t>(cache_size)),
+        buffer_level_manager(device_target_nsamps, rate)
+        {
+            resize_and_clear(size);
+        }
+
+        // Resizes and clears the buffers to match packet_helper_buffer_size
+        void resize_and_clear(size_t new_size) {
+            msgs.resize(new_size);
+            memset(msgs.data(), 0, sizeof(mmsghdr)*new_size);
+            // 1 VRT header and 1 data section in every packet, plus the cached samples in the first packet
+            iovecs.resize(2*new_size + 1);
+            memset(iovecs.data(), 0, sizeof(iovec)*2*new_size);
+            vrt_headers.resize(new_size);
+            std::fill(vrt_headers.begin(), vrt_headers.end(), std::vector<uint32_t>(_vrt_header_size/sizeof(uint32_t), 0));
+            sample_data_start_for_packet.resize(new_size, 0);
+        }
+
+    };
+    // Group of recv info for each channels
+    std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
+
+    // Expands the buffers used in the send command, does nothing if already large enough
+    void expand_send_buffer_info(size_t new_size) {
+        // Resizes the per channel buffers used in the send command
+        if(new_size > send_buffer_info_size) {
+            send_buffer_info_size = new_size;
+            packet_header_infos.resize(new_size);
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                ch_send_buffer_info_group[ch_i].resize_and_clear(new_size);
+            }
+        }
+    }
+
+    // Gets the number of samples that can be sent now (can be less than 0)
+    int check_fc_npackets(const size_t ch_i) {
+        if(BOOST_LIKELY(!use_blocking_fc)) {
+
+            // Get the buffer level on the unit
+            uhd::time_spec_t device_time = get_time_now();
+            int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
+
+            return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
+
+        } else {
+            int64_t buffer_level = get_buffer_level_from_device(ch_i);
+            return (int) ((blocking_setpoint - buffer_level) / (_max_samples_per_packet));
+        }
+    }
+
+        UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ) {
-        // FPGAs can sometimes only receive multiples of a set number of samples
-        size_t actual_nsamps_to_send = (((cached_nsamps + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
-        size_t nsamps_to_cache = nsamps_to_send - actual_nsamps_to_send;
-
-        // TODO: implement handling for length 0 packets (SOB with no samples and EOB)
-        // TODO: reset buffer management when issuing EOB
-        if(actual_nsamps_to_send == 0) {
-            std::cout << "0 length packets not implemented yet" << std::endl;
-            return 0;
-        }
 
         // Number of packets to send
-        int num_packets = std::ceil(((double)actual_nsamps_to_send)/_max_samples_per_packet);
+        int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
 
-        size_t samples_in_last_packet = actual_nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
+        size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
 
         // Expands size of buffers used to store data to be sent
         expand_send_buffer_info(num_packets);
@@ -307,19 +500,11 @@ public:
             }
         }
 
-        // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
-        if(nsamps_to_cache > 0) {
-            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), sample_buffs[ch_i] + (nsamps_to_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
-            }
-        }
         // Acts as though the channel with the most samples sent had samples sent
         size_t samples_sent = samples_sent_per_ch[0];
         for(size_t ch_i = 1; ch_i < _NUM_CHANNELS; ch_i++) {
             samples_sent = std::min(samples_sent_per_ch[ch_i], samples_sent);
         }
-        samples_sent+= nsamps_to_cache;
-        cached_nsamps = nsamps_to_cache;
 
         // Updates the next timestamp to follow from the end of this send
         if(metadata_.has_time_spec) {
@@ -329,167 +514,6 @@ public:
         }
 
         return samples_sent;
-    }
-
-    void set_samp_rate(const double rate) {
-        _sample_rate = rate;
-        for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-            ch_send_buffer_info_i.buffer_level_manager.set_sample_rate(rate);
-        }
-    }
-
-    void update_buffer_level(const uint64_t ch, const uint64_t level, const uhd::time_spec_t & now) {
-        ch_send_buffer_info_group[ch].buffer_level_manager.update_buffer_level_bias(level, now);
-    }
-
-    void enable_blocking_fc(uint64_t blocking_setpoint) {
-        use_blocking_fc = true;
-        if(blocking_setpoint > 0.9 * _DEVICE_BUFFER_SIZE) {
-            blocking_setpoint = (uint64_t) (0.9*_DEVICE_BUFFER_SIZE);
-        };
-        this->blocking_setpoint = _DEVICE_BUFFER_SIZE;
-    }
-
-    void disable_blocking_fc() {
-        use_blocking_fc = false;
-    }
-    
-protected:
-    bool use_blocking_fc = false;
-    ssize_t _max_samples_per_packet;
-    size_t _MAX_SAMPLE_BYTES_PER_PACKET;
-    size_t _NUM_CHANNELS;
-
-    // Buffer containing asynchronous messages related to underflows/overflows
-    const std::shared_ptr<bounded_buffer<async_metadata_t>> _async_msg_fifo;
-
-    // Gets the the time on the unit when a packet sent now would arrive
-    virtual uhd::time_spec_t get_time_now() = 0;
-
-    /*******************************************************************
-     * converts vrt packet info into header
-     * packet_buff: buffer to write vrt data to
-     * if_packet_info: packet info to be used to calculate the header
-     ******************************************************************/
-    virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
-
-    // Sends a request for the buffer level from the device, returns the result of that request
-    virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
-
-private:
-    uint64_t blocking_setpoint = 0;
-
-    //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
-    const size_t _BYTES_PER_SAMPLE = 4;
-    // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
-    // Desired send buffer size
-    const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
-    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
-    int _ACTUAL_SEND_BUFFER_SIZE;
-    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
-    std::vector<int> send_sockets;
-    //TODO: rename this to just channels when seperating this class from old version
-    std::vector<size_t> _channels;
-    // Device buffer size
-    const uint64_t _DEVICE_BUFFER_SIZE;
-
-    // Desired number of samples in the tx buffer on the unit
-    const ssize_t _DEVICE_TARGET_NSAMPS;
-
-    // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
-    const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
-
-    const double _TICK_RATE;
-    // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
-    size_t cached_nsamps;
-
-    double _sample_rate = 0;
-
-    // Header info for each packet, the VITA (not UDP) header is the same for every channel
-    std::vector<vrt::if_packet_info_t> packet_header_infos;
-
-    // The start time of the next batch of samples in ticks
-    // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
-    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
-
-    //TODO move all the vectors with channel specific info here
-    // Stores information about packets to send for each channel
-    // Sizes of the various buffers used in send
-    size_t send_buffer_info_size = 0;
-    struct ch_send_buffer_info {
-        const size_t _vrt_header_size;
-        // Stores samples between sends, to account for limitations in number samples that can be sent at once
-        std::vector<int8_t> sample_cache;
-        // Stores data about the send for each packet
-        std::vector<mmsghdr> msgs;
-        // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
-        std::vector<iovec> iovecs;
-
-        // Contains vrt header data for each packet
-        std::vector<std::vector<uint32_t>> vrt_headers;
-
-        // Stores where the samples start for each packet
-        std::vector<const void*> sample_data_start_for_packet;
-
-        // Calculates the predicted buffer level
-        buffer_tracker buffer_level_manager;
-
-        /*!
-        * Make a new ch_send_buffer_info
-        * \param size number of packets that can be handled at once
-        * \param vrt_header_size size of the vrt header
-        * \param cache_size number of bytes in the sample cache
-        */
-        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate)
-        : _vrt_header_size(vrt_header_size),
-        sample_cache(std::vector<int8_t>(cache_size)),
-        buffer_level_manager(device_target_nsamps, rate)
-        {
-            resize_and_clear(size);
-        }
-
-        // Resizes and clears the buffers to match packet_helper_buffer_size
-        void resize_and_clear(size_t new_size) {
-            msgs.resize(new_size);
-            memset(msgs.data(), 0, sizeof(mmsghdr)*new_size);
-            // 1 VRT header and 1 data section in every packet, plus the cached samples in the first packet
-            iovecs.resize(2*new_size + 1);
-            memset(iovecs.data(), 0, sizeof(iovec)*2*new_size);
-            vrt_headers.resize(new_size);
-            std::fill(vrt_headers.begin(), vrt_headers.end(), std::vector<uint32_t>(_vrt_header_size/sizeof(uint32_t), 0));
-            sample_data_start_for_packet.resize(new_size, 0);
-        }
-
-    };
-    // Group of recv info for each channels
-    std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
-
-    // Expands the buffers used in the send command, does nothing if already large enough
-    void expand_send_buffer_info(size_t new_size) {
-        // Resizes the per channel buffers used in the send command
-        if(new_size > send_buffer_info_size) {
-            send_buffer_info_size = new_size;
-            packet_header_infos.resize(new_size);
-            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                ch_send_buffer_info_group[ch_i].resize_and_clear(new_size);
-            }
-        }
-    }
-
-    // Gets the number of samples that can be sent now (can be less than 0)
-    int check_fc_npackets(const size_t ch_i) {
-        if(BOOST_LIKELY(!use_blocking_fc)) {
-
-            // Get the buffer level on the unit
-            uhd::time_spec_t device_time = get_time_now();
-            int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
-
-            return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
-
-        } else {
-            int64_t buffer_level = get_buffer_level_from_device(ch_i);
-            return (int) ((blocking_setpoint - buffer_level) / (_max_samples_per_packet));
-        }
     }
 };
 
