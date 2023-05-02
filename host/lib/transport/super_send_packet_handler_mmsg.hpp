@@ -144,7 +144,8 @@ public:
                 sob_time_cache = metadata.time_spec;
                 return 0;
             } else if(metadata.end_of_burst) {
-                printf("TODO: send eob packet\n");
+                send_eob_packet(metadata, timeout);
+                return 0;
             } else {
                 fprintf(stderr, "Send request with no samples, no start of burst or end of burst flag detected\n");
                 return 0;
@@ -158,9 +159,21 @@ public:
             modified_metadata.has_time_spec = true;
             modified_metadata.time_spec = sob_time_cache;
         }
+        // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
+        bool eob_requested = false;
+        if(modified_metadata.end_of_burst) {
+            modified_metadata.end_of_burst = false;
+            eob_requested = true;
+        }
 
         // Create and sends packets
         size_t actual_samples_send = send_multiple_packets(sample_buffs, actual_nsamps_to_send, modified_metadata, timeout);
+
+        // Sends the eob if requested
+        if(eob_requested) {
+            modified_metadata.end_of_burst = true;
+            send_eob_packet(metadata, timeout);
+        }
 
         // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
         if(nsamps_to_cache > 0) {
@@ -335,7 +348,7 @@ private:
         }
     }
 
-        UHD_INLINE size_t send_multiple_packets(
+    UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
         const uhd::tx_metadata_t &metadata_,
@@ -371,8 +384,7 @@ private:
                 packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
             }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
-            // TODO: implement EOB, note EOB packets must not contain real samples but must contain some data
-            packet_header_infos[n].eob     = false;
+            packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
 
             packet_header_infos[n].num_payload_bytes = _MAX_SAMPLE_BYTES_PER_PACKET;
@@ -525,6 +537,18 @@ private:
         }
 
         return samples_sent;
+    }
+
+    void send_eob_packet(const uhd::tx_metadata_t &metadata, double timeout) {
+        // Create vector of dummy samples, since the FPGA cannot handle 0 sample packets
+        std::vector<std::vector<int8_t>> dummy_buffs(_NUM_CHANNELS, std::vector<int8_t>(_BYTES_PER_SAMPLE * _DEVICE_PACKET_NSAMP_MULTIPLE, 0));
+        std::vector<const void *> dummy_buff_ptrs;
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            dummy_buff_ptrs.push_back(dummy_buffs[n].data());
+        }
+
+        // Sends the eob packet
+        send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, metadata, timeout);
     }
 };
 
