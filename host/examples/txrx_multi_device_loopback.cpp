@@ -128,12 +128,6 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
         buffer_ptrs[n] = &buffer[n].front();
     }
 
-    // TODO fill buffer with sinewave
-
-    for(size_t n = 0; n < parameters->num_tx_channels; n++) {
-        buffer_ptrs[n] = &buffer[n].front();
-    }
-
     uhd::tx_metadata_t md;
     md.start_of_burst = true;
     md.end_of_burst   = false;
@@ -142,11 +136,27 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
     double timeout = start_time + (requested_num_samps/rate) + 3;
     size_t total_samples_sent = 0;
 
+    size_t wavetable_index = 0;
+    //pre-compute the waveform values
+    std::vector<wave_table_class> wave_tables;
+    std::vector<size_t> steps;
+    for(size_t ch = 0; ch <parameters->num_tx_channels; ch++) {
+        wave_tables.push_back(wave_table_class("SINE", parameters->amplitude[ch]));
+        steps.push_back((size_t) ::round(parameters->wave_freq[ch]/rate * wave_table_len));
+    }
+
     while(total_samples_sent < requested_num_samps && !stop_signal_called) {
 
         size_t samples_to_send = std::min(requested_num_samps - total_samples_sent, spb);
+
+        for(size_t ch = 0; ch < parameters->num_tx_channels; ch++) {
+            for(size_t n = 0; n < samples_to_send; n++) {
+                buffer[ch][n] = wave_tables[ch](wavetable_index);
+            }
+            wavetable_index+=steps[ch];
+        }
+
         // Currently will send starting at the begining of the buffer each time
-        // TODO: fixed part of the buffer that is sent to minimize discontinuity in the sinewave
         total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md, timeout);
 
         // Indicate packets are no longer at the start
