@@ -446,7 +446,7 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
 
     for(size_t n = 0; n < parameters.num_tx_channels; n++) {
         // Setting tx gain
-        device->set_tx_gain(parameters.tx_channels[n], parameters.tx_gains[n]);
+        device->set_tx_gain(parameters.tx_gains[n], parameters.tx_channels[n]);
         double actual_tx_gain = device->get_tx_gain(parameters.tx_channels[n]);
         if(std::abs(actual_tx_gain - parameters.tx_gains[n]) > 0.1) {
             fprintf(stderr, "Unable to set tx gain on ch %lu. Actual gain: %lfdB, desired gain: %lfdB\n", parameters.tx_channels[n], actual_tx_gain, parameters.tx_gains[n]);
