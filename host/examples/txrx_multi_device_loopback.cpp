@@ -455,7 +455,7 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
         // Setting tx freq
         device->set_tx_freq(parameters.tx_channels[n], parameters.tx_freqs[n]);
         double actual_tx_freq = device->get_tx_freq(parameters.tx_channels[n]);
-        if(std::abs(actual_tx_gain - parameters.tx_freqs[n]) > 1) {
+        if(std::abs(actual_tx_freq - parameters.tx_freqs[n]) > 1) {
             fprintf(stderr, "Unable to set tx frequency on ch %lu. Actual frequency: %lfMHz, desired frequency: %lfMHz\n", parameters.tx_channels[n], actual_tx_freq, parameters.tx_freqs[n]);
         }
     }
