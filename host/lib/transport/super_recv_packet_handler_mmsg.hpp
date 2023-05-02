@@ -49,11 +49,22 @@ public:
      * \param dst_port the detination port of packet for each channel
      * \param max_sample_bytes_per_packet the number of transport channels
      * \param header_size the number of transport channels
-     * \param bytes_per_sample the number of transport channels
+     * \param cpu_format datatype of samples on the host system
+     * \param wire_format datatype of samples in the packets
      */
-    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
-    : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(dst_ip.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet), _BYTES_PER_SAMPLE(bytes_per_sample), _HEADER_SIZE(header_size)
+    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format)
+    : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(dst_ip.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
+    _HEADER_SIZE(header_size),
+    _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
+    _intermediate_recv_buffer_wrapper(_intermediate_recv_buffer_pointers.data(), _NUM_CHANNELS)
     {
+        if (wire_format=="sc16") {
+            _BYTES_PER_SAMPLE = 4;
+        } else if (wire_format=="sc12") {
+            _BYTES_PER_SAMPLE = 3;
+        } else {
+            throw uhd::runtime_error( "Unsupported wire format:" + wire_format);
+        }
 
         // Creates and binds to sockets
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -107,7 +118,8 @@ public:
                 (size_t) _num_header_buffers, // max_num_packets_to_flush
                 std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET, 0)), // flush_buffer
                 std::vector<mmsghdr>(_num_header_buffers),
-                std::vector<iovec>(2*_num_header_buffers+1)
+                std::vector<iovec>(2*_num_header_buffers+1),
+                std::vector<int8_t>(0)
             };
             // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
             memset(tmp.msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
@@ -123,6 +135,7 @@ public:
             flush_packets(n, 0, true);
         }
 
+        setup_converter(cpu_format, wire_format);
     }
 
     ~recv_packet_handler_mmsg(void)
@@ -148,6 +161,9 @@ public:
 
         size_t bytes_per_buff = nsamps_per_buff * _BYTES_PER_SAMPLE;
 
+        // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
+        const uhd::rx_streamer::buffs_type *recv_buffer = (converter_used) ? prepare_intermediate_buffers(bytes_per_buff) : &buffs;
+
         std::vector<size_t> nsamps_received(_NUM_CHANNELS, 0);
 
         // Number of bytes copied from the cache (should be the same for every channel)
@@ -160,7 +176,7 @@ public:
             ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
             // Copies cached data from previous recv
             cached_bytes_to_copy = std::min(ch_recv_buffer_info_i.sample_cache_used, bytes_per_buff);
-            memcpy(buffs[ch], ch_recv_buffer_info_i.sample_cache.data(), cached_bytes_to_copy);
+            memcpy((*recv_buffer)[ch], ch_recv_buffer_info_i.sample_cache.data(), cached_bytes_to_copy);
             // How many bytes still need to be received after copying from the cache
             size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
 
@@ -181,8 +197,8 @@ public:
             return nsamps_per_buff;
         }
 
-        // Receives packets, data is stores in buffs, metadata is stored in ch_recv_buffer_info.headers
-        metadata.error_code = recv_multiple_packets(buffs, cached_bytes_to_copy, cached_bytes_to_copy + bytes_to_recv, timeout);
+        // Receives packets, data is stores in recv_buffer, metadata is stored in ch_recv_buffer_info.headers
+        metadata.error_code = recv_multiple_packets(*recv_buffer, cached_bytes_to_copy, cached_bytes_to_copy + bytes_to_recv, timeout);
 
         extract_vrt_metadata();
 
@@ -193,6 +209,11 @@ public:
         size_t aligned_bytes = align_buffs(metadata.error_code) + cached_bytes_to_copy;
 
         size_t final_nsamps = aligned_bytes/_BYTES_PER_SAMPLE;
+
+        if(converter_used) {
+            convert_samples(buffs, final_nsamps);
+        }
+
         return final_nsamps;
     }
 
@@ -244,9 +265,26 @@ private:
         /// Pointers to where to store recveived data in
         std::vector<iovec> iovecs;
 
+        // Buffer used to store data before converting from wire format to CPU format. Unused if wire and CPU format match
+        std::vector<int8_t> intermediate_recv_buffer;
+
     };
     // Group of recv info for each channels
     std::vector<ch_recv_buffer_info> ch_recv_buffer_info_group;
+
+    // Whether or not a conversion is required between CPU and wire formats
+    bool converter_used;
+    // Converter configuration
+    uhd::convert::id_type converter_id;
+    double converter_scale_factor = 1;
+
+    // Pointers to the start of the recv buffer for each channel
+    std::vector<void*> _intermediate_recv_buffer_pointers;
+    // Wrapper to be use the same dataype as the regular buffer
+    uhd::rx_streamer::buffs_type _intermediate_recv_buffer_wrapper;
+
+    // Converts samples between wire and cpu formats
+    uhd::convert::converter::sptr _converter;
 
         /*******************************************************************
      * recv_multiple_packets:
@@ -258,6 +296,7 @@ private:
      * returns error code
      ******************************************************************/
     UHD_INLINE uhd::rx_metadata_t::error_code_t recv_multiple_packets(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_length_bytes, double timeout) {
+
         size_t nbytes_to_recv = buffer_length_bytes - sample_buffer_offset;
 
         // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
@@ -555,14 +594,71 @@ private:
         return total_packets_received;
     }
 
+    /*!
+     * Prepares the converter
+     * Called as part of the constructor, only in its own function to improve readability
+     * \param cpu_format datatype of samples on the host system (only sc16 and fc32)
+     * \param wire_format datatype of samples in the packets (only sc16, TODO: support sc12)
+     */
+    UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format) {
+        // No converter required, scatter gather will be used
+        if(cpu_format == wire_format) {
+            converter_used = false;
+            return;
+        } else {
+            converter_used = true;
+            //set the converter
+            uhd::convert::id_type converter_id;
+            // TODO have device specify whether to use big or little endian
+            // NOTE: Crimson and 1G will convert to little endian on the device, 3G cannot
+            // TODO: add sc12 for 3G
+            converter_id.input_format = wire_format + "_item32_le";
+            converter_id.num_inputs = 1;
+            converter_id.output_format = cpu_format;
+            converter_id.num_outputs = 1;
+
+            _converter = uhd::convert::get_converter(converter_id)();
+
+            if ( "fc32" == cpu_format && "sc16" == wire_format ) {
+                _converter->set_scalar(converter_scale_factor = 1.0 / 0x7fff);
+            } else {
+                throw uhd::runtime_error( "Invalid CPU and wire format combination: " + cpu_format + ", " + wire_format);
+            }
+        }
+    }
+
+    // Resizes the intermediate buffers (if needed) and updates the
+    // Returns the wrapper (set to the data in the constructor, done as a workaround because the UHD uses a vector wrapper)
+    UHD_INLINE uhd::rx_streamer::buffs_type* prepare_intermediate_buffers(size_t bytes) {
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            if(ch_recv_buffer_info_group[n].intermediate_recv_buffer.size() < bytes) {
+                // Resizes intermediate buffer
+                ch_recv_buffer_info_group[n].intermediate_recv_buffer.resize(bytes);
+            }
+            // Updates the pointer to the intermediate buffer
+            _intermediate_recv_buffer_pointers[n] = ch_recv_buffer_info_group[n].intermediate_recv_buffer.data();
+        }
+
+        return &_intermediate_recv_buffer_wrapper;
+    }
+
+    // Copies samples from _intermediate_recv_buffer_pointers to user_buffer
+    void convert_samples(const uhd::rx_streamer::buffs_type& user_buffer_ptrs, size_t num_samples) {
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            // TODO figure out how the converter works to optimize this, it might be possible to do all at once
+            const ref_vector<void*> user_buffer_ch(user_buffer_ptrs[n]);
+            // Converts the samples
+            _converter->conv(_intermediate_recv_buffer_pointers[n], user_buffer_ch, num_samples);
+        }
+    }
 
 };
 
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t bytes_per_sample )
-    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, bytes_per_sample)
+    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format)
+    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, cpu_format, wire_format)
     {
     }
 

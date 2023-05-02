@@ -88,9 +88,8 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port)
-    //TODO: soft code bytes_per sample (3G has 12 bit samples, currently will only work for 1G). Also might need to change CYAN_NRNT_MAX_NBYTES to be dynamic
-	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, /*(bytes_per_sample)*/ 4)
+	cyan_nrnt_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, cpu_format, wire_format)
 	{
     }
 
@@ -573,25 +572,11 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(dst_ip, dst_port);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(dst_ip, dst_port, args.cpu_format, args.otw_format);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
     my_streamer->set_vrt_unpacker(&vrt::if_hdr_unpack_be);
-
-    //set the converter
-    uhd::convert::id_type id;
-    id.input_format = args.otw_format + "_item32_be";
-    id.num_inputs = 1;
-    id.output_format = args.cpu_format;
-    id.num_outputs = 1;
-    my_streamer->set_converter(id);
-
-    if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 / (double)((1<<(otw_rx-1))-1) );
-    } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 16.0 / otw_rx-1 );
-    }
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -842,22 +827,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     my_streamer->resize(args.channels.size());
 
     my_streamer->set_time_now_function(std::bind(&cyan_nrnt_impl::get_time_now,this));
-
-    // TODO: implement conversion for other CPU formats
-//     //set the converter
-//     uhd::convert::id_type id;
-//     id.input_format = args.cpu_format;
-//     id.num_inputs = 1;
-//     id.output_format = args.otw_format + "_item32_be";
-//     id.num_outputs = 1;
-//     my_streamer->set_converter(id);
-//
-//     if ( false ) {
-//     } else if ( "fc32" == args.cpu_format ) {
-//         my_streamer->set_scale_factor( (double)((1<<(otw_tx-1))-1) );
-//     } else if ( "sc16" == args.cpu_format ) {
-//         my_streamer->set_scale_factor( otw_tx / 16.0 );
-//     }
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){

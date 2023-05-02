@@ -272,6 +272,7 @@ UHD_STATIC_BLOCK(register_convert_sc16_item32_1_to_fcxx_1)
 
     id.output_format = "fc32";
     id.input_format  = "sc16_item32_le";
+
     uhd::convert::register_converter(
         id, &make_convert_sc16_item32_le_1_to_fc32_1, PRIORITY_TABLE);
 

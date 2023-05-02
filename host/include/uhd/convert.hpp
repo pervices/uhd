@@ -35,6 +35,7 @@ public:
     UHD_INLINE void conv(const input_type& in, const output_type& out, const size_t num)
     {
         if (num != 0)
+            // Call the () operator. The conversation from sc16 to fc32 is in sse2_sc16_fc32.cpp
             (*this)(in, out, num);
     }
 
