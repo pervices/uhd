@@ -147,7 +147,6 @@ public:
                 send_eob_packet(metadata, timeout);
                 return 0;
             } else {
-                fprintf(stderr, "Send request with no samples, no start of burst or end of burst flag detected\n");
                 return 0;
             }
         }
