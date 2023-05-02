@@ -402,12 +402,12 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
             } else {
                 if(wave_freq_arg_s.size()==1) {
                     for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
-                        parameters[n].amplitude.push_back(std::stod(wave_freq_arg_s[0]));
+                        parameters[n].wave_freq.push_back(std::stod(wave_freq_arg_s[0]));
                     }
                 }
                 else {
                     for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
-                        parameters[n].amplitude.push_back(std::stod(wave_freq_arg_s[i]));
+                        parameters[n].wave_freq.push_back(std::stod(wave_freq_arg_s[i]));
                     }
                 }
             }
