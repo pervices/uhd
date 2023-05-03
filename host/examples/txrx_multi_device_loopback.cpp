@@ -614,12 +614,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     printf("\nPress Ctrl + C to stop streaming...\n");
 
     //Waits for rx to finish
-    for(size_t n = 0; n < devices.size(); n++) {
+    for(size_t n = 0; n < rx_threads.size(); n++) {
         rx_threads[n].join();
     }
 
     //Waits for tx to finish
-    for(size_t n = 0; n < devices.size(); n++) {
+    for(size_t n = 0; n < tx_threads.size(); n++) {
         tx_threads[n].join();
     }
     
