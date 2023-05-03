@@ -156,8 +156,7 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
             wavetable_index+=steps[ch];
         }
 
-        // Currently will send starting at the begining of the buffer each time
-        total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md, 20);
+        total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md);
 
         // Indicate packets are no longer at the start
         md.start_of_burst = false;
