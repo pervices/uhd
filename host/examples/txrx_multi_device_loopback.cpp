@@ -432,7 +432,7 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
     device->set_tx_rate(rate);
     double actual_tx_rate = device->get_tx_rate();
     if(std::abs(actual_tx_rate - rate) > 1) {
-        printf("Desired tx rate: %lfMsps, actual tx rate: %lfMsps\n", rate/1e6, actual_tx_rate);
+        printf("Desired tx rate: %lfMsps, actual tx rate: %lfMsps\n", rate/1e6, actual_tx_rate/1e6);
     }
     device->set_rx_rate(actual_tx_rate);
     double actual_rx_rate = device->get_rx_rate();
