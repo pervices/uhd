@@ -428,15 +428,15 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
 
     device->set_clock_source(parameters.clock_reference);
 
-    device->set_tx_rate(rate);
-    double actual_tx_rate = device->get_tx_rate();
-    if(std::abs(actual_tx_rate - rate) > 1) {
-        printf("Desired tx rate: %lfMsps, actual tx rate: %lfMsps\n", rate/1e6, actual_tx_rate/1e6);
-    }
-    device->set_rx_rate(actual_tx_rate);
+    device->set_rx_rate(rate);
     double actual_rx_rate = device->get_rx_rate();
     if(std::abs(actual_rx_rate - rate) > 1) {
-        printf("Desired rx rate: %lfMsps, actual rx rate: %lfMsps\n", actual_tx_rate/1e6, actual_rx_rate/1e6);
+        printf("Desired rx rate: %lfMsps, actual rx rate: %lfMsps\n", rate/1e6, actual_rx_rate/1e6);
+    }
+    device->set_tx_rate(actual_rx_rate);
+    double actual_tx_rate = device->get_tx_rate();
+    if(std::abs(actual_tx_rate - rate) > 1) {
+        printf("Desired tx rate: %lfMsps, actual tx rate: %lfMsps\n", actual_rx_rate/1e6, actual_tx_rate/1e6);
     }
     if(actual_tx_rate != actual_rx_rate) {
         fprintf(stderr, "Mistmatch between tx rate: %lfMsps, rx rate: %lfMsps\n The rest of the program will use tx rate\n", actual_tx_rate/1e6, actual_rx_rate/1e6);
