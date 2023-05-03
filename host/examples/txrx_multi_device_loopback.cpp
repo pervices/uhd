@@ -587,7 +587,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     for(size_t n = 0; n < devices.size(); n++) {
         // create receive streamers
         uhd::stream_args_t tx_stream_args("sc16"); //short complex
-        tx_stream_args.channels = parameters[n].rx_channels;
+        tx_stream_args.channels = parameters[n].tx_channels;
         tx_streamers.push_back(devices[n]->get_tx_stream(tx_stream_args));
     }
 
