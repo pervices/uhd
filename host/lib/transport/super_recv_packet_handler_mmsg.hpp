@@ -51,8 +51,9 @@ public:
      * \param header_size the number of transport channels
      * \param cpu_format datatype of samples on the host system
      * \param wire_format datatype of samples in the packets
+     * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
      */
-    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format)
+    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
     : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(dst_ip.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
     _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
@@ -135,7 +136,7 @@ public:
             flush_packets(n, 0, true);
         }
 
-        setup_converter(cpu_format, wire_format);
+        setup_converter(cpu_format, wire_format, wire_little_endian);
     }
 
     ~recv_packet_handler_mmsg(void)
@@ -599,20 +600,22 @@ private:
      * Called as part of the constructor, only in its own function to improve readability
      * \param cpu_format datatype of samples on the host system (only sc16 and fc32)
      * \param wire_format datatype of samples in the packets (only sc16, TODO: support sc12)
+     * \param wire_little_endian data format in packets is little endian
      */
-    UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format) {
+    UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
         // No converter required, scatter gather will be used
-        if(cpu_format == wire_format) {
+        if(cpu_format == wire_format && wire_little_endian) {
             converter_used = false;
             return;
         } else {
             converter_used = true;
             //set the converter
             uhd::convert::id_type converter_id;
-            // TODO have device specify whether to use big or little endian
-            // NOTE: Crimson and 1G will convert to little endian on the device, 3G cannot
-            // TODO: add sc12 for 3G
-            converter_id.input_format = wire_format + "_item32_le";
+            if(wire_little_endian) {
+                converter_id.input_format = wire_format + "_item32_le";
+            } else {
+                converter_id.input_format = wire_format + "_item32_be";
+            }
             converter_id.num_inputs = 1;
             converter_id.output_format = cpu_format;
             converter_id.num_outputs = 1;
@@ -621,7 +624,9 @@ private:
 
             if ( "fc32" == cpu_format && "sc16" == wire_format ) {
                 _converter->set_scalar(converter_scale_factor = 1.0 / 0x7fff);
-            } else {
+            } else if( "fc32" == cpu_format && "sc12" == wire_format ) {
+                _converter->set_scalar(converter_scale_factor = 1.0 / 0x7ff);
+            }else {
                 throw uhd::runtime_error( "Invalid CPU and wire format combination: " + cpu_format + ", " + wire_format);
             }
         }
@@ -657,8 +662,8 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format)
-    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, cpu_format, wire_format)
+    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, cpu_format, wire_format, wire_little_endian)
     {
     }
 

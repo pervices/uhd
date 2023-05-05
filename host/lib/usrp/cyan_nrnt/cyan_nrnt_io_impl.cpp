@@ -88,8 +88,8 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format)
-	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, cpu_format, wire_format)
+	cyan_nrnt_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, cpu_format, wire_format, wire_little_endian)
 	{
     }
 
@@ -545,6 +545,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
     }
 
+    bool little_endian_supported = true;
+
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -562,8 +564,18 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
                 // stop streaming
                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
-                // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
-                _tree->access<int>(rx_link_path / "endian_swap").set(1);
+                if(little_endian_supported) {
+                    // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
+                    _tree->access<int>(rx_link_path / "endian_swap").set(1);
+                    // Checks if the server accepted the endian swap request
+                    // If 0 then the device does not support endian swap
+                    int endian_status = _tree->access<int>(rx_link_path / "endian_swap").get();
+                    if(endian_status == 0) {
+                        little_endian_supported = false;
+                    }
+                } else {
+                    // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
+                }
                 // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
             }
@@ -572,7 +584,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(dst_ip, dst_port, args.cpu_format, args.otw_format);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(dst_ip, dst_port, args.cpu_format, args.otw_format, little_endian_supported);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
