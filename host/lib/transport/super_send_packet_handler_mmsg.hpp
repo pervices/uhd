@@ -627,14 +627,20 @@ private:
     * \param bytes Number of bytes to convert
     * \return Vector wrapper with the converted samples
     */
-    UHD_INLINE uhd::tx_streamer::buffs_type* prepare_intermediate_buffers_and_convert(const uhd::tx_streamer::buffs_type& samples, const size_t bytes) {
+    UHD_INLINE uhd::tx_streamer::buffs_type* prepare_intermediate_buffers_and_convert(const uhd::tx_streamer::buffs_type& samples, const size_t num_samples) {
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            if(ch_send_buffer_info_group[n].intermediate_send_buffer.size() < bytes) {
+            if(ch_send_buffer_info_group[n].intermediate_send_buffer.size() < num_samples * _BYTES_PER_SAMPLE) {
                 // Resizes intermediate buffer
-                ch_send_buffer_info_group[n].intermediate_send_buffer.resize(bytes);
+                ch_send_buffer_info_group[n].intermediate_send_buffer.resize(num_samples * _BYTES_PER_SAMPLE);
             }
             // Updates the pointer to the intermediate buffer
             _intermediate_send_buffer_pointers[n] = ch_send_buffer_info_group[n].intermediate_send_buffer.data();
+        }
+
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            // TODO figure out how the converter works to optimize this, it might be possible to do all at once
+            // Converts the samples
+            _converter->conv(samples[n], _intermediate_send_buffer_pointers[n], num_samples);
         }
 
         return &_intermediate_send_buffer_wrapper;
