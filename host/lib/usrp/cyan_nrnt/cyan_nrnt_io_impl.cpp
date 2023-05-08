@@ -154,9 +154,9 @@ public:
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
-	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo)
+	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
 		_first_call_to_send( true ),
 		_buffer_monitor_running( false ),
 		_stop_buffer_monitor( false )
@@ -828,12 +828,41 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
     }
 
+    bool little_endian_supported = true;
+
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        size_t chan = args.channels[ chan_i ];
+        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+        const fs_path mb_path   = "/mboards/0";
+        const fs_path tx_path   = mb_path / "tx";
+        const fs_path tx_link_path  = mb_path / "tx_link" / chan;
+
+		// power on the channel
+		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
+
+        if(little_endian_supported) {
+            // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
+            _tree->access<int>(tx_link_path / "endian_swap").set(1);
+            // Checks if the server accepted the endian swap request
+            // If 0 then the device does not support endian swap
+            int endian_status = _tree->access<int>(tx_link_path / "endian_swap").get();
+            if(endian_status == 0) {
+                little_endian_supported = false;
+            }
+        } else {
+            // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
+        }
+
+		// vita enable
+		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
+    }
+
     // Each streamer has its own FIFO buffer that can operate independantly
     // However there is a deprecated function in device for reading async message
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo);
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -860,23 +889,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 break;
             }
         }
-    }
-
-    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
-        size_t chan = args.channels[ chan_i ];
-        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        const fs_path mb_path   = "/mboards/0";
-        const fs_path tx_path   = mb_path / "tx";
-        const fs_path tx_link_path  = mb_path / "tx_link" / chan;
-
-		// power on the channel
-		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
-
-        // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
-        _tree->access<int>(tx_link_path / "endian_swap").set(1);
-
-		// vita enable
-		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
     }
 
     //sets all tick and samp rates on this streamer

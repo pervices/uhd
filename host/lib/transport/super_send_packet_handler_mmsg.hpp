@@ -57,7 +57,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
         : _max_samples_per_packet(max_samples_per_packet),
         _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample),
         _NUM_CHANNELS(channels.size()),
@@ -107,6 +107,7 @@ public:
             send_sockets.push_back(send_socket_fd);
         }
 
+        setup_converter(cpu_format, wire_format, wire_little_endian);
     }
 
     ~send_packet_handler_mmsg(void){
@@ -318,6 +319,12 @@ private:
     };
     // Group of recv info for each channels
     std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
+
+    // Whether or not a conversion is required between CPU and wire formats
+    bool converter_used;
+
+    // Converts samples between wire and cpu formats
+    uhd::convert::converter::sptr _converter;
 
     // Expands the buffers used in the send command, does nothing if already large enough
     void expand_send_buffer_info(size_t new_size) {
@@ -549,13 +556,62 @@ private:
         // Sends the eob packet
         send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, metadata, timeout);
     }
+
+    /*!
+     * Prepares the converter
+     * Called as part of the constructor, only in its own function to improve readability
+     * \param cpu_format datatype of samples on the host system (only sc16 and fc32)
+     * \param wire_format datatype of samples in the packets (only sc16)
+     * \param wire_little_endian data format in packets is little endian
+     */
+    UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
+        // No converter required, scatter gather will be used
+        if(cpu_format == wire_format && wire_little_endian) {
+            converter_used = false;
+            return;
+        } else {
+            converter_used = true;
+            //set the converter
+            uhd::convert::id_type converter_id;
+            if(wire_little_endian) {
+                converter_id.input_format = cpu_format + "_item32_le";
+            } else {
+                converter_id.input_format = cpu_format + "_item32_be";
+            }
+            converter_id.num_inputs = 1;
+            converter_id.output_format = wire_format;
+            converter_id.num_outputs = 1;
+
+            _converter = uhd::convert::get_converter(converter_id)();
+
+            double cpu_max;
+            if ("fc32" == cpu_format) {
+                cpu_max = 1;
+            } else if("sc16" == cpu_format) {
+                cpu_max = 0x7fff;
+            } else {
+                throw uhd::runtime_error( "Unsupported CPU format: " + cpu_format);
+            }
+
+            double wire_max;
+            if("sc16" == wire_format) {
+                wire_max = 0x7fff;
+            } else if("sc12" == wire_format) {
+                wire_max = 0x7ff;
+            } else {
+                throw uhd::runtime_error( "Unsupported wire format: " + cpu_format);
+            }
+
+            _converter->set_scalar(wire_max / cpu_max);
+        }
+    }
 };
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian)
     {
     }
 
