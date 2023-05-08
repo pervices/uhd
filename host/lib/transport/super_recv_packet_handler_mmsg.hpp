@@ -275,8 +275,6 @@ private:
 
     // Whether or not a conversion is required between CPU and wire formats
     bool converter_used;
-    // Converter configuration
-    uhd::convert::id_type converter_id;
 
     // Pointers to the start of the recv buffer for each channel
     std::vector<void*> _intermediate_recv_buffer_pointers;
