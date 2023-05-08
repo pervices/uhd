@@ -277,7 +277,6 @@ private:
     bool converter_used;
     // Converter configuration
     uhd::convert::id_type converter_id;
-    double converter_scale_factor = 1;
 
     // Pointers to the start of the recv buffer for each channel
     std::vector<void*> _intermediate_recv_buffer_pointers;
@@ -622,13 +621,25 @@ private:
 
             _converter = uhd::convert::get_converter(converter_id)();
 
-            if ( "fc32" == cpu_format && "sc16" == wire_format ) {
-                _converter->set_scalar(converter_scale_factor = 1.0 / 0x7fff);
-            } else if( "fc32" == cpu_format && "sc12" == wire_format ) {
-                _converter->set_scalar(converter_scale_factor = 1.0 / 0x7ff);
-            }else {
-                throw uhd::runtime_error( "Invalid CPU and wire format combination: " + cpu_format + ", " + wire_format);
+            double cpu_max;
+            if ("fc32" == cpu_format) {
+                cpu_max = 1;
+            } else if("sc16" == cpu_format) {
+                cpu_max = 0x7fff;
+            } else {
+                throw uhd::runtime_error( "Unsupported CPU format: " + cpu_format);
             }
+
+            double wire_max;
+            if("sc16" == wire_format) {
+                wire_max = 0x7fff;
+            } else if("sc12" == wire_format) {
+                wire_max = 0x7ff;
+            } else {
+                throw uhd::runtime_error( "Unsupported wire format: " + cpu_format);
+            }
+
+            _converter->set_scalar(cpu_max / wire_max);
         }
     }
 
