@@ -569,10 +569,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         devices[n] = uhd::usrp::multi_usrp::make(parameters[n].args);
     }
 
-    for(size_t n = 0; n < devices.size(); n++) {
-        configure_device(devices[n].get(), rate, parameters[n]);
-    }
-
     // Create rx streamers
     std::vector<uhd::rx_streamer::sptr> rx_streamers;
     for(size_t n = 0; n < devices.size(); n++) {
@@ -591,8 +587,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         tx_streamers.push_back(devices[n]->get_tx_stream(tx_stream_args));
     }
 
+    // Sync devices must be run before configuring
     sync_devices(devices);
 
+    for(size_t n = 0; n < devices.size(); n++) {
+        configure_device(devices[n].get(), rate, parameters[n]);
+    }
 
     std::vector<std::thread> rx_threads;
     bool save_rx = !vm.count("no_save");
@@ -608,7 +608,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::vector<std::thread> tx_threads;
     for(size_t n = 0; n < devices.size(); n++) {
-        tx_threads.push_back(std::thread(tx_run, tx_streamers[n].get(), &parameters[n], n, start_time, total_num_samps, rate));
+        tx_threads.emplace_back(std::thread(tx_run, tx_streamers[n].get(), &parameters[n], n, start_time, total_num_samps, rate));
     }
 
     printf("\nPress Ctrl + C to stop streaming...\n");
