@@ -66,7 +66,9 @@ public:
         _DEVICE_BUFFER_SIZE(device_buffer_size),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
-        _TICK_RATE(tick_rate)
+        _TICK_RATE(tick_rate),
+        _intermediate_send_buffer_pointers(_NUM_CHANNELS),
+        _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS)
     {
         ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
 
@@ -132,6 +134,9 @@ public:
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ) {
+        // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
+        const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
+
         size_t previous_cached_nsamps = cached_nsamps;
 
         // FPGAs can sometimes only receive multiples of a set number of samples
@@ -167,7 +172,7 @@ public:
         }
 
         // Create and sends packets
-        size_t actual_samples_send = send_multiple_packets(sample_buffs, actual_nsamps_to_send, modified_metadata, timeout);
+        size_t actual_samples_send = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
 
         // Sends the eob if requested
         if(eob_requested) {
@@ -178,7 +183,7 @@ public:
         // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
         if(nsamps_to_cache > 0) {
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), sample_buffs[ch_i] + (actual_samples_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (*send_buffer)[ch_i] + (actual_samples_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
             }
         }
         cached_nsamps = nsamps_to_cache;
@@ -290,6 +295,9 @@ private:
         // Calculates the predicted buffer level
         buffer_tracker buffer_level_manager;
 
+        // Buffer used to store data before converting from wire format to CPU format. Unused if wire and CPU format match
+        std::vector<int8_t> intermediate_send_buffer;
+
         /*!
         * Make a new ch_send_buffer_info
         * \param size number of packets that can be handled at once
@@ -322,6 +330,11 @@ private:
 
     // Whether or not a conversion is required between CPU and wire formats
     bool converter_used;
+
+    // Pointers to the start of the send buffer for each channel
+    std::vector<void*> _intermediate_send_buffer_pointers;
+    // Wrapper to be use the same dataype as the regular buffer
+    uhd::tx_streamer::buffs_type _intermediate_send_buffer_wrapper;
 
     // Converts samples between wire and cpu formats
     uhd::convert::converter::sptr _converter;
@@ -574,12 +587,12 @@ private:
             //set the converter
             uhd::convert::id_type converter_id;
             if(wire_little_endian) {
-                converter_id.input_format = cpu_format + "_item32_le";
+                converter_id.output_format = wire_format + "_item32_le";
             } else {
-                converter_id.input_format = cpu_format + "_item32_be";
+                converter_id.output_format = wire_format + "_item32_be";
             }
             converter_id.num_inputs = 1;
-            converter_id.output_format = wire_format;
+            converter_id.input_format = cpu_format;
             converter_id.num_outputs = 1;
 
             _converter = uhd::convert::get_converter(converter_id)();
@@ -604,6 +617,27 @@ private:
 
             _converter->set_scalar(wire_max / cpu_max);
         }
+    }
+
+
+    /*!
+     * Resizes the intermediate buffers (if needed) and converts the samples
+     * Returns the wrapper (set to the data in the constructor, done as a workaround because the UHD uses a vector wrapper)
+    * \param samples The samples to convert
+    * \param bytes Number of bytes to convert
+    * \return Vector wrapper with the converted samples
+    */
+    UHD_INLINE uhd::tx_streamer::buffs_type* prepare_intermediate_buffers_and_convert(const uhd::tx_streamer::buffs_type& samples, const size_t bytes) {
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            if(ch_send_buffer_info_group[n].intermediate_send_buffer.size() < bytes) {
+                // Resizes intermediate buffer
+                ch_send_buffer_info_group[n].intermediate_send_buffer.resize(bytes);
+            }
+            // Updates the pointer to the intermediate buffer
+            _intermediate_send_buffer_pointers[n] = ch_send_buffer_info_group[n].intermediate_send_buffer.data();
+        }
+
+        return &_intermediate_send_buffer_wrapper;
     }
 };
 
