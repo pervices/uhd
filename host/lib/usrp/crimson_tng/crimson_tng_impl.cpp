@@ -1426,26 +1426,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 
-        //reset cordic rates and their properties to zero
-//        for(const std::string &name:  _tree->list(root / "rx_dsps")){
-//            _tree->access<double>(root / "rx_dsps" / name / "freq" / "value").set(0.0);
-//        }
-//        for(const std::string &name:  _tree->list(root / "tx_dsps")){
-//            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
-//        }
+    _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+    _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-        _tree->access<std::string>(root / "clock_source/value").set("internal");
-        _tree->access<std::string>(root / "time_source/value").set("none");
-
-        //GPS installed: use external ref, time, and init time spec
-//        if (_mbc[mb].gps and _mbc[mb].gps->gps_detected()){
-//            _mbc[mb].time64->enable_gpsdo();
-//            UHD_LOGGER_INFO("USRP2") << "Setting references to the internal GPSDO" ;
-//            _tree->access<std::string>(root / "time_source/value").set("gpsdo");
-//            _tree->access<std::string>(root / "clock_source/value").set("gpsdo");
-//        }
     }
 
 	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block

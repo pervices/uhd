@@ -1550,14 +1550,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 
-        //reset cordic rates and their properties to zero
-//        for(const std::string &name:  _tree->list(root / "rx_dsps")){
-//            _tree->access<double>(root / "rx_dsps" / name / "freq" / "value").set(0.0);
-//        }
-//        for(const std::string &name:  _tree->list(root / "tx_dsps")){
-//            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
-//        }
-
         std::string sub_spec_rx;
         for(size_t n =0; n < num_rx_channels; n++) {
             sub_spec_rx.push_back(n+'A');
@@ -1577,17 +1569,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
                 sub_spec_tx+=" ";
             }
         }
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
-        _tree->access<std::string>(root / "clock_source/value").set("internal");
-        _tree->access<std::string>(root / "time_source/value").set("none");
+    _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
-        //GPS installed: use external ref, time, and init time spec
-//        if (_mbc[mb].gps and _mbc[mb].gps->gps_detected()){
-//            _mbc[mb].time64->enable_gpsdo();
-//            UHD_LOGGER_INFO("USRP2") << "Setting references to the internal GPSDO" ;
-//            _tree->access<std::string>(root / "time_source/value").set("gpsdo");
-//            _tree->access<std::string>(root / "clock_source/value").set("gpsdo");
-//        }
     }
 
 	for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
