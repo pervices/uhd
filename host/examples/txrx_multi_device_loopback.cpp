@@ -424,9 +424,13 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
 void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parameters& parameters) {
     printf("Configuring device with args: %s\n", parameters.args.c_str());
 
-    device->set_time_source(parameters.time_reference);
+    if(parameters.time_reference != "bypass") {
+        device->set_time_source(parameters.time_reference);
+    }
 
-    device->set_clock_source(parameters.clock_reference);
+    if(parameters.time_reference != "bypass") {
+        device->set_clock_source(parameters.clock_reference);
+    }
 
     device->set_rx_rate(rate);
     double actual_rx_rate = device->get_rx_rate();
@@ -480,16 +484,33 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
  * Sets all device times to 0, synchronized to pps
  * @param devices The devices to be synced
  */
-void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices) {
+void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices, std::vector<device_parameters>& parameters) {
     printf("Starting device synchronization\n");
     // Sets the time on device 0 to be 0. Function shoudl return immediatly after a pps
-    devices[0]->set_time_unknown_pps(uhd::time_spec_t(0.0));
+    size_t first_device_to_sync = ~0;
+    for(size_t n = 0; n < devices.size(); n++) {
+        if(parameters[n].time_reference != "bypass") {
+            first_device_to_sync = n;
+            break;
+        } else {
+            printf("Bypassing clock sync on device: %lu\n", n);
+        }
+    }
+
+    // All devices are having clock sync bypassed
+    if(first_device_to_sync == ~0) {
+        return;
+    }
+
+    devices[first_device_to_sync]->set_time_unknown_pps(uhd::time_spec_t(0.0));
 
     // Sets the time on all other devices to be 0
     // Must be done with 1s of set_time_unknown_pps finishing
-    uhd::time_spec_t pps_time = devices[0]->get_time_last_pps();
-    for(size_t n = 1; n < devices.size(); n++) {
-        devices[n]->set_time_next_pps(pps_time);
+    uhd::time_spec_t pps_time = devices[first_device_to_sync]->get_time_last_pps();
+    for(size_t n = first_device_to_sync + 1; n < devices.size(); n++) {
+        if(parameters[n].time_reference != "bypass") {
+            devices[n]->set_time_next_pps(pps_time);
+        }
     }
 
     // Waits for next pps
@@ -497,15 +518,18 @@ void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices) {
     uhd::time_spec_t latest_pps_time;
     do {
         if (std::chrono::steady_clock::now() > timeout_time) {
-            throw uhd::runtime_error("Device 0 no PPS detected\n");
+            throw uhd::runtime_error("Device " + std::to_string(first_device_to_sync) + " no PPS detected\n");
         }
-        latest_pps_time = devices[0]->get_time_last_pps();
+        latest_pps_time = devices[first_device_to_sync]->get_time_last_pps();
     } while (pps_time == latest_pps_time); {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     // Verifies that all clocks are synced to the same pps. Must be completed within 1s of the wait for the previous pps finishing
-    for(size_t n = 1; n < devices.size(); n++) {
+    for(size_t n = first_device_to_sync + 1; n < devices.size(); n++) {
+        if(parameters[n].time_reference == "bypass") {
+            continue;
+        }
         uhd::time_spec_t other_device_pps_time = devices[n]->get_time_last_pps();
         if(latest_pps_time != other_device_pps_time) {
             throw uhd::runtime_error("Desync between devices 0 and " + std::to_string(n) + "\n");
@@ -521,7 +545,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     double start_time;
     size_t total_num_samps;
     double rate;
-    
+
     // setup the program options
     po::options_description desc("Allowed options");
     // clang-format off
@@ -547,7 +571,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("ampl", po::value<std::string>(&ampl_arg)->default_value("0.7"), "Amplitude of the wave in tx samples. B Enter one number to set all the tx channels to said amplitude i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
         ("wave_freq", po::value<std::string>(&wave_freq_arg)->default_value("0"), "Amplitude of the wave in tx samples. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
     ;
-    
+
     // clang-format on
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -569,6 +593,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         devices[n] = uhd::usrp::multi_usrp::make(parameters[n].args);
     }
 
+    for(size_t n = 0; n < devices.size(); n++) {
+        configure_device(devices[n].get(), rate, parameters[n]);
+    }
+
     // Create rx streamers
     std::vector<uhd::rx_streamer::sptr> rx_streamers;
     for(size_t n = 0; n < devices.size(); n++) {
@@ -588,7 +616,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // Sync devices must be run before configuring
-    sync_devices(devices);
+    sync_devices(devices, parameters);
 
     for(size_t n = 0; n < devices.size(); n++) {
         configure_device(devices[n].get(), rate, parameters[n]);
@@ -622,7 +650,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     for(size_t n = 0; n < tx_threads.size(); n++) {
         tx_threads[n].join();
     }
-    
+
     std::cout << std::endl << "Done!" << std::endl << std::endl;
     return EXIT_SUCCESS;
 }
