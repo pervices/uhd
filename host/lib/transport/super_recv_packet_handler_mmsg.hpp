@@ -599,7 +599,7 @@ private:
      * Prepares the converter
      * Called as part of the constructor, only in its own function to improve readability
      * \param cpu_format datatype of samples on the host system (only sc16 and fc32)
-     * \param wire_format datatype of samples in the packets (only sc16, TODO: support sc12)
+     * \param wire_format datatype of samples in the packets (only sc16 or sc12)
      * \param wire_little_endian data format in packets is little endian
      */
     UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
