@@ -273,6 +273,7 @@ std::vector<std::string> tx_gain_strings, rx_gain_strings, tx_freq_strings, rx_f
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for some setup time
 
+    // Sets the destination IP and port in rx_usrp to match tx_usrp for the specifed channels
     if(use_rx && use_tx) {
         rx_usrp->rx_to_tx(tx_usrp, rx_channel_nums, tx_channel_nums);
     }

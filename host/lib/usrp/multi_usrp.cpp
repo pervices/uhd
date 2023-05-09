@@ -457,14 +457,27 @@ public:
         return _tree->access<std::string>(mb_root(mboard) / "name").get();
     }
 
+    // TODO see if this should get the current time instead
+    // Currently this only checks the
     time_spec_t get_time_now(size_t mboard = 0) override
     {
-        return _tree->access<time_spec_t>(mb_root(mboard) / "time/now").get();
+        _tree->access<std::string>(mb_root(mboard) / "gps_time").set("1");
+        int64_t secs = std::strtol(_tree->access<std::string>(mb_root(mboard) / "gps_time").get().c_str(), nullptr, 10);
+        _tree->access<std::string>(mb_root(mboard) / "gps_frac_time").set("1");
+        int64_t ticks = std::strtol(_tree->access<std::string>(mb_root(mboard) / "gps_frac_time").get().c_str(), nullptr, 10);
+
+        double tick_rate = get_master_clock_rate(mboard);
+
+        return time_spec_t(secs, ticks, tick_rate);
     }
 
+    // The time seconds time increments on pps, to the last pps pulse occured on the last full second
     time_spec_t get_time_last_pps(size_t mboard = 0) override
     {
-        return _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").get();
+        _tree->access<std::string>(mb_root(mboard) / "gps_time").set("1");
+        int64_t secs = std::strtol(_tree->access<std::string>(mb_root(mboard) / "gps_time").get().c_str(), nullptr, 10);
+
+        return time_spec_t(secs, 0);
     }
 
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override
@@ -491,40 +504,50 @@ public:
 
     void set_time_unknown_pps(const time_spec_t& time_spec) override
     {
-        // TMP, set_time_unknown_pps results in rx start time not being respected
-        set_time_now(time_spec, 0);
-//         UHD_LOGGER_INFO("MULTI_USRP") << "    1) catch time transition at pps edge";
-//         auto end_time =
-//             std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
-//         time_spec_t time_start_last_pps = get_time_last_pps();
-//         while (time_start_last_pps == get_time_last_pps()) {
-//             if (std::chrono::steady_clock::now() > end_time) {
-//                 throw uhd::runtime_error("Board 0 may not be getting a PPS signal!\n"
-//                                          "No PPS detected within the time interval.\n"
-//                                          "See the application notes for your device.\n");
-//             }
-//             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-//         }
-//
-//         UHD_LOGGER_INFO("MULTI_USRP") << "    2) set times next pps (synchronously)";
-//         set_time_next_pps(time_spec, ALL_MBOARDS);
-//         std::this_thread::sleep_for(std::chrono::seconds(1));
-//
-//         // verify that the time registers are read to be within a few RTT
-//         for (size_t m = 1; m < get_num_mboards(); m++) {
-//             time_spec_t time_0 = this->get_time_now(0);
-//             time_spec_t time_i = this->get_time_now(m);
-//             if (time_i < time_0
-//                 or (time_i - time_0)
-//                        > time_spec_t(0.01)) { // 10 ms: greater than RTT but not too big
-//                 UHD_LOGGER_WARNING("MULTI_USRP")
-//                     << boost::format(
-//                            "Detected time deviation between board %d and board 0.\n"
-//                            "Board 0 time is %f seconds.\n"
-//                            "Board %d time is %f seconds.\n")
-//                            % m % time_0.get_real_secs() % m % time_i.get_real_secs();
-//             }
-//         }
+        // Gets the time of the last pps
+        time_spec_t time_start_last_pps = get_time_last_pps();
+        auto end_time = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
+
+        // Waits for next pps
+        while (time_start_last_pps == get_time_last_pps(0)) {
+            if (std::chrono::steady_clock::now() > end_time) {
+                throw uhd::runtime_error("Board 0 may not be getting a PPS signal!\n"
+                                         "No PPS detected within the time interval.\n"
+                                         "See the application notes for your device.\n");
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        // Sets time at next pps. Done after waiting for previous pps to ensure all channels are set within the same pps cycle
+        set_time_next_pps(time_spec, ALL_MBOARDS);
+
+        // Waits for next pps
+        time_start_last_pps = get_time_last_pps(0);
+        end_time = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
+        while (time_start_last_pps == get_time_last_pps(0)) {
+            if (std::chrono::steady_clock::now() > end_time) {
+                throw uhd::runtime_error("Board 0 may not be getting a PPS signal!\n"
+                                         "No PPS detected within the time interval.\n"
+                                         "See the application notes for your device.\n");
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        // Print warning if mboards are out out sync
+        for (size_t m = 1; m < get_num_mboards(); m++) {
+            time_spec_t time_0 = this->get_time_now(0);
+            time_spec_t time_i = this->get_time_now(m);
+            if (time_i < time_0
+                or (time_i - time_0)
+                       > time_spec_t(0.01)) { // 10 ms: greater than time to issue the get time request but not too big
+                UHD_LOGGER_WARNING("MULTI_USRP")
+                    << boost::format(
+                           "Detected time deviation between board %d and board 0.\n"
+                           "Board 0 time is %f seconds.\n"
+                           "Board %d time is %f seconds.\n")
+                           % m % time_0.get_real_secs() % m % time_i.get_real_secs();
+            }
+        }
     }
 
     bool get_time_synchronized(void) override
@@ -577,17 +600,7 @@ public:
     void set_time_source(const std::string& source, const size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
-            const auto time_source_path = mb_root(mboard) / "time_source/value";
-            const auto sync_source_path = mb_root(mboard) / "sync_source/value";
-            if (_tree->exists(time_source_path)) {
-                _tree->access<std::string>(time_source_path).set(source);
-            } else if (_tree->exists(sync_source_path)) {
-                auto sync_source = _tree->access<device_addr_t>(sync_source_path).get();
-                sync_source["time_source"] = source;
-                _tree->access<device_addr_t>(sync_source_path).set(sync_source);
-            } else {
-                throw uhd::runtime_error("Can't set time source on this device.");
-            }
+            _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").set(source);
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++) {

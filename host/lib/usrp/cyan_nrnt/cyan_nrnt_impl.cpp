@@ -485,70 +485,90 @@ void cyan_nrnt_impl::set_properties_from_addr() {
 // This find function will be called if a hint is passed onto the find function
 static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint)
 {
-	uhd::time_spec_t then, now;
 
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
         hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
 
-    then = uhd::get_system_time();
-
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
 
-    //loop for replies from the broadcast until it times out
-    device_addrs_t addrs;
+    // List is Crimsons connected
+    device_addrs_t cyan_nrnt_addrs;
     char buff[CYAN_NRNT_FW_COMMS_MTU] = {};
 
+    // Checks for all connected Cyan NRNT
     for(
 		float to = 0.2;
     	comm->recv(asio::buffer(buff), to);
     	to = 0.05
     ) {
-        now = uhd::get_system_time();
-
-        // parse the return buffer and store it in a vector
+        // parse the return buffer for the device type (from fpga/about/name)
         std::vector<std::string> tokens;
         tng_csv_parse(tokens, buff, ',');
-        if (tokens.size() < 3) break;
-        if (tokens[1].c_str()[0] == CMD_ERROR) break;
 
-        if (tokens[2] != "cyan_nrnt") break;
+        // Checks if type matches Crimson name matches
+        if (tokens.size() < 3) {
+            continue;
+        }
+        if (tokens[1].c_str()[0] == CMD_ERROR) {
+            continue;
+        }
+        if (tokens[2] != "cyan_nrnt") {
+            continue;
+        }
 
         device_addr_t new_addr;
         new_addr["type"]    = tokens[2];
         new_addr["addr"]    = comm->get_recv_addr();
         new_addr["name"]    = "";
+        cyan_nrnt_addrs.push_back(new_addr);
+    }
 
-        //Note: this is not the serial number, it is actually the chip ID of the FPGA
-        comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
-        comm->recv(asio::buffer(buff), 10);
-        tokens.clear();
+    // List of devices that match the filter
+    device_addrs_t matching_addr;
+
+    // Gets the Serial number for all connected Cyans found in the previous loop, and adds them to the return list if all required parameters match filters
+    for(auto& addr : cyan_nrnt_addrs) {
+        udp_simple::sptr comm = udp_simple::make_connected(
+        addr["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+
+
+        size_t bytes_sent = comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
+
+        if(bytes_sent != sizeof("1,get,fpga/about/serial")) {
+            std::cerr << "Error when sending serial number request" << std::endl;
+            continue;
+        }
+
+        comm->recv(asio::buffer(buff), 5);
+
+        // parse the return buffer for the device serial (from fpga/about/serial)
+        std::vector<std::string> tokens;
         tng_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) {
             UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C " failed to get serial number");
-            new_addr["serial"]  = "0000000000000000";
+            addr["serial"]  = "0000000000000000";
         }
         else if (tokens[1].c_str()[0] == CMD_ERROR) {
             UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C " failed to get serial number");
-            new_addr["serial"]  = "0000000000000000";
+            addr["serial"]  = "0000000000000000";
         } else {
-            new_addr["serial"] = tokens[2];
+            addr["serial"] = tokens[2];
         }
 
         //filter the discovered device below by matching optional keys
         if (
-            (not hint.has_key("name")    or hint["name"]    == new_addr["name"])    and
-            (not hint.has_key("serial")  or hint["serial"]  == new_addr["serial"])  and
-            (not hint.has_key("product") or hint["product"] == new_addr["product"])
-        ){
-            //UHD_LOGGER_INFO( "CRIMSON_IMPL" ) << "Found cyan_nrnt at " << new_addr[ "addr" ] << " in " << ( (now - then).get_real_secs() ) << " s" << std::endl;
-            addrs.push_back(new_addr);
+            (not hint.has_key("name")    or hint["name"]    == addr["name"])    and
+            (not hint.has_key("serial")  or hint["serial"]  == addr["serial"])  and
+            (not hint.has_key("product") or hint["product"] == addr["product"])
+        ) {
+            matching_addr.push_back(addr);
         }
     }
 
-    return addrs;
+    return matching_addr;
 }
 
 // This is the core find function that will be called when uhd:device find() is called because this is registered
@@ -603,7 +623,7 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
             device_addrs_t new_addrs = cyan_nrnt_find_with_addr(reply_addr);
-            addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
+            addrs.insert(addrs.end(), new_addrs.begin(), new_addrs.end());
         }
         return addrs;
     }
@@ -623,7 +643,7 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
 
             //call discover with the new hint and append results
             device_addrs_t new_addrs = cyan_nrnt_find(new_hint);
-            addrs.insert(addrs.begin(), new_addrs.begin(), new_addrs.end());
+            addrs.insert(addrs.end(), new_addrs.begin(), new_addrs.end());
         }
     }
 
@@ -1155,8 +1175,9 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
-    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", int, int);
-    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
+    // String is used because this is a 64 bit number and won't fit in int
+    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", std::string, string);
+    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", std::string, string);
     TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
@@ -1212,8 +1233,9 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     temp["serial"]   = "";
     TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, temp);
 
-    // This property chooses internal or external clock source
-    TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
+    // This property chooses internal or external time (usually pps) source
+    TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/set_time_source",  	std::string, string);
+    // Sets whether to use internal or external clock source
     TREE_CREATE_RW(mb_path / "time_source"  / "freq",  	    "time/source/freq_mhz",  	int, int);
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
@@ -1547,14 +1569,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 
-        //reset cordic rates and their properties to zero
-//        for(const std::string &name:  _tree->list(root / "rx_dsps")){
-//            _tree->access<double>(root / "rx_dsps" / name / "freq" / "value").set(0.0);
-//        }
-//        for(const std::string &name:  _tree->list(root / "tx_dsps")){
-//            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
-//        }
-
         std::string sub_spec_rx;
         for(size_t n =0; n < num_rx_channels; n++) {
             sub_spec_rx.push_back(n+'A');
@@ -1574,17 +1588,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
                 sub_spec_tx+=" ";
             }
         }
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
-        _tree->access<std::string>(root / "clock_source/value").set("internal");
-        _tree->access<std::string>(root / "time_source/value").set("none");
+    _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
-        //GPS installed: use external ref, time, and init time spec
-//        if (_mbc[mb].gps and _mbc[mb].gps->gps_detected()){
-//            _mbc[mb].time64->enable_gpsdo();
-//            UHD_LOGGER_INFO("USRP2") << "Setting references to the internal GPSDO" ;
-//            _tree->access<std::string>(root / "time_source/value").set("gpsdo");
-//            _tree->access<std::string>(root / "clock_source/value").set("gpsdo");
-//        }
     }
 
 	for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {

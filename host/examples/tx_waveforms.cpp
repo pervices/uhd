@@ -68,11 +68,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
-        ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q)")
+        ("wave-type", po::value<std::string>(&wave_type)->default_value("SINE"), "waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q)")
         //SIN_NO_Q can also be used to generate a sinwave without the q component, which is useful when debugging the FPGA
         ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external, mimo, gpsdo)")
-        ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo)")
+        ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo, bypass)")
         ("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("int-n", "tune USRP with integer-N tuning")
@@ -189,33 +189,37 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-    if (channel_nums.size() > 1)
-    {
-        // Sync times
-        if (pps == "mimo")
+    if(pps != "bypass") {
+        if (channel_nums.size() > 1)
         {
-            UHD_ASSERT_THROW(usrp->get_num_mboards() == 2);
+            // Sync times
+            if (pps == "mimo")
+            {
+                UHD_ASSERT_THROW(usrp->get_num_mboards() == 2);
 
-            //make mboard 1 a slave over the MIMO Cable
-            usrp->set_time_source("mimo", 1);
+                //make mboard 1 a slave over the MIMO Cable
+                usrp->set_time_source("mimo", 1);
 
-            //set time on the master (mboard 0)
-            usrp->set_time_now(uhd::time_spec_t(0.0), 0);
+                //set time on the master (mboard 0)
+                usrp->set_time_now(uhd::time_spec_t(0.0), 0);
 
-            //sleep a bit while the slave locks its time to the master
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                //sleep a bit while the slave locks its time to the master
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            else
+            {
+                if (pps == "internal" or pps == "external" or pps == "gpsdo")
+                    usrp->set_time_source(pps);
+                usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
+                std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
+            }
         }
         else
         {
-            if (pps == "internal" or pps == "external" or pps == "gpsdo")
-                usrp->set_time_source(pps);
-            usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
-            std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
+            usrp->set_time_now(0.0);
         }
-    }
-    else
-    {
-        usrp->set_time_now(0.0);
+    } else {
+        std::cout << "Bypassing setting clock, this may interfere with start time" << std::endl;
     }
 
     //Check Ref and LO Lock detect
