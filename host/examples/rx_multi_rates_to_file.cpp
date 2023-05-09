@@ -55,11 +55,11 @@ std::vector<T> parse_argument(std::string argument, size_t number_of_channels) {
     for(size_t n = 0; n < number_of_channels; n++) {
         if(n < seperated_argument_strings.size()) {
             std::stringstream(seperated_argument_strings[n]) >> values[n];
+            last_channel_specified = n;
         } else {
             // Set any extra channels to the value of the last channel specified
             std::stringstream(seperated_argument_strings[last_channel_specified]) >> values[n];
         }
-        last_channel_specified++;
     }
 
     return values;
