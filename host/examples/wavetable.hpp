@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cstdint>
 
 static const size_t wave_table_len = 8192;
 
