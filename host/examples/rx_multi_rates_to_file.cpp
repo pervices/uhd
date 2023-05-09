@@ -86,7 +86,8 @@ std::vector<T> parse_argument(std::string argument, size_t number_of_channels) {
             std::string actual_value_s = std::to_string(actual_value);\
             printf("Actual value set: %s\n", actual_value_s.c_str());\
         }\
-    }
+    }\
+    printf("\n");
 
 class channel_group {
 public:
