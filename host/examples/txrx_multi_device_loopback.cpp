@@ -487,7 +487,7 @@ void configure_device(uhd::usrp::multi_usrp* device, double& rate, device_parame
 void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices, std::vector<device_parameters>& parameters) {
     printf("Starting device synchronization\n");
     // Sets the time on device 0 to be 0. Function shoudl return immediatly after a pps
-    size_t first_device_to_sync = ~0;
+    size_t first_device_to_sync = ~(size_t)0;
     for(size_t n = 0; n < devices.size(); n++) {
         if(parameters[n].time_reference != "bypass") {
             first_device_to_sync = n;
@@ -498,7 +498,7 @@ void sync_devices(std::vector<uhd::usrp::multi_usrp::sptr> devices, std::vector<
     }
 
     // All devices are having clock sync bypassed
-    if(first_device_to_sync == ~0) {
+    if(first_device_to_sync == ~(size_t)0) {
         return;
     }
 
