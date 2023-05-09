@@ -218,6 +218,12 @@ public:
         return final_nsamps;
     }
 
+    // Set the rate of samples per second
+    void set_samp_rate(const double rate)
+    {
+        _samp_rate = rate;
+    }
+
 protected:
     size_t _NUM_CHANNELS;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
@@ -283,6 +289,9 @@ private:
 
     // Converts samples between wire and cpu formats
     uhd::convert::converter::sptr _converter;
+
+    // Sample rate in samples per second
+    double _rate = 0;
 
         /*******************************************************************
      * recv_multiple_packets:

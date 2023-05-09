@@ -425,7 +425,6 @@ void cyan_nrnt_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp
     if (my_streamer.get() == NULL) return;
 
     my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CYAN_NRNT_TICK_RATE );
 }
 
 void cyan_nrnt_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
