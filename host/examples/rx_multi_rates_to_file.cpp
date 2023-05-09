@@ -87,13 +87,38 @@ std::vector<T> parse_argument(std::string argument, size_t number_of_channels) {
         }\
     }
 
+class channel_group {
+public:
+    const double common_start_time_delay;
+    const double common_rate;
+    std::vector<size_t> channels;
+
+    channel_group(size_t channel, double start_time_delay, double rate)
+    : common_start_time_delay(start_time_delay),
+    common_rate(rate),
+    channels(std::vector<size_t>(1, channel))
+    {
+    }
+
+    /** adds a channel to the group if it delay and rate match
+    * @return True is the channel can be added to the group
+    */
+    bool add_channel(size_t channel, double start_time_delay, double rate) {
+        if(common_start_time_delay == start_time_delay && common_rate == rate) {
+            channels.push_back(channel);
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
+
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
 
     // variables to be set by po
-    std::string args, folder, channel_arg, rate_arg;
+    std::string args, folder, channel_arg, rate_arg, freq_arg, gain_arg, start_delay_arg;
     size_t total_num_samps, spb;
-    double freq, gain, bw, total_time, setup_time, lo_offset, start_delay;
 
     // setup the program options
     po::options_description desc("Receives data from device and saves to to file. Supports using different sample rates per channel");
@@ -103,14 +128,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("args", po::value<std::string>(&args)->default_value(""), "uhd device address args")
         ("folder", po::value<std::string>(&folder)->default_value("results"), "name of the file to write binary samples to")
         ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
-        ("duration", po::value<double>(&total_time)->default_value(0), "total number of seconds to receive")
 
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
-        ("rate", po::value<std::string>(&rate_arg)->default_value("1000000"), "rate of incoming samples")
-        ("freq", po::value<double>(&freq)->default_value(0), "RF center frequency in Hz")
-        ("gain", po::value<double>(&gain), "gain for the RF chain")
-        ("channel", po::value<std::string>(&channel_arg)->default_value("0"), "which channel to use")
-        ("start_delay", po::value<double>(&start_delay)->default_value(0.0), "The number of seconds to wait between issuing the stream command and starting streaming")
+        ("rate", po::value<std::string>(&rate_arg)->default_value("1000000"), "rate of incoming samples. Can be channel specific")
+        ("freq", po::value<std::string>(&freq_arg)->default_value("0"), "RF center frequency in Hz. Can be channel specific")
+        ("gain", po::value<std::string>(&gain_arg), "gain for the RF chain. Can be channel specific")
+        ("channel", po::value<std::string>(&channel_arg)->default_value("0"), "which channel(s) to use")
+        ("start_delay", po::value<std::string>(&start_delay_arg)->default_value("0.0"), "The number of seconds to wait between issuing the stream command and starting streaming. Can be channel specific")
         ("null", "run without writing to file")
         ("strict", "Abort on a bad packet")
     ;
@@ -140,9 +164,33 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     std::vector<size_t> channels = parse_argument<size_t>(channel_arg, 0);
-    std::vector<double> rates = parse_argument<double>(rate_arg, channels.size());
 
-   set_parameter(double, usrp->set_rx_rate, usrp->get_rx_rate, channels, rates, "rate");
+    std::vector<double> rates = parse_argument<double>(rate_arg, channels.size());
+    set_parameter(double, usrp->set_rx_rate, usrp->get_rx_rate, channels, rates, "rate");
+
+    std::vector<double> center_frequencies = parse_argument<double>(freq_arg, channels.size());
+    set_parameter(double, usrp->set_rx_freq, usrp->get_rx_freq, channels, center_frequencies, "frequency");
+
+    std::vector<double> gains = parse_argument<double>(gain_arg, channels.size());
+    set_parameter(double, usrp->set_rx_gain, usrp->get_rx_gain, channels, gains, "gain");
+
+    std::vector<double> start_delays = parse_argument<double>(start_delay_arg, channels.size());
+
+    std::vector<channel_group> groups;
+
+    for(size_t ch_i = 0; ch_i < channels.size(); ch_i++) {
+        bool ch_added = false;
+        for(size_t group_i = 0; group_i < groups.size(); group_i++) {
+            bool add_ch_success = groups[group_i].add_channel(channels[ch_i], start_delays[ch_i], rates[ch_i]);
+            if(add_ch_success) {
+                ch_added = true;
+                break;
+            }
+        }
+        if(!ch_added) {
+            groups.emplace_back(channel_group(channels[ch_i], start_delays[ch_i], rates[ch_i]));
+        }
+    }
 
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
