@@ -93,11 +93,13 @@ class channel_group {
 public:
     const double common_start_time_delay;
     const double common_rate;
+    const size_t common_nsamps_requested;
     std::vector<size_t> channels;
 
-    channel_group(size_t channel, double start_time_delay, double rate)
+    channel_group(size_t channel, double start_time_delay, double rate, size_t requested_num_samps)
     : common_start_time_delay(start_time_delay),
     common_rate(rate),
+    common_nsamps_requested(requested_num_samps),
     channels(std::vector<size_t>(1, channel))
     {
     }
@@ -105,8 +107,8 @@ public:
     /** adds a channel to the group if it delay and rate match
     * @return True is the channel can be added to the group
     */
-    bool add_channel(size_t channel, double start_time_delay, double rate) {
-        if(common_start_time_delay == start_time_delay && common_rate == rate) {
+    bool add_channel(size_t channel, double start_time_delay, double rate, size_t nsamps_requested) {
+        if(common_start_time_delay == start_time_delay && common_rate == rate && common_nsamps_requested == nsamps_requested) {
             channels.push_back(channel);
             return true;
         } else {
@@ -115,7 +117,7 @@ public:
     }
 };
 
-void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, size_t requested_num_samps, size_t spb, std::string folder, bool skip_save, bool strict) {
+void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, size_t spb, std::string folder, bool skip_save, bool strict) {
     uhd::stream_args_t rx_stream_args("sc16");
     rx_stream_args.channels = group_info->channels;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(rx_stream_args);
@@ -132,8 +134,8 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
     uhd::rx_metadata_t md;
 
     // Configure and send stream command
-    uhd::stream_cmd_t stream_cmd((requested_num_samps == 0) ? uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS : uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
-    stream_cmd.num_samps  = size_t(requested_num_samps);
+    uhd::stream_cmd_t stream_cmd((group_info->common_nsamps_requested == 0) ? uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS : uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
+    stream_cmd.num_samps  = size_t(group_info->common_nsamps_requested);
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(group_info->common_start_time_delay);
     rx_stream->issue_stream_cmd(stream_cmd);
@@ -150,14 +152,14 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
     size_t num_samples_received = 0;
     bool overflow_occured = false;
     // Receive loop
-    while(!stop_signal_called && (num_samples_received < requested_num_samps || requested_num_samps == 0)) {
+    while(!stop_signal_called && (num_samples_received < group_info->common_nsamps_requested || group_info->common_nsamps_requested == 0)) {
         size_t num_samples = rx_stream->recv(buffer_ptrs, spb, md, group_info->common_start_time_delay + 3);
 
         if(md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
             if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
                 fprintf(stderr, "Timeout received after %lu samples\n", num_samples_received);
                 // Break if overflow occured and a set number of samples was requested, since that probably means all samples were sent, and missed ones weren't counted
-                if(strict || (overflow_occured && requested_num_samps !=0)) {
+                if(strict || (overflow_occured && group_info->common_nsamps_requested !=0)) {
                     break;
                 }
             } else if(md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
@@ -198,8 +200,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 {
 
     // variables to be set by po
-    std::string args, folder, channel_arg, rate_arg, freq_arg, gain_arg, start_delay_arg;
-    size_t total_num_samps, spb;
+    std::string args, folder, channel_arg, rate_arg, freq_arg, gain_arg, start_delay_arg, nsamp_arg;
+    size_t spb;
 
     // setup the program options
     po::options_description desc("Receives data from device and saves to to file. Supports using different sample rates per channel");
@@ -208,7 +210,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "uhd device address args")
         ("folder", po::value<std::string>(&folder)->default_value("results"), "name of the file to write binary samples to")
-        ("nsamps", po::value<size_t>(&total_num_samps)->default_value(0), "total number of samples to receive")
+        ("nsamps", po::value<std::string>(&nsamp_arg)->default_value("0"), "total number of samples to receive. Can be channel specific")
 
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<std::string>(&rate_arg)->default_value("1000000"), "rate of incoming samples. Can be channel specific")
@@ -257,19 +259,21 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::vector<double> start_delays = parse_argument<double>(start_delay_arg, channels.size());
 
+    std::vector<size_t> nsamps = parse_argument<size_t>(nsamp_arg, channels.size());
+
     std::vector<channel_group> groups;
 
     for(size_t ch_i = 0; ch_i < channels.size(); ch_i++) {
         bool ch_added = false;
         for(size_t group_i = 0; group_i < groups.size(); group_i++) {
-            bool add_ch_success = groups[group_i].add_channel(channels[ch_i], start_delays[ch_i], rates[ch_i]);
+            bool add_ch_success = groups[group_i].add_channel(channels[ch_i], start_delays[ch_i], rates[ch_i], nsamps[ch_i]);
             if(add_ch_success) {
                 ch_added = true;
                 break;
             }
         }
         if(!ch_added) {
-            groups.emplace_back(channel_group(channels[ch_i], start_delays[ch_i], rates[ch_i]));
+            groups.emplace_back(channel_group(channels[ch_i], start_delays[ch_i], rates[ch_i], nsamps[ch_i]));
         }
     }
 
@@ -285,7 +289,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::vector<std::thread> receive_threads;
     for(size_t n = 0; n < groups.size(); n++) {
-        receive_threads.emplace_back(std::thread(receive_function, usrp.get(), &groups[n], total_num_samps, spb, folder, skip_save, strict));
+        receive_threads.emplace_back(std::thread(receive_function, usrp.get(), &groups[n], spb, folder, skip_save, strict));
     }
 
     for(auto& receive_thread : receive_threads) {
