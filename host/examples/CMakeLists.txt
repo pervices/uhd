@@ -11,6 +11,7 @@
 set(example_sources
     benchmark_rate.cpp
     network_relay.cpp
+    rx_multi_rates_to_file.cpp
     rx_multi_samples.cpp
     rx_stream_init.cpp
     rx_start.cpp
