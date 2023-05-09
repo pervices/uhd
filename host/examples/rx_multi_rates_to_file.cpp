@@ -34,6 +34,7 @@ void sig_int_handler(int)
 
 /**
  * Parses arguments
+ * @tparam T dataype of the argument
  * @param argument The argument, with channels seperated by ,
  * @param number_of_channels The expected number of channels. Set to 0 to automatically set to however many channels' worth of arguments are provided. If there are fewer channels with arguments than expected the last channel specified will be used for all
  * @return A vector with the seperated arguments, converted to the requested type
@@ -60,7 +61,31 @@ std::vector<T> parse_argument(std::string argument, size_t number_of_channels) {
         last_channel_specified++;
     }
 
+    return values;
 }
+
+/**
+ * Sets various device parameters
+ * @tparam T datatype of the parameter to set
+ * @param set_func The function to be used to set the paramter on the device
+ * @param get_func The function used to check if the parameter was set correctly
+ * @param channels The channels to use
+ * @param values A vector of the value of the paramter to be set
+ * @param parameter_name The name of the parameter. Used in the print messages and nothing else
+ * @return A vector with the seperated arguments, converted to the requested type
+ */
+#define set_parameter(T, set_func, get_func, channels, values, parameter_name) \
+    for(size_t n = 0; n < channels.size(); n++) {\
+        std::string value_s = std::to_string(values[n]);\
+        printf("Setting %s on ch %lu to: %s\n", parameter_name, channels[n], value_s.c_str());\
+        set_func(values[n], channels[n]);\
+        T actual_value = get_func(channels[n]);\
+\
+        if(actual_value!=values[n]) {\
+            std::string actual_value_s = std::to_string(actual_value);\
+            printf("Actual value set: %s\n", actual_value_s.c_str());\
+        }\
+    }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
@@ -117,11 +142,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::vector<size_t> channels = parse_argument<size_t>(channel_arg, 0);
     std::vector<double> rates = parse_argument<double>(rate_arg, channels.size());
 
-    for(size_t n = 0; n < channels.size(); n++) {
-        printf("Setting ch %lu rate: %lfMsps\n", channels[n], rates[n]/1e6);
-        usrp->set_rx_rate(rates[n], channels[n]);
-        printf("Acutal ch %lu rate: %lf\n", channels[n], usrp->get_rx_rate(channels[n]) / 1e6);
-    }
+   set_parameter(double, usrp->set_rx_rate, usrp->get_rx_rate, channels, rates, "rate");
 
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
