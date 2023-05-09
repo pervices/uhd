@@ -14,6 +14,7 @@
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 #include <chrono>
 
 #include <complex>
@@ -113,6 +114,85 @@ public:
     }
 };
 
+void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, size_t requested_num_samps, size_t spb, std::string folder, bool skip_save, bool strict) {
+    uhd::stream_args_t rx_stream_args("sc16");
+    rx_stream_args.channels = group_info->channels;
+    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(rx_stream_args);
+
+    std::vector<std::ofstream> outfiles(group_info->channels.size());
+    if (!skip_save) {
+        for(size_t n = 0; n < group_info->channels.size(); n++) {
+            std::string path = folder + "/rx_ch_" + std::to_string(group_info->channels[n]) + ".dat";
+            outfiles[n].open(path.c_str(), std::ofstream::binary);
+        }
+    }
+
+    // Metadata return struct
+    uhd::rx_metadata_t md;
+
+    // Configure and send stream command
+    uhd::stream_cmd_t stream_cmd((requested_num_samps == 0) ? uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS : uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
+    stream_cmd.num_samps  = size_t(requested_num_samps);
+    stream_cmd.stream_now = false;
+    stream_cmd.time_spec  = uhd::time_spec_t(group_info->common_start_time_delay);
+    rx_stream->issue_stream_cmd(stream_cmd);
+
+    // Buffers to store rx data in
+    std::vector<std::vector<std::complex<short>>> buffers(group_info->channels.size(), std::vector<std::complex<short>>(spb, 0));
+
+    // Pointers to where to store data for each channel
+    std::vector<void*> buffer_ptrs(group_info->channels.size());
+    for(size_t n = 0; n < buffers.size(); n++) {
+        buffer_ptrs[n] = buffers[n].data();
+    }
+
+    size_t num_samples_received = 0;
+    bool overflow_occured = false;
+    // Receive loop
+    while(!stop_signal_called && (num_samples_received < requested_num_samps || requested_num_samps == 0)) {
+        size_t num_samples = rx_stream->recv(buffer_ptrs, spb, md, group_info->common_start_time_delay + 3);
+
+        if(md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
+            if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
+                fprintf(stderr, "Timeout received after %lu samples\n", num_samples_received);
+                // Break if overflow occured and a set number of samples was requested, since that probably means all samples were sent, and missed ones weren't counted
+                if(strict || (overflow_occured && requested_num_samps !=0)) {
+                    break;
+                }
+            } else if(md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
+                if(!overflow_occured) {
+                    fprintf(stderr, "Overflow occured after %lu samples\n", num_samples_received);
+                    overflow_occured = true;
+                    if(strict) {
+                        break;
+                    }
+                }
+            }
+        }
+        if(!skip_save) {
+            for(size_t n = 0; n < group_info->channels.size(); n++) {
+                outfiles[n].write((const char*)buffers[n].data(), num_samples * sizeof(std::complex<short>));
+            }
+        }
+        num_samples_received += num_samples;
+    }
+
+    stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
+    rx_stream->issue_stream_cmd(stream_cmd);
+
+    for(auto& outfile : outfiles) {
+        if(outfile.is_open()) {
+            outfile.close();
+        }
+    }
+
+    printf("Received %lu samples on ch", num_samples_received);
+    for(auto& channel : group_info->channels) {
+        printf(", %lu", channel);
+    }
+    printf("\n");
+}
+
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
 
@@ -133,7 +213,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("rate", po::value<std::string>(&rate_arg)->default_value("1000000"), "rate of incoming samples. Can be channel specific")
         ("freq", po::value<std::string>(&freq_arg)->default_value("0"), "RF center frequency in Hz. Can be channel specific")
         ("gain", po::value<std::string>(&gain_arg), "gain for the RF chain. Can be channel specific")
-        ("channel", po::value<std::string>(&channel_arg)->default_value("0"), "which channel(s) to use")
+        ("channels", po::value<std::string>(&channel_arg)->default_value("0"), "which channel(s) to use")
         ("start_delay", po::value<std::string>(&start_delay_arg)->default_value("0.0"), "The number of seconds to wait between issuing the stream command and starting streaming. Can be channel specific")
         ("null", "run without writing to file")
         ("strict", "Abort on a bad packet")
@@ -152,7 +232,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
-    bool no_save = vm.count("null");
+    bool skip_save = vm.count("null");
     bool strict = vm.count("strict");
 
     // create a usrp device
@@ -190,6 +270,25 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if(!ch_added) {
             groups.emplace_back(channel_group(channels[ch_i], start_delays[ch_i], rates[ch_i]));
         }
+    }
+
+    std::cout << ("Setting device timestamp to 0") << std::endl;
+    usrp->set_time_now(uhd::time_spec_t(0.0));
+
+    if(!skip_save) {
+        // This function is in the standard library of c++17
+        boost::filesystem::create_directories(folder);
+    }
+
+    std::signal(SIGINT, &sig_int_handler);
+
+    std::vector<std::thread> receive_threads;
+    for(size_t n = 0; n < groups.size(); n++) {
+        receive_threads.emplace_back(std::thread(receive_function, usrp.get(), &groups[n], total_num_samps, spb, folder, skip_save, strict));
+    }
+
+    for(auto& receive_thread : receive_threads) {
+        receive_thread.join();
     }
 
     // finished
