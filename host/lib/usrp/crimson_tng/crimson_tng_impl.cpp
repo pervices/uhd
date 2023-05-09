@@ -1028,8 +1028,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
-    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", int, int);
-    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", int, int);
+    // String is used because this is a 64 bit number and won't fit in int
+    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", std::string, string);
+    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", std::string, string);
     TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
     TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
@@ -1079,8 +1080,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     temp["serial"]   = "";
     TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, temp);
 
-    // This property chooses internal or external clock source
-    TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/ref",  	std::string, string);
+    // This property chooses internal or external time (usually pps) source
+    TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/set_time_source",  	std::string, string);
+    // Sets whether to use internal or external clock source
     TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
     TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
     TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CRIMSON_TNG_EXT_CLK_RATE);
@@ -1424,26 +1426,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 
-        //reset cordic rates and their properties to zero
-//        for(const std::string &name:  _tree->list(root / "rx_dsps")){
-//            _tree->access<double>(root / "rx_dsps" / name / "freq" / "value").set(0.0);
-//        }
-//        for(const std::string &name:  _tree->list(root / "tx_dsps")){
-//            _tree->access<double>(root / "tx_dsps" / name / "freq" / "value").set(0.0);
-//        }
+    _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+    _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
 
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-		_tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-        _tree->access<std::string>(root / "clock_source/value").set("internal");
-        _tree->access<std::string>(root / "time_source/value").set("none");
-
-        //GPS installed: use external ref, time, and init time spec
-//        if (_mbc[mb].gps and _mbc[mb].gps->gps_detected()){
-//            _mbc[mb].time64->enable_gpsdo();
-//            UHD_LOGGER_INFO("USRP2") << "Setting references to the internal GPSDO" ;
-//            _tree->access<std::string>(root / "time_source/value").set("gpsdo");
-//            _tree->access<std::string>(root / "clock_source/value").set("gpsdo");
-//        }
     }
 
 	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
@@ -1562,7 +1547,7 @@ constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
-	return freq + bw / 2.0 >= dsp_range.stop();
+	return freq + bw / 2.0 > dsp_range.stop();
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server

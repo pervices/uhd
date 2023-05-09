@@ -79,11 +79,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         usrp->set_time_now(0.0);
         stream_cmd.time_spec  = uhd::time_spec_t(start_delay);
     }
-#ifdef SAMPES_TO_FILE_DEBUG
-    std::cout << "Press enter to issue start stream cmd" << std::endl;
-    std::string tmp42;
-    std::cin >> tmp42;
-#endif
+
     rx_stream->issue_stream_cmd(stream_cmd);
 
     typedef std::map<size_t, size_t> SizeMap;
@@ -337,6 +333,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cerr << "Please specify a valid sample rate" << std::endl;
         return ~0;
     }
+
     std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
     usrp->set_rx_rate(rate, channel);
     std::cout << boost::format("Actual RX Rate: %f Msps...")
