@@ -206,7 +206,7 @@ public:
         metadata.has_time_spec = true;
         metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _sample_rate);
 
-        // Check for overflow errors and (when implemented) shifts data to keep buffers aligned after an overflow)
+        // Check for overflow errors and flushed packets to keep buffers aligned
         size_t aligned_bytes = align_buffs(metadata.error_code) + cached_bytes_to_copy;
 
         size_t final_nsamps = aligned_bytes/_BYTES_PER_SAMPLE;
@@ -431,6 +431,7 @@ private:
                 if(ch_recv_buffer_info_i.msgs[n].msg_len < _HEADER_SIZE) {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
+                //TODO: implement shifting data for when packet data is not the max length
                 uint32_t num_bytes_this_packets = ch_recv_buffer_info_i.msgs[n].msg_len - _HEADER_SIZE;
 
                 // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
