@@ -862,7 +862,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
-    my_streamer->set_vrt_unpacker(&vrt::if_hdr_unpack_be);
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
