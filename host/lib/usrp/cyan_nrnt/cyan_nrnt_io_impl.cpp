@@ -660,11 +660,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    // XXX: @CF: 20180117: Give any transient errors in the time-convergence PID loop sufficient time to subsidte. KB 4312
-	for( ;! time_diff_converged() && _bm_thread_needed; ) {
-		usleep( 10000 );
-	}
-
     allocated_rx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_rx_streamers );
 
