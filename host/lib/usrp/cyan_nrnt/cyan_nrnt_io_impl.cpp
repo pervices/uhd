@@ -597,17 +597,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
                 std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
-                /* XXX: @CF: 20180321: This causes QA to issue 'd' and then 'o' and fail.
-                 * Shouldn't _really_ need it here, but it was originally here to shut down
-                 * the channel in case it was not previously shut down
-                 */
-                //stream_cmd_t scmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
-                //scmd.stream_now = true;
-                //set_stream_cmd( scmd_pre, scmd );
-                //
-//                 my_streamer->set_xport_chan_get_buff(chan_i, std::bind(
-//                     &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], ph::_1, ph::_2
-//                 ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, std::bind(
                     &cyan_nrnt_impl::set_stream_cmd, this, scmd_pre, ph::_1));
                 my_streamer->set_on_fini(chan_i, std::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
@@ -617,11 +606,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    //set the packet threshold to be an entire socket buffer's worth
-    const size_t packets_per_sock_buff = size_t(50e6/9000);//_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size());
-    my_streamer->set_alignment_failure_threshold(packets_per_sock_buff);
-
-    // XXX: @CF: 20170227: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -629,7 +613,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
 
-                // XXX: @CF: this is so nasty..
                 const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
                 std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
                 const fs_path mb_path   = "/mboards/" + mb;
@@ -644,9 +627,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
                 // power on the channel
                 _tree->access<std::string>(rx_path / chan / "pwr").set("1");
-                // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-                //usleep( 500000 );
-                // stream enable
                 _tree->access<std::string>(rx_path / chan / "stream").set("1");
 
 // FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
