@@ -202,8 +202,6 @@ public:
         // Receives packets, data is stores in recv_buffer, metadata is stored in ch_recv_buffer_info.headers
         metadata.error_code = recv_multiple_packets(*recv_buffer, cached_bytes_to_copy, cached_bytes_to_copy + bytes_to_recv, timeout);
 
-        extract_vrt_metadata();
-
         metadata.has_time_spec = true;
         metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _sample_rate);
 
@@ -426,6 +424,8 @@ private:
             }
         }
 
+        extract_vrt_metadata();
+
         for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
             size_t num_bytes_received = 0;
             // Records the amount of data received from each packet
@@ -434,24 +434,23 @@ private:
                 if(ch_recv_buffer_info_i.msgs[n].msg_len < _HEADER_SIZE) {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
-                //TODO: implement shifting data for when packet data is not the max length
-                uint32_t num_bytes_this_packets = ch_recv_buffer_info_i.msgs[n].msg_len - _HEADER_SIZE;
+                uint32_t num_bytes_this_packets = ch_recv_buffer_info_i.vrt_metadata[n].num_payload_words32 * sizeof(int32_t);
 
                 // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
                 if(n + 1 == num_packets_to_recv) {
-                    size_t received_data_in_last_packet = ch_recv_buffer_info_i.msgs[n].msg_len - _HEADER_SIZE;
-                    if(received_data_in_last_packet > data_in_last_packet) {
+                    if(num_bytes_this_packets > data_in_last_packet) {
                         ch_recv_buffer_info_i.data_bytes_from_packet[n] = data_in_last_packet;
-                        ch_recv_buffer_info_i.sample_cache_used = received_data_in_last_packet - data_in_last_packet;
+                        ch_recv_buffer_info_i.sample_cache_used = num_bytes_this_packets - data_in_last_packet;
                         num_bytes_received += data_in_last_packet;
                     } else {
-                        ch_recv_buffer_info_i.data_bytes_from_packet[n] = received_data_in_last_packet;
+                        ch_recv_buffer_info_i.data_bytes_from_packet[n] = num_bytes_this_packets;
                         // sample_cache_used already set to 0 before this loop so doesn;t need to be set to 0 here
-                        num_bytes_received += received_data_in_last_packet;
+                        ch_recv_buffer_info_i.sample_cache_used = 0;
+                        num_bytes_received += num_bytes_this_packets;
                     }
                 // Records the amount of data received from most packets
                 } else {
-                    ch_recv_buffer_info_i.data_bytes_from_packet[n] = ch_recv_buffer_info_i.msgs[n].msg_len - _HEADER_SIZE;
+                    ch_recv_buffer_info_i.data_bytes_from_packet[n] = num_bytes_this_packets;
                     num_bytes_received += num_bytes_this_packets;
                 }
             }
