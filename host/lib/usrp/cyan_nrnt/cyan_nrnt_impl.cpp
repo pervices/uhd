@@ -1363,41 +1363,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
 
         TREE_CREATE_RW(rx_link_path / "jesd_num",   "rx_"+lc_num+"/link/jesd_num",   int, int);
-
-		zero_copy_xport_params zcxp;
-
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CYAN_NRNT_MAX_MTU - ip_udp_size;
-
-		zcxp.send_frame_size = 0;
-		zcxp.recv_frame_size = bpp;
-		zcxp.num_send_frames = 0;
-		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
-
-        // TODO: old method of creating send socket, make it so this is only done in the old mode
-        //Attempts to bind the ips associated with the ip ports
-        //It is neccessary for maximum performance when receiving using uhd
-        //However if uhd is only being used to start the stream and something else is handling actually receiving the data this error can be ignored
-//         std::cout << "Creating rx sockets + buffers" << std::endl;
-//         try {
-//             _mbc[mb].rx_dsp_xports.push_back(
-//                 udp_stream_zero_copy::make(
-//                     _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-//                     std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-//                     "127.0.0.1",
-//                     1,
-//                     zcxp,
-//                     bp,
-//                     device_addr
-//                 )
-//             );
-//         } catch (...) {
-//             UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
-//         }
-//         std::cout << "Finished creating rx sockets + buffers" << std::endl;
     }
 
     // initializes all TX chains
@@ -1510,35 +1475,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
 
-
-		zero_copy_xport_params zcxp;
-
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CYAN_NRNT_MAX_MTU - ip_udp_size;
-
-		zcxp.send_frame_size = bpp;
-		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = max_buffer_level * sizeof( std::complex<int16_t> ) / bpp;
-		zcxp.num_recv_frames = 0;
-
 		std::string ip_addr;
 		uint16_t udp_port;
 		std::string sfp;
 		get_tx_endpoint( _tree, dspno, ip_addr, udp_port, sfp );
-
-        // TODO: old method of creating send socket, make it so this is only done in the old mode
-// 		_mbc[mb].tx_dsp_xports.push_back(
-// 			udp_zero_copy::make(
-// 				ip_addr,
-// 				std::to_string( udp_port ),
-// 				zcxp,
-// 				bp,
-// 				device_addr
-// 			)
-// 		);
 
         // Creates socket for getting buffer level
 		_mbc[mb].fifo_ctrl_xports.push_back(
