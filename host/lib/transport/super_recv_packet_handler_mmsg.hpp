@@ -204,7 +204,7 @@ public:
         extract_vrt_metadata();
 
         metadata.has_time_spec = true;
-        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _samp_rate);
+        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _sample_rate);
 
         // Check for overflow errors and (when implemented) shifts data to keep buffers aligned after an overflow)
         size_t aligned_bytes = align_buffs(metadata.error_code) + cached_bytes_to_copy;
@@ -219,9 +219,9 @@ public:
     }
 
     // Set the rate of samples per second
-    void set_samp_rate(const double rate)
+    void set_sample_rate(const double rate)
     {
-        _samp_rate = rate;
+        _sample_rate = rate;
     }
 
 protected:
@@ -291,7 +291,7 @@ private:
     uhd::convert::converter::sptr _converter;
 
     // Sample rate in samples per second
-    double _rate = 0;
+    double _sample_rate = 0;
 
         /*******************************************************************
      * recv_multiple_packets:

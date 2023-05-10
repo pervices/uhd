@@ -424,7 +424,7 @@ void cyan_nrnt_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp
         std::dynamic_pointer_cast<cyan_nrnt_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
-    my_streamer->set_samp_rate(rate);
+    my_streamer->set_sample_rate(rate);
 }
 
 void cyan_nrnt_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
