@@ -84,6 +84,16 @@ static std::string rx_rf_fe_root(const size_t channel, const size_t mboard = 0) 
     return mb_root(mboard) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
 }
 
+std::string crimson_tng_impl::rx_link_root(const size_t channel, const size_t mboard)
+{
+    return mb_root(mboard) + "/rx_link/" + std::to_string(channel);
+}
+
+std::string crimson_tng_impl::tx_link_root(const size_t channel, const size_t mboard)
+{
+    return mb_root(mboard) + "/tx_link/" + std::to_string(channel);
+}
+
 static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
     return mb_root(mboard) + "/tx_dsps/" + std::to_string(channel);
 }
@@ -1213,42 +1223,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		// Link settings
 		TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);
+        TREE_CREATE_RW(rx_link_path / "endian_swap", "rx_"+lc_num+"/link/endian_swap", int, int);
 		TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
 		TREE_CREATE_RW(rx_link_path / "port",    "rx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
-
-		zero_copy_xport_params zcxp;
-		udp_zero_copy::buff_params bp;
-
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
-
-		zcxp.send_frame_size = 0;
-		zcxp.recv_frame_size = bpp;
-		zcxp.num_send_frames = 0;
-		zcxp.num_recv_frames = DEFAULT_NUM_FRAMES;
-
-        //Attempts to bind the ips associated with the ip ports
-        //It is neccessary for maximum performance when receiving using uhd
-        //However if uhd is only being used to start the stream and something else is handling actually receiving the data this error can be ignored
-        try {
-            _mbc[mb].rx_dsp_xports.push_back(
-                udp_stream_zero_copy::make(
-                    _tree->access<std::string>( rx_link_path / "ip_dest" ).get(),
-                    std::stoi( _tree->access<std::string>( rx_link_path / "port" ).get() ),
-                    "127.0.0.1",
-                    1,
-                    zcxp,
-                    bp,
-                    device_addr
-                )
-            );
-        } catch (...) {
-            UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Unable to bind ip adress, certain features may not work. \n IP: " << _tree->access<std::string>( rx_link_path / "ip_dest" ).get() << std::endl;
-        }
     }
 
     // loop for all TX chains

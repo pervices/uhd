@@ -21,12 +21,7 @@
 #include <iomanip>
 #include <mutex>
 
-#include "../../transport/super_recv_packet_handler.hpp"
-// TODO: fix flow control for crimson and switch back to using
-// #include "../../transport/super_send_packet_handler.hpp"
-// Remember to uncomment function definitions and bind callbacks 
-// for update_fc_send_count and check_flow_control in this file
-// and change all references to sph back to sph
+#include "../../transport/super_recv_packet_handler_mmsg.hpp"
 #include "../../transport/super_send_packet_handler.hpp"
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
@@ -96,38 +91,18 @@ std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
 	return os;
 }
 
-// XXX: @CF: 20180227: The only reason we need this class is issue STOP in ~()
-class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer {
+class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	crimson_tng_recv_packet_streamer(const size_t max_num_samps)
-	: sph::recv_packet_streamer( max_num_samps )
+	crimson_tng_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CRIMSON_TNG_MAX_NBYTES, CRIMSON_TNG_HEADER_SIZE, cpu_format, wire_format, wire_little_endian)
 	{
-        _max_num_samps = max_num_samps;
     }
 
 	virtual ~crimson_tng_recv_packet_streamer() {
 		teardown();
 	}
-
-    size_t get_num_channels(void) const{
-        return this->size();
-    }
-
-    size_t get_max_num_samps(void) const{
-        return _max_num_samps;
-    }
-
-    size_t recv(
-        const rx_streamer::buffs_type &buffs,
-        const size_t nsamps_per_buff,
-        uhd::rx_metadata_t &metadata,
-        const double timeout,
-        const bool one_packet
-    ){
-        return recv_packet_handler::recv(buffs, nsamps_per_buff, metadata, timeout, one_packet);
-    }
 
     void issue_stream_cmd(const stream_cmd_t &stream_cmd)
     {
@@ -140,7 +115,11 @@ public:
 
     void resize(const size_t size) {
         _eprops.resize( size );
-        sph::recv_packet_streamer::resize( size );
+        sph::recv_packet_streamer_mmsg::resize( size );
+    }
+
+    void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
+        vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
     }
 
 	void teardown() {
@@ -719,8 +698,7 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
         std::dynamic_pointer_cast<crimson_tng_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
     if (my_streamer.get() == NULL) return;
 
-    my_streamer->set_samp_rate(rate);
-    my_streamer->set_tick_rate( CRIMSON_TNG_MASTER_TICK_RATE );
+    my_streamer->set_sample_rate(rate);
 }
 
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
@@ -831,41 +809,18 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
     }
 
-    //calculate packet size
-    static const size_t hdr_size = 0
-        + vrt::max_if_hdr_words32*sizeof(uint32_t)
-        + sizeof(vrt::if_packet_info_t().tlr) //forced to have trailer
-        - sizeof(vrt::if_packet_info_t().cid) //no class id ever used
-        - sizeof(vrt::if_packet_info_t().tsi) //no int time ever used
-    ;
-    const size_t bpp = _mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size() - hdr_size;
-    const size_t bpi = convert::get_bytes_per_item(args.otw_format);
-    const size_t spp = args.args.cast<size_t>("spp", bpp/bpi);
-
-    //make the new streamer given the samples per packet
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(spp);
-
-    //init some streamer stuff
-    my_streamer->resize(args.channels.size());
-    my_streamer->set_vrt_unpacker(&vrt::if_hdr_unpack_be);
-
-    //set the converter
-    uhd::convert::id_type id;
-    id.input_format = args.otw_format + "_item32_be";
-    id.num_inputs = 1;
-    id.output_format = args.cpu_format;
-    id.num_outputs = 1;
-    my_streamer->set_converter(id);
-
-    if ( false ) {
-    } else if ( "fc32" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 / (double)((1<<15)-1) );
-    } else if ( "sc16" == args.cpu_format ) {
-        my_streamer->set_scale_factor( 1.0 );
+    std::vector<std::string> dst_ip(args.channels.size());
+    for(size_t n = 0; n < dst_ip.size(); n++) {
+        dst_ip[n] = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/ip_dest" ).get();
     }
 
-    // XXX: @CF: 20180424: Also nasty.. if crimson did not shut down properly last time
-    // then the "/*flush*/" below will not work unless we turn it off ahead of time.
+    std::vector<int> dst_port(args.channels.size());
+    for(size_t n = 0; n < dst_port.size(); n++) {
+        dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
+    }
+
+    bool little_endian_supported = true;
+
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -883,11 +838,31 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
                 // stop streaming
                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
+                if(little_endian_supported) {
+                    // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
+                    _tree->access<int>(rx_link_path / "endian_swap").set(1);
+                    // Checks if the server accepted the endian swap request
+                    // If 0 then the device does not support endian swap
+                    int endian_status = _tree->access<int>(rx_link_path / "endian_swap").get();
+                    if(endian_status == 0) {
+                        little_endian_supported = false;
+                    }
+                } else {
+                    // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
+                }
                 // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
             }
         }
     }
+
+    // Creates streamer
+    // must be done after setting stream to 0 in the state tree so flush works correctly
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(dst_ip, dst_port, args.cpu_format, args.otw_format, little_endian_supported);
+
+    //init some streamer stuff
+    my_streamer->resize(args.channels.size());
+    my_streamer->set_vrt_unpacker(&vrt::if_hdr_unpack_be);
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -896,18 +871,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         for (const std::string &mb : _mbc.keys()) {
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
-                const size_t dsp = chan + _mbc[mb].rx_chan_occ - num_chan_so_far;
                 std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
-                /* XXX: @CF: 20180321: This causes QA to issue 'd' and then 'o' and fail.
-                 * Shouldn't _really_ need it here, but it was originally here to shut down
-                 * the channel in case it was not previously shut down
-                 */
-                //stream_cmd_t scmd( stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS );
-                //scmd.stream_now = true;
-                //set_stream_cmd( scmd_pre, scmd );
-                my_streamer->set_xport_chan_get_buff(chan_i, std::bind(
-                    &zero_copy_if::get_recv_buff, _mbc[mb].rx_dsp_xports[dsp], ph::_1, ph::_2
-                ), true /*flush*/);
                 my_streamer->set_issue_stream_cmd(chan_i, std::bind(
                     &crimson_tng_impl::set_stream_cmd, this, scmd_pre, ph::_1));
                 my_streamer->set_on_fini(chan_i, std::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
@@ -917,11 +881,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         }
     }
 
-    //set the packet threshold to be an entire socket buffer's worth
-    const size_t packets_per_sock_buff = size_t(50e6/_mbc[_mbc.keys().front()].rx_dsp_xports[0]->get_recv_frame_size());
-    my_streamer->set_alignment_failure_threshold(packets_per_sock_buff);
-
-    // XXX: @CF: 20170227: extra setup for crimson
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -929,7 +888,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
 
-                // XXX: @CF: this is so nasty..
                 const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
                 std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
                 const fs_path mb_path   = "/mboards/" + mb;
@@ -944,9 +902,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
                 // power on the channel
                 _tree->access<std::string>(rx_path / chan / "pwr").set("1");
-                // XXX: @CF: 20180214: Do we _really_ need to sleep 1/2s for power on for each channel??
-                //usleep( 500000 );
-                // stream enable
                 _tree->access<std::string>(rx_path / chan / "stream").set("1");
 
 // FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately

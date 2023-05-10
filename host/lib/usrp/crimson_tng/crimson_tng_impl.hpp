@@ -116,6 +116,9 @@ public:
     static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
 private:
+    std::string rx_link_root(const size_t channel, const size_t mboard = 0);
+    std::string tx_link_root(const size_t channel, const size_t mboard = 0);
+
     // helper functions to wrap send and recv as get and set
     std::string get_string(std::string req);
     void set_string(const std::string pre, std::string data);

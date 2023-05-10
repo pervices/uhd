@@ -64,9 +64,16 @@
 #define CRIMSON_TNG_MIN_MTU		1500
 // Crimson max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CRIMSON_TNG_MAX_MTU		9000
+
+// Maximum number of bytes used to store sample data when receiving
+#define CRIMSON_TNG_MAX_NBYTES 1384
+
 // Amount of the UDP packet used for overhead in data packets
 // 60 bit ipv4 header, 8 bit UDP header
 #define CRIMSON_TNG_UDP_OVERHEAD 68
+
+// Size of the vrt header in bytes
+#define CRIMSON_TNG_HEADER_SIZE 16
 
 // Crimson Flowcontrol Update Per Second
 #define CRIMSON_TNG_UPDATE_PER_SEC	100
