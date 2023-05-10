@@ -45,6 +45,9 @@
 // Size of the vrt header in bytes
 #define CYAN_NRNT_HEADER_SIZE 16
 
+// Size of the vrt trailer in bytes
+#define CYAN_NRNT_TRAILER_SIZE 0
+
 // Packaets send to the unit must have a multiple of this many samples
 #define CYAN_NRNT_PACKET_NSAMP_MULTIPLE 4
 // Amount of the UDP packet used for overhead in data packets

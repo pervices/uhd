@@ -96,7 +96,7 @@ public:
 	typedef std::function<void(void)> onfini_type;
 
 	crimson_tng_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
-	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CRIMSON_TNG_MAX_NBYTES, CRIMSON_TNG_HEADER_SIZE, cpu_format, wire_format, wire_little_endian)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CRIMSON_TNG_MAX_NBYTES, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian)
 	{
     }
 

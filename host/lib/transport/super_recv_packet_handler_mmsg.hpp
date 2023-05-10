@@ -53,9 +53,10 @@ public:
      * \param wire_format datatype of samples in the packets
      * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
      */
-    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
     : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(dst_ip.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
+    _TRAILER_SIZE(trailer_size),
     _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
     _intermediate_recv_buffer_wrapper(_intermediate_recv_buffer_pointers.data(), _NUM_CHANNELS)
     {
@@ -240,6 +241,8 @@ private:
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
     int _MAX_PACKETS_TO_RECV;
     size_t _HEADER_SIZE;
+    // Trailer is not needed for anything so receive will discard it
+    size_t _TRAILER_SIZE;
     // Number of existing header buffers, which is the current maximum number of packets to receive at a time
     size_t _num_header_buffers = 32;
     std::vector<int> recv_sockets;
@@ -472,7 +475,7 @@ private:
             for(size_t packet_i = 0; packet_i < ch_recv_buffer_info_group[ch_i].num_headers_used; packet_i++) {
                 // Number of 32 bit words per vrt packet
                 // will be compared against packet length field
-                ch_recv_buffer_info_group[ch_i].vrt_metadata[packet_i].num_packet_words32 = (_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET)/sizeof(uint32_t);
+                ch_recv_buffer_info_group[ch_i].vrt_metadata[packet_i].num_packet_words32 = (_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET +_TRAILER_SIZE)/sizeof(uint32_t);
                 // First word of the packet
                 const uint32_t* vrt_hdr = (uint32_t*) ch_recv_buffer_info_group[ch_i].headers[packet_i].data();
                 //ifpi.has_tsf = true;
@@ -681,8 +684,8 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
-    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, cpu_format, wire_format, wire_little_endian)
+    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian)
     {
     }
 

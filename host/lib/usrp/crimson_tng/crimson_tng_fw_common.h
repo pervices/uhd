@@ -75,6 +75,9 @@
 // Size of the vrt header in bytes
 #define CRIMSON_TNG_HEADER_SIZE 16
 
+// Size of the vrt trailer in bytes
+#define CRIMSON_TNG_TRAILER_SIZE 4
+
 // Crimson Flowcontrol Update Per Second
 #define CRIMSON_TNG_UPDATE_PER_SEC	100
 #define CRIMSON_TNG_SS_FIFOLVL_THRESHOLD 107421875
