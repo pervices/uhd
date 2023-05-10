@@ -65,6 +65,9 @@
 // Crimson max MTU size (jumbo ethernet frame is 9000 bytes)
 #define CRIMSON_TNG_MAX_MTU		9000
 
+// Maximum number of bytes used to store samples in a tx packet
+#define CRIMSON_TNG_MAX_SEND_SAMPLE_BYTES 8920
+
 // Maximum number of bytes used to store sample data when receiving
 #define CRIMSON_TNG_MAX_NBYTES 1384
 
@@ -77,6 +80,9 @@
 
 // Size of the vrt trailer in bytes
 #define CRIMSON_TNG_TRAILER_SIZE 4
+
+// Packaets send to the unit must have a multiple of this many samples
+#define CRIMSON_TNG_PACKET_NSAMP_MULTIPLE 1
 
 // Crimson Flowcontrol Update Per Second
 #define CRIMSON_TNG_UPDATE_PER_SEC	100

@@ -1348,38 +1348,14 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		// Link settings
 		TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
+        TREE_CREATE_RW(tx_link_path / "endian_swap", "tx_"+lc_num+"/link/endian_swap", int, int);
 		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
-
-
-		zero_copy_xport_params zcxp;
-		udp_zero_copy::buff_params bp;
-
-	    static const size_t ip_udp_size = 0
-	    	+ 60 // IPv4 Header
-			+ 8  // UDP Header
-	    ;
-		const size_t bpp = CRIMSON_TNG_MAX_MTU - ip_udp_size;
-
-		zcxp.send_frame_size = bpp;
-		zcxp.recv_frame_size = 0;
-		zcxp.num_send_frames = CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) / bpp;
-		zcxp.num_recv_frames = 0;
 
 		std::string ip_addr;
 		uint16_t udp_port;
 		std::string sfp;
 		get_tx_endpoint( _tree, dspno, ip_addr, udp_port, sfp );
-
-		_mbc[mb].tx_dsp_xports.push_back(
-			udp_zero_copy::make(
-				ip_addr,
-				std::to_string( udp_port ),
-				zcxp,
-				bp,
-				device_addr
-			)
-		);
 
 		_mbc[mb].fifo_ctrl_xports.push_back(
 			udp_simple::make_connected(
