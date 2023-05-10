@@ -322,7 +322,7 @@ private:
 
             //Fills the pointer to where in the buffer to write samples from the packet to
             for(size_t p = sample_buffer_offset; p < buffer_length_bytes; p += _MAX_SAMPLE_BYTES_PER_PACKET) {
-                samples_sg_dst[ch].push_back(p+sample_buffers[ch]);
+                samples_sg_dst[ch].push_back(p+(uint8_t*)(sample_buffers[ch]));
             }
         }
 

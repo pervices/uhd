@@ -183,7 +183,7 @@ public:
         // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
         if(nsamps_to_cache > 0) {
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (*send_buffer)[ch_i] + (actual_samples_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + (actual_samples_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
             }
         }
         cached_nsamps = nsamps_to_cache;
@@ -422,7 +422,7 @@ private:
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
-                ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n] = sample_buffs[ch_i] + (n * _MAX_SAMPLE_BYTES_PER_PACKET);
+                ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n] = (uint8_t*)(sample_buffs[ch_i]) + (n * _MAX_SAMPLE_BYTES_PER_PACKET);
             }
         }
 
