@@ -729,23 +729,7 @@ void crimson_tng_impl::start_bm() {
 		_bm_thread_should_exit = false;
 		_bm_thread = std::thread( bm_thread_fn, this );
 
-		_time_diff_converged = false;
-		for(
-			time_spec_t time_then = uhd::get_system_time(),
-				time_now = time_then
-				;
-			! time_diff_converged()
-				;
-			time_now = uhd::get_system_time()
-		) {
-			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
-					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
-			}
-			usleep( 100000 );
-		}
+        //Note: anything relying on this will require waiting time_diff_converged()
 	}
 }
 
@@ -761,6 +745,25 @@ void crimson_tng_impl::stop_bm() {
 
 bool crimson_tng_impl::time_diff_converged() {
 	return _time_diff_converged;
+}
+
+void crimson_tng_impl::wait_for_time_diff_converged() {
+    for(
+        time_spec_t time_then = uhd::get_system_time(),
+            time_now = time_then
+            ;
+        ! time_diff_converged()
+            ;
+        time_now = uhd::get_system_time()
+    ) {
+        if ( (time_now - time_then).get_full_secs() > 20 ) {
+            UHD_LOGGER_ERROR("CRIMSON_IMPL")
+                << "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
+                << std::endl;
+            throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
+        }
+        usleep( 100000 );
+    }
 }
 
 // the buffer monitor thread

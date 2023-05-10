@@ -855,10 +855,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     this->update_rates();
 
     // Waits for time diff to converge
-    // TODO: add timeout and remove wait to converge (but keep starting converging) from main usrp make, since its only needed when using tx streamers
-	for( ;! time_diff_converged(); ) {
-		usleep( 10000 );
-	}
+    wait_for_time_diff_converged();
 
     allocated_tx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_tx_streamers );

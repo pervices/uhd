@@ -116,6 +116,7 @@ public:
     }
 
     bool time_diff_converged();
+    void wait_for_time_diff_converged();
     void start_bm();
     void stop_bm();
 

@@ -830,24 +830,7 @@ void cyan_nrnt_impl::start_bm() {
         //starts the thread that synchronizes the clocks
 		_bm_thread = std::thread( bm_thread_fn, this );
 
-        //waits until the clocks converge
-		_time_diff_converged = false;
-		for(
-			time_spec_t time_then = uhd::get_system_time(),
-				time_now = time_then
-				;
-			! time_diff_converged()
-				;
-			time_now = uhd::get_system_time()
-		) {
-			if ( (time_now - time_then).get_full_secs() > 20 ) {
-				UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C "_IMPL")
-					<< "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_NRNT_DEBUG_NAME_S "?"
-					<< std::endl;
-				throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_NRNT_DEBUG_NAME_S"?" );
-			}
-			usleep( 100000 );
-		}
+        //Note: anything relying on this will require waiting time_diff_converged()
 	}
 }
 
@@ -865,6 +848,26 @@ void cyan_nrnt_impl::stop_bm() {
 //checks if the clocks are synchronized
 bool cyan_nrnt_impl::time_diff_converged() {
 	return _time_diff_converged;
+}
+
+// Wait for convergence
+void cyan_nrnt_impl::wait_for_time_diff_converged() {
+    for(
+        time_spec_t time_then = uhd::get_system_time(),
+            time_now = time_then
+            ;
+        ! time_diff_converged()
+            ;
+        time_now = uhd::get_system_time()
+    ) {
+        if ( (time_now - time_then).get_full_secs() > 20 ) {
+            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C "_IMPL")
+                << "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_NRNT_DEBUG_NAME_S "?"
+                << std::endl;
+            throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_NRNT_DEBUG_NAME_S"?" );
+        }
+        usleep( 100000 );
+    }
 }
 
 //Synchronizes clocks, this function should be run in its own thread
