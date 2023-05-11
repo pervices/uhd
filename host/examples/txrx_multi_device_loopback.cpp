@@ -133,7 +133,6 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
     md.end_of_burst   = false;
     md.has_time_spec  = true;
     md.time_spec = uhd::time_spec_t(start_time);
-    double timeout = start_time + (requested_num_samps/rate) + 3;
     size_t total_samples_sent = 0;
 
     size_t wavetable_index = 0;
