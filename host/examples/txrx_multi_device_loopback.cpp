@@ -14,7 +14,6 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
 #include "wavetable.hpp"
 #include <stdint.h>
 #include <complex>
@@ -26,6 +25,7 @@
 #include <math.h>
 #include <thread>
 #include <vector>
+#include <filesystem>
 
 namespace po = boost::program_options;
 
@@ -626,8 +626,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     bool save_rx = !vm.count("no_save");
 
     if(save_rx) {
-        // This function is in the standard library of c++17
-        boost::filesystem::create_directories(rx_folder);
+        std::filesystem::create_directories(rx_folder);
     }
 
     for(size_t n = 0; n < devices.size(); n++) {

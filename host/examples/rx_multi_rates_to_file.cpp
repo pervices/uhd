@@ -14,7 +14,6 @@
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
 #include <chrono>
 
 #include <complex>
@@ -24,6 +23,7 @@
 #include <thread>
 
 #include <errno.h>
+#include <filesystem>
 
 namespace po = boost::program_options;
 
@@ -281,8 +281,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     usrp->set_time_now(uhd::time_spec_t(0.0));
 
     if(!skip_save) {
-        // This function is in the standard library of c++17
-        boost::filesystem::create_directories(folder);
+        std::filesystem::create_directories(folder);
     }
 
     std::signal(SIGINT, &sig_int_handler);

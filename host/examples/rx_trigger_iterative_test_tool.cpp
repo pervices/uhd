@@ -22,7 +22,7 @@
 #include <chrono>
 #include <thread>
 #include <fstream>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 
 #include <uhd/types/tune_request.hpp>
 
@@ -375,8 +375,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     if(use_rx) {
-        // This function is in the standard library of c++17
-        boost::filesystem::create_directories(results_directory);
+        std::filesystem::create_directories(results_directory);
     }
 
     std::signal(SIGINT, &sig_int_handler);
