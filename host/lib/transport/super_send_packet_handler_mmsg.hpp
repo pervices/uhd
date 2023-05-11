@@ -437,7 +437,11 @@ private:
             // Samples
             // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
             ch_send_buffer_info_group[ch_i].iovecs[2].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[0]);
-            ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET - cached_nsamps;
+            if(num_packets > 1) {
+                ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET - cached_nsamps;
+            } else {
+                ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = samples_in_last_packet * _bytes_per_sample - cached_nsamps;
+            }
 
             ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[0];
             ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_iovlen = 3;
