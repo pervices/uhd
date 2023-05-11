@@ -185,8 +185,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
-    std::vector<std::complex<short> > buff(spb);
+    std::vector<std::complex<short> > buff(spb + wave_table_len);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
+
+    //fill the buffer with the waveform
+    for (size_t n = 0; n < buff.size(); n++){
+        buff[n] = wave_table(index += step);
+    }
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if(pps != "bypass") {
@@ -273,35 +278,33 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
                 break;
 
-            //fill the buffer with the waveform
-            size_t n = 0;
-            for (n = 0; n < buff.size() && (num_acc_samps + n < total_num_samps || total_num_samps == 0); n++){
-                buff[n] = wave_table(index += step);
+            // Locates where in the buffer to use samples from
+            for(auto& buff_ptr : buffs) {
+                buff_ptr = &buff[num_acc_samps % wave_table_len];
             }
+
+            size_t nsamps_this_send;
+            if(total_num_samps != 0) {
+                nsamps_this_send = std::min(spb, total_num_samps - num_acc_samps);
+            } else {
+                nsamps_this_send = spb;
+            }
+
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sending samples" << std::endl;
 #endif
             //this statement will block until the data is sent
             //send the entire contents of the buffer
-            num_acc_samps += tx_stream->send(buffs, n, md);
+            num_acc_samps += tx_stream->send(buffs, nsamps_this_send, md);
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sent samples" << std::endl;
 #endif
             md.start_of_burst = false;
             md.has_time_spec = false;
         }
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Creating EOB packet" << std::endl;
-#endif
         //send a mini EOB packet
         md.end_of_burst = true;
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Sending EOB packet" << std::endl;
-#endif
         tx_stream->send("", 0, md);
-#ifdef DEBUG_TX_WAVE
-        std::cout << "Sent EOB packet" << std::endl;
-#endif
     }
 #ifdef DELAYED_EXIT
 //waits until told to stop before continuing (allows closing tasks to be delayed)
