@@ -171,13 +171,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     //pre-compute the waveform values
-    const wave_table_class wave_table(wave_type, ampl);
+    const wave_table_multitype<short> wave_table(wave_type, ampl);
     const size_t step = boost::math::iround(wave_freq/rate * wave_table_len);
     size_t index = 0;
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
-    uhd::stream_args_t stream_args("fc32", otw);
+    uhd::stream_args_t stream_args("sc16", otw);
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
@@ -185,8 +185,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
-    std::vector<std::complex<float> > buff(spb);
-    std::vector<std::complex<float> *> buffs(channel_nums.size(), &buff.front());
+    std::vector<std::complex<short> > buff(spb);
+    std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if(pps != "bypass") {

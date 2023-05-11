@@ -24,7 +24,7 @@ class wave_table_multitype
 {
 public:
     wave_table_multitype(const std::string& wave_type, const float ampl)
-        : _wave_table(wave_table_len, {0.0, 0.0})
+        : _wave_table(wave_table_len, {0, 0})
     {
         T type_max;
         if(std::is_floating_point<T>::value) {
@@ -40,7 +40,7 @@ public:
 
         if (wave_type == "CONST") {
             // Fill with I == ampl, Q == 0
-            std::fill(_wave_table.begin(), _wave_table.end(), std::complex<T>{wave_max, 0.0});
+            std::fill(_wave_table.begin(), _wave_table.end(), std::complex<T>{wave_max, 0});
 
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
 
@@ -49,7 +49,7 @@ public:
             // zeros
             std::fill(_wave_table.begin() + wave_table_len / 2,
                 _wave_table.end(),
-                std::complex<float>{wave_max, 0.0});
+                std::complex<T>{wave_max, 0});
 
             _power_dbfs = static_cast<double>(20 * std::log10(ampl)) - static_cast<double>(10 * std::log10(2.0));
 
@@ -57,7 +57,7 @@ public:
             // Fill I values with ramp from -1 to 1, Q with zero
             float energy_acc = 0.0f;
             for (size_t i = 0; i < wave_table_len; i++) {
-                _wave_table[i] = {(2.0f * i / (wave_table_len - 1) - 1.0f) *wave_max, 0.0};
+                _wave_table[i] = {(T)((2.0f * i / (wave_table_len - 1) - 1.0f) * wave_max), 0};
 
                 energy_acc += std::norm(_wave_table[i]/wave_max);
             }
@@ -77,7 +77,7 @@ public:
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
                 _wave_table[i] =
-                    wave_max * std::complex<T>(std::exp(J * static_cast<double>(tau * i / wave_table_len)));
+                    std::complex<T>((double)wave_max * std::exp(J * static_cast<double>(tau * i / wave_table_len)));
             }
             _power_dbfs = static_cast<double>(20 * std::log10(ampl));
         } else if (wave_type == "SINE_NO_Q") {
@@ -90,7 +90,7 @@ public:
                 // create a single rotation. The call site will sub-sample
                 // appropriately to create a sine wave of it's desired frequency
                 _wave_table[i] =
-                    wave_max * std::complex<T>(std::exp(J * static_cast<double>(tau * i / wave_table_len)));
+                    std::complex<T>((double)wave_max * std::exp(J * static_cast<double>(tau * i / wave_table_len)));
                 _wave_table[i] = std::complex<T>(std::real(_wave_table[i]));
             }
 
