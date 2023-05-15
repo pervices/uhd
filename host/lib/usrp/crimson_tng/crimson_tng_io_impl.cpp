@@ -201,13 +201,10 @@ public:
 
         uhd::tx_metadata_t metadata = metadata_;
 
-        uhd::time_spec_t now = get_time_now();
-
         if ( _first_call_to_send ) {
-            if ( ! metadata.start_of_burst ) {
-                #ifdef UHD_TXRX_DEBUG_PRINTS
-                std::cout << "Warning: first call to send but no start of burst!" << std::endl;
-                #endif
+
+            if ( ! metadata.start_of_burst || metadata.time_spec.get_real_secs() == 0 ) {
+                uhd::time_spec_t now = get_time_now();
                 metadata.start_of_burst = true;
                 metadata.time_spec = now + default_sob;
             }
