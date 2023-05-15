@@ -261,6 +261,11 @@ public:
         _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
     }
 
+    // Request to resync time diffs
+    virtual void request_resync_time_diff() {
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
 protected:
     uhd::property_tree::sptr _tree;
     device_filter_t _type;

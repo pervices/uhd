@@ -103,20 +103,18 @@ public:
     uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now();
-
-    std::mutex _time_diff_mutex;
+    bool time_diff_converged();
+    void wait_for_time_diff_converged();
+    // Note: this must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
+    std::atomic<bool> time_resync_requested = false;
 
     inline double time_diff_get() {
-        std::lock_guard<std::mutex> _lock( _time_diff_mutex );
         return _time_diff;
     }
     inline void time_diff_set( double time_diff ) {
-        std::lock_guard<std::mutex> _lock( _time_diff_mutex );
         _time_diff = time_diff;
     }
 
-    bool time_diff_converged();
-    void wait_for_time_diff_converged();
     void start_bm();
     void stop_bm();
 
@@ -215,7 +213,7 @@ private:
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
-    double _time_diff;
+    std::atomic<double> _time_diff;
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
@@ -299,6 +297,7 @@ private:
     double get_tx_gain(const std::string &name, size_t chan);
     void set_rx_gain(double gain, const std::string &name, size_t chan);
     double get_rx_gain(const std::string &name, size_t chan);
+    void request_resync_time_diff();
 };
 
 }

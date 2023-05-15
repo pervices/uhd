@@ -180,7 +180,13 @@ void crimson_tng_impl::set_int(const std::string pre, int data){
 }
 
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
+    // Waits for clock to be stable before getting time
+    // Clocks will go out of sync when setting time
+    if(time_resync_requested || (!time_diff_converged()&& _bm_thread_running)) {
+        wait_for_time_diff_converged();
+    }
     double diff = time_diff_get();
+
     return uhd::get_system_time() + diff;
 }
 
@@ -743,7 +749,7 @@ void crimson_tng_impl::stop_bm() {
 	}
 }
 
-bool crimson_tng_impl::time_diff_converged() {
+inline bool crimson_tng_impl::time_diff_converged() {
 	return _time_diff_converged;
 }
 
@@ -752,7 +758,7 @@ void crimson_tng_impl::wait_for_time_diff_converged() {
         time_spec_t time_then = uhd::get_system_time(),
             time_now = time_then
             ;
-        ! time_diff_converged()
+        (!time_diff_converged()) || time_resync_requested
             ;
         time_now = uhd::get_system_time()
     ) {
@@ -805,6 +811,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
 		}
+        bool resync_request_received = dev->time_resync_requested;
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
 		now = uhd::get_system_time();
@@ -815,18 +822,11 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			continue;
 		}
 		dev->time_diff_process( tdr, now );
-		//dev->fifo_update_process( tdr );
 
-#if 0
-			// XXX: overruns - we need to fix this
-			now = uhd::get_system_time();
-
-			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CRIMSON_IMPL" )
-					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
-					<< std::endl;
-			}
-#endif
+        // Indicates that the time diff is has been resynced after a set time
+        if(resync_request_received) {
+            dev->time_resync_requested = !dev->_time_diff_converged;
+        }
 	}
 	dev->_bm_thread_running = false;
 }
@@ -1942,4 +1942,8 @@ double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
     }
 
     return r;
+}
+
+inline void crimson_tng_impl::request_resync_time_diff() {
+    time_resync_requested = true;
 }

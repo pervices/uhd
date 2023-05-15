@@ -187,7 +187,13 @@ void cyan_nrnt_impl::set_int(const std::string pre, int data){
 }
 
 uhd::time_spec_t cyan_nrnt_impl::get_time_now() {
+    // Waits for clock to be stable before getting time
+    // Clocks will go out of sync when setting time
+    if(time_resync_requested || (!time_diff_converged()&& _bm_thread_running)) {
+        wait_for_time_diff_converged();
+    }
     double diff = time_diff_get();
+
     return uhd::get_system_time() + diff;
 }
 
@@ -804,6 +810,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
 	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
+
 	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs() );
 
 	// For SoB, record the instantaneous time difference + compensation
@@ -827,6 +834,7 @@ void cyan_nrnt_impl::start_bm() {
 
 		_bm_thread_should_exit = false;
         //starts the thread that synchronizes the clocks
+        request_resync_time_diff();
 		_bm_thread = std::thread( bm_thread_fn, this );
 
         //Note: anything relying on this will require waiting time_diff_converged()
@@ -845,7 +853,7 @@ void cyan_nrnt_impl::stop_bm() {
 }
 
 //checks if the clocks are synchronized
-bool cyan_nrnt_impl::time_diff_converged() {
+inline bool cyan_nrnt_impl::time_diff_converged() {
 	return _time_diff_converged;
 }
 
@@ -855,7 +863,7 @@ void cyan_nrnt_impl::wait_for_time_diff_converged() {
         time_spec_t time_then = uhd::get_system_time(),
             time_now = time_then
             ;
-        ! time_diff_converged()
+        (!time_diff_converged()) || time_resync_requested
             ;
         time_now = uhd::get_system_time()
     ) {
@@ -913,37 +921,22 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
 		}
+		bool resync_request_received = dev->time_resync_requested;
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
 		now = uhd::get_system_time();
 		crimson_now = now + time_diff;
 
 		dev->time_diff_send( crimson_now, xg_intf );
-        //The warning will be triggered during normal operation, so has been commented out
  		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
- 			//std::cout << "UHD: WARNING: Did not receive UDP time diff response on interface " << xg_intf << ". Inspect the cable and ensure connectivity using ping." << std::endl;
  			continue;
          }
 		dev->time_diff_process( tdr, now );
-		//dev->fifo_update_process( tdr );
 
-#if 0
-			// XXX: overruns - we need to fix this
-			now = uhd::get_system_time();
-
-			if ( now >= then + T ) {
-				UHD_LOGGER_INFO( "CYAN_NRNT_IMPL" )
-					<< __func__ << "(): Overran time for update by " << ( now - ( then + T ) ).get_real_secs() << " s"
-					<< std::endl;
-			}
-#endif
-        // At every iteration, loop through different interfaces so that we
-        // have an average of the time diffs through different interfaces!
-        /*if (xg_intf < NUMBER_OF_XG_CONTROL_INTF-1) {
-            xg_intf++;
-        } else {
-            xg_intf = 0;
-        }*/
+        // Indicates that the time diff is has been resynced after a set time
+        if(resync_request_received) {
+            dev->time_resync_requested = !dev->_time_diff_converged;
+        }
 	}
 	dev->_bm_thread_running = false;
 }
@@ -1912,4 +1905,8 @@ double cyan_nrnt_impl::get_rx_gain(const std::string &name, size_t chan) {
     (void) name;
 
     return _tree->access<double>(rx_rf_fe_root(chan) / "gain" / "value").get();
+}
+
+inline void cyan_nrnt_impl::request_resync_time_diff() {
+    time_resync_requested = true;
 }

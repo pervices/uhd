@@ -103,6 +103,10 @@ public:
     uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now();
+    bool time_diff_converged();
+    void wait_for_time_diff_converged();
+    // Note: this must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
+    std::atomic<bool> time_resync_requested = false;
 
     inline double time_diff_get() {
         return _time_diff;
@@ -111,8 +115,6 @@ public:
         _time_diff = time_diff;
     }
 
-    bool time_diff_converged();
-    void wait_for_time_diff_converged();
     void start_bm();
     void stop_bm();
 
@@ -261,6 +263,7 @@ private:
     void set_rx_gain(double gain, const std::string &name, size_t chan);
     
     double get_rx_gain(const std::string &name, size_t chan);
+    void request_resync_time_diff();
 };
 
 }
