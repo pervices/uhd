@@ -123,7 +123,7 @@ public:
     void send_rx_stream_cmd_req( const rx_stream_cmd & req );
 
     void send_rx_stream_cmd_req( const rx_stream_cmd & req, int xg_intf );
-    static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
+    static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
 private:
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);

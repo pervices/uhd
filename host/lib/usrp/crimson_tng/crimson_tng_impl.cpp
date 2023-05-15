@@ -272,7 +272,6 @@ stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
 void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
 
 	const size_t ch = pre_to_ch( pre );
-	const uhd::time_spec_t now = get_time_now();
 #ifdef DEBUG_COUT
     std::cout
         << std::fixed << std::setprecision(6)
@@ -289,7 +288,7 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
-	make_rx_stream_cmd_packet( stream_cmd, now, ch, rx_stream_cmd );
+	make_rx_stream_cmd_packet( stream_cmd, ch, rx_stream_cmd );
 	send_rx_stream_cmd_req( rx_stream_cmd );
 }
 
@@ -624,7 +623,7 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
-void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
+void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
 
     typedef boost::tuple<bool, bool, bool, bool> inst_t;
     static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
@@ -649,7 +648,8 @@ void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd,
     pkt.header |= inst_samps  ? ( 0b0010LL << 36 ) : 0;
     pkt.header |= inst_stop   ? ( 0b0001LL << 36 ) : 0;
 
-	uhd::time_spec_t ts = cmd.stream_now ? now : cmd.time_spec;
+    uhd::time_spec_t ts = cmd.stream_now ? 0.0 : cmd.time_spec;
+
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_psec = ts.get_frac_secs() * 1e12;
 

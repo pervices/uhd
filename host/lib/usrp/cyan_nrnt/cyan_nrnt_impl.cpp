@@ -300,7 +300,6 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
     modified_cmd.num_samps = modified_cmd.num_samps * otw_rx / 16;
 
 	const size_t ch = pre_to_ch( pre );
-	const uhd::time_spec_t now = get_time_now();
 #ifdef DEBUG_COUT
     std::cout
         << std::fixed << std::setprecision(6)
@@ -327,7 +326,7 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
     std::cout << "Creating packet with jesd_num: " << jesd_num << std::endl;
 #endif
 
-	make_rx_stream_cmd_packet( modified_cmd, now, jesd_num, rx_stream_cmd );
+	make_rx_stream_cmd_packet( modified_cmd, jesd_num, rx_stream_cmd );
 
     int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
 #ifdef DEBUG_COUT
@@ -673,7 +672,7 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
-void cyan_nrnt_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const uhd::time_spec_t & now, const size_t jesd_num, uhd::usrp::rx_stream_cmd & pkt ) {
+void cyan_nrnt_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t jesd_num, uhd::usrp::rx_stream_cmd & pkt ) {
     typedef boost::tuple<bool, bool, bool, bool> inst_t;
     static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
                                                             //reload, chain, samps, stop
@@ -698,7 +697,7 @@ void cyan_nrnt_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
     pkt.header |= inst_samps  ? ( 0b0010LL << 36 ) : 0;
     pkt.header |= inst_stop   ? ( 0b0001LL << 36 ) : 0;
 
-	uhd::time_spec_t ts = cmd.stream_now ? now : cmd.time_spec;
+	uhd::time_spec_t ts = cmd.stream_now ? 0.0 : cmd.time_spec;
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_psec = ts.get_frac_secs() * 1e12;
 
