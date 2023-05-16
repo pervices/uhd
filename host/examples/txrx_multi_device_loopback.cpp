@@ -605,20 +605,24 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Create rx streamers
     std::vector<uhd::rx_streamer::sptr> rx_streamers;
-    for(size_t n = 0; n < devices.size(); n++) {
-        // create receive streamers
-        uhd::stream_args_t rx_stream_args("sc16"); //short complex
-        rx_stream_args.channels = parameters[n].rx_channels;
-        rx_streamers.push_back(devices[n]->get_rx_stream(rx_stream_args));
+    if(use_rx) {
+        for(size_t n = 0; n < devices.size(); n++) {
+            // create receive streamers
+            uhd::stream_args_t rx_stream_args("sc16"); //short complex
+            rx_stream_args.channels = parameters[n].rx_channels;
+            rx_streamers.push_back(devices[n]->get_rx_stream(rx_stream_args));
+        }
     }
 
-    // Create tx streamers
     std::vector<uhd::tx_streamer::sptr> tx_streamers;
-    for(size_t n = 0; n < devices.size(); n++) {
-        // create receive streamers
-        uhd::stream_args_t tx_stream_args("sc16"); //short complex
-        tx_stream_args.channels = parameters[n].tx_channels;
-        tx_streamers.push_back(devices[n]->get_tx_stream(tx_stream_args));
+    if(use_tx) {
+        // Create tx streamers
+        for(size_t n = 0; n < devices.size(); n++) {
+            // create receive streamers
+            uhd::stream_args_t tx_stream_args("sc16"); //short complex
+            tx_stream_args.channels = parameters[n].tx_channels;
+            tx_streamers.push_back(devices[n]->get_tx_stream(tx_stream_args));
+        }
     }
 
     // Sync devices must be run before configuring
