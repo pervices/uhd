@@ -182,7 +182,7 @@ void crimson_tng_impl::set_int(const std::string pre, int data){
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
     // Waits for clock to be stable before getting time
     // Clocks will go out of sync when setting time
-    if(time_resync_requested || (!time_diff_converged()&& _bm_thread_running)) {
+    if(time_resync_requested) {
         wait_for_time_diff_converged();
     }
     double diff = time_diff_get();
