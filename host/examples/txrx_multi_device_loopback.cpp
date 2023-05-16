@@ -582,6 +582,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
+    bool use_rx = !vm.count("tx_only");
+    bool use_tx = !vm.count("rx_only");
+
     std::vector<device_parameters> parameters = parse_device_parameters(args, time_ref, clock_ref, tx_channel_arg, rx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ampl_arg, wave_freq_arg);
 
     std::vector<uhd::usrp::multi_usrp::sptr> devices(parameters.size());
@@ -622,19 +625,24 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     std::vector<std::thread> rx_threads;
-    bool save_rx = !vm.count("no_save");
+    bool save_rx = !vm.count("no_save") && use_rx;
 
     if(save_rx) {
         std::filesystem::create_directories(rx_folder);
     }
 
-    for(size_t n = 0; n < devices.size(); n++) {
-        rx_threads.push_back(std::thread(rx_run, rx_streamers[n].get(), rx_folder, n, parameters[n].rx_channels, start_time, total_num_samps, rate ,save_rx));
+    if(use_rx) {
+        for(size_t n = 0; n < devices.size(); n++) {
+            rx_threads.push_back(std::thread(rx_run, rx_streamers[n].get(), rx_folder, n, parameters[n].rx_channels, start_time, total_num_samps, rate ,save_rx));
+        }
     }
 
     std::vector<std::thread> tx_threads;
-    for(size_t n = 0; n < devices.size(); n++) {
-        tx_threads.emplace_back(std::thread(tx_run, tx_streamers[n].get(), &parameters[n], n, start_time, total_num_samps, rate));
+
+    if(use_tx) {
+        for(size_t n = 0; n < devices.size(); n++) {
+            tx_threads.emplace_back(std::thread(tx_run, tx_streamers[n].get(), &parameters[n], n, start_time, total_num_samps, rate));
+        }
     }
 
     printf("\nPress Ctrl + C to stop streaming...\n");
