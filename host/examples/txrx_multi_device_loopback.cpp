@@ -120,12 +120,27 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
     size_t spb = tx_stream->get_max_num_samps()*10;
 
     // Buffer contains samples for each channel
-    std::vector<std::vector<std::complex<short>>> buffer(parameters->num_tx_channels, std::vector<std::complex<short>>(spb));
+    std::vector<std::vector<std::complex<short>>> buffers(parameters->num_tx_channels, std::vector<std::complex<short>>(spb + wave_table_len));
     // Vector containing pointers to the start of the sample buffer for each channel
     std::vector<std::complex<short> *> buffer_ptrs(parameters->num_tx_channels);
 
-    for(size_t n = 0; n < parameters->num_tx_channels; n++) {
-        buffer_ptrs[n] = &buffer[n].front();
+    //pre-compute the waveform values
+    std::vector<wave_table_multitype<short>> wave_tables;
+    std::vector<size_t> steps;
+    // Period in samples
+    std::vector<size_t> periods;
+    for(size_t ch = 0; ch <parameters->num_tx_channels; ch++) {
+        wave_tables.push_back(wave_table_multitype<short>("SINE", parameters->amplitude[ch]));
+        steps.push_back((size_t) ::round(parameters->wave_freq[ch]/rate * wave_table_len));
+        periods.push_back((size_t) ::round(rate/parameters->wave_freq[ch]));
+    }
+
+    for(size_t ch = 0; ch < parameters->num_tx_channels; ch++) {
+        size_t index = 0;
+        //fill the buffer with the waveform
+        for (size_t n = 0; n < buffers[ch].size(); n++){
+            buffers[ch][n] = wave_tables[ch](index += steps[ch]);
+        }
     }
 
     uhd::tx_metadata_t md;
@@ -135,24 +150,13 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
     md.time_spec = uhd::time_spec_t(start_time);
     size_t total_samples_sent = 0;
 
-    size_t wavetable_index = 0;
-    //pre-compute the waveform values
-    std::vector<wave_table_class> wave_tables;
-    std::vector<size_t> steps;
-    for(size_t ch = 0; ch <parameters->num_tx_channels; ch++) {
-        wave_tables.push_back(wave_table_class("SINE", parameters->amplitude[ch]));
-        steps.push_back((size_t) ::round(parameters->wave_freq[ch]/rate * wave_table_len));
-    }
-
     while(total_samples_sent < requested_num_samps && !stop_signal_called) {
 
         size_t samples_to_send = std::min(requested_num_samps - total_samples_sent, spb);
 
+        // Locates where in the buffer to use samples from
         for(size_t ch = 0; ch < parameters->num_tx_channels; ch++) {
-            for(size_t n = 0; n < samples_to_send; n++) {
-                buffer[ch][n] = wave_tables[ch](wavetable_index);
-            }
-            wavetable_index+=steps[ch];
+            buffer_ptrs[ch] = &buffers[ch][total_samples_sent % periods[ch]];
         }
 
         total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md);
