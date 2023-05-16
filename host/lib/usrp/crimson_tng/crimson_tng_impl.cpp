@@ -1040,6 +1040,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
     TREE_CREATE_RW(time_path / "serial",     "time/about/serial", std::string, string);
     TREE_CREATE_RW(time_path / "fw_version", "time/about/fw_ver", std::string, string);
+	//Creating a path to access the led_blink_enable property
+	TREE_CREATE_RW(time_path / "led_blink_enable", "time/board/led_blink_enable", std::string, string);
     TREE_CREATE_RW(time_path / "sw_version", "time/about/sw_ver", std::string, string);
 
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
@@ -1859,6 +1861,7 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
         //    _tree->access<double>( cm_root() / "tx/gain/val").set(gain);
         //}
         return;
+
     }
     for (size_t c = 0; c < CRIMSON_TNG_TX_CHANNELS; c++){
         set_tx_gain(gain, name, c);
