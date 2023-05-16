@@ -649,6 +649,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
+    std::signal(SIGINT, &sig_int_handler);
     printf("\nPress Ctrl + C to stop streaming...\n");
 
     //Waits for rx to finish
