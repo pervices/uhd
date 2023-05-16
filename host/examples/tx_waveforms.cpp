@@ -185,6 +185,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
+    size_t period = ::round(rate/wave_freq);
     std::vector<std::complex<short> > buff(spb + wave_table_len);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
@@ -280,7 +281,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                buff_ptr = &buff[num_acc_samps % wave_table_len];
+                buff_ptr = &buff[num_acc_samps % period];
             }
 
             size_t nsamps_this_send;
