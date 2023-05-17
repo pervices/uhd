@@ -185,8 +185,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
-    size_t period = ::round(rate/wave_freq);
-    std::vector<std::complex<short> > buff(spb + wave_table_len);
+    double period = ::round(rate/wave_freq);
+    // Used instead of period when selecting where in the buffer to send samples from to minimize quantization errors
+    size_t super_period = (size_t) ::round(period * 10000);
+
+    std::vector<std::complex<short> > buff(spb + super_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
@@ -282,7 +285,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                buff_ptr = &buff[num_acc_samps % period];
+                buff_ptr = &buff[num_acc_samps % super_period];
             }
 
             size_t nsamps_this_send;
