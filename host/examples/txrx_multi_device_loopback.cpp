@@ -95,7 +95,19 @@ void rx_run(uhd::rx_streamer* rx_stream, std::string output_folder, size_t devic
         size_t nsamps_to_recv = std::min(requested_num_samps - total_rx_samps, receive_buffer_size);
         size_t num_rx_samps = rx_stream->recv(buffer_ptrs, nsamps_to_recv, md, start_time + (requested_num_samps/rate) + 3, false);
 
-        //TODO add error checking
+        if(md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
+            fprintf(stderr, "Timeout while streaming from device: %lu\n", device_number);
+            // When requesting a set number of samples, any dropped samples will never be detected so reattempting after a timeout is pointless
+            if(requested_num_samps != 0) {
+                break;
+            }
+        } else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
+            // Do nothing for this error. Printing something would slow things down more
+        } else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
+            // Do nothing for this error. It is caused by receiving a signal during recvmmsg
+        } else if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
+            fprintf(stderr, "Error streaming from device: %lu\n", device_number);
+        }
 
         // Saves rx data
         if(save_rx) {
