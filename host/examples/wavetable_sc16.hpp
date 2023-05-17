@@ -10,6 +10,7 @@
 #include <complex>
 #include <vector>
 #include <stdexcept>
+#include <cstdint>
 
 static const size_t wave_table_len = 8192;
 
