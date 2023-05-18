@@ -94,7 +94,7 @@ std::string crimson_tng_impl::tx_link_root(const size_t channel, const size_t mb
     return mb_root(mboard) + "/tx_link/" + std::to_string(channel);
 }
 
-static std::string tx_dsp_root(const size_t channel, const size_t mboard = 0) {
+std::string crimson_tng_impl::tx_dsp_root(const size_t channel, const size_t mboard) {
     return mb_root(mboard) + "/tx_dsps/" + std::to_string(channel);
 }
 

@@ -124,6 +124,7 @@ public:
 private:
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);
+    std::string tx_dsp_root(const size_t channel, const size_t mboard = 0);
 
     // helper functions to wrap send and recv as get and set
     std::string get_string(std::string req);

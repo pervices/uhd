@@ -803,6 +803,9 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 		// power on the channel
 		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
 
+        // Issue reset request, required in case the previous run did not exit cleanly
+        _tree->access<double>(tx_dsp_root(chan) + "/rstreq").set(1);
+
         if(little_endian_supported) {
             // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
             _tree->access<int>(tx_link_path / "endian_swap").set(1);
