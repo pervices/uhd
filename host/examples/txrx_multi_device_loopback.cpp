@@ -131,27 +131,30 @@ void rx_run(uhd::rx_streamer* rx_stream, std::string output_folder, size_t devic
 void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t device_number, double start_time, size_t requested_num_samps, double rate) {
     size_t spb = tx_stream->get_max_num_samps()*10;
 
+    //pre-compute the waveform values
+    std::vector<wave_table_multitype<short>> wave_tables;
+    std::vector<double> steps;
+    // Period in samples
+    std::vector<double> periods;
+    // Super period is used to minimize quantization errors
+    std::vector<size_t> super_periods(parameters->num_tx_channels);
+    for(size_t ch = 0; ch <parameters->num_tx_channels; ch++) {
+        wave_tables.push_back(wave_table_multitype<short>("SINE", parameters->amplitude[ch]));
+        steps.push_back(parameters->wave_freq[ch]/rate * wave_table_len);
+        periods.push_back(rate/parameters->wave_freq[ch]);
+        super_periods[ch] = ((size_t) ::round(periods[ch] * 100000));
+    }
+
     // Buffer contains samples for each channel
-    std::vector<std::vector<std::complex<short>>> buffers(parameters->num_tx_channels, std::vector<std::complex<short>>(spb + wave_table_len));
+    std::vector<std::vector<std::complex<short>>> buffers(parameters->num_tx_channels, std::vector<std::complex<short>>(spb + super_periods[0]));
     // Vector containing pointers to the start of the sample buffer for each channel
     std::vector<std::complex<short> *> buffer_ptrs(parameters->num_tx_channels);
 
-    //pre-compute the waveform values
-    std::vector<wave_table_multitype<short>> wave_tables;
-    std::vector<size_t> steps;
-    // Period in samples
-    std::vector<size_t> periods;
-    for(size_t ch = 0; ch <parameters->num_tx_channels; ch++) {
-        wave_tables.push_back(wave_table_multitype<short>("SINE", parameters->amplitude[ch]));
-        steps.push_back((size_t) ::round(parameters->wave_freq[ch]/rate * wave_table_len));
-        periods.push_back((size_t) ::round(rate/parameters->wave_freq[ch]));
-    }
-
     for(size_t ch = 0; ch < parameters->num_tx_channels; ch++) {
-        size_t index = 0;
+        double index = 0;
         //fill the buffer with the waveform
         for (size_t n = 0; n < buffers[ch].size(); n++){
-            buffers[ch][n] = wave_tables[ch](index += steps[ch]);
+            buffers[ch][n] = wave_tables[ch]((size_t)::round(index += steps[ch]));
         }
     }
 
@@ -168,7 +171,7 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
 
         // Locates where in the buffer to use samples from
         for(size_t ch = 0; ch < parameters->num_tx_channels; ch++) {
-            buffer_ptrs[ch] = &buffers[ch][total_samples_sent % periods[ch]];
+            buffer_ptrs[ch] = &buffers[ch][total_samples_sent % super_periods[ch]];
         }
 
         total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md);
