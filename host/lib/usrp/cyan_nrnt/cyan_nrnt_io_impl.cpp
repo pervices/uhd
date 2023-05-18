@@ -197,6 +197,11 @@ public:
                 uhd::time_spec_t now = get_time_now();
                 metadata.start_of_burst = true;
                 metadata.time_spec = now + default_sob;
+            } else {
+                double current_time = get_time_now().get_real_secs();
+                if (metadata.time_spec.get_real_secs() < current_time + 0.1) {
+                    fprintf(stderr, "WARNING: requested start time (%lf) very close to current time (%lf). Issues may occur\n", metadata.time_spec.get_real_secs(), current_time);
+                }
             }
         }
         
