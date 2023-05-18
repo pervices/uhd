@@ -93,8 +93,6 @@ namespace uhd {
 			// the only possible numerical instability in this format is division by dt
 			double D = Kd * (e - e_1) / dt;
 
-			is_converged( now );
-
 			// ouput
 			cv = P + I + D;
 
@@ -125,28 +123,30 @@ namespace uhd {
 			}
 		}
 
-		void reset( const double sp, const double time ) {
+		void reset( const double sp, const double time, const double offset ) {
 			cv = sp;
 			last_time = time;
 			e = max_error_for_divergence;
 			i = 0;
+            this->offset = offset;
 			converged = false;
 		}
 
-		bool is_converged( const double time ) {
+		// Reset offset is the new offset to use if time diff exceeds the error limit
+		bool is_converged( const double time, const double reset_offset ) {
 
 			double filtered_error;
 
 			filtered_error = abs(error_filter.get_average());
 
-			if ( filtered_error >= 1000000 ) {
-				if ( time - last_status_time >= 1 ) {
-					print_pid_diverged();
-					print_pid_status( time, cv, filtered_error );
-				}
-				reset( sp, time );
-				return false;
-			}
+            if ( filtered_error >= 1000000 ) {
+                if ( time - last_status_time >= 1 ) {
+                    print_pid_diverged();
+                    print_pid_status( time, cv, filtered_error );
+                }
+                reset( sp, time, reset_offset );
+                return false;
+            }
 
 			if ( time - last_status_time >= 1 ) {
 				print_pid_status( time, cv, filtered_error );
@@ -169,6 +169,10 @@ namespace uhd {
 
 			return converged;
 		}
+
+		bool is_converged( const double time ) {
+            return is_converged(time, offset);
+        }
 
 		double get_max_error_for_convergence() {
 			return max_error_for_divergence;
