@@ -17,7 +17,7 @@
 #include <limits>
 #include <cstdint>
 
-static const size_t wave_table_len = 8192;
+static const size_t wave_table_len = 65536;
 
 // Datatype of the samples to be include (float for fc32, short for sc16...)
 template<typename T = float>
