@@ -57,7 +57,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
         : _max_samples_per_packet(max_samples_per_packet),
         _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample),
         _NUM_CHANNELS(channels.size()),
@@ -203,12 +203,12 @@ public:
         ch_send_buffer_info_group[ch].buffer_level_manager.update_buffer_level_bias(level, now);
     }
 
-    void enable_blocking_fc(uint64_t blocking_setpoint) {
+    void enable_blocking_fc(int64_t blocking_setpoint) {
         use_blocking_fc = true;
         if(blocking_setpoint > 0.9 * _DEVICE_BUFFER_SIZE) {
             blocking_setpoint = (uint64_t) (0.9*_DEVICE_BUFFER_SIZE);
         };
-        this->blocking_setpoint = _DEVICE_BUFFER_SIZE;
+        this->blocking_setpoint = blocking_setpoint;
     }
 
     void disable_blocking_fc() {
@@ -238,7 +238,7 @@ protected:
     virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
 
 private:
-    uint64_t blocking_setpoint = 0;
+    int64_t blocking_setpoint = 0;
 
     //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
     const size_t _BYTES_PER_SAMPLE = 4;
@@ -252,7 +252,7 @@ private:
     //TODO: rename this to just channels when seperating this class from old version
     std::vector<size_t> _channels;
     // Device buffer size
-    const uint64_t _DEVICE_BUFFER_SIZE;
+    const int64_t _DEVICE_BUFFER_SIZE;
 
     // Desired number of samples in the tx buffer on the unit
     const ssize_t _DEVICE_TARGET_NSAMPS;
@@ -683,7 +683,7 @@ private:
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const size_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian):
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian):
     sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian)
     {
     }
@@ -707,6 +707,17 @@ public:
     // Asynchronously send messages notifying of overflow/underflows
     bool push_async_msg( uhd::async_metadata_t &async_metadata ){
 		return _async_msg_fifo->push_with_pop_on_full(async_metadata);
+    }
+
+    // Makes sure the correct enable_blocking_fc is used instead of the one from tx_streamer
+    void enable_blocking_fc(uint64_t blocking_setpoint) {
+        // TODO: change tx_streamer to use int64_t instead of uint64_t
+        send_packet_handler_mmsg::enable_blocking_fc((int64_t)blocking_setpoint);
+    }
+
+    // Makes sure the correct enable_blocking_fc is used instead of the one from tx_streamer
+    void disable_blocking_fc() {
+        send_packet_handler_mmsg::disable_blocking_fc();
     }
 };
 
