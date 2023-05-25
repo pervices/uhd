@@ -15,6 +15,15 @@ bool buffer_tracker::start_of_burst_pending( const uhd::time_spec_t & now ) {
     return now < sob_time;
 }
 
+// Gets difference between now and start of burst, 0 if after sob
+uhd::time_spec_t buffer_tracker::time_until_sob( const uhd::time_spec_t & now ) {
+    if(now < sob_time) {
+        return uhd::time_spec_t(0.0);
+    } else {
+        return sob_time - now;
+    }
+}
+
 // Sets the time when streaming begins
 void buffer_tracker::set_start_of_burst_time( const uhd::time_spec_t & sob ) {
     sob_time = sob;

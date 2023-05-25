@@ -16,6 +16,7 @@ public:
 	void set_sample_rate( const double rate );
 
 	bool start_of_burst_pending( const uhd::time_spec_t & now );
+    uhd::time_spec_t time_until_sob( const uhd::time_spec_t & now );
 	void set_start_of_burst_time( const uhd::time_spec_t & sob );
 
 	int64_t get_buffer_level( const uhd::time_spec_t & now );

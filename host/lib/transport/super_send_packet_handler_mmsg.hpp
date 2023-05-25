@@ -499,6 +499,9 @@ private:
         size_t channels_serviced = 0;
         std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
+
+        wait_for_sob_coarse(get_time_now());
+
         while(channels_serviced < _NUM_CHANNELS) {
 
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
@@ -648,6 +651,32 @@ private:
         }
 
         return &_intermediate_send_buffer_wrapper;
+    }
+
+    // Waits until coarse_time_offset before sob
+    // Exists to avoid schedueler issues from repeated polling
+    // Only done for one channel since all channels have the same sob
+    const double coarse_time_offset = 0.01;
+    inline void wait_for_sob_coarse(uhd::time_spec_t now) {
+        while(true) {
+            uhd::time_spec_t wait_time_precise = ch_send_buffer_info_group[0].buffer_level_manager.time_until_sob(now);
+            double sleep_time_s = wait_time_precise.get_real_secs();
+
+            if(sleep_time_s < coarse_time_offset) {
+                return;
+            } else {
+                double sleep_time_coarse = sleep_time_s - coarse_time_offset;
+                if(sleep_time_s >= 1) {
+                    // usleep limit
+                    usleep(1000000);
+                    now = get_time_now();
+                } else {
+                    usleep(sleep_time_coarse);
+                    return;
+                }
+            }
+        }
+
     }
 };
 
