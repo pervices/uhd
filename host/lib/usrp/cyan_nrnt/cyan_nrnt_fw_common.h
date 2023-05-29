@@ -137,6 +137,9 @@
 #define CYAN_NRNT_DEBUG_NAME_S "Cyan NrNt"
 #define CYAN_NRNT_DEBUG_NAME_C "CYAN_NRNT"
 
+#define CYAN_NRNT_MB_PATH   fs_path("/mboards/0")
+#define CYAN_NRNT_TIME_PATH fs_path(CYAN_NRNT_MB_PATH / "time")
+
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
     LOW_BAND = 0,
