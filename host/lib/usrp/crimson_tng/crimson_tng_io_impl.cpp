@@ -570,11 +570,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
                 const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
                 std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
-                const fs_path mb_path   = "/mboards/" + mb;
-                const fs_path rx_path   = mb_path / "rx";
-                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
-                const fs_path rx_link_path  = mb_path / "rx_link" / chan;
-                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
+                const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
+                const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
+                const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
+                const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
 
                 // stop streaming
                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
@@ -629,11 +628,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
                 const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
                 std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
-                const fs_path mb_path   = "/mboards/" + mb;
-                const fs_path rx_path   = mb_path / "rx";
-                const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / ch;
-                const fs_path rx_link_path  = mb_path / "rx_link" / chan;
-                const fs_path rx_dsp_path   = mb_path / "rx_dsps" / chan;
+                const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
+                const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
+                const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
+                const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
 
                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
                 // vita enable
@@ -801,9 +799,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        const fs_path mb_path   = "/mboards/0";
-        const fs_path tx_path   = mb_path / "tx";
-        const fs_path tx_link_path  = mb_path / "tx_link" / chan;
+        const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
+        const fs_path tx_link_path  = CRIMSON_TNG_MB_PATH / "tx_link" / chan;
 
 		// power on the channel
 		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
