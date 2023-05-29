@@ -162,13 +162,13 @@ public:
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
-	crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+	crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::weak_ptr<uhd::property_tree> tree)
 	:
 		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, CRIMSON_TNG_MASTER_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
 		_first_call_to_send( true ),
 		_buffer_monitor_running( false ),
-		_stop_buffer_monitor( false )
-
+		_stop_buffer_monitor( false ),
+        _tree( tree )
 	{
 	}
 
@@ -178,6 +178,7 @@ public:
 
 	void teardown() {
 		stop_buffer_monitor_thread();
+        check_loss_of_lock();
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -202,6 +203,7 @@ public:
         uhd::tx_metadata_t metadata = metadata_;
 
         if ( _first_call_to_send ) {
+            check_loss_of_lock();
 
             if ( ! metadata.start_of_burst || metadata.time_spec.get_real_secs() == 0 ) {
                 uhd::time_spec_t now = get_time_now();
@@ -213,13 +215,13 @@ public:
                     fprintf(stderr, "WARNING: requested start time (%lf) very close to current time (%lf). Issues may occur\n", metadata.time_spec.get_real_secs(), current_time);
                 }
             }
+
+            if( ! _buffer_monitor_running && !use_blocking_fc ) {
+                start_buffer_monitor_thread();
+            }
         }
 
         _first_call_to_send = false;
-
-        if( ! _buffer_monitor_running && !use_blocking_fc ) {
-            start_buffer_monitor_thread();
-        }
 
         r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
@@ -295,6 +297,8 @@ private:
     bool _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
     timenow_type _time_now;
+    // Devices's property tree
+    std::weak_ptr<uhd::property_tree> _tree;
 
     // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
     struct eprops_type{
@@ -313,6 +317,36 @@ private:
         {}
     };
     std::vector<eprops_type> _eprops;
+
+    // Currently only done on TX
+    // TODO: find a way to do it on both rx and tx without a cluttered output
+    void check_loss_of_lock() {
+        // Checks the current lock status
+        _tree.lock()->access<std::string>( CRIMSON_TNG_TIME_PATH / "status/lmk_lockdetect_jesd_pll1" ).set( "0" );
+        std::string lock_reply = _tree.lock()->access<std::string>( CRIMSON_TNG_TIME_PATH / "status/lmk_lockdetect_jesd_pll1" ).get();
+
+        const std::string pll_locked_msg = "PLL1 Locked";
+        if(lock_reply.substr(0, pll_locked_msg.size()) != pll_locked_msg) {
+
+            std::string clock_source = _tree.lock()->access<std::string>( CRIMSON_TNG_MB_PATH / "clock_source/value" ).get();
+            if(clock_source == "external") {
+                UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Time board PLL unlocked. Phase coherency may be impacted. Verify the external reference is working" << std::endl;
+            } else {
+                UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Time board PLL unlocked. Phase coherency may be impacted" << std::endl;
+            }
+        // Check if the PLL has become unlocked previously
+        } else {
+
+            // Checks for loss of locks detected before running
+            _tree.lock()->access<std::string>( CRIMSON_TNG_TIME_PATH / "status/lmk_lossoflock" ).set( "0" );
+            std::string loss_of_lock_detect_replay = _tree.lock()->access<std::string>( CRIMSON_TNG_TIME_PATH / "status/lmk_lossoflock" ).get();
+            const std::string pll_lock_detect_msg = "JESD LMK Loss of Lock Status:\nPLL1 Continuous Lock\nPLL2 Continuous Lock\n\n>";
+            if(loss_of_lock_detect_replay != pll_lock_detect_msg) {
+                UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Time board PLL loss of lock detected. Phase coherency may be impacted" << std::endl;
+            } else {
+            }
+        }
+    }
 
     /***********************************************************************
      * buffer_monitor_loop
@@ -830,7 +864,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported );
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, _tree );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
