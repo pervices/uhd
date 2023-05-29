@@ -1356,6 +1356,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
 
         TREE_CREATE_RW(rx_link_path / "jesd_num",   "rx_"+lc_num+"/link/jesd_num",   int, int);
+
+        TREE_CREATE_RW(rx_dsp_path / "delay_iq",   "rx_"+lc_num+"/jesd/delay_iq",   std::string, string);
     }
 
     // initializes all TX chains
@@ -1467,6 +1469,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(tx_link_path / "endian_swap", "tx_"+lc_num+"/link/endian_swap", int, int);
 		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
+
+        TREE_CREATE_RW(tx_dsp_path / "delay_iq", "tx_"+lc_num+"/jesd/delay_iq",   std::string, string);
 
 		std::string ip_addr;
 		uint16_t udp_port;
