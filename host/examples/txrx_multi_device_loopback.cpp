@@ -418,13 +418,21 @@ std::vector<device_parameters> parse_device_parameters(std::string args, std::st
                 throw std::runtime_error("Mistmatch between number of tx channels specified and number of tx amplitudes for a device");
             } else {
                 if(wave_freq_arg_s.size()==1) {
+                    double wave_freq_value = std::stod(wave_freq_arg_s[0]);
+                    if(wave_freq_value == 0) {
+                        throw std::runtime_error("wave_freq cannot be 0");
+                    }
                     for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
-                        parameters[n].wave_freq.push_back(std::stod(wave_freq_arg_s[0]));
+                        parameters[n].wave_freq.push_back(wave_freq_value);
                     }
                 }
                 else {
                     for(size_t i = 0; i < parameters[n].num_tx_channels; i++) {
-                        parameters[n].wave_freq.push_back(std::stod(wave_freq_arg_s[i]));
+                        double wave_freq_value = std::stod(wave_freq_arg_s[i]);
+                        if(wave_freq_value == 0) {
+                            throw std::runtime_error("wave_freq cannot be 0");
+                        }
+                        parameters[n].wave_freq.push_back(wave_freq_value);
                     }
                 }
             }
@@ -587,7 +595,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("clock_ref", po::value<std::string>(&clock_ref)->default_value("internal"), "Whether to use an internal or external clock reference (internal, external)")
 
         ("ampl", po::value<std::string>(&ampl_arg)->default_value("0.7"), "Amplitude of the wave in tx samples. B Enter one number to set all the tx channels to said amplitude i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
-        ("wave_freq", po::value<std::string>(&wave_freq_arg)->default_value("0"), "Amplitude of the wave in tx samples. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
+        ("wave_freq", po::value<std::string>(&wave_freq_arg)->default_value("1000000"), "Amplitude of the wave in tx samples. Enter one number to set all the rx channels to said freq i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\". Provide device specific parameters")
     ;
 
     // clang-format on
