@@ -949,7 +949,7 @@ public:
      * \param delay delay in samples at the max rate
      *
      */
-    inline void set_rx_delay(size_t channel, int delay) {
+    inline virtual void set_rx_delay(size_t channel, int delay) {
         set_rx_delay(channel, delay, delay);
     }
 
@@ -977,7 +977,7 @@ public:
      * \param delay delay in samples at the max rate
      *
      */
-    inline void set_tx_delay(size_t channel, int delay) {
+    inline virtual void set_tx_delay(size_t channel, int delay) {
         set_tx_delay(channel, delay, delay);
     }
 
