@@ -991,10 +991,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
 
     // Property paths
-    const fs_path mb_path   = "/mboards/0";
-    const fs_path time_path = mb_path / "time";
-    const fs_path tx_path   = mb_path / "tx";
-    const fs_path rx_path   = mb_path / "rx";
+    const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
+    const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
 
     std::string lc_num;
 
@@ -1004,12 +1002,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     _tree = uhd::property_tree::make();
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
-    _tree->create<std::vector<std::string> >(mb_path / "time_source" / "options").set(time_sources);
+    _tree->create<std::vector<std::string> >(CRIMSON_TNG_MB_PATH / "time_source" / "options").set(time_sources);
 
     static const std::vector<double> external_freq_options = boost::assign::list_of(10e6);
-    _tree->create<std::vector<double> >(mb_path / "clock_source" / "external" / "freq" / "options");
+    _tree->create<std::vector<double> >(CRIMSON_TNG_MB_PATH / "clock_source" / "external" / "freq" / "options");
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
-    _tree->create<std::vector<std::string> >(mb_path / "clock_source" / "options").set(clock_source_options);
+    _tree->create<std::vector<std::string> >(CRIMSON_TNG_MB_PATH / "clock_source" / "options").set(clock_source_options);
 
     TREE_CREATE_ST("/name", std::string, "Crimson_TNG Device");
 
@@ -1019,46 +1017,49 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     static const std::vector<size_t> default_map { 0, 1, 2, 3 };
 
-    _tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
-    _tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
-    _tree->create<subdev_spec_t>(mb_path / "rx_subdev_spec").add_coerced_subscriber(std::bind(&crimson_tng_impl::update_rx_subdev_spec, this, mb, ph::_1));
-    _tree->create<subdev_spec_t>(mb_path / "tx_subdev_spec").add_coerced_subscriber(std::bind(&crimson_tng_impl::update_tx_subdev_spec, this, mb, ph::_1));
+    _tree->create<std::vector<size_t> >(CRIMSON_TNG_MB_PATH / "rx_chan_dsp_mapping").set(default_map);
+    _tree->create<std::vector<size_t> >(CRIMSON_TNG_MB_PATH / "tx_chan_dsp_mapping").set(default_map);
+    _tree->create<subdev_spec_t>(CRIMSON_TNG_MB_PATH / "rx_subdev_spec").add_coerced_subscriber(std::bind(&crimson_tng_impl::update_rx_subdev_spec, this, mb, ph::_1));
+    _tree->create<subdev_spec_t>(CRIMSON_TNG_MB_PATH / "tx_subdev_spec").add_coerced_subscriber(std::bind(&crimson_tng_impl::update_tx_subdev_spec, this, mb, ph::_1));
 
-    TREE_CREATE_ST(mb_path / "vendor", std::string, "Per Vices");
-    TREE_CREATE_ST(mb_path / "name",   std::string, "FPGA Board");
-    TREE_CREATE_RW(mb_path / "id",         "fpga/about/id",     std::string, string);
-    TREE_CREATE_RW(mb_path / "serial",     "fpga/about/serial", std::string, string);
-    TREE_CREATE_RW(mb_path / "server_version", "fpga/about/server_ver", std::string, string);
-    TREE_CREATE_RW(mb_path / "fw_version", "fpga/about/fw_ver", std::string, string);
-    TREE_CREATE_RW(mb_path / "hw_version", "fpga/about/hw_ver", std::string, string);
-    TREE_CREATE_RW(mb_path / "sw_version", "fpga/about/sw_ver", std::string, string);
-    TREE_CREATE_RW(mb_path / "blink", "fpga/board/led", int, int);
-    TREE_CREATE_RW(mb_path / "temp", "fpga/board/temp", std::string, string);
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "vendor", std::string, "Per Vices");
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "name",   std::string, "FPGA Board");
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "id",         "fpga/about/id",     std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "serial",     "fpga/about/serial", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "server_version", "fpga/about/server_ver", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fw_version", "fpga/about/fw_ver", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "hw_version", "fpga/about/hw_ver", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "blink", "fpga/board/led", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "temp", "fpga/board/temp", std::string, string);
 
-    TREE_CREATE_RW(mb_path / "user/regs", "fpga/user/regs", user_reg_t, user_reg);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "user/regs", "fpga/user/regs", user_reg_t, user_reg);
 
-    TREE_CREATE_RW(mb_path / "sfpa/ip_addr",  "fpga/link/sfpa/ip_addr",  std::string, string);
-    TREE_CREATE_RW(mb_path / "sfpa/mac_addr", "fpga/link/sfpa/mac_addr", std::string, string);
-    TREE_CREATE_RW(mb_path / "sfpa/pay_len",  "fpga/link/sfpa/pay_len",  std::string, string);
-    TREE_CREATE_RW(mb_path / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
-    TREE_CREATE_RW(mb_path / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
-    TREE_CREATE_RW(mb_path / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
-    TREE_CREATE_RW(mb_path / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
-    TREE_CREATE_RW(mb_path / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpa/ip_addr",  "fpga/link/sfpa/ip_addr",  std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpa/mac_addr", "fpga/link/sfpa/mac_addr", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpa/pay_len",  "fpga/link/sfpa/pay_len",  std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
     // String is used because this is a 64 bit number and won't fit in int
-    TREE_CREATE_RW(mb_path / "gps_time", "fpga/board/gps_time", std::string, string);
-    TREE_CREATE_RW(mb_path / "gps_frac_time", "fpga/board/gps_frac_time", std::string, string);
-    TREE_CREATE_RW(mb_path / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "gps_time", "fpga/board/gps_time", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "gps_frac_time", "fpga/board/gps_frac_time", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
-    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
-    TREE_CREATE_RW(mb_path / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
 
-    TREE_CREATE_ST(time_path / "name", std::string, "Time Board");
-    TREE_CREATE_RW(time_path / "id",         "time/about/id",     std::string, string);
-    TREE_CREATE_RW(time_path / "serial",     "time/about/serial", std::string, string);
-    TREE_CREATE_RW(time_path / "fw_version", "time/about/fw_ver", std::string, string);
-    TREE_CREATE_RW(time_path / "sw_version", "time/about/sw_ver", std::string, string);
+    TREE_CREATE_ST(CRIMSON_TNG_TIME_PATH / "name", std::string, "Time Board");
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "id",         "time/about/id",     std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "serial",     "time/about/serial", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "fw_version", "time/about/fw_ver", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "sw_version", "time/about/sw_ver", std::string, string);
+
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "status/lmk_lockdetect_jesd_pll1", "time/status/lmk_lockdetect_jesd_pll1", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "status/lmk_lossoflock", "time/status/lmk_lossoflock", std::string, string);
 
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
     TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 322MHz BW and DC-6GHz each");
@@ -1075,20 +1076,20 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(tx_path / "sw_version", "tx_a/about/sw_ver", std::string, string);
 
     // Link max rate refers to ethernet link rate
-    TREE_CREATE_RW(mb_path / "link_max_rate", "fpga/link/rate", double, double);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link_max_rate", "fpga/link/rate", double, double);
 
     // SFP settings
-    TREE_CREATE_RW(mb_path / "link" / "sfpa" / "ip_addr",  "fpga/link/sfpa/ip_addr", std::string, string);
-    TREE_CREATE_RW(mb_path / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
-    TREE_CREATE_RW(mb_path / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
-    TREE_CREATE_RW(mb_path / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "ip_addr",  "fpga/link/sfpa/ip_addr", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
 
     // This is the master clock rate
-    TREE_CREATE_ST(mb_path / "tick_rate", double, CRIMSON_TNG_MASTER_TICK_RATE);
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "tick_rate", double, CRIMSON_TNG_MASTER_TICK_RATE);
 
-    TREE_CREATE_RW(time_path / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
-    TREE_CREATE_RW(time_path / "now", "time/clk/set_time", time_spec_t, time_spec);
-    TREE_CREATE_RW(time_path / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now", "time/clk/set_time", time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
@@ -1096,21 +1097,21 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     temp["name"]     = "FPGA Board";
     temp["vendor"]   = "Per Vices";
     temp["serial"]   = "";
-    TREE_CREATE_ST(mb_path / "eeprom", mboard_eeprom_t, temp);
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "eeprom", mboard_eeprom_t, temp);
 
     // This property chooses internal or external time (usually pps) source
-    TREE_CREATE_RW(mb_path / "time_source"  / "value",  	"time/source/set_time_source",  	std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "time_source"  / "value",  	"time/source/set_time_source",  	std::string, string);
     // Sets whether to use internal or external clock source
-    TREE_CREATE_RW(mb_path / "clock_source" / "value",      "time/source/ref",	std::string, string);
-    TREE_CREATE_RW(mb_path / "clock_source" / "external",	"time/source/ref",	std::string, string);
-    TREE_CREATE_ST(mb_path / "clock_source" / "external" / "value", double, CRIMSON_TNG_EXT_CLK_RATE);
-    TREE_CREATE_ST(mb_path / "clock_source" / "output", bool, true);
-    TREE_CREATE_ST(mb_path / "time_source"  / "output", bool, true);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "clock_source" / "value",      "time/source/ref",	std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "clock_source" / "external",	"time/source/ref",	std::string, string);
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "clock_source" / "external" / "value", double, CRIMSON_TNG_EXT_CLK_RATE);
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "clock_source" / "output", bool, true);
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "time_source"  / "output", bool, true);
 
-    TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t( "Reference", true, "unlocked", "locked" ) );
+    TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t( "Reference", true, "unlocked", "locked" ) );
 
     // No GPSDO support on Crimson
-    // TREE_CREATE_ST(mb_path / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
+    // TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
     for( size_t dspno = 0; dspno < CRIMSON_TNG_RX_CHANNELS; dspno++ ) {
@@ -1118,11 +1119,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
 
-		const fs_path rx_codec_path = mb_path / "rx_codecs" / num;
-		const fs_path rx_fe_path    = mb_path / "dboards" / num / "rx_frontends" / chan;
-		const fs_path db_path       = mb_path / "dboards" / num;
-		const fs_path rx_dsp_path   = mb_path / "rx_dsps" / dspno;
-		const fs_path rx_link_path  = mb_path / "rx_link" / dspno;
+		const fs_path rx_codec_path = CRIMSON_TNG_MB_PATH / "rx_codecs" / num;
+		const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / chan;
+		const fs_path db_path       = CRIMSON_TNG_MB_PATH / "dboards" / num;
+		const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / dspno;
+		const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / dspno;
 
 		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
 		_tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
@@ -1230,6 +1231,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
 		TREE_CREATE_RW(rx_link_path / "port",    "rx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
+
+        TREE_CREATE_RW(rx_dsp_path / "delay_iq",   "rx_"+lc_num+"/jesd/delay_iq",   std::string, string);
     }
 
     // loop for all TX chains
@@ -1238,11 +1241,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
 
-		const fs_path tx_codec_path = mb_path / "tx_codecs" / num;
-		const fs_path tx_fe_path    = mb_path / "dboards" / num / "tx_frontends" / chan;
-		const fs_path db_path       = mb_path / "dboards" / num;
-		const fs_path tx_dsp_path   = mb_path / "tx_dsps" / dspno;
-		const fs_path tx_link_path  = mb_path / "tx_link" / dspno;
+		const fs_path tx_codec_path = CRIMSON_TNG_MB_PATH / "tx_codecs" / num;
+		const fs_path tx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "tx_frontends" / chan;
+		const fs_path db_path       = CRIMSON_TNG_MB_PATH / "dboards" / num;
+		const fs_path tx_dsp_path   = CRIMSON_TNG_MB_PATH / "tx_dsps" / dspno;
+		const fs_path tx_link_path  = CRIMSON_TNG_MB_PATH / "tx_link" / dspno;
 
 		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
 		_tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
@@ -1355,6 +1358,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
 		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
 
+        TREE_CREATE_RW(tx_dsp_path / "delay_iq",   "tx_"+lc_num+"/jesd/delay_iq",   std::string, string);
+
 		std::string ip_addr;
 		uint16_t udp_port;
 		std::string sfp;
@@ -1362,13 +1367,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		_mbc[mb].fifo_ctrl_xports.push_back(
 			udp_simple::make_connected(
-				_tree->access<std::string>( mb_path / "link" / sfp / "ip_addr" ).get(),
-				std::to_string( _tree->access<int>( mb_path / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
+				_tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr" ).get(),
+				std::to_string( _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
 			)
 		);
     }
 
-	const fs_path cm_path  = mb_path / "cm";
+	const fs_path cm_path  = CRIMSON_TNG_MB_PATH / "cm";
 
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
@@ -1394,8 +1399,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     }
 
 	// it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
-	int sfpa_port = _tree->access<int>( mb_path / "fpga/board/flow_control/sfpa_port" ).get();
-	std::string time_diff_ip = _tree->access<std::string>( mb_path / "link" / "sfpa" / "ip_addr" ).get();
+	int sfpa_port = _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfpa_port" ).get();
+	std::string time_diff_ip = _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "ip_addr" ).get();
 	std::string time_diff_port = std::to_string( sfpa_port );
 	_time_diff_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
 
@@ -1452,23 +1457,19 @@ std::string crimson_tng_impl::get_tx_ip( size_t chan ) {
     
     std::string sfp = get_tx_sfp(chan);
 
-	const fs_path mb_path = "/mboards/0";
-
-	return _tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
+	return _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
 }
 
 uint16_t crimson_tng_impl::get_tx_fc_port( size_t chan ) {
     
-    const fs_path mb_path   = "/mboards/0";
-    const fs_path fc_port_path = mb_path / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
+    const fs_path fc_port_path = CRIMSON_TNG_MB_PATH / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
     
     return (uint16_t) _tree->access<int>( fc_port_path ).get();
 }
 
 uint16_t crimson_tng_impl::get_tx_udp_port( size_t chan ) {
     
-    const fs_path mb_path   = "/mboards/0";
-	const fs_path prop_path = mb_path / "tx_link";
+	const fs_path prop_path = CRIMSON_TNG_MB_PATH / "tx_link";
 
 	const std::string udp_port_str = _tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
 
@@ -1493,15 +1494,14 @@ void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const siz
 	}
 
 	const std::string chan_str( 1, 'A' + chan );
-	const fs_path mb_path   = "/mboards/0";
-	const fs_path prop_path = mb_path / "tx_link";
+	const fs_path prop_path = CRIMSON_TNG_MB_PATH / "tx_link";
 
 	const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
 
 	std::stringstream udp_port_ss( udp_port_str );
 	udp_port_ss >> udp_port;
 
-	ip_addr = tree->access<std::string>( mb_path / "link" / sfp / "ip_addr").get();
+	ip_addr = tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
 }
 
 constexpr double RX_SIGN = +1.0;

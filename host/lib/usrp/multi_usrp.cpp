@@ -1256,6 +1256,16 @@ public:
         }
     }
 
+    void set_rx_delay(size_t channel, int i_delay, int q_delay) {
+        std::string delay_arg = std::to_string(i_delay) + " " + std::to_string(q_delay);
+        _tree->access<std::string>(rx_dsp_root(channel) + "/delay_iq").set(delay_arg);
+    }
+
+    void set_tx_delay(size_t channel, int i_delay, int q_delay) {
+        std::string delay_arg = std::to_string(i_delay) + " " + std::to_string(q_delay);
+        _tree->access<std::string>(tx_dsp_root(channel) + "/delay_iq").set(delay_arg);
+    }
+
     std::vector<std::string> get_tx_lo_names(const size_t chan = 0) override
     {
         std::vector<std::string> lo_names;

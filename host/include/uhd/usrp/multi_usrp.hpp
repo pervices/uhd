@@ -926,6 +926,61 @@ public:
             size_t chan = 0
     ) = 0;
 
+
+    /*!
+     * Sets the amount to delay i or q of rx in samples
+     *
+     * \param channel the channel index 0 to N-1
+     * \param i_delay delay for I part of the complex pair in samples at the max rate
+     * \param q_delay delay for Q part of the complex pair in samples at the max rate
+     *
+     */
+    virtual void set_rx_delay(size_t channel, int i_delay, int q_delay) {
+        (void) channel;
+        (void) i_delay;
+        (void) q_delay;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Sets the amount to delay i or q of rx in samples
+     *
+     * \param channel the channel index 0 to N-1
+     * \param delay delay in samples at the max rate
+     *
+     */
+    inline void set_rx_delay(size_t channel, int delay) {
+        set_rx_delay(channel, delay, delay);
+    }
+
+    /*!
+     * Sets the amount to delay i or q of tx in samples
+     * Primarily meant to compensate for boot to boot variance
+     *
+     * \param channel the channel index 0 to N-1
+     * \param i_delay delay for I part of the complex pair in samples at the max rate
+     * \param q_delay delay for Q part of the complex pair in samples at the max rate
+     *
+     */
+    virtual void set_tx_delay(size_t channel, int i_delay, int q_delay) {
+        (void) channel;
+        (void) i_delay;
+        (void) q_delay;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Sets the amount to delay i or q of tx in samples
+     * Primarily meant to compensate for boot to boot variance
+     *
+     * \param channel the channel index 0 to N-1
+     * \param delay delay in samples at the max rate
+     *
+     */
+    inline void set_tx_delay(size_t channel, int delay) {
+        set_tx_delay(channel, delay, delay);
+    }
+
     /*! Get a list of possible TX LO stage names
      *
      * See also get_rx_lo_names().

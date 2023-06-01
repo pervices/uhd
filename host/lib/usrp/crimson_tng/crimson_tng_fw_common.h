@@ -170,4 +170,7 @@
 
 #define CRIMSON_TNG_DEBUG_NAME_C "CRIMSON_TNG"
 
+#define CRIMSON_TNG_MB_PATH   fs_path("/mboards/0")
+#define CRIMSON_TNG_TIME_PATH fs_path(CRIMSON_TNG_MB_PATH / "time")
+
 #endif /* INCLUDED_CRIMSON_TNG_FW_COMMON_H */
