@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "wavetable.hpp"
+#include "wave_generator.hpp"
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/static.hpp>
@@ -166,14 +166,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (std::abs(wave_freq) > usrp->get_tx_rate()/2){
         throw std::runtime_error("wave freq out of Nyquist zone");
     }
-    if (usrp->get_tx_rate()/std::abs(wave_freq) > wave_table_len/2){
-        throw std::runtime_error("wave freq too small for table");
-    }
-
-    //pre-compute the waveform values
-    const wave_table_multitype<short> wave_table(wave_type, ampl);
-    const double step = wave_freq/rate * wave_table_len;
-    double index = 0;
 
     //create a transmit streamer
     //linearly map channels (index0 = channel0, index1 = channel1, ...)
@@ -193,9 +185,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
-    // TODO: generate sinewave directly instead of going through table
+    const wave_generator<short> wave_generator(wave_type, ampl, rate, wave_freq);
     for (size_t n = 0; n < buff.size(); n++){
-        buff[n] = wave_table((size_t) round(index += step));
+        buff[n] = wave_generator(n);
     }
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
