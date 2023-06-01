@@ -177,9 +177,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (spb == 0) {
         spb = tx_stream->get_max_num_samps()*10;
     }
-    double period = ::round(rate/wave_freq);
-    // Used instead of period when selecting where in the buffer to send samples from to minimize quantization errors
-    size_t super_period = (size_t) ::round(period * 10000);
+
+    double period = rate/wave_freq;
+    double full_period;
+    double frac_period = std::modf(period, &full_period);
+
+    // How many cycles need to be done to have the end of a previous set of samples match the new one
+    double extra_cycles;
+    if(frac_period < 0.5) {
+        extra_cycles = 1.0/frac_period;
+    } else {
+        extra_cycles = 1.0/(1.0-frac_period);
+    }
+
+    size_t super_period = (size_t) ::round(period * extra_cycles);
 
     std::vector<std::complex<short> > buff(spb + super_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());

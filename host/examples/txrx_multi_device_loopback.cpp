@@ -142,7 +142,19 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
         wave_tables.push_back(wave_table_multitype<short>("SINE", parameters->amplitude[ch]));
         steps.push_back(parameters->wave_freq[ch]/rate * wave_table_len);
         periods.push_back(rate/parameters->wave_freq[ch]);
-        super_periods[ch] = ((size_t) ::round(periods[ch] * 100000));
+
+        double full_period;
+        double frac_period = std::modf(periods[ch], &full_period);
+
+        // How many cycles need to be done to have the end of a previous set of samples match the new one
+        double extra_cycles;
+        if(frac_period < 0.5) {
+            extra_cycles = 1.0/frac_period;
+        } else {
+            extra_cycles = 1.0/(1.0-frac_period);
+        }
+
+        super_periods[ch] = (size_t) ::round(periods[ch] * extra_cycles);
     }
 
     // Buffer contains samples for each channel
