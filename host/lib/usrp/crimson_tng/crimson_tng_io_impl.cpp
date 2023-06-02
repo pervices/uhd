@@ -340,9 +340,8 @@ private:
             // Checks for loss of locks detected before running
             _tree.lock()->access<std::string>( CRIMSON_TNG_TIME_PATH / "status/lmk_lossoflock" ).set( "0" );
             std::string loss_of_lock_detect_replay = _tree.lock()->access<std::string>( CRIMSON_TNG_TIME_PATH / "status/lmk_lossoflock" ).get();
-            const std::string pll_lock_detect_msg_1 = "JESD LMK Loss of Lock Status:\nPLL1 Continuous Lock\nPLL2 Continuous Lock\n\n>";
-            const std::string pll_lock_detect_msg_2 = "JESD LMK Loss of Lock Status:\nPLL1 Continuous Lock\nPLL2 Continuous Lock\nPLL LMK Loss of Lock Status:\nPLL1 Continuous Lock\nPLL2 Continuous Lock\n\n>";
-            if(loss_of_lock_detect_replay != pll_lock_detect_msg_1 && loss_of_lock_detect_replay != pll_lock_detect_msg_2) {
+            const std::string pll_lock_detect_msg = "JESD LMK Loss of Lock Status:\nPLL1 Continuous Lock\nPLL2 Continuous Lock\n\n>";
+            if(loss_of_lock_detect_replay != pll_lock_detect_msg) {
                 UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Time board PLL loss of lock detected. Phase coherency may be impacted" << std::endl;
             } else {
             }
