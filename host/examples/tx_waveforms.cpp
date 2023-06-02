@@ -181,16 +181,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double period = rate/wave_freq;
     double full_period;
     double frac_period = std::modf(period, &full_period);
+    // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
+    size_t super_period;
 
-    // How many cycles need to be done to have the end of a previous set of samples match the new one
-    double extra_cycles;
-    if(frac_period < 0.5) {
-        extra_cycles = 1.0/frac_period;
+    if(frac_period < 0.00001 || frac_period > 0.99999) {
+        super_period = period;
     } else {
-        extra_cycles = 1.0/(1.0-frac_period);
-    }
+        double extra_cycles;
+        if(frac_period < 0.5) {
+            extra_cycles = 1.0/frac_period;
+        } else {
+            extra_cycles = 1.0/(1.0-frac_period);
+        }
 
-    size_t super_period = (size_t) ::round(period * extra_cycles);
+        super_period = (size_t) ::round(period * extra_cycles);
+    }
 
     std::vector<std::complex<short> > buff(spb + super_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
@@ -263,7 +268,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     usrp->set_time_now(0.0);
 
     bool ignore_last = first > last;
-    
 
     for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
     {
