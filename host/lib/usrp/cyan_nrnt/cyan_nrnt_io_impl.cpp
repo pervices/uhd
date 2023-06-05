@@ -311,6 +311,8 @@ private:
      * - put async message packets into queue
      **********************************************************************/
 	static void buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self ) {
+        // Sets a lower thread priority sine this isn't time sensitive
+        uhd::set_thread_priority_safe(0, false);
 
 		for( ; ! self->_stop_buffer_monitor; ) {
 

@@ -231,10 +231,9 @@ private:
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
-	std::mutex _bm_thread_mutex;
-	bool _bm_thread_needed;
-	bool _bm_thread_running;
-	bool _bm_thread_should_exit;
+	std::atomic<bool> _bm_thread_needed;
+	std::atomic<bool> _bm_thread_running;
+	std::atomic<bool> _bm_thread_should_exit;;
 
     time_spec_t _command_time;
 

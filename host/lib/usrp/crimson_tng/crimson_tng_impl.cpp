@@ -314,13 +314,9 @@ time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
 	}
 }
 void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value ) {
-	if ( "time/clk/set_time" == key ) {
-		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
-		stop_bm();
-	}
 	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
 	if ( "time/clk/set_time" == key ) {
-		start_bm();
+        time_resync_requested = true;
 	}
 
 	if ( "time/clk/cmd" == key ) {
@@ -724,8 +720,6 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
 
 void crimson_tng_impl::start_bm() {
 
-	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
-
 	if ( ! _bm_thread_needed ) {
 		return;
 	}
@@ -733,6 +727,8 @@ void crimson_tng_impl::start_bm() {
 	if ( ! _bm_thread_running ) {
 
 		_bm_thread_should_exit = false;
+        //starts the thread that synchronizes the clocks
+        request_resync_time_diff();
 		_bm_thread = std::thread( bm_thread_fn, this );
 
         //Note: anything relying on this will require waiting time_diff_converged()

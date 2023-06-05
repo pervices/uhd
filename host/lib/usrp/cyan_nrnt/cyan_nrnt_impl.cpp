@@ -356,13 +356,9 @@ time_spec_t cyan_nrnt_impl::get_time_spec(std::string req) {
 	}
 }
 void cyan_nrnt_impl::set_time_spec( const std::string key, time_spec_t value ) {
-	if ( "time/clk/cur_time" == key ) {
-		//std::cout << __func__ << "(): " << std::fixed << std::setprecision( 12 ) << value.get_real_secs() << std::endl;
-		stop_bm();
-	}
 	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
 	if ( "time/clk/cur_time" == key ) {
-		start_bm();
+        time_resync_requested = true;
 	}
 
 	if ( "time/clk/cmd" == key ) {
@@ -820,8 +816,6 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 //performs clock synchronization
 void cyan_nrnt_impl::start_bm() {
 
-	std::lock_guard<std::mutex> _lock( _bm_thread_mutex );
-
     //checks if the current task is excempt from need clock synchronization
 	if ( ! _bm_thread_needed ) {
 		return;
@@ -833,6 +827,7 @@ void cyan_nrnt_impl::start_bm() {
 		_bm_thread_should_exit = false;
         //starts the thread that synchronizes the clocks
         request_resync_time_diff();
+        _bm_thread_running = true;
 		_bm_thread = std::thread( bm_thread_fn, this );
 
         //Note: anything relying on this will require waiting time_diff_converged()
@@ -878,8 +873,6 @@ void cyan_nrnt_impl::wait_for_time_diff_converged() {
 //Synchronizes clocks, this function should be run in its own thread
 //When calling it verify that it is not already running (_bm_thread_running)
 void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
-
-	dev->_bm_thread_running = true;
 
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;
