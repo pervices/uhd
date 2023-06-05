@@ -73,9 +73,6 @@
 #define CYAN_NRNT_RF_RX_GAIN_RANGE_STEP	 1
 
 // Cyan NrNt Clk Settings
-// max number of samples per second
-//TODO get this info fromthe device
-#define CYAN_NRNT_MASTER_CLOCK_RATE	1000000000
 // number of clock cycles per second
 #define CYAN_NRNT_TICK_RATE 250000000
 #define CYAN_NRNT_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
@@ -91,16 +88,9 @@
 #define CYAN_NRNT_RATE_RANGE_STOP_QUARTER     (max_sample_rate/4.0)
 #define CYAN_NRNT_RATE_RANGE_STEP	(max_sample_rate/65536 - (max_sample_rate/65536))
 
-/*TODO: fix the below comment and associated constants, the thing mentione dbelow only applies to Crimson not Cyan*/
-// All ADCs and DACs take complex sample at 325MSPS,
-// and so all share a static front end bandwidth of 325MHz
-// However, for user throughput, DACs A/B have a max user complex samplerate of
-// 162.5MSPS, and DACs C/D have 81.25MSPS due to backhaul bandwidth limitations
-// and FPGA transciever clocking limitaions.
-#define CYAN_NRNT_BW_FULL                 (CYAN_NRNT_RATE_RANGE_STOP_FULL/2.0)
-
 // Cyan NrNt DSP Freq Settings
 // NCO mixing occurs after upconversion, limited by the FPGA/DAC bandwidth
+#define CYAN_NRNT_BW_FULL                 (CYAN_NRNT_RATE_RANGE_STOP_FULL/2.0)
 #define CYAN_NRNT_DSP_BW_START    0
 #define CYAN_NRNT_DSP_BW_STOP_FULL            CYAN_NRNT_BW_FULL
 #define CYAN_NRNT_DSP_BW_STEPSIZE     1.0
