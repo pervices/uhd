@@ -76,12 +76,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string path, value, type;
+    std::string args, path, value, type;
 
     //setup the program options
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "help message")
+        ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("path", po::value<std::string>(&path)->default_value(""), "The path for the value in the UHD state tree to set")
         ("value", po::value<std::string>(&value)->default_value(""), "The value the variable it to be set to")
         ("type", po::value<std::string>(&type)->default_value("string"), "The data type of the variable to set")
@@ -101,7 +102,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
         return ~0;
     }
 
-    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string("bypass_clock_sync=true"));
+    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     if(type.compare("double")==0) set_double_at_path(usrp, path, value);
     else if (type.compare("int")==0) set_int_at_path(usrp, path, value);
