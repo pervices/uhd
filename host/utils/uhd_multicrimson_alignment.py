@@ -42,11 +42,14 @@ if len(sys.argv) == 3:
     print("setting delay to zero for all crimson units")
     for i in [0,1,2,3]:
         for j in [1,2]:
+            os.system("uhd_manual_set --args \"addr="+sys.argv[j]+"\" --path /mboards/0/rx_dsps/"+str(i)+"/delay_iq --value \"0 0\"")
             os.system("uhd_manual_set --args \"addr="+sys.argv[j]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq --value \"0 0\"")
 else:
     print("keeping existing delays")
     for j in [1,2]:
         print("for crimson unit", sys.argv[j])
+        for i in [0,1,2,3]:
+            os.system("uhd_manual_get --args \"addr="+sys.argv[j]+"\" --path /mboards/0/rx_dsps/"+str(i)+"/delay_iq")
         for i in [0,1,2,3]:
             os.system("uhd_manual_get --args \"addr="+sys.argv[j]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq")
 
@@ -98,14 +101,22 @@ for i in range(len(i_data2d)-1):
 offset12 = lag(i_data1,i_data2)
 
 # print the tx offset for the user
-# TODO: write the delay to crimson
 if (offset12 >= 0) :
+    offset = int(offset12)
     print("Delay crimson", sys.argv[1], "TX by:", 0)
-    print("Delay crimson", sys.argv[2], "TX by:", offset12)
+    print("Delay crimson", sys.argv[2], "TX by:", offset)
+    # if not verify, write the delay to the crimson
+    if (len(sys.argv) == 3) & (offset != 0):
+        for i in [0,1,2,3]:
+            os.system("uhd_manual_set --args \"addr="+sys.argv[2]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq --value \""+str(offset)+" "+str(offset)+"\"")
 elif (offset12 < 0) :
-    print("Delay crimson", sys.argv[1], "TX by:", offset12*-1)
+    offset = int(offset12*-1)
+    print("Delay crimson", sys.argv[1], "TX by:", offset)
     print("Delay crimson", sys.argv[2], "TX by:", 0)
-
+    # if not verify, write the delay to the crimson
+    if (len(sys.argv) == 3) & (offset != 0):
+        for i in [0,1,2,3]:
+            os.system("uhd_manual_set --args \"addr="+sys.argv[1]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq --value \""+str(offset)+" "+str(offset)+"\"")
 
 # instruct the user to connect crimson for rx alignemnt
 print()
@@ -153,13 +164,21 @@ for i in range(len(i_data2d)-1):
 # calculate the offset
 offset12 = lag(i_data1,i_data2)
 
-# print the tx offset for the user
-# TODO: write the delay to crimson
+# print the rx offset for the user
 if (offset12 >= 0) :
+    offset = int(offset12)
     print("Delay crimson", sys.argv[1], "RX by:", 0)
-    print("Delay crimson", sys.argv[2], "RX by:", offset12)
+    print("Delay crimson", sys.argv[2], "RX by:", offset)
+    # if not verify, write the delay to the crimson
+    if (len(sys.argv) == 3) & (offset != 0):
+        for i in [0,1,2,3]:
+            os.system("uhd_manual_set --args \"addr="+sys.argv[2]+"\" --path /mboards/0/rx_dsps/"+str(i)+"/delay_iq --value \""+str(offset)+" "+str(offset)+"\"")
 elif (offset12 < 0) :
-    print("Delay crimson", sys.argv[1], "RX by:", offset12*-1)
+    offset = int(offset12*-1)
+    print("Delay crimson", sys.argv[1], "RX by:", offset)
     print("Delay crimson", sys.argv[2], "RX by:", 0)
-
+    # if not verify, write the delay to the crimson
+    if (len(sys.argv) == 3) & (offset != 0):
+        for i in [0,1,2,3]:
+            os.system("uhd_manual_set --args \"addr="+sys.argv[1]+"\" --path /mboards/0/rx_dsps/"+str(i)+"/delay_iq --value \""+str(offset)+" "+str(offset)+"\"")
 
