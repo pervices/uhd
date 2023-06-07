@@ -27,14 +27,29 @@ if (len(sys.argv) != 3) & (len(sys.argv) != 4) :
     print("Example: ", str(sys.argv[0]), "192.168.10.101 192.168.10.102")
     exit()
 
-if sys.argv
+if (len(sys.argv) != 3):
+    if (sys.argv[3] != "verify"): 
+        print ("Unrecognized 3 arguement, did you mean 'verify'?")
+        exit()
 
 # copy the txrx_multi_device_loopback to the current directory where it will 
 # have permission to write an output file
 directory = os.getcwd()
 shutil.copy('/lib/uhd/examples/txrx_multi_device_loopback', directory)
 
-# TODO: set all of the iq_delay properties to 0
+# set all of the iq_delay properties to 0 unless verify
+if len(sys.argv) == 3:
+    print("setting delay to zero for all crimson units")
+    for i in [0,1,2,3]:
+        for j in [1,2]:
+            os.system("uhd_manual_set --args \"addr="+sys.argv[j]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq --value \"0 0\"")
+else:
+    print("keeping existing delays")
+    for j in [1,2]:
+        print("for crimson unit", sys.argv[j])
+        for i in [0,1,2,3]:
+            os.system("uhd_manual_get --args \"addr="+sys.argv[j]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq")
+
 
 # instruct the user to connect crimson for tx alignemnt
 print()
