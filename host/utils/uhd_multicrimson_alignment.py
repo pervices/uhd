@@ -21,7 +21,7 @@ def lag(wave1, wave2):
 
 sample_rate = "162500000"
 wavefreq = "3000000"
-sample_count = "900"
+sample_count = "15000"
 #for direct loopback
 tx_gain = "0"
 rx_gain = "0"
@@ -59,12 +59,12 @@ if len(sys.argv) == 3:
             os.system("uhd_manual_set --args \"addr="+sys.argv[j]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq --value \"0 0\"")
 else:
     print("keeping existing delays")
-    for j in [1,2]:
-        print("for crimson unit", sys.argv[j])
-        for i in [0,1,2,3]:
-            os.system("uhd_manual_get --args \"addr="+sys.argv[j]+"\" --path /mboards/0/rx_dsps/"+str(i)+"/delay_iq")
-        for i in [0,1,2,3]:
-            os.system("uhd_manual_get --args \"addr="+sys.argv[j]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq")
+#    for j in [1,2]:
+#        print("for crimson unit", sys.argv[j])
+#        for i in [0,1,2,3]:
+#            os.system("uhd_manual_get --args \"addr="+sys.argv[j]+"\" --path /mboards/0/rx_dsps/"+str(i)+"/delay_iq")
+#        for i in [0,1,2,3]:
+#            os.system("uhd_manual_get --args \"addr="+sys.argv[j]+"\" --path /mboards/0/tx_dsps/"+str(i)+"/delay_iq")
 
 
 # instruct the user to connect crimson for tx alignemnt
