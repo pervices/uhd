@@ -19,6 +19,19 @@ def lag(wave1, wave2):
     lag = (abs(forewards) + abs(backwards)) / 2.0 * sign
     return int(lag)
 
+sample_rate = "162500000"
+wavefreq = "3000000"
+sample_count = "900"
+#for direct loopback
+tx_gain = "0"
+rx_gain = "0"
+ampl = "0.24"
+#for 30dB attenuator
+#tx_gain = "0"
+#rx_gain = "10"
+#ampl = "0.7"
+
+
 if (len(sys.argv) != 3) & (len(sys.argv) != 4) :
     print("Incorrect number of arguments, expected:")
     print("    MGMT IP address of first crimson unit")
@@ -64,7 +77,7 @@ print()
 
 # Get the data from the crimson units
 print("Starting TX alignment of crimson units...")
-os.system("./txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate 162500000 --tx_channels \"0 0\" --rx_channels \"0,1 0\" --tx_gain \"0 0\" --rx_gain \"0,0 0\" --tx_freq \"0 0\" --rx_freq \"0,0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \"0.24 0.24\" --wave_freq \"3000000 3000000\" --nsamps 900 --start_time 10")
+os.system("./txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate "+sample_rate+" --tx_channels \"0 0\" --rx_channels \"0,1 0\" --tx_gain \""+tx_gain+" "+tx_gain+"\" --rx_gain \""+rx_gain+","+rx_gain+" "+rx_gain+"\" --tx_freq \"0 0\" --rx_freq \"0,0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \""+ampl+" "+ampl+"\" --wave_freq \""+wavefreq+" "+wavefreq+"\" --nsamps "+sample_count+" --start_time 10")
 
 # this is where the data is saved
 filename1 = os.getcwd()+"/output/rx_0_ch_0.dat"
@@ -128,7 +141,7 @@ print()
 
 # Get the data from the crimson units
 print("Starting RX alignment of crimson units...")
-os.system("./txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate 162500000 --tx_channels \"0 0\" --rx_channels \"0 0\" --tx_gain \"0 0\" --rx_gain \"0 0\" --tx_freq \"0 0\" --rx_freq \"0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \"0.24 0.24\" --wave_freq \"3000000 3000000\" --nsamps 900 --start_time 10")
+os.system("./txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate "+sample_rate+" --tx_channels \"0 0\" --rx_channels \"0 0\" --tx_gain \""+tx_gain+" "+tx_gain+"\" --rx_gain \""+rx_gain+" "+rx_gain+"\" --tx_freq \"0 0\" --rx_freq \"0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \""+ampl+" "+ampl+"\" --wave_freq \""+wavefreq+" "+wavefreq+"\" --nsamps "+sample_count+" --start_time 10")
 
 # this is where the data is saved
 filename1 = os.getcwd()+"/output/rx_0_ch_0.dat"
