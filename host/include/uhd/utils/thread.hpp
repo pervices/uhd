@@ -37,7 +37,7 @@ UHD_API void set_thread_priority(
 
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
     void set_thread_priority_realtime(float priority);
-    void set_thread_priority_non_realtime();
+    void set_thread_priority_non_realtime(float priority);
 #endif
 
 /*!

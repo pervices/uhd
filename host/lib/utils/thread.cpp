@@ -62,10 +62,12 @@ namespace uhd {
 
 void uhd::set_thread_priority(float priority, bool realtime)
 {
+    check_priority_range(priority);
+
     if(realtime) {
         set_thread_priority_realtime(priority);
     } else {
-        set_thread_priority_non_realtime();
+        set_thread_priority_non_realtime(priority);
     }
 }
 
@@ -94,7 +96,13 @@ void uhd::set_thread_priority_realtime(float priority) {
     }
 }
 
-void uhd::set_thread_priority_non_realtime() {
+void uhd::set_thread_priority_non_realtime(float priority) {
+
+    int target_niceness = - ::round(priority * 20);
+    // Nicenesss is in a range of -20 to 19, to keep priority 0 as neutral the value is mapped to -20 to 20 then capped
+    if(target_niceness == 20) {
+        target_niceness = 19;
+    }
 
     int policy = SCHED_OTHER;
 
@@ -104,12 +112,18 @@ void uhd::set_thread_priority_non_realtime() {
     // Only realtime scheduling has priority levels
     sp.sched_priority = 0;
     int ret = pthread_setschedparam(pthread_self(), policy, &sp);
-    if(ret) {
-        printf("Failed to set thread priority with: %s\n", strerror(errno));
-    }
 
-    if (ret != 0)
-        throw uhd::os_error("error in pthread_setschedparam");
+    if (ret != 0) {
+        throw uhd::os_error("error in pthread_setschedparam: " + std::string(strerror(errno)));
+    }
+    int current_niceness = nice(0);
+    if(current_niceness == -1) {
+        current_niceness = nice(1);
+        if(current_niceness == -1) {
+            throw uhd::os_error("error in nice (thread priority): " + std::string(strerror(errno)));
+        }
+    }
+    nice(target_niceness - current_niceness);
 }
 #endif /* HAVE_PTHREAD_SETSCHEDPARAM */
 
