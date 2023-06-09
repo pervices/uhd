@@ -45,11 +45,6 @@ if (len(sys.argv) != 3):
         print ("Unrecognized 3 arguement, did you mean 'verify'?")
         exit()
 
-# copy the txrx_multi_device_loopback to the current directory where it will 
-# have permission to write an output file
-directory = os.getcwd()
-shutil.copy('/lib/uhd/examples/txrx_multi_device_loopback', directory)
-
 # set all of the iq_delay properties to 0 unless verify
 if len(sys.argv) == 3:
     print("setting delay to zero for all crimson units")
@@ -77,11 +72,11 @@ print()
 
 # Get the data from the crimson units
 print("Starting TX alignment of crimson units...")
-os.system("./txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate "+sample_rate+" --tx_channels \"0 0\" --rx_channels \"0,1 0\" --tx_gain \""+tx_gain+" "+tx_gain+"\" --rx_gain \""+rx_gain+","+rx_gain+" "+rx_gain+"\" --tx_freq \"0 0\" --rx_freq \"0,0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \""+ampl+" "+ampl+"\" --wave_freq \""+wavefreq+" "+wavefreq+"\" --nsamps "+sample_count+" --start_time 10")
+os.system("/lib/uhd/examples/txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate "+sample_rate+" --tx_channels \"0 0\" --rx_channels \"0,1 0\" --tx_gain \""+tx_gain+" "+tx_gain+"\" --rx_gain \""+rx_gain+","+rx_gain+" "+rx_gain+"\" --tx_freq \"0 0\" --rx_freq \"0,0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \""+ampl+" "+ampl+"\" --wave_freq \""+wavefreq+" "+wavefreq+"\" --nsamps "+sample_count+" --start_time 10")
 
 # this is where the data is saved
-filename1 = os.getcwd()+"/output/rx_0_ch_0.dat"
-filename2 = os.getcwd()+"/output/rx_0_ch_1.dat"
+filename1 = "/lib/uhd/examples/output/rx_0_ch_0.dat"
+filename2 = "/lib/uhd/examples/output/rx_0_ch_1.dat"
 
 # read the data from the file for channel 0
 data=np.fromfile(filename1, dtype = 'short')
@@ -141,11 +136,11 @@ print()
 
 # Get the data from the crimson units
 print("Starting RX alignment of crimson units...")
-os.system("./txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate "+sample_rate+" --tx_channels \"0 0\" --rx_channels \"0 0\" --tx_gain \""+tx_gain+" "+tx_gain+"\" --rx_gain \""+rx_gain+" "+rx_gain+"\" --tx_freq \"0 0\" --rx_freq \"0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \""+ampl+" "+ampl+"\" --wave_freq \""+wavefreq+" "+wavefreq+"\" --nsamps "+sample_count+" --start_time 10")
+os.system("/lib/uhd/examples/txrx_multi_device_loopback --args \"addr="+sys.argv[1]+" addr="+sys.argv[2]+"\" --rate "+sample_rate+" --tx_channels \"0 0\" --rx_channels \"0 0\" --tx_gain \""+tx_gain+" "+tx_gain+"\" --rx_gain \""+rx_gain+" "+rx_gain+"\" --tx_freq \"0 0\" --rx_freq \"0 0\" --time_ref \"external external\" --clock_ref \"external external\" --ampl \""+ampl+" "+ampl+"\" --wave_freq \""+wavefreq+" "+wavefreq+"\" --nsamps "+sample_count+" --start_time 10")
 
 # this is where the data is saved
-filename1 = os.getcwd()+"/output/rx_0_ch_0.dat"
-filename2 = os.getcwd()+"/output/rx_1_ch_0.dat"
+filename1 = "/lib/uhd/examples/output/rx_0_ch_0.dat"
+filename2 = "/lib/uhd/examples/output/rx_1_ch_0.dat"
 
 # read the data from the file for channel 0
 data=np.fromfile(filename1, dtype = 'short')
