@@ -64,7 +64,12 @@ void uhd::set_thread_priority(float priority, bool realtime)
 {
     check_priority_range(priority);
 
-    if(realtime) {
+
+    // TODO fix realtime priority
+    // Old SCHED_RR results in random slowdowns in the 10s of ms, SCHED_DEADLINE will randomly lock up non headless systems
+
+    (void) realtime;
+    if(0/*realtime*/) {
         set_thread_priority_realtime(priority);
     } else {
         set_thread_priority_non_realtime(priority);
