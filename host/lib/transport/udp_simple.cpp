@@ -9,11 +9,6 @@
 #include <uhd/utils/log.hpp>
 #include <uhdlib/transport/udp_common.hpp>
 #include <boost/format.hpp>
-#include <sys/socket.h>
-
-#include <uhdlib/utils/system_time.hpp>
-#include <uhd/types/time_spec.hpp>
-#include <sched.h>
 
 using namespace uhd::transport;
 namespace asio = boost::asio;
@@ -51,48 +46,18 @@ public:
 
     size_t send(const asio::const_buffer& buff) override
     {
-        if (_connected) {
-            int data_sent;
-            // TODO: throw error on failure
-            do {
-                data_sent = ::send(_socket->native_handle(), buff.data(), buff.size(), MSG_CONFIRM | MSG_DONTWAIT);
-            } while (data_sent == -1);
-            return (size_t) data_sent;
-        }
+        if (_connected)
+            return _socket->send(asio::buffer(buff));
         return _socket->send_to(asio::buffer(buff), _send_endpoint);
     }
 
     size_t recv(const asio::mutable_buffer& buff, double timeout) override
     {
-        uhd::time_spec_t timeout_time = uhd::get_system_time() + timeout;
+        const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
 
-        do {
-            struct sockaddr_in destination;
-            memset(&destination, 0, sizeof(destination));
-            socklen_t addr_len = (socklen_t) sizeof(destination);
-            // MSG_DONTWAIT prevents locking when using SCHED_DEADLINE
-            int bytes_received = ::recvfrom(_socket->native_handle(), buff.data(), buff.size(), MSG_DONTWAIT, (sockaddr*) &(destination), &addr_len);
-            if(bytes_received == -1) {
-                if(errno == EAGAIN || errno == EWOULDBLOCK) {
-                    sched_yield();
-                    continue;
-                }
-                // TODO: throw error on failure
-                return 0;
-            } else {
-                char destination_ip[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &(destination.sin_addr), destination_ip, INET_ADDRSTRLEN);
-                std::string destination_port = std::to_string(destination.sin_port);
-                // resolve the address
-                asio::ip::udp::resolver resolver(_io_service);
-                asio::ip::udp::resolver::query query(
-                asio::ip::udp::v4(), destination_ip, destination_port, asio::ip::resolver_query_base::all_matching);
-                // Sets the endpoint to match what the received packet was sent to
-                _recv_endpoint = *resolver.resolve(query);
-                return (size_t) bytes_received;
-            }
-        } while (uhd::get_system_time() < timeout_time);
-        return 0;
+        if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms))
+            return 0;
+        return _socket->receive_from(asio::buffer(buff), _recv_endpoint);
     }
 
     std::string get_recv_addr(void) override
