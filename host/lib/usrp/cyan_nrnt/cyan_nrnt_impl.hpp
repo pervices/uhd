@@ -298,6 +298,9 @@ private:
     void set_rx_gain(double gain, const std::string &name, size_t chan);
     double get_rx_gain(const std::string &name, size_t chan);
     void request_resync_time_diff();
+
+    // Checks it an ip address can be pinged
+    void ping_check(std::string sfp, std::string ip);
 };
 
 }

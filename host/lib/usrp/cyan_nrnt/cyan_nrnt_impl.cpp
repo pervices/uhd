@@ -40,7 +40,6 @@
 namespace link_cyan_nrnt {
     const int num_links = 4;
     const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
-    const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2","10.10.12.2","10.10.13.2"};
     const char *names[num_links] = { "QSFP+A", "QSFP+B", "QSFP+C", "QSFP+D"};
 
     const char mtu_ref[8] = {'9','0','0','0'};
@@ -1007,13 +1006,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 
     // FOR EACH INTERFACE
     for (int j = 0; j < link_cyan_nrnt::num_links; j++) {
-        // CHECK PING
-        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_cyan_nrnt::addrs[j]); 
-        check = system(cmd);
-        if (check!=0){
-            UHD_LOG_WARNING("PING", "Failed for " << link_cyan_nrnt::addrs[j] << ", please check " << link_cyan_nrnt::names[j]);
-        }
-        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_nrnt::subnets[j]); 
+        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_nrnt::subnets[j]);
         stream = popen(cmd, "r");
         if (stream) {
             while(!feof(stream))
@@ -1152,12 +1145,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "user/regs", "fpga/user/regs", user_reg_t, user_reg);
 
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sfpa/ip_addr",  "fpga/link/sfpa/ip_addr",  std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sfpa/mac_addr", "fpga/link/sfpa/mac_addr", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sfpa/pay_len",  "fpga/link/sfpa/pay_len",  std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sfpb/ip_addr",  "fpga/link/sfpb/ip_addr",  std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sfpb/mac_addr", "fpga/link/sfpb/mac_addr", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
@@ -1203,6 +1190,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
+
+    ping_check("sfpa", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "ip_addr").get());
+    ping_check("sfpb", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpb" / "ip_addr").get());
+    ping_check("sfpc", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "ip_addr").get());
+    ping_check("sfpd", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr").get());
 
     // This is the master clock rate
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
@@ -1904,4 +1896,13 @@ double cyan_nrnt_impl::get_rx_gain(const std::string &name, size_t chan) {
 
 inline void cyan_nrnt_impl::request_resync_time_diff() {
     time_resync_requested = true;
+}
+
+void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
+    char cmd[128];
+    snprintf(cmd, 128, "ping -c 1 -W 1 %s  > /dev/null 2>&1", ip.c_str());
+    int check = system(cmd);
+    if (check!=0){
+        UHD_LOG_WARNING("PING", "Failed for " << ip << ", please check " << sfp);
+    }
 }
