@@ -44,7 +44,6 @@ public:
         USRP,
         CLOCK,
         CRIMSON_TNG,
-        CYAN_8T,
         CYAN_4R4T,
         CYAN_9R7T,
         CYAN_8R,
