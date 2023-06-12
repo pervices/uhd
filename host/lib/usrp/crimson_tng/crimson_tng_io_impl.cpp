@@ -292,7 +292,7 @@ protected:
 private:
 	bool _first_call_to_send;
     bool _buffer_monitor_running;
-    bool _stop_buffer_monitor;
+    std::atomic<bool> _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
     timenow_type _time_now;
 
@@ -321,6 +321,8 @@ private:
      * - put async message packets into queue
      **********************************************************************/
 	static void buffer_monitor_loop( crimson_tng_send_packet_streamer *self ) {
+        // This is not time sensitive, remove thread priority
+        uhd::set_thread_priority_safe(0, false);
 
 		for( ; ! self->_stop_buffer_monitor; ) {
 
@@ -368,6 +370,7 @@ private:
 					// assumes that underflow counter is monotonically increasing
 					self->push_async_msg( metadata );
 				}
+
 				ep.uflow = uflow;
 
 				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
@@ -381,6 +384,7 @@ private:
 					// assumes that overflow counter is monotonically increasing
 					self->push_async_msg( metadata );
 				}
+
 				ep.oflow = oflow;
 			}
 

@@ -39,31 +39,96 @@ static void check_priority_range(float priority)
  **********************************************************************/
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
 #    include <pthread.h>
+#include <sched.h>
+#include <sys/syscall.h>
+#include <string.h>
+#include <errno.h>
+
+namespace uhd {
+    struct sched_attr {
+        uint32_t size;              /* Size of this structure */
+        uint32_t sched_policy;      /* Policy (SCHED_*) */
+        uint64_t sched_flags;       /* Flags */
+        int32_t sched_nice;        /* Nice value (SCHED_OTHER,
+                                    SCHED_BATCH) */
+        uint32_t sched_priority;    /* Static priority (SCHED_FIFO,
+                                    SCHED_RR) */
+        /* Remaining fields are for SCHED_DEADLINE */
+        uint64_t sched_runtime;
+        uint64_t sched_deadline;
+        uint64_t sched_period;
+    };
+}
 
 void uhd::set_thread_priority(float priority, bool realtime)
 {
     check_priority_range(priority);
 
-    // when realtime is not enabled, use sched other
-    int policy = (realtime) ? SCHED_RR : SCHED_OTHER;
 
-    // we cannot have below normal priority, set to zero
-    if (priority < 0)
-        priority = 0;
+    // TODO fix realtime priority
+    // Old SCHED_RR results in random slowdowns in the 10s of ms, SCHED_DEADLINE will randomly lock up non headless systems
 
-    // get the priority bounds for the selected policy
-    int min_pri = sched_get_priority_min(policy);
-    int max_pri = sched_get_priority_max(policy);
-    if (min_pri == -1 or max_pri == -1)
-        throw uhd::os_error("error in sched_get_priority_min/max");
+    (void) realtime;
+    if(0/*realtime*/) {
+        set_thread_priority_realtime(priority);
+    } else {
+        set_thread_priority_non_realtime(priority);
+    }
+}
+
+void uhd::set_thread_priority_realtime(float priority) {
+    // Priority is no used in deadlines, the parameter is a legacy of previous schedueling
+    (void) priority;
+
+    struct sched_attr attr;
+    attr.size = sizeof(attr);
+    attr.sched_policy = SCHED_DEADLINE;
+    attr.sched_flags = 0x01/*SCHED_FLAG_RESET_ON_FORK*/; // Documentation says to use SCHED_FLAG_RESET_ON_FORK, but it doesn't seem to be declared. Required to allow this thread to create child thread in deadline mode
+    // Nice is not used when using realtime threads
+    attr.sched_nice = 0;
+    // Priority is not used in deadline mode
+    attr.sched_priority = 0;
+    // Runtime, deadline, and priority should be equal so it uses 100% of time
+    attr.sched_runtime = 1000000;
+    attr.sched_deadline = 1000000;
+    attr.sched_period = 1000000;
+
+    int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
+
+    if (ret != 0) {
+        printf("errno: %s", strerror(errno));
+        throw uhd::os_error("error in pthread_setschedparam");
+    }
+}
+
+void uhd::set_thread_priority_non_realtime(float priority) {
+
+    int target_niceness = - ::round(priority * 20);
+    // Nicenesss is in a range of -20 to 19, to keep priority 0 as neutral the value is mapped to -20 to 20 then capped
+    if(target_niceness == 20) {
+        target_niceness = 19;
+    }
+
+    int policy = SCHED_OTHER;
 
     // set the new priority and policy
     sched_param sp;
-    sp.sched_priority = int(priority * (max_pri - min_pri)) + min_pri;
-    int ret           = pthread_setschedparam(pthread_self(), policy, &sp);
-    if (ret != 0)
-        throw uhd::os_error("error in pthread_setschedparam");
 
+    // Only realtime scheduling has priority levels
+    sp.sched_priority = 0;
+    int ret = pthread_setschedparam(pthread_self(), policy, &sp);
+
+    if (ret != 0) {
+        throw uhd::os_error("error in pthread_setschedparam: " + std::string(strerror(errno)));
+    }
+    int current_niceness = nice(0);
+    if(current_niceness == -1) {
+        current_niceness = nice(1);
+        if(current_niceness == -1) {
+            throw uhd::os_error("error in nice (thread priority): " + std::string(strerror(errno)));
+        }
+    }
+    nice(target_niceness - current_niceness);
 }
 #endif /* HAVE_PTHREAD_SETSCHEDPARAM */
 
@@ -103,6 +168,7 @@ void uhd::set_thread_affinity(const std::vector<size_t>& cpu_affinity_list)
 
 void uhd::set_thread_priority(float priority, UHD_UNUSED(bool realtime))
 {
+    std::cout << "WIN sp.sched_priority: " << sp.sched_priority << std::endl;
     check_priority_range(priority);
 
     /*
@@ -163,6 +229,7 @@ void uhd::set_thread_affinity(const std::vector<size_t>& cpu_affinity_list)
 #ifdef HAVE_THREAD_PRIO_DUMMY
 void uhd::set_thread_priority(float, bool)
 {
+    std::cout << "DUMMY sp.sched_priority: " << sp.sched_priority << std::endl;
     UHD_LOG_DEBUG("UHD", "Setting thread priority is not implemented");
 }
 

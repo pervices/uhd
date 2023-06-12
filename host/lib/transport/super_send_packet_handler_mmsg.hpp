@@ -33,6 +33,8 @@
 #include <uhd/transport/buffer_tracker.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 
+#include <uhdlib/utils/system_time.hpp>
+
 namespace uhd {
 namespace transport {
 namespace sph {
@@ -500,10 +502,9 @@ private:
         std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
 
-        wait_for_sob_coarse(get_time_now());
-
         while(channels_serviced < _NUM_CHANNELS) {
 
+            // Sends packets for each channel
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
 
@@ -516,7 +517,7 @@ private:
                 int num_packets_to_send = num_packets - num_packets_alread_sent;
                 packets_to_send_this_sendmmsg = std::min(packets_to_send_this_sendmmsg, num_packets_to_send);
 
-                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_DONTWAIT);
+                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_CONFIRM | MSG_DONTWAIT);
 
                 if(num_packets_sent_this_send < 0) {
                     if(errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -653,30 +654,21 @@ private:
         return &_intermediate_send_buffer_wrapper;
     }
 
-    // Waits until coarse_time_offset before sob
-    // Exists to avoid schedueler issues from repeated polling
-    // Only done for one channel since all channels have the same sob
-    const double coarse_time_offset = 0.01;
-    inline void wait_for_sob_coarse(uhd::time_spec_t now) {
-        while(true) {
-            uhd::time_spec_t wait_time_precise = ch_send_buffer_info_group[0].buffer_level_manager.time_until_sob(now);
-            double sleep_time_s = wait_time_precise.get_real_secs();
-
-            if(sleep_time_s < coarse_time_offset) {
-                return;
-            } else {
-                double sleep_time_coarse = sleep_time_s - coarse_time_offset;
-                if(sleep_time_s >= 1) {
-                    // usleep limit
-                    usleep(1000000);
-                    now = get_time_now();
-                } else {
-                    usleep(sleep_time_coarse);
-                    return;
-                }
+    // Utility function to identify where randomg slowdowns are
+    bool __attribute__ ((unused)) delay_check_start_time_set = false;
+    uhd::time_spec_t last_delay_check_time;
+    inline void check_for_long_delay(int flag_id) {
+        if(delay_check_start_time_set) {
+            delay_check_start_time_set = true;
+            uhd::time_spec_t current_time = uhd::get_system_time();
+            if(current_time.get_real_secs() - last_delay_check_time.get_real_secs() > 0.02) {
+                printf("Long delay at %i\n", flag_id);
             }
+            last_delay_check_time = current_time;
+        } else {
+            last_delay_check_time = uhd::get_system_time();
+            delay_check_start_time_set = true;
         }
-
     }
 };
 

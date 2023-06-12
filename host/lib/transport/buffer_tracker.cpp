@@ -32,13 +32,12 @@ void buffer_tracker::set_start_of_burst_time( const uhd::time_spec_t & sob ) {
 // Gets the predicted buffer level at the time requested
 int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
     if(start_of_burst_pending(now)) {
-        // TODO: make sure the proper behaviour is kept while overflowing int64_t
-        return (int64_t)(total_samples_sent + buffer_level_bias);
+        return std::max((int64_t)(total_samples_sent + buffer_level_bias), (int64_t) 0);
     } else {
         uhd::time_spec_t time_streaming = now - sob_time;
         uint64_t samples_consumed =(uint64_t)(time_streaming.get_real_secs() * nominal_sample_rate);
         int64_t predicted_buffer_level = int64_t(total_samples_sent - samples_consumed);
-        return predicted_buffer_level + buffer_level_bias;
+        return std::max(predicted_buffer_level + buffer_level_bias, (int64_t) 0);
     }
 }
 

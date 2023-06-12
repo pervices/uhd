@@ -35,6 +35,11 @@ constexpr float DEFAULT_THREAD_PRIORITY = float(0.5);
 UHD_API void set_thread_priority(
     float priority = DEFAULT_THREAD_PRIORITY, bool realtime = true);
 
+#ifdef HAVE_PTHREAD_SETSCHEDPARAM
+    void set_thread_priority_realtime(float priority);
+    void set_thread_priority_non_realtime(float priority);
+#endif
+
 /*!
  * Set the scheduling priority on the current thread.
  * Same as set_thread_priority but does not throw on failure.
