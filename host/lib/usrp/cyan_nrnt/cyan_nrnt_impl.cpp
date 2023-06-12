@@ -42,7 +42,7 @@ namespace link_cyan_nrnt {
     const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
     const char *names[num_links] = { "QSFP+A", "QSFP+B", "QSFP+C", "QSFP+D"};
 
-    const char mtu_ref[8] = {'9','0','0','0'};
+    const char *mtu_ref = "9000";
 }
 
 using namespace uhd;
@@ -996,35 +996,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
 
-
-    // CHECK CONNECTIVITY TO CRIMSON
-    char cmd[128];
-    int check;
-    std::string data;
-    FILE * stream;
-    char buffer[256];
-
-    // FOR EACH INTERFACE
-    for (int j = 0; j < link_cyan_nrnt::num_links; j++) {
-        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_cyan_nrnt::subnets[j]);
-        stream = popen(cmd, "r");
-        if (stream) {
-            while(!feof(stream))
-                if (fgets(buffer, 256, stream) != NULL) data.append(buffer);
-                    pclose(stream);
-        }
-        // CHECK MTU
-        check = 0;
-        for (int i =0; i < 4; i++) {
-            if (link_cyan_nrnt::mtu_ref[i] != buffer[i+4]) {
-                check ++;
-            }
-        }
-        if (check != 0) {
-            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_nrnt::mtu_ref <<  " for subnet " << link_cyan_nrnt::subnets[j] << " may impact data sent over " << link_cyan_nrnt::names[j]);
-        }
-    }
-
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){
         #if defined(UHD_PLATFORM_MACOS) || defined(UHD_PLATFORM_BSD)
@@ -1191,10 +1162,21 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
-    ping_check("sfpa", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "ip_addr").get());
-    ping_check("sfpb", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpb" / "ip_addr").get());
-    ping_check("sfpc", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "ip_addr").get());
-    ping_check("sfpd", _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr").get());
+    std::string sfpa_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "ip_addr").get();
+    ping_check("sfpa", sfpa_ip);
+    mtu_check("sfpa", sfpa_ip);
+
+    std::string sfpb_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpb" / "ip_addr").get();
+    ping_check("sfpb", sfpb_ip);
+    mtu_check("sfbd", sfpb_ip);
+
+    std::string sfpc_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "ip_addr").get();
+    ping_check("sfpc", sfpc_ip);
+    mtu_check("sfcd", sfpc_ip);
+
+    std::string sfpd_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr").get();
+    ping_check("sfpd", sfpd_ip);
+    mtu_check("sfpd", sfpd_ip);
 
     // This is the master clock rate
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
@@ -1904,5 +1886,32 @@ void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
     int check = system(cmd);
     if (check!=0){
         UHD_LOG_WARNING("PING", "Failed for " << ip << ", please check " << sfp);
+    }
+}
+
+void cyan_nrnt_impl::mtu_check(std::string sfp, std::string ip) {
+    char cmd[128];
+    std::string data;
+    FILE * stream;
+    char buffer[256];
+
+    std::string subnet = ip.substr(0, 9);
+
+    snprintf(cmd, 128, "ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1", subnet.c_str());
+    stream = popen(cmd, "r");
+    if (stream) {
+        while(!feof(stream))
+            if (fgets(buffer, 256, stream) != NULL) data.append(buffer);
+                pclose(stream);
+    }
+    // CHECK MTU
+    int check = 0;
+    for (int i =0; i < 4; i++) {
+        if (link_cyan_nrnt::mtu_ref[i] != buffer[i+4]) {
+            check ++;
+        }
+    }
+    if (check != 0) {
+        UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_nrnt::mtu_ref <<  " for subnet " << subnet.c_str() << " may impact data sent over " << sfp);
     }
 }
