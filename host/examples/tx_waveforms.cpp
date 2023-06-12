@@ -177,7 +177,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps()*10;
     }
 
-    double period = rate/wave_freq;
+    double period;
+    if(wave_freq != 0) {
+        period = rate/wave_freq;
+    } else {
+        period = 0;
+    }
     double full_period;
     double frac_period = std::modf(period, &full_period);
     // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
@@ -291,7 +296,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                buff_ptr = &buff[num_acc_samps % super_period];
+                if(super_period != 0) {
+                    buff_ptr = &buff[num_acc_samps % super_period];
+                } else {
+                    buff_ptr = &buff.front();
+                }
             }
 
             size_t nsamps_this_send;

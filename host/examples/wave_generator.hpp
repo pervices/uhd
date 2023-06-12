@@ -45,7 +45,8 @@ public:
         // Note: CONST, SQUARE, and RAMP only fill the I portion, since they are
         // amplitude-modulating signals, not phase-modulating.
 
-        if (wave_type == "CONST") {
+        // Wave freq of 0 is equivalent to CONST, regardless of anything else
+        if (wave_type == "CONST" || wave_freq == 0) {
             get_function = &get_const;
         } else if (wave_type == "SQUARE") {
             get_function = &get_square;
