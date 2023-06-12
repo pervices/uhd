@@ -37,12 +37,7 @@
 #include <uhdlib/transport/udp_common.hpp>
 
 namespace link_crimson {
-    const int num_links = 2;
-    const char *subnets[num_links] = { "10.10.10.", "10.10.11."};
-    const char *addrs[num_links] = { "10.10.10.2", "10.10.11.2"};
-    const char *names[num_links] = { "SFP+A", "SFP+B"};
-
-    const char mtu_ref[8] = {'9','0','0','0'};
+    const char *mtu_ref = "9000";
 }
 
 using namespace uhd;
@@ -892,41 +887,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
 
-
-    // CHECK CONNECTIVITY TO CRIMSON
-    char cmd[128];
-    int check;
-    std::string data;
-    FILE * stream;
-    char buffer[256];
-
-    // FOR EACH INTERFACE
-    for (int j = 0; j < link_crimson::num_links; j++) {
-        // CHECK PING
-        sprintf(cmd,"ping -c 1 -W 1 %s  > /dev/null 2>&1",link_crimson::addrs[j]); 
-        check = system(cmd);
-        if (check!=0){
-            UHD_LOG_WARNING("PING", "Failed for " << link_crimson::addrs[j] << ", please check " << link_crimson::names[j]);
-        }
-        sprintf(cmd,"ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1",link_crimson::subnets[j]); 
-        stream = popen(cmd, "r");
-        if (stream) {
-            while(!feof(stream))
-                if (fgets(buffer, 256, stream) != NULL) data.append(buffer);
-                    pclose(stream);
-        }
-        // CHECK MTU
-        check = 0;
-        for (int i =0; i < 4; i++) {
-            if (link_crimson::mtu_ref[i] != buffer[i+4]) {
-                check ++;
-            }
-        }
-        if (check != 0) {
-            UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_crimson::mtu_ref <<  " for subnet " << link_crimson::subnets[j] << " may impact data sent over " << link_crimson::names[j]);
-        }
-    }
-
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){
         #if defined(UHD_PLATFORM_MACOS) || defined(UHD_PLATFORM_BSD)
@@ -1076,6 +1036,14 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
+
+    std::string sfpa_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "ip_addr").get();
+    ping_check("sfpa", sfpa_ip);
+    mtu_check("sfpa", sfpa_ip);
+
+    std::string sfpb_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr").get();
+    ping_check("sfpb", sfpb_ip);
+    mtu_check("sfbd", sfpb_ip);
 
     // This is the master clock rate
     TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "tick_rate", double, CRIMSON_TNG_MASTER_TICK_RATE);
@@ -1939,4 +1907,40 @@ double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
 
 inline void crimson_tng_impl::request_resync_time_diff() {
     time_resync_requested = true;
+}
+
+void crimson_tng_impl::ping_check(std::string sfp, std::string ip) {
+    char cmd[128];
+    snprintf(cmd, 128, "ping -c 1 -W 1 %s  > /dev/null 2>&1", ip.c_str());
+    int check = system(cmd);
+    if (check!=0){
+        UHD_LOG_WARNING("PING", "Failed for " << ip << ", please check " << sfp);
+    }
+}
+
+void crimson_tng_impl::mtu_check(std::string sfp, std::string ip) {
+    char cmd[128];
+    std::string data;
+    FILE * stream;
+    char buffer[256];
+
+    std::string subnet = ip.substr(0, 9);
+
+    snprintf(cmd, 128, "ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1", subnet.c_str());
+    stream = popen(cmd, "r");
+    if (stream) {
+        while(!feof(stream))
+            if (fgets(buffer, 256, stream) != NULL) data.append(buffer);
+                pclose(stream);
+    }
+    // CHECK MTU
+    int check = 0;
+    for (int i =0; i < 4; i++) {
+        if (link_crimson::mtu_ref[i] != buffer[i+4]) {
+            check ++;
+        }
+    }
+    if (check != 0) {
+        UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_crimson::mtu_ref <<  " for subnet " << subnet.c_str() << " may impact data sent over " << sfp);
+    }
 }

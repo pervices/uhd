@@ -264,6 +264,11 @@ private:
     
     double get_rx_gain(const std::string &name, size_t chan);
     void request_resync_time_diff();
+
+    // Checks it an ip address can be pinged
+    void ping_check(std::string sfp, std::string ip);
+    // Verifies the MTU is set to the correct value
+    void mtu_check(std::string sfp, std::string ip);
 };
 
 }

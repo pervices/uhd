@@ -38,10 +38,6 @@
 #include <uhdlib/transport/udp_common.hpp>
 
 namespace link_cyan_nrnt {
-    const int num_links = 4;
-    const char *subnets[num_links] = { "10.10.10.", "10.10.11.","10.10.12.","10.10.13."};
-    const char *names[num_links] = { "QSFP+A", "QSFP+B", "QSFP+C", "QSFP+D"};
-
     const char *mtu_ref = "9000";
 }
 
@@ -715,7 +711,6 @@ void cyan_nrnt_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 
 //sends a stream command over sfp port 0
 void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-    UHD_LOG_WARNING("STREAM_CMD", "No sfp for specified for streaming command, defaulting to " << link_cyan_nrnt::names[0]);
 	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
