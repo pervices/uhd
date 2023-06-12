@@ -45,7 +45,6 @@ public:
         CLOCK,
         CRIMSON_TNG,
         CYAN_NRNT,
-        CYAN_64T,
     };
 
 
