@@ -122,13 +122,22 @@ void uhd::set_thread_priority_non_realtime(float priority) {
         throw uhd::os_error("error in pthread_setschedparam: " + std::string(strerror(errno)));
     }
     int current_niceness = nice(0);
-    if(current_niceness == -1) {
-        current_niceness = nice(1);
-        if(current_niceness == -1) {
+
+    int new_niceness(target_niceness - current_niceness);
+
+    // Nice returns -1 to indicated an errors, however -1 is also a very reasonable return value
+    // Workaround required to verify niceness can be set
+    if(new_niceness == -1 ) {
+        // Attempt to reduce niceness further (verifying it can be done)
+        int test_niceness = nice(-1);
+        // If niceness still -1 an error occured
+        if(test_niceness == -1) {
             throw uhd::os_error("error in nice (thread priority): " + std::string(strerror(errno)));
+        } else {
+            // return niceness to intended value
+            nice(1);
         }
     }
-    nice(target_niceness - current_niceness);
 }
 #endif /* HAVE_PTHREAD_SETSCHEDPARAM */
 
