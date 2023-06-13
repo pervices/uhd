@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <filesystem>
+#include <uhd/utils/thread.hpp>
 
 namespace po = boost::program_options;
 
@@ -198,6 +199,7 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
+    uhd::set_thread_priority();
 
     // variables to be set by po
     std::string args, folder, channel_arg, rate_arg, freq_arg, gain_arg, start_delay_arg, nsamp_arg;
