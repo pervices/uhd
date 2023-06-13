@@ -95,9 +95,14 @@ class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	crimson_tng_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
-	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CRIMSON_TNG_MAX_NBYTES, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian)
+	crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CRIMSON_TNG_MAX_NBYTES, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian),
+	_channels(channels)
 	{
+        _rx_streamer_channel_in_use = rx_channel_in_use;
+        for(size_t n = 0; n < channels.size(); n++) {
+            _rx_streamer_channel_in_use->at(channels[n]) = true;
+        }
     }
 
 	virtual ~crimson_tng_recv_packet_streamer() {
@@ -129,6 +134,10 @@ public:
 			}
 		}
 		_eprops.clear();
+
+        for(size_t n = 0; n < _channels.size(); n++) {
+            _rx_streamer_channel_in_use->at(_channels[n]) = false;
+        }
 	}
 
 private:
@@ -138,6 +147,9 @@ private:
         onfini_type on_fini;
     };
     std::vector<eprops_type> _eprops;
+
+    std::vector<size_t> _channels;
+    std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
 };
 
 static std::vector<std::weak_ptr<crimson_tng_recv_packet_streamer>> allocated_rx_streamers;
@@ -162,7 +174,7 @@ public:
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
-	crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+	crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
 	:
 		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, CRIMSON_TNG_MASTER_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
 		_first_call_to_send( true ),
@@ -170,6 +182,10 @@ public:
 		_stop_buffer_monitor( false )
 
 	{
+        _tx_streamer_channel_in_use = tx_channel_in_use;
+        for(size_t n = 0; n < channels.size(); n++) {
+            _tx_streamer_channel_in_use->at(channels[n]) = true;
+        }
 	}
 
 	virtual ~crimson_tng_send_packet_streamer() {
@@ -185,6 +201,10 @@ public:
 			std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
 		}
 		_eprops.clear();
+
+        for(size_t n = 0; n < _channels.size(); n++) {
+            _tx_streamer_channel_in_use->at(_channels[n]) = false;
+        }
 	}
     
     //send fucntion called by external programs
@@ -314,6 +334,8 @@ private:
     };
     std::vector<eprops_type> _eprops;
 
+    std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
+
     /***********************************************************************
      * buffer_monitor_loop
      * - update buffer levels
@@ -430,10 +452,37 @@ void crimson_tng_impl::io_init(void){
     }
 }
 
+void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
+    rx_sfp_throughput_used[ch] = rate_samples;
+    // Only print the warning once
+    if(rx_rate_warning_printed) {
+        return;
+    }
+    double rate_used = 0;
+    for(size_t n = 0; n < num_rx_channels; n++) {
+        if(get_rx_sfp(n) == get_rx_sfp(ch) && rx_channel_in_use->at(n)) {
+            rate_used += rx_sfp_throughput_used[ch];
+        }
+    }
+
+    if(rate_used * CRIMSON_TNG_RX_SAMPLE_BITS * 2 > get_link_rate()) {
+
+        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C)
+                << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
+                                 "exceeds the maximum capacity of the connection.\n"
+                                 "This can cause overflows.")
+                       % (rate_used / 1e6) % ch;
+
+        rx_rate_warning_printed = true;
+    }
+}
+
 void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
 
     set_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
     double rate = get_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
+
+    rx_rate_check(dsp, rate);
 
     std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer =
         std::dynamic_pointer_cast<crimson_tng_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
@@ -442,10 +491,34 @@ void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t d
     my_streamer->set_sample_rate(rate);
 }
 
+void crimson_tng_impl::tx_rate_check(size_t ch, double rate_samples) {
+    tx_sfp_throughput_used[ch] = rate_samples;
+    double rate_used = 0;
+    for(size_t n = 0; n < num_tx_channels; n++) {
+        if(get_tx_sfp(n) == get_tx_sfp(ch) && tx_channel_in_use->at(n)) {
+            rate_used += tx_sfp_throughput_used[ch];
+        }
+    }
+
+    if(rate_used * CRIMSON_TNG_TX_SAMPLE_BITS * 2 > get_link_rate() && !tx_rate_warning_printed) {
+
+        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C)
+                << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
+                                 "exceeds the maximum capacity of the connection.\n"
+                                 "This can cause underruns.")
+                       % (rate_used / 1e6) % ch;
+
+        // Only print this warning once
+        tx_rate_warning_printed = true;
+    }
+}
+
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
     set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
     double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
+
+    tx_rate_check(dsp, rate);
 
 	std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer =
         std::dynamic_pointer_cast<crimson_tng_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
@@ -601,7 +674,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(dst_ip, dst_port, args.cpu_format, args.otw_format, little_endian_supported);
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, dst_ip, dst_port, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -834,7 +907,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported );
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

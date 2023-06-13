@@ -251,6 +251,9 @@ private:
     double get_tx_freq(size_t chan = 0);
 
     std::string get_tx_sfp( size_t chan );
+
+    std::string get_rx_sfp( size_t chan );
+
     std::string get_tx_ip( size_t chan );
     uint16_t get_tx_fc_port( size_t chan );
     uint16_t get_tx_udp_port( size_t chan );
@@ -269,6 +272,25 @@ private:
     void ping_check(std::string sfp, std::string ip);
     // Verifies the MTU is set to the correct value
     void mtu_check(std::string sfp, std::string ip);
+
+    // Samples per second being using per channel
+    std::vector<double> tx_sfp_throughput_used{std::vector<double>(CRIMSON_TNG_TX_CHANNELS, 0)};
+    // Used to check if a tx channel's rate should be counted towards the max rate check
+    std::shared_ptr<std::vector<bool>> tx_channel_in_use{std::make_shared<std::vector<bool>>(std::vector<bool>(CRIMSON_TNG_TX_CHANNELS, false))};
+
+    // SFP link speed in bits per second
+    double link_rate_cache = 0;
+    double get_link_rate();
+
+    bool tx_rate_warning_printed = false;
+    void tx_rate_check(size_t ch, double rate_samples);
+
+    // Samples per second being using per channel
+    std::vector<double> rx_sfp_throughput_used{std::vector<double>(CRIMSON_TNG_RX_CHANNELS, 0)};
+    // Used to check if a rx channel's rate should be counted towards the max rate check
+    std::shared_ptr<std::vector<bool>> rx_channel_in_use{std::make_shared<std::vector<bool>>(std::vector<bool>(CRIMSON_TNG_RX_CHANNELS, false))};
+    bool rx_rate_warning_printed = false;
+    void rx_rate_check(size_t ch, double rate_samples);
 };
 
 }

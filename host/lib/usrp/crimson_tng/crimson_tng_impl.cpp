@@ -884,6 +884,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	} catch (uhd::key_error& e) {
 		_bm_thread_needed = true;
 	}
+
+	num_rx_channels = CRIMSON_TNG_RX_CHANNELS;
+	num_tx_channels = CRIMSON_TNG_TX_CHANNELS;
+
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
 
@@ -1410,6 +1414,21 @@ std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
 	case 3:
 		return "sfpb";
 		break; 
+	}
+	throw std::runtime_error("Invalid channel specified.");
+}
+
+std::string crimson_tng_impl::get_rx_sfp( size_t chan ) {
+
+	switch( chan ) {
+	case 0:
+	case 2:
+		return "sfpa";
+		break;
+	case 1:
+	case 3:
+		return "sfpb";
+		break;
 	}
 	throw std::runtime_error("Invalid channel specified.");
 }
@@ -1942,5 +1961,14 @@ void crimson_tng_impl::mtu_check(std::string sfp, std::string ip) {
     }
     if (check != 0) {
         UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_crimson::mtu_ref <<  " for subnet " << subnet.c_str() << " may impact data sent over " << sfp);
+    }
+}
+
+double crimson_tng_impl::get_link_rate() {
+    if(link_rate_cache == 0) {
+        link_rate_cache = _tree->access<double>(CRIMSON_TNG_MB_PATH / "link_max_rate").get();
+        return link_rate_cache;
+    } else {
+        return link_rate_cache;
     }
 }

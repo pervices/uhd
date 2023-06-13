@@ -55,6 +55,10 @@
 #define CRIMSON_TNG_RX_CHANNELS 4
 #define CRIMSON_TNG_TX_CHANNELS 4
 
+// Numer of bits per half of the iq pair (i.e. sc16 mean 16 bits for the i half of the iq pair)
+#define CRIMSON_TNG_RX_SAMPLE_BITS 16
+#define CRIMSON_TNG_TX_SAMPLE_BITS 16
+
 #define CRIMSON_TNG_FW_COMMS_FLAGS_ACK        (1 << 0)
 #define CRIMSON_TNG_FW_COMMS_FLAGS_ERROR      (1 << 1)
 #define CRIMSON_TNG_FW_COMMS_FLAGS_POKE32     (1 << 2)
