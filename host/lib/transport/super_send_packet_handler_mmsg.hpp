@@ -251,8 +251,9 @@ private:
     int _ACTUAL_SEND_BUFFER_SIZE;
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
     std::vector<int> send_sockets;
-    //TODO: rename this to just channels when seperating this class from old version
+protected:
     std::vector<size_t> _channels;
+private:
     // Device buffer size
     const int64_t _DEVICE_BUFFER_SIZE;
 

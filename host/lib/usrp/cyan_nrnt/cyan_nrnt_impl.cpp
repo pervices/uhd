@@ -1065,6 +1065,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     tx_fc_cache.resize(num_tx_channels);
     is_tx_udp_port_cached.resize(num_tx_channels, false);
     tx_udp_port_cache.resize(num_tx_channels);
+    tx_sfp_throughput_used.resize(num_tx_channels, 0);
+    tx_channel_in_use = std::make_shared<std::vector<bool>>(num_tx_channels, false);
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "time_source" / "options").set(time_sources);
@@ -1437,7 +1439,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
 		std::string ip_addr;
 		uint16_t udp_port;
 		std::string sfp;
-		get_tx_endpoint( _tree, dspno, ip_addr, udp_port, sfp );
+		get_tx_endpoint( dspno, ip_addr, udp_port, sfp );
 
         // Creates socket for getting buffer level
 		_mbc[mb].fifo_ctrl_xports.push_back(
@@ -1620,20 +1622,12 @@ uint16_t cyan_nrnt_impl::get_tx_udp_port( size_t chan ) {
 }
 
 //figures out which ip address, udp port, and sfp port to use
-//Only tree and chan are actual arguments, the rest are to store the calculated values
-void cyan_nrnt_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
+void cyan_nrnt_impl::get_tx_endpoint( const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
+    sfp = get_tx_sfp(chan);
 
-	const std::string chan_str( 1, 'A' + chan );
-	const fs_path prop_path = CYAN_NRNT_MB_PATH / "tx_link";
+    udp_port = get_tx_udp_port(chan);
 
-    sfp = tree->access<std::string>(prop_path / std::to_string( chan ) / "iface").get();
-
-	const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
-
-	std::stringstream udp_port_ss( udp_port_str );
-	udp_port_ss >> udp_port;
-
-	ip_addr = tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
+    ip_addr = get_tx_ip(chan);
 }
 
 constexpr double RX_SIGN = +1.0;
@@ -1908,5 +1902,14 @@ void cyan_nrnt_impl::mtu_check(std::string sfp, std::string ip) {
     }
     if (check != 0) {
         UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_nrnt::mtu_ref <<  " for subnet " << subnet.c_str() << " may impact data sent over " << sfp);
+    }
+}
+
+double cyan_nrnt_impl::get_link_rate() {
+    if(link_rate_cache == 0) {
+        link_rate_cache = _tree->access<double>(CYAN_NRNT_MB_PATH / "link_max_rate").get();
+        return link_rate_cache;
+    } else {
+        return link_rate_cache;
     }
 }

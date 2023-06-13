@@ -286,7 +286,7 @@ private:
     std::vector<uint16_t> tx_udp_port_cache;
     uint16_t get_tx_udp_port( size_t chan );
     
-    static void get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
+    void get_tx_endpoint( const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
     
     int64_t get_tx_buff_scale();
 
@@ -303,6 +303,18 @@ private:
     void ping_check(std::string sfp, std::string ip);
     // Verifies the MTU is set to the correct value
     void mtu_check(std::string sfp, std::string ip);
+
+    // Samples per second being using per channel
+    std::vector<double> tx_sfp_throughput_used;
+    // Used to check if a tx channel's rate should be counted towards the max rate check
+    std::shared_ptr<std::vector<bool>> tx_channel_in_use;
+
+    // SFP link speed in bits per second
+    double link_rate_cache = 0;
+    double get_link_rate();
+
+    bool tx_rate_warning_printed = false;
+    void tx_rate_check(size_t ch, double rate_samples);
 };
 
 }
