@@ -88,9 +88,14 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
-	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian)
+	cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CYAN_NRNT_MAX_NBYTES, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian),
+	_channels(channels)
 	{
+        _rx_streamer_channel_in_use = rx_channel_in_use;
+        for(size_t n = 0; n < channels.size(); n++) {
+            _rx_streamer_channel_in_use->at(channels[n]) = true;
+        }
     }
 
 	virtual ~cyan_nrnt_recv_packet_streamer() {
@@ -122,6 +127,10 @@ public:
 			}
 		}
 		_eprops.clear();
+
+        for(size_t n = 0; n < _channels.size(); n++) {
+            _rx_streamer_channel_in_use->at(_channels[n]) = false;
+        }
 	}
 
 private:
@@ -130,6 +139,9 @@ private:
         onfini_type on_fini;
     };
     std::vector<eprops_type> _eprops;
+
+    std::vector<size_t> _channels;
+    std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
 };
 
 static std::vector<std::weak_ptr<cyan_nrnt_recv_packet_streamer>> allocated_rx_streamers;
@@ -428,10 +440,37 @@ void cyan_nrnt_impl::io_init(void){
     }
 }
 
+void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
+    rx_sfp_throughput_used[ch] = rate_samples;
+    // Only print the warning once
+    if(rx_rate_warning_printed) {
+        return;
+    }
+    double rate_used = 0;
+    for(size_t n = 0; n < num_rx_channels; n++) {
+        if(get_rx_sfp(n) == get_rx_sfp(ch) && rx_channel_in_use->at(n)) {
+            rate_used += rx_sfp_throughput_used[ch];
+        }
+    }
+
+    if(rate_used * otw_rx * 2 > get_link_rate()) {
+
+        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C)
+                << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
+                                 "exceeds the maximum capacity of the connection.\n"
+                                 "This can cause overflows.")
+                       % (rate_used / 1e6) % ch;
+
+        rx_rate_warning_printed = true;
+    }
+}
+
 void cyan_nrnt_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
 
     set_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
     double rate = get_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
+
+    rx_rate_check(dsp, rate);
 
     std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer =
         std::dynamic_pointer_cast<cyan_nrnt_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
@@ -625,7 +664,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(dst_ip, dst_port, args.cpu_format, args.otw_format, little_endian_supported);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, dst_ip, dst_port, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

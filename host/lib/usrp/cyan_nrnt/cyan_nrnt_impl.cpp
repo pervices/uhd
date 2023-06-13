@@ -1068,6 +1068,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
     tx_sfp_throughput_used.resize(num_tx_channels, 0);
     tx_channel_in_use = std::make_shared<std::vector<bool>>(num_tx_channels, false);
 
+    is_rx_sfp_cached.resize(num_rx_channels, false);
+    rx_sfp_cache.resize(num_rx_channels);
+    rx_sfp_throughput_used.resize(num_rx_channels, 0);
+    rx_channel_in_use = std::make_shared<std::vector<bool>>(num_rx_channels, false);
+
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "time_source" / "options").set(time_sources);
 
@@ -1547,8 +1552,7 @@ int cyan_nrnt_impl::get_rx_jesd_num(int channel) {
 //the number corresponding to each sfp port
 //i.e. sfpa==0, sfpb==1...
 int cyan_nrnt_impl::get_rx_xg_intf(int channel) {
-    const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / channel;
-    std::string sfp = _tree->access<std::string>( rx_link_path / "iface" ).get();
+    std::string sfp = get_rx_sfp(channel);
     int xg_intf = sfp.back() - 'a';
     return xg_intf;
 }
@@ -1565,6 +1569,20 @@ std::string cyan_nrnt_impl::get_tx_sfp( size_t chan ) {
         tx_sfp_cache[chan] = _tree->access<std::string>( tx_link_path / "iface" ).get();
         is_tx_sfp_cached[chan] = true;
         return tx_sfp_cache[chan];
+    }
+}
+
+std::string cyan_nrnt_impl::get_rx_sfp( size_t chan ) {
+    if ( chan >= num_rx_channels ) {
+        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested sfp port of non-existant channel: " + std::to_string(chan);
+        throw uhd::value_error(error_msg);
+    }
+    if( is_rx_sfp_cached[chan] ) {
+        return rx_sfp_cache[chan];
+    } else {
+        rx_sfp_cache[chan] = _tree->access<std::string>( rx_link_root(chan) / "iface" ).get();
+        is_rx_sfp_cached[chan] = true;
+        return rx_sfp_cache[chan];
     }
 }
 

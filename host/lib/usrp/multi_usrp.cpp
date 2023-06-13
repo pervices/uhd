@@ -878,7 +878,6 @@ public:
      ******************************************************************/
     rx_streamer::sptr get_rx_stream(const stream_args_t& args) override
     {
-        _check_link_rate(args, false);
         stream_args_t args_ = args;
         if (!args.args.has_key("spp")) {
             for (auto chan : args.channels) {
@@ -1946,8 +1945,6 @@ public:
      ******************************************************************/
     tx_streamer::sptr get_tx_stream(const stream_args_t& args) override
     {
-        _check_link_rate(args, true);
-
         return this->get_device()->get_tx_stream(args);
     }
 
@@ -2953,38 +2950,6 @@ private:
                 0 /* low prio */);
         }
         return gg;
-    }
-
-    //! \param is_tx True for tx
-    // Assumption is that all mboards use the same link
-    // and that the rate sum is evenly distributed among the mboards
-    bool _check_link_rate(const stream_args_t& args, bool is_tx)
-    {
-        bool link_rate_is_ok    = true;
-        size_t bytes_per_sample = convert::get_bytes_per_item(
-            args.otw_format.empty() ? "sc16" : args.otw_format);
-        double max_link_rate = 0;
-        double sum_rate      = 0;
-        for (const size_t chan : args.channels) {
-            mboard_chan_pair mcp = is_tx ? tx_chan_to_mcp(chan) : rx_chan_to_mcp(chan);
-            if (_tree->exists(mb_root(mcp.mboard) / "link_max_rate")) {
-                max_link_rate = std::max(max_link_rate,
-                    _tree->access<double>(mb_root(mcp.mboard) / "link_max_rate").get());
-            }
-            sum_rate += is_tx ? get_tx_rate(chan) : get_rx_rate(chan);
-        }
-        sum_rate /= get_num_mboards();
-        if (max_link_rate > 0 and (max_link_rate / bytes_per_sample) < sum_rate) {
-            UHD_LOGGER_WARNING("MULTI_USRP")
-                << boost::format("The total sum of rates (%f MSps on %u channels) "
-                                 "exceeds the maximum capacity of the connection.\n"
-                                 "This can cause %s.")
-                       % (sum_rate / 1e6) % args.channels.size()
-                       % (is_tx ? "underruns (U)" : "overflows (O)");
-            link_rate_is_ok = false;
-        }
-
-        return link_rate_is_ok;
     }
 
     // Generic tree setters and getters.

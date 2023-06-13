@@ -273,6 +273,10 @@ private:
     std::vector<bool> is_tx_sfp_cached;
     std::vector<std::string> tx_sfp_cache;
     std::string get_tx_sfp( size_t chan );
+
+    std::vector<bool> is_rx_sfp_cached;
+    std::vector<std::string> rx_sfp_cache;
+    std::string get_rx_sfp( size_t chan );
     
     std::vector<bool> is_tx_ip_cached;
     std::vector<std::string> tx_ip_cache;
@@ -315,6 +319,13 @@ private:
 
     bool tx_rate_warning_printed = false;
     void tx_rate_check(size_t ch, double rate_samples);
+
+    // Samples per second being using per channel
+    std::vector<double> rx_sfp_throughput_used;
+    // Used to check if a rx channel's rate should be counted towards the max rate check
+    std::shared_ptr<std::vector<bool>> rx_channel_in_use;
+    bool rx_rate_warning_printed = false;
+    void rx_rate_check(size_t ch, double rate_samples);
 };
 
 }
