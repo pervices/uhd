@@ -664,7 +664,7 @@ public:
                 throw uhd::runtime_error("Can't set clock source on this device.");
             }
 
-            if(result != source) {
+            if(result.substr(0, source.size()) != source) {
                 UHD_LOGGER_WARNING("MULTI_USRP")  <<boost::format( "Unable to set time source. The program attempted to set it to %s but it returned: %s") % source % result ;
             }
             return;
