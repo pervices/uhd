@@ -10,6 +10,7 @@ set(python_examples
     curses_fft.py
     benchmark_rate.py
     usrp_power_meter.py
+    uhd_multicrimson_alignment.py
 )
 
 UHD_INSTALL(PROGRAMS ${python_examples}
