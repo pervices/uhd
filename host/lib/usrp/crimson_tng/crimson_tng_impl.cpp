@@ -311,7 +311,7 @@ time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
 void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value ) {
 	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
 	if ( "time/clk/set_time" == key ) {
-        time_resync_requested = true;
+        request_resync_time_diff();
 	}
 
 	if ( "time/clk/cmd" == key ) {

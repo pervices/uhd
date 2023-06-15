@@ -22,7 +22,10 @@ namespace uhd {
 
 	public:
 
+        // Threshold for considering times as synced
 		static constexpr double DEFAULT_MAX_ERROR_FOR_DIVERGENCE = 20e-6;
+        // Threshold for reseting clock sync instead of trying to continue
+        static constexpr uint64_t RESET_THRESHOLD = 1000000;
 
 		typedef enum {
 			K_P,
@@ -123,28 +126,31 @@ namespace uhd {
 			}
 		}
 
-		void reset( const double sp, const double time, const double offset ) {
-			cv = sp;
+		void reset( const double time, const double last_diff ) {
+            i = 0;
+            cv = 0;
+            this->offset = time + last_diff;
 			last_time = time;
 			e = max_error_for_divergence;
 			i = 0;
-            this->offset = offset;
 			converged = false;
 		}
 
 		// Reset offset is the new offset to use if time diff exceeds the error limit
-		bool is_converged( const double time, const double reset_offset ) {
+		// time: current time on host system
+		// last_diff: time of the last time diff request
+		bool is_converged( const double time, const double last_diff ) {
 
 			double filtered_error;
 
 			filtered_error = abs(error_filter.get_average());
 
-            if ( filtered_error >= 1000000 ) {
+            if ( filtered_error >= RESET_THRESHOLD ) {
                 if ( time - last_status_time >= 1 ) {
                     print_pid_diverged();
                     print_pid_status( time, cv, filtered_error );
                 }
-                reset( sp, time, reset_offset );
+                reset( time, last_diff );
                 return false;
             }
 
@@ -199,7 +205,7 @@ namespace uhd {
 		double e; // error memory
 		double i; // integral memory
 		double cv; // output memory
-		double sp;
+		double sp; // setpoint
 
 		double offset; //time offset
 
