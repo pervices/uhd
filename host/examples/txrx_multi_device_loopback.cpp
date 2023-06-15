@@ -14,7 +14,7 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
-#include "wavetable.hpp"
+#include "wave_generator.hpp"
 #include <stdint.h>
 #include <complex>
 #include <csignal>
@@ -132,16 +132,18 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
     size_t spb = tx_stream->get_max_num_samps()*10;
 
     //pre-compute the waveform values
-    std::vector<wave_table_multitype<short>> wave_tables;
-    std::vector<double> steps;
+    std::vector<wave_generator<short>> wave_generators;
     // Period in samples
     std::vector<double> periods;
     // Super period is used to minimize quantization errors
     std::vector<size_t> super_periods(parameters->num_tx_channels);
     for(size_t ch = 0; ch <parameters->num_tx_channels; ch++) {
-        wave_tables.push_back(wave_table_multitype<short>("SINE", parameters->amplitude[ch]));
-        steps.push_back(parameters->wave_freq[ch]/rate * wave_table_len);
-        periods.push_back(rate/parameters->wave_freq[ch]);
+        wave_generators.push_back(wave_generator<short>("SINE", parameters->amplitude[ch], rate, parameters->wave_freq[ch]));
+        if(parameters->wave_freq[ch] != 0) {
+            periods.push_back(rate/parameters->wave_freq[ch]);
+        } else {
+            periods.push_back(0);
+        }
 
         double full_period;
         double frac_period = std::modf(periods[ch], &full_period);
@@ -163,10 +165,9 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
     std::vector<std::complex<short> *> buffer_ptrs(parameters->num_tx_channels);
 
     for(size_t ch = 0; ch < parameters->num_tx_channels; ch++) {
-        double index = 0;
         //fill the buffer with the waveform
         for (size_t n = 0; n < buffers[ch].size(); n++){
-            buffers[ch][n] = wave_tables[ch]((size_t)::round(index += steps[ch]));
+            buffers[ch][n] = wave_generators[ch](n);
         }
     }
 
@@ -183,7 +184,11 @@ void tx_run( uhd::tx_streamer* tx_stream, device_parameters* parameters, size_t 
 
         // Locates where in the buffer to use samples from
         for(size_t ch = 0; ch < parameters->num_tx_channels; ch++) {
-            buffer_ptrs[ch] = &buffers[ch][total_samples_sent % super_periods[ch]];
+            if(super_periods[ch] != 0) {
+                buffer_ptrs[ch] = &buffers[ch][total_samples_sent % super_periods[ch]];
+            } else {
+                buffer_ptrs[ch] = buffers[ch].data();
+            }
         }
 
         total_samples_sent+=tx_stream->send(buffer_ptrs, samples_to_send, md);
