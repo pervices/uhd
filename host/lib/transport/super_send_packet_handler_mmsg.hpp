@@ -269,6 +269,8 @@ private:
 
     double _sample_rate = 0;
 
+    // Sequence number for next packet
+    uint64_t next_sequence_number = 0;
     // Header info for each packet, the VITA (not UDP) header is the same for every channel
     std::vector<vrt::if_packet_info_t> packet_header_infos;
 
@@ -393,6 +395,9 @@ private:
 
         for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
+            packet_header_infos[n].packet_count = next_sequence_number;
+            next_sequence_number = (next_sequence_number + 1) & 0xf;
+            packet_header_infos[n].has_sid = false;
             packet_header_infos[n].has_sid = false;
             packet_header_infos[n].has_cid = false;
             packet_header_infos[n].has_tlr = false; // No trailer
