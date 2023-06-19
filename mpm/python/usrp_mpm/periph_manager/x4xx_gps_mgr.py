@@ -78,7 +78,7 @@ class X4xxGPSMgr:
             'value': str(gps_enabled).lower(),
         }
 
-    def get_gps_locked_sensor(self):
+    def get_gps_lock_sensor(self):
         """
         Get lock status of GPS as a sensor dict
         """
@@ -145,7 +145,7 @@ class X4xxGPSMgr:
 
     def get_gps_time_sensor(self):
         """
-
+        Get GPS time in integer seconds as a sensor dict
         """
         if not self.is_gps_enabled():
             return {

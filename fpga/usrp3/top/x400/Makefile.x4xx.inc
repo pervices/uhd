@@ -35,6 +35,7 @@ include $(LIB_DIR)/dsp/Makefile.srcs
 include $(LIB_DIR)/ip/Makefile.inc
 include $(LIB_DIR)/rfnoc/Makefile.srcs
 include $(LIB_DIR)/wb_spi/Makefile.srcs
+include $(LIB_DIR)/wishbone/Makefile.srcs
 include $(LIB_DIR)/axi4_sv/Makefile.srcs
 include $(LIB_DIR)/axi4s_sv/Makefile.srcs
 include $(LIB_DIR)/axi4lite_sv/Makefile.srcs
@@ -47,6 +48,8 @@ include $(LIB_DIR)/rfnoc/blocks/rfnoc_block_null_src_sink/Makefile.srcs
 include $(LIB_DIR)/rfnoc/blocks/rfnoc_block_radio/Makefile.srcs
 include $(LIB_DIR)/rfnoc/blocks/rfnoc_block_ddc/Makefile.srcs
 include $(LIB_DIR)/rfnoc/blocks/rfnoc_block_duc/Makefile.srcs
+include $(LIB_DIR)/rfnoc/blocks/rfnoc_block_axi_ram_fifo/Makefile.srcs
+include $(LIB_DIR)/rfnoc/blocks/rfnoc_block_replay/Makefile.srcs
 
 # If out-of-tree modules want to be compiled into this image, then they need to
 # pass in the RFNOC_OOT_MAKEFILE_SRCS as a list of Makefile.srcs files.
@@ -60,10 +63,7 @@ EDGE_FILE ?= $(DEFAULT_EDGE_FILE)
 ##################################################
 # Sources
 ##################################################
-TOP_SRCS =
-
-ifdef X410
-TOP_SRCS += \
+TOP_SRCS = \
 x4xx.v \
 x4xx_qsfp_wrapper_temp.sv \
 x4xx_qsfp_wrapper.sv \
@@ -73,12 +73,9 @@ x4xx_core_common.v \
 x4xx_global_regs.v \
 x4xx_versioning_regs.v \
 x4xx_dio.v \
-rf/100m/rf_core_100m.v \
-rf/200m/rf_core_200m.v \
-rf/200m/rf_down_4to2.v \
-rf/200m/rf_up_2to4.v \
-rf/400m/rf_core_400m.v \
-rf/common/rf_reset_controller.vhd \
+x4xx_gpio_atr.v \
+x4xx_gpio_spi.v \
+x4xx_dram.v \
 ctrlport_spi_master.v \
 cpld_interface.v \
 cpld_interface_regs.v \
@@ -87,17 +84,40 @@ rfdc_timing_control.v \
 x4xx_pps_sync.v \
 ../../lib/timing/pps_generator.v \
 dboards/ctrlport_byte_serializer.v \
-dboards/db_gpio_interface.v \
+dboards/ctrlport_clk_crossing_derived.v \
 dboards/db_gpio_reordering.v \
 ipass_present_controller.v \
 $(IMAGE_CORE)
+
+ifdef X410
+TOP_SRCS += \
+rf/100m/rf_core_100m.v \
+rf/200m/rf_core_200m.v \
+rf/200m/rf_down_4to2.v \
+rf/200m/rf_up_2to4.v \
+rf/400m/rf_core_400m.v \
+rf/x410/x410_rf_reset_controller.vhd \
+dboards/zbx/db_gpio_interface.v
 endif
 
-MB_XDC = \
+ifdef X410
+MB_XDC += \
+constraints/timing/x410_clocks.xdc
+endif
+
+MB_XDC += \
 constraints/pins/common.xdc \
-constraints/pins/rfdc_2x2.xdc \
 constraints/timing/shared_constants.sdc \
-constraints/timing/common.xdc
+constraints/timing/common.xdc \
+constraints/pins/dram.xdc \
+constraints/timing/dram.xdc
+
+ifdef X410
+MB_XDC += \
+constraints/pins/rfdc_2x2.xdc \
+constraints/pins/x410/db_gpio.xdc \
+constraints/timing/x410.xdc
+endif
 
 # Definitions
 # MGT Types from x4xx_mgt_type.vh
@@ -138,15 +158,7 @@ ifneq (,$(findstring QSFP1_3,$(EXTRA_DEFS)))
   MB_XDC += constraints/pins/qsfp1_3.xdc
 endif
 
-ifndef NO_DRAM_FIFOS
-DRAM_SRCS =
-else
-DRAM_SRCS =
-endif
-
-ifdef X410
 DESIGN_SRCS = $(abspath $(MB_XDC))
-endif
 
 # The XDC files must be read in a specific order, motherboard first and then daughterboard.
 # Outside of that, all the other sources can be read in any order desired.
@@ -163,6 +175,8 @@ $(RADIO_SRCS) $(CAP_GEN_GENERIC_SRCS) $(IP_XCI_SRCS) $(BD_SRCS) \
 $(RFNOC_SRCS) $(RFNOC_OOT_SRCS) $(LIB_IP_XCI_SRCS) $(LIB_HLS_IP_SRCS) $(LIBCOREGEN_SRCS) \
 $(RFNOC_BLOCK_DUC_SRCS) $(RFNOC_BLOCK_DDC_SRCS) \
 $(RFNOC_BLOCK_RADIO_SRCS) $(RFNOC_BLOCK_NULL_SRC_SINK_SRCS) \
+$(RFNOC_BLOCK_AXI_RAM_FIFO_SRCS) \
+$(RFNOC_BLOCK_REPLAY_SRCS) \
 $(DB_COMMON_SRCS) $(WHITE_RABBIT_SRCS) $(RFNOC_FRAMEWORK_SRCS) \
 $(WB_SPI_SRCS) $(RFNOC_XPORT_SV_SRCS) \
 )
@@ -170,7 +184,7 @@ $(WB_SPI_SRCS) $(RFNOC_XPORT_SV_SRCS) \
 # Pass the edge table and image core header files required by RFNoC
 # to Vivado as Verilog definitions.
 EDGE_TBL_DEF="RFNOC_EDGE_TBL_FILE=$(call RESOLVE_PATH,$(EDGE_FILE))"
-IMAGE_CORE_DEF="RFNOC_IMAGE_CORE_HDR=$(DEFAULT_RFNOC_IMAGE_CORE_FILE:.v=.vh)"
+IMAGE_CORE_DEF="RFNOC_IMAGE_CORE_HDR=$(call RESOLVE_PATH,$(IMAGE_CORE:.v=.vh))"
 
 ##################################################
 # Dependency Targets
@@ -180,18 +194,18 @@ IMAGE_CORE_DEF="RFNOC_IMAGE_CORE_HDR=$(DEFAULT_RFNOC_IMAGE_CORE_FILE:.v=.vh)"
 VERILOG_DEFS=$(EXTRA_DEFS) $(CUSTOM_DEFS) $(GIT_HASH_VERILOG_DEF) $(EDGE_TBL_DEF) $(IMAGE_CORE_DEF)
 
 # DESIGN_SRCS and VERILOG_DEFS must be defined
-bin: .prereqs $$(DESIGN_SRCS) ip
+bin: .prereqs
 	@echo "Printing MB_XDC:: $(MB_XDC)"
 	@echo "Printing EXTRA_DEFS:: $(EXTRA_DEFS)"
 	$(call BUILD_VIVADO_DESIGN,$(abspath ./build_x4xx.tcl),$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-synth: .prereqs $$(DESIGN_SRCS) ip
+synth: .prereqs
 	$(call BUILD_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_synth.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-rtl: .prereqs $$(DESIGN_SRCS) ip
+rtl: .prereqs
 	$(call CHECK_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_check_syntax.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
 viv_ip: .prereqs $$(DESIGN_SRCS) ip
-	@echo "IP Build DONE ..."
+	@echo "IP build for $(NAME) DONE . . ."
 
-.PHONY: bin
+.PHONY: bin synth rtl viv_ip

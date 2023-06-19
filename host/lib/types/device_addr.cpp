@@ -44,6 +44,12 @@ device_addr_t::device_addr_t(const std::string& args)
     }
 }
 
+device_addr_t::device_addr_t(const char* args) :
+    device_addr_t(std::string(args))
+{
+    // No additional construction is necessary
+}
+
 device_addr_t::device_addr_t(const std::map<std::string, std::string>& info)
 {
     for (auto& t : info) {
@@ -123,7 +129,9 @@ device_addrs_t uhd::separate_device_addr(const device_addr_t& dev_addr)
     // copy the global settings across all device addresses
     for (device_addr_t& my_dev_addr : dev_addrs) {
         for (const std::string& global_key : global_keys) {
-            my_dev_addr[global_key] = dev_addr[global_key];
+            if (!my_dev_addr.has_key(global_key)) {
+                my_dev_addr[global_key] = dev_addr[global_key];
+            }
         }
     }
     return dev_addrs;

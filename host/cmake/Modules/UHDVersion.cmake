@@ -20,9 +20,9 @@ find_package(Git QUIET)
 #  - set UHD_VERSION_DEVEL to true for master and development branches
 ########################################################################
 set(UHD_VERSION_MAJOR 4)
-set(UHD_VERSION_API   2)
+set(UHD_VERSION_API   4)
 set(UHD_VERSION_ABI   0)
-set(UHD_VERSION_PATCH git)
+set(UHD_VERSION_PATCH 0)
 set(UHD_VERSION_DEVEL TRUE)
 
 ########################################################################
@@ -44,10 +44,20 @@ if(GIT_FOUND)
         RESULT_VARIABLE _git_branch_result
     )
     if(_git_branch_result EQUAL 0)
+        # This is a special case for Azure Pipelines where it runs
+        # in detached HEAD mode. The branch name is instead stored
+        # in the envionement variable BUILD_SOURCEBRANCH with values
+        # like refs/heads/master for the branch master and
+        # refs/pull/1/merge for pull request 1
+        # The regex removes the first two path segments to match
+        # the "git rev-parse --abbrev-ref HEAD" output
+        if("${_git_branch}" STREQUAL "HEAD" AND DEFINED ENV{BUILD_SOURCEBRANCH})
+            string(REGEX REPLACE "^[^\/]*\/[^\/]*\/" "" _git_branch $ENV{BUILD_SOURCEBRANCH})
+        endif()
         set(UHD_GIT_BRANCH ${_git_branch})
         if(UHD_GIT_BRANCH MATCHES "^UHD-")
             message(STATUS "Operating on release branch (${UHD_GIT_BRANCH}).")
-	    set(UHD_VERSION_DEVEL FALSE)
+            set(UHD_VERSION_DEVEL FALSE)
         elseif(UHD_GIT_BRANCH STREQUAL "master")
             message(STATUS "Operating on master branch.")
             set(UHD_VERSION_DEVEL TRUE)
@@ -146,6 +156,11 @@ if(DEFINED UHD_ABI_VERSION)
         CACHE STRING "Set UHD_ABI_VERSION to a custom value")
 else()
     set(UHD_ABI_VERSION "${UHD_VERSION_MAJOR}.${UHD_VERSION_API}.${UHD_VERSION_ABI}")
+endif()
+
+if(UNDERSCORE_UHD_VERSION)
+    string(REPLACE "-" "_" _uhd_version ${UHD_VERSION})
+    set(UHD_VERSION "${_uhd_version}")
 endif()
 
 set(UHD_COMPONENT "UHD")

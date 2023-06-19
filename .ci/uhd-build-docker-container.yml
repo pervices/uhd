@@ -33,30 +33,70 @@ schedules:
     include:
     - UHD-4.1
   always: true
+- cron: "0 2 * * SUN"
+  displayName: Weekly Docker Build UHD-4.2 branch
+  branches:
+    include:
+    - UHD-4.2
+  always: true
+- cron: "0 4 * * SUN"
+  displayName: Weekly Docker Build UHD-4.3 branch
+  branches:
+    include:
+    - UHD-4.3
+  always: true
+- cron: "0 6 * * SUN"
+  displayName: Weekly Docker Build UHD-4.4 branch
+  branches:
+    include:
+    - UHD-4.4
+  always: true
 
 variables:
 - template: uhd-pipeline-vars.yml
 - name: linuxDockerImages
   value:
-    "{'Fedora-33-builder':{'dockerOSName':'fedora33','dockerImageName':'uhd-builder-fedora33'},
-    'Fedora-34-builder':{'dockerOSName':'fedora34','dockerImageName':'uhd-builder-fedora34'},
-    'Ubuntu-1804-builder':{'dockerOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804'},
-    'Ubuntu-2004-builder':{'dockerOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004'}}"
+    "{'Fedora-36-builder':{'buildOSName':'fedora36','dockerImageName':'uhd-builder-fedora36'},
+    'Fedora-37-builder':{'buildOSName':'fedora37','dockerImageName':'uhd-builder-fedora37'},
+    'Ubuntu-1804-builder':{'buildOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804'},
+    'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004'},
+    'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204'}}"
 - name: winDockerImages
   value:
-    "{'VS2017-x86-builder':{'dockerOSName':'win-vs17-v141-x86','dockerImageName':'uhd-builder-vs2017-v141-x86','cmakeCompiler':'Visual Studio 15 2017','cmakeArch':'Win32','vsArch':'x86','vsYear':'2017'},
-    'VS2017-x64-builder':{'dockerOSName':'win-vs17-v141-x64','dockerImageName':'uhd-builder-vs2017-v141-x64','cmakeCompiler':'Visual Studio 15 2017','cmakeArch':'x64','vsArch':'x64','vsYear':'2017'},
-    'VS2019-x86-builder':{'dockerOSName':'win-vs19-v142-x86','dockerImageName':'uhd-builder-vs2019-v142-x86','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'Win32','vsArch':'x86','vsYear':'2019'},
-    'VS2019-x64-builder':{'dockerOSName':'win-vs19-v142-x64','dockerImageName':'uhd-builder-vs2019-v142-x64','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019'}}"
+    "{'VS2017-x86-builder':{'buildOSName':'win-vs17-v141-x86','dockerImageName':'uhd-builder-vs2017-v141-x86','cmakeCompiler':'Visual Studio 15 2017','cmakeArch':'Win32','vsArch':'x86','vsYear':'2017'},
+    'VS2017-x64-builder':{'buildOSName':'win-vs17-v141-x64','dockerImageName':'uhd-builder-vs2017-v141-x64','cmakeCompiler':'Visual Studio 15 2017','cmakeArch':'x64','vsArch':'x64','vsYear':'2017'},
+    'VS2019-x86-builder':{'buildOSName':'win-vs19-v142-x86','dockerImageName':'uhd-builder-vs2019-v142-x86','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'Win32','vsArch':'x86','vsYear':'2019'},
+    'VS2019-x64-builder':{'buildOSName':'win-vs19-v142-x64','dockerImageName':'uhd-builder-vs2019-v142-x64','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019'}}"
 
 - name: ubuntuDebDockerImages
   # Match with Ubuntu images in linuxDockerImages
   value:
-    "{'Ubuntu-1804-builder':{'dockerOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804','ubuntuReleaseName':'bionic'},
-    'Ubuntu-2004-builder':{'dockerOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004','ubuntuReleaseName':'focal'}}"
+    "{'Ubuntu-1804-builder':{'buildOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804','ubuntuReleaseName':'bionic'},
+    'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004','ubuntuReleaseName':'focal'},
+    'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204','ubuntuReleaseName':'jammy'}}"
+
+- name: macOSBuilders
+  value:
+    "{'macOS-12-x64':{'buildOSName':'macOS-12-x64', 'macOSVersionDemand':'12', 'macOSArchDemand': 'X64'}}"
+
+- name: sourcePackageBuilders
+  # Match with one of the Ubuntu images in linuxDockerImages
+  value:
+    "{'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004','ubuntuReleaseName':'focal'}}"
+
+- name: fedoraRpmDockerImages
+  # Match with Fedora images in linuxDockerImages
+  value:
+    "{'Fedora-36-builder':{'buildOSName':'fedora36','dockerImageName':'uhd-builder-fedora36','fedoraReleaseName':'36'},
+    'Fedora-37-builder':{'buildOSName':'fedora37','dockerImageName':'uhd-builder-fedora37','fedoraReleaseName':'37'}}"
+
+- name: winDockerImagesPythonBuild
+  # Match with one of the images in winDockerImages
+  value:
+    "{'VS2019-x64-builder':{'buildOSName':'win-vs19-v142-x64','dockerImageName':'uhd-builder-vs2019-v142-x64','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019'}}"
 
 - name: dockerImagePrefix
-  value: 'rfsdr/'
+  value: 'rnd-docker-pre/ni/rfsdr/'
 
 jobs:
 - job: build_image_linux
@@ -76,7 +116,7 @@ jobs:
     inputs:
       command: 'build'
       Dockerfile: '$(Build.SourcesDirectory)/.ci/docker/$(dockerImageName).Dockerfile'
-      containerRegistry: 'Docker / Artifactory - rnd-builds-local'
+      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
       repository: '$(dockerImagePrefix)$(dockerImageName)'
       tags: $(Build.BuildNumber)
       arguments: --no-cache --pull
@@ -84,7 +124,7 @@ jobs:
     displayName: Push Image
     inputs:
       command: 'push'
-      containerRegistry: 'Docker / Artifactory - rnd-builds-local'
+      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
       repository: '$(dockerImagePrefix)$(dockerImageName)'
       tags: $(Build.BuildNumber)
 
@@ -100,7 +140,7 @@ jobs:
     matrix: $[ variables.linuxDockerImages ]
   container:
     image: '$(dockerImagePrefix)$(dockerImageName):$(Build.BuildNumber)'
-    endpoint: 'Docker / Artifactory - rnd-builds-local'
+    endpoint: 'rnd-docker-niartifacts-pre-readonly'
   workspace:
     clean: outputs
   steps:
@@ -121,12 +161,13 @@ jobs:
 
 - job: build_image_win
   displayName: Build Docker Image Windows
-  timeoutInMinutes: 120
+  timeoutInMinutes: 180
   pool:
     name: de-dre-lab
     demands:
       - agent.os -equals Windows_NT
       - docker
+      - rfsdr-build
   strategy:
     matrix: $[ variables.winDockerImages ]
     maxParallel: 2
@@ -138,7 +179,7 @@ jobs:
     inputs:
       command: 'build'
       Dockerfile: '$(Build.SourcesDirectory)/.ci/docker/$(dockerImageName).Dockerfile'
-      containerRegistry: 'Docker / Artifactory - rnd-builds-local'
+      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
       repository: '$(dockerImagePrefix)$(dockerImageName)'
       tags: $(Build.BuildNumber)
       buildContext: $(Build.SourcesDirectory)
@@ -147,7 +188,7 @@ jobs:
     displayName: Push Image
     inputs:
       command: 'push'
-      containerRegistry: 'Docker / Artifactory - rnd-builds-local'
+      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
       repository: '$(dockerImagePrefix)$(dockerImageName)'
       tags: $(Build.BuildNumber)
 
@@ -159,11 +200,12 @@ jobs:
     demands:
       - agent.os -equals Windows_NT
       - docker
+      - rfsdr-build
   strategy:
     matrix: $[ variables.winDockerImages ]
   container:
     image: '$(dockerImagePrefix)$(dockerImageName):$(Build.BuildNumber)'
-    endpoint: 'Docker / Artifactory - rnd-builds-local'
+    endpoint: 'rnd-docker-niartifacts-pre-readonly'
   workspace:
     clean: outputs
   steps:
@@ -199,6 +241,10 @@ jobs:
       echo "${{ variables.linuxDockerImages }}" >> $(UHDPipelineDockerImageArtifactName)
       echo "${{ variables.winDockerImages }}" >> $(UHDPipelineDockerImageArtifactName)
       echo "${{ variables.ubuntuDebDockerImages }}" >> $(UHDPipelineDockerImageArtifactName)
+      echo "${{ variables.macOSBuilders }}" >> $(UHDPipelineDockerImageArtifactName)
+      echo "${{ variables.sourcePackageBuilders }}" >> $(UHDPipelineDockerImageArtifactName)
+      echo "${{ variables.fedoraRpmDockerImages }}" >> $(UHDPipelineDockerImageArtifactName)
+      echo "${{ variables.winDockerImagesPythonBuild }}" >> $(UHDPipelineDockerImageArtifactName)
     displayName: Generate created image list
   - task: PublishPipelineArtifact@1
     inputs:

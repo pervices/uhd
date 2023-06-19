@@ -7,13 +7,14 @@
 //
 // Description:
 //
-// Add zero filled bytes to a packet.
-//   tUser = {error,trailing bytes};
+//   Add zero filled bytes to a packet. TKEEP is ignored. TUSER should have the
+//   format {error, trailing bytes};
 //
 //  LIMITATIONS
 //    The block only adds bytes to the beginning of a word.
 //
 // Parameters:
+//
 //   ADD_START  - Add bytes before this point (0 means start)
 //                0 is the only supported value right now
 //   ADD_BYTES  - Number of bytes to add
@@ -23,6 +24,7 @@
 //                it means the extra space may be added before
 //                we setup the values we want to overwrite onto
 //                that space.
+//
 
 module axi4s_add_bytes #(
   int ADD_START = 0,
@@ -57,15 +59,15 @@ module axi4s_add_bytes #(
   // Parameter Checks
   initial begin
     assert (i.DATA_WIDTH == o.DATA_WIDTH) else
-      $fatal("DATA_WIDTH mismatch");
+      $fatal(1, "DATA_WIDTH mismatch");
     assert (i.USER_WIDTH == o.USER_WIDTH) else
-      $fatal("USER_WIDTH mismatch");
+      $fatal(1, "USER_WIDTH mismatch");
     assert (i.USER_WIDTH >= UWIDTH) else
-      $fatal("i.USER_WIDTH is to small");
+      $fatal(1, "i.USER_WIDTH is to small");
     assert (o.USER_WIDTH >= UWIDTH) else
-      $fatal("o.USER_WIDTH is to small");
+      $fatal(1, "o.USER_WIDTH is to small");
     assert (ADD_START == 0) else
-      $fatal("Only tested for ADD_START = 0");
+      $fatal(1, "Only tested for ADD_START = 0");
   end
 
   AxiStreamPacketIf #(.DATA_WIDTH(i.DATA_WIDTH),.USER_WIDTH(i.USER_WIDTH),
@@ -83,11 +85,11 @@ module axi4s_add_bytes #(
   logic reached_start;
   logic reached_end;
   logic byte_overflow;
-  logic [s0.DATA_WIDTH-1:0] zero_data;
-  logic [s0.DATA_WIDTH-1:0] last_tdata;
-  logic [s0.DATA_WIDTH-1:0] remaining_shift_data;
-  logic [s0.DATA_WIDTH-1:0] last_shift_data;
-  logic [s0.DATA_WIDTH-1:0] first_shifted_data;
+  logic [i.DATA_WIDTH-1:0] zero_data;
+  logic [i.DATA_WIDTH-1:0] last_tdata;
+  logic [i.DATA_WIDTH-1:0] remaining_shift_data;
+  logic [i.DATA_WIDTH-1:0] last_shift_data;
+  logic [i.DATA_WIDTH-1:0] first_shifted_data;
 
   logic error_bit, error_bit_old;
 

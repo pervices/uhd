@@ -4,35 +4,42 @@
 
 ### Dependencies
 
-The USRP FPGA build system requires a UNIX-like environment with the following dependencies
+The USRP FPGA build system requires a UNIX-like environment with the following dependencies:
 
-- [Xilinx Vivado 2019.1](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/2019-1.html) (For 7 Series FPGAs)
-- [Xilinx ISE 14.7](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/archive-ise.html) (For all other FPGAs)
+- [Xilinx Vivado ML Enterprise 2021.1](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/2021-1.html) (For 7 Series and SoCs)
+  + [AR76780 Patch for Vivado 2021.1](https://support.xilinx.com/s/article/76780?language=en_US)
+- [Xilinx ISE Design Suite 14.7](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/vivado-design-tools/archive-ise.html) (For all other FPGAs)
 - [GNU Make 3.6+](https://www.gnu.org/software/make/)
 - [GNU Bash 4.0+](https://www.gnu.org/software/bash/)
-- [Python 3.5](https://www.python.org/)
+- [Python 3.5+](https://www.python.org/)
 - [Doxygen](https://www.doxygen.nl/index.html) (Optional: To build the manual)
 - [ModelSim](https://www.mentor.com/products/fv/modelsim/) (Optional: For simulation)
 
-The following USRPs work with the free WebPack versions:
-- USRP E310/E312/E313
+The following USRPs work with the free versions:
+- USRP B200/B200mini (ISE WebPACK)
+- USRP E310/E312/E313 (Vivado ML Standard)
 
 ### What FPGA does my USRP have?
 
-- USRP B200: Spartan 6 XC6SLX75
-- USRP B200mini: Spartan 6 XC6SLX75
-- USRP B210: Spartan 6 XC6SLX150
-- USRP X300: Kintex 7 XC7K325T (7 Series)
-- USRP X310: Kintex 7 XC7K410T (7 Series)
-- USRP E310: Zynq-7000 XC7Z020 (7 Series)
-- USRP E320: Zynq-7000 XC7Z045 (7 Series)
-- USRP N300: Zynq-7000 XC7Z035 (7 Series)
-- USRP N310/N320: Zynq-7000 XC7Z100 (7 Series)
-- USRP X410: RFSoC XCZU28DR (UltraScale+)
+| USRP           | FPGA                                          |
+| -------------- | --------------------------------------------- |
+| USRP B200      | Spartan-6 XC6SLX75                            |
+| USRP B210      | Spartan-6 XC6SLX150                           |
+| USRP B200mini  | Spartan-6 XC6SLX75                            |
+| USRP B205mini  | Spartan-6 XC6SLX150                           |
+| USRP X300      | Kintex-7 XC7K325T (7 Series: Kintex-7)        |
+| USRP X310      | Kintex-7 XC7K410T (7 Series: Kintex-7)        |
+| USRP E31x      | Zynq-7000 XC7Z020 (SoCs: Zynq-7000)           |
+| USRP E320      | Zynq-7000 XC7Z045 (SoCs: Zynq-7000)           |
+| USRP N300      | Zynq-7000 XC7Z035 (SoCs: Zynq-7000)           |
+| USRP N310/N320 | Zynq-7000 XC7Z100 (SoCs: Zynq-7000)           |
+| USRP X410      | RFSoC XCZU28DR (SoCs: Zynq UltraScale+ RFSoC) |
+
+Note: The Xilinx installation must include support for the specified FPGA family. You can save disk space and installation time by only installing support for the FPGAs you intend to use.
 
 ### Requirements
 
-- [Xilinx Vivado Release Notes](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_1/ug973-vivado-release-notes-install-license.pdf)
+- [Xilinx Vivado Release Notes](https://www.xilinx.com/content/dam/xilinx/support/documents/sw_manuals/xilinx2021_1/ug973-vivado-release-notes-install-license.pdf)
 - [Xilinx ISE Platform Requirements](http://www.xilinx.com/support/documentation/sw_manuals/xilinx14_7/irn.pdf)
 
 ## Build Environment Setup
@@ -84,11 +91,11 @@ The following additional packages are also required and can be selected in the G
 ### Makefile based Builder
 
 - Navigate to `<repo>/fpga/usrp3/top/{project}` where `{project}` is:
-  + `x300:` For USRP X300 and USRP X310
-  + `e31x:` For USRP E310
-  + `e320:` For USRP E320
-  + `n3xx:` For USRP N300/N310/N320
-  + `x400:` For USRP X410
+  + `x300`: For USRP X300 and USRP X310
+  + `e31x`: For USRP E310
+  + `e320`: For USRP E320
+  + `n3xx`: For USRP N300/N310/N320
+  + `x400`: For USRP X410
 
 - To add vivado to the PATH and to setup up the Ettus Xilinx build environment run
   + `source setupenv.sh` (If Vivado is installed in the default path /opt/Xilinx/Vivado) _OR_
@@ -105,7 +112,46 @@ The following additional packages are also required and can be selected in the G
 
 The build environment also defines many ease-of-use utilities. Please use
 the \subpage md_usrp3_vivado_env_utils "Vivado Utility Reference" page for
-a list and usage information
+a list and usage information.
+
+### Known Issues
+
+#### N2rt13HDRTExceptionE in Vivado 2021.1
+
+**Problem:**
+
+A sporadic routing error has been observed when building an FPGA with Vivado 2021.1, which prevents a bitfile from being generated:
+
+    ERROR: [Route 35-9] Router encountered a fatal exception of type 'N2rt13HDRTExceptionE' - 'Trying to tool lock on already tool locked arc
+    ERROR: [Common 17-39] 'route_design' failed due to earlier errors.
+
+Attempting to rebuild the FPGA on the same Git hash does not resolve the problem.
+
+**Solution:**
+
+Use a different Git hash or make a non-functional source code change to the HDL to rebuild the design.
+
+According to [Xilinx Support](https://support.xilinx.com/s/question/0D52E00006zHvfcSAC/router-crashes-after-a-second-routedesign-call?language=en_US), this issue will be fixed in a future version of Vivado.
+
+#### Error During cs_server Initialization in Vivado 2021.1
+
+**Problem:**
+
+When using the Vivado hardware manager (JTAG), the following error is observed:
+
+    ERROR: [Labtools 27-3733] Error during cs_server initialization: Vivado<->cs_server version mismatch, cs_server: [2021.1], Vivado: [2021.1_AR76780].
+      To remedy this error, terminate the cs_server exectuable, and relaunch with version 2021.1_AR76780.
+    ERROR: [Common 17-39] 'connect_hw_server' failed due to earlier errors.
+
+**Solution:**
+
+This is a known issue in Vivado 2021.1. See [Xilinx AR76681](https://support.xilinx.com/s/article/76681)
+for details.
+
+Issue the following TCL command to disable the version check before attempting
+to connect to the hardware:
+
+    set_param labtools.override_cs_server_version_check 1
 
 ## Build Instructions (Xilinx ISE only)
 
@@ -116,8 +162,8 @@ a list and usage information
   + `source <install_dir>/Xilinx/14.7/ISE_DS/settings32.sh` (32-bit platform)
 
 - Navigate to `<repo>/fpga/usrp3/top/{project}` where `{project}` is:
-  + b200: For USRP B200 and USRP B210
-  + b200mini: For USRP B200mini
+  + `b200`: For USRP B200 and USRP B210
+  + `b200mini`: For USRP B200mini
 
 - To build a binary configuration bitstream run `make <target>`
   where the target is specific to each product. To get a list of supported targets run
@@ -185,7 +231,7 @@ a list and usage information
 - `build/usrp_<product>_fpga.dts` : Device tree overlay
 - `build/usrp_<product>_fpga.rpt` : System, utilization and timing summary report
 
-### N3XX Targets and Outputs
+### N3xx Targets and Outputs
 
 #### Supported Targets
 
@@ -230,18 +276,8 @@ target type `X4_200` is configured for a 200 MHz analog bandwidth, and can
 support a 245.76 MHz or 250 MHz master clock rate.
 
 A more detailed description of the targets can be found at \ref x4xx_updating_fpga_types.
-The following targets are available through the Makefile:
-
-- `X1_100`
-- `X4_{100, 200}`
-- `XG_{100, 200}`
-- `X4_{100, 200}`
-
-The following bitstreams can be built, but are considered experimental:
-
-- `X4C_{100, 200}`
-- `C1_400`
-- `CG_{100, 400}`
+Run `make help` in the `<repo>/fpga/usrp3/top/x400/` directory to see
+the complete list of targets available.
 
 #### Outputs
 - `build/usrp_<product>_fpga.bit` : Configuration bitstream with header
@@ -250,10 +286,10 @@ The following bitstreams can be built, but are considered experimental:
 
 ### Additional Build Options
 
-It is possible to make a target and specify additional options in the form VAR=VALUE in
+It is possible to make a target and specify additional options in the form `VAR=VALUE` in
 the command. For example:
 
-$ make X310 GUI=1
+    $ make X310 GUI=1
 
 The options available are described in the following subsections.
 

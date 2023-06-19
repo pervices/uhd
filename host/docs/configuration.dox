@@ -212,6 +212,16 @@ The following parameters are supported:
 - `noclear` (applies to B100 and N2xx only)
 - `port` and `addr` (N2xx only) These settings specify an alternate receiver
   streamer destination.
+- `streamer` Specify the type of streamer to use.  "replay_buffered" (applies
+  to RFNoC enabled devices with a Replay block in the FPGA image) Adds data
+  buffering in DRAM using the Replay block for TX streamers when using the
+  multi_usrp API.
+- `throttle` Specify the throttle of the streamer in order to limit its rate.
+  This is for RFNoC-compatible devices starting in UHD 4.5. It is set as a
+  ratio in the range (0, 1] or a percentage in the range (0%, 100%]. For
+  example, use `100%` or `1.0` for maximum rate, and `50%` or `0.5` for half
+  the maximum rate. Note that other factors may affect the actual rate, such
+  as the rate of the source or the speed supported by the transport.
 
 \subsubsection config_stream_args_transport Transport-related Stream Arguments
 
@@ -268,7 +278,7 @@ The following key/value pairs are understood:
 
  Key                 | Description                                                                  | Supported Devices | Example Value
 ---------------------|------------------------------------------------------------------------------|-------------------|---------------------
- enable_gps          | Enable/disable power to the GPSDO.                                           | N3xx, E320        | enable_gps=0
+ enable_gps          | Enable/disable power to the GPSDO (can be overridden by UHD on E320).        | N3xx, E320        | enable_gps=0
  enable_fp_gpio      | Enable/disable power to the front-panel GPIOs.                               | N3xx, E320        | enable_fp_gpio=0
  skip_boot_init      | Don't init the device during MPM boot, but on the first UHD run.             | N3xx              | skip_boot_init=1
  clock_source        | Default clock source for this device (can be overridden by UHD).             | N3xx, E320, E31x  | clock_source=external

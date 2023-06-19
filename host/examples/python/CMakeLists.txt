@@ -5,12 +5,14 @@
 #
 
 set(python_examples
+    replay_capture.py
     rx_to_file.py
     tx_waveforms.py
     curses_fft.py
     benchmark_rate.py
     usrp_power_meter.py
     uhd_multicrimson_alignment.py
+    remote_rx.py
 )
 
 UHD_INSTALL(PROGRAMS ${python_examples}

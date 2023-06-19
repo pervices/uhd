@@ -60,7 +60,7 @@ endmacro(INCLUDE_SUBDIRECTORY)
 message(STATUS "")
 # Dependencies
 find_package(LIBUSB)
-find_package(DPDK 19.11...20.11)
+find_package(DPDK 18.11...21.11)
 
 LIBUHD_REGISTER_COMPONENT("USB" ENABLE_USB ON "ENABLE_LIBUHD;LIBUSB_FOUND" OFF OFF)
 
@@ -107,6 +107,7 @@ INCLUDE_SUBDIRECTORY(usrp)
 INCLUDE_SUBDIRECTORY(usrp_clock)
 INCLUDE_SUBDIRECTORY(utils)
 INCLUDE_SUBDIRECTORY(experts)
+INCLUDE_SUBDIRECTORY(extension)
 INCLUDE_SUBDIRECTORY(transport)
 
 ########################################################################
@@ -198,6 +199,10 @@ if(ENABLE_MPMD)
 endif()
 add_library(uhd SHARED ${libuhd_sources})
 target_link_libraries(uhd ${Boost_LIBRARIES} ${libuhd_libs})
+if(APPLE)
+    target_link_options(uhd PRIVATE "LINKER:-undefined,dynamic_lookup")
+    target_link_options(uhd PRIVATE "-flat_namespace")
+endif(APPLE)
 set_target_properties(uhd PROPERTIES DEFINE_SYMBOL "UHD_DLL_EXPORTS")
 if(NOT LIBUHDDEV_PKG)
     set_target_properties(uhd PROPERTIES SOVERSION "${UHD_ABI_VERSION}")
@@ -222,9 +227,6 @@ if(ENABLE_SIM)
     # python instead of being called by it, we have to.
     target_link_libraries(uhd ${PYTHON_LIBRARIES})
 
-    if(APPLE)
-        target_link_options(uhd PRIVATE "LINKER:-undefined,dynamic_lookup")
-    endif(APPLE)
 endif(ENABLE_SIM)
 
 if(NOT UHDHOST_PKG) #Syntax makes it unusable by UHD_INSTALL

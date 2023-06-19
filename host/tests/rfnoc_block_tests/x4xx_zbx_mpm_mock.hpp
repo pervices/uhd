@@ -64,7 +64,7 @@ public:
 
     std::vector<std::string> get_gpio_banks() override
     {
-        return {};
+        return {"GPIO0", "GPIO1"};
     }
 
     bool supports_feature(const std::string& feature) override
@@ -114,6 +114,11 @@ public:
     std::vector<int> get_cal_frozen(size_t, size_t) override
     {
         return {};
+    }
+
+    void set_calibration_mode(size_t, size_t, std::string) override
+    {
+        // nop
     }
 
     std::map<std::string, std::vector<uint8_t>> get_db_eeprom(const size_t) override
@@ -348,6 +353,18 @@ public:
     std::string dio_get_external_power_state(const std::string&) override
     {
         return "OFF";
+    }
+
+    std::map<std::string, std::string> synchronize(
+        const std::map<std::string, std::string>&, bool) override
+    {
+        return {};
+    }
+
+    std::map<std::string, std::string> aggregate_sync_data(
+        const std::list<std::map<std::string, std::string>>& collated_sync_data) override
+    {
+        return collated_sync_data.front();
     }
 
     ///////////////////////////////////////////////////////////////////////////

@@ -14,9 +14,15 @@
 ## build/usrp_<product>_fpga_<image_type>.dts:    Device tree source file
 ## build/usrp_<product>_fpga_<image_type>.rpt:    Build report (includes utilization and timing summary)
 
-1G_DEFS=SFP_1GBE=1   BUILD_1G=1     $(OPTIONS)
-XG_DEFS=SFP_10GBE=1  BUILD_10G=1    $(OPTIONS)
-AA_DEFS=SFP_AURORA=1 BUILD_AURORA=1 $(OPTIONS)
+# Base output directory for all builds
+BUILD_BASE_DIR ?= .
+
+# Initialize a build seed. This can be changed to randomly affect build results.
+BUILD_SEED ?= 0
+
+1G_DEFS=SFP_1GBE=1   BUILD_1G=1     $(OPTIONS) BUILD_SEED=$(BUILD_SEED)
+XG_DEFS=SFP_10GBE=1  BUILD_10G=1    $(OPTIONS) BUILD_SEED=$(BUILD_SEED)
+AA_DEFS=SFP_AURORA=1 BUILD_AURORA=1 $(OPTIONS) BUILD_SEED=$(BUILD_SEED)
 
 # Set build option (check RTL, run synthesis, or do a full build)
 ifndef TARGET
@@ -35,15 +41,16 @@ DEFAULT_EDGE_FILE_E320=$(abspath e320_static_router.hex)
 
 # vivado_build($1=Device, $2=Definitions)
 vivado_build = make -f Makefile.e320.inc $(TARGET) NAME=$@ ARCH=$(XIL_ARCH_$1) PART_ID=$(XIL_PART_ID_$1) $2 TOP_MODULE=$(TOP) EXTRA_DEFS="$2" DEFAULT_RFNOC_IMAGE_CORE_FILE=$(DEFAULT_IMAGE_CORE_FILE_$1) DEFAULT_EDGE_FILE=$(DEFAULT_EDGE_FILE_$1)
+vivado_ip    = make -f Makefile.e320.inc viv_ip    NAME=$@ ARCH=$(XIL_ARCH_$1) PART_ID=$(XIL_PART_ID_$1) $2 TOP_MODULE=$(TOP) EXTRA_DEFS="$2" DEFAULT_RFNOC_IMAGE_CORE_FILE=$(DEFAULT_IMAGE_CORE_FILE_$1) DEFAULT_EDGE_FILE=$(DEFAULT_EDGE_FILE_$1)
 
 # post_build($1=Device, $2=Option)
 ifeq ($(TARGET),bin)
 	post_build = @\
 		mkdir -p build; \
 		echo "Exporting bitstream file..."; \
-		cp build-$(1)_$(2)/e320.bit build/usrp_`echo $(1) | tr A-Z a-z`_fpga_$(2).bit; \
+		cp $(BUILD_BASE_DIR)/build-$(1)_$(2)/e320.bit build/usrp_`echo $(1) | tr A-Z a-z`_fpga_$(2).bit; \
 		echo "Exporting build report..."; \
-		cp build-$(1)_$(2)/build.rpt build/usrp_`echo $(1) | tr A-Z a-z`_fpga_$(2).rpt; \
+		cp $(BUILD_BASE_DIR)/build-$(1)_$(2)/build.rpt build/usrp_`echo $(1) | tr A-Z a-z`_fpga_$(2).rpt; \
 		echo "Build DONE ... $(1)_$(2)";
 else
 	post_build = @echo "Skipping bitfile export."
@@ -55,18 +62,22 @@ endif
 
 all:      E320_1G E320_XG ##(Default target)
 
+##E320_IP:  Build IP for E320 only.
+E320_IP:
+	+$(call vivado_ip,E320,$(XG_DEFS) E320=1)
+
 ##E320_1G:  1GigE on SFP+ Port.
-E320_1G:  build/usrp_e320_fpga_1G.dts
+E320_1G: E320_IP build/usrp_e320_fpga_1G.dts
 	$(call vivado_build,E320,$(1G_DEFS) E320=1)
 	$(call post_build,E320,1G)
 
 ##E320_XG:  10GigE on SFP+ Port.
-E320_XG: build/usrp_e320_fpga_XG.dts
+E320_XG: E320_IP build/usrp_e320_fpga_XG.dts
 	$(call vivado_build,E320,$(XG_DEFS) E320=1)
 	$(call post_build,E320,XG)
 
 ##E320_AA:  Aurora on SFP+ Port.
-E320_AA: build/usrp_e320_fpga_AA.dts
+E320_AA: E320_IP build/usrp_e320_fpga_AA.dts
 	$(call vivado_build,E320,$(AA_DEFS) E320=1)
 	$(call post_build,E320,AA)
 
@@ -92,9 +103,10 @@ help:     ##Show this help message.
 ##
 ##Supported Options
 ##-----------------
-##GUI=1        Launch the build in the Vivado GUI.
-##CHECK=1      Launch the syntax checker instead of building a bitfile.
-##SYNTH=1      Launch the build but stop after synthesis.
-##TOP=<module> Specify a top module for syntax checking. (Optional. Default is the bitfile top)
+##GUI=1          Launch the build in the Vivado GUI.
+##CHECK=1        Launch the syntax checker instead of building a bitfile.
+##SYNTH=1        Launch the build but stop after synthesis.
+##BUILD_SEED=<N> Build seed to used to affect build results. (Default is 0)
+##TOP=<module>   Specify a top module for syntax checking. (Default is the bitfile top)
 
 .PHONY: all clean cleanall help

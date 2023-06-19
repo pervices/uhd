@@ -7,13 +7,13 @@
 N3xx implementation module
 """
 
-from __future__ import print_function
 import copy
 import re
 import threading
 import time
-from six import iteritems, itervalues
+from six import iteritems
 from usrp_mpm.cores import WhiteRabbitRegsControl
+from usrp_mpm.compat_num import CompatNumber
 from usrp_mpm.components import ZynqComponents
 from usrp_mpm.gpsd_iface import GPSDIfaceExtension
 from usrp_mpm.periph_manager import PeriphManagerBase
@@ -28,7 +28,6 @@ from usrp_mpm.periph_manager.n3xx_periphs import BackpanelGPIO
 from usrp_mpm.periph_manager.n3xx_periphs import MboardRegsControl
 from usrp_mpm.periph_manager.n3xx_periphs import RetimerQSFP
 from usrp_mpm.dboard_manager.magnesium import Magnesium
-from usrp_mpm.dboard_manager.eiscat import EISCAT
 from usrp_mpm.dboard_manager.rhodium import Rhodium
 
 N3XX_DEFAULT_EXT_CLOCK_FREQ = 10e6
@@ -40,7 +39,8 @@ N3XX_DEFAULT_ENABLE_PPS_EXPORT = True
 N32X_DEFAULT_QSFP_RATE_PRESET = 'Ethernet'
 N32X_DEFAULT_QSFP_DRIVER_PRESET = 'Optical'
 N32X_QSFP_I2C_LABEL = 'qsfp-i2c'
-N3XX_FPGA_COMPAT = (8, 0)
+N3XX_FPGA_COMPAT = (8, 1)
+N3XX_REMOTE_STREAMING_COMPAT = (8, 1)
 N3XX_MONITOR_THREAD_INTERVAL = 1.0 # seconds
 N3XX_BUS_CLK = 200e6
 N3XX_GPIO_BANKS = ["FP0",]
@@ -49,7 +49,6 @@ N3XX_FPGPIO_WIDTH = 12
 
 # Import daughterboard PIDs from their respective classes
 MG_PID = Magnesium.pids[0]
-EISCAT_PID = EISCAT.pids[0]
 RHODIUM_PID = Rhodium.pids[0]
 
 ###############################################################################
@@ -109,7 +108,6 @@ class n3xx(ZynqComponents, PeriphManagerBase):
                                             # still use the n310.bin image.
                                             # We'll leave this here for
                                             # debugging purposes.
-        ('n310', (EISCAT_PID , EISCAT_PID )): 'eiscat',
         ('n310', (RHODIUM_PID, RHODIUM_PID)): 'n320',
         ('n310', (RHODIUM_PID,            )): 'n320',
     }
@@ -126,7 +124,12 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     mboard_eeprom_offset = 0
     mboard_eeprom_max_len = 256
     mboard_info = {"type": "n3xx"}
-    mboard_max_rev = 10 # latest HW revision that this version of MPM is aware of
+    # This is the latest HW revision that his version of MPM is aware of. This
+    # version of MPM will be able to run with any hardware which has a rev_compat
+    # field that is equal or less than this value.
+    # Note: If the hardware is revved in a non-compatible way, eeprom-init.c
+    # must also be updated (derive_rev_compat).
+    mboard_max_rev = 10
     mboard_sensor_callback_map = {
         'ref_locked': 'get_ref_lock_sensor',
         'gps_locked': 'get_gps_lock_sensor',
@@ -266,6 +269,11 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             fail_on_old_minor=True,
             log=self.log
         )
+        if CompatNumber(actual_compat) >= CompatNumber(N3XX_REMOTE_STREAMING_COMPAT):
+            self.fpga_features.add('remote_udp_streaming')
+        self.log.debug(
+            "FPGA supports the following features: {}"
+            .format(", ".join(self.fpga_features)))
 
     def _init_ref_clock_and_time(self, default_args):
         """
@@ -418,6 +426,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             self.log.error(
                 "Cannot run init(), device was never fully initialized!")
             return False
+        args = self._update_default_args(args)
         # We need to disable the PPS out during clock and dboard initialization in order
         # to avoid glitches.
         self.enable_pps_out(False)
@@ -427,8 +436,8 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         # properties should have been set to either the default values (first time
         # init() is run); or to the previous configured values (updated after a
         # successful clocking configuration).
-        args['clock_source'] = args.get('clock_source', self._clock_source)
-        args['time_source'] = args.get('time_source', self._time_source)
+        args['clock_source'] = args.get('clock_source', N3XX_DEFAULT_CLOCK_SOURCE)
+        args['time_source'] = args.get('time_source', N3XX_DEFAULT_TIME_SOURCE)
         self.set_sync_source(args)
         # Uh oh, some hard coded product-related info: The N300 has no LO
         # source connectors on the front panel, so we assume that if this was
@@ -448,21 +457,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             'pps_export',
             N3XX_DEFAULT_ENABLE_PPS_EXPORT
         ))
-        for xport_mgr in itervalues(self._xport_mgrs):
-            xport_mgr.init(args)
         return result
-
-    def deinit(self):
-        """
-        Clean up after a UHD session terminates.
-        """
-        if not self._device_initialized:
-            self.log.warning(
-                "Cannot run deinit(), device was never fully initialized!")
-            return
-        super(n3xx, self).deinit()
-        for xport_mgr in itervalues(self._xport_mgrs):
-            xport_mgr.deinit()
 
     def tear_down(self):
         """
@@ -483,38 +478,6 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         ))
         for overlay in active_overlays:
             dtoverlay.rm_overlay(overlay)
-
-    ###########################################################################
-    # Transport API
-    ###########################################################################
-    def get_chdr_link_types(self):
-        """
-        This will only ever return a single item (udp).
-        """
-        assert self.mboard_info['rpc_connection'] in ('remote', 'local')
-        return ["udp"]
-
-    def get_chdr_link_options(self, xport_type):
-        """
-        Returns a list of dictionaries. Every dictionary contains information
-        about one way to connect to this device in order to initiate CHDR
-        traffic.
-
-        The interpretation of the return value is very highly dependant on the
-        transport type (xport_type).
-        For UDP, the every entry of the list has the following keys:
-        - ipv4 (IP Address)
-        - port (UDP port)
-        - link_rate (bps of the link, e.g. 10e9 for 10GigE)
-        """
-        if xport_type not in self._xport_mgrs:
-            self.log.warning("Can't get link options for unknown link type: `{}'.".format(xport_type))
-            return []
-        if xport_type == "udp":
-            return self._xport_mgrs[xport_type].get_chdr_link_options(
-                self.mboard_info['rpc_connection'])
-        else:
-            return self._xport_mgrs[xport_type].get_chdr_link_options()
 
     ###########################################################################
     # Device info

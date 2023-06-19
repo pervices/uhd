@@ -6,18 +6,19 @@
 // Module : axi4s_remove_bytes
 //
 // Description:
-//   Remove bytes from a packet.  1 removal can happen per
-//   packet.  The removal is made by delaying the output
-//   by a clock, and then combining the new and old word
-//   and providing a combination of shifted words.
-//   This implementation requires that the user field
-//   holds the number of valid bytes in the word, and the MSB of the user field
-//   indicates if the MAC had an error.
+//
+//   Remove bytes from a packet.  1 removal can happen per packet.  The removal
+//   is made by delaying the output by a clock, and then combining the new and
+//   old word and providing a combination of shifted words. This implementation
+//   requires that the user field holds the number of valid bytes in the word,
+//   and the MSB of the user field indicates if the MAC had an error.
 //
 //   The block will hold off the input if it goes to the BONUS State.
 //
-//   This block is intended to remove data from the beginning or middle
-//   of a packet.  You can truncate a packet by setting REM_END to -1.
+//   This block is intended to remove data from the beginning or middle of a
+//   packet.  You can truncate a packet by setting REM_END to -1.
+//
+//   TKEEP is not used. TUSER should have the format {error, trailing bytes};
 //
 //  LIMITATIONS
 //    The block will set the error bit if you put in a packet between
@@ -27,6 +28,7 @@
 //    Packets must be terminated with tlast.
 //
 // Parameters:
+//
 //   REM_START  - First byte to remove (0 means start)
 //   REM_END    - Last byte to remove (-1 means truncate from REM START)
 //
@@ -69,11 +71,11 @@ module axi4s_remove_bytes #(
   localparam MIDDLE       = END_BYTE >= START_BYTE;
 
   `include "axi4s.vh"
-  
+
   // Parameter Checks
   initial begin
     assert (i.DATA_WIDTH == o.DATA_WIDTH) else
-      $fatal("DATA_WIDTH mismatch");
+      $fatal(1, "DATA_WIDTH mismatch");
   end
 
   AxiStreamPacketIf #(.DATA_WIDTH(i.DATA_WIDTH),.USER_WIDTH(i.USER_WIDTH),
@@ -162,7 +164,7 @@ module axi4s_remove_bytes #(
     //-----------------------------------------------------------------------
     function automatic logic [START_BYTE*8-1:0] start_part([s0.DATA_WIDTH-1:0] data);
       begin
-        // workaround :: modelsim optimizer can fail if there is aposibility of a 0+:0
+        // workaround :: modelsim optimizer can fail if there is a possibility of a 0+:0
         localparam MY_START_BYTE = START_BYTE ? START_BYTE : 1;
         return data[0+:MY_START_BYTE*8];
       end
@@ -468,7 +470,6 @@ module axi4s_remove_bytes #(
 
     // the WRAP case leans forward one word since it bridges to
     // the next word so it needs to reach end_plus early
-    // REMOVE statemachine
     always_comb begin : reached_end_comb
       if (MCASE==MS_WRAP) begin
         reached_end       = s0.reached_packet_byte(REM_END);
@@ -487,7 +488,7 @@ module axi4s_remove_bytes #(
     logic s0_tready;
     always_comb s0.tready = s0_tready;
 
-    // Remove Statemachine
+    // Remove State Machine
     always_comb begin : remove_next_state
       // default assignment of next_state
       next_remove_state = remove_state;

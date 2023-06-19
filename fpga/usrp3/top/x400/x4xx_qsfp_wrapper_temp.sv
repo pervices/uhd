@@ -13,10 +13,11 @@
 //
 //   PROTOCOL       : Indicates the protocol to use for each of the 4 QSFP
 //                    lanes. See x4xx_mgt_types.vh for possible values.
-//   CPU_W          : Width of CPU interface
-//   CHDR_W         : CHDR bus width
+//   CHDR_W         : CHDR width used by RFNoC on the FPGA
+//   NET_CHDR_W     : CHDR width used over the network connection
 //   BYTE_MTU       : Transport MTU in bytes
 //   PORTNUM        : Port number to distinguish multiple QSFP ports
+//   NODE_INST      : RFNoC transport adapter node instance for the first port
 //   RFNOC_PROTOVER : RFNoC protocol version for IPv4 interface
 //
 
@@ -24,14 +25,16 @@
 
 
 module x4xx_qsfp_wrapper_temp #(
-  parameter       PROTOCOL0 = `MGT_Disabled,
-  parameter       PROTOCOL1 = `MGT_Disabled,
-  parameter       PROTOCOL2 = `MGT_Disabled,
-  parameter       PROTOCOL3 = `MGT_Disabled,
-  parameter       CPU_W     = 64,
-  parameter       CHDR_W    = 64,
-  parameter       BYTE_MTU  = $clog2(8*1024),
-  parameter [7:0] PORTNUM   = 8'd0
+  parameter        PROTOCOL0      = `MGT_Disabled,
+  parameter        PROTOCOL1      = `MGT_Disabled,
+  parameter        PROTOCOL2      = `MGT_Disabled,
+  parameter        PROTOCOL3      = `MGT_Disabled,
+  parameter        CHDR_W         = 64,
+  parameter        NET_CHDR_W     = CHDR_W,
+  parameter        BYTE_MTU       = $clog2(8*1024),
+  parameter [ 7:0] PORTNUM        = 8'd0,
+  parameter        NODE_INST      = 0,
+  parameter [15:0] RFNOC_PROTOVER = {8'd1, 8'd0}
 ) (
   // Resets
   input logic areset,
@@ -145,7 +148,6 @@ module x4xx_qsfp_wrapper_temp #(
   //---------------------------------------------------------------------------
 
   localparam CHDR_USER_W = $clog2(CHDR_W/8);
-  localparam CPU_USER_W  = $clog2(CPU_W/8)+1;
 
   // AXI-Stream for RFNoC CHDR
   AxiStreamIf #(.DATA_WIDTH(CHDR_W), .USER_WIDTH(CHDR_USER_W),
@@ -296,11 +298,13 @@ module x4xx_qsfp_wrapper_temp #(
   end
 
   x4xx_qsfp_wrapper #(
-    .PROTOCOL ({ PROTOCOL3, PROTOCOL2, PROTOCOL1, PROTOCOL0 }),
-    .CPU_W    (CPU_W),
-    .CHDR_W   (CHDR_W),
-    .BYTE_MTU (BYTE_MTU),
-    .PORTNUM  (PORTNUM)
+    .PROTOCOL       ({ PROTOCOL3, PROTOCOL2, PROTOCOL1, PROTOCOL0 }),
+    .CHDR_W         (CHDR_W),
+    .NET_CHDR_W     (NET_CHDR_W),
+    .BYTE_MTU       (BYTE_MTU),
+    .PORTNUM        (PORTNUM),
+    .NODE_INST      (NODE_INST),
+    .RFNOC_PROTOVER (RFNOC_PROTOVER)
   ) x4xx_qsfp_wrapper_i (
     .areset         (areset),
     .refclk_p       (refclk_p),

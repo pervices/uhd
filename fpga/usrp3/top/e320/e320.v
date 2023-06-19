@@ -156,7 +156,8 @@ module e320 (
   output wire XCVR_TXNRX,
   output wire XCVR_ENA_AGC,
   output wire XCVR_RESET_N,
-  input wire [7:0] XCVR_CTRL_OUT,
+  input  wire [7:0] XCVR_CTRL_OUT,
+  output wire [3:0] XCVR_CTRL_IN,
 
   // Amplifiers
   output wire TX_HFAMP1_ENA,
@@ -173,6 +174,25 @@ module e320 (
   output wire TXRX2_GRN_ENA
 
 );
+
+  // Include the RFNoC image core header file
+  `ifdef RFNOC_IMAGE_CORE_HDR
+    `include `"`RFNOC_IMAGE_CORE_HDR`"
+  `else
+    ERROR_RFNOC_IMAGE_CORE_HDR_not_defined();
+    `define CHDR_WIDTH     64
+    `define RFNOC_PROTOVER { 8'd1, 8'd0 }
+  `endif
+  localparam CHDR_W         = `CHDR_WIDTH;
+  localparam RFNOC_PROTOVER = `RFNOC_PROTOVER;
+
+  // This USRP currently only supports 64-bit CHDR width
+  if (CHDR_W != 64) begin : gen_chdr_w_error
+    CHDR_W_must_be_64_for_this_USRP();
+  end
+
+  // Log base 2 of the maximum transmission unit (MTU) in bytes
+  localparam BYTE_MTU = $clog2(8192);
 
   `ifdef SFP_1GBE
     parameter PROTOCOL = "1GbE";
@@ -206,7 +226,6 @@ module e320 (
   localparam NUM_CHANNELS_PER_RADIO = 2;
   localparam NUM_DBOARDS = 1;
   localparam NUM_CHANNELS = NUM_RADIOS * NUM_CHANNELS_PER_RADIO;
-  localparam [15:0] RFNOC_PROTOVER  = {8'd1, 8'd0};
 
   // Clocks
   wire xgige_clk156;
@@ -1059,44 +1078,26 @@ module e320 (
   //
   /////////////////////////////////////////////////////////////////////
 
-  n3xx_sfp_wrapper #(
+  e320_sfp_wrapper #(
     .PROTOCOL(PROTOCOL),
-    .MDIO_EN(MDIO_EN),
-    .MDIO_PHYADDR(MDIO_PHYADDR),
     .DWIDTH(REG_DWIDTH),     // Width of the AXI4-Lite data bus (must be 32 or 64)
     .AWIDTH(REG_AWIDTH),     // Width of the address bus
-    .PORTNUM(SFP_PORTNUM)
+    .PORTNUM(SFP_PORTNUM),
+    .MDIO_EN(MDIO_EN),
+    .MDIO_PHYADDR(MDIO_PHYADDR),
+    .BYTE_MTU(BYTE_MTU),
+    .RFNOC_PROTOVER(RFNOC_PROTOVER),
+    .NODE_INST(0)
   ) sfp_wrapper_i (
+    // Resets
     .areset(bus_rst),
+    .bus_rst(bus_rst),
+    // Clocks
     .gt_refclk(sfp_gt_refclk),
     .gb_refclk(sfp_gb_refclk),
     .misc_clk(sfp_misc_clk),
-
-    .bus_rst(bus_rst),
     .bus_clk(bus_clk),
-    .user_clk(),
-    .sync_clk(),
-
-    // GT_COMMON
-    .qpllreset(),
-    .qplllock(1'b0),
-    .qplloutclk(1'b0),
-    .qplloutrefclk(1'b0),
-    .qpllrefclklost(),
-
-    .mmcm_locked(1'b0),
-    .gt_pll_lock(),
-
-    .txp(SFP1_TX_P),
-    .txn(SFP1_TX_N),
-    .rxp(SFP1_RX_P),
-    .rxn(SFP1_RX_N),
-
-    .sfpp_rxlos(SFP1_RXLOS),
-    .sfpp_tx_fault(SFP1_TXFAULT),
-    .sfpp_tx_disable(SFP1_TXDISABLE),
-
-    // Clock and reset
+    // AXI4-Lite: Clock and reset
     .s_axi_aclk(reg_clk),
     .s_axi_aresetn(reg_rstn),
     // AXI4-Lite: Write address port (domain: s_axi_aclk)
@@ -1121,37 +1122,50 @@ module e320 (
     .s_axi_rresp(m_axi_net_rresp),
     .s_axi_rvalid(m_axi_net_rvalid),
     .s_axi_rready(m_axi_net_rready),
-
-    // Ethernet to Vita
+    // SFP high-speed IO
+    .txp(SFP1_TX_P),
+    .txn(SFP1_TX_N),
+    .rxp(SFP1_RX_P),
+    .rxn(SFP1_RX_N),
+    // SFP low-speed IO
+    .sfpp_present_n(1'b0),
+    .sfpp_rxlos(SFP1_RXLOS),
+    .sfpp_tx_fault(SFP1_TXFAULT),
+    .sfpp_tx_disable(SFP1_TXDISABLE),
+    // GT Common
+    .qpllrefclklost(),
+    .qplllock(1'b0),
+    .qplloutclk(1'b0),
+    .qplloutrefclk(1'b0),
+    .qpllreset(),
+    // Aurora MMCM
+    .mmcm_locked(1'b0),
+    .gt_pll_lock(),
+    // Ethernet to RFNoC
     .e2v_tdata(e2v_tdata),
     .e2v_tlast(e2v_tlast),
     .e2v_tvalid(e2v_tvalid),
     .e2v_tready(e2v_tready),
-
-    // Vita to Ethernet
+    // RFNoC to Ethernet
     .v2e_tdata(v2e_tdata),
     .v2e_tlast(v2e_tlast),
     .v2e_tvalid(v2e_tvalid),
     .v2e_tready(v2e_tready),
-
     // Ethernet to CPU
     .e2c_tdata(arm_eth_rx_tdata_b),
     .e2c_tkeep(arm_eth_rx_tkeep_b),
     .e2c_tlast(arm_eth_rx_tlast_b),
     .e2c_tvalid(arm_eth_rx_tvalid_b),
     .e2c_tready(arm_eth_rx_tready_b),
-
     // CPU to Ethernet
     .c2e_tdata(arm_eth_tx_tdata_b),
     .c2e_tkeep(arm_eth_tx_tkeep_b),
     .c2e_tlast(arm_eth_tx_tlast_b),
     .c2e_tvalid(arm_eth_tx_tvalid_b),
     .c2e_tready(arm_eth_tx_tready_b),
-
     // Misc
     .port_info(sfp_port_info),
     .device_id(device_id),
-
     // LED
     .link_up(sfp_link_up),
     .activity(LED_ACT1)
@@ -1309,9 +1323,12 @@ module e320 (
   //
   //////////////////////////////////////////////////////////////////////
   eth_internal #(
-    .DWIDTH(REG_DWIDTH),
-    .AWIDTH(REG_AWIDTH),
-    .PORTNUM(8'd1)
+    .DWIDTH         (REG_DWIDTH),
+    .AWIDTH         (REG_AWIDTH),
+    .PORTNUM        (8'd1),
+    .BYTE_MTU       (BYTE_MTU),
+    .RFNOC_PROTOVER (RFNOC_PROTOVER),
+    .NODE_INST      (1)
   ) eth_internal_i (
     // Resets
     .bus_rst (bus_rst),
@@ -1689,7 +1706,10 @@ module e320 (
     .NUM_CHANNELS(NUM_CHANNELS),
     .NUM_DBOARDS(NUM_DBOARDS),
     .FP_GPIO_WIDTH(FP_GPIO_WIDTH),
-    .DB_GPIO_WIDTH(DB_GPIO_WIDTH)
+    .DB_GPIO_WIDTH(DB_GPIO_WIDTH),
+    .CHDR_W(CHDR_W),
+    .BYTE_MTU(BYTE_MTU),
+    .RFNOC_PROTOVER(RFNOC_PROTOVER)
   ) e320_core_i (
 
     //Clocks and resets
@@ -1843,6 +1863,9 @@ module e320 (
     .dboard_ctrl(dboard_ctrl),
     .device_id(device_id)
   );
+
+  // Control pins to AD9361 will lay low for now
+  assign XCVR_CTRL_IN = 4'h0;
 
 endmodule // e320
 `default_nettype wire

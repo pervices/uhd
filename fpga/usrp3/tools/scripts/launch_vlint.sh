@@ -45,7 +45,7 @@ function replace_dirs_with_source {
     for file in "$@"
     do
         if [ -d $file ]; then
-            echo "$(realpath $(find $file -maxdepth 1 -type f)) "
+            echo "resolve_viv_path $(realpath $(find $file -maxdepth 1 -type f)) "
         else
             echo "$file "
         fi

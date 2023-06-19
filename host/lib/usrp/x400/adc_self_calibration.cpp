@@ -40,8 +40,9 @@ void adc_self_calibration::run(size_t chan)
 
     // The frequency that we need to feed into the ADC is, by decree,
     // 13109 / 32768 times the ADC sample rate. (approx. 1.2GHz for a 3Gsps rate)
-    const double spll_freq     = _rpcc->get_spll_freq();
-    const double cal_tone_freq = spll_freq * 13109.0 / 32768.0;
+    // This is at 0.4 * Fs, right on the boundary between modes 1 and 2 for the
+    // ADC self-cal.
+    const double cal_tone_freq = _daughterboard->get_converter_rate() * 13109.0 / 32768.0;
 
     const auto cal_params = _daughterboard->get_adc_self_cal_params(cal_tone_freq);
 
@@ -62,11 +63,11 @@ void adc_self_calibration::run(size_t chan)
     _daughterboard->set_rx_antenna("CAL_LOOPBACK", chan);
     _daughterboard->set_tx_antenna("CAL_LOOPBACK", chan);
 
-    // Configure the output DAC mux to output 1/2 full scale
-    // set_dac_mux_data uses 16-bit values.
-    _rpcc->set_dac_mux_data(32768 / 2, 0);
+    _rpcc->set_dac_mux_data(
+        cal_params.dac_iq_values.real(), cal_params.dac_iq_values.imag());
 
-    const size_t motherboard_channel_number = _db_number * 2 + chan;
+    const size_t motherboard_channel_number =
+        _db_number * _daughterboard->get_num_rx_channels() + chan;
     _rpcc->set_dac_mux_enable(motherboard_channel_number, 1);
     auto disable_dac_mux = uhd::utils::scope_exit::make(
         [&]() { _rpcc->set_dac_mux_enable(motherboard_channel_number, 0); });
@@ -130,56 +131,21 @@ void adc_self_calibration::run(size_t chan)
         _daughterboard->set_rx_gain(rx_gain, chan);
     });
 
-    // Set the threshold to detect half-scale
-    // The setup_threshold call uses 14-bit ADC values
-    constexpr int hysteresis_reset_time      = 100;
-    constexpr int hysteresis_reset_threshold = 8000;
-    constexpr int hysteresis_set_threshold   = 8192;
     _rpcc->setup_threshold(_db_number,
         chan,
         0,
         "hysteresis",
-        hysteresis_reset_time,
-        hysteresis_reset_threshold,
-        hysteresis_set_threshold);
-    bool found_gain = false;
-    for (double i = cal_params.min_gain; i <= cal_params.max_gain; i += 1.0) {
-        _daughterboard->get_rx_gain_profile_api()->set_gain_profile("default", chan);
-        _daughterboard->get_tx_gain_profile_api()->set_gain_profile("default", chan);
+        cal_params.threshold_delay,
+        cal_params.threshold_under,
+        cal_params.threshold_over);
 
-        _daughterboard->set_tx_gain(i, chan);
-        _daughterboard->set_rx_gain(i, chan);
-
-        // Set the daughterboard to use the duplex entry in the DSA table which was
-        // configured in the set_?x_gain call. (note that with a LabVIEW FPGA, we don't
-        // control the ATR lines, hence why we override them here)
-        _daughterboard->get_rx_gain_profile_api()->set_gain_profile("table_noatr", chan);
-        _daughterboard->get_tx_gain_profile_api()->set_gain_profile("table_noatr", chan);
-
-        _daughterboard->set_rx_gain(0b11, chan);
-        _daughterboard->set_tx_gain(0b11, chan);
-
-        // Wait for it to settle
-        constexpr auto settle_time = 10ms;
-        std::this_thread::sleep_for(settle_time);
-
-        try {
-            const bool threshold_status =
-                _rpcc->get_threshold_status(_db_number, chan, 0);
-            if (threshold_status) {
-                found_gain = true;
-                break;
-            }
-        } catch (uhd::runtime_error&) {
-            // Catch & eat this error, the user has a 5.0 FPGA and so can't auto-gain
-            return;
-        }
-    }
-
+    bool found_gain = _daughterboard->select_adc_self_cal_gain(chan);
     if (!found_gain) {
         throw uhd::runtime_error(
             "Could not find appropriate gain for performing ADC self cal");
     }
+
+    _rpcc->set_calibration_mode(_db_number, chan, cal_params.calibration_mode);
 
     // (if required) unfreeze calibration
     const std::vector<int> current_frozen_state = _rpcc->get_cal_frozen(_db_number, chan);
