@@ -8,7 +8,6 @@
 #ifndef INCLUDED_LIBUHD_TRANSPORT_SUPER_SEND_PACKET_HANDLER_MMSG_HPP
 #define INCLUDED_LIBUHD_TRANSPORT_SUPER_SEND_PACKET_HANDLER_MMSG_HPP
 
-#include "../../transport/super_send_packet_handler.hpp"
 #include <uhd/config.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/convert.hpp>
