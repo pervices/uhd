@@ -199,13 +199,6 @@ public:
 			if ( ep.on_fini ) {
 				ep.on_fini();
 			}
-            // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
-            // TODO: query the uflow/oflow count from the FPGA once it supports that
-            if(ep.oflow != (uint64_t)-1 || ep.uflow != (uint64_t)-1) {
-                std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
-            } else {
-                std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
-            }
 		}
 		_eprops.clear();
 
@@ -593,6 +586,13 @@ static void rx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path
 }
 
 static void tx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path ) {
+    std::string ch(1, path[path.size()-1] + 'A' - '0');
+
+    tree.lock()->access<double>( path + "/qa/oflow" ).set(0.0);
+    double oflows = tree.lock()->access<double>( path + "/qa/oflow" ).get();
+    tree.lock()->access<double>( path + "/qa/uflow" ).set(0.0);
+    double uflows = tree.lock()->access<double>( path + "/qa/uflow" ).get();
+    std::cout << "CH " << ch << ": Overflow Count: " << oflows << ", Underflow Count: " << uflows << "\n";
 	tree.lock()->access<std::string>( path + "/pwr" ).set( "0" );
 }
 
