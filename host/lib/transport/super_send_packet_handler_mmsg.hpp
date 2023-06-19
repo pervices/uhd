@@ -661,7 +661,7 @@ private:
     }
 
     // Utility function to identify where randomg slowdowns are
-    bool __attribute__ ((unused)) delay_check_start_time_set = false;
+    bool delay_check_start_time_set = false;
     uhd::time_spec_t last_delay_check_time;
     inline void check_for_long_delay(int flag_id) {
         if(delay_check_start_time_set) {
