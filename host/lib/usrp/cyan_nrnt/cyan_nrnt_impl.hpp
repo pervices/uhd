@@ -88,7 +88,7 @@ public:
     typedef std::shared_ptr<cyan_nrnt_impl> sptr;
 
     // This is the core constructor to be called when a cyan_nrnt device is found
-    cyan_nrnt_impl(const uhd::device_addr_t &);
+    cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk);
     ~cyan_nrnt_impl(void);
 
     // pointers to the streams for the device
@@ -326,6 +326,8 @@ private:
     std::shared_ptr<std::vector<bool>> rx_channel_in_use;
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
+
+    const bool _use_dpdk;
 };
 
 }
