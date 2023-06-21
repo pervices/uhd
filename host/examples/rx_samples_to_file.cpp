@@ -205,6 +205,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     // Run this loop until either time expired (if a duration was given), until
     // the requested number of samples were collected (if such a number was
     // given), or until Ctrl-C was pressed.
+    std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
     while (not stop_signal_called
            and (num_requested_samples != num_total_samps or num_requested_samples == 0)
            and (time_requested == 0.0 or std::chrono::steady_clock::now() <= stop_time)) {
