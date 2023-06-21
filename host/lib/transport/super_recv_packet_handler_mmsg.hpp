@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 
 #include <error.h>
+#include <atomic>
 
 namespace uhd { namespace transport { namespace sph {
 
@@ -173,6 +174,7 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        printf("T1\n");
         // Clears the metadata struct, theoretically not required but included to make sure mistakes don't cause non-deterministic behaviour
         metadata.reset();
 
@@ -182,6 +184,8 @@ public:
         const uhd::rx_streamer::buffs_type *recv_buffer = (converter_used) ? prepare_intermediate_buffers(bytes_per_buff) : &buffs;
 
         std::vector<size_t> nsamps_received(_NUM_CHANNELS, 0);
+
+        printf("T10\n");
 
         // Number of bytes copied from the cache (should be the same for every channel)
         size_t cached_bytes_to_copy = 0;
@@ -208,14 +212,20 @@ public:
             nsamps_received[ch] += cached_bytes_to_copy / _BYTES_PER_SAMPLE;
         }
 
+        printf("T30\n");
+
         // Returns the number of samples requested, if there were enough samples in the cache
         if(!bytes_to_recv) {
             metadata.error_code = rx_metadata_t::ERROR_CODE_NONE;
             return nsamps_per_buff;
         }
 
+        printf("T40\n");
+
         // Receives packets, data is stores in recv_buffer, metadata is stored in ch_recv_buffer_info.headers
         metadata.error_code = recv_packets_threaded(*recv_buffer, cached_bytes_to_copy, cached_bytes_to_copy + bytes_to_recv, timeout);
+
+        printf("T50\n");
 
         metadata.has_time_spec = true;
         metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _sample_rate);
@@ -228,6 +238,8 @@ public:
         if(converter_used) {
             convert_samples(buffs, final_nsamps);
         }
+
+        printf("T70\n");
 
         return final_nsamps;
     }
@@ -325,6 +337,7 @@ private:
     std::atomic<bool> threads_should_exit;
 
     UHD_INLINE uhd::rx_metadata_t::error_code_t recv_packets_threaded(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_length_bytes, double timeout) {
+        printf("T41\n");
         // Sets various paramters used by receive threads, effectively parameters for the next loop of the thread
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             recveive_buffers[n] = (((uint8_t*)sample_buffers[n]) + sample_buffer_offset);
@@ -354,6 +367,8 @@ private:
             }
         }
 
+        printf("T45\n");
+
         // Tells receive threads to start
         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             start_receive[ch] = true;
@@ -371,168 +386,172 @@ private:
                 return receive_return_code[ch];
             }
         }
+
+        printf("T49\n");
+
         return rx_metadata_t::ERROR_CODE_NONE;
     }
 
     // receive_thread_fn: a thread to receive packets. Busy waits between packets
     // thread_ch_i: Index of which channels to use receive in this thread. Ideally only one channel but lower core counts systems will need channels to share threads
     static void receive_thread_fn(std::vector<size_t> thread_ch_i, recv_packet_handler_mmsg *self) {
-        size_t num_ch_thread = thread_ch_i.size();
+        while(true) {
+            size_t num_ch_thread = thread_ch_i.size();
 
-        for(auto& ch_i : thread_ch_i) {
-            while(!self->start_receive[ch_i] && !self->threads_should_exit) {
-                // Busy wait
-                // Loading and unloading threads is to slow
-            }
-        }
-
-        // Exists if should exit flag is set (set by destructor)
-        if(self->threads_should_exit) {
-            return;
-        }
-
-        // Pointers for where to write samples to from each packet using scatter gather
-        std::vector<std::vector<void*>> samples_sg_dst(num_ch_thread);
-
-        for(auto& ch_i : thread_ch_i) {
-            ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
-            // Clears number of headers (which is also a count of number of packets received
-            ch_recv_buffer_info_i.num_headers_used = 0;
-            // Resets the count for amount of data in the cache
-            ch_recv_buffer_info_i.sample_cache_used = 0;
-
-            //Fills the pointer to where in the buffer to write samples from the packet to
-            for(size_t p = 0; p < self->thread_bytes_to_recv; p += self->_MAX_SAMPLE_BYTES_PER_PACKET) {
-                samples_sg_dst[ch_i].push_back(p+(uint8_t*)(self->recveive_buffers[ch_i].load()));
-            }
-        }
-
-        size_t num_packets_to_recv = samples_sg_dst[0].size();
-
-        // Amount of data stored in the cache betwen recv
-        size_t excess_data_in_last_packet = num_packets_to_recv * self->_MAX_SAMPLE_BYTES_PER_PACKET - self->thread_bytes_to_recv;
-        // Amount of data in the last packet copied directly to buffer
-        size_t data_in_last_packet = self->_MAX_SAMPLE_BYTES_PER_PACKET - excess_data_in_last_packet;
-
-        for(auto& ch_i : thread_ch_i) {
-            ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
-            for (size_t n = 0; n < num_packets_to_recv - 1; n++) {
-                // Location to write header data to
-                ch_recv_buffer_info_i.iovecs[2*n].iov_base = 0;
-                ch_recv_buffer_info_i.iovecs[2*n].iov_base = ch_recv_buffer_info_i.headers[n].data();
-                ch_recv_buffer_info_i.iovecs[2*n].iov_len = self->_HEADER_SIZE;
-                ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = 0;
-                // Location to write sample data to
-                ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = samples_sg_dst[ch_i][n];
-                ch_recv_buffer_info_i.iovecs[2*n+1].iov_len = self->_MAX_SAMPLE_BYTES_PER_PACKET;
-                ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n];
-                ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iovlen = 2;
+            for(auto& ch_i : thread_ch_i) {
+                while(!self->start_receive[ch_i] && !self->threads_should_exit) {
+                    // Busy wait
+                    // Loading and unloading threads is to slow
+                }
             }
 
-
-            size_t n_last_packet = num_packets_to_recv - 1;
-            // Location to write header data to
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_base =ch_recv_buffer_info_i.headers[n_last_packet].data();
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_len = self->_HEADER_SIZE;
-            // Location to write sample data to
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[ch_i][n_last_packet];
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_len = data_in_last_packet;
-            // Location to write samples that don't fit in sample_buffer to
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_i.sample_cache.data();
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_len = excess_data_in_last_packet;
-            ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n_last_packet];
-            ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
-        }
-
-        // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
-        struct timespec recv_start_time;
-        clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
-        int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(self->receive_timeout * 1000000000);
-
-        bool timeout_occured = false;
-        size_t num_channels_serviced = 0;
-        while(num_channels_serviced < num_ch_thread) {
-            struct timespec current_time;
-            clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
-            int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
-            if(current_time_ns > recv_timeout_time_ns) {
-                timeout_occured = true;
-                break;
+            // Exists if should exit flag is set (set by destructor)
+            if(self->threads_should_exit) {
+                return;
             }
+
+            // Pointers for where to write samples to from each packet using scatter gather
+            std::vector<std::vector<void*>> samples_sg_dst(num_ch_thread);
 
             for(auto& ch_i : thread_ch_i) {
                 ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
-                // Skip this channel if it has already received enough packets
-                if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
-                    continue;
-                }
-                // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(self->recv_sockets[ch_i], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], (int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), MSG_DONTWAIT, 0);
+                // Clears number of headers (which is also a count of number of packets received
+                ch_recv_buffer_info_i.num_headers_used = 0;
+                // Resets the count for amount of data in the cache
+                ch_recv_buffer_info_i.sample_cache_used = 0;
 
-                //Records number of packets received if no error
-                if(num_packets_received_this_recv >= 0) {
-                    ch_recv_buffer_info_i.num_headers_used += num_packets_received_this_recv;
-                    if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv)
-                    {
-                        //Record that a channel has received all its packets
-                        num_channels_serviced++;
-                    }
-                }
-                // Moves onto next channel, these errors are expected if using MSG_DONTWAIT and no packets are ready
-                // EINTR occurs if program receives an interrupt (such as from cntrl 0)
-                else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                    continue;
-                // Unexpected error
-                } else {
-                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(errno)));
+                //Fills the pointer to where in the buffer to write samples from the packet to
+                for(size_t p = 0; p < self->thread_bytes_to_recv; p += self->_MAX_SAMPLE_BYTES_PER_PACKET) {
+                    samples_sg_dst[ch_i].push_back(p+(uint8_t*)(self->recveive_buffers[ch_i].load()));
                 }
             }
-        }
 
-        self->extract_vrt_metadata(thread_ch_i);
+            size_t num_packets_to_recv = samples_sg_dst[0].size();
 
-        for(auto& ch_i : thread_ch_i) {
-            // Records the amount of data received from each packet
-            for(size_t n = 0; n < self->ch_recv_buffer_info_group[ch_i].num_headers_used; n++) {
-                // Check if an invalid packet was received
-                if(self->ch_recv_buffer_info_group[ch_i].msgs[n].msg_len < self->_HEADER_SIZE) {
-                    throw std::runtime_error("Received sample packet smaller than header size");
+            // Amount of data stored in the cache betwen recv
+            size_t excess_data_in_last_packet = num_packets_to_recv * self->_MAX_SAMPLE_BYTES_PER_PACKET - self->thread_bytes_to_recv;
+            // Amount of data in the last packet copied directly to buffer
+            size_t data_in_last_packet = self->_MAX_SAMPLE_BYTES_PER_PACKET - excess_data_in_last_packet;
+
+            for(auto& ch_i : thread_ch_i) {
+                ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
+                for (size_t n = 0; n < num_packets_to_recv - 1; n++) {
+                    // Location to write header data to
+                    ch_recv_buffer_info_i.iovecs[2*n].iov_base = 0;
+                    ch_recv_buffer_info_i.iovecs[2*n].iov_base = ch_recv_buffer_info_i.headers[n].data();
+                    ch_recv_buffer_info_i.iovecs[2*n].iov_len = self->_HEADER_SIZE;
+                    ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = 0;
+                    // Location to write sample data to
+                    ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = samples_sg_dst[ch_i][n];
+                    ch_recv_buffer_info_i.iovecs[2*n+1].iov_len = self->_MAX_SAMPLE_BYTES_PER_PACKET;
+                    ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n];
+                    ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iovlen = 2;
                 }
-                uint32_t num_bytes_this_packets = self->ch_recv_buffer_info_group[ch_i].vrt_metadata[n].num_payload_words32 * sizeof(int32_t);
 
-                // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
-                if(n + 1 == num_packets_to_recv) {
-                    if(num_bytes_this_packets > data_in_last_packet) {
-                        self->ch_recv_buffer_info_group[ch_i].data_bytes_from_packet[n] = data_in_last_packet;
-                        self->ch_recv_buffer_info_group[ch_i].sample_cache_used = num_bytes_this_packets - data_in_last_packet;
+
+                size_t n_last_packet = num_packets_to_recv - 1;
+                // Location to write header data to
+                ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_base =ch_recv_buffer_info_i.headers[n_last_packet].data();
+                ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_len = self->_HEADER_SIZE;
+                // Location to write sample data to
+                ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[ch_i][n_last_packet];
+                ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_len = data_in_last_packet;
+                // Location to write samples that don't fit in sample_buffer to
+                ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_i.sample_cache.data();
+                ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_len = excess_data_in_last_packet;
+                ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n_last_packet];
+                ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
+            }
+
+            // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
+            struct timespec recv_start_time;
+            clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
+            int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(self->receive_timeout * 1000000000);
+
+            bool timeout_occured = false;
+            size_t num_channels_serviced = 0;
+            while(num_channels_serviced < num_ch_thread) {
+                struct timespec current_time;
+                clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+                int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
+                if(current_time_ns > recv_timeout_time_ns) {
+                    timeout_occured = true;
+                    break;
+                }
+
+                for(auto& ch_i : thread_ch_i) {
+                    ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
+                    // Skip this channel if it has already received enough packets
+                    if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
+                        continue;
+                    }
+                    // Receive packets system call
+                    int num_packets_received_this_recv = recvmmsg(self->recv_sockets[ch_i], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], (int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), MSG_DONTWAIT, 0);
+
+                    //Records number of packets received if no error
+                    if(num_packets_received_this_recv >= 0) {
+                        ch_recv_buffer_info_i.num_headers_used += num_packets_received_this_recv;
+                        if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv)
+                        {
+                            //Record that a channel has received all its packets
+                            num_channels_serviced++;
+                        }
+                    }
+                    // Moves onto next channel, these errors are expected if using MSG_DONTWAIT and no packets are ready
+                    // EINTR occurs if program receives an interrupt (such as from cntrl 0)
+                    else if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                        continue;
+                    // Unexpected error
+                    } else {
+                        throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(errno)));
+                    }
+                }
+            }
+
+            self->extract_vrt_metadata(thread_ch_i);
+
+            for(auto& ch_i : thread_ch_i) {
+                // Records the amount of data received from each packet
+                for(size_t n = 0; n < self->ch_recv_buffer_info_group[ch_i].num_headers_used; n++) {
+                    // Check if an invalid packet was received
+                    if(self->ch_recv_buffer_info_group[ch_i].msgs[n].msg_len < self->_HEADER_SIZE) {
+                        throw std::runtime_error("Received sample packet smaller than header size");
+                    }
+                    uint32_t num_bytes_this_packets = self->ch_recv_buffer_info_group[ch_i].vrt_metadata[n].num_payload_words32 * sizeof(int32_t);
+
+                    // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
+                    if(n + 1 == num_packets_to_recv) {
+                        if(num_bytes_this_packets > data_in_last_packet) {
+                            self->ch_recv_buffer_info_group[ch_i].data_bytes_from_packet[n] = data_in_last_packet;
+                            self->ch_recv_buffer_info_group[ch_i].sample_cache_used = num_bytes_this_packets - data_in_last_packet;
+                        } else {
+                            self->ch_recv_buffer_info_group[ch_i].data_bytes_from_packet[n] = num_bytes_this_packets;
+                            // sample_cache_used already set to 0 before this loop so doesn;t need to be set to 0 here
+                            self->ch_recv_buffer_info_group[ch_i].sample_cache_used = 0;
+                        }
+                    // Records the amount of data received from most packets
                     } else {
                         self->ch_recv_buffer_info_group[ch_i].data_bytes_from_packet[n] = num_bytes_this_packets;
-                        // sample_cache_used already set to 0 before this loop so doesn;t need to be set to 0 here
-                        self->ch_recv_buffer_info_group[ch_i].sample_cache_used = 0;
                     }
-                // Records the amount of data received from most packets
-                } else {
-                    self->ch_recv_buffer_info_group[ch_i].data_bytes_from_packet[n] = num_bytes_this_packets;
+                }
+
+                // Records the amount of data stored in the cache
+                if(num_packets_to_recv == self->ch_recv_buffer_info_group[ch_i].num_headers_used) {
+                    self->ch_recv_buffer_info_group[ch_i].sample_cache_used = excess_data_in_last_packet;
                 }
             }
 
-            // Records the amount of data stored in the cache
-            if(num_packets_to_recv == self->ch_recv_buffer_info_group[ch_i].num_headers_used) {
-                self->ch_recv_buffer_info_group[ch_i].sample_cache_used = excess_data_in_last_packet;
+            for(auto& ch_i : thread_ch_i) {
+                if(timeout_occured) {
+                    self->receive_return_code[ch_i] = rx_metadata_t::ERROR_CODE_TIMEOUT;
+                } else {
+                    self->receive_return_code[ch_i] = rx_metadata_t::ERROR_CODE_NONE;
+                }
             }
-        }
 
-        for(auto& ch_i : thread_ch_i) {
-            if(timeout_occured) {
-                self->receive_return_code[ch_i] = rx_metadata_t::ERROR_CODE_TIMEOUT;
-            } else {
-                self->receive_return_code[ch_i] = rx_metadata_t::ERROR_CODE_NONE;
+            for(auto& ch_i : thread_ch_i) {
+                self->start_receive[ch_i] = false;
             }
-        }
-
-
-        for(auto& ch_i : thread_ch_i) {
-            self->start_receive[ch_i] = false;
         }
     }
 
