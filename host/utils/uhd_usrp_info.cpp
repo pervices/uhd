@@ -26,7 +26,7 @@ typedef std::map<std::string, std::set<std::string>> device_multi_addrs_t;
 typedef std::map<std::string, device_multi_addrs_t> device_addrs_filtered_t;
 
 std::string get_from_tree(
-    uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
+    uhd::property_tree::sptr tree, const int device_id, std::string relative_path)
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
     std::cout << "get_from_tree: " << path << std::endl;
@@ -34,17 +34,24 @@ std::string get_from_tree(
 }
 
 std::string get_from_tree_int(
-    uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
+    uhd::property_tree::sptr tree, const int device_id, std::string relative_path)
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
     return std::to_string(tree->access<int>(path).get());
 }
 
 std::string get_from_tree_double(
-    uhd::property_tree::sptr tree, const int device_id, const char* relative_path)
+    uhd::property_tree::sptr tree, const int device_id, std::string relative_path)
 {
     std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
     return std::to_string(tree->access<double>(path).get());
+}
+
+std::string get_from_tree_time_spec(
+    uhd::property_tree::sptr tree, const int device_id, std::string relative_path)
+{
+    std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
+    return std::to_string(tree->access<uhd::time_spec_t>(path).get().get_real_secs());
 }
 
 device_addrs_filtered_t find_devices(uhd::device_addrs_t device_addrs)
@@ -192,7 +199,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
                 std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
             } catch (const uhd::lookup_error&) {
-                std::cout << "FPGA version lookup not implemented" << std::endl;
+                std::cout << "FPGA build parameter lookup not implemented (Only relevant on Cyan)" << std::endl;
             }
         }
 
@@ -252,8 +259,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             if (time_info) {
                 std::cout << "Board MCU revision: " << std::endl;
                 std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
-                std::cout << "Time (fpga/gps_time) : " << get_from_tree_int(tree, i,"gps_time") << std::endl;
-                std::cout << "Time (time/curr_time): " << get_from_tree_int(tree, i,"time/now") << std::endl;
+                std::cout << "Time (fpga/gps_time) : " << get_from_tree(tree, i,"gps_time") << std::endl;
+                std::cout << "Time (time/curr_time): " << get_from_tree_time_spec(tree, i,"time/now") << std::endl;
             }
         } catch (...) {
             std::cout << "Unable to get all time info" << std::endl;
