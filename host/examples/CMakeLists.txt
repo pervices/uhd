@@ -17,6 +17,7 @@ set(example_sources
     rx_start.cpp
     rx_stop.cpp
     rx_samples_to_file.cpp
+    rx_samples_to_file_legacy.cpp
     rx_samples_to_udp.cpp
     rx_timed_samples.cpp
     set_clk_reference.cpp
