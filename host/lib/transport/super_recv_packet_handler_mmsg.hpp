@@ -422,7 +422,8 @@ private:
             
             printf("A12\n");
 
-            for(auto& ch_i : thread_ch_i) {
+            for(size_t thread_ch = 0; thread_ch < thread_ch_i.size(); thread_ch++ ) {
+                size_t ch_i = thread_ch_i[thread_ch];
                 printf("A13\n");
                 ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
                 printf("A15\n");
@@ -437,7 +438,7 @@ private:
                 for(size_t p = 0; p < self->thread_bytes_to_recv; p += self->_MAX_SAMPLE_BYTES_PER_PACKET) {
                     printf("A18: %lu\n", thread_ch_i[ch_i]);
                     printf("p: %lu\n", p);
-                    samples_sg_dst[ch_i].push_back((void*)p/*+(uint8_t*)(self->recveive_buffers[ch_i].load())*/);
+                    samples_sg_dst[thread_ch].push_back(p+(uint8_t*)(self->recveive_buffers[ch_i].load()));
                 }
                 printf("A19\n");
             }
@@ -451,7 +452,8 @@ private:
             // Amount of data in the last packet copied directly to buffer
             size_t data_in_last_packet = self->_MAX_SAMPLE_BYTES_PER_PACKET - excess_data_in_last_packet;
 
-            for(auto& ch_i : thread_ch_i) {
+            for(size_t thread_ch = 0; thread_ch < thread_ch_i.size(); thread_ch++ ) {
+                size_t ch_i = thread_ch_i[thread_ch];
                 ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
                 for (size_t n = 0; n < num_packets_to_recv - 1; n++) {
                     // Location to write header data to
@@ -460,7 +462,7 @@ private:
                     ch_recv_buffer_info_i.iovecs[2*n].iov_len = self->_HEADER_SIZE;
                     ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = 0;
                     // Location to write sample data to
-                    ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = samples_sg_dst[ch_i][n];
+                    ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = samples_sg_dst[thread_ch][n];
                     ch_recv_buffer_info_i.iovecs[2*n+1].iov_len = self->_MAX_SAMPLE_BYTES_PER_PACKET;
                     ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n];
                     ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iovlen = 2;
@@ -472,7 +474,7 @@ private:
                 ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_base =ch_recv_buffer_info_i.headers[n_last_packet].data();
                 ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_len = self->_HEADER_SIZE;
                 // Location to write sample data to
-                ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[ch_i][n_last_packet];
+                ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[thread_ch][n_last_packet];
                 ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_len = data_in_last_packet;
                 // Location to write samples that don't fit in sample_buffer to
                 ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_i.sample_cache.data();
