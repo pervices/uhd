@@ -422,10 +422,13 @@ private:
             for(auto& ch_i : thread_ch_i) {
                 printf("A13\n");
                 ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
+                printf("A15\n");
                 // Clears number of headers (which is also a count of number of packets received
                 ch_recv_buffer_info_i.num_headers_used = 0;
                 // Resets the count for amount of data in the cache
                 ch_recv_buffer_info_i.sample_cache_used = 0;
+                
+                printf("A17\n");
 
                 //Fills the pointer to where in the buffer to write samples from the packet to
                 for(size_t p = 0; p < self->thread_bytes_to_recv; p += self->_MAX_SAMPLE_BYTES_PER_PACKET) {
