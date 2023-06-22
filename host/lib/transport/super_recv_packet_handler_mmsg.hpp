@@ -372,12 +372,15 @@ private:
         // Tells receive threads to start
         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             start_receive[ch] = true;
-        }
-
-        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             while(start_receive[ch]) {
                 // Busy wait
             }
+        }
+
+        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+//             while(start_receive[ch]) {
+//                 // Busy wait
+//             }
         }
 
         // Determine which error code to use. In the event of different error codes between threads timeout errors will be prioritized
