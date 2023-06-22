@@ -411,11 +411,16 @@ private:
             if(self->threads_should_exit) {
                 return;
             }
+            
+            printf("A11\n");
 
             // Pointers for where to write samples to from each packet using scatter gather
             std::vector<std::vector<void*>> samples_sg_dst(num_ch_thread);
+            
+            printf("A12\n");
 
             for(auto& ch_i : thread_ch_i) {
+                printf("A13\n");
                 ch_recv_buffer_info& ch_recv_buffer_info_i = self->ch_recv_buffer_info_group[ch_i];
                 // Clears number of headers (which is also a count of number of packets received
                 ch_recv_buffer_info_i.num_headers_used = 0;
@@ -426,6 +431,7 @@ private:
                 for(size_t p = 0; p < self->thread_bytes_to_recv; p += self->_MAX_SAMPLE_BYTES_PER_PACKET) {
                     samples_sg_dst[ch_i].push_back(p+(uint8_t*)(self->recveive_buffers[ch_i].load()));
                 }
+                printf("A19\n");
             }
             
             printf("A20\n");
@@ -472,7 +478,7 @@ private:
             clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
             int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(self->receive_timeout * 1000000000);
             
-            printf("A30\n");
+            printf("A30: %lu\n", thread_ch_i[0]);
             
             for(int n = 0; n < 10; n++) {
                 ::usleep(1000000);
