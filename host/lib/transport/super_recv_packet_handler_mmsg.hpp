@@ -404,6 +404,8 @@ private:
                     // Loading and unloading threads is to slow
                 }
             }
+            
+            printf("A10\n");
 
             // Exists if should exit flag is set (set by destructor)
             if(self->threads_should_exit) {
@@ -425,6 +427,8 @@ private:
                     samples_sg_dst[ch_i].push_back(p+(uint8_t*)(self->recveive_buffers[ch_i].load()));
                 }
             }
+            
+            printf("A20\n");
 
             size_t num_packets_to_recv = samples_sg_dst[0].size();
 
@@ -467,6 +471,8 @@ private:
             struct timespec recv_start_time;
             clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
             int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(self->receive_timeout * 1000000000);
+            
+            printf("A30\n");
 
             bool timeout_occured = false;
             size_t num_channels_serviced = 0;
