@@ -436,6 +436,7 @@ private:
                 //Fills the pointer to where in the buffer to write samples from the packet to
                 for(size_t p = 0; p < self->thread_bytes_to_recv; p += self->_MAX_SAMPLE_BYTES_PER_PACKET) {
                     printf("A18: %lu\n", thread_ch_i[ch_i]);
+                    printf("p: %lu\n", p);
                     samples_sg_dst[ch_i].push_back((void*)p/*+(uint8_t*)(self->recveive_buffers[ch_i].load())*/);
                 }
                 printf("A19\n");
