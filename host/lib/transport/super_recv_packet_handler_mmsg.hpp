@@ -473,6 +473,12 @@ private:
             int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(self->receive_timeout * 1000000000);
             
             printf("A30\n");
+            
+            for(int n = 0; n < 10; n++) {
+                ::usleep(1000000);
+            }
+            
+            printf("A40\n");
 
             bool timeout_occured = false;
             size_t num_channels_serviced = 0;
