@@ -552,6 +552,7 @@ private:
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
             if(current_time_ns > send_timeout_time_ns) {
+                next_sequence_number = (next_sequence_number - num_packets + packets_sent_per_ch[0]);
                 break;
             }
         }
