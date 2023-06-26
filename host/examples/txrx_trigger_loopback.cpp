@@ -23,6 +23,7 @@
 #include <thread>
 #include <fstream>
 #include <filesystem>
+#include <atomic>
 
 #include <uhd/types/tune_request.hpp>
 
