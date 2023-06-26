@@ -384,6 +384,7 @@ private:
         clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
         int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(timeout * 1000000000);
 
+        // Flag to indicate if a timeout occured. Note: timeout should only be reported if no data was received
         bool timeout_occured = false;
         size_t num_channels_serviced = 0;
         while(num_channels_serviced < _NUM_CHANNELS) {
@@ -464,6 +465,12 @@ private:
         }
 
         if(timeout_occured) {
+            for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
+                if(ch_recv_buffer_info_i.num_headers_used > 0) {
+                    return rx_metadata_t::ERROR_CODE_NONE;
+                }
+            }
+            // Only return timeout if all channels received no data
             return rx_metadata_t::ERROR_CODE_TIMEOUT;
         } else {
             return rx_metadata_t::ERROR_CODE_NONE;
