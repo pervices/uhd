@@ -21,6 +21,7 @@
 #include <set>
 #include <vector>
 #include <thread>
+#include <atomic>
 
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"

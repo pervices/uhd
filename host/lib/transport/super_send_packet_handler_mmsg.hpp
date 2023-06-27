@@ -401,7 +401,7 @@ private:
             packet_header_infos[n].has_cid = false;
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
-            packet_header_infos[n].has_tsf = true; // FPGA requires all data packets have fractional timestamps
+            packet_header_infos[n].has_tsf = !metadata_.end_of_burst; // Every packet except the end of burst must have a timestamp. End of burst must have no timestamp
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
                 packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
@@ -551,6 +551,7 @@ private:
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
             if(current_time_ns > send_timeout_time_ns) {
+                next_sequence_number = (next_sequence_number - num_packets + packets_sent_per_ch[0]);
                 break;
             }
         }

@@ -194,19 +194,35 @@ public:
         }
 
         // Returns the number of samples requested, if there were enough samples in the cache
-        if(!bytes_to_recv) {
+        if(!bytes_to_recv || cached_end_of_burst) {
             metadata.error_code = rx_metadata_t::ERROR_CODE_NONE;
+
+            // Sets the end of burst flag if cached, the clears it
+            metadata.end_of_burst = cached_end_of_burst;
+            cached_end_of_burst = false;
+
+            metadata.has_time_spec = true;
+            metadata.time_spec = previous_timestamp + time_spec_t::from_ticks(previous_num_samples, _sample_rate);
+            previous_timestamp = metadata.time_spec;
+
+            previous_num_samples = nsamps_per_buff;
             return nsamps_per_buff;
         }
 
         // Receives packets, data is stores in recv_buffer, metadata is stored in ch_recv_buffer_info.headers
         metadata.error_code = recv_multiple_packets(*recv_buffer, cached_bytes_to_copy, cached_bytes_to_copy + bytes_to_recv, timeout);
 
+        // Setting metadata fields
+
         metadata.has_time_spec = true;
-        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _sample_rate);
+        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf - /* Simulate what timestamp would'bve been if it was for the start of the cached samples */cached_bytes_to_copy, _sample_rate);
+        previous_timestamp = metadata.time_spec;
 
         // Check for overflow errors and flushed packets to keep buffers aligned
         size_t aligned_bytes = align_buffs(metadata.error_code) + cached_bytes_to_copy;
+
+
+        metadata.end_of_burst = detect_end_of_burst();
 
         size_t final_nsamps = aligned_bytes/_BYTES_PER_SAMPLE;
 
@@ -214,6 +230,7 @@ public:
             convert_samples(buffs, final_nsamps);
         }
 
+        previous_num_samples = final_nsamps;
         return final_nsamps;
     }
 
@@ -247,6 +264,13 @@ private:
     size_t previous_sample_cache_used = 0;
     // Maximum sequence number
     const size_t sequence_number_mask = 0xf;
+    // Stores if end of burst
+    bool cached_end_of_burst = false;
+
+    // Number of samples in the previous recv. Used for simulating timestamp for cached samples
+    time_spec_t previous_timestamp = time_spec_t(0.0);
+    size_t previous_num_samples = 0;
+
     // Stores information about packets received for each channel
     // Note: this is not meant to be persistent between reads, it is done this way to avoid deallocating and reallocating memory
     struct ch_recv_buffer_info {
@@ -383,6 +407,7 @@ private:
         clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
         int64_t recv_timeout_time_ns = (recv_start_time.tv_sec * 1000000000) + recv_start_time.tv_nsec + (int64_t)(timeout * 1000000000);
 
+        // Flag to indicate if a timeout occured. Note: timeout should only be reported if no data was received
         bool timeout_occured = false;
         size_t num_channels_serviced = 0;
         while(num_channels_serviced < _NUM_CHANNELS) {
@@ -463,6 +488,12 @@ private:
         }
 
         if(timeout_occured) {
+            for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
+                if(ch_recv_buffer_info_i.num_headers_used > 0) {
+                    return rx_metadata_t::ERROR_CODE_NONE;
+                }
+            }
+            // Only return timeout if all channels received no data
             return rx_metadata_t::ERROR_CODE_TIMEOUT;
         } else {
             return rx_metadata_t::ERROR_CODE_NONE;
@@ -680,6 +711,41 @@ private:
             const ref_vector<void*> user_buffer_ch(user_buffer_ptrs[n]);
             // Converts the samples
             _converter->conv(_intermediate_recv_buffer_pointers[n], user_buffer_ch, num_samples);
+        }
+    }
+
+    bool detect_end_of_burst() {
+        bool end_of_burst_received = false;
+        for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
+            if(ch_recv_buffer_info_i.num_headers_used > 0) {
+                // Set end of burst if received on any channel
+                if(ch_recv_buffer_info_i.vrt_metadata[ch_recv_buffer_info_i.num_headers_used].eob) {
+                    end_of_burst_received = true;
+                }
+            }
+        }
+
+        bool should_cache_eob = end_of_burst_received;
+        if(end_of_burst_received) {
+            for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
+                if(ch_recv_buffer_info_i.sample_cache_used == 0) {
+                    should_cache_eob = false;
+                }
+            }
+        }
+
+        // EOB received, but there as samples in the cache so it should be saved until the next receive
+        if(should_cache_eob && end_of_burst_received) {
+            cached_end_of_burst = true;
+            return false;
+        // EOB received and there are no samples in the cache so clear EOB cache and set metadata flag
+        } else if(end_of_burst_received) {
+            cached_end_of_burst = false;
+            return true;
+        } else {
+        // Clear EOB cache, should be unreachable because
+            cached_end_of_burst = false;
+            return false;
         }
     }
 

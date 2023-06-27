@@ -230,7 +230,7 @@ public:
             } else {
                 double current_time = get_time_now().get_real_secs();
                 if (metadata.time_spec.get_real_secs() < current_time + 0.1) {
-                    fprintf(stderr, "WARNING: requested start time (%lf) very close to current time (%lf). Issues may occur\n", metadata.time_spec.get_real_secs(), current_time);
+                    throw uhd::value_error(CRIMSON_TNG_DEBUG_NAME_C " Requested tx start time to close to current time");
                 }
             }
         }
