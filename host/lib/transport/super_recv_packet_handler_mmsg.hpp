@@ -320,7 +320,6 @@ private:
 
         size_t nbytes_to_recv = buffer_length_bytes - sample_buffer_offset;
 
-        // TODO: currently being written to write directly to the buffer to return to the user, need to implement a conversion for other cpu formats
         // Pointers for where to write samples to from each packet using scatter gather
         std::vector<std::vector<void*>> samples_sg_dst(_NUM_CHANNELS);
 
