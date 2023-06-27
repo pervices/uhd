@@ -358,6 +358,7 @@ private:
 
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i) {
+        return 5;
         if(BOOST_LIKELY(!use_blocking_fc)) {
 
             // Get the buffer level on the unit
