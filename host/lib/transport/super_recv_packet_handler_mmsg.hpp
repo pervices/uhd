@@ -201,7 +201,11 @@ public:
             metadata.end_of_burst = cached_end_of_burst;
             cached_end_of_burst = false;
 
-            //TODO: simulate timestamp for cached samples
+            metadata.has_time_spec = true;
+            metadata.time_spec = previous_timestamp + time_spec_t::from_ticks(previous_num_samples, _sample_rate);
+            previous_timestamp = metadata.time_spec;
+
+            previous_num_samples = nsamps_per_buff;
             return nsamps_per_buff;
         }
 
@@ -211,7 +215,8 @@ public:
         // Setting metadata fields
 
         metadata.has_time_spec = true;
-        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf, _sample_rate);
+        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf - /* Simulate what timestamp would'bve been if it was for the start of the cached samples */cached_bytes_to_copy, _sample_rate);
+        previous_timestamp = metadata.time_spec;
 
         // Check for overflow errors and flushed packets to keep buffers aligned
         size_t aligned_bytes = align_buffs(metadata.error_code) + cached_bytes_to_copy;
@@ -225,6 +230,7 @@ public:
             convert_samples(buffs, final_nsamps);
         }
 
+        previous_num_samples = final_nsamps;
         return final_nsamps;
     }
 
@@ -260,6 +266,11 @@ private:
     const size_t sequence_number_mask = 0xf;
     // Stores if end of burst
     bool cached_end_of_burst = false;
+
+    // Number of samples in the previous recv. Used for simulating timestamp for cached samples
+    time_spec_t previous_timestamp = time_spec_t(0.0);
+    size_t previous_num_samples = 0;
+
     // Stores information about packets received for each channel
     // Note: this is not meant to be persistent between reads, it is done this way to avoid deallocating and reallocating memory
     struct ch_recv_buffer_info {
