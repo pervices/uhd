@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import sys
+import numpy as np
 
 import mako.lookup
 import mako.template
@@ -31,6 +32,9 @@ RFNOC_CORE_DIR = os.path.join('rfnoc', 'core')
 
 # Path to the system's bash executable
 BASH_EXECUTABLE = '/bin/bash' # FIXME this should come from somewhere
+
+# Supported protocol version
+RFNOC_PROTO_VERSION = "1.0"
 
 # Map device names to the corresponding directory under usrp3/top
 DEVICE_DIR_MAP = {
@@ -55,6 +59,38 @@ DEVICE_DEFAULTTARGET_MAP = {
     'n300': 'N300_HG',
     'n310': 'N310_HG',
     'n320': 'N320_XG',
+}
+
+# List of blocks that have been replaced (old name : new name)
+deprecated_block_yml_map = {
+    "radio_1x64.yml"        : "radio.yml",
+    "radio_2x64.yml"        : "radio.yml",
+    "axi_ram_fifo_2x64.yml" : "axi_ram_fifo.yml",
+    "axi_ram_fifo_4x64.yml" : "axi_ram_fifo.yml",
+}
+
+# List of port names that have been replaced (old name : new name)
+deprecated_port_name_map = {
+    "x300_radio"     : "radio",
+    "radio_iface"    : "radio",
+    "x300_radio0"    : "radio0",
+    "x300_radio1"    : "radio1",
+    "radio_ch0"      : "radio0",
+    "radio_ch1"      : "radio1",
+    "ctrl_port"      : "ctrlport",
+    "ctrlport_radio" : "ctrlport",
+    "timekeeper"     : "time",
+    "time_keeper"    : "time",
+}
+
+# List of IO signature types that have been replaced (old name : new name)
+deprecated_port_type_map = {
+    "ctrl_port"     : "ctrlport",
+    "time_keeper"   : "timekeeper",
+    "radio_1x32"    : "radio",
+    "radio_2x32"    : "radio",
+    "radio_8x32"    : "radio",
+    "x300_radio"    : "radio",
 }
 
 
@@ -112,6 +148,13 @@ def expand_io_port_desc(io_ports, signatures):
     """
     for io_port in io_ports.values():
         wires = []
+        if io_port["type"] in deprecated_port_type_map:
+            logging.warning(
+                "The IO signature type '" + io_port["type"] +
+                "' has been deprecated. Please update your block YAML to use '" +
+                deprecated_port_type_map[io_port["type"]] + "'."
+            )
+            io_port["type"] = deprecated_port_type_map[io_port["type"]]
         for signature in signatures[io_port["type"]]["ports"]:
             width = signature.get("width", 1)
             wire_type = signature.get("type", None)
@@ -178,12 +221,119 @@ class ImageBuilderConfig:
         self.blocks = blocks
         self.device = device
         self._update_sep_defaults()
+        self._check_configuration()
+        self._check_deprecated_signatures()
         self._set_indices()
         self._collect_noc_ports()
         self._collect_io_ports()
         self._collect_clocks()
         self.pick_connections()
         self.pick_clk_domains()
+
+    def _check_deprecated_signatures(self):
+        """
+        Check if the configuration uses deprecated IO signatures or block
+        descriptions.
+        """
+        # Go through blocks and look for any deprecated descriptions
+        for name, block in self.noc_blocks.items():
+            desc = block['block_desc']
+            if desc in deprecated_block_yml_map:
+                logging.warning(
+                    "The block description '" + desc +
+                    "' has been deprecated. Please update your image to use '" +
+                    deprecated_block_yml_map[desc] + "'."
+                )
+                # Override the block with the new version
+                block['block_desc'] = deprecated_block_yml_map[desc]
+        # Go through port connections and look for deprecated names
+        for con in self.connections:
+            for port in ('srcport', 'dstport'):
+                if con[port] in deprecated_port_name_map:
+                    logging.warning(
+                        "The port name '" + con[port] + "' has been deprecated. "
+                        "Please update your image to use '" +
+                        deprecated_port_name_map[con[port]] + "'."
+                    )
+                    # Override the name with the new version
+                    con[port] = deprecated_port_name_map[con[port]]
+
+    def _check_configuration(self):
+        """
+        Do plausibility checks on the current configuration
+        """
+        logging.info("Plausibility checks on the current configuration")
+        failure = None
+        if not any([bool(sep["ctrl"]) for sep in self.stream_endpoints.values()]):
+            failure = "At least one streaming endpoint needs to have ctrl enabled"
+        # Check RFNoC protocol version. Use latest if it was not specified.
+        requested_version = (
+            self.rfnoc_version
+            if hasattr(self, "rfnoc_version")
+            else RFNOC_PROTO_VERSION
+        )
+        [requsted_major, requested_minor, *_] = requested_version.split('.')
+        [supported_major, supported_minor, *_] = RFNOC_PROTO_VERSION.split('.')
+        if requsted_major != supported_major or requested_minor > supported_minor:
+            failure = (
+                "Requested RFNoC protocol version (rfnoc_version) " +
+                requested_version +
+                " is ahead of latest version "
+                + RFNOC_PROTO_VERSION
+            )
+        elif requested_version != RFNOC_PROTO_VERSION:
+            logging.warning(
+                "Generating code for latest RFNoC protocol version "
+                + RFNOC_PROTO_VERSION
+                + " instead of requested "
+                + requested_version
+            )
+        self.rfnoc_version = RFNOC_PROTO_VERSION
+        # Give block_chdr_width a default value
+        if not hasattr(self, "block_chdr_width"):
+            self.block_chdr_width = self.chdr_width
+        # Check crossbar_routes
+        num_tas = len(self.device.transports)
+        num_seps = len(self.stream_endpoints)
+        num_ports = num_tas + num_seps
+        if hasattr(self, "crossbar_routes"):
+            # Check that crossbar_routes is an NxN array of ones and zeros
+            routes = np.array(self.crossbar_routes)
+            num_rows = routes.shape[0]
+            num_cols = routes.shape[1]
+            num_digits = np.count_nonzero(routes == 0) + np.count_nonzero(routes == 1)
+            if routes.shape != (num_ports, num_ports) or num_digits != num_ports**2:
+                failure = (
+                    "crossbar_routes must be a "
+                    + str(num_ports)
+                    + " by "
+                    + str(num_ports)
+                    + " binary array"
+                )
+        else:
+            # Give crossbar_routes a default value
+            routes = np.ones([num_ports, num_ports])
+            # Disable all TA to TA paths, except loopback (required for discovery)
+            for i in range(0, num_tas):
+                routes[i, 0:num_tas] = 0
+                routes[i, i] = 1
+            self.crossbar_routes = routes.tolist()
+        # Check SEP has buff_size and buff_size_bytes parameters
+        for sep_name in self.stream_endpoints:
+            sep = self.stream_endpoints[sep_name]
+            if "buff_size" not in sep and "buff_size_bytes" not in sep:
+                failure = (
+                    f"You must specify buff_size or buff_size_bytes for {sep_name}"
+                )
+            # Initialize the one not set by user (schema doesn't allow both)
+            if "buff_size_bytes" in sep:
+                sep["buff_size"] = sep["buff_size_bytes"] // (sep["chdr_width"] // 8)
+            elif "buff_size" in sep:
+                sep["buff_size_bytes"] = sep["buff_size"] * (sep["chdr_width"] // 8)
+        # Handle any errors
+        if failure:
+            logging.error(failure)
+            raise ValueError(failure)
 
     def _update_sep_defaults(self):
         """
@@ -194,6 +344,8 @@ class ImageBuilderConfig:
                 self.stream_endpoints[sep]["num_data_i"] = 1
             if "num_data_o" not in self.stream_endpoints[sep]:
                 self.stream_endpoints[sep]["num_data_o"] = 1
+            if "chdr_width" not in self.stream_endpoints[sep]:
+                self.stream_endpoints[sep]["chdr_width"] = self.chdr_width
 
     def _set_indices(self):
         """
@@ -222,7 +374,7 @@ class ImageBuilderConfig:
                 setattr(desc, "parameters", {})
             if "parameters" not in block:
                 block["parameters"] = OrderedDict()
-            for key in block["parameters"].keys():
+            for key in list(block["parameters"].keys()):
                 if key not in desc.parameters:
                     logging.error("Unknown parameter %s for block %s", key, name)
                     del block["parameters"][key]
@@ -537,6 +689,10 @@ def convert_to_image_config(grc, grc_config_path):
         result["noc_blocks"][block["name"]] = {
             "block_desc": block["parameters"]["desc"]
         }
+        if "nports" in block["parameters"]:
+            result["noc_blocks"][block["name"]]["parameters"] = {
+                "NUM_PORTS": block["parameters"]["nports"]
+            }
 
     device_clocks = {
         port["id"]: port for port in grc_blocks[device['id']]["outputs"]
@@ -589,7 +745,7 @@ def collect_module_paths(config_path, include_paths):
 
 def read_block_descriptions(signatures, *paths):
     """
-    Recursive search all pathes for block definitions.
+    Recursive search all paths for block definitions.
     :param signatures: signature passed to IOConfig initialization
     :param paths: paths to be searched
     :return: dictionary of noc blocks. Key is filename of the block, value
@@ -602,7 +758,10 @@ def read_block_descriptions(signatures, *paths):
                 if re.match(r".*\.yml$", filename):
                     with open(os.path.join(root, filename)) as stream:
                         block = ordered_load(stream)
-                        if "schema" in block and \
+                        if filename in deprecated_block_yml_map:
+                            logging.warning("Skipping deprecated block description "
+                                "%s (%s).", filename, os.path.normpath(root))
+                        elif "schema" in block and \
                                 block["schema"] == "rfnoc_modtool_args":
                             logging.info("Adding block description from "
                                          "%s (%s).", filename, os.path.normpath(root))
@@ -671,7 +830,7 @@ def write_edges(config, destination):
                           ((dst[0] << 6) | dst[1])))
 
 
-def write_verilog(config, destination, source, source_hash):
+def write_verilog(config, destination, args):
     """
     Generates rfnoc_image_core.v file for the device.
 
@@ -682,8 +841,7 @@ def write_verilog(config, destination, source, source_hash):
     template engine.
     :param config: ImageBuilderConfig derived from script parameter
     :param destination: Filepath to write to
-    :param source: Filepath to the image YAML/GRC to generate from
-    :param source_hash: Source file hash value
+    :param args: Dictionary of arguments for the code generation
     :return: None
     """
     template_dir = os.path.join(os.path.dirname(__file__), "templates")
@@ -697,8 +855,7 @@ def write_verilog(config, destination, source, source_hash):
     try:
         block = tpl.render(**{
             "config": config,
-            "source": source,
-            "source_hash": source_hash,
+            "args": args,
             })
     except:
         print(exceptions.text_error_template().render())
@@ -709,13 +866,12 @@ def write_verilog(config, destination, source, source_hash):
         image_core_file.write(block)
 
 
-def write_verilog_header(config, destination, source, source_hash):
+def write_verilog_header(config, destination, args):
     """
     Generates rfnoc_image_core.vh file for the device.
     :param config: ImageBuilderConfig derived from script parameter
     :param destination: Filepath to write to
-    :param source: Filepath to the image YAML/GRC to generate from
-    :param source_hash: Source file hash value
+    :param args: Dictionary of arguments for the code generation
     :return: None
     """
     template_dir = os.path.join(os.path.dirname(__file__), "templates")
@@ -729,8 +885,7 @@ def write_verilog_header(config, destination, source, source_hash):
     try:
         block = tpl.render(**{
             "config": config,
-            "source": source,
-            "source_hash": source_hash,
+            "args": args,
             })
     except:
         print(exceptions.text_error_template().render())
@@ -927,13 +1082,13 @@ def build_image(config, fpga_path, config_path, device, **args):
     write_verilog(
         builder_conf,
         image_core_path,
-        source=args.get('source'),
-        source_hash=args.get('source_hash'))
+        args,
+    )
     write_verilog_header(
         builder_conf,
         image_core_header_path,
-        source=args.get('source'),
-        source_hash=args.get('source_hash'))
+        args,
+    )
     write_build_env()
 
     if "generate_only" in args and args["generate_only"]:

@@ -17,6 +17,7 @@ set(example_sources
     rx_start.cpp
     rx_stop.cpp
     rx_samples_to_file.cpp
+    rx_samples_to_file_legacy.cpp
     rx_samples_to_udp.cpp
     rx_timed_samples.cpp
     set_clk_reference.cpp
@@ -34,6 +35,7 @@ set(example_sources
     usrp_list_sensors.cpp
     latency_test.cpp
     gpio.cpp
+    spi.cpp
     sync_to_gps.cpp
     rxtx_inline_filter_crimson.cpp
     rxtx_inter_device_stream.cpp
@@ -68,6 +70,7 @@ endforeach(example_source)
 ########################################################################
 # ASCII Art DFT - requires curses, so this part is optional
 ########################################################################
+set(CURSES_NEED_NCURSES 1)
 find_package(Curses)
 
 if(CURSES_FOUND)

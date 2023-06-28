@@ -187,10 +187,10 @@ module chdr_stream_endpoint_tb#(
   );
 
   chdr_crossbar_nxn #(
-    .CHDR_W         (CHDR_W),
+    .PORT_W         (CHDR_W),
     .NPORTS         (3),
     .DEFAULT_PORT   (0),
-    .MTU            (MTU),
+    .BYTE_MTU       (MTU + $clog2(CHDR_W/8)),
     .ROUTE_TBL_SIZE (6),
     .MUX_ALLOC      ("ROUND-ROBIN"),
     .OPTIMIZE       ("AREA"),
@@ -310,6 +310,7 @@ module chdr_stream_endpoint_tb#(
     // Iterate over stream commands to test
     foreach (op[i]) begin
       chdr_hdr = '{
+        pkt_type : CHDR_STRM_CMD,
         dst_epid : dst_epid,
         seq_num  : seq_num,
         default  : 0
@@ -480,6 +481,7 @@ module chdr_stream_endpoint_tb#(
       ctrl_ts = $urandom();
       ctrl_op = '{
         default      : '0,
+        status       : CTRL_STS_OKAY,
         op_code      : ctrl_opcode_t'($urandom_range(9)),
         byte_enable  : $urandom_range(15),
         address      : $urandom()

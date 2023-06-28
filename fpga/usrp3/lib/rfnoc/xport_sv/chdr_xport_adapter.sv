@@ -1,11 +1,14 @@
 //
-// Copyright 2020 Ettus Research, A National Instruments Brand
+// Copyright 2020 Ettus Research, a National Instruments Brand
 //
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //
 // Module: chdr_xport_adapter (Ethernet IPV4)
 //
-// Description: An Xport transport adapter module that does the following:
+// Description:
+//
+// A transport adapter module that does the following:
+//
 //   - Exposes a configuration port for mgmt packets to configure the node.
 //     (chdr_mgmt_pkt_handler)
 //   - Implements a return-address map for packets with metadata other than
@@ -14,43 +17,65 @@
 //     packet. For all returning packets, the metadata will be looked up in
 //     the map and attached as the outgoing tuser. (kv_map)
 //   - Implements a loopback path for node-info discovery (axi_switch/axi_mux)
-//   - Strip UDP headers and extract mac/ip/udp src addresses
-//   - Add UDP header for outgoing ethernet traffic
+//   - Strips incoming UDP headers and extracts MAC/IP/UDP source addresses
+//   - Adds UDP/IP/Eth headers for outgoing packets
+//   - Optionally removes CHDR header from outgoing packets to enable raw UDP
 //
 // Parameters:
-//   - PROTOVER: RFNoC protocol version {8'd<major>, 8'd<minor>}
-//   - TBL_SIZE: Log2 of the depth of the routing table
-//   - NODE_SUBTYPE: The node subtype to return for a node-info discovery
-//   - NODE_INST: The node type to return for a node-info discovery
-//   - ALLOW_DISC: Controls if the external transport network should be
-//                 discoverable by management packets from RFNoC side.
+//
+//   PROTOVER       : RFNoC protocol version {8'd<major>, 8'd<minor>}
+//   TBL_SIZE       : Log2 of the depth of the routing table
+//   NODE_SUBTYPE   : The node subtype to return for a node-info discovery
+//   NODE_INST      : The node type to return for a node-info discovery
+//   ALLOW_DISC     : Controls if the external transport network should be
+//                    discoverable by management packets from RFNoC side.
+//   NET_CHDR_W     : CHDR width used over the network connection
+//   EN_RX_RAW_PYLD : Enable raw payload (CHDR header removal) on the data
+//                    path from the USRP towards the transport interface.
 //
 // Signals:
-//   - device_id : The ID of the device that has instantiated this module
-//   - my_*      : MAC address, IP address, and UDP port that responds/accepts CHDR traffic
-//   - eth_rx    : The input CHDR stream from the transport
-//   - eth_tx    : The output CHDR stream to transport
-//   - v2e       : The input CHDR stream from the rfnoc infrastructure
-//   - e2v       : The output CHDR stream to the rfnoc infrastructure
 //
+//   device_id : The ID of the device that has instantiated this module
+//   my_*      : MAC address, IP address, and UDP port that responds/accepts CHDR traffic
+//   kv_*      : Allows the transport adapter to add entries to KV map
+//   eth_rx    : The input CHDR stream from the transport
+//   eth_tx    : The output CHDR stream to transport
+//   v2e       : The input CHDR stream from the rfnoc infrastructure
+//   e2v       : The output CHDR stream to the rfnoc infrastructure
+//
+
+`default_nettype none
+
 
 `include "../xport/rfnoc_xport_types.vh"
 
 module chdr_xport_adapter #(
-  int          PREAMBLE_BYTES   = 6,
-  int          MAX_PACKET_BYTES = 2**16,
-  logic [15:0] PROTOVER     = {8'd1, 8'd0},
-  int          TBL_SIZE     = 6,
-  logic [7:0]  NODE_SUBTYPE = NODE_SUBTYPE_XPORT_IPV4_CHDR64,
-  int          NODE_INST    = 0,
-  bit          ALLOW_DISC   = 1
-)(
+  parameter int          PREAMBLE_BYTES   = 6,
+  parameter int          MAX_PACKET_BYTES = 2**16,
+  parameter logic [15:0] PROTOVER         = {8'd1, 8'd0},
+  parameter int          TBL_SIZE         = 6,
+  parameter logic [7:0]  NODE_SUBTYPE     = NODE_SUBTYPE_XPORT_IPV4_CHDR64,
+  parameter int          NODE_INST        = 0,
+  parameter bit          ALLOW_DISC       = 1,
+  parameter int          NET_CHDR_W       = 64,
+  parameter bit          EN_RX_RAW_PYLD   = 1,
+
+  // TUSER used to store {raw_udp, UDP port, IPv4 addr, MAC addr}
+  localparam int USER_META_W = 97
+) (
   // Device info (domain: eth_rx.clk)
-  input  logic [15:0] device_id,
+  input  wire  [15:0] device_id,
+
   // Device addresses (domain: eth_rx.clk)
-  input  logic [47:0] my_mac,
-  input  logic [31:0] my_ip,
-  input  logic [15:0] my_udp_chdr_port,
+  input  wire  [47:0] my_mac,
+  input  wire  [31:0] my_ip,
+  input  wire  [15:0] my_udp_chdr_port,
+
+  // KV map insertion port
+  input  wire                    kv_stb,
+  output logic                   kv_busy,
+  input  wire  [           15:0] kv_dst_epid,
+  input  wire  [USER_META_W-1:0] kv_data,
 
   // Ethernet (domain: eth_rx.clk)
   AxiStreamIf.slave  eth_rx, // tUser={*not used*}
@@ -61,9 +86,8 @@ module chdr_xport_adapter #(
   AxiStreamIf.master e2v   // tUser={*not used*}
 );
 
-  //used to store {udp, ipv4, mac}
-  localparam USER_META_W = 96;
-  localparam ENET_USER_W = $clog2(eth_rx.DATA_WIDTH/8)+1;
+  localparam int ENET_USER_W = $clog2(eth_rx.DATA_WIDTH/8)+1;
+
   // ---------------------------------------------------
   // RFNoC Includes
   // ---------------------------------------------------
@@ -90,6 +114,8 @@ module chdr_xport_adapter #(
   // tUser={udp_src_port,ipv4_src_addr,eth_src_addr}
   AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH),.USER_WIDTH(USER_META_W),.TKEEP(0))
     e2d(eth_rx.clk,eth_rx.rst);// Eth => Demux
+  AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH),.USER_WIDTH(USER_META_W),.TKEEP(0))
+    e2v_resize(eth_rx.clk,eth_rx.rst);// RX Resize => Management packet handler
   logic [1:0]                  e2d_tid;
   // tUser={udp_src_port,ipv4_src_addr,eth_src_addr}
   AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH),.USER_WIDTH(USER_META_W),.TKEEP(0))
@@ -141,7 +167,7 @@ module chdr_xport_adapter #(
   // start driving the port information
   always_comb begin : assign_ru3
     `AXI4S_ASSIGN(ru3,ru2)
-    ru3.tuser     = {udp_src_port_old, ipv4_src_addr_old, eth_src_addr_old};
+    ru3.tuser     = {1'b0, udp_src_port_old, ipv4_src_addr_old, eth_src_addr_old};
   end
 
 
@@ -155,9 +181,40 @@ module chdr_xport_adapter #(
     .m_axis_tlast(ru4.tlast), .m_axis_tvalid(ru4.tvalid), .m_axis_tready(ru4.tready)
   );
 
-  // Pay close attention to when ph.tuser swtiches versus when it is needed!
+  // Pay close attention to when ph.tuser switches versus when it is needed!
   always_comb begin : assign_ph
     `AXI4S_ASSIGN(ph,ru4)
+  end
+
+  // ---------------------------------------------------
+  // Rewrite packets from network to use FPGA CHDR_W
+  // ---------------------------------------------------
+  if (NET_CHDR_W != eth_rx.DATA_WIDTH) begin : gen_chdr_resize_e2v
+    chdr_resize #(
+      .I_CHDR_W (NET_CHDR_W),
+      .O_CHDR_W (eth_rx.DATA_WIDTH),
+      .I_DATA_W (eth_rx.DATA_WIDTH),
+      .O_DATA_W (eth_rx.DATA_WIDTH),
+      .USER_W   (USER_META_W),
+      .PIPELINE ("IN")
+    ) chdr_resize_e2v (
+      .clk           (eth_rx.clk),
+      .rst           (eth_rx.rst),
+      .i_chdr_tdata  (ph.tdata),
+      .i_chdr_tuser  (ph.tuser),
+      .i_chdr_tlast  (ph.tlast),
+      .i_chdr_tvalid (ph.tvalid),
+      .i_chdr_tready (ph.tready),
+      .o_chdr_tdata  (e2v_resize.tdata),
+      .o_chdr_tuser  (e2v_resize.tuser),
+      .o_chdr_tlast  (e2v_resize.tlast),
+      .o_chdr_tvalid (e2v_resize.tvalid),
+      .o_chdr_tready (e2v_resize.tready)
+    );
+  end else begin : gen_no_chdr_resize_e2v
+    always_comb begin
+      `AXI4S_ASSIGN(e2v_resize, ph);
+    end
   end
 
   // ---------------------------------------------------
@@ -181,9 +238,9 @@ module chdr_xport_adapter #(
     .clk(eth_rx.clk), .rst(eth_rx.rst),
     .node_info(node_info),
     //ph in
-    .s_axis_chdr_tdata(ph.tdata), .s_axis_chdr_tlast(ph.tlast),
-    .s_axis_chdr_tvalid(ph.tvalid), .s_axis_chdr_tready(ph.tready),
-    .s_axis_chdr_tuser(ph.tuser),
+    .s_axis_chdr_tdata(e2v_resize.tdata), .s_axis_chdr_tlast(e2v_resize.tlast),
+    .s_axis_chdr_tvalid(e2v_resize.tvalid), .s_axis_chdr_tready(e2v_resize.tready),
+    .s_axis_chdr_tuser(e2v_resize.tuser),
     //e2d out
     .m_axis_chdr_tdata(e2d.tdata), .m_axis_chdr_tlast(e2d.tlast),
     .m_axis_chdr_tdest(/* unused */), .m_axis_chdr_tid(e2d_tid),
@@ -203,19 +260,32 @@ module chdr_xport_adapter #(
   );
 
   // Key/Value map.
-  // Stores the destination address information for UDP
-  //  -- storage is controlled from the chdr_managment_node
-  //  -- lookup is done on each packet passing out
+  // Stores the destination address information for each destination EPID.
+  //  - Writes come from the chdr_mgmt_pkt_handler or kv configuration port.
+  //  - Lookup is done on each packet going from RFNoC to Ethernet.
+  //  - We assume that we will never try to insert faster than the kv_map can
+  //    handle from CHDR mgmt interface (time between op_stb > insertion time).
+  //    This is not assumed for the kv_* interface (kv_busy must be false
+  //    before inserting a new entry).
+  //  - We assume we will never try to insert from mgmt interface and transport
+  //    adapter at the same time. Mgmt interface takes precedence.
   kv_map #(
-    .KEY_WIDTH(16), .VAL_WIDTH(USER_META_W), .SIZE(TBL_SIZE)
+    .KEY_WIDTH(16         ),
+    .VAL_WIDTH(USER_META_W),
+    .SIZE     (TBL_SIZE   )
   ) kv_map_i (
-    .clk(eth_rx.clk), .reset(eth_rx.rst),
-    .insert_stb(op_stb), .insert_key(op_src_epid), .insert_val(op_data),
-    .insert_busy(/* Time between op_stb > Insertion time */),
-    .find_key_stb(lookup_stb), .find_key(lookup_epid),
-    .find_res_stb(lookup_done_stb),
-    .find_res_match(lookup_result_match), .find_res_val(lookup_result_value),
-    .count(/* unused */)
+    .clk           (eth_rx.clk                        ),
+    .reset         (eth_rx.rst                        ),
+    .insert_stb    (op_stb | kv_stb                   ),
+    .insert_key    (op_stb ? op_src_epid : kv_dst_epid),
+    .insert_val    (op_stb ? op_data     : kv_data    ),
+    .insert_busy   (kv_busy                           ),
+    .find_key_stb  (lookup_stb                        ),
+    .find_key      (lookup_epid                       ),
+    .find_res_stb  (lookup_done_stb                   ),
+    .find_res_match(lookup_result_match               ),
+    .find_res_val  (lookup_result_value               ),
+    .count         (/* unused */                      )
   );
 
   logic ph_hdr = 1'b1;
@@ -335,7 +405,9 @@ module chdr_xport_adapter #(
   // one packet per lookup after the lookup is complete.
 
   AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH),.TUSER(0),.TKEEP(0))
-    data_fifo_o(eth_rx.clk,eth_rx.rst);
+    resize_v2e(eth_rx.clk,eth_rx.rst);
+  AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH),.USER_WIDTH(0),.TKEEP(0))
+    data_fifo_o(eth_rx.clk,eth_rx.rst);// TX Resize => Management packet handler
   AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH),.TUSER(0),.TKEEP(0))
     data_fifo_i(eth_rx.clk,eth_rx.rst);
 
@@ -348,7 +420,7 @@ module chdr_xport_adapter #(
   logic [USER_META_W-1:0] lookup_fifo_tuser;
   logic [      15:0] lookup_fifo_tepid;
   logic              non_lookup_done_stb;
-  logic              data_fifo_o_hdr = 1'b1;
+  logic              resize_v2e_hdr = 1'b1;
   logic              pass_packet;
   logic [USER_META_W-1:0] result_tuser;
   logic              result_tuser_valid;
@@ -388,6 +460,37 @@ module chdr_xport_adapter #(
     .space    (),
     .occupied ()
   );
+
+  // ---------------------------------------------------
+  // Rewrite packets from FPGA to use network CHDR_W
+  // ---------------------------------------------------
+  if (NET_CHDR_W != eth_rx.DATA_WIDTH) begin : gen_chdr_resize_v2e
+    chdr_resize #(
+      .I_CHDR_W (eth_rx.DATA_WIDTH),
+      .O_CHDR_W (NET_CHDR_W),
+      .I_DATA_W (eth_rx.DATA_WIDTH),
+      .O_DATA_W (eth_rx.DATA_WIDTH),
+      .USER_W   (1),
+      .PIPELINE ("OUT")
+    ) chdr_resize_v2e (
+      .clk           (eth_rx.clk),
+      .rst           (eth_rx.rst),
+      .i_chdr_tdata  (data_fifo_o.tdata),
+      .i_chdr_tuser  (1'b0),
+      .i_chdr_tlast  (data_fifo_o.tlast),
+      .i_chdr_tvalid (data_fifo_o.tvalid),
+      .i_chdr_tready (data_fifo_o.tready),
+      .o_chdr_tdata  (resize_v2e.tdata),
+      .o_chdr_tuser  (),
+      .o_chdr_tlast  (resize_v2e.tlast),
+      .o_chdr_tvalid (resize_v2e.tvalid),
+      .o_chdr_tready (resize_v2e.tready)
+    );
+  end else begin : gen_no_chdr_resize_v2e
+    always_comb begin
+      `AXI4S_ASSIGN(resize_v2e, data_fifo_o);
+    end
+  end
 
   // The lookup FIFO only takes the header routing info (tdest, tuser, epid).
   // We use axi_fifo_short since it can tolerate tvalid going low before a
@@ -443,12 +546,12 @@ module chdr_xport_adapter #(
   // Pop the routing info off of the lookup_fifo if we've started its lookup
   always_comb lookup_fifo_o.tready = lookup_stb || non_lookup_done_stb;
 
-  // Track when the next data_fifo_o word is the start of a new packet
-  always_ff @(posedge eth_rx.clk) begin : data_fifo_o_hdr_ff
+  // Track when the next resize_v2e word is the start of a new packet
+  always_ff @(posedge eth_rx.clk) begin : resize_v2e_hdr_ff
     if (eth_rx.rst)
-      data_fifo_o_hdr <= 1'b1;
-    else if (data_fifo_o.tvalid && data_fifo_o.tready && pass_packet)
-      data_fifo_o_hdr <= data_fifo_o.tlast;
+      resize_v2e_hdr <= 1'b1;
+    else if (resize_v2e.tvalid && resize_v2e.tready && pass_packet)
+      resize_v2e_hdr <= resize_v2e.tlast;
   end
 
   // Store the lookup result in a holding register. This can come from the KV
@@ -460,7 +563,7 @@ module chdr_xport_adapter #(
     end else begin
       // The tuser holding register becomes available as soon as we start
       // transmitting the corresponding packet.
-      if (data_fifo_o.tvalid && data_fifo_o.tready && data_fifo_o_hdr && pass_packet) begin
+      if (resize_v2e.tvalid && resize_v2e.tready && resize_v2e_hdr && pass_packet) begin
         result_tuser_valid <= 1'b0;
       end
 
@@ -483,13 +586,13 @@ module chdr_xport_adapter #(
       reg_o_tuser <= {USER_META_W{1'bX}};    // Don't care
     end else begin
       // We're done passing through a packet when tlast goes out
-      if (data_fifo_o.tvalid && data_fifo_o.tready && data_fifo_o.tlast && pass_packet) begin
+      if (resize_v2e.tvalid && resize_v2e.tready && resize_v2e.tlast && pass_packet) begin
         pass_packet <= 1'b0;
       end
 
       // We can pass the next packet through when we're at the start of a
       // packet and we have the tuser value waiting in the holding register.
-      if (data_fifo_o_hdr && result_tuser_valid && !pass_packet) begin
+      if (resize_v2e_hdr && result_tuser_valid && !pass_packet) begin
         reg_o_tuser <= result_tuser;
         pass_packet <= 1'b1;
       end
@@ -497,47 +600,91 @@ module chdr_xport_adapter #(
   end
 
   // Device addresses
+  logic        au_raw_udp;
   logic [15:0] au_udp_dst;
   logic [31:0] au_ip_dst;
   logic [47:0] au_mac_dst;
 
-  AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH),.TKEEP(0),.TUSER(0))
-    au(eth_rx.clk,eth_rx.rst);// Add UDP input
+  AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH), .TKEEP(0), .TUSER(0))
+    au (eth_rx.clk, eth_rx.rst);
+
   always_comb begin
-    {au_udp_dst,au_ip_dst,au_mac_dst} = reg_o_tuser;
-    au.tdata  = data_fifo_o.tdata;
-    au.tlast  = data_fifo_o.tlast;
-    au.tvalid = data_fifo_o.tvalid & pass_packet;
-    data_fifo_o.tready  = au.tready & pass_packet;
+    {au_raw_udp, au_udp_dst, au_ip_dst, au_mac_dst} = reg_o_tuser;
+    au.tdata  = resize_v2e.tdata;
+    au.tlast  = resize_v2e.tlast;
+    au.tvalid = resize_v2e.tvalid & pass_packet;
+    resize_v2e.tready  = au.tready & pass_packet;
   end
 
-  // Clock Crossing to the ethernet clock domain
+  //---------------------------------------------------------------------------
+  // Optionally strip CHDR header
+  //---------------------------------------------------------------------------
+
+  AxiStreamIf #(.DATA_WIDTH(eth_rx.DATA_WIDTH), .USER_WIDTH(16), .TKEEP(0), .TUSER(1))
+    stripped (eth_rx.clk, eth_rx.rst);
+
+  if (EN_RX_RAW_PYLD) begin: gen_chdr_strip_header
+    chdr_strip_header #(
+      .CHDR_W(au.DATA_WIDTH)
+    ) chdr_strip_header_i (
+      .clk          (au.clk    ),
+      .rst          (au.rst    ),
+      .strip_en     (au_raw_udp),
+      .s_chdr_tdata (au.tdata  ),
+      .s_chdr_tlast (au.tlast  ),
+      .s_chdr_tvalid(au.tvalid ),
+      .s_chdr_tready(au.tready ),
+      .m_tdata      (stripped.tdata ),
+      .m_tuser      (stripped.tuser ),   // Packet length
+      .m_tlast      (stripped.tlast ),
+      .m_tvalid     (stripped.tvalid),
+      .m_tready     (stripped.tready)
+    );
+  end else begin : gen_no_chdr_strip_header
+    always_comb begin
+      `AXI4S_ASSIGN(stripped, au);
+    end
+  end
+
+  //---------------------------------------------------------------------------
+  // Add UDP/IP/Eth header
+  //---------------------------------------------------------------------------
+
+  // Clock Crossing to the Ethernet clock domain
   logic [47:0] e_my_mac;
   logic [31:0] e_my_ip;
   logic [15:0] e_my_udp_chdr_port;
-  // crossing clock boundaries.
-  // my_mac, my_ip, my_udp_chdr_port must be written
-  // prior to traffic, or an inconsistent version will
-  // exist for a clock period or 2.  This would be better
-  // done with a full handshake.
-  synchronizer #(.WIDTH(96),.STAGES(1))
-    e_info_sync (.clk(eth_rx.clk),.rst(eth_rx.rst),
-                 .in({my_mac,my_ip,my_udp_chdr_port}),
-                 .out({e_my_mac,e_my_ip,e_my_udp_chdr_port}));
 
-  // add the UDP header back on before sending to EthTx
-  eth_ipv4_add_udp #(
-    .PREAMBLE_BYTES(PREAMBLE_BYTES),
-    .MAX_PACKET_BYTES(MAX_PACKET_BYTES)
-  ) add_udp_i (
-    .i(au), .o(eth_tx),
-    .mac_src(e_my_mac),
-    .ip_src(e_my_ip),
-    .udp_src(e_my_udp_chdr_port),
-    .mac_dst(au_mac_dst),
-    .ip_dst(au_ip_dst),
-    .udp_dst(au_udp_dst)
+  // Crossing clock boundaries. my_mac, my_ip, my_udp_chdr_port must be written
+  // prior to traffic, or an inconsistent version will exist for a clock period
+  // or 2.
+  synchronizer #(
+    .WIDTH (96),
+    .STAGES(1 )
+  ) synchronizer_i (
+    .clk(eth_rx.clk                             ),
+    .rst(eth_rx.rst                             ),
+    .in ({my_mac, my_ip, my_udp_chdr_port}      ),
+    .out({e_my_mac, e_my_ip, e_my_udp_chdr_port})
   );
 
+  // Add the headers before sending to eth_tx
+  eth_ipv4_add_udp #(
+    .PREAMBLE_BYTES  (PREAMBLE_BYTES  ),
+    .MAX_PACKET_BYTES(MAX_PACKET_BYTES),
+    .LENGTH_IN_TUSER (1)
+  ) eth_ipv4_add_udp_i (
+    .i      (stripped          ),
+    .o      (eth_tx            ),
+    .mac_src(e_my_mac          ),
+    .ip_src (e_my_ip           ),
+    .udp_src(e_my_udp_chdr_port),
+    .mac_dst(au_mac_dst        ),
+    .ip_dst (au_ip_dst         ),
+    .udp_dst(au_udp_dst        )
+  );
 
 endmodule : chdr_xport_adapter
+
+
+`default_nettype wire

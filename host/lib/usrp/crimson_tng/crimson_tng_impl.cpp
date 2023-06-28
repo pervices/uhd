@@ -31,9 +31,6 @@
 #include "uhd/types/stream_cmd.hpp"
 #include "uhd/utils/static.hpp"
 
-#include "../../transport/super_recv_packet_handler.hpp"
-#include "../../transport/super_send_packet_handler.hpp"
-
 #include <uhdlib/transport/udp_common.hpp>
 
 namespace link_crimson {
@@ -866,25 +863,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	device_addr( _device_addr ),
 	_time_diff( 0 ),
 	_time_diff_converged( false ),
-	_bm_thread_needed( false ),
+	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
     _command_time()
 {
-	// Checks the arguments provided by the external program for bypass_clock_sync
-	// This uses a string meant for arguments used to select the device because adding seperate arguments would require overhauling the way devices are initialized
-	try {
-		std::string bypass_clock_sync_s = _device_addr["bypass_clock_sync"];
-		if ("true" == bypass_clock_sync_s) {
-			_bm_thread_needed = false;
-		} else {
-			_bm_thread_needed = true;
-		}
-	// Use clock sync if the program did not specify
-	} catch (uhd::key_error& e) {
-		_bm_thread_needed = true;
-	}
-
 	num_rx_channels = CRIMSON_TNG_RX_CHANNELS;
 	num_tx_channels = CRIMSON_TNG_TX_CHANNELS;
 

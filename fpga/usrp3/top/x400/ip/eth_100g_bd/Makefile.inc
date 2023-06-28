@@ -21,7 +21,7 @@ sim/eth_100g_bd.v\
 ip/*/ip_0/sim/*.v\
 ip/*/sim/*.h\
 ip/*/sim/*.v\
-ip/eth_100g_bd_cmac_usplus_0_0/cmac_usplus_v2_6_1/*.v\
+ip/eth_100g_bd_cmac_usplus_0_0/cmac_usplus_v3_1_4/*.v\
 ip/eth_100g_bd_cmac_usplus_0_0/eth_100g_bd_cmac_usplus_0_0/example_design/*.v\
 ip/eth_100g_bd_cmac_usplus_0_0/eth_100g_bd_cmac_usplus_0_0/header_files/*.h\
 ip/eth_100g_bd_cmac_usplus_0_0/eth_100g_bd_cmac_usplus_0_0.v\
@@ -49,5 +49,9 @@ eth_100g_bd/synth/eth_100g_bd.v \
 
 EMPTY_IP_SRCS =
 
-$(IP_100G_BD_SRCS) $(BD_100G_BD_OUTS) $(IP_100G_BDTCL_SRCS): $(IP_100G_ORIG_SRCS)
+.INTERMEDIATE: IP_100G_BD_TRGT
+$(IP_100G_BD_SRCS) $(BD_100G_BD_OUTS) $(IP_100G_BDTCL_SRCS): IP_100G_BD_TRGT
+	@:
+
+IP_100G_BD_TRGT: $(IP_100G_ORIG_SRCS)
 	$(call BUILD_VIVADO_BDTCL,eth_100g_bd,$(ARCH),$(PART_ID),$(IP_DIR),$(IP_BUILD_DIR),$(EMPTY_IP_SRCS))

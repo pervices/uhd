@@ -20,6 +20,12 @@ if(ENABLE_B100 OR ENABLE_USRP2)
     )
 endif(ENABLE_B100 OR ENABLE_USRP2)
 
+if(ENABLE_X300)
+    LIBUHD_APPEND_SOURCES(
+        ${CMAKE_CURRENT_SOURCE_DIR}/xport_adapter_ctrl.cpp
+    )
+endif()
+
 LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/dma_fifo_core_3000.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dsp_core_utils.cpp
@@ -30,6 +36,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/rx_frontend_core_3000.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rx_vita_core_3000.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spi_core_3000.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/spi_core_4000.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/time_core_3000.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tx_dsp_core_3000.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tx_frontend_core_200.cpp

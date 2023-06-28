@@ -36,6 +36,9 @@
 #include "../../transport/super_recv_packet_handler_mmsg.hpp"
 
 #include <uhdlib/transport/udp_common.hpp>
+#ifdef HAVE_DPDK
+#    include <uhdlib/transport/dpdk_simple.hpp>
+#endif
 
 namespace link_cyan_nrnt {
     const char *mtu_ref = "9000";
@@ -932,7 +935,22 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 // Returns a pointer to the SDR device, casted to the UHD base class
 static device::sptr cyan_nrnt_make(const device_addr_t &device_addr)
 {
-    return device::sptr(new cyan_nrnt_impl(device_addr));
+    bool use_dpdk;
+    if(device_addr.has_key("use_dpdk")) {
+        if(device_addr["use_dpdk"] == "" || device_addr["use_dpdk"] == "true") {
+#ifdef HAVE_DPDK
+            use_dpdk = true;
+#else
+            UHD_LOG_WARNING("DPDK", "Detected use_dpdk argument, but DPDK support not built in.");
+            use_dpdk = false;
+#endif
+        } else {
+            use_dpdk = false;
+        }
+    } else {
+        use_dpdk = false;
+    }
+    return device::sptr(new cyan_nrnt_impl(device_addr, use_dpdk));
 }
 
 // This is the core function that registers itself with uhd::device base class. The base device class
@@ -965,29 +983,20 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
-cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr)
+cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 :
 	device_addr( _device_addr ),
 	_time_diff( 0 ),
 	_time_diff_converged( false ),
-	_bm_thread_needed( false ),
+	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
-    _command_time()
+    _command_time(),
+    _use_dpdk(use_dpdk)
 {
-	// Checks the arguments provided by the external program for bypass_clock_sync
-	// This uses a string meant for arguments used to select the device because adding seperate arguments would require overhauling the way devices are initialized
-	try {
-		std::string bypass_clock_sync_s = _device_addr["bypass_clock_sync"];
-		if ("true" == bypass_clock_sync_s) {
-			_bm_thread_needed = false;
-		} else {
-			_bm_thread_needed = true;
-		}
-	// Use clock sync if the program did not specify
-	} catch (uhd::key_error& e) {
-		_bm_thread_needed = true;
-	}
+    if(_use_dpdk) {
+        std::cout << "DPDK implementation in progress" << std::endl;
+    }
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
 

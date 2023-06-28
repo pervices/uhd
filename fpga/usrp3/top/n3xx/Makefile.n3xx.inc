@@ -37,6 +37,9 @@ include $(LIB_DIR)/rfnoc/Makefile.srcs
 include $(BASE_DIR)/n3xx/dboards/rh/Makefile.srcs
 include $(BASE_DIR)/n3xx/dboards/mg/Makefile.srcs
 include $(BASE_DIR)/n3xx/dboards/common/Makefile.srcs
+include $(LIB_DIR)/axi4s_sv/Makefile.srcs
+include $(LIB_DIR)/rfnoc/xport_sv/Makefile.srcs
+
 # For sake of convenience, we include the Makefile.srcs for DRAM FIFO, DDC, and
 # DUC, Replay, and of course the radio. Any other block needs to use the
 # RFNOC_OOT_MAKEFILE_SRCS variable (see below).
@@ -139,25 +142,30 @@ $(RFNOC_FRAMEWORK_SRCS) \
 $(RFNOC_BLOCK_AXI_RAM_FIFO_SRCS) \
 $(RFNOC_BLOCK_DUC_SRCS) $(RFNOC_BLOCK_DDC_SRCS) \
 $(RFNOC_BLOCK_RADIO_SRCS) \
-$(RFNOC_BLOCK_REPLAY_SRCS)
+$(RFNOC_BLOCK_REPLAY_SRCS) \
+$(AXI4S_SV_SRCS) $(RFNOC_XPORT_SV_SRCS) \
 
 EDGE_TBL_DEF="RFNOC_EDGE_TBL_FILE=$(call RESOLVE_PATH,$(EDGE_FILE))"
+IMAGE_CORE_DEF="RFNOC_IMAGE_CORE_HDR=$(call RESOLVE_PATH,$(IMAGE_CORE:.v=.vh))"
 
 ##################################################
 # Dependency Targets
 ##################################################
 .SECONDEXPANSION:
 
-VERILOG_DEFS=$(EXTRA_DEFS) $(CUSTOM_DEFS) $(GIT_HASH_VERILOG_DEF) $(EDGE_TBL_DEF)
+VERILOG_DEFS=$(EXTRA_DEFS) $(CUSTOM_DEFS) $(GIT_HASH_VERILOG_DEF) $(EDGE_TBL_DEF) $(IMAGE_CORE_DEF)
 
 # DESIGN_SRCS and VERILOG_DEFS must be defined
-bin: .prereqs $$(DESIGN_SRCS) ip
+bin: .prereqs
 	$(call BUILD_VIVADO_DESIGN,$(abspath ./build_n3xx.tcl),$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-synth: .prereqs $$(DESIGN_SRCS) ip
+synth: .prereqs
 	$(call BUILD_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_synth.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-rtl: .prereqs $$(DESIGN_SRCS) ip
+rtl: .prereqs
 	$(call CHECK_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_check_syntax.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-.PHONY: bin rtl
+viv_ip: .prereqs $$(DESIGN_SRCS) ip
+	@echo "IP build for $(NAME) DONE . . ."
+
+.PHONY: bin synth rtl viv_ip

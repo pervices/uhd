@@ -693,16 +693,650 @@ pre[data-line] {
 <script type="text/javascript">//Prism.js//
 /* PrismJS 1.15.0
 https://prismjs.com/download.html#themes=prism-twilight&languages=markup+css+clike+javascript+perl+python+tcl+verilog+vhdl */
-var _self="undefined"!=typeof window?window:"undefined"!=typeof WorkerGlobalScope&&self instanceof WorkerGlobalScope?self:{},Prism=function(g){var c=/\blang(?:uage)?-([\w-]+)\b/i,a=0,C={manual:g.Prism&&g.Prism.manual,disableWorkerMessageHandler:g.Prism&&g.Prism.disableWorkerMessageHandler,util:{encode:function(e){return e instanceof M?new M(e.type,C.util.encode(e.content),e.alias):Array.isArray(e)?e.map(C.util.encode):e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\u00a0/g," ")},type:function(e){return Object.prototype.toString.call(e).slice(8,-1)},objId:function(e){return e.__id||Object.defineProperty(e,"__id",{value:++a}),e.__id},clone:function t(e,n){var r,a,i=C.util.type(e);switch(n=n||{},i){case"Object":if(a=C.util.objId(e),n[a])return n[a];for(var l in r={},n[a]=r,e)e.hasOwnProperty(l)&&(r[l]=t(e[l],n));return r;case"Array":return a=C.util.objId(e),n[a]?n[a]:(r=[],n[a]=r,e.forEach(function(e,a){r[a]=t(e,n)}),r);default:return e}}},languages:{extend:function(e,a){var t=C.util.clone(C.languages[e]);for(var n in a)t[n]=a[n];return t},insertBefore:function(t,e,a,n){var r=(n=n||C.languages)[t],i={};for(var l in r)if(r.hasOwnProperty(l)){if(l==e)for(var o in a)a.hasOwnProperty(o)&&(i[o]=a[o]);a.hasOwnProperty(l)||(i[l]=r[l])}var s=n[t];return n[t]=i,C.languages.DFS(C.languages,function(e,a){a===s&&e!=t&&(this[e]=i)}),i},DFS:function e(a,t,n,r){r=r||{};var i=C.util.objId;for(var l in a)if(a.hasOwnProperty(l)){t.call(a,l,a[l],n||l);var o=a[l],s=C.util.type(o);"Object"!==s||r[i(o)]?"Array"!==s||r[i(o)]||(r[i(o)]=!0,e(o,t,l,r)):(r[i(o)]=!0,e(o,t,null,r))}}},plugins:{},highlightAll:function(e,a){C.highlightAllUnder(document,e,a)},highlightAllUnder:function(e,a,t){var n={callback:t,selector:'code[class*="language-"], [class*="language-"] code, code[class*="lang-"], [class*="lang-"] code'};C.hooks.run("before-highlightall",n);for(var r,i=n.elements||e.querySelectorAll(n.selector),l=0;r=i[l++];)C.highlightElement(r,!0===a,n.callback)},highlightElement:function(e,a,t){for(var n,r,i=e;i&&!c.test(i.className);)i=i.parentNode;i&&(n=(i.className.match(c)||[,""])[1].toLowerCase(),r=C.languages[n]),e.className=e.className.replace(c,"").replace(/\s+/g," ")+" language-"+n,e.parentNode&&(i=e.parentNode,/pre/i.test(i.nodeName)&&(i.className=i.className.replace(c,"").replace(/\s+/g," ")+" language-"+n));var l={element:e,language:n,grammar:r,code:e.textContent},o=function(e){l.highlightedCode=e,C.hooks.run("before-insert",l),l.element.innerHTML=l.highlightedCode,C.hooks.run("after-highlight",l),C.hooks.run("complete",l),t&&t.call(l.element)};if(C.hooks.run("before-sanity-check",l),l.code)if(C.hooks.run("before-highlight",l),l.grammar)if(a&&g.Worker){var s=new Worker(C.filename);s.onmessage=function(e){o(e.data)},s.postMessage(JSON.stringify({language:l.language,code:l.code,immediateClose:!0}))}else o(C.highlight(l.code,l.grammar,l.language));else o(C.util.encode(l.code));else C.hooks.run("complete",l)},highlight:function(e,a,t){var n={code:e,grammar:a,language:t};return C.hooks.run("before-tokenize",n),n.tokens=C.tokenize(n.code,n.grammar),C.hooks.run("after-tokenize",n),M.stringify(C.util.encode(n.tokens),n.language)},matchGrammar:function(e,a,t,n,r,i,l){for(var o in t)if(t.hasOwnProperty(o)&&t[o]){if(o==l)return;var s=t[o];s="Array"===C.util.type(s)?s:[s];for(var g=0;g<s.length;++g){var c=s[g],u=c.inside,h=!!c.lookbehind,f=!!c.greedy,d=0,m=c.alias;if(f&&!c.pattern.global){var p=c.pattern.toString().match(/[imuy]*$/)[0];c.pattern=RegExp(c.pattern.source,p+"g")}c=c.pattern||c;for(var y=n,v=r;y<a.length;v+=a[y].length,++y){var k=a[y];if(a.length>e.length)return;if(!(k instanceof M)){if(f&&y!=a.length-1){if(c.lastIndex=v,!(x=c.exec(e)))break;for(var b=x.index+(h?x[1].length:0),w=x.index+x[0].length,A=y,P=v,O=a.length;A<O&&(P<w||!a[A].type&&!a[A-1].greedy);++A)(P+=a[A].length)<=b&&(++y,v=P);if(a[y]instanceof M)continue;N=A-y,k=e.slice(v,P),x.index-=v}else{c.lastIndex=0;var x=c.exec(k),N=1}if(x){h&&(d=x[1]?x[1].length:0);w=(b=x.index+d)+(x=x[0].slice(d)).length;var j=k.slice(0,b),S=k.slice(w),E=[y,N];j&&(++y,v+=j.length,E.push(j));var _=new M(o,u?C.tokenize(x,u):x,m,x,f);if(E.push(_),S&&E.push(S),Array.prototype.splice.apply(a,E),1!=N&&C.matchGrammar(e,a,t,y,v,!0,o),i)break}else if(i)break}}}}},tokenize:function(e,a){var t=[e],n=a.rest;if(n){for(var r in n)a[r]=n[r];delete a.rest}return C.matchGrammar(e,t,a,0,0,!1),t},hooks:{all:{},add:function(e,a){var t=C.hooks.all;t[e]=t[e]||[],t[e].push(a)},run:function(e,a){var t=C.hooks.all[e];if(t&&t.length)for(var n,r=0;n=t[r++];)n(a)}},Token:M};function M(e,a,t,n,r){this.type=e,this.content=a,this.alias=t,this.length=0|(n||"").length,this.greedy=!!r}if(g.Prism=C,M.stringify=function(a,t,e){if("string"==typeof a)return a;if(Array.isArray(a))return a.map(function(e){return M.stringify(e,t,a)}).join("");var n={type:a.type,content:M.stringify(a.content,t,e),tag:"span",classes:["token",a.type],attributes:{},language:t,parent:e};if(a.alias){var r=Array.isArray(a.alias)?a.alias:[a.alias];Array.prototype.push.apply(n.classes,r)}C.hooks.run("wrap",n);var i=Object.keys(n.attributes).map(function(e){return e+'="'+(n.attributes[e]||"").replace(/"/g,"&quot;")+'"'}).join(" ");return"<"+n.tag+' class="'+n.classes.join(" ")+'"'+(i?" "+i:"")+">"+n.content+"</"+n.tag+">"},!g.document)return g.addEventListener&&(C.disableWorkerMessageHandler||g.addEventListener("message",function(e){var a=JSON.parse(e.data),t=a.language,n=a.code,r=a.immediateClose;g.postMessage(C.highlight(n,C.languages[t],t)),r&&g.close()},!1)),C;var e=document.currentScript||[].slice.call(document.getElementsByTagName("script")).pop();return e&&(C.filename=e.src,C.manual||e.hasAttribute("data-manual")||("loading"!==document.readyState?window.requestAnimationFrame?window.requestAnimationFrame(C.highlightAll):window.setTimeout(C.highlightAll,16):document.addEventListener("DOMContentLoaded",C.highlightAll))),C}(_self);"undefined"!=typeof module&&module.exports&&(module.exports=Prism),"undefined"!=typeof global&&(global.Prism=Prism);
-Prism.languages.markup={comment:/<!--[\s\S]*?-->/,prolog:/<\?[\s\S]+?\?>/,doctype:/<!DOCTYPE[\s\S]+?>/i,cdata:/<!\[CDATA\[[\s\S]*?]]>/i,tag:{pattern:/<\/?(?!\d)[^\s>\/=$<%]+(?:\s(?:\s*[^\s>\/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+(?=[\s>]))|(?=[\s/>])))+)?\s*\/?>/i,greedy:!0,inside:{tag:{pattern:/^<\/?[^\s>\/]+/i,inside:{punctuation:/^<\/?/,namespace:/^[^\s>\/:]+:/}},"attr-value":{pattern:/=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+)/i,inside:{punctuation:[/^=/,{pattern:/^(\s*)["']|["']$/,lookbehind:!0}]}},punctuation:/\/?>/,"attr-name":{pattern:/[^\s>\/]+/,inside:{namespace:/^[^\s>\/:]+:/}}}},entity:/&#?[\da-z]{1,8};/i},Prism.languages.markup.tag.inside["attr-value"].inside.entity=Prism.languages.markup.entity,Prism.hooks.add("wrap",function(a){"entity"===a.type&&(a.attributes.title=a.content.replace(/&amp;/,"&"))}),Object.defineProperty(Prism.languages.markup.tag,"addInlined",{value:function(a,e){var s={};s["language-"+e]={pattern:/(^<!\[CDATA\[)[\s\S]+?(?=\]\]>$)/i,lookbehind:!0,inside:Prism.languages[e]},s.cdata=/^<!\[CDATA\[|\]\]>$/i;var n={"included-cdata":{pattern:/<!\[CDATA\[[\s\S]*?\]\]>/i,inside:s}};n["language-"+e]={pattern:/[\s\S]+/,inside:Prism.languages[e]};var i={};i[a]={pattern:RegExp("(<__[\\s\\S]*?>)(?:<!\\[CDATA\\[[\\s\\S]*?\\]\\]>\\s*|[\\s\\S])*?(?=<\\/__>)".replace(/__/g,a),"i"),lookbehind:!0,greedy:!0,inside:n},Prism.languages.insertBefore("markup","cdata",i)}}),Prism.languages.xml=Prism.languages.extend("markup",{}),Prism.languages.html=Prism.languages.markup,Prism.languages.mathml=Prism.languages.markup,Prism.languages.svg=Prism.languages.markup;
-!function(s){var e=/("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/;s.languages.css={comment:/\/\*[\s\S]*?\*\//,atrule:{pattern:/@[\w-]+?[\s\S]*?(?:;|(?=\s*\{))/i,inside:{rule:/@[\w-]+/}},url:RegExp("url\\((?:"+e.source+"|.*?)\\)","i"),selector:RegExp("[^{}\\s](?:[^{};\"']|"+e.source+")*?(?=\\s*\\{)"),string:{pattern:e,greedy:!0},property:/[-_a-z\xA0-\uFFFF][-\w\xA0-\uFFFF]*(?=\s*:)/i,important:/!important\b/i,function:/[-a-z0-9]+(?=\()/i,punctuation:/[(){};:,]/},s.languages.css.atrule.inside.rest=s.languages.css;var a=s.languages.markup;a&&(a.tag.addInlined("style","css"),s.languages.insertBefore("inside","attr-value",{"style-attr":{pattern:/\s*style=("|')(?:\\[\s\S]|(?!\1)[^\\])*\1/i,inside:{"attr-name":{pattern:/^\s*style/i,inside:a.tag.inside},punctuation:/^\s*=\s*['"]|['"]\s*$/,"attr-value":{pattern:/.+/i,inside:s.languages.css}},alias:"language-css"}},a.tag))}(Prism);
-Prism.languages.clike={comment:[{pattern:/(^|[^\\])\/\*[\s\S]*?(?:\*\/|$)/,lookbehind:!0},{pattern:/(^|[^\\:])\/\/.*/,lookbehind:!0,greedy:!0}],string:{pattern:/(["'])(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,greedy:!0},"class-name":{pattern:/((?:\b(?:class|interface|extends|implements|trait|instanceof|new)\s+)|(?:catch\s+\())[\w.\\]+/i,lookbehind:!0,inside:{punctuation:/[.\\]/}},keyword:/\b(?:if|else|while|do|for|return|in|instanceof|function|new|try|throw|catch|finally|null|break|continue)\b/,boolean:/\b(?:true|false)\b/,function:/\w+(?=\()/,number:/\b0x[\da-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i,operator:/--?|\+\+?|!=?=?|<=?|>=?|==?=?|&&?|\|\|?|\?|\*|\/|~|\^|%/,punctuation:/[{}[\];(),.:]/};
-Prism.languages.javascript=Prism.languages.extend("clike",{"class-name":[Prism.languages.clike["class-name"],{pattern:/(^|[^$\w\xA0-\uFFFF])[_$A-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\.(?:prototype|constructor))/,lookbehind:!0}],keyword:[{pattern:/((?:^|})\s*)(?:catch|finally)\b/,lookbehind:!0},{pattern:/(^|[^.])\b(?:as|async(?=\s*(?:function\b|\(|[$\w\xA0-\uFFFF]|$))|await|break|case|class|const|continue|debugger|default|delete|do|else|enum|export|extends|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)\b/,lookbehind:!0}],number:/\b(?:(?:0[xX][\dA-Fa-f]+|0[bB][01]+|0[oO][0-7]+)n?|\d+n|NaN|Infinity)\b|(?:\b\d+\.?\d*|\B\.\d+)(?:[Ee][+-]?\d+)?/,function:/[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*(?:\.\s*(?:apply|bind|call)\s*)?\()/,operator:/-[-=]?|\+[+=]?|!=?=?|<<?=?|>>?>?=?|=(?:==?|>)?|&[&=]?|\|[|=]?|\*\*?=?|\/=?|~|\^=?|%=?|\?|\.{3}/}),Prism.languages.javascript["class-name"][0].pattern=/(\b(?:class|interface|extends|implements|instanceof|new)\s+)[\w.\\]+/,Prism.languages.insertBefore("javascript","keyword",{regex:{pattern:/((?:^|[^$\w\xA0-\uFFFF."'\])\s])\s*)\/(\[(?:[^\]\\\r\n]|\\.)*]|\\.|[^/\\\[\r\n])+\/[gimyu]{0,5}(?=\s*($|[\r\n,.;})\]]))/,lookbehind:!0,greedy:!0},"function-variable":{pattern:/[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*[=:]\s*(?:async\s*)?(?:\bfunction\b|(?:\((?:[^()]|\([^()]*\))*\)|[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)\s*=>))/,alias:"function"},parameter:[{pattern:/(function(?:\s+[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)?\s*\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\))/,lookbehind:!0,inside:Prism.languages.javascript},{pattern:/[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*=>)/i,inside:Prism.languages.javascript},{pattern:/(\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*=>)/,lookbehind:!0,inside:Prism.languages.javascript},{pattern:/((?:\b|\s|^)(?!(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)(?![$\w\xA0-\uFFFF]))(?:[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*\s*)\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*\{)/,lookbehind:!0,inside:Prism.languages.javascript}],constant:/\b[A-Z](?:[A-Z_]|\dx?)*\b/}),Prism.languages.insertBefore("javascript","string",{"template-string":{pattern:/`(?:\\[\s\S]|\${[^}]+}|[^\\`])*`/,greedy:!0,inside:{interpolation:{pattern:/\${[^}]+}/,inside:{"interpolation-punctuation":{pattern:/^\${|}$/,alias:"punctuation"},rest:Prism.languages.javascript}},string:/[\s\S]+/}}}),Prism.languages.markup&&Prism.languages.markup.tag.addInlined("script","javascript"),Prism.languages.js=Prism.languages.javascript;
-Prism.languages.perl={comment:[{pattern:/(^\s*)=\w+[\s\S]*?=cut.*/m,lookbehind:!0},{pattern:/(^|[^\\$])#.*/,lookbehind:!0}],string:[{pattern:/\b(?:q|qq|qx|qw)\s*([^a-zA-Z0-9\s{(\[<])(?:(?!\1)[^\\]|\\[\s\S])*\1/,greedy:!0},{pattern:/\b(?:q|qq|qx|qw)\s+([a-zA-Z0-9])(?:(?!\1)[^\\]|\\[\s\S])*\1/,greedy:!0},{pattern:/\b(?:q|qq|qx|qw)\s*\((?:[^()\\]|\\[\s\S])*\)/,greedy:!0},{pattern:/\b(?:q|qq|qx|qw)\s*\{(?:[^{}\\]|\\[\s\S])*\}/,greedy:!0},{pattern:/\b(?:q|qq|qx|qw)\s*\[(?:[^[\]\\]|\\[\s\S])*\]/,greedy:!0},{pattern:/\b(?:q|qq|qx|qw)\s*<(?:[^<>\\]|\\[\s\S])*>/,greedy:!0},{pattern:/("|`)(?:(?!\1)[^\\]|\\[\s\S])*\1/,greedy:!0},{pattern:/'(?:[^'\\\r\n]|\\.)*'/,greedy:!0}],regex:[{pattern:/\b(?:m|qr)\s*([^a-zA-Z0-9\s{(\[<])(?:(?!\1)[^\\]|\\[\s\S])*\1[msixpodualngc]*/,greedy:!0},{pattern:/\b(?:m|qr)\s+([a-zA-Z0-9])(?:(?!\1)[^\\]|\\[\s\S])*\1[msixpodualngc]*/,greedy:!0},{pattern:/\b(?:m|qr)\s*\((?:[^()\\]|\\[\s\S])*\)[msixpodualngc]*/,greedy:!0},{pattern:/\b(?:m|qr)\s*\{(?:[^{}\\]|\\[\s\S])*\}[msixpodualngc]*/,greedy:!0},{pattern:/\b(?:m|qr)\s*\[(?:[^[\]\\]|\\[\s\S])*\][msixpodualngc]*/,greedy:!0},{pattern:/\b(?:m|qr)\s*<(?:[^<>\\]|\\[\s\S])*>[msixpodualngc]*/,greedy:!0},{pattern:/(^|[^-]\b)(?:s|tr|y)\s*([^a-zA-Z0-9\s{(\[<])(?:(?!\2)[^\\]|\\[\s\S])*\2(?:(?!\2)[^\\]|\\[\s\S])*\2[msixpodualngcer]*/,lookbehind:!0,greedy:!0},{pattern:/(^|[^-]\b)(?:s|tr|y)\s+([a-zA-Z0-9])(?:(?!\2)[^\\]|\\[\s\S])*\2(?:(?!\2)[^\\]|\\[\s\S])*\2[msixpodualngcer]*/,lookbehind:!0,greedy:!0},{pattern:/(^|[^-]\b)(?:s|tr|y)\s*\((?:[^()\\]|\\[\s\S])*\)\s*\((?:[^()\\]|\\[\s\S])*\)[msixpodualngcer]*/,lookbehind:!0,greedy:!0},{pattern:/(^|[^-]\b)(?:s|tr|y)\s*\{(?:[^{}\\]|\\[\s\S])*\}\s*\{(?:[^{}\\]|\\[\s\S])*\}[msixpodualngcer]*/,lookbehind:!0,greedy:!0},{pattern:/(^|[^-]\b)(?:s|tr|y)\s*\[(?:[^[\]\\]|\\[\s\S])*\]\s*\[(?:[^[\]\\]|\\[\s\S])*\][msixpodualngcer]*/,lookbehind:!0,greedy:!0},{pattern:/(^|[^-]\b)(?:s|tr|y)\s*<(?:[^<>\\]|\\[\s\S])*>\s*<(?:[^<>\\]|\\[\s\S])*>[msixpodualngcer]*/,lookbehind:!0,greedy:!0},{pattern:/\/(?:[^\/\\\r\n]|\\.)*\/[msixpodualngc]*(?=\s*(?:$|[\r\n,.;})&|\-+*~<>!?^]|(lt|gt|le|ge|eq|ne|cmp|not|and|or|xor|x)\b))/,greedy:!0}],variable:[/[&*$@%]\{\^[A-Z]+\}/,/[&*$@%]\^[A-Z_]/,/[&*$@%]#?(?=\{)/,/[&*$@%]#?(?:(?:::)*'?(?!\d)[\w$]+)+(?:::)*/i,/[&*$@%]\d+/,/(?!%=)[$@%][!"#$%&'()*+,\-.\/:;<=>?@[\\\]^_`{|}~]/],filehandle:{pattern:/<(?![<=])\S*>|\b_\b/,alias:"symbol"},vstring:{pattern:/v\d+(?:\.\d+)*|\d+(?:\.\d+){2,}/,alias:"string"},function:{pattern:/sub [a-z0-9_]+/i,inside:{keyword:/sub/}},keyword:/\b(?:any|break|continue|default|delete|die|do|else|elsif|eval|for|foreach|given|goto|if|last|local|my|next|our|package|print|redo|require|say|state|sub|switch|undef|unless|until|use|when|while)\b/,number:/\b(?:0x[\dA-Fa-f](?:_?[\dA-Fa-f])*|0b[01](?:_?[01])*|(?:\d(?:_?\d)*)?\.?\d(?:_?\d)*(?:[Ee][+-]?\d+)?)\b/,operator:/-[rwxoRWXOezsfdlpSbctugkTBMAC]\b|\+[+=]?|-[-=>]?|\*\*?=?|\/\/?=?|=[=~>]?|~[~=]?|\|\|?=?|&&?=?|<(?:=>?|<=?)?|>>?=?|![~=]?|[%^]=?|\.(?:=|\.\.?)?|[\\?]|\bx(?:=|\b)|\b(?:lt|gt|le|ge|eq|ne|cmp|not|and|or|xor)\b/,punctuation:/[{}[\];(),:]/};
-Prism.languages.python={comment:{pattern:/(^|[^\\])#.*/,lookbehind:!0},"string-interpolation":{pattern:/(?:f|rf|fr)(?:("""|''')[\s\S]+?\1|("|')(?:\\.|(?!\2)[^\\\r\n])*\2)/i,greedy:!0,inside:{interpolation:{pattern:/((?:^|[^{])(?:{{)*){(?!{)(?:[^{}]|{(?!{)(?:[^{}]|{(?!{)(?:[^{}])+})+})+}/,lookbehind:!0,inside:{"format-spec":{pattern:/(:)[^:(){}]+(?=}$)/,lookbehind:!0},"conversion-option":{pattern:/![sra](?=[:}]$)/,alias:"punctuation"},rest:null}},string:/[\s\S]+/}},"triple-quoted-string":{pattern:/(?:[rub]|rb|br)?("""|''')[\s\S]+?\1/i,greedy:!0,alias:"string"},string:{pattern:/(?:[rub]|rb|br)?("|')(?:\\.|(?!\1)[^\\\r\n])*\1/i,greedy:!0},function:{pattern:/((?:^|\s)def[ \t]+)[a-zA-Z_]\w*(?=\s*\()/g,lookbehind:!0},"class-name":{pattern:/(\bclass\s+)\w+/i,lookbehind:!0},decorator:{pattern:/(^\s*)@\w+(?:\.\w+)*/i,lookbehind:!0,alias:["annotation","punctuation"],inside:{punctuation:/\./}},keyword:/\b(?:and|as|assert|async|await|break|class|continue|def|del|elif|else|except|exec|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|print|raise|return|try|while|with|yield)\b/,builtin:/\b(?:__import__|abs|all|any|apply|ascii|basestring|bin|bool|buffer|bytearray|bytes|callable|chr|classmethod|cmp|coerce|compile|complex|delattr|dict|dir|divmod|enumerate|eval|execfile|file|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|intern|isinstance|issubclass|iter|len|list|locals|long|map|max|memoryview|min|next|object|oct|open|ord|pow|property|range|raw_input|reduce|reload|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|unichr|unicode|vars|xrange|zip)\b/,boolean:/\b(?:True|False|None)\b/,number:/(?:\b(?=\d)|\B(?=\.))(?:0[bo])?(?:(?:\d|0x[\da-f])[\da-f]*\.?\d*|\.\d+)(?:e[+-]?\d+)?j?\b/i,operator:/[-+%=]=?|!=|\*\*?=?|\/\/?=?|<[<=>]?|>[=>]?|[&|^~]/,punctuation:/[{}[\];(),.:]/},Prism.languages.python["string-interpolation"].inside.interpolation.inside.rest=Prism.languages.python,Prism.languages.py=Prism.languages.python;
-Prism.languages.tcl={comment:{pattern:/(^|[^\\])#.*/,lookbehind:!0},string:{pattern:/"(?:[^"\\\r\n]|\\(?:\r\n|[\s\S]))*"/,greedy:!0},variable:[{pattern:/(\$)(?:::)?(?:[a-zA-Z0-9]+::)*\w+/,lookbehind:!0},{pattern:/(\$){[^}]+}/,lookbehind:!0},{pattern:/(^\s*set[ \t]+)(?:::)?(?:[a-zA-Z0-9]+::)*\w+/m,lookbehind:!0}],function:{pattern:/(^\s*proc[ \t]+)[^\s]+/m,lookbehind:!0},builtin:[{pattern:/(^\s*)(?:proc|return|class|error|eval|exit|for|foreach|if|switch|while|break|continue)\b/m,lookbehind:!0},/\b(?:elseif|else)\b/],scope:{pattern:/(^\s*)(?:global|upvar|variable)\b/m,lookbehind:!0,alias:"constant"},keyword:{pattern:/(^\s*|\[)(?:after|append|apply|array|auto_(?:execok|import|load|mkindex|qualify|reset)|automkindex_old|bgerror|binary|catch|cd|chan|clock|close|concat|dde|dict|encoding|eof|exec|expr|fblocked|fconfigure|fcopy|file(?:event|name)?|flush|gets|glob|history|http|incr|info|interp|join|lappend|lassign|lindex|linsert|list|llength|load|lrange|lrepeat|lreplace|lreverse|lsearch|lset|lsort|math(?:func|op)|memory|msgcat|namespace|open|package|parray|pid|pkg_mkIndex|platform|puts|pwd|re_syntax|read|refchan|regexp|registry|regsub|rename|Safe_Base|scan|seek|set|socket|source|split|string|subst|Tcl|tcl(?:_endOfWord|_findLibrary|startOf(?:Next|Previous)Word|wordBreak(?:After|Before)|test|vars)|tell|time|tm|trace|unknown|unload|unset|update|uplevel|vwait)\b/m,lookbehind:!0},operator:/!=?|\*\*?|==|&&?|\|\|?|<[=<]?|>[=>]?|[-+~\/%?^]|\b(?:eq|ne|in|ni)\b/,punctuation:/[{}()\[\]]/};
-Prism.languages.verilog={comment:/\/\/.*|\/\*[\s\S]*?\*\//,string:{pattern:/"(?:\\(?:\r\n|[\s\S])|[^"\\\r\n])*"/,greedy:!0},property:/\B\$\w+\b/,constant:/\B`\w+\b/,function:/\w+(?=\()/,keyword:/\b(?:alias|and|assert|assign|assume|automatic|before|begin|bind|bins|binsof|bit|break|buf|bufif0|bufif1|byte|class|case|casex|casez|cell|chandle|clocking|cmos|config|const|constraint|context|continue|cover|covergroup|coverpoint|cross|deassign|default|defparam|design|disable|dist|do|edge|else|end|endcase|endclass|endclocking|endconfig|endfunction|endgenerate|endgroup|endinterface|endmodule|endpackage|endprimitive|endprogram|endproperty|endspecify|endsequence|endtable|endtask|enum|event|expect|export|extends|extern|final|first_match|for|force|foreach|forever|fork|forkjoin|function|generate|genvar|highz0|highz1|if|iff|ifnone|ignore_bins|illegal_bins|import|incdir|include|initial|inout|input|inside|instance|int|integer|interface|intersect|join|join_any|join_none|large|liblist|library|local|localparam|logic|longint|macromodule|matches|medium|modport|module|nand|negedge|new|nmos|nor|noshowcancelled|not|notif0|notif1|null|or|output|package|packed|parameter|pmos|posedge|primitive|priority|program|property|protected|pull0|pull1|pulldown|pullup|pulsestyle_onevent|pulsestyle_ondetect|pure|rand|randc|randcase|randsequence|rcmos|real|realtime|ref|reg|release|repeat|return|rnmos|rpmos|rtran|rtranif0|rtranif1|scalared|sequence|shortint|shortreal|showcancelled|signed|small|solve|specify|specparam|static|string|strong0|strong1|struct|super|supply0|supply1|table|tagged|task|this|throughout|time|timeprecision|timeunit|tran|tranif0|tranif1|tri|tri0|tri1|triand|trior|trireg|type|typedef|union|unique|unsigned|use|uwire|var|vectored|virtual|void|wait|wait_order|wand|weak0|weak1|while|wildcard|wire|with|within|wor|xnor|xor)\b/,important:/\b(?:always_latch|always_comb|always_ff|always)\b ?@?/,number:/\B##?\d+|(?:\b\d+)?'[odbh] ?[\da-fzx_?]+|\b\d*[._]?\d+(?:e[-+]?\d+)?/i,operator:/[-+{}^~%*\/?=!<>&|]+/,punctuation:/[[\];(),.:]/};
-Prism.languages.vhdl={comment:/--.+/,"vhdl-vectors":{pattern:/\b[oxb]"[\da-f_]+"|"[01uxzwlh-]+"/i,alias:"number"},"quoted-function":{pattern:/"\S+?"(?=\()/,alias:"function"},string:/"(?:[^\\"\r\n]|\\(?:\r\n|[\s\S]))*"/,constant:/\b(?:use|library)\b/i,keyword:/\b(?:'active|'ascending|'base|'delayed|'driving|'driving_value|'event|'high|'image|'instance_name|'last_active|'last_event|'last_value|'left|'leftof|'length|'low|'path_name|'pos|'pred|'quiet|'range|'reverse_range|'right|'rightof|'simple_name|'stable|'succ|'transaction|'val|'value|access|after|alias|all|architecture|array|assert|attribute|begin|block|body|buffer|bus|case|component|configuration|constant|disconnect|downto|else|elsif|end|entity|exit|file|for|function|generate|generic|group|guarded|if|impure|in|inertial|inout|is|label|library|linkage|literal|loop|map|new|next|null|of|on|open|others|out|package|port|postponed|procedure|process|pure|range|record|register|reject|report|return|select|severity|shared|signal|subtype|then|to|transport|type|unaffected|units|until|use|variable|wait|when|while|with)\b/i,boolean:/\b(?:true|false)\b/i,function:/\w+(?=\()/,number:/'[01uxzwlh-]'|\b(?:\d+#[\da-f_.]+#|\d[\d_.]*)(?:e[-+]?\d+)?/i,operator:/[<>]=?|:=|[-+*/&=]|\b(?:abs|not|mod|rem|sll|srl|sla|sra|rol|ror|and|or|nand|xnor|xor|nor)\b/i,punctuation:/[{}[\];(),.:]/};
+var _self = "undefined" != typeof window ? window : "undefined" != typeof WorkerGlobalScope && self instanceof WorkerGlobalScope ? self : {},
+    Prism = function(g) {
+        var c = /\blang(?:uage)?-([\w-]+)\b/i,
+            a = 0,
+            C = {
+                manual: g.Prism && g.Prism.manual,
+                disableWorkerMessageHandler: g.Prism && g.Prism.disableWorkerMessageHandler,
+                util: {
+                    encode: function(e) {
+                        return e instanceof M ? new M(e.type, C.util.encode(e.content), e.alias) : Array.isArray(e) ? e.map(C.util.encode) : e.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\u00a0/g, " ")
+                    },
+                    type: function(e) {
+                        return Object.prototype.toString.call(e).slice(8, -1)
+                    },
+                    objId: function(e) {
+                        return e.__id || Object.defineProperty(e, "__id", {
+                            value: ++a
+                        }), e.__id
+                    },
+                    clone: function t(e, n) {
+                        var r, a, i = C.util.type(e);
+                        switch (n = n || {}, i) {
+                            case "Object":
+                                if (a = C.util.objId(e), n[a]) return n[a];
+                                for (var l in r = {}, n[a] = r, e) e.hasOwnProperty(l) && (r[l] = t(e[l], n));
+                                return r;
+                            case "Array":
+                                return a = C.util.objId(e), n[a] ? n[a] : (r = [], n[a] = r, e.forEach(function(e, a) {
+                                    r[a] = t(e, n)
+                                }), r);
+                            default:
+                                return e
+                        }
+                    }
+                },
+                languages: {
+                    extend: function(e, a) {
+                        var t = C.util.clone(C.languages[e]);
+                        for (var n in a) t[n] = a[n];
+                        return t
+                    },
+                    insertBefore: function(t, e, a, n) {
+                        var r = (n = n || C.languages)[t],
+                            i = {};
+                        for (var l in r)
+                            if (r.hasOwnProperty(l)) {
+                                if (l == e)
+                                    for (var o in a) a.hasOwnProperty(o) && (i[o] = a[o]);
+                                a.hasOwnProperty(l) || (i[l] = r[l])
+                            } var s = n[t];
+                        return n[t] = i, C.languages.DFS(C.languages, function(e, a) {
+                            a === s && e != t && (this[e] = i)
+                        }), i
+                    },
+                    DFS: function e(a, t, n, r) {
+                        r = r || {};
+                        var i = C.util.objId;
+                        for (var l in a)
+                            if (a.hasOwnProperty(l)) {
+                                t.call(a, l, a[l], n || l);
+                                var o = a[l],
+                                    s = C.util.type(o);
+                                "Object" !== s || r[i(o)] ? "Array" !== s || r[i(o)] || (r[i(o)] = !0, e(o, t, l, r)) : (r[i(o)] = !0, e(o, t, null, r))
+                            }
+                    }
+                },
+                plugins: {},
+                highlightAll: function(e, a) {
+                    C.highlightAllUnder(document, e, a)
+                },
+                highlightAllUnder: function(e, a, t) {
+                    var n = {
+                        callback: t,
+                        selector: 'code[class*="language-"], [class*="language-"] code, code[class*="lang-"], [class*="lang-"] code'
+                    };
+                    C.hooks.run("before-highlightall", n);
+                    for (var r, i = n.elements || e.querySelectorAll(n.selector), l = 0; r = i[l++];) C.highlightElement(r, !0 === a, n.callback)
+                },
+                highlightElement: function(e, a, t) {
+                    for (var n, r, i = e; i && !c.test(i.className);) i = i.parentNode;
+                    i && (n = (i.className.match(c) || [, ""])[1].toLowerCase(), r = C.languages[n]), e.className = e.className.replace(c, "").replace(/\s+/g, " ") + " language-" + n, e.parentNode && (i = e.parentNode, /pre/i.test(i.nodeName) && (i.className = i.className.replace(c, "").replace(/\s+/g, " ") + " language-" + n));
+                    var l = {
+                            element: e,
+                            language: n,
+                            grammar: r,
+                            code: e.textContent
+                        },
+                        o = function(e) {
+                            l.highlightedCode = e, C.hooks.run("before-insert", l), l.element.innerHTML = l.highlightedCode, C.hooks.run("after-highlight", l), C.hooks.run("complete", l), t && t.call(l.element)
+                        };
+                    if (C.hooks.run("before-sanity-check", l), l.code)
+                        if (C.hooks.run("before-highlight", l), l.grammar)
+                            if (a && g.Worker) {
+                                var s = new Worker(C.filename);
+                                s.onmessage = function(e) {
+                                    o(e.data)
+                                }, s.postMessage(JSON.stringify({
+                                    language: l.language,
+                                    code: l.code,
+                                    immediateClose: !0
+                                }))
+                            } else o(C.highlight(l.code, l.grammar, l.language));
+                    else o(C.util.encode(l.code));
+                    else C.hooks.run("complete", l)
+                },
+                highlight: function(e, a, t) {
+                    var n = {
+                        code: e,
+                        grammar: a,
+                        language: t
+                    };
+                    return C.hooks.run("before-tokenize", n), n.tokens = C.tokenize(n.code, n.grammar), C.hooks.run("after-tokenize", n), M.stringify(C.util.encode(n.tokens), n.language)
+                },
+                matchGrammar: function(e, a, t, n, r, i, l) {
+                    for (var o in t)
+                        if (t.hasOwnProperty(o) && t[o]) {
+                            if (o == l) return;
+                            var s = t[o];
+                            s = "Array" === C.util.type(s) ? s : [s];
+                            for (var g = 0; g < s.length; ++g) {
+                                var c = s[g],
+                                    u = c.inside,
+                                    h = !!c.lookbehind,
+                                    f = !!c.greedy,
+                                    d = 0,
+                                    m = c.alias;
+                                if (f && !c.pattern.global) {
+                                    var p = c.pattern.toString().match(/[imuy]*$/)[0];
+                                    c.pattern = RegExp(c.pattern.source, p + "g")
+                                }
+                                c = c.pattern || c;
+                                for (var y = n, v = r; y < a.length; v += a[y].length, ++y) {
+                                    var k = a[y];
+                                    if (a.length > e.length) return;
+                                    if (!(k instanceof M)) {
+                                        if (f && y != a.length - 1) {
+                                            if (c.lastIndex = v, !(x = c.exec(e))) break;
+                                            for (var b = x.index + (h ? x[1].length : 0), w = x.index + x[0].length, A = y, P = v, O = a.length; A < O && (P < w || !a[A].type && !a[A - 1].greedy); ++A)(P += a[A].length) <= b && (++y, v = P);
+                                            if (a[y] instanceof M) continue;
+                                            N = A - y, k = e.slice(v, P), x.index -= v
+                                        } else {
+                                            c.lastIndex = 0;
+                                            var x = c.exec(k),
+                                                N = 1
+                                        }
+                                        if (x) {
+                                            h && (d = x[1] ? x[1].length : 0);
+                                            w = (b = x.index + d) + (x = x[0].slice(d)).length;
+                                            var j = k.slice(0, b),
+                                                S = k.slice(w),
+                                                E = [y, N];
+                                            j && (++y, v += j.length, E.push(j));
+                                            var _ = new M(o, u ? C.tokenize(x, u) : x, m, x, f);
+                                            if (E.push(_), S && E.push(S), Array.prototype.splice.apply(a, E), 1 != N && C.matchGrammar(e, a, t, y, v, !0, o), i) break
+                                        } else if (i) break
+                                    }
+                                }
+                            }
+                        }
+                },
+                tokenize: function(e, a) {
+                    var t = [e],
+                        n = a.rest;
+                    if (n) {
+                        for (var r in n) a[r] = n[r];
+                        delete a.rest
+                    }
+                    return C.matchGrammar(e, t, a, 0, 0, !1), t
+                },
+                hooks: {
+                    all: {},
+                    add: function(e, a) {
+                        var t = C.hooks.all;
+                        t[e] = t[e] || [], t[e].push(a)
+                    },
+                    run: function(e, a) {
+                        var t = C.hooks.all[e];
+                        if (t && t.length)
+                            for (var n, r = 0; n = t[r++];) n(a)
+                    }
+                },
+                Token: M
+            };
+
+        function M(e, a, t, n, r) {
+            this.type = e, this.content = a, this.alias = t, this.length = 0 | (n || "").length, this.greedy = !!r
+        }
+        if (g.Prism = C, M.stringify = function(a, t, e) {
+                if ("string" == typeof a) return a;
+                if (Array.isArray(a)) return a.map(function(e) {
+                    return M.stringify(e, t, a)
+                }).join("");
+                var n = {
+                    type: a.type,
+                    content: M.stringify(a.content, t, e),
+                    tag: "span",
+                    classes: ["token", a.type],
+                    attributes: {},
+                    language: t,
+                    parent: e
+                };
+                if (a.alias) {
+                    var r = Array.isArray(a.alias) ? a.alias : [a.alias];
+                    Array.prototype.push.apply(n.classes, r)
+                }
+                C.hooks.run("wrap", n);
+                var i = Object.keys(n.attributes).map(function(e) {
+                    return e + '="' + (n.attributes[e] || "").replace(/"/g, "&quot;") + '"'
+                }).join(" ");
+                return "<" + n.tag + ' class="' + n.classes.join(" ") + '"' + (i ? " " + i : "") + ">" + n.content + "</" + n.tag + ">"
+            }, !g.document) return g.addEventListener && (C.disableWorkerMessageHandler || g.addEventListener("message", function(e) {
+            var a = JSON.parse(e.data),
+                t = a.language,
+                n = a.code,
+                r = a.immediateClose;
+            g.postMessage(C.highlight(n, C.languages[t], t)), r && g.close()
+        }, !1)), C;
+        var e = document.currentScript || [].slice.call(document.getElementsByTagName("script")).pop();
+        return e && (C.filename = e.src, C.manual || e.hasAttribute("data-manual") || ("loading" !== document.readyState ? window.requestAnimationFrame ? window.requestAnimationFrame(C.highlightAll) : window.setTimeout(C.highlightAll, 16) : document.addEventListener("DOMContentLoaded", C.highlightAll))), C
+    }(_self);
+"undefined" != typeof module && module.exports && (module.exports = Prism), "undefined" != typeof global && (global.Prism = Prism);
+Prism.languages.markup = {
+    comment: /<!--[\s\S]*?-->/,
+    prolog: /<\?[\s\S]+?\?>/,
+    doctype: /<!DOCTYPE[\s\S]+?>/i,
+    cdata: /<!\[CDATA\[[\s\S]*?]]>/i,
+    tag: {
+        pattern: /<\/?(?!\d)[^\s>\/=$<%]+(?:\s(?:\s*[^\s>\/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+(?=[\s>]))|(?=[\s/>])))+)?\s*\/?>/i,
+        greedy: !0,
+        inside: {
+            tag: {
+                pattern: /^<\/?[^\s>\/]+/i,
+                inside: {
+                    punctuation: /^<\/?/,
+                    namespace: /^[^\s>\/:]+:/
+                }
+            },
+            "attr-value": {
+                pattern: /=\s*(?:"[^"]*"|'[^']*'|[^\s'">=]+)/i,
+                inside: {
+                    punctuation: [/^=/, {
+                        pattern: /^(\s*)["']|["']$/,
+                        lookbehind: !0
+                    }]
+                }
+            },
+            punctuation: /\/?>/,
+            "attr-name": {
+                pattern: /[^\s>\/]+/,
+                inside: {
+                    namespace: /^[^\s>\/:]+:/
+                }
+            }
+        }
+    },
+    entity: /&#?[\da-z]{1,8};/i
+}, Prism.languages.markup.tag.inside["attr-value"].inside.entity = Prism.languages.markup.entity, Prism.hooks.add("wrap", function(a) {
+    "entity" === a.type && (a.attributes.title = a.content.replace(/&amp;/, "&"))
+}), Object.defineProperty(Prism.languages.markup.tag, "addInlined", {
+    value: function(a, e) {
+        var s = {};
+        s["language-" + e] = {
+            pattern: /(^<!\[CDATA\[)[\s\S]+?(?=\]\]>$)/i,
+            lookbehind: !0,
+            inside: Prism.languages[e]
+        }, s.cdata = /^<!\[CDATA\[|\]\]>$/i;
+        var n = {
+            "included-cdata": {
+                pattern: /<!\[CDATA\[[\s\S]*?\]\]>/i,
+                inside: s
+            }
+        };
+        n["language-" + e] = {
+            pattern: /[\s\S]+/,
+            inside: Prism.languages[e]
+        };
+        var i = {};
+        i[a] = {
+            pattern: RegExp("(<__[\\s\\S]*?>)(?:<!\\[CDATA\\[[\\s\\S]*?\\]\\]>\\s*|[\\s\\S])*?(?=<\\/__>)".replace(/__/g, a), "i"),
+            lookbehind: !0,
+            greedy: !0,
+            inside: n
+        }, Prism.languages.insertBefore("markup", "cdata", i)
+    }
+}), Prism.languages.xml = Prism.languages.extend("markup", {}), Prism.languages.html = Prism.languages.markup, Prism.languages.mathml = Prism.languages.markup, Prism.languages.svg = Prism.languages.markup;
+! function(s) {
+    var e = /("|')(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/;
+    s.languages.css = {
+        comment: /\/\*[\s\S]*?\*\//,
+        atrule: {
+            pattern: /@[\w-]+?[\s\S]*?(?:;|(?=\s*\{))/i,
+            inside: {
+                rule: /@[\w-]+/
+            }
+        },
+        url: RegExp("url\\((?:" + e.source + "|.*?)\\)", "i"),
+        selector: RegExp("[^{}\\s](?:[^{};\"']|" + e.source + ")*?(?=\\s*\\{)"),
+        string: {
+            pattern: e,
+            greedy: !0
+        },
+        property: /[-_a-z\xA0-\uFFFF][-\w\xA0-\uFFFF]*(?=\s*:)/i,
+        important: /!important\b/i,
+        function: /[-a-z0-9]+(?=\()/i,
+        punctuation: /[(){};:,]/
+    }, s.languages.css.atrule.inside.rest = s.languages.css;
+    var a = s.languages.markup;
+    a && (a.tag.addInlined("style", "css"), s.languages.insertBefore("inside", "attr-value", {
+        "style-attr": {
+            pattern: /\s*style=("|')(?:\\[\s\S]|(?!\1)[^\\])*\1/i,
+            inside: {
+                "attr-name": {
+                    pattern: /^\s*style/i,
+                    inside: a.tag.inside
+                },
+                punctuation: /^\s*=\s*['"]|['"]\s*$/,
+                "attr-value": {
+                    pattern: /.+/i,
+                    inside: s.languages.css
+                }
+            },
+            alias: "language-css"
+        }
+    }, a.tag))
+}(Prism);
+Prism.languages.clike = {
+    comment: [{
+        pattern: /(^|[^\\])\/\*[\s\S]*?(?:\*\/|$)/,
+        lookbehind: !0
+    }, {
+        pattern: /(^|[^\\:])\/\/.*/,
+        lookbehind: !0,
+        greedy: !0
+    }],
+    string: {
+        pattern: /(["'])(?:\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
+        greedy: !0
+    },
+    "class-name": {
+        pattern: /((?:\b(?:class|interface|extends|implements|trait|instanceof|new)\s+)|(?:catch\s+\())[\w.\\]+/i,
+        lookbehind: !0,
+        inside: {
+            punctuation: /[.\\]/
+        }
+    },
+    keyword: /\b(?:if|else|while|do|for|return|in|instanceof|function|new|try|throw|catch|finally|null|break|continue)\b/,
+    boolean: /\b(?:true|false)\b/,
+    function: /\w+(?=\()/,
+    number: /\b0x[\da-f]+\b|(?:\b\d+\.?\d*|\B\.\d+)(?:e[+-]?\d+)?/i,
+    operator: /--?|\+\+?|!=?=?|<=?|>=?|==?=?|&&?|\|\|?|\?|\*|\/|~|\^|%/,
+    punctuation: /[{}[\];(),.:]/
+};
+Prism.languages.javascript = Prism.languages.extend("clike", {
+    "class-name": [Prism.languages.clike["class-name"], {
+        pattern: /(^|[^$\w\xA0-\uFFFF])[_$A-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\.(?:prototype|constructor))/,
+        lookbehind: !0
+    }],
+    keyword: [{
+        pattern: /((?:^|})\s*)(?:catch|finally)\b/,
+        lookbehind: !0
+    }, {
+        pattern: /(^|[^.])\b(?:as|async(?=\s*(?:function\b|\(|[$\w\xA0-\uFFFF]|$))|await|break|case|class|const|continue|debugger|default|delete|do|else|enum|export|extends|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)\b/,
+        lookbehind: !0
+    }],
+    number: /\b(?:(?:0[xX][\dA-Fa-f]+|0[bB][01]+|0[oO][0-7]+)n?|\d+n|NaN|Infinity)\b|(?:\b\d+\.?\d*|\B\.\d+)(?:[Ee][+-]?\d+)?/,
+    function: /[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*(?:\.\s*(?:apply|bind|call)\s*)?\()/,
+    operator: /-[-=]?|\+[+=]?|!=?=?|<<?=?|>>?>?=?|=(?:==?|>)?|&[&=]?|\|[|=]?|\*\*?=?|\/=?|~|\^=?|%=?|\?|\.{3}/
+}), Prism.languages.javascript["class-name"][0].pattern = /(\b(?:class|interface|extends|implements|instanceof|new)\s+)[\w.\\]+/, Prism.languages.insertBefore("javascript", "keyword", {
+    regex: {
+        pattern: /((?:^|[^$\w\xA0-\uFFFF."'\])\s])\s*)\/(\[(?:[^\]\\\r\n]|\\.)*]|\\.|[^/\\\[\r\n])+\/[gimyu]{0,5}(?=\s*($|[\r\n,.;})\]]))/,
+        lookbehind: !0,
+        greedy: !0
+    },
+    "function-variable": {
+        pattern: /[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*[=:]\s*(?:async\s*)?(?:\bfunction\b|(?:\((?:[^()]|\([^()]*\))*\)|[_$a-zA-Z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)\s*=>))/,
+        alias: "function"
+    },
+    parameter: [{
+        pattern: /(function(?:\s+[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*)?\s*\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\))/,
+        lookbehind: !0,
+        inside: Prism.languages.javascript
+    }, {
+        pattern: /[_$a-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*(?=\s*=>)/i,
+        inside: Prism.languages.javascript
+    }, {
+        pattern: /(\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*=>)/,
+        lookbehind: !0,
+        inside: Prism.languages.javascript
+    }, {
+        pattern: /((?:\b|\s|^)(?!(?:as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|undefined|var|void|while|with|yield)(?![$\w\xA0-\uFFFF]))(?:[_$A-Za-z\xA0-\uFFFF][$\w\xA0-\uFFFF]*\s*)\(\s*)(?!\s)(?:[^()]|\([^()]*\))+?(?=\s*\)\s*\{)/,
+        lookbehind: !0,
+        inside: Prism.languages.javascript
+    }],
+    constant: /\b[A-Z](?:[A-Z_]|\dx?)*\b/
+}), Prism.languages.insertBefore("javascript", "string", {
+    "template-string": {
+        pattern: /`(?:\\[\s\S]|\${[^}]+}|[^\\`])*`/,
+        greedy: !0,
+        inside: {
+            interpolation: {
+                pattern: /\${[^}]+}/,
+                inside: {
+                    "interpolation-punctuation": {
+                        pattern: /^\${|}$/,
+                        alias: "punctuation"
+                    },
+                    rest: Prism.languages.javascript
+                }
+            },
+            string: /[\s\S]+/
+        }
+    }
+}), Prism.languages.markup && Prism.languages.markup.tag.addInlined("script", "javascript"), Prism.languages.js = Prism.languages.javascript;
+Prism.languages.perl = {
+    comment: [{
+        pattern: /(^\s*)=\w+[\s\S]*?=cut.*/m,
+        lookbehind: !0
+    }, {
+        pattern: /(^|[^\\$])#.*/,
+        lookbehind: !0
+    }],
+    string: [{
+        pattern: /\b(?:q|qq|qx|qw)\s*([^a-zA-Z0-9\s{(\[<])(?:(?!\1)[^\\]|\\[\s\S])*\1/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:q|qq|qx|qw)\s+([a-zA-Z0-9])(?:(?!\1)[^\\]|\\[\s\S])*\1/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:q|qq|qx|qw)\s*\((?:[^()\\]|\\[\s\S])*\)/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:q|qq|qx|qw)\s*\{(?:[^{}\\]|\\[\s\S])*\}/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:q|qq|qx|qw)\s*\[(?:[^[\]\\]|\\[\s\S])*\]/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:q|qq|qx|qw)\s*<(?:[^<>\\]|\\[\s\S])*>/,
+        greedy: !0
+    }, {
+        pattern: /("|`)(?:(?!\1)[^\\]|\\[\s\S])*\1/,
+        greedy: !0
+    }, {
+        pattern: /'(?:[^'\\\r\n]|\\.)*'/,
+        greedy: !0
+    }],
+    regex: [{
+        pattern: /\b(?:m|qr)\s*([^a-zA-Z0-9\s{(\[<])(?:(?!\1)[^\\]|\\[\s\S])*\1[msixpodualngc]*/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:m|qr)\s+([a-zA-Z0-9])(?:(?!\1)[^\\]|\\[\s\S])*\1[msixpodualngc]*/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:m|qr)\s*\((?:[^()\\]|\\[\s\S])*\)[msixpodualngc]*/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:m|qr)\s*\{(?:[^{}\\]|\\[\s\S])*\}[msixpodualngc]*/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:m|qr)\s*\[(?:[^[\]\\]|\\[\s\S])*\][msixpodualngc]*/,
+        greedy: !0
+    }, {
+        pattern: /\b(?:m|qr)\s*<(?:[^<>\\]|\\[\s\S])*>[msixpodualngc]*/,
+        greedy: !0
+    }, {
+        pattern: /(^|[^-]\b)(?:s|tr|y)\s*([^a-zA-Z0-9\s{(\[<])(?:(?!\2)[^\\]|\\[\s\S])*\2(?:(?!\2)[^\\]|\\[\s\S])*\2[msixpodualngcer]*/,
+        lookbehind: !0,
+        greedy: !0
+    }, {
+        pattern: /(^|[^-]\b)(?:s|tr|y)\s+([a-zA-Z0-9])(?:(?!\2)[^\\]|\\[\s\S])*\2(?:(?!\2)[^\\]|\\[\s\S])*\2[msixpodualngcer]*/,
+        lookbehind: !0,
+        greedy: !0
+    }, {
+        pattern: /(^|[^-]\b)(?:s|tr|y)\s*\((?:[^()\\]|\\[\s\S])*\)\s*\((?:[^()\\]|\\[\s\S])*\)[msixpodualngcer]*/,
+        lookbehind: !0,
+        greedy: !0
+    }, {
+        pattern: /(^|[^-]\b)(?:s|tr|y)\s*\{(?:[^{}\\]|\\[\s\S])*\}\s*\{(?:[^{}\\]|\\[\s\S])*\}[msixpodualngcer]*/,
+        lookbehind: !0,
+        greedy: !0
+    }, {
+        pattern: /(^|[^-]\b)(?:s|tr|y)\s*\[(?:[^[\]\\]|\\[\s\S])*\]\s*\[(?:[^[\]\\]|\\[\s\S])*\][msixpodualngcer]*/,
+        lookbehind: !0,
+        greedy: !0
+    }, {
+        pattern: /(^|[^-]\b)(?:s|tr|y)\s*<(?:[^<>\\]|\\[\s\S])*>\s*<(?:[^<>\\]|\\[\s\S])*>[msixpodualngcer]*/,
+        lookbehind: !0,
+        greedy: !0
+    }, {
+        pattern: /\/(?:[^\/\\\r\n]|\\.)*\/[msixpodualngc]*(?=\s*(?:$|[\r\n,.;})&|\-+*~<>!?^]|(lt|gt|le|ge|eq|ne|cmp|not|and|or|xor|x)\b))/,
+        greedy: !0
+    }],
+    variable: [/[&*$@%]\{\^[A-Z]+\}/, /[&*$@%]\^[A-Z_]/, /[&*$@%]#?(?=\{)/, /[&*$@%]#?(?:(?:::)*'?(?!\d)[\w$]+)+(?:::)*/i, /[&*$@%]\d+/, /(?!%=)[$@%][!"#$%&'()*+,\-.\/:;<=>?@[\\\]^_`{|}~]/],
+    filehandle: {
+        pattern: /<(?![<=])\S*>|\b_\b/,
+        alias: "symbol"
+    },
+    vstring: {
+        pattern: /v\d+(?:\.\d+)*|\d+(?:\.\d+){2,}/,
+        alias: "string"
+    },
+    function: {
+        pattern: /sub [a-z0-9_]+/i,
+        inside: {
+            keyword: /sub/
+        }
+    },
+    keyword: /\b(?:any|break|continue|default|delete|die|do|else|elsif|eval|for|foreach|given|goto|if|last|local|my|next|our|package|print|redo|require|say|state|sub|switch|undef|unless|until|use|when|while)\b/,
+    number: /\b(?:0x[\dA-Fa-f](?:_?[\dA-Fa-f])*|0b[01](?:_?[01])*|(?:\d(?:_?\d)*)?\.?\d(?:_?\d)*(?:[Ee][+-]?\d+)?)\b/,
+    operator: /-[rwxoRWXOezsfdlpSbctugkTBMAC]\b|\+[+=]?|-[-=>]?|\*\*?=?|\/\/?=?|=[=~>]?|~[~=]?|\|\|?=?|&&?=?|<(?:=>?|<=?)?|>>?=?|![~=]?|[%^]=?|\.(?:=|\.\.?)?|[\\?]|\bx(?:=|\b)|\b(?:lt|gt|le|ge|eq|ne|cmp|not|and|or|xor)\b/,
+    punctuation: /[{}[\];(),:]/
+};
+Prism.languages.python = {
+    comment: {
+        pattern: /(^|[^\\])#.*/,
+        lookbehind: !0
+    },
+    "string-interpolation": {
+        pattern: /(?:f|rf|fr)(?:("""|''')[\s\S]+?\1|("|')(?:\\.|(?!\2)[^\\\r\n])*\2)/i,
+        greedy: !0,
+        inside: {
+            interpolation: {
+                pattern: /((?:^|[^{])(?:{{)*){(?!{)(?:[^{}]|{(?!{)(?:[^{}]|{(?!{)(?:[^{}])+})+})+}/,
+                lookbehind: !0,
+                inside: {
+                    "format-spec": {
+                        pattern: /(:)[^:(){}]+(?=}$)/,
+                        lookbehind: !0
+                    },
+                    "conversion-option": {
+                        pattern: /![sra](?=[:}]$)/,
+                        alias: "punctuation"
+                    },
+                    rest: null
+                }
+            },
+            string: /[\s\S]+/
+        }
+    },
+    "triple-quoted-string": {
+        pattern: /(?:[rub]|rb|br)?("""|''')[\s\S]+?\1/i,
+        greedy: !0,
+        alias: "string"
+    },
+    string: {
+        pattern: /(?:[rub]|rb|br)?("|')(?:\\.|(?!\1)[^\\\r\n])*\1/i,
+        greedy: !0
+    },
+    function: {
+        pattern: /((?:^|\s)def[ \t]+)[a-zA-Z_]\w*(?=\s*\()/g,
+        lookbehind: !0
+    },
+    "class-name": {
+        pattern: /(\bclass\s+)\w+/i,
+        lookbehind: !0
+    },
+    decorator: {
+        pattern: /(^\s*)@\w+(?:\.\w+)*/i,
+        lookbehind: !0,
+        alias: ["annotation", "punctuation"],
+        inside: {
+            punctuation: /\./
+        }
+    },
+    keyword: /\b(?:and|as|assert|async|await|break|class|continue|def|del|elif|else|except|exec|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|print|raise|return|try|while|with|yield)\b/,
+    builtin: /\b(?:__import__|abs|all|any|apply|ascii|basestring|bin|bool|buffer|bytearray|bytes|callable|chr|classmethod|cmp|coerce|compile|complex|delattr|dict|dir|divmod|enumerate|eval|execfile|file|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|intern|isinstance|issubclass|iter|len|list|locals|long|map|max|memoryview|min|next|object|oct|open|ord|pow|property|range|raw_input|reduce|reload|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|unichr|unicode|vars|xrange|zip)\b/,
+    boolean: /\b(?:True|False|None)\b/,
+    number: /(?:\b(?=\d)|\B(?=\.))(?:0[bo])?(?:(?:\d|0x[\da-f])[\da-f]*\.?\d*|\.\d+)(?:e[+-]?\d+)?j?\b/i,
+    operator: /[-+%=]=?|!=|\*\*?=?|\/\/?=?|<[<=>]?|>[=>]?|[&|^~]/,
+    punctuation: /[{}[\];(),.:]/
+}, Prism.languages.python["string-interpolation"].inside.interpolation.inside.rest = Prism.languages.python, Prism.languages.py = Prism.languages.python;
+Prism.languages.tcl = {
+    comment: {
+        pattern: /(^|[^\\])#.*/,
+        lookbehind: !0
+    },
+    string: {
+        pattern: /"(?:[^"\\\r\n]|\\(?:\r\n|[\s\S]))*"/,
+        greedy: !0
+    },
+    variable: [{
+        pattern: /(\$)(?:::)?(?:[a-zA-Z0-9]+::)*\w+/,
+        lookbehind: !0
+    }, {
+        pattern: /(\$){[^}]+}/,
+        lookbehind: !0
+    }, {
+        pattern: /(^\s*set[ \t]+)(?:::)?(?:[a-zA-Z0-9]+::)*\w+/m,
+        lookbehind: !0
+    }],
+    function: {
+        pattern: /(^\s*proc[ \t]+)[^\s]+/m,
+        lookbehind: !0
+    },
+    builtin: [{
+        pattern: /(^\s*)(?:proc|return|class|error|eval|exit|for|foreach|if|switch|while|break|continue)\b/m,
+        lookbehind: !0
+    }, /\b(?:elseif|else)\b/],
+    scope: {
+        pattern: /(^\s*)(?:global|upvar|variable)\b/m,
+        lookbehind: !0,
+        alias: "constant"
+    },
+    keyword: {
+        pattern: /(^\s*|\[)(?:after|append|apply|array|auto_(?:execok|import|load|mkindex|qualify|reset)|automkindex_old|bgerror|binary|catch|cd|chan|clock|close|concat|dde|dict|encoding|eof|exec|expr|fblocked|fconfigure|fcopy|file(?:event|name)?|flush|gets|glob|history|http|incr|info|interp|join|lappend|lassign|lindex|linsert|list|llength|load|lrange|lrepeat|lreplace|lreverse|lsearch|lset|lsort|math(?:func|op)|memory|msgcat|namespace|open|package|parray|pid|pkg_mkIndex|platform|puts|pwd|re_syntax|read|refchan|regexp|registry|regsub|rename|Safe_Base|scan|seek|set|socket|source|split|string|subst|Tcl|tcl(?:_endOfWord|_findLibrary|startOf(?:Next|Previous)Word|wordBreak(?:After|Before)|test|vars)|tell|time|tm|trace|unknown|unload|unset|update|uplevel|vwait)\b/m,
+        lookbehind: !0
+    },
+    operator: /!=?|\*\*?|==|&&?|\|\|?|<[=<]?|>[=>]?|[-+~\/%?^]|\b(?:eq|ne|in|ni)\b/,
+    punctuation: /[{}()\[\]]/
+};
+Prism.languages.verilog = {
+    comment: /\/\/.*|\/\*[\s\S]*?\*\//,
+    string: {
+        pattern: /"(?:\\(?:\r\n|[\s\S])|[^"\\\r\n])*"/,
+        greedy: !0
+    },
+    property: /\B\$\w+\b/,
+    constant: /\B`\w+\b/,
+    function: /\w+(?=\()/,
+    keyword: /\b(?:alias|and|assert|assign|assume|automatic|before|begin|bind|bins|binsof|bit|break|buf|bufif0|bufif1|byte|class|case|casex|casez|cell|chandle|clocking|cmos|config|const|constraint|context|continue|cover|covergroup|coverpoint|cross|deassign|default|defparam|design|disable|dist|do|edge|else|end|endcase|endclass|endclocking|endconfig|endfunction|endgenerate|endgroup|endinterface|endmodule|endpackage|endprimitive|endprogram|endproperty|endspecify|endsequence|endtable|endtask|enum|event|expect|export|extends|extern|final|first_match|for|force|foreach|forever|fork|forkjoin|function|generate|genvar|highz0|highz1|if|iff|ifnone|ignore_bins|illegal_bins|import|incdir|include|initial|inout|input|inside|instance|int|integer|interface|intersect|join|join_any|join_none|large|liblist|library|local|localparam|logic|longint|macromodule|matches|medium|modport|module|nand|negedge|new|nmos|nor|noshowcancelled|not|notif0|notif1|null|or|output|package|packed|parameter|pmos|posedge|primitive|priority|program|property|protected|pull0|pull1|pulldown|pullup|pulsestyle_onevent|pulsestyle_ondetect|pure|rand|randc|randcase|randsequence|rcmos|real|realtime|ref|reg|release|repeat|return|rnmos|rpmos|rtran|rtranif0|rtranif1|scalared|sequence|shortint|shortreal|showcancelled|signed|small|solve|specify|specparam|static|string|strong0|strong1|struct|super|supply0|supply1|table|tagged|task|this|throughout|time|timeprecision|timeunit|tran|tranif0|tranif1|tri|tri0|tri1|triand|trior|trireg|type|typedef|union|unique|unsigned|use|uwire|var|vectored|virtual|void|wait|wait_order|wand|weak0|weak1|while|wildcard|wire|with|within|wor|xnor|xor)\b/,
+    important: /\b(?:always_latch|always_comb|always_ff|always)\b ?@?/,
+    number: /\B##?\d+|(?:\b\d+)?'[odbh] ?[\da-fzx_?]+|\b\d*[._]?\d+(?:e[-+]?\d+)?/i,
+    operator: /[-+{}^~%*\/?=!<>&|]+/,
+    punctuation: /[[\];(),.:]/
+};
+Prism.languages.vhdl = {
+    comment: /--.+/,
+    "vhdl-vectors": {
+        pattern: /\b[oxb]"[\da-f_]+"|"[01uxzwlh-]+"/i,
+        alias: "number"
+    },
+    "quoted-function": {
+        pattern: /"\S+?"(?=\()/,
+        alias: "function"
+    },
+    string: /"(?:[^\\"\r\n]|\\(?:\r\n|[\s\S]))*"/,
+    constant: /\b(?:use|library)\b/i,
+    keyword: /\b(?:'active|'ascending|'base|'delayed|'driving|'driving_value|'event|'high|'image|'instance_name|'last_active|'last_event|'last_value|'left|'leftof|'length|'low|'path_name|'pos|'pred|'quiet|'range|'reverse_range|'right|'rightof|'simple_name|'stable|'succ|'transaction|'val|'value|access|after|alias|all|architecture|array|assert|attribute|begin|block|body|buffer|bus|case|component|configuration|constant|disconnect|downto|else|elsif|end|entity|exit|file|for|function|generate|generic|group|guarded|if|impure|in|inertial|inout|is|label|library|linkage|literal|loop|map|new|next|null|of|on|open|others|out|package|port|postponed|procedure|process|pure|range|record|register|reject|report|return|select|severity|shared|signal|subtype|then|to|transport|type|unaffected|units|until|use|variable|wait|when|while|with)\b/i,
+    boolean: /\b(?:true|false)\b/i,
+    function: /\w+(?=\()/,
+    number: /'[01uxzwlh-]'|\b(?:\d+#[\da-f_.]+#|\d[\d_.]*)(?:e[-+]?\d+)?/i,
+    operator: /[<>]=?|:=|[-+*/&=]|\b(?:abs|not|mod|rem|sll|srl|sla|sra|rol|ror|and|or|nand|xnor|xor|nor)\b/i,
+    punctuation: /[{}[\];(),.:]/
+};
 
 </script>  
   </head><body>
@@ -716,7 +1350,7 @@ Prism.languages.vhdl={comment:/--.+/,"vhdl-vectors":{pattern:/\b[oxb]"[\da-f_]+"
             <p>The top is defined in HDL source file common_regs.v, x4xx.v.</p>
             <div class="group"><a name="P5 Content"></a><h2 class="group">P5 Content</h2>
             <div class="register"><h3 class="register">Register map supplied for open-source projects</h3>
-            <i><BR/><BR/>"All content provided is Copyright 2021 National Instruments Corporation.
+            <i><BR/><BR/>"All content provided is Copyright 2023 National Instruments Corporation.
 For information on NI trademark guidelines, please see <a href="http://www.ni.com/legal/trademarks/">http://www.ni.com/legal/trademarks/</a>. For the NI Patent Notice, please see <a href="http://www.ni.com/legal/patents/">http://www.ni.com/legal/patents/</a>."
             </i></div><BR/>
 </div>
@@ -2383,6 +3017,10 @@ This enumeration is used to create the constants held in the basic registers.
     The registers contained here conform the mboard-regs node that MPM uses
     to manage general FPGA control/status calls, such as versioning,
     timekeeper, GPIO, etc.
+
+    The following diagram shows how the communication bus interacts with the
+    modules in CORE_REGS.
+    <img src = "x4xx_core_common_buses.svg"
             <div class="group"><a name="CORE_REGS_REGMAP|CORE_REGS"></a><h2 class="group">CORE_REGS</h2>
             
             <div class="register">
@@ -2629,7 +3267,7 @@ Window to access the timekeeper register map.
 <table border="0" cellspacing="0" cellpadding="0">
   <tr><td class="offset_info" align="right">DIO</td></tr>
   <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x2000</td></tr>
-  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x20 (32 bytes)</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x40 (64 bytes)</td></tr>
 </table>
 
 </td>
@@ -3228,14 +3866,628 @@ Total Offset =</td></tr>
 </div>
 
             <div class="regmap">
+              <a name="DIG_IFC_REGMAP"></a>
+              <h1 class="regmap">DIG_IFC_REGMAP</h1>
+            
+            <div class="group"><a name="DIG_IFC_REGMAP|SPI_OVER_GPIO_REGS"></a><h2 class="group">SPI_OVER_GPIO_REGS</h2>
+            
+            <div class="register">
+              <a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG"></a>
+            
+<h3 class="register">Offset 0x0000: SPI_SLAVE_CONFIG(3:0) Register Array (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIG_IFC_REGMAP|SPI_SLAVE_CONFIG_in')">(<span id="show_DIG_IFC_REGMAP|SPI_SLAVE_CONFIG_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIG_IFC_REGMAP|SPI_SLAVE_CONFIG_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIGITAL_IFC_REGS">RADIO_DIO_REGMAP|DIGITAL_IFC_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">SPI_SLAVE_CONFIG</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0000 + i*4</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Cannot determine accessibility through this path</td></tr>
+<tr><td class="offset_info">
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00E000 + i*4
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info"><B>Initial Values</B><BR/>
+<table>
+  <tr><td>default</td><td>=&gt;</td><td>0x00000000</td></tr>
+</table>
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_spi.v.<BR/>
+It uses RegType <b>SPI_SETUP</b> which is defined in HDL source file x4xx_gpio_spi.v.</p>
+
+</div>
+
+<div class="info">
+
+Controls SPI Transaction<BR/>
+Set of configuration registers for the supported slaves.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG|MOSI_EDGE"></a>MOSI_EDGE</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Controls the edge in which the MOSI line is updated.</br>
+            0 =  falling edge of SCLK.</br>
+            1 =  rising edge of SCLK.</p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">26</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG|MISO_EDGE"></a>MISO_EDGE</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Controls the edge in which the MISO line is latched.</br>
+            0 =  falling edge of SCLK.</br>
+            1 =  rising edge of SCLK.</p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">25..20</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG|SPI_LENGTH"></a>SPI_LENGTH</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Indicates the length of SPI transactions to this slave.</p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">19..15</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG|SLAVE_CS"></a>SLAVE_CS</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Indicates which GPIO line to use for the CS signal.</br>
+            0-11 : Port A GPIO</br>
+            16-27: Port B GPIO</p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">14..10</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG|SLAVE_MISO"></a>SLAVE_MISO</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Indicates which GPIO line to use for the MISO signal.</br>
+            0-11 : Port A GPIO</br>
+            16-27: Port B GPIO</p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">9..5</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG|SLAVE_MOSI"></a>SLAVE_MOSI</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Indicates which GPIO line to use for the MOSI signal.</br>
+            0-11 : Port A GPIO</br>
+            16-27: Port B GPIO</p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">4..0</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_SLAVE_CONFIG|SLAVE_CLK"></a>SLAVE_CLK</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Indicates which GPIO line to use for the SCLK signal.</br>
+            0-11 : Port A GPIO</br>
+            16-27: Port B GPIO</p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIG_IFC_REGMAP|SPI_TRANSACTION_CONFIG"></a>
+            
+<h3 class="register">Offset 0x0010: SPI_TRANSACTION_CONFIG Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIG_IFC_REGMAP|SPI_TRANSACTION_CONFIG_in')">(<span id="show_DIG_IFC_REGMAP|SPI_TRANSACTION_CONFIG_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIG_IFC_REGMAP|SPI_TRANSACTION_CONFIG_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIGITAL_IFC_REGS">RADIO_DIO_REGMAP|DIGITAL_IFC_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">SPI_TRANSACTION_CONFIG</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0010</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00E010
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_spi.v.</p>
+
+</div>
+
+<div class="info">
+
+Controls clock rate and target for subsequent SPI transactions.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..24</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">23..18</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">17..16</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_TRANSACTION_CONFIG|SPI_SLAVE_SELECT"></a>SPI_SLAVE_SELECT</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..0</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_TRANSACTION_CONFIG|SPI_CLK_DIV"></a>SPI_CLK_DIV</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Controls the rate for subsequent SPI transactions. SCLK = DataClk/[(SPI_CLK_DIV+1)]</p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIG_IFC_REGMAP|SPI_TRANSACTION_GO"></a>
+            
+<h3 class="register">Offset 0x0014: SPI_TRANSACTION_GO Register (W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIG_IFC_REGMAP|SPI_TRANSACTION_GO_in')">(<span id="show_DIG_IFC_REGMAP|SPI_TRANSACTION_GO_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIG_IFC_REGMAP|SPI_TRANSACTION_GO_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIGITAL_IFC_REGS">RADIO_DIO_REGMAP|DIGITAL_IFC_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">SPI_TRANSACTION_GO</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0014</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00E014
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_spi.v.</p>
+
+</div>
+
+<div class="info">
+
+Starts a SPI transaction
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..0w</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_TRANSACTION_GO|SPI_DATA"></a>SPI_DATA</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Payload to be sent for the SPI transaction. If the payload is shorter than 32 bits,
+               it must be aligned to the MSbs in this field. LSbs are ignored in this scenario.</p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIG_IFC_REGMAP|SPI_STATUS"></a>
+            
+<h3 class="register">Offset 0x0018: SPI_STATUS Register (R)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIG_IFC_REGMAP|SPI_STATUS_in')">(<span id="show_DIG_IFC_REGMAP|SPI_STATUS_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIG_IFC_REGMAP|SPI_STATUS_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIGITAL_IFC_REGS">RADIO_DIO_REGMAP|DIGITAL_IFC_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">SPI_STATUS</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0018</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00E018
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_spi.v.</p>
+
+</div>
+
+<div class="info">
+
+Contains the status of the SPI engine.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..25</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">24</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_STATUS|SPI_READY"></a>SPI_READY</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Indicates the SPI engine is ready to start a new SPI transaction.</p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">23..0</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|SPI_STATUS|SPI_RESPONSE"></a>SPI_RESPONSE</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Records the response of the last completed SPI transaction.</p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIG_IFC_REGMAP|CONTROLLER_INFO"></a>
+            
+<h3 class="register">Offset 0x001C: CONTROLLER_INFO Register (R)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIG_IFC_REGMAP|CONTROLLER_INFO_in')">(<span id="show_DIG_IFC_REGMAP|CONTROLLER_INFO_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIG_IFC_REGMAP|CONTROLLER_INFO_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIGITAL_IFC_REGS">RADIO_DIO_REGMAP|DIGITAL_IFC_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">CONTROLLER_INFO</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x001C</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00E01C
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value not specified
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_spi.v.</p>
+
+</div>
+
+<div class="info">
+
+Contains information pertaining this SPI controller block.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..24</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">23..16</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..8</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">7..4</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">3..0</td>
+              <td>
+                <p><span class="name"><a name="DIG_IFC_REGMAP|CONTROLLER_INFO|SLAVE_COUNT"></a>SLAVE_COUNT</span><span class="attr"> </span></p>
+                <p>Indicates the number SPI slaves configurable by the controller.</p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+            <div class="regmap">
               <a name="DIO_REGMAP"></a>
               <h1 class="regmap">DIO_REGMAP</h1>
             
             <div class="group"><a name="DIO_REGMAP|DIO_REGS"></a><h2 class="group">DIO_REGS</h2>
-            Registers to control the GPIO buffer direction on the FPGA connected to the DIO board.
-      Further registers enable the PS to control and read the GPIO lines as master.
-      Make sure the GPIO lines between FPGA and GPIO board are not driven by two drivers.
-      Set the DIO registers in <a href="#PS_CPLD_BASE_REGMAP">PS_CPLD_BASE_REGMAP</a> appropriately.
+            Registers to control the GPIO buffer direction on the FPGA connected to
+      the DIO board. Further registers enable different sources to control and
+      read the GPIO lines as master. The following diagram shows how source
+      selection multiplexers are arranged, as well as an indicator for the
+      register that control them. </br>
+      <img src = "..\..\..\..\..\host\docs\res\x4xx_dio_source_muxes.svg"
+          alt="Front-Panel Programmable GPIOs"/></br>
+      Make sure the GPIO lines between FPGA and GPIO board are not driven by
+      two drivers. Set the DIO registers in <a href="#PS_CPLD_BASE_REGMAP">PS_CPLD_BASE_REGMAP</a> appropriately.
             <div class="register">
               <a name="DIO_REGMAP|DIO_MASTER_REGISTER"></a>
             
@@ -3274,7 +4526,7 @@ Total Offset =</td></tr>
 
 </td>
 
-<td class="outercell" rowspan="1">
+<td class="outercell" rowspan="2">
 
 <table border="0" cellspacing="0" cellpadding="0">
   <tr><td class="offset_info" align="right">DIO_MASTER_REGISTER</td></tr>
@@ -3300,19 +4552,61 @@ Total Offset =</td></tr>
 
 </tr>
 
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D000
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
 </table><p/>
 
 <p class="reg_info">Initial Value = 0x00000000
 </p>
 
-<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.</p>
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
 
 </div>
 
 <div class="info">
 
-Sets whether the DIO signal line is driven by this register interface or the user application.<br/>
-        0 = user application is master, 1 = PS is master
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
+Sets whether the DIO signal line is driven by this register interface
+        or the user application.<br/>
+        0 = user application is master, 1 = output of <a href="#DIO_REGMAP|SW_DIO_CONTROL">SW_DIO_CONTROL</a> is master
 
 </div>
 
@@ -3331,7 +4625,7 @@ Sets whether the DIO signal line is driven by this register interface or the use
             <tr  valign="top">
               <td class="bits">27..16</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_MASTER_REGISTER|DIO_MASTER_B"></a>DIO_MASTER_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_MASTER_REGISTER|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -3349,7 +4643,7 @@ Sets whether the DIO signal line is driven by this register interface or the use
             <tr  valign="top">
               <td class="bits">11..0</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_MASTER_REGISTER|DIO_MASTER_A"></a>DIO_MASTER_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_MASTER_REGISTER|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -3397,7 +4691,7 @@ Sets whether the DIO signal line is driven by this register interface or the use
 
 </td>
 
-<td class="outercell" rowspan="1">
+<td class="outercell" rowspan="2">
 
 <table border="0" cellspacing="0" cellpadding="0">
   <tr><td class="offset_info" align="right">DIO_DIRECTION_REGISTER</td></tr>
@@ -3423,19 +4717,61 @@ Total Offset =</td></tr>
 
 </tr>
 
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D004
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
 </table><p/>
 
 <p class="reg_info">Initial Value = 0x00000000
 </p>
 
-<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.</p>
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
 
 </div>
 
 <div class="info">
 
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
 Set the direction of FPGA buffer connected to DIO ports on the DIO board.<br/>
-        Each bit represents one signal line. 0 = line is an input to the FPGA, 1 = line is an output driven by the FPGA.
+        Each bit represents one signal line. 0 = line is an input to the FPGA,
+        1 = line is an output driven by the FPGA.
 
 </div>
 
@@ -3454,7 +4790,7 @@ Set the direction of FPGA buffer connected to DIO ports on the DIO board.<br/>
             <tr  valign="top">
               <td class="bits">27..16</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_DIRECTION_REGISTER|DIO_DIRECTION_B"></a>DIO_DIRECTION_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_DIRECTION_REGISTER|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -3472,7 +4808,7 @@ Set the direction of FPGA buffer connected to DIO ports on the DIO board.<br/>
             <tr  valign="top">
               <td class="bits">11..0</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_DIRECTION_REGISTER|DIO_DIRECTION_A"></a>DIO_DIRECTION_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_DIRECTION_REGISTER|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -3520,7 +4856,7 @@ Set the direction of FPGA buffer connected to DIO ports on the DIO board.<br/>
 
 </td>
 
-<td class="outercell" rowspan="1">
+<td class="outercell" rowspan="2">
 
 <table border="0" cellspacing="0" cellpadding="0">
   <tr><td class="offset_info" align="right">DIO_INPUT_REGISTER</td></tr>
@@ -3546,17 +4882,58 @@ Total Offset =</td></tr>
 
 </tr>
 
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D008
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
 </table><p/>
 
-<p class="reg_info">Initial Value not specified
+<p class="reg_info">Initial Value = 0x00000000
 </p>
 
-<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.</p>
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
 
 </div>
 
 <div class="info">
 
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
 Status of each bit at the FPGA input.
 
 </div>
@@ -3576,7 +4953,7 @@ Status of each bit at the FPGA input.
             <tr  valign="top">
               <td class="bits">27..16</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_INPUT_REGISTER|DIO_INPUT_B"></a>DIO_INPUT_B</span><span class="attr"> </span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_INPUT_REGISTER|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -3594,7 +4971,7 @@ Status of each bit at the FPGA input.
             <tr  valign="top">
               <td class="bits">11..0</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_INPUT_REGISTER|DIO_INPUT_A"></a>DIO_INPUT_A</span><span class="attr"> </span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_INPUT_REGISTER|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -3642,7 +5019,7 @@ Status of each bit at the FPGA input.
 
 </td>
 
-<td class="outercell" rowspan="1">
+<td class="outercell" rowspan="2">
 
 <table border="0" cellspacing="0" cellpadding="0">
   <tr><td class="offset_info" align="right">DIO_OUTPUT_REGISTER</td></tr>
@@ -3668,18 +5045,60 @@ Total Offset =</td></tr>
 
 </tr>
 
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D00C
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
 </table><p/>
 
 <p class="reg_info">Initial Value = 0x00000000
 </p>
 
-<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.</p>
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
 
 </div>
 
 <div class="info">
 
-Controls the values on each DIO signal line in case the line master is set to PS in <a href="#DIO_REGMAP|DIO_MASTER_REGISTER">DIO_MASTER_REGISTER</a>.
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
+Controls the values on each DIO signal line in case the line master is
+        set to PS in <a href="#DIO_REGMAP|DIO_MASTER_REGISTER">DIO_MASTER_REGISTER</a>.
 
 </div>
 
@@ -3698,7 +5117,7 @@ Controls the values on each DIO signal line in case the line master is set to PS
             <tr  valign="top">
               <td class="bits">27..16</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_OUTPUT_REGISTER|DIO_OUTPUT_B"></a>DIO_OUTPUT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_OUTPUT_REGISTER|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -3716,7 +5135,835 @@ Controls the values on each DIO signal line in case the line master is set to PS
             <tr  valign="top">
               <td class="bits">11..0</td>
               <td>
-                <p><span class="name"><a name="DIO_REGMAP|DIO_OUTPUT_REGISTER|DIO_OUTPUT_A"></a>DIO_OUTPUT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_OUTPUT_REGISTER|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIO_REGMAP|DIO_SOURCE_REGISTER"></a>
+            
+<h3 class="register">Offset 0x0010: DIO_SOURCE_REGISTER Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIO_REGMAP|DIO_SOURCE_REGISTER_in')">(<span id="show_DIO_REGMAP|DIO_SOURCE_REGISTER_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIO_REGMAP|DIO_SOURCE_REGISTER_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+                  <table border="0" cellspacing="0" cellpadding="0">
+                    <tr><td class="offset_info" align="right">Port <a href="#X4XX_FPGA|ARM_M_AXI_HPM0">ARM_M_AXI_HPM0</a></td></tr>
+                  </table>
+               
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#AXI_HPM0_REGMAP|CORE_REGS">AXI_HPM0_REGMAP|CORE_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x10000A0000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#CORE_REGS_REGMAP|DIO">CORE_REGS_REGMAP|DIO</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="2">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">DIO_SOURCE_REGISTER</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0010</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x10000A2010
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D010
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
+
+</div>
+
+<div class="info">
+
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
+Controls whether the DIO lines reflect the state of <a href="#DIO_REGMAP|DIO_MASTER_REGISTER">DIO_MASTER_REGISTER</a>
+        or the radio blocks. 0 = <a href="#DIO_REGMAP|DIO_MASTER_REGISTER">DIO_MASTER_REGISTER</a>,
+        1 = Radio block output(<a href="#DIO_REGMAP|DIO_OVERRIDE">DIO_OVERRIDE</a>)
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_SOURCE_REGISTER|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_SOURCE_REGISTER|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIO_REGMAP|RADIO_SOURCE_REGISTER"></a>
+            
+<h3 class="register">Offset 0x0014: RADIO_SOURCE_REGISTER Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIO_REGMAP|RADIO_SOURCE_REGISTER_in')">(<span id="show_DIO_REGMAP|RADIO_SOURCE_REGISTER_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIO_REGMAP|RADIO_SOURCE_REGISTER_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+                  <table border="0" cellspacing="0" cellpadding="0">
+                    <tr><td class="offset_info" align="right">Port <a href="#X4XX_FPGA|ARM_M_AXI_HPM0">ARM_M_AXI_HPM0</a></td></tr>
+                  </table>
+               
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#AXI_HPM0_REGMAP|CORE_REGS">AXI_HPM0_REGMAP|CORE_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x10000A0000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#CORE_REGS_REGMAP|DIO">CORE_REGS_REGMAP|DIO</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="2">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">RADIO_SOURCE_REGISTER</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0014</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x10000A2014
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D014
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
+
+</div>
+
+<div class="info">
+
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
+Controls which radio block to use the ATR state from to determine the
+        state of the DIO lines.
+        0 = Radio#0
+        1 = Radio#1
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|RADIO_SOURCE_REGISTER|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|RADIO_SOURCE_REGISTER|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIO_REGMAP|INTERFACE_DIO_SELECT"></a>
+            
+<h3 class="register">Offset 0x0018: INTERFACE_DIO_SELECT Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIO_REGMAP|INTERFACE_DIO_SELECT_in')">(<span id="show_DIO_REGMAP|INTERFACE_DIO_SELECT_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIO_REGMAP|INTERFACE_DIO_SELECT_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+                  <table border="0" cellspacing="0" cellpadding="0">
+                    <tr><td class="offset_info" align="right">Port <a href="#X4XX_FPGA|ARM_M_AXI_HPM0">ARM_M_AXI_HPM0</a></td></tr>
+                  </table>
+               
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#AXI_HPM0_REGMAP|CORE_REGS">AXI_HPM0_REGMAP|CORE_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x10000A0000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#CORE_REGS_REGMAP|DIO">CORE_REGS_REGMAP|DIO</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="2">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">INTERFACE_DIO_SELECT</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0018</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x10000A2018
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D018
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
+
+</div>
+
+<div class="info">
+
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
+Controls which of the two available digital interfaces controls the DIO lines.
+        0 = Digital interface from Radio#0,
+        1 = Digital Interface from Radio#1.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|INTERFACE_DIO_SELECT|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|INTERFACE_DIO_SELECT|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIO_REGMAP|DIO_OVERRIDE"></a>
+            
+<h3 class="register">Offset 0x001C: DIO_OVERRIDE Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIO_REGMAP|DIO_OVERRIDE_in')">(<span id="show_DIO_REGMAP|DIO_OVERRIDE_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIO_REGMAP|DIO_OVERRIDE_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+                  <table border="0" cellspacing="0" cellpadding="0">
+                    <tr><td class="offset_info" align="right">Port <a href="#X4XX_FPGA|ARM_M_AXI_HPM0">ARM_M_AXI_HPM0</a></td></tr>
+                  </table>
+               
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#AXI_HPM0_REGMAP|CORE_REGS">AXI_HPM0_REGMAP|CORE_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x10000A0000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#CORE_REGS_REGMAP|DIO">CORE_REGS_REGMAP|DIO</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="2">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">DIO_OVERRIDE</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x001C</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x10000A201C
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D01C
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
+
+</div>
+
+<div class="info">
+
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
+Controls whether the radio input to the <a href="#DIO_REGMAP|DIO_SOURCE_REGISTER">DIO_SOURCE_REGISTER</a> mux
+        connects to the ATR control or a Digital interface block. The output
+        of the mux controlled by this bit goes to <a href="#DIO_REGMAP|DIO_SOURCE_REGISTER">DIO_SOURCE_REGISTER</a>.
+        0 = Drive the ATR state(<a href="#DIO_REGMAP|RADIO_SOURCE_REGISTER">RADIO_SOURCE_REGISTER</a>), 1 = Drive
+        Digital interface block(Output of <a href="#DIO_REGMAP|INTERFACE_DIO_SELECT">INTERFACE_DIO_SELECT</a>).
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_OVERRIDE|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|DIO_OVERRIDE|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="DIO_REGMAP|SW_DIO_CONTROL"></a>
+            
+<h3 class="register">Offset 0x0020: SW_DIO_CONTROL Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('DIO_REGMAP|SW_DIO_CONTROL_in')">(<span id="show_DIO_REGMAP|SW_DIO_CONTROL_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_DIO_REGMAP|SW_DIO_CONTROL_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+                  <table border="0" cellspacing="0" cellpadding="0">
+                    <tr><td class="offset_info" align="right">Port <a href="#X4XX_FPGA|ARM_M_AXI_HPM0">ARM_M_AXI_HPM0</a></td></tr>
+                  </table>
+               
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#AXI_HPM0_REGMAP|CORE_REGS">AXI_HPM0_REGMAP|CORE_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x10000A0000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#CORE_REGS_REGMAP|DIO">CORE_REGS_REGMAP|DIO</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x002000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="2">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">SW_DIO_CONTROL</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0020</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x10000A2020
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL">RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x001000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1"></td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D020
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_dio.v.<BR/>
+It uses RegType <b>DIO_CONTROL_REG</b> which is defined in HDL source file x4xx_dio.v.</p>
+
+</div>
+
+<div class="info">
+
+Holds a single bit setting for DIO lines in both ports. One bit per pin.<BR/>
+Controls which source is forwarded to the <a href="#DIO_REGMAP|DIO_MASTER_REGISTER">DIO_MASTER_REGISTER</a> mux.
+        This configuration is applied independently for each DIO line.
+        0 = MPM Ctrlport endpoint, 1 = PS Netlist DIO signal.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|SW_DIO_CONTROL|DIO_PORT_B"></a>DIO_PORT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="DIO_REGMAP|SW_DIO_CONTROL|DIO_PORT_A"></a>DIO_PORT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
                 <p></p>
             
               </td>
@@ -5220,6 +7467,89 @@ Returns the count value of a free-running counter driven by the RFNoC
 </div>
 
             <div class="register">
+              <a name="GLOBAL_REGS_REGMAP|BUILD_SEED_REG"></a>
+            
+<h3 class="register">Offset 0x0028: BUILD_SEED_REG Register (R)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('GLOBAL_REGS_REGMAP|BUILD_SEED_REG_in')">(<span id="show_GLOBAL_REGS_REGMAP|BUILD_SEED_REG_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_GLOBAL_REGS_REGMAP|BUILD_SEED_REG_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+                  <table border="0" cellspacing="0" cellpadding="0">
+                    <tr><td class="offset_info" align="right">Port <a href="#X4XX_FPGA|ARM_M_AXI_HPM0">ARM_M_AXI_HPM0</a></td></tr>
+                  </table>
+               
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#AXI_HPM0_REGMAP|CORE_REGS">AXI_HPM0_REGMAP|CORE_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x10000A0000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#CORE_REGS_REGMAP|GLOBAL_REGS">CORE_REGS_REGMAP|GLOBAL_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x000000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">BUILD_SEED_REG</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0028</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x10000A0028
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value not specified
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_global_regs.v.</p>
+
+</div>
+
+<div class="info">
+
+Build seed used for this compilation. Making this value readable
+        ensures that compilation results are affected by the value in this
+        register.
+
+</div>
+
+</div>
+
+            <div class="register">
               <a name="GLOBAL_REGS_REGMAP|GPS_CTRL_REG"></a>
             
 <h3 class="register">Offset 0x0038: GPS_CTRL_REG Register (R|W)</h3>
@@ -6682,6 +9012,741 @@ Total Offset =</td></tr>
 Returns information from the QSFP1 Lane3.
 
 </div>
+
+</div>
+
+</div>
+
+</div>
+
+            <div class="regmap">
+              <a name="GPIO_ATR_REGMAP"></a>
+              <h1 class="regmap">GPIO_ATR_REGMAP</h1>
+            
+            <div class="group"><a name="GPIO_ATR_REGMAP|GPIO_ATR_REGS"></a><h2 class="group">GPIO_ATR_REGS</h2>
+            Describes the behavior of GPIO lines when controlled by the ATR state.
+            <div class="register">
+              <a name="GPIO_ATR_REGMAP|ATR_STATE"></a>
+            
+<h3 class="register">Offset 0x0000: ATR_STATE(15:0) Register Array (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('GPIO_ATR_REGMAP|ATR_STATE_in')">(<span id="show_GPIO_ATR_REGMAP|ATR_STATE_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_GPIO_ATR_REGMAP|ATR_STATE_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS">RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x000000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">ATR_STATE</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0000 + i*4</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Cannot determine accessibility through this path</td></tr>
+<tr><td class="offset_info">
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00C000 + i*4
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info"><B>Initial Values</B><BR/>
+<table>
+  <tr><td>default</td><td>=&gt;</td><td>0x00000000</td></tr>
+</table>
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_atr.v.<BR/>
+It uses RegType <b>GPIO_ATR_STATE</b> which is defined in HDL source file x4xx_gpio_atr.v.</p>
+
+</div>
+
+<div class="info">
+
+Holds a single bit setting for GPIO lines in both ports for a particular ATR sate<BR/>
+Describes GPIO behavior for the different ATR states. When <a href="#GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER|ATR_OPTION">ATR_OPTION</a>
+        is set to use the DB states, TX and RX states for RF0 and RF1 are
+        combined to create a single vector. This creates 16 different
+        combinations, each with its own register. When <a href="#GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER|ATR_OPTION">ATR_OPTION</a> is set to
+        classic ATR, offsets 0x00-0x03 in this register group will be driven
+        in accordance with the state of RF0, and offsets 0x04-0x07 will be
+        driven in accordance with the state of RF1.
+        CLASSIC ATR MAPPING: Idle[RF0:0x00; RF1:0x04], RX[RF0:0x01; RF1:0x05],
+        TX[RF0:0x02; RF1:0x06], FDX[RF0:0x03; RF1:0x07]
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|ATR_STATE|GPIO_STATE_B"></a>GPIO_STATE_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|ATR_STATE|GPIO_STATE_A"></a>GPIO_STATE_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="GPIO_ATR_REGMAP|CLASSIC_ATR_CONFIG"></a>
+            
+<h3 class="register">Offset 0x0040: CLASSIC_ATR_CONFIG Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('GPIO_ATR_REGMAP|CLASSIC_ATR_CONFIG_in')">(<span id="show_GPIO_ATR_REGMAP|CLASSIC_ATR_CONFIG_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_GPIO_ATR_REGMAP|CLASSIC_ATR_CONFIG_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS">RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x000000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">CLASSIC_ATR_CONFIG</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0040</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00C040
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_atr.v.</p>
+
+</div>
+
+<div class="info">
+
+Controls the RF state mapping of each GPIO line when classic
+        ATR mode is active.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|CLASSIC_ATR_CONFIG|RF_SELECT_B"></a>RF_SELECT_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Set which RF channel's state to reflect in the pins of
+          HDMI connector B when <a href="#GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER|ATR_OPTION">ATR_OPTION</a> is set to classic ATR.
+          Controlled in a per-pin basis.
+            0 = RF0 State(GPIO_ATR_STATE 0x00-0x03)
+            1 = RF1 State(GPIO_ATR_STATE 0x04-0x07)</p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|CLASSIC_ATR_CONFIG|RF_SELECT_A"></a>RF_SELECT_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Set which RF channel's state to reflect in the pins for
+          HDMI connector A when <a href="#GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER|ATR_OPTION">ATR_OPTION</a> is set to classic ATR.
+          Controlled in a per-pin basis.
+            0 = RF0 State(GPIO_ATR_STATE 0x00-0x03)
+            1 = RF1 State(GPIO_ATR_STATE 0x04-0x07)</p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER"></a>
+            
+<h3 class="register">Offset 0x0044: ATR_OPTION_REGISTRER Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER_in')">(<span id="show_GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS">RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x000000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">ATR_OPTION_REGISTRER</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0044</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00C044
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_atr.v.</p>
+
+</div>
+
+<div class="info">
+
+Controls whether GPIO lines use the TX and RX state of an RF channel
+        (Classic ATR) or the daughterboard state the selector for the
+        <a href="#GPIO_ATR_REGMAP|ATR_STATE">ATR_STATE</a>.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..24</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">23..16</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..8</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">7..1</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">0</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|ATR_OPTION_REGISTRER|ATR_OPTION"></a>ATR_OPTION</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p>Sets the scheme in which RF states in the radio will control GPIO
+          lines. 0 = DB state is used. RF states are combined and the
+          GPIO state is driven based on all 16 <a href="#GPIO_ATR_REGMAP|ATR_STATE">ATR_STATE</a> registers.
+          1 = Each RF channel has its separate ATR state(Classic ATR).
+          Use register <a href="#GPIO_ATR_REGMAP|CLASSIC_ATR_CONFIG">CLASSIC_ATR_CONFIG</a> to indicate the RF channel
+          to which each GPIO line responds to.</p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="GPIO_ATR_REGMAP|GPIO_DIR"></a>
+            
+<h3 class="register">Offset 0x0048: GPIO_DIR Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('GPIO_ATR_REGMAP|GPIO_DIR_in')">(<span id="show_GPIO_ATR_REGMAP|GPIO_DIR_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_GPIO_ATR_REGMAP|GPIO_DIR_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS">RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x000000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">GPIO_DIR</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0048</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00C048
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_atr.v.</p>
+
+</div>
+
+<div class="info">
+
+Controls the direction of each GPIO signal when controlled by the radio state.
+        0 = GPIO pin set to input. 1 = GPIO pin set to output
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|GPIO_DIR|GPIO_DIR_B"></a>GPIO_DIR_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|GPIO_DIR|GPIO_DIR_A"></a>GPIO_DIR_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="GPIO_ATR_REGMAP|GPIO_DISABLED"></a>
+            
+<h3 class="register">Offset 0x004C: GPIO_DISABLED Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('GPIO_ATR_REGMAP|GPIO_DISABLED_in')">(<span id="show_GPIO_ATR_REGMAP|GPIO_DISABLED_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_GPIO_ATR_REGMAP|GPIO_DISABLED_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS">RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x000000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">GPIO_DISABLED</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x004C</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00C04C
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_atr.v.</p>
+
+</div>
+
+<div class="info">
+
+Disable ATR Control. DB state 0 will be reflected regardless of the ATR state.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|GPIO_DISABLED|GPIO_DISABLED_B"></a>GPIO_DISABLED_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|GPIO_DISABLED|GPIO_DISABLED_A"></a>GPIO_DISABLED_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
+
+</div>
+
+            <div class="register">
+              <a name="GPIO_ATR_REGMAP|GPIO_IN"></a>
+            
+<h3 class="register">Offset 0x0050: GPIO_IN Register (R|W)</h3>
+
+                 <a class="sh_addrs" href="javascript:sa('GPIO_ATR_REGMAP|GPIO_IN_in')">(<span id="show_GPIO_ATR_REGMAP|GPIO_IN_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_GPIO_ATR_REGMAP|GPIO_IN_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS">RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x000000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">GPIO_IN</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0050</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00C050
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">Initial Value = 0x00000000
+</p>
+
+<p class="reg_info">This register is defined in HDL source file x4xx_gpio_atr.v.</p>
+
+</div>
+
+<div class="info">
+
+Reflects the logic state of each GPIO input.
+
+</div>
+
+                <table class="bitfields" border="0" cellspacing="0" cellpadding="0">
+                  <tr class="header"><td class="bits">Bits</td><td>Name</td></tr>
+                
+            <tr  valign="top">
+              <td class="bits">31..28</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">27..16</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|GPIO_IN|GPIO_IN_B"></a>GPIO_IN_B</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr class='byte' valign="top">
+              <td class="bits">15..12</td>
+              <td>
+                <p><span class="name">Reserved</span><span class="attr"> </span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+            <tr  valign="top">
+              <td class="bits">11..0</td>
+              <td>
+                <p><span class="name"><a name="GPIO_ATR_REGMAP|GPIO_IN|GPIO_IN_A"></a>GPIO_IN_A</span><span class="attr"> &nbsp;&nbsp;(initialvalue=0)</span></p>
+                <p></p>
+            
+              </td>
+            </tr>
+            
+</table>
 
 </div>
 
@@ -14331,6 +17396,9 @@ Total Offset =</td></tr>
             Each radio's CtrlPort peripheral interface is divided into the
     following memory spaces. Note that the CtrlPort peripheral interface
     starts at offset 0x80000 in the RFNoC Radio block's register space.
+    The following diagram displays the distribution of the CtrlPort
+    interface to the different modules it interacts with.
+    <img src = "x4xx_core_common_buses.svg"
             <div class="register">
               <a name="RADIO_CTRLPORT_REGMAP|DB_WINDOW"></a>
             
@@ -14357,7 +17425,7 @@ Total Offset =</td></tr>
 
 </table><p/>
 
-<p class="reg_info">This window is defined in HDL source file rfdc_timing_control.v.</p>
+<p class="reg_info">This window is defined in HDL source file x4xx_core_common.v.</p>
 
 </div>
 
@@ -14387,7 +17455,7 @@ Daughterboard GPIO interface. Register access within this space
 <table border="0" cellspacing="0" cellpadding="0">
   <tr><td class="offset_info" align="right">RFDC_TIMING_WINDOW</td></tr>
   <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x8000</td></tr>
-  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x8000 (32 Kbytes)</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x4000 (16 Kbytes)</td></tr>
 </table>
 
 </td>
@@ -14396,13 +17464,250 @@ Daughterboard GPIO interface. Register access within this space
 
 </table><p/>
 
-<p class="reg_info">This window is defined in HDL source file rfdc_timing_control.v.</p>
+<p class="reg_info">This window is defined in HDL source file x4xx_core_common.v.</p>
 
 </div>
 
 <div class="info">
 
 RFDC timing control interface.
+
+</div>
+
+</div>
+
+            <div class="register">
+              <a name="RADIO_CTRLPORT_REGMAP|DIO_WINDOW"></a>
+            
+<h3 class="register">Offset 0xC000: DIO_WINDOW Window (R|W)</h3>
+<p class="offset_info">&nbsp;&nbsp;Target regmap = <a href="#RADIO_DIO_REGMAP">RADIO_DIO_REGMAP</a></p>
+                 <a class="sh_addrs" href="javascript:sa('RADIO_CTRLPORT_REGMAP|DIO_WINDOW_in')">(<span id="show_RADIO_CTRLPORT_REGMAP|DIO_WINDOW_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_RADIO_CTRLPORT_REGMAP|DIO_WINDOW_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">DIO_WINDOW</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0xC000</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x4000 (16 Kbytes)</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">This window is defined in HDL source file x4xx_core_common.v.</p>
+
+</div>
+
+<div class="info">
+
+DIO control interface. Interacts with the DIO source selection
+            block, ATR-based DIO control and the DIO digital interface
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+            <div class="regmap">
+              <a name="RADIO_DIO_REGMAP"></a>
+              <h1 class="regmap">RADIO_DIO_REGMAP</h1>
+            This map contains register windows for controlling the different sources
+    that drive the state of DIO lines.
+            <div class="group"><a name="RADIO_DIO_REGMAP|DIO_SOURCES"></a><h2 class="group">DIO_SOURCES</h2>
+            
+            <div class="register">
+              <a name="RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS"></a>
+            
+<h3 class="register">Offset 0x0000: RADIO_GPIO_ATR_REGS Window (R|W)</h3>
+<p class="offset_info">&nbsp;&nbsp;Target regmap = <a href="#GPIO_ATR_REGMAP">GPIO_ATR_REGMAP</a></p>
+                 <a class="sh_addrs" href="javascript:sa('RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS_in')">(<span id="show_RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_RADIO_DIO_REGMAP|RADIO_GPIO_ATR_REGS_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">RADIO_GPIO_ATR_REGS</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x0000</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x1000 (4 Kbytes)</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00C000
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">This window is defined in HDL source file x4xx_core_common.v.</p>
+
+</div>
+
+<div class="info">
+
+Contains controls for DIO behavior based on the ATR state of the accessed radio
+
+</div>
+
+</div>
+
+            <div class="register">
+              <a name="RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL"></a>
+            
+<h3 class="register">Offset 0x1000: DIO_SOURCE_CONTROL Window (R|W)</h3>
+<p class="offset_info">&nbsp;&nbsp;Target regmap = <a href="#DIO_REGMAP">DIO_REGMAP</a></p>
+                 <a class="sh_addrs" href="javascript:sa('RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL_in')">(<span id="show_RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_RADIO_DIO_REGMAP|DIO_SOURCE_CONTROL_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">DIO_SOURCE_CONTROL</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x1000</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x1000 (4 Kbytes)</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00D000
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">This window is defined in HDL source file x4xx_core_common.v.</p>
+
+</div>
+
+<div class="info">
+
+Window to access the DIO register map through the control port from the radio blocks.
+
+</div>
+
+</div>
+
+            <div class="register">
+              <a name="RADIO_DIO_REGMAP|DIGITAL_IFC_REGS"></a>
+            
+<h3 class="register">Offset 0x2000: DIGITAL_IFC_REGS Window (R|W)</h3>
+<p class="offset_info">&nbsp;&nbsp;Target regmap = <a href="#DIG_IFC_REGMAP">DIG_IFC_REGMAP</a></p>
+                 <a class="sh_addrs" href="javascript:sa('RADIO_DIO_REGMAP|DIGITAL_IFC_REGS_in')">(<span id="show_RADIO_DIO_REGMAP|DIGITAL_IFC_REGS_in">show</span> extended info)</a>
+                 <div class="sh_addrs" id="div_RADIO_DIO_REGMAP|DIGITAL_IFC_REGS_in">
+                 
+                <table class="extended_info">
+                
+<tr>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right"><a href="#RADIO_CTRLPORT_REGMAP|DIO_WINDOW">RADIO_CTRLPORT_REGMAP|DIO_WINDOW</a></td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;0x00C000</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+  <tr><td class="offset_info" align="right">DIGITAL_IFC_REGS</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;offset=0x2000</td></tr>
+  <tr><td class="offset_info" align="right">&nbsp;&nbsp;size=0x1000 (4 Kbytes)</td></tr>
+</table>
+
+</td>
+
+<td class="outercell" rowspan="1">
+
+<table border="0" cellspacing="0" cellpadding="0">
+
+<tr><td class="offset_info">
+
+
+Total Offset =</td></tr>
+<tr><td class="offset_info">&nbsp;&nbsp;0x00E000
+
+</td></tr>
+</table>
+
+</td>
+
+</tr>
+
+</table><p/>
+
+<p class="reg_info">This window is defined in HDL source file x4xx_core_common.v.</p>
+
+</div>
+
+<div class="info">
+
+Register space reserved for configuring a digital interface over the GPIO lines.
+            Currently, SPI is the only supported protocol.
 
 </div>
 
@@ -21627,19 +24932,6 @@ FPGA version.<BR/>
 
 <tr valign="top">
 
-                        <td class='value'>3</td>
-                        
-                            <td class='l'>0x00000003</td>
-                            
-                            <td class="l" style="text-align: left;">
-                              <p class="name"><a name='VERSIONING_REGS_REGMAP|FPGA_VERSION|FPGA_CURRENT_VERSION_MINOR'></a>FPGA_CURRENT_VERSION_MINOR</p>
-                            
-</td>
-
-</tr>
-
-<tr valign="top">
-
                         <td class='value'>7</td>
                         
                             <td class='l'>0x00000007</td>
@@ -21666,9 +24958,22 @@ FPGA version.<BR/>
 
 <tr valign="top">
 
-                        <td class='value'>553915926</td>
+                        <td class='value'>10</td>
                         
-                            <td class='l'>0x21041616</td>
+                            <td class='l'>0x0000000A</td>
+                            
+                            <td class="l" style="text-align: left;">
+                              <p class="name"><a name='VERSIONING_REGS_REGMAP|FPGA_VERSION|FPGA_CURRENT_VERSION_MINOR'></a>FPGA_CURRENT_VERSION_MINOR</p>
+                            
+</td>
+
+</tr>
+
+<tr valign="top">
+
+                        <td class='value'>571610633</td>
+                        
+                            <td class='l'>0x22121609</td>
                             
                             <td class="l" style="text-align: left;">
                               <p class="name"><a name='VERSIONING_REGS_REGMAP|FPGA_VERSION|FPGA_VERSION_LAST_MODIFIED_TIME'></a>FPGA_VERSION_LAST_MODIFIED_TIME</p>

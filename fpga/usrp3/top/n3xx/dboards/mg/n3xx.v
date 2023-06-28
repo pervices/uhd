@@ -315,6 +315,25 @@ module n3xx (
 `endif
 );
 
+  // Include the RFNoC image core header file
+  `ifdef RFNOC_IMAGE_CORE_HDR
+    `include `"`RFNOC_IMAGE_CORE_HDR`"
+  `else
+    ERROR_RFNOC_IMAGE_CORE_HDR_not_defined();
+    `define CHDR_WIDTH     64
+    `define RFNOC_PROTOVER { 8'd1, 8'd0 }
+  `endif
+  localparam CHDR_W         = `CHDR_WIDTH;
+  localparam RFNOC_PROTOVER = `RFNOC_PROTOVER;
+
+  // This USRP currently only supports 64-bit CHDR width
+  if (CHDR_W != 64) begin : gen_chdr_w_error
+    CHDR_W_must_be_64_for_this_USRP();
+  end
+
+  // Log base 2 of the maximum transmission unit (MTU) in bytes
+  localparam BYTE_MTU = $clog2(8192);
+
   localparam N_AXILITE_SLAVES = 4;
   localparam REG_AWIDTH = 14; // log2(0x4000)
   localparam QSFP_REG_AWIDTH = 17; // log2(0x20000)
@@ -332,7 +351,6 @@ module n3xx (
   localparam NUM_DBOARDS = 1;
 `endif
   localparam NUM_CHANNELS = NUM_RADIOS * NUM_CHANNELS_PER_RADIO;
-  localparam [15:0] RFNOC_PROTOVER  = {8'd1, 8'd0};
 
   // Internal connections to PS
   // HP0 -- High Performance port 0, FPGA is the master
@@ -1163,7 +1181,10 @@ module n3xx (
     .LANES          (NUM_QSFP_LANES),
     .PORTNUM_BASE   (4),
     .REG_DWIDTH     (REG_DWIDTH),
-    .REG_AWIDTH     (QSFP_REG_AWIDTH)
+    .REG_AWIDTH     (QSFP_REG_AWIDTH),
+    .BYTE_MTU       (BYTE_MTU),
+    .RFNOC_PROTOVER (RFNOC_PROTOVER),
+    .NODE_INST_BASE (0)
   ) qsfp_wrapper_i (
     .areset         (global_rst),
     .gt_refclk      (qsfp_gt_refclk),
@@ -1679,147 +1700,150 @@ module n3xx (
   `endif
     .REG_DWIDTH(REG_DWIDTH), // Width of the AXI4-Lite data bus (must be 32 or 64)
     .REG_AWIDTH(REG_AWIDTH), // Width of the address bus
-    .PORTNUM_BASE(8'd0)
-   ) sfp_wrapper_0 (
-     .areset(global_rst),
-     .gt_refclk(sfp0_gt_refclk),
-     .gb_refclk(sfp0_gb_refclk),
-     .misc_clk(sfp0_misc_clk),
-     .user_clk(au_user_clk),
-     .sync_clk(au_sync_clk),
-     .gt_tx_out_clk_unbuf(sfp0_tx_out_clk),
+    .PORTNUM_BASE(8'd0),
+    .BYTE_MTU(BYTE_MTU),
+    .RFNOC_PROTOVER(RFNOC_PROTOVER),
+    .NODE_INST_BASE(0)
+  ) sfp_wrapper_0 (
+    .areset(global_rst),
+    .gt_refclk(sfp0_gt_refclk),
+    .gb_refclk(sfp0_gb_refclk),
+    .misc_clk(sfp0_misc_clk),
+    .user_clk(au_user_clk),
+    .sync_clk(au_sync_clk),
+    .gt_tx_out_clk_unbuf(sfp0_tx_out_clk),
 
-     .bus_rst(bus_rst),
-     .bus_clk(bus_clk),
+    .bus_rst(bus_rst),
+    .bus_clk(bus_clk),
 
-     .qpllreset(qpllreset_sfp0),
-     .qplllock(qplllock),
-     .qplloutclk(qplloutclk),
-     .qplloutrefclk(qplloutrefclk),
-     .qpllrefclklost(),
+    .qpllreset(qpllreset_sfp0),
+    .qplllock(qplllock),
+    .qplloutclk(qplloutclk),
+    .qplloutrefclk(qplloutrefclk),
+    .qpllrefclklost(),
 
-     .mmcm_locked(au_mmcm_locked),
-     .gt_pll_lock(sfp0_gt_pll_lock),
+    .mmcm_locked(au_mmcm_locked),
+    .gt_pll_lock(sfp0_gt_pll_lock),
 
-     .txp(SFP_0_TX_P),
-     .txn(SFP_0_TX_N),
-     .rxp(SFP_0_RX_P),
-     .rxn(SFP_0_RX_N),
+    .txp(SFP_0_TX_P),
+    .txn(SFP_0_TX_N),
+    .rxp(SFP_0_RX_P),
+    .rxn(SFP_0_RX_N),
 
-     .mod_present_n(SFP_0_I2C_NPRESENT),
-     .mod_rxlos(SFP_0_LOS),
-     .mod_tx_fault(SFP_0_TXFAULT),
-     .mod_tx_disable(SFP_0_TXDISABLE),
+    .mod_present_n(SFP_0_I2C_NPRESENT),
+    .mod_rxlos(SFP_0_LOS),
+    .mod_tx_fault(SFP_0_TXFAULT),
+    .mod_tx_disable(SFP_0_TXDISABLE),
 
-     // Clock and reset
-     .s_axi_aclk(clk40),
-     .s_axi_aresetn(clk40_rstn),
-     // AXI4-Lite: Write address port (domain: s_axi_aclk)
-     .s_axi_awaddr(M_AXI_NET0_AWADDR[REG_AWIDTH-1:0]),
-     .s_axi_awvalid(M_AXI_NET0_AWVALID),
-     .s_axi_awready(M_AXI_NET0_AWREADY),
-     // AXI4-Lite: Write data port (domain: s_axi_aclk)
-     .s_axi_wdata(M_AXI_NET0_WDATA),
-     .s_axi_wstrb(M_AXI_NET0_WSTRB),
-     .s_axi_wvalid(M_AXI_NET0_WVALID),
-     .s_axi_wready(M_AXI_NET0_WREADY),
-     // AXI4-Lite: Write response port (domain: s_axi_aclk)
-     .s_axi_bresp(M_AXI_NET0_BRESP),
-     .s_axi_bvalid(M_AXI_NET0_BVALID),
-     .s_axi_bready(M_AXI_NET0_BREADY),
-     // AXI4-Lite: Read address port (domain: s_axi_aclk)
-     .s_axi_araddr(M_AXI_NET0_ARADDR[REG_AWIDTH-1:0]),
-     .s_axi_arvalid(M_AXI_NET0_ARVALID),
-     .s_axi_arready(M_AXI_NET0_ARREADY),
-     // AXI4-Lite: Read data port (domain: s_axi_aclk)
-     .s_axi_rdata(M_AXI_NET0_RDATA),
-     .s_axi_rresp(M_AXI_NET0_RRESP),
-     .s_axi_rvalid(M_AXI_NET0_RVALID),
-     .s_axi_rready(M_AXI_NET0_RREADY),
+    // Clock and reset
+    .s_axi_aclk(clk40),
+    .s_axi_aresetn(clk40_rstn),
+    // AXI4-Lite: Write address port (domain: s_axi_aclk)
+    .s_axi_awaddr(M_AXI_NET0_AWADDR[REG_AWIDTH-1:0]),
+    .s_axi_awvalid(M_AXI_NET0_AWVALID),
+    .s_axi_awready(M_AXI_NET0_AWREADY),
+    // AXI4-Lite: Write data port (domain: s_axi_aclk)
+    .s_axi_wdata(M_AXI_NET0_WDATA),
+    .s_axi_wstrb(M_AXI_NET0_WSTRB),
+    .s_axi_wvalid(M_AXI_NET0_WVALID),
+    .s_axi_wready(M_AXI_NET0_WREADY),
+    // AXI4-Lite: Write response port (domain: s_axi_aclk)
+    .s_axi_bresp(M_AXI_NET0_BRESP),
+    .s_axi_bvalid(M_AXI_NET0_BVALID),
+    .s_axi_bready(M_AXI_NET0_BREADY),
+    // AXI4-Lite: Read address port (domain: s_axi_aclk)
+    .s_axi_araddr(M_AXI_NET0_ARADDR[REG_AWIDTH-1:0]),
+    .s_axi_arvalid(M_AXI_NET0_ARVALID),
+    .s_axi_arready(M_AXI_NET0_ARREADY),
+    // AXI4-Lite: Read data port (domain: s_axi_aclk)
+    .s_axi_rdata(M_AXI_NET0_RDATA),
+    .s_axi_rresp(M_AXI_NET0_RRESP),
+    .s_axi_rvalid(M_AXI_NET0_RVALID),
+    .s_axi_rready(M_AXI_NET0_RREADY),
 
-     // Ethernet to Vita
-     .e2v_tdata(e2v_sfp0_tdata),
-     .e2v_tlast(e2v_sfp0_tlast),
-     .e2v_tvalid(e2v_sfp0_tvalid),
-     .e2v_tready(e2v_sfp0_tready),
+    // Ethernet to Vita
+    .e2v_tdata(e2v_sfp0_tdata),
+    .e2v_tlast(e2v_sfp0_tlast),
+    .e2v_tvalid(e2v_sfp0_tvalid),
+    .e2v_tready(e2v_sfp0_tready),
 
-     // Vita to Ethernet
-     .v2e_tdata(v2e_sfp0_tdata),
-     .v2e_tlast(v2e_sfp0_tlast),
-     .v2e_tvalid(v2e_sfp0_tvalid),
-     .v2e_tready(v2e_sfp0_tready),
+    // Vita to Ethernet
+    .v2e_tdata(v2e_sfp0_tdata),
+    .v2e_tlast(v2e_sfp0_tlast),
+    .v2e_tvalid(v2e_sfp0_tvalid),
+    .v2e_tready(v2e_sfp0_tready),
 
-     // Ethernet to CPU
-     .e2c_tdata(arm_eth_sfp0_rx_tdata_b),
-     .e2c_tkeep(arm_eth_sfp0_rx_tkeep_b),
-     .e2c_tlast(arm_eth_sfp0_rx_tlast_b),
-     .e2c_tvalid(arm_eth_sfp0_rx_tvalid_b),
-     .e2c_tready(arm_eth_sfp0_rx_tready_b),
+    // Ethernet to CPU
+    .e2c_tdata(arm_eth_sfp0_rx_tdata_b),
+    .e2c_tkeep(arm_eth_sfp0_rx_tkeep_b),
+    .e2c_tlast(arm_eth_sfp0_rx_tlast_b),
+    .e2c_tvalid(arm_eth_sfp0_rx_tvalid_b),
+    .e2c_tready(arm_eth_sfp0_rx_tready_b),
 
-     // CPU to Ethernet
-     .c2e_tdata(arm_eth_sfp0_tx_tdata_b),
-     .c2e_tkeep(arm_eth_sfp0_tx_tkeep_b),
-     .c2e_tlast(arm_eth_sfp0_tx_tlast_b),
-     .c2e_tvalid(arm_eth_sfp0_tx_tvalid_b),
-     .c2e_tready(arm_eth_sfp0_tx_tready_b),
+    // CPU to Ethernet
+    .c2e_tdata(arm_eth_sfp0_tx_tdata_b),
+    .c2e_tkeep(arm_eth_sfp0_tx_tkeep_b),
+    .c2e_tlast(arm_eth_sfp0_tx_tlast_b),
+    .c2e_tvalid(arm_eth_sfp0_tx_tvalid_b),
+    .c2e_tready(arm_eth_sfp0_tx_tready_b),
 
-      // White Rabbit Specific
+     // White Rabbit Specific
 `ifdef SFP0_WR
-     .wr_reset_n   (~ps_gpio_out[48]), // reset for WR only
-     .wr_refclk    (wr_refclk_buf),
-     .wr_dac_sclk  (WB_DAC_SCLK),
-     .wr_dac_din   (WB_DAC_DIN),
-     .wr_dac_clr_n (WB_DAC_NCLR),
-     .wr_dac_cs_n  (WB_DAC_NSYNC),
-     .wr_dac_ldac_n(WB_DAC_NLDAC),
-     .wr_eeprom_scl_o(), // storage for delay characterization
-     .wr_eeprom_scl_i(1'b0), // temp
-     .wr_eeprom_sda_o(),
-     .wr_eeprom_sda_i(1'b0), // temp
-     .wr_uart_rx(wr_uart_rxd), // to/from PS
-     .wr_uart_tx(wr_uart_txd),
-     .mod_pps(pps_wr_refclk), // out, reference clock and pps
-     .mod_refclk(wr_ref_clk),
-     // WR Slave Port to PS
-     .wr_axi_aclk(m_axi_wr_clk), // out to PS
-     .wr_axi_aresetn(1'b1), // in
-     .wr_axi_awaddr(m_axi_wr_awaddr),
-     .wr_axi_awvalid(m_axi_wr_awvalid),
-     .wr_axi_awready(m_axi_wr_awready),
-     .wr_axi_wdata(m_axi_wr_wdata),
-     .wr_axi_wstrb(m_axi_wr_wstrb),
-     .wr_axi_wvalid(m_axi_wr_wvalid),
-     .wr_axi_wready(m_axi_wr_wready),
-     .wr_axi_bresp(m_axi_wr_bresp),
-     .wr_axi_bvalid(m_axi_wr_bvalid),
-     .wr_axi_bready(m_axi_wr_bready),
-     .wr_axi_araddr(m_axi_wr_araddr),
-     .wr_axi_arvalid(m_axi_wr_arvalid),
-     .wr_axi_arready(m_axi_wr_arready),
-     .wr_axi_rdata(m_axi_wr_rdata),
-     .wr_axi_rresp(m_axi_wr_rresp),
-     .wr_axi_rvalid(m_axi_wr_rvalid),
-     .wr_axi_rready(m_axi_wr_rready),
-     .wr_axi_rlast(),
+    .wr_reset_n   (~ps_gpio_out[48]), // reset for WR only
+    .wr_refclk    (wr_refclk_buf),
+    .wr_dac_sclk  (WB_DAC_SCLK),
+    .wr_dac_din   (WB_DAC_DIN),
+    .wr_dac_clr_n (WB_DAC_NCLR),
+    .wr_dac_cs_n  (WB_DAC_NSYNC),
+    .wr_dac_ldac_n(WB_DAC_NLDAC),
+    .wr_eeprom_scl_o(), // storage for delay characterization
+    .wr_eeprom_scl_i(1'b0), // temp
+    .wr_eeprom_sda_o(),
+    .wr_eeprom_sda_i(1'b0), // temp
+    .wr_uart_rx(wr_uart_rxd), // to/from PS
+    .wr_uart_tx(wr_uart_txd),
+    .mod_pps(pps_wr_refclk), // out, reference clock and pps
+    .mod_refclk(wr_ref_clk),
+    // WR Slave Port to PS
+    .wr_axi_aclk(m_axi_wr_clk), // out to PS
+    .wr_axi_aresetn(1'b1), // in
+    .wr_axi_awaddr(m_axi_wr_awaddr),
+    .wr_axi_awvalid(m_axi_wr_awvalid),
+    .wr_axi_awready(m_axi_wr_awready),
+    .wr_axi_wdata(m_axi_wr_wdata),
+    .wr_axi_wstrb(m_axi_wr_wstrb),
+    .wr_axi_wvalid(m_axi_wr_wvalid),
+    .wr_axi_wready(m_axi_wr_wready),
+    .wr_axi_bresp(m_axi_wr_bresp),
+    .wr_axi_bvalid(m_axi_wr_bvalid),
+    .wr_axi_bready(m_axi_wr_bready),
+    .wr_axi_araddr(m_axi_wr_araddr),
+    .wr_axi_arvalid(m_axi_wr_arvalid),
+    .wr_axi_arready(m_axi_wr_arready),
+    .wr_axi_rdata(m_axi_wr_rdata),
+    .wr_axi_rresp(m_axi_wr_rresp),
+    .wr_axi_rvalid(m_axi_wr_rvalid),
+    .wr_axi_rready(m_axi_wr_rready),
+    .wr_axi_rlast(),
 `else
-     .wr_reset_n(1'b1),
-     .wr_refclk(1'b0),
-     .wr_eeprom_scl_i(1'b0),
-     .wr_eeprom_sda_i(1'b0),
-     .wr_uart_rx(1'b0),
+    .wr_reset_n(1'b1),
+    .wr_refclk(1'b0),
+    .wr_eeprom_scl_i(1'b0),
+    .wr_eeprom_sda_i(1'b0),
+    .wr_uart_rx(1'b0),
 `endif
 
-     // Misc
-     .port_info(sfp_port0_info),
-     .device_id(device_id),
+    // Misc
+    .port_info(sfp_port0_info),
+    .device_id(device_id),
 
-     // LED
-     .link_up(sfp0_link_up),
-     .activity(SFP_0_LED_A)
-   );
+    // LED
+    .link_up(sfp0_link_up),
+    .activity(SFP_0_LED_A)
+  );
 
-   assign ps_gpio_in[60] = ps_gpio_tri[60] ? sfp0_link_up : ps_gpio_out[60];
-   assign SFP_0_LED_B = sfp0_link_up;
+  assign ps_gpio_in[60] = ps_gpio_tri[60] ? sfp0_link_up : ps_gpio_out[60];
+  assign SFP_0_LED_B = sfp0_link_up;
 
 `ifndef SFP0_WR
   assign WB_DAC_SCLK  = 1'b0;
@@ -1850,7 +1874,10 @@ module n3xx (
   `endif
     .REG_DWIDTH(REG_DWIDTH),     // Width of the AXI4-Lite data bus (must be 32 or 64)
     .REG_AWIDTH(REG_AWIDTH),     // Width of the address bus
-    .PORTNUM_BASE(8'd1)
+    .PORTNUM_BASE(8'd1),
+    .BYTE_MTU(BYTE_MTU),
+    .RFNOC_PROTOVER(RFNOC_PROTOVER),
+    .NODE_INST_BASE(1)
    ) sfp_wrapper_1 (
      .areset(global_rst),
 
@@ -2561,7 +2588,10 @@ module n3xx (
   eth_internal #(
     .DWIDTH(REG_DWIDTH),
     .AWIDTH(REG_AWIDTH),
-    .PORTNUM(8'd1)
+    .PORTNUM(8'd1),
+    .BYTE_MTU(BYTE_MTU),
+    .RFNOC_PROTOVER(RFNOC_PROTOVER),
+    .NODE_INST(2)
   ) eth_internal_i (
     // Resets
     .bus_rst (bus_rst),
@@ -3354,6 +3384,16 @@ module n3xx (
   wire [16*NUM_CHANNELS-1:0] db_gpio_in;
   wire [16*NUM_CHANNELS-1:0] db_gpio_fab;
 
+  // Vivado has demonstrated difficulty meeting timing with the spi0_mosi split.
+  // To improve the chances of meeting timing, we are routing this signal
+  // through a BUFG.
+
+  wire spi0_mosi_buf;
+  BUFG bufg_spi0_mosi (
+   .O (spi0_mosi_buf),
+   .I (spi0_mosi)
+  );
+
   // DB A SPI Connections
   wire cpld_a_cs_n;
   wire lmk_a_cs_n;
@@ -3362,10 +3402,10 @@ module n3xx (
 
   // Split out the SCLK and MOSI data to Mykonos and the CPLD.
   assign DBA_CPLD_PS_SPI_SCLK = spi0_sclk;
-  assign DBA_CPLD_PS_SPI_SDI  = spi0_mosi;
+  assign DBA_CPLD_PS_SPI_SDI  = spi0_mosi_buf;
 
   assign DBA_MYK_SPI_SCLK     = spi0_sclk;
-  assign DBA_MYK_SPI_SDIO     = spi0_mosi;
+  assign DBA_MYK_SPI_SDIO     = spi0_mosi_buf;
   // Assign individual chip selects from PS SPI MASTER 0.
   assign cpld_a_cs_n = spi0_ss0;
   assign lmk_a_cs_n  = spi0_ss1;
@@ -3517,11 +3557,9 @@ module n3xx (
     .NUM_CHANNELS_PER_RADIO(NUM_CHANNELS_PER_RADIO),
     .NUM_CHANNELS(NUM_CHANNELS),
     .NUM_DBOARDS(NUM_DBOARDS),
-  `ifdef USE_REPLAY
-    .USE_REPLAY(1)
-  `else
-    .USE_REPLAY(0)
-  `endif
+    .CHDR_W(CHDR_W),
+    .BYTE_MTU(BYTE_MTU),
+    .RFNOC_PROTOVER(RFNOC_PROTOVER)
   ) n3xx_core(
     // Clocks and resets
   `ifdef NO_DB

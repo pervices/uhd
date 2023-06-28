@@ -153,6 +153,9 @@ localparam REG_CMD_TIME_LEN = 64;
 //
 //   [31] : Timed flag. Indicates if the command is timed (1) or not (0).
 //
+//   [30] : No EOB flag. Indicates if EOB should be set at the end of the
+//          command execution (0) or not (1).
+//
 //   [1:0] : Command field. The command indicates what you want the playback to
 //           do. It can be one of the following:
 //
@@ -164,6 +167,9 @@ localparam REG_PLAY_CMD = 'h48;
 //
 localparam REG_PLAY_TIMED_POS = 31;
 localparam REG_PLAY_TIMED_LEN =  1;
+//
+localparam REG_PLAY_NO_EOB_POS = 30;
+localparam REG_PLAY_NO_EOB_LEN =  1;
 //
 localparam REG_PLAY_CMD_POS = 0;
 localparam REG_PLAY_CMD_LEN = 2;
@@ -195,6 +201,26 @@ localparam REG_PLAY_ITEM_SIZE = 'h50;
 //
 localparam REG_ITEM_SIZE_POS = 0;
 localparam REG_ITEM_SIZE_LEN = 8;
+
+// REG_REC_POS (R)
+//
+// Returns the byte address of the record pointer.
+//
+localparam REG_REC_POS_LO = 'h54;
+localparam REG_REC_POS_HI = 'h58;
+
+// REG_PLAY_POS (R)
+//
+// Returns the byte address of the play pointer.
+//
+localparam REG_PLAY_POS_LO = 'h5C;
+localparam REG_PLAY_POS_HI = 'h60;
+
+// REG_PLAY_CMD_FIFO_SPACE (R)
+//
+// Returns remaining space in the command FIFO
+//
+localparam REG_PLAY_CMD_FIFO_SPACE = 'h64;
 
 //-----------------------------------------------------------------------------
 // Playback Commands

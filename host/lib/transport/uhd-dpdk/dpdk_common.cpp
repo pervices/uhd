@@ -15,6 +15,17 @@
 #include <rte_arp.h>
 #include <boost/algorithm/string.hpp>
 
+#ifdef RTE_ETH_RX_OFFLOAD_IPV4_CKSUM
+    #define COMMON_RX_OFFLOAD_IPV4_CKSUM RTE_ETH_RX_OFFLOAD_IPV4_CKSUM;
+#else
+    #define COMMON_RX_OFFLOAD_IPV4_CKSUM DEV_RX_OFFLOAD_IPV4_CKSUM;
+#endif
+#ifdef RTE_ETH_TX_OFFLOAD_IPV4_CKSUM
+    #define COMMON_TX_OFFLOAD_IPV4_CKSUM RTE_ETH_TX_OFFLOAD_IPV4_CKSUM;
+#else
+    #define COMMON_TX_OFFLOAD_IPV4_CKSUM DEV_TX_OFFLOAD_IPV4_CKSUM;
+#endif
+
 namespace uhd { namespace transport { namespace dpdk {
 
 namespace {
@@ -49,9 +60,9 @@ inline void separate_rte_ipv4_addr(
     boost::algorithm::split(
         result, ipv4, [](const char& in) { return in == '/'; }, boost::token_compress_on);
     UHD_ASSERT_THROW(result.size() == 2);
-    rte_ipv4_addr   = (uint32_t)inet_addr(result[0].c_str());
-    int netbits = std::atoi(result[1].c_str());
-    netmask     = htonl(0xffffffff << (32 - netbits));
+    rte_ipv4_addr = (uint32_t)inet_addr(result[0].c_str());
+    int netbits   = std::atoi(result[1].c_str());
+    netmask       = htonl(0xffffffff << (32 - netbits));
 }
 } // namespace
 
@@ -63,8 +74,13 @@ dpdk_port::uptr dpdk_port::make(port_id_t port,
     struct rte_mempool* tx_pktbuf_pool,
     std::string rte_ipv4_address)
 {
-    return std::make_unique<dpdk_port>(
-        port, mtu, num_queues, num_desc, rx_pktbuf_pool, tx_pktbuf_pool, rte_ipv4_address);
+    return std::make_unique<dpdk_port>(port,
+        mtu,
+        num_queues,
+        num_desc,
+        rx_pktbuf_pool,
+        tx_pktbuf_pool,
+        rte_ipv4_address);
 }
 
 dpdk_port::dpdk_port(port_id_t port,
@@ -83,24 +99,13 @@ dpdk_port::dpdk_port(port_id_t port,
     /* Set MTU and IPv4 address */
     int retval;
 
-    retval = rte_eth_dev_set_mtu(_port, _mtu);
-    if (retval) {
-        uint16_t actual_mtu;
-        UHD_LOGGER_WARNING("DPDK")
-            << boost::format("Port %d: Could not set mtu to %d") % _port % _mtu;
-        rte_eth_dev_get_mtu(_port, &actual_mtu);
-        UHD_LOGGER_WARNING("DPDK")
-            << boost::format("Port %d: Current mtu=%d") % _port % _mtu;
-        _mtu = actual_mtu;
-    }
-
     separate_rte_ipv4_addr(rte_ipv4_address, _ipv4, _netmask);
 
     /* Set hardware offloads */
     struct rte_eth_dev_info dev_info;
     rte_eth_dev_info_get(_port, &dev_info);
-    uint64_t rx_offloads = DEV_RX_OFFLOAD_IPV4_CKSUM;
-    uint64_t tx_offloads = DEV_TX_OFFLOAD_IPV4_CKSUM;
+    uint64_t rx_offloads = COMMON_RX_OFFLOAD_IPV4_CKSUM;
+    uint64_t tx_offloads = COMMON_TX_OFFLOAD_IPV4_CKSUM;
     if ((dev_info.rx_offload_capa & rx_offloads) != rx_offloads) {
         UHD_LOGGER_ERROR("DPDK") << boost::format("%d: Only supports RX offloads 0x%0llx")
                                         % _port % dev_info.rx_offload_capa;
@@ -121,16 +126,35 @@ dpdk_port::dpdk_port(port_id_t port,
         _num_queues = num_queues;
     }
 
-    struct rte_eth_conf port_conf   = {};
-    port_conf.rxmode.offloads       = rx_offloads | DEV_RX_OFFLOAD_JUMBO_FRAME;
+    struct rte_eth_conf port_conf = {};
+#ifdef DEV_RX_OFFLOAD_JUMBO_FRAME
+    port_conf.rxmode.offloads = rx_offloads | DEV_RX_OFFLOAD_JUMBO_FRAME;
+#else
+    port_conf.rxmode.offloads       = rx_offloads;
+#endif
+#if RTE_VER_YEAR > 21 || (RTE_VER_YEAR == 21 && RTE_VER_MONTH == 11)
+    port_conf.rxmode.mtu = _mtu;
+#else
     port_conf.rxmode.max_rx_pkt_len = _mtu;
-    port_conf.txmode.offloads       = tx_offloads;
-    port_conf.intr_conf.lsc         = 1;
+#endif
+    port_conf.txmode.offloads = tx_offloads;
+    port_conf.intr_conf.lsc   = 1;
 
     retval = rte_eth_dev_configure(_port, _num_queues, _num_queues, &port_conf);
     if (retval != 0) {
         UHD_LOG_ERROR("DPDK", "Failed to configure the device");
         throw uhd::runtime_error("DPDK: Failed to configure the device");
+    }
+
+    retval = rte_eth_dev_set_mtu(_port, _mtu);
+    if (retval) {
+        uint16_t actual_mtu;
+        UHD_LOGGER_WARNING("DPDK")
+            << boost::format("Port %d: Could not set mtu to %d") % _port % _mtu;
+        rte_eth_dev_get_mtu(_port, &actual_mtu);
+        UHD_LOGGER_WARNING("DPDK")
+            << boost::format("Port %d: Current mtu=%d") % _port % actual_mtu;
+        _mtu = actual_mtu;
     }
 
     /* Set descriptor ring sizes */
@@ -179,7 +203,7 @@ dpdk_port::dpdk_port(port_id_t port,
         }
 
         struct rte_eth_txconf txconf = dev_info.default_txconf;
-        txconf.offloads              = DEV_TX_OFFLOAD_IPV4_CKSUM;
+        txconf.offloads              = COMMON_TX_OFFLOAD_IPV4_CKSUM;
         retval = rte_eth_tx_queue_setup(_port, i, tx_desc, cpu_socket, &txconf);
         if (retval < 0) {
             UHD_LOGGER_ERROR("DPDK")
@@ -266,18 +290,27 @@ int dpdk_port::_arp_reply(queue_id_t queue_id, struct rte_arp_hdr* arp_req)
     hdr       = rte_pktmbuf_mtod(mbuf, struct rte_ether_hdr*);
     arp_frame = (struct rte_arp_hdr*)&hdr[1];
 
+#if RTE_VER_YEAR > 21 || (RTE_VER_YEAR == 21 && RTE_VER_MONTH == 11)
+    rte_ether_addr_copy(&arp_req->arp_data.arp_sha, &hdr->dst_addr);
+    rte_ether_addr_copy(&_mac_addr, &hdr->src_addr);
+#else
     rte_ether_addr_copy(&arp_req->arp_data.arp_sha, &hdr->d_addr);
     rte_ether_addr_copy(&_mac_addr, &hdr->s_addr);
+#endif
     hdr->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_ARP);
 
     arp_frame->arp_hardware = rte_cpu_to_be_16(RTE_ARP_HRD_ETHER);
     arp_frame->arp_protocol = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
-    arp_frame->arp_hlen = 6;
-    arp_frame->arp_plen = 4;
-    arp_frame->arp_opcode  = rte_cpu_to_be_16(RTE_ARP_OP_REPLY);
+    arp_frame->arp_hlen     = 6;
+    arp_frame->arp_plen     = 4;
+    arp_frame->arp_opcode   = rte_cpu_to_be_16(RTE_ARP_OP_REPLY);
     rte_ether_addr_copy(&_mac_addr, &arp_frame->arp_data.arp_sha);
     arp_frame->arp_data.arp_sip = _ipv4;
+#if RTE_VER_YEAR > 21 || (RTE_VER_YEAR == 21 && RTE_VER_MONTH == 11)
+    rte_ether_addr_copy(&hdr->dst_addr, &arp_frame->arp_data.arp_tha);
+#else
     rte_ether_addr_copy(&hdr->d_addr, &arp_frame->arp_data.arp_tha);
+#endif
     arp_frame->arp_data.arp_tip = arp_req->arp_data.arp_sip;
 
     mbuf->pkt_len  = 42;
@@ -391,6 +424,14 @@ void dpdk_ctx::init(const device_addr_t& user_args)
     unsigned int i;
     std::lock_guard<std::mutex> lock(_init_mutex);
     if (!_init_done) {
+#if RTE_VER_YEAR < 19 || (RTE_VER_YEAR == 19 && RTE_VER_MONTH < 11)
+        UHD_LOG_WARNING("DPDK",
+            "Deprecated DPDK version "
+                << RTE_VER_YEAR << "." << RTE_VER_MONTH
+                << " detected. Consider upgrading DPDK. Recommended versions are 19.11, "
+                   "20.11, and 21.11.");
+#endif
+
         /* Gather global config, build args for EAL, and init UHD-DPDK */
         const device_addr_t dpdk_args = uhd::prefs::get_dpdk_args(user_args);
         UHD_LOG_TRACE("DPDK", "Configuration:" << std::endl << dpdk_args.to_pp_string());
@@ -619,7 +660,8 @@ struct rte_mempool* dpdk_ctx::_get_rx_pktbuf_pool(
     unsigned int cpu_socket, size_t num_bufs)
 {
     if (!_rx_pktbuf_pools.at(cpu_socket)) {
-        const int mbuf_size = _mtu + RTE_PKTMBUF_HEADROOM;
+        const int mbuf_size =
+            _mtu + RTE_PKTMBUF_HEADROOM + RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN;
         char name[32];
         snprintf(name, sizeof(name), "rx_mbuf_pool_%u", cpu_socket);
         _rx_pktbuf_pools[cpu_socket] = rte_pktmbuf_pool_create(name,

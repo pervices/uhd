@@ -11,20 +11,17 @@ UHD_INSTALL(FILES
     bounded_buffer.ipp
     buffer_pool.hpp
     buffer_tracker.hpp
-    chdr.hpp
     frame_buff.hpp
     if_addrs.hpp
     udp_constants.hpp
     udp_simple.hpp
     udp_stream_zero_copy.hpp
     udp_zero_copy.hpp
-    tcp_zero_copy.hpp
     usb_control.hpp
     usb_zero_copy.hpp
     usb_device_handle.hpp
     vrt_if_packet.hpp
     zero_copy.hpp
-    zero_copy_flow_ctrl.hpp
     DESTINATION ${INCLUDE_DIR}/uhd/transport
     COMPONENT headers
 )

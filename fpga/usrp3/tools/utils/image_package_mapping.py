@@ -81,7 +81,19 @@ PACKAGE_MAPPING = {
         "files": ["usrp_x410_fpga_X4_200.bit",
                   "usrp_x410_fpga_X4_200.bit.md5",
                   "usrp_x410_fpga_X4_200.dts",
-                  "usrp_x410_fpga_X4_200.dts.md5"]
+                  "usrp_x410_fpga_X4_200.dts.md5",
+                  "usrp_x410_fpga_X4_200.rpt",
+                  "usrp_x410_fpga_UC_200.bit",
+                  "usrp_x410_fpga_UC_200.bit.md5",
+                  "usrp_x410_fpga_UC_200.dts",
+                  "usrp_x410_fpga_UC_200.dts.md5",
+                  "usrp_x410_fpga_UC_200.rpt",
+                  "usrp_x410_fpga_CG_400.bit",
+                  "usrp_x410_fpga_CG_400.bit.md5",
+                  "usrp_x410_fpga_CG_400.dts",
+                  "usrp_x410_fpga_CG_400.dts.md5",
+                  "usrp_x410_fpga_CG_400.rpt",
+                 ]
     },
     "x410_cpld": {
         "type": "x4xx",
@@ -98,10 +110,12 @@ PACKAGE_MAPPING = {
     "zbx_cpld": {
         "type": "x4xx",
         "package_name": "x4xx_zbx_cpld_default-g{}.zip",
-        "files": ["usrp_zbx_cpld.rpd",
-                  "usrp_zbx_cpld.rpd.md5",
-                  "usrp_zbx_cpld.svf",
-                  "usrp_zbx_cpld.svf.md5"]
+        "files": ["usrp_zbx_cpld_10m04.rpd",
+                  "usrp_zbx_cpld_10m04.rpd.md5",
+                  "usrp_zbx_cpld_10m04.svf",
+                  "usrp_zbx_cpld_10m04.svf.md5",
+                  "usrp_zbx_cpld_xo3lf.svf",
+                  "usrp_zbx_cpld_xo3lf.svf.md5"]
     },
     "n310": {
         "type": "n3xx",
@@ -236,35 +250,32 @@ PACKAGE_MAPPING = {
     'b200': {
         'type': 'b2xx',
         'package_name': 'b2xx_b200_fpga_default-g{}.zip',
-        'files': ["usrp_b200_fpga.bin"],
+        'files': ["usrp_b200_fpga.bin",
+                  "usrp_b200_fpga.rpt",],
     },
     'b200mini': {
         'type': 'b2xx',
         'package_name': 'b2xx_b200mini_fpga_default-g{}.zip',
-        'files': ["usrp_b200mini_fpga.bin"],
+        'files': ["usrp_b200mini_fpga.bin",
+                  "usrp_b200mini_fpga.rpt",],
     },
     'b205mini': {
         'type': 'b2xx',
         'package_name': 'b2xx_b205mini_fpga_default-g{}.zip',
-        'files': ["usrp_b205mini_fpga.bin"],
+        'files': ["usrp_b205mini_fpga.bin",
+                  "usrp_b205mini_fpga.rpt",],
     },
     'b210': {
         'type': 'b2xx',
         'package_name': 'b2xx_b210_fpga_default-g{}.zip',
-        'files': ["usrp_b210_fpga.bin"],
+        'files': ["usrp_b210_fpga.bin",
+                  "usrp_b210_fpga.rpt",],
     },
     'b2xx_fw': {
         'type': 'b2xx',
         'package_name': 'b2xx_common_fw_default-g{}.zip',
         'files': ["usrp_b200_fw.hex",
                   "usrp_b200_bl.img"],
-    },
-    'n230': {
-        'type': 'n230',
-        'package_name': 'n230_n230_fpga_default-g{}.zip',
-        'files': ["usrp_n230_fpga.bin",
-                  "usrp_n230_fpga.bit",
-                  "usrp_n230_fpga.rpt"],
     },
     'b100': {
         'type': 'usrp1',

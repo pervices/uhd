@@ -25,4 +25,9 @@ IF(ENABLE_CYAN_NRNT)
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_nrnt_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_nrnt_io_impl.cpp
     )
+
+    if(ENABLE_DPDK)
+        include_directories(${DPDK_INCLUDE_DIRS})
+        add_definitions(-DHAVE_DPDK)
+    endif(ENABLE_DPDK)
 ENDIF(ENABLE_CYAN_NRNT)

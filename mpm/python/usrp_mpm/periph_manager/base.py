@@ -8,15 +8,11 @@
 Mboard implementation base class
 """
 
-from __future__ import print_function
 import os
 from enum import Enum
 from hashlib import md5
 from time import sleep
 from concurrent import futures
-from builtins import str
-from builtins import object
-from six import iteritems, itervalues
 from usrp_mpm.mpmlog import get_logger
 from usrp_mpm.sys_utils.filesystem_status import get_fs_version
 from usrp_mpm.sys_utils.filesystem_status import get_mender_artifact
@@ -25,25 +21,11 @@ from usrp_mpm.sys_utils.udev import get_eeprom_paths
 from usrp_mpm.sys_utils.udev import get_spidev_nodes
 from usrp_mpm.sys_utils import dtoverlay
 from usrp_mpm.sys_utils import net
-from usrp_mpm import eeprom
+from usrp_mpm.xports import XportAdapterMgr
 from usrp_mpm.rpc_server import no_claim, no_rpc
+from usrp_mpm.mpmutils import get_dboard_class_from_pid
+from usrp_mpm import eeprom
 from usrp_mpm import prefs
-
-def get_dboard_class_from_pid(pid):
-    """
-    Given a PID, return a dboard class initializer callable.
-    """
-    from usrp_mpm import dboard_manager
-    for member in itervalues(dboard_manager.__dict__):
-        try:
-            if issubclass(member, dboard_manager.DboardManagerBase) and \
-                    hasattr(member, 'pids') and \
-                    pid in member.pids:
-                return member
-        except (TypeError, AttributeError):
-            continue
-    return None
-
 
 # We need to disable the no-self-use check, because we might require self to
 # become an RPC method, but PyLint doesnt' know that. We'll also disable
@@ -51,7 +33,7 @@ def get_dboard_class_from_pid(pid):
 # pylint: disable=no-self-use
 # pylint: disable=too-many-public-methods
 # pylint: disable=too-many-instance-attributes
-class PeriphManagerBase(object):
+class PeriphManagerBase:
     """"
     Base class for all motherboards. Common function and API calls should
     be implemented here. Motherboard specific information can be stored in
@@ -242,7 +224,16 @@ class PeriphManagerBase(object):
         assert self.pids
         assert self.mboard_eeprom_magic is not None
         self.dboards = []
+        # fpga_features is a set of features the FPGA provides. It can be filled
+        # with arbitrary strings by the device classes. The usual way to fill
+        # this is to compare the FPGA compat number with a given compat number
+        # that added a feature.
+        self.fpga_features = set()
         self._default_args = ""
+        # CHDR transport managers. These need to be instantiated by the child
+        # classes.
+        self._xport_mgrs = {}
+        self._xport_adapter_mgrs = {}
         # Set up logging
         self.log = get_logger('PeriphManager')
         self.claimed = False
@@ -654,12 +645,12 @@ class PeriphManagerBase(object):
             # If the MB supports the DB Iface architecture, pass
             # the corresponding DB Iface to the dboard class
             if self.db_iface is not None:
-                dboard_info['db_iface'] = self.db_iface(dboard_idx, self)
+                dboard_info['db_iface'] = self.db_iface(dboard_idx, self, dboard_info)
             # This will actually instantiate the dboard class:
             self.dboards.append(db_class(dboard_idx, **dboard_info))
         self.log.info("Initialized %d daughterboard(s).", len(self.dboards))
 
-    def _add_public_methods(self, src, prefix="", filter_cb=None):
+    def _add_public_methods(self, src, prefix="", filter_cb=None, allow_overwrite=False):
         """
         Add public methods (=API) of src to self. To avoid naming conflicts and
         make relations clear, all added method names are prefixed with 'prefix'.
@@ -677,6 +668,8 @@ class PeriphManagerBase(object):
         :param prefix: method names in dest will be prefixed with prefix
         :param filter_cb: A callback that returns true if the method should be
                           added. Defaults to always returning True
+        :param allow_overwrite: If True, then methods from src will overwrite
+                                existing methods on self. Use with care.
         """
         filter_cb = filter_cb or (lambda *args: True)
         assert callable(filter_cb)
@@ -691,7 +684,7 @@ class PeriphManagerBase(object):
                      and filter_cb(name, getattr(src, name))
                      ]:
             destname = prefix + name
-            if hasattr(self, destname):
+            if hasattr(self, destname) and not allow_overwrite:
                 self.log.warn("Cannot add method {} because it would "
                               "overwrite existing method.".format(destname))
             else:
@@ -728,6 +721,30 @@ class PeriphManagerBase(object):
             self.log.error(
                 "Cannot run init(), device was never fully initialized!")
             return False
+        for xport_mgr in self._xport_mgrs.values():
+            xport_mgr.init(args)
+        if 'remote_udp_streaming' in self.fpga_features and 'udp' in self._xport_mgrs:
+            # We piggy-back the enumeration and initialization of the transport
+            # adapter managers off of the transport managers.
+            udp_xport_mgr = self._xport_mgrs['udp']
+            chdr_link_options = \
+                udp_xport_mgr.get_chdr_link_options('remote')
+            self._xport_adapter_mgrs = {
+                x['iface']: XportAdapterMgr(
+                    self.log,
+                    x['iface'],
+                    udp_xport_mgr.iface_config[x['iface']]['label'])
+                for x in chdr_link_options if x['type'] == 'sfp'
+            }
+            # Remove transport adapters without capabilities
+            self._xport_adapter_mgrs = {
+                iface: mgr
+                for iface, mgr in self._xport_adapter_mgrs.items()
+                if mgr.get_capabilities()
+            }
+            self.log.debug(
+                "Loaded transport adapter managers for the following interfaces: {}"
+                .format(", ".join(self._xport_adapter_mgrs.keys())))
         if not self.dboards:
             return True
         if args.get("serialize_init", False):
@@ -759,6 +776,8 @@ class PeriphManagerBase(object):
         for slot, dboard in enumerate(self.dboards):
             self.log.trace("call deinit() on dBoard in slot {}".format(slot))
             dboard.deinit()
+        for xport_mgr in self._xport_mgrs.values():
+            xport_mgr.deinit()
 
     def tear_down(self):
         """
@@ -1026,7 +1045,7 @@ class PeriphManagerBase(object):
         """
         return {
             k: v.decode() if isinstance(v, bytes) else str(v)
-            for k, v in iteritems(self._eeprom_head)
+            for k, v in self._eeprom_head.items()
         }
 
     def set_mb_eeprom(self, eeprom_vals):
@@ -1088,7 +1107,7 @@ class PeriphManagerBase(object):
         the keys returned from this function can be used with
         get_chdr_link_options().
         """
-        raise NotImplementedError("get_chdr_link_types() not implemented.")
+        return list(self._xport_mgrs.keys())
 
     def get_chdr_link_options(self, xport_type):
         """
@@ -1104,7 +1123,85 @@ class PeriphManagerBase(object):
         - link_rate (bps of the link, e.g. 10e9 for 10GigE)
 
         """
-        raise NotImplementedError("get_chdr_link_options() not implemented.")
+        if xport_type not in self._xport_mgrs:
+            self.log.warning(
+                f"Can't get link options for unknown link type: `{xport_type}'.")
+            return []
+        if xport_type == "udp":
+            return self._xport_mgrs[xport_type].get_chdr_link_options(
+                self.mboard_info['rpc_connection'])
+        # else:
+        return self._xport_mgrs[xport_type].get_chdr_link_options()
+
+    def get_chdr_xport_adapters(self):
+        """
+        Returns a dictionary of dictionaries for interfaces that can be used for
+        remote CHDR traffic.
+        This might not include all available transport adapters, rather, it will
+        only include those adapters that can be used as an argument in
+        add_remote_chdr_route().
+
+        For example, this could return a map such as:
+        {
+            'sfp0': {
+                'ta_inst': 0,
+                'rx_routing': 0,
+            },
+            'sfp1': {
+                'ta_inst': 1,
+                'rx_routing': 0,
+            },
+        }
+        """
+        if 'udp' not in self._xport_mgrs:
+            return {}
+        # Note that self._xport_adapter_mgrs will be empty if no remote streaming
+        # is supported.
+        udp_xport_mgr = self._xport_mgrs['udp']
+        xport_mgr_info = {
+            info['iface']: {
+                key: val
+                for key, val in info.items()
+                if key != 'iface'
+            }
+            for info in udp_xport_mgr.get_chdr_link_options('remote')
+        }
+        def gen_options_map(adapter_mgr):
+            """
+            Generate a map of options in UHD-readable form
+            """
+            options_map = xport_mgr_info.get(adapter_mgr.iface, {})
+            options_map['ta_inst'] = str(adapter_mgr.get_xport_adapter_inst())
+            for cap in adapter_mgr.get_capabilities():
+                options_map[cap] = "1"
+            return options_map
+        return {
+            iface: gen_options_map(adapter_mgr)
+            for iface, adapter_mgr in self._xport_adapter_mgrs.items()
+        }
+
+    def add_remote_chdr_route(self, adapter, epid, route_args):
+        """
+        Add a route from a transport adapter to a remote endpoint.
+
+        :param adapter: The name of the adapter from which the remote route
+                        should be created (e.g., 'sfp0').
+        :param epid: The 16-bit endpoint ID for which this route is being set
+                     up.
+        :param route_args: A dictionary of string -> string entries that describe
+                           where the route goes to. For a UDP streaming route,
+                           this should include the following keys:
+                           - dest_addr (Destination IPv4 address)
+                           - dest_port (Destination port)
+                           - dest_mac_addr (Optional! Destination MAC address)
+                           - stream_mode: A string representation of the
+                             streaming mode used between the transport adapter
+                             and the remote endpoint.
+        """
+        if adapter not in self._xport_adapter_mgrs:
+            raise ValueError(f"Invalid adapter to create route from: {adapter}")
+        return self._xport_adapter_mgrs[adapter].add_remote_ep_route(
+            epid, **route_args)
 
     #######################################################################
     # Claimer API
@@ -1216,6 +1313,14 @@ class PeriphManagerBase(object):
     #######################################################################
     # Sync API
     #######################################################################
+    def get_clock_source(self):
+        " Returns the currently selected clock source "
+        raise NotImplementedError("get_clock_source() not available on this device!")
+
+    def get_time_source(self):
+        " Returns the currently selected time source "
+        raise NotImplementedError("get_time_source() not available on this device!")
+
     def get_sync_source(self):
         """
         Gets the current time and clock source
@@ -1224,6 +1329,93 @@ class PeriphManagerBase(object):
             "time_source": self.get_time_source(),
             "clock_source": self.get_clock_source(),
         }
+
+    def get_clock_sources(self):
+        """
+        Returns a list of valid clock sources. This is a list of strings.
+        """
+        self.log.warning("get_clock_sources() was not specified for this device!")
+        return []
+
+    def get_time_sources(self):
+        """
+        Returns a list of valid time sources. This is a list of strings.
+        """
+        self.log.warning("get_time_sources() was not specified for this device!")
+        return []
+
+    def get_sync_sources(self):
+        """
+        Returns a list of valid sync sources. This is a list of dictionaries.
+        """
+        self.log.warning("get_sync_sources() was not specified for this device!")
+        return []
+
+    def set_clock_source(self, *args):
+        """
+        Set a clock source.
+
+        The choice to allow arbitrary arguments is based on historical decisions
+        and backward compatibility. UHD/mpmd will call this with a single argument,
+        so args[0] is the clock source (as a string).
+        """
+        raise NotImplementedError("set_clock_source() not available on this device!")
+
+    def set_time_source(self, time_source):
+        " Set a time source "
+        raise NotImplementedError("set_time_source() not available on this device!")
+
+    def set_sync_source(self, sync_args):
+        """
+        If a device has no special code for setting the sync-source atomically,
+        we simply forward these settings to set_clock_source() and set_time_source()
+        (in that order).
+        """
+        if sync_args not in self.get_sync_sources():
+            sync_args_str = \
+                ','.join([str(k) + '=' + str(v) for k, v in sync_args.items()])
+            self.log.warn(
+                f"Attempting to set unrecognized Sync source `{sync_args_str}'!")
+        clock_source = sync_args.get('clock_source', self.get_clock_source())
+        time_source = sync_args.get('time_source', self.get_time_source())
+        self.set_clock_source(clock_source)
+        self.set_time_source(time_source)
+
+    def synchronize(self, sync_args, finalize):
+        """
+        This is the main MPM-based synchronization call. It should be called if
+        there are synchronization-related settings that need to be applied to
+        devices that can only be set via MPM (exluding setting the time of
+        timekeepers).
+
+        For example, on RFSoC-based devices, we need to make sure to set the
+        same tile latency on all devices.
+
+        UHD will call this function at least twice. The first time, the device
+        can do whatever it needs to to determine various settings. It shall then
+        return a dictionary (key and value types are both strings) with
+        information that is necessary to determine final synchronization settings.
+
+        UHD will then take the sync information from all the devices it has been
+        trying to synchronize, and send them to aggregate_sync_data() on one of
+        the USRPs. That RPC call will return a single dictionary.
+
+        When UHD really needs to synchronize the devices, it will set the
+        'finalize' argument to True, and pass in the result from
+        aggregate_sync_data().
+        """
+        self.log.debug("No specific synchronize() API defined, using default.")
+        return sync_args
+
+    def aggregate_sync_data(self, collated_sync_data):
+        """
+        This API call is called during time/frequency synchronization of devices.
+        It will be passed a list of dictionaries. The job of this API call is to
+        aggregate the list and return a single dictionary with definitive values
+        that the various devices need to apply.
+        """
+        self.log.debug("No specific aggregate_sync_data() API defined, using default.")
+        return {} if not collated_sync_data else collated_sync_data[0]
 
     ###########################################################################
     # Clock/Time API

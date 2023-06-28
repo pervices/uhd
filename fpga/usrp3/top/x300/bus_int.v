@@ -22,6 +22,7 @@ module bus_int #(
     output [3:0] sw_rst,
     // Timekeeper
     input                   pps,
+    output                  time_sync,
     // Block connections
     input                   ce_clk,
     input                   ce_rst,
@@ -157,6 +158,8 @@ module bus_int #(
    localparam SR_ETHINT1         = 8'd56;
    localparam SR_FP_GPIO_SRC     = 8'd72;
    localparam SR_BASE_TIME       = 8'd100;
+   localparam SR_TA_SFP0_BASE    = 8'd144;
+   localparam SR_TA_SFP1_BASE    = 8'd160;
 
    localparam RB_COUNTER         = 8'd00;
    localparam RB_SPI_RDY         = 8'd01;
@@ -172,20 +175,41 @@ module bus_int #(
    localparam RB_XADC_VALS       = 8'd11;
    localparam RB_NUM_TIMEKEEPERS = 8'd12;
    localparam RB_FP_GPIO_SRC     = 8'd13;
+   localparam RB_DEVICE_ID       = 8'd14;
+   localparam RB_BUILD_SEED      = 8'd15;
+   localparam RB_TA_SFP0_BASE    = SR_TA_SFP0_BASE;
+   localparam RB_TA_SFP1_BASE    = SR_TA_SFP1_BASE;
 
-   localparam COMPAT_MAJOR       = 16'h0026;
-   localparam COMPAT_MINOR       = 16'h0000;
+   localparam COMPAT_MAJOR       = 16'h0027;
+   localparam COMPAT_MINOR       = 16'h0002;
    localparam NUM_TIMEKEEPERS    = 1;
 
-   localparam [15:0] RFNOC_PROTOVER  = {8'd1, 8'd0};
+   // Include the RFNoC image core header file
+   `ifdef RFNOC_IMAGE_CORE_HDR
+     `include `"`RFNOC_IMAGE_CORE_HDR`"
+   `else
+     ERROR_RFNOC_IMAGE_CORE_HDR_not_defined();
+     `define CHDR_WIDTH     64
+     `define RFNOC_PROTOVER { 8'd1, 8'd0 }
+   `endif
+   localparam CHDR_W         = `CHDR_WIDTH;
+   localparam RFNOC_PROTOVER = `RFNOC_PROTOVER;
+
+   // This USRP currently only supports 64-bit CHDR width
+   if (CHDR_W != 64) begin : gen_chdr_w_error
+     CHDR_W_must_be_64_for_this_USRP();
+   end
+
+   // Log base 2 of the maximum transmission unit (MTU) in bytes
+   localparam BYTE_MTU = $clog2(8192);
 
    wire [31:0] 	        set_data;
    wire [7:0] 	        set_addr;
    reg  [31:0] 	        rb_data;
    wire [RB_AWIDTH-1:0] rb_addr;
-   wire 		        rb_rd_stb;
+   wire                 rb_rd_stb;
    wire                 set_stb;
-   wire 	            spi_ready;
+   wire                 spi_ready;
    wire [31:0] 	        rb_spi_data;
    wire [15:0]          device_id;
 
@@ -392,6 +416,7 @@ module bus_int #(
    reg radio_time_hi_ld;
    reg radio_time_last_pps_hi_ld;
 
+   wire [31:0] rb_ta_sfp0_data, rb_ta_sfp1_data;
 
    always @(posedge clk) counter <= counter + 1;
 
@@ -399,7 +424,8 @@ module bus_int #(
      radio_time_hi_ld          = 1'b0;
      radio_time_last_pps_hi_ld = 1'b0;
      casex (rb_addr)
-       RB_RFNOC_INFO: rb_data = {device_id, RFNOC_PROTOVER[15:0]};
+       RB_RFNOC_INFO: rb_data = {CHDR_W[15:0], RFNOC_PROTOVER[15:0]};
+       RB_DEVICE_ID: rb_data = {16'd0, device_id};
        RB_COMPAT_NUM: rb_data = {COMPAT_MAJOR[15:0], COMPAT_MINOR[15:0]};
        RB_COUNTER: rb_data = counter;
        RB_SPI_RDY: rb_data = {31'b0, spi_ready};
@@ -434,24 +460,32 @@ module bus_int #(
        RB_ETH_TYPE1: rb_data = {32'h0};
    `endif
 `endif
+`ifndef GIT_HASH
+  `define GIT_HASH 32'h0BADC0DE
+`endif
        RB_GIT_HASH:  rb_data = `GIT_HASH;
+`ifndef BUILD_SEED
+  `define BUILD_SEED 32'b0
+`endif
+       RB_BUILD_SEED: rb_data = `BUILD_SEED;
        RB_XADC_VALS: rb_data = xadc_readback;
        RB_FP_GPIO_SRC: rb_data = fp_gpio_src;
        SR_BASE_TIME: begin
                        rb_data = radio_time[31:0];
-                       radio_time_hi_ld = 1'b1;
+                       radio_time_hi_ld = rb_rd_stb;
                      end
        SR_BASE_TIME + 'h04: rb_data = radio_time_hi;
        SR_BASE_TIME + 'h14: begin
                            rb_data = radio_time_last_pps[31:0];
-                           radio_time_last_pps_hi_ld = 1'b1;
+                           radio_time_last_pps_hi_ld = rb_rd_stb;
                          end
        SR_BASE_TIME + 'h18: rb_data = radio_time_last_pps_hi;
        SR_BASE_TIME + 'h1C: rb_data = period_ns_q32_tb[31:0];
        SR_BASE_TIME + 'h20: rb_data = period_ns_q32_tb[63:32];
 
        default: begin
-         rb_data                   = 32'h0;
+         // Allow read-back of Ethernet transport adapter regs
+         rb_data = rb_ta_sfp0_data | rb_ta_sfp1_data;
        end
      endcase // case (rb_addr)
    end
@@ -512,7 +546,8 @@ module bus_int #(
      .pps                   (pps),
      .tb_timestamp          (radio_time_tb),
      .tb_timestamp_last_pps (radio_time_last_pps_tb),
-     .tb_period_ns_q32      (period_ns_q32_tb)
+     .tb_period_ns_q32      (period_ns_q32_tb),
+     .tb_changed            (time_sync)
    );
 
    // Latch state changes to SFP0+ pins.
@@ -625,11 +660,13 @@ module bus_int #(
    assign {zpui0_tdata, zpui0_tlast, zpui0_tvalid, zpuo0_tready} = {64'h0, 1'b0, 1'b0, 1'b1};
 `else
    x300_eth_interface #(
-      .PROTOVER(RFNOC_PROTOVER), .MTU(10), .NODE_INST(0), .BASE(SR_ETHINT0)
+      .PROTOVER(RFNOC_PROTOVER), .MTU(BYTE_MTU-3), .NODE_INST(0),
+      .ETH_BASE(SR_ETHINT0), .TA_BASE(SR_TA_SFP0_BASE)
    ) eth_interface0 (
       .clk(clk), .reset(reset),
       .device_id(device_id),
       .set_stb(set_stb), .set_addr(set_addr), .set_data(set_data),
+      .rb_addr(rb_addr), .rb_data(rb_ta_sfp0_data),
       .eth_tx_tdata(sfp0_tx_tdata), .eth_tx_tuser(sfp0_tx_tuser), .eth_tx_tlast(sfp0_tx_tlast),
       .eth_tx_tvalid(sfp0_tx_tvalid), .eth_tx_tready(sfp0_tx_tready),
       .eth_rx_tdata(sfp0_rx_tdata), .eth_rx_tuser(sfp0_rx_tuser), .eth_rx_tlast(sfp0_rx_tlast),
@@ -648,11 +685,13 @@ module bus_int #(
    assign {zpui1_tdata, zpui1_tlast, zpui1_tvalid, zpuo1_tready} = {64'h0, 1'b0, 1'b0, 1'b1};
 `else
    x300_eth_interface #(
-      .PROTOVER(RFNOC_PROTOVER), .MTU(10), .NODE_INST(1), .BASE(SR_ETHINT1)
+      .PROTOVER(RFNOC_PROTOVER), .MTU(BYTE_MTU-3), .NODE_INST(1),
+      .ETH_BASE(SR_ETHINT1), .TA_BASE(SR_TA_SFP1_BASE)
    ) eth_interface1 (
       .clk(clk), .reset(reset),
       .device_id(device_id),
       .set_stb(set_stb), .set_addr(set_addr), .set_data(set_data),
+      .rb_addr(rb_addr), .rb_data(rb_ta_sfp1_data),
       .eth_tx_tdata(sfp1_tx_tdata), .eth_tx_tuser(sfp1_tx_tuser), .eth_tx_tlast(sfp1_tx_tlast),
       .eth_tx_tvalid(sfp1_tx_tvalid), .eth_tx_tready(sfp1_tx_tready),
       .eth_rx_tdata(sfp1_rx_tdata), .eth_rx_tuser(sfp1_rx_tuser), .eth_rx_tlast(sfp1_rx_tlast),
@@ -733,7 +772,9 @@ module bus_int #(
     ///////////////////////////////////////////////////////////////////////////
 
   rfnoc_image_core #(
-    .PROTOVER(RFNOC_PROTOVER)
+    .CHDR_W   (CHDR_W),
+    .MTU      (BYTE_MTU - $clog2(CHDR_W/8)),
+    .PROTOVER (RFNOC_PROTOVER)
   ) rfnoc_sandbox_i (
     .chdr_aclk               (clk        ),
     .ctrl_aclk               (clk_div2   ),
