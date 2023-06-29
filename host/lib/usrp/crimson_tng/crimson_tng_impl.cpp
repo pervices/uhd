@@ -286,6 +286,10 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
+    if (stream_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.1 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+        throw uhd::value_error(CRIMSON_TNG_DEBUG_NAME_C " Requested rx start time to close to current time");
+    }
+
 	make_rx_stream_cmd_packet( stream_cmd, ch, rx_stream_cmd );
 	send_rx_stream_cmd_req( rx_stream_cmd );
 }
