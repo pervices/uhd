@@ -318,22 +318,20 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
+    if (modified_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && modified_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !modified_cmd.stream_now) {
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " Requested rx start time to close to current time");
+    }
+
     //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
     //Inside the stream packet there is an argument for channel
     //The channel argument is actually the jesd number relative to the sfp port
     //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
     //9r7t only has one channel per port so it
     size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
-#ifdef DEBUG_COUT
-    std::cout << "Creating packet with jesd_num: " << jesd_num << std::endl;
-#endif
 
 	make_rx_stream_cmd_packet( modified_cmd, jesd_num, rx_stream_cmd );
 
     int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
-#ifdef DEBUG_COUT
-    std::cout << "Sending packet on interface: " << xg_intf << std::endl;
-#endif
 
 	send_rx_stream_cmd_req( rx_stream_cmd, xg_intf );
 }
