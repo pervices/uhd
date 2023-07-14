@@ -563,7 +563,7 @@ public:
             }
 
             if(result.substr(0, source.size()) != source) {
-                UHD_LOGGER_WARNING("MULTI_USRP")  <<boost::format( "Unable to set time source. The program attempted to set it to %s but it returned: %s") % source % result ;
+                UHD_LOGGER_WARNING("MULTI_USRP")  <<boost::format( "Unable to set clock source. The program attempted to set it to %s but it returned: %s") % source % result ;
             }
             return;
         }
