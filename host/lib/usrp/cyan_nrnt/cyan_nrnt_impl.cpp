@@ -1926,7 +1926,8 @@ void cyan_nrnt_impl::mtu_check(std::string sfp, std::string ip) {
         }
     }
     if (check != 0) {
-        UHD_LOG_WARNING("PING", "MTU not set to recomended value of " << link_cyan_nrnt::mtu_ref <<  " for subnet " << subnet.c_str() << " may impact data sent over " << sfp);
+        UHD_LOGGER_ERROR("MTU not set to recomended value of " + std::string(link_cyan_nrnt::mtu_ref) + " for subnet " + subnet + " may impact data sent over " + sfp);
+        throw uhd::system_error("Unable to set MTU size");
     }
 }
 
