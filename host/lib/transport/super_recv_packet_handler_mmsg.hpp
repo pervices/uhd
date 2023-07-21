@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 
 #include <error.h>
+#include <uhd/exception.hpp>
 
 namespace uhd { namespace transport { namespace sph {
 
@@ -100,6 +101,7 @@ public:
             // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
             if(_ACTUAL_RECV_BUFFER_SIZE < 2*_DEFAULT_RECV_BUFFER_SIZE) {
                 fprintf(stderr, "Unable to set recv buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.rmem_max=%i\"\n", _DEFAULT_RECV_BUFFER_SIZE, _ACTUAL_RECV_BUFFER_SIZE/2, _DEFAULT_RECV_BUFFER_SIZE);
+                throw uhd::system_error("Unable to set recv socket size");
             }
 
             // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
