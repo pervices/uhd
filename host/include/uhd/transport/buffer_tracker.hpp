@@ -10,6 +10,14 @@ class buffer_tracker {
 
 public:
 
+#ifdef DEBUG_PRIMING
+    // Only print error message if there are two consecutive buffer levels of 0 when priming
+    bool failure_to_prime_antirace = false;
+    // Samples were in the buffer, therefore samples should be getting accepted
+    bool buffer_samples_confirmed = false;
+    bool priming_message_printed = false;
+#endif
+
     // Target buffer level
 	const int64_t nominal_buffer_level;
 

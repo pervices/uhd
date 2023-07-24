@@ -60,6 +60,22 @@ void buffer_tracker::update_buffer_level_bias( const int64_t level, const uhd::t
             buffer_level_bias = new_buffer_level_bias;
         }
     }
+#ifdef DEBUG_PRIMING
+    else {
+        if(level != 0 || buffer_samples_confirmed) {
+            buffer_samples_confirmed = true;
+            return;
+        }
+        else if(total_samples_sent > 0) {
+            if(failure_to_prime_antirace) {
+                priming_message_printed = true;
+                std::cerr << "Buffer failed to prime" << std::endl;
+            } else {
+                failure_to_prime_antirace = true;
+            }
+        }
+    }
+#endif
 }
 
 void buffer_tracker::update( const uint64_t samples_sent ) {
