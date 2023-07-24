@@ -356,6 +356,7 @@ private:
     }
 
     // Gets the number of samples that can be sent now (can be less than 0)
+    // Also sleeps if start of burst hasn't happened yet and its a long time in the future
     int check_fc_npackets(const size_t ch_i) {
         if(BOOST_LIKELY(!use_blocking_fc)) {
 
@@ -363,7 +364,15 @@ private:
             uhd::time_spec_t device_time = get_time_now();
             int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
 
-            return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
+            int num_packets_to_send = (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
+
+            if(num_packets_to_send > 0 || !ch_send_buffer_info_group[ch_i].buffer_level_manager.start_of_burst_pending(device_time+1e-6)) {
+                return num_packets_to_send;
+            } else {
+                uhd::time_spec_t sleep_time = ch_send_buffer_info_group[ch_i].buffer_level_manager.time_until_sob(device_time) - 1.0e-6;
+                sleep_time.sleep_for();
+                return num_packets_to_send;
+            }
 
         } else {
             int64_t buffer_level = get_buffer_level_from_device(ch_i);

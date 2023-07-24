@@ -100,6 +100,11 @@ public:
      */
     double get_frac_secs(void) const;
 
+    /*!
+     * Sleeps for the duration of this
+     */
+    void sleep_for(void) const;
+
     //! Implement addable interface
     time_spec_t& operator+=(const time_spec_t&);
     time_spec_t& operator+=(double&);

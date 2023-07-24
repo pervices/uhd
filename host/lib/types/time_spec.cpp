@@ -7,6 +7,7 @@
 
 #include <uhd/types/time_spec.hpp>
 #include <cmath>
+#include <time.h>
 
 using namespace uhd;
 
@@ -78,6 +79,13 @@ long long time_spec_t::to_ticks(double tick_rate) const
 double time_spec_t::get_real_secs(void) const
 {
     return this->get_full_secs() + this->get_frac_secs();
+}
+
+void time_spec_t::sleep_for(void) const {
+
+    struct timespec duration = { this->get_full_secs(), (int64_t) (this->get_frac_secs() * 1e9) };
+
+    nanosleep(&duration, NULL);
 }
 
 /***********************************************************************
