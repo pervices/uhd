@@ -35,7 +35,7 @@ constexpr int DEFAULT_NUM_MBUFS              = 1024;
 constexpr int DEFAULT_MBUF_CACHE_SIZE        = 315;
 constexpr size_t DPDK_HEADERS_SIZE           = 14 + 20 + 8; // Ethernet + IPv4 + UDP
 constexpr uint16_t DPDK_DEFAULT_RING_SIZE    = 512;
-constexpr int DEFAULT_DPDK_LINK_INIT_TIMEOUT = 1000;
+constexpr int DEFAULT_DPDK_LINK_INIT_TIMEOUT = 10000;
 constexpr int LINK_STATUS_INTERVAL           = 250;
 
 inline char* eal_add_opt(
