@@ -508,6 +508,17 @@ void dpdk_ctx::init(const device_addr_t& user_args)
                 // - This is a bit inefficient for larger systems, since NICs may not
                 //   all be on one socket
                 auto cpu_socket = rte_eth_dev_socket_id(i);
+                // Handles error when getting CPU
+                if(cpu_socket == -1) {
+                    // If rte_errno is 0 it is usually because it isa  non NUMA system
+                    if(rte_errno == 0) {
+                        cpu_socket = 0;
+                    // If an actual error number is set then an actual error occured
+                    } else {
+                        throw uhd::runtime_error("DPDK: unable to get CPU for for interface");
+                    }
+
+                }
                 auto rx_pool = _get_rx_pktbuf_pool(cpu_socket, _num_mbufs * queue_count);
                 auto tx_pool = _get_tx_pktbuf_pool(cpu_socket, _num_mbufs * queue_count);
                 UHD_LOG_TRACE("DPDK",
