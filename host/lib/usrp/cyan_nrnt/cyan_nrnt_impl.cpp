@@ -933,22 +933,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 // Returns a pointer to the SDR device, casted to the UHD base class
 static device::sptr cyan_nrnt_make(const device_addr_t &device_addr)
 {
-    bool use_dpdk;
-    if(device_addr.has_key("use_dpdk")) {
-        if(device_addr["use_dpdk"] == "" || device_addr["use_dpdk"] == "true") {
-#ifdef HAVE_DPDK
-            use_dpdk = true;
-#else
-            UHD_LOG_WARNING("DPDK", "Detected use_dpdk argument, but DPDK support not built in.");
-            use_dpdk = false;
-#endif
-        } else {
-            use_dpdk = false;
-        }
-    } else {
-        use_dpdk = false;
-    }
-    return device::sptr(new cyan_nrnt_impl(device_addr, use_dpdk));
+    return device::sptr(new cyan_nrnt_impl(device_addr, device::has_use_dpdk(device_addr)));
 }
 
 // This is the core function that registers itself with uhd::device base class. The base device class

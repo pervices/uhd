@@ -17,6 +17,7 @@
 #include <uhd/types/tune_result.hpp>
 #include <functional>
 #include <memory>
+#include <uhd/utils/log.hpp>
 
 namespace uhd {
 
@@ -255,6 +256,30 @@ public:
     // Request to resync time diffs
     virtual void request_resync_time_diff() {
         throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*
+    * Checks if args contains the use DPDK flag and DPDK is enabled
+    * args: Arguments u
+    * \return if DPDK should be used
+    */
+    static bool has_use_dpdk(const device_addr_t &args) {
+        bool use_dpdk;
+        if(args.has_key("use_dpdk")) {
+            if(args["use_dpdk"] == "" || args["use_dpdk"] == "true" || args["use_dpdk"] == "1") {
+#ifdef HAVE_DPDK
+                use_dpdk = true;
+#else
+                UHD_LOG_WARNING("DPDK", "Detected use_dpdk argument, but DPDK support not built in.");
+                use_dpdk = false;
+#endif
+            } else {
+                use_dpdk = false;
+            }
+        } else {
+            use_dpdk = false;
+        }
+        return use_dpdk;
     }
 
 protected:
