@@ -215,6 +215,9 @@ udp_simple::sptr dpdk_simple::make_connected(
 udp_simple::sptr dpdk_simple::make_broadcast(
     const std::string& addr, const std::string& port)
 {
+    if(addr == "") {
+        throw uhd::value_error("DPDK: no IP specified for broadcast. DPDK requires that an IP be specified");
+    }
     return udp_simple::sptr(new dpdk_simple_impl(addr, port));
 }
 }} // namespace uhd::transport
