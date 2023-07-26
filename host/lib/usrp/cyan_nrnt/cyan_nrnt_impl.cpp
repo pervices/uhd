@@ -38,6 +38,7 @@
 #include <uhdlib/transport/udp_common.hpp>
 #ifdef HAVE_DPDK
 #    include <uhdlib/transport/dpdk_simple.hpp>
+#    include <uhdlib/transport/udp_dpdk_link.hpp>
 #endif
 
 namespace link_cyan_nrnt {
@@ -478,13 +479,21 @@ void cyan_nrnt_impl::set_properties_from_addr() {
  * Discovery over the udp transport
  **********************************************************************/
 // This find function will be called if a hint is passed onto the find function
-static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint)
+static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint, const bool use_dpdk)
 {
 
     // temporarily make a UDP device only to look for devices
-    // loop for all the available ports, if none are available, that means all 8 are open already
-    udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+    udp_simple::sptr comm;
+    if(use_dpdk) {
+        // Check if DPDK is initialize, and initialize it if not ready
+        auto dpdk_ctx = uhd::transport::dpdk::dpdk_ctx::get();
+        if (not dpdk_ctx->is_init_done()) {
+            dpdk_ctx->init(hint);
+        }
+        comm = dpdk_simple::make_broadcast(hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+    } else {
+        comm = udp_simple::make_broadcast(hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+    }
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
@@ -579,7 +588,6 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
         std::string error_msg;
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
-            printf("hint_i: %s\n", hint_i.to_pp_string().c_str());
             device_addrs_t found_devices_i = cyan_nrnt_find(hint_i);
             if (found_devices_i.size() != 1) error_msg += str(boost::format(
                 "Could not resolve device hint \"%s\" to a single device."
@@ -608,7 +616,7 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
         device_addrs_t reply_addrs;
         try
         {
-            reply_addrs = cyan_nrnt_find_with_addr(hint);
+            reply_addrs = cyan_nrnt_find_with_addr(hint, use_dpdk);
         }
         catch(const std::exception &ex)
         {
@@ -620,7 +628,7 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
-            device_addrs_t new_addrs = cyan_nrnt_find_with_addr(reply_addr);
+            device_addrs_t new_addrs = cyan_nrnt_find_with_addr(reply_addr, use_dpdk);
             addrs.insert(addrs.end(), new_addrs.begin(), new_addrs.end());
         }
         return addrs;
