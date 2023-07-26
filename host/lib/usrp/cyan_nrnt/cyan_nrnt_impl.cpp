@@ -569,6 +569,8 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint)
 // This is the core find function that will be called when uhd:device find() is called because this is registered
 static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
 {
+    bool use_dpdk = device::has_use_dpdk(hint_);
+
     //handle the multi-device discovery
     device_addrs_t hints = separate_device_addr(hint_);
     if (hints.size() > 1)
@@ -577,6 +579,7 @@ static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
         std::string error_msg;
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
+            printf("hint_i: %s\n", hint_i.to_pp_string().c_str());
             device_addrs_t found_devices_i = cyan_nrnt_find(hint_i);
             if (found_devices_i.size() != 1) error_msg += str(boost::format(
                 "Could not resolve device hint \"%s\" to a single device."
