@@ -721,7 +721,7 @@ private:
         for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
             if(ch_recv_buffer_info_i.num_headers_used > 0) {
                 // Set end of burst if received on any channel
-                if(ch_recv_buffer_info_i.vrt_metadata[ch_recv_buffer_info_i.num_headers_used].eob) {
+                if(ch_recv_buffer_info_i.vrt_metadata[ch_recv_buffer_info_i.num_headers_used-1].eob) {
                     end_of_burst_received = true;
                 }
             }
