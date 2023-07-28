@@ -717,38 +717,40 @@ private:
     }
 
     bool detect_end_of_burst() {
-        bool end_of_burst_received = false;
-        for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-            if(ch_recv_buffer_info_i.num_headers_used > 0) {
-                // Set end of burst if received on any channel
-                if(ch_recv_buffer_info_i.vrt_metadata[ch_recv_buffer_info_i.num_headers_used-1].eob) {
-                    end_of_burst_received = true;
-                }
-            }
-        }
-
-        bool should_cache_eob = end_of_burst_received;
-        if(end_of_burst_received) {
-            for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-                if(ch_recv_buffer_info_i.sample_cache_used == 0) {
-                    should_cache_eob = false;
-                }
-            }
-        }
-
-        // EOB received, but there as samples in the cache so it should be saved until the next receive
-        if(should_cache_eob && end_of_burst_received) {
-            cached_end_of_burst = true;
-            return false;
-        // EOB received and there are no samples in the cache so clear EOB cache and set metadata flag
-        } else if(end_of_burst_received) {
-            cached_end_of_burst = false;
-            return true;
-        } else {
-        // Clear EOB cache, should be unreachable because
-            cached_end_of_burst = false;
-            return false;
-        }
+        //TODO: fix FPGA and re-enable this function. At time of writing Crimson will always have eob flag and Cyan will never have it
+        return false;
+        // bool end_of_burst_received = false;
+        // for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
+        //     if(ch_recv_buffer_info_i.num_headers_used > 0) {
+        //         // Set end of burst if received on any channel
+        //         if(ch_recv_buffer_info_i.vrt_metadata[ch_recv_buffer_info_i.num_headers_used-1].eob) {
+        //             end_of_burst_received = true;
+        //         }
+        //     }
+        // }
+        //
+        // bool should_cache_eob = end_of_burst_received;
+        // if(end_of_burst_received) {
+        //     for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
+        //         if(ch_recv_buffer_info_i.sample_cache_used == 0) {
+        //             should_cache_eob = false;
+        //         }
+        //     }
+        // }
+        //
+        // // EOB received, but there as samples in the cache so it should be saved until the next receive
+        // if(should_cache_eob && end_of_burst_received) {
+        //     cached_end_of_burst = true;
+        //     return false;
+        // // EOB received and there are no samples in the cache so clear EOB cache and set metadata flag
+        // } else if(end_of_burst_received) {
+        //     cached_end_of_burst = false;
+        //     return true;
+        // } else {
+        // // Clear EOB cache, should be unreachable because
+        //     cached_end_of_burst = false;
+        //     return false;
+        // }
     }
 
 };
