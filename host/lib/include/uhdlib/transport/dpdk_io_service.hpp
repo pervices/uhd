@@ -60,14 +60,13 @@ public:
         recv_callback_t recv_cb,
         send_io_if::fc_callback_t fc_cb);
 
+    dpdk_io_service(
+        unsigned int lcore_id, std::vector<dpdk::dpdk_port*> ports, size_t servq_depth);
+    dpdk_io_service(const dpdk_io_service&) = delete;
 
 private:
     friend class dpdk_recv_io;
     friend class dpdk_send_io;
-
-    dpdk_io_service(
-        unsigned int lcore_id, std::vector<dpdk::dpdk_port*> ports, size_t servq_depth);
-    dpdk_io_service(const dpdk_io_service&) = delete;
 
     /*!
      * I/O worker function to be passed to the DPDK lcore

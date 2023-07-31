@@ -72,7 +72,7 @@ dpdk_io_service::dpdk_io_service(
 dpdk_io_service::sptr dpdk_io_service::make(
     unsigned int lcore_id, std::vector<dpdk::dpdk_port*> ports, size_t servq_depth)
 {
-    return dpdk_io_service::sptr(new dpdk_io_service(lcore_id, ports, servq_depth));
+    return std::make_shared<dpdk_io_service>(lcore_id, ports, servq_depth);
 }
 
 dpdk_io_service::~dpdk_io_service()
