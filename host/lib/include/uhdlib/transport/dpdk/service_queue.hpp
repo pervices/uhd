@@ -156,6 +156,7 @@ public:
         req->complete = false;
         if (rte_ring_enqueue(_waiter_ring, req)) {
             wait_req_put(req);
+            printf("submit ENOBUFS\n");
             return -ENOBUFS;
         }
         auto is_complete = [req] { return req->complete; };
@@ -164,9 +165,11 @@ public:
         } else {
             auto status = req->cond.wait_until(lock, timeout_point, is_complete);
             if (!status) {
+                printf("submit ETIMEDOUT\n");
                 return -ETIMEDOUT;
             }
         }
+        printf("submit success\n");
         return 0;
     }
 
