@@ -90,6 +90,7 @@ inline wait_req* wait_req_alloc(wait_type t, void* priv_data)
  */
 inline void wait_req_put(wait_req* req)
 {
+    printf("req->refcnt: %u\n", req->refcnt);
     if (rte_atomic32_dec_and_test(&req->refcnt)) {
         rte_free(req);
     }
