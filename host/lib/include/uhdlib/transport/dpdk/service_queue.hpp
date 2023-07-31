@@ -167,6 +167,7 @@ public:
             auto status = req->cond.wait_until(lock, timeout_point, is_complete);
             if (!status) {
                 printf("submit ETIMEDOUT\n");
+                printf("rte_ring_empty: %i\n", rte_ring_empty(_waiter_ring));
                 return 0;//-ETIMEDOUT;
             }
         }
