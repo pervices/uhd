@@ -141,9 +141,12 @@ void dpdk_io_service::attach_send_link(send_link_if::sptr link)
         }
         wait_req_put(arp_req);
     }
+    uint8_t sample_max_addr[] = { 0x18, 0xc0, 0x4d, 0x81, 0x65, 0xee };
     for(size_t n = 0; n < RTE_ETHER_ADDR_LEN; n++) {
         printf("arp_data.tha.addr_bytes[%lu]: %hhx\n", n, arp_data.tha.addr_bytes[n]);
+        arp_data.tha.addr_bytes[n] = sample_max_addr[n];
     }
+
     dpdk_link->set_remote_mac(arp_data.tha);
 
     // Then, submit the link to the I/O service thread
