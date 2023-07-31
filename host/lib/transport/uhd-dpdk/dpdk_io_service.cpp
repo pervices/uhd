@@ -92,6 +92,7 @@ dpdk_io_service::~dpdk_io_service()
 
 void dpdk_io_service::attach_recv_link(recv_link_if::sptr link)
 {
+    printf("Attaching receive link\n");
     struct dpdk_flow_data data;
     data.link    = dynamic_cast<udp_dpdk_link*>(link.get());
     data.is_recv = true;
@@ -112,6 +113,7 @@ void dpdk_io_service::attach_recv_link(recv_link_if::sptr link)
 
 void dpdk_io_service::attach_send_link(send_link_if::sptr link)
 {
+    printf("Attaching send link\n");
     udp_dpdk_link* dpdk_link = dynamic_cast<udp_dpdk_link*>(link.get());
     assert(dpdk_link);
 
