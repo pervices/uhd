@@ -55,12 +55,13 @@ private:
         auto link = std::dynamic_pointer_cast<transport::udp_dpdk_link>(recv_link);
         port_id_t port_id = link->get_port()->get_port_id();
 
-        auto io_srv = _dpdk_ctx->get_io_service(port_id);
+        auto dpdk_ctx = _dpdk_ctx.lock();
+        auto io_srv = dpdk_ctx->get_io_service(port_id);
         UHD_ASSERT_THROW(io_srv);
         return io_srv;
     }
 
-    transport::dpdk::dpdk_ctx::sptr _dpdk_ctx;
+    std::weak_ptr<transport::dpdk::dpdk_ctx> _dpdk_ctx;
 };
 
 }} // namespace uhd::usrp

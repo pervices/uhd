@@ -234,7 +234,7 @@ public:
 
 private:
     //! A reference to the DPDK context
-    dpdk::dpdk_ctx::sptr _ctx;
+    std::weak_ptr<dpdk::dpdk_ctx> _ctx;
     //! The DPDK NIC port used by this link
     dpdk::dpdk_port* _port;
     //! Local UDP port, in network order

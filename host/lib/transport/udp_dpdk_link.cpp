@@ -33,7 +33,8 @@ udp_dpdk_link::udp_dpdk_link(dpdk::port_id_t port_id,
 {
     // Get a reference to the context, since this class manages DPDK memory
     _ctx = dpdk_ctx::get();
-    UHD_ASSERT_THROW(_ctx);
+    auto ctx = _ctx.lock();
+    UHD_ASSERT_THROW(ctx);
 
     // Fill in remote IPv4 address and UDP port
     // NOTE: Remote MAC address is filled in later by I/O service
@@ -46,7 +47,7 @@ udp_dpdk_link::udp_dpdk_link(dpdk::port_id_t port_id,
     _remote_port = rte_cpu_to_be_16(std::stoul(remote_port));
 
     // Grab the port with a route to the remote host
-    _port = _ctx->get_port(port_id);
+    _port = ctx->get_port(port_id);
 
     uint16_t local_port_num = rte_cpu_to_be_16(std::stoul(local_port));
     // Get an unused UDP port for listening

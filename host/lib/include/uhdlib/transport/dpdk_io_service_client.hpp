@@ -168,7 +168,7 @@ private:
     size_t _num_frames_in_use = 0;
 
     dpdk::service_queue& _servq;
-    dpdk::dpdk_ctx::sptr _ctx;
+    std::weak_ptr<dpdk::dpdk_ctx> _ctx;
     struct rte_ring* _buffer_queue;
     struct rte_ring* _send_queue;
     dpdk::wait_req* _waiter;
@@ -278,7 +278,7 @@ private:
     size_t _num_frames_in_use = 0;
 
     dpdk::service_queue& _servq;
-    dpdk::dpdk_ctx::sptr _ctx;
+    std::weak_ptr<dpdk::dpdk_ctx> _ctx;
     struct rte_ring* _recv_queue;
     struct rte_ring* _release_queue;
     dpdk::wait_req* _waiter;
