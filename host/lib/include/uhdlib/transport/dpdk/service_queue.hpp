@@ -154,12 +154,12 @@ public:
         /* Get a reference here, to be consumed by other thread (handshake) */
         wait_req_get(req);
         req->complete = false;
+        auto is_complete = [req] { return req->complete; };
         if (rte_ring_enqueue(_waiter_ring, req)) {
             wait_req_put(req);
             printf("submit ENOBUFS\n");
             return -ENOBUFS;
         }
-        auto is_complete = [req] { return req->complete; };
         if (timeout < std::chrono::microseconds(0)) {
             req->cond.wait(lock, is_complete);
         } else {
