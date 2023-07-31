@@ -990,6 +990,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 {
     if(_use_dpdk) {
         std::cout << "DPDK implementation in progress" << std::endl;
+        std::exit(0);
     }
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
