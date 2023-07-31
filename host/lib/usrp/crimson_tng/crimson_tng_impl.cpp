@@ -524,6 +524,12 @@ static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint)
 // This is the core find function that will be called when uhd:device find() is called because this is registered
 static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
 {
+    bool use_dpdk = device::has_use_dpdk(hint_);
+    if(use_dpdk) {
+        throw uhd::not_implemented_error("DPDK not implemented for Crimson");
+    }
+
+
     //handle the multi-device discovery
     device_addrs_t hints = separate_device_addr(hint_);
     if (hints.size() > 1)
