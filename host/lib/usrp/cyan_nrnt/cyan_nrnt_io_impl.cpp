@@ -891,9 +891,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 		// power on the channel
 		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
 
-        // Issue reset request, required in case the previous run did not exit cleanly
-        _tree->access<double>(tx_dsp_root(chan) + "/rstreq").set(1);
-
         if(little_endian_supported) {
             // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
             _tree->access<int>(tx_link_path / "endian_swap").set(1);
@@ -909,6 +906,9 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
 		// vita enable
 		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
+
+        // Issue reset request to clean anything from initialization
+        _tree->access<double>(tx_dsp_root(chan) + "/rstreq").set(1);
     }
 
     // Each streamer has its own FIFO buffer that can operate independantly
