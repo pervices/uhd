@@ -452,7 +452,8 @@ void dpdk_ctx::init(const device_addr_t& user_args)
 
         /* Get device info for all the NIC ports */
         int num_dpdk_ports = rte_eth_dev_count_avail();
-        printf("num_dpdk_ports: %i\n", num_dpdk_ports);
+        printf("num_dpdk_ports avail: %i\n", num_dpdk_ports);
+        printf("rte_eth_dev_count_total: %i\n", rte_eth_dev_count_total());
         if (num_dpdk_ports == 0) {
             UHD_LOG_ERROR("DPDK", "No available DPDK devices (ports) found!");
             throw uhd::runtime_error("No available DPDK devices (ports) found!");
