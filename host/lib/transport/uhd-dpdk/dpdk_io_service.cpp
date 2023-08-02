@@ -853,6 +853,7 @@ int dpdk_io_service::_tx_burst(dpdk::dpdk_port* port)
                 break;
             }
             dpdk::dpdk_frame_buff* buff_ptr;
+            printf("buff_ptr: %lx\n", buff_ptr);
             int status = rte_ring_dequeue(send_io->_send_queue, (void**)&buff_ptr);
             if (status) {
                 UHD_LOG_ERROR("DPDK::IO_SERVICE", "TX Q Count doesn't match actual");
