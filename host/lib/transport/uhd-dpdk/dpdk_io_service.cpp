@@ -618,6 +618,7 @@ int dpdk_io_service::_service_arp_request(dpdk::wait_req* req)
     }
 arp_end:
     rte_spinlock_unlock(&port->_spinlock);
+    printf("_service_arp_request status: %i\n", status);
     return status;
 }
 
