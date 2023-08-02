@@ -169,6 +169,7 @@ frame_buff::uptr udp_dpdk_link::get_send_buff(int32_t /*timeout_ms*/)
 
 void udp_dpdk_link::release_send_buff(frame_buff::uptr buff)
 {
+    printf("Releasing send buff\n");
     dpdk_frame_buff* buff_ptr = (dpdk_frame_buff*)buff.release();
     assert(buff_ptr);
     auto mbuf = buff_ptr->get_pktmbuf();
