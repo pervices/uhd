@@ -578,6 +578,7 @@ void dpdk_io_service::_service_xport_disconnect(dpdk::wait_req* req)
 
 int dpdk_io_service::_service_arp_request(dpdk::wait_req* req)
 {
+    UHD_LOG_INFO("DPDK::IO_SERVICE", "_service_arp_request");
     int status                   = 0;
     auto arp_req_data            = (struct dpdk::arp_request*)req->data;
     dpdk::rte_ipv4_addr dst_addr = arp_req_data->tpa;
