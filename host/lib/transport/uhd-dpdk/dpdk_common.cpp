@@ -41,7 +41,7 @@ constexpr int LINK_STATUS_INTERVAL           = 250;
 inline char* eal_add_opt(
     std::vector<const char*>& argv, size_t n, char* dst, const char* opt, const char* arg)
 {
-    UHD_LOG_TRACE("DPDK", opt << " " << arg);
+    UHD_LOG_INFO("DPDK", opt << " " << arg);
     char* ptr = dst;
     strncpy(ptr, opt, n);
     argv.push_back(ptr);
@@ -366,7 +366,7 @@ void dpdk_ctx::_eal_init(const device_addr_t& eal_args)
     auto args = new std::array<char, 4096>();
     char* opt = args->data();
     char* end = args->data() + args->size();
-    UHD_LOG_TRACE("DPDK", "EAL init options: ");
+    UHD_LOG_INFO("DPDK", "EAL init options: ");
     for (std::string& key : eal_args.keys()) {
         std::string val = eal_args[key];
         if (key == "dpdk_coremask") {
@@ -434,7 +434,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
 
         /* Gather global config, build args for EAL, and init UHD-DPDK */
         const device_addr_t dpdk_args = uhd::prefs::get_dpdk_args(user_args);
-        UHD_LOG_TRACE("DPDK", "Configuration:" << std::endl << dpdk_args.to_pp_string());
+        UHD_LOG_INFO("DPDK", "Configuration:" << std::endl << dpdk_args.to_pp_string());
         _eal_init(dpdk_args);
 
         /* TODO: Should MTU be defined per-port? */
@@ -443,7 +443,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
         _num_mbufs = dpdk_args.cast<int>("dpdk_num_mbufs", DEFAULT_NUM_MBUFS);
         _mbuf_cache_size =
             dpdk_args.cast<int>("dpdk_mbuf_cache_size", DEFAULT_MBUF_CACHE_SIZE);
-        UHD_LOG_TRACE("DPDK",
+        UHD_LOG_INFO("DPDK",
             "mtu: " << _mtu << " num_mbufs: " << _num_mbufs
                     << " mbuf_cache_size: " << _mbuf_cache_size);
 
@@ -528,7 +528,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
                 }
                 auto rx_pool = _get_rx_pktbuf_pool(cpu_socket, _num_mbufs * queue_count);
                 auto tx_pool = _get_tx_pktbuf_pool(cpu_socket, _num_mbufs * queue_count);
-                UHD_LOG_TRACE("DPDK",
+                UHD_LOG_INFO("DPDK",
                     "Initializing NIC(" << i << "):" << std::endl
                                         << conf.to_pp_string());
                 _ports[i] = dpdk_port::make(i,
@@ -544,7 +544,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             }
         }
 
-        UHD_LOG_TRACE("DPDK", "Waiting for links to come up...");
+        UHD_LOG_INFO("DPDK", "Waiting for links to come up...");
         do {
             bool all_ports_up = true;
             for (auto& port : _ports) {
@@ -570,7 +570,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             }
         } while (true);
 
-        UHD_LOG_TRACE("DPDK", "Init done -- spawning IO services");
+        UHD_LOG_INFO("DPDK", "Init done -- spawning IO services");
         _init_done = true;
 
         // Links are up, now create one IO service per lcore
@@ -582,7 +582,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
                 dpdk_ports.push_back(get_port(port_id));
             }
             const size_t servq_depth = 32; // FIXME
-            UHD_LOG_TRACE("DPDK",
+            UHD_LOG_INFO("DPDK",
                 "Creating I/O service for lcore "
                     << lcore_id << ", servicing " << dpdk_ports.size()
                     << " ports, service queue depth " << servq_depth);
