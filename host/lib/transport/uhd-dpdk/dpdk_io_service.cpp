@@ -594,12 +594,14 @@ int dpdk_io_service::_service_arp_request(dpdk::wait_req* req)
         entry = (struct dpdk::arp_entry*)rte_zmalloc(NULL, sizeof(*entry), 0);
         if (!entry) {
             status = -ENOMEM;
+            printf("E1\n");
             goto arp_end;
         }
         entry = new (entry) dpdk::arp_entry();
         entry->reqs.push_back(req);
         port->_arp_table[dst_addr] = entry;
         status                     = -EAGAIN;
+        printf("E2\n");
         UHD_LOG_INFO("DPDK::IO_SERVICE", "Address not in table. Sending ARP request.");
         _send_arp_request(port, 0, arp_req_data->tpa);
     } else {
@@ -609,6 +611,7 @@ int dpdk_io_service::_service_arp_request(dpdk::wait_req* req)
                 "ARP: Address in table, but not populated yet. Resending ARP request.");
             port->_arp_table.at(dst_addr)->reqs.push_back(req);
             status = -EAGAIN;
+            printf("E3\n");
             _send_arp_request(port, 0, arp_req_data->tpa);
         } else {
             UHD_LOG_INFO("DPDK::IO_SERVICE", "ARP: Address in table.");
