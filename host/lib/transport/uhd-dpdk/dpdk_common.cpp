@@ -224,7 +224,7 @@ dpdk_port::dpdk_port(port_id_t port,
 
     /* Grab and display the port MAC address. */
     rte_eth_macaddr_get(_port, &_mac_addr);
-    UHD_LOGGER_TRACE("DPDK") << "Port " << _port
+    UHD_LOGGER_INFO("DPDK") << "Port " << _port
                              << " MAC: " << eth_addr_to_string(_mac_addr);
 }
 
@@ -553,7 +553,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
                 rte_eth_link_get(portid, &link);
                 unsigned int link_status = link.link_status;
                 unsigned int link_speed  = link.link_speed;
-                UHD_LOGGER_TRACE("DPDK") << boost::format("Port %u UP: %d, %u Mbps")
+                UHD_LOGGER_INFO("DPDK") << boost::format("Port %u UP: %d, %u Mbps")
                                                 % portid % link_status % link_speed;
                 all_ports_up &= (link.link_status == 1);
             }
