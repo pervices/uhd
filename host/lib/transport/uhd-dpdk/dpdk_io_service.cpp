@@ -329,7 +329,7 @@ int dpdk_io_service::_io_worker(void* arg)
          */
         status = srv->_service_requests();
     }
-
+    UHD_LOG_INFO("DPDK::IO_SERVICE", "_io_worker exiting");
     return status;
 }
 
