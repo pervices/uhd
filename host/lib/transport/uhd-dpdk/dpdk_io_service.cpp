@@ -279,7 +279,7 @@ int dpdk_io_service::_io_worker(void* arg)
     UHD_LOG_INFO("DPDK::IO_SERVICE",
         "I/O service thread '" << name << "' started on lcore " << lcore_id);
 
-    uhd::set_thread_priority_safe();
+    //uhd::set_thread_priority_safe();
 
     snprintf(name, sizeof(name), "rx-tbl_%hu", (uint16_t)lcore_id);
     struct rte_hash_parameters hash_params = {.name = name,
