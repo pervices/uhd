@@ -56,9 +56,9 @@ dpdk_io_service::dpdk_io_service(
     , _ports(ports)
     , _servq(servq_depth, lcore_id)
 {
-    UHD_LOG_TRACE("DPDK::IO_SERVICE", "Launching I/O service for lcore " << lcore_id);
+    UHD_LOG_INFO("DPDK::IO_SERVICE", "Launching I/O service for lcore " << lcore_id);
     for (auto port : _ports) {
-        UHD_LOG_TRACE("DPDK::IO_SERVICE",
+        UHD_LOG_INFO("DPDK::IO_SERVICE",
             "lcore_id " << lcore_id << ": Adding port index " << port->get_port_id());
         _tx_queues[port->get_port_id()]      = std::list<dpdk_send_io*>();
         _recv_xport_map[port->get_port_id()] = std::list<dpdk_recv_io*>();
@@ -77,7 +77,7 @@ dpdk_io_service::sptr dpdk_io_service::make(
 
 dpdk_io_service::~dpdk_io_service()
 {
-    UHD_LOG_TRACE(
+    UHD_LOG_INFO(
         "DPDK::IO_SERVICE", "Shutting down I/O service for lcore " << _lcore_id);
     dpdk::wait_req* req = dpdk::wait_req_alloc(dpdk::wait_type::WAIT_LCORE_TERM, NULL);
     if (!req) {
@@ -276,7 +276,7 @@ int dpdk_io_service::_io_worker(void* arg)
     char name[16];
     snprintf(name, sizeof(name), "dpdk-io_%hu", (uint16_t)lcore_id);
     rte_thread_setname(pthread_self(), name);
-    UHD_LOG_TRACE("DPDK::IO_SERVICE",
+    UHD_LOG_INFO("DPDK::IO_SERVICE",
         "I/O service thread '" << name << "' started on lcore " << lcore_id);
 
     uhd::set_thread_priority_safe();
@@ -474,12 +474,12 @@ void dpdk_io_service::_service_xport_connect(dpdk::wait_req* req)
         rx_entry->push_back(dpdk_io);
     }
     if (dpdk_io->is_recv) {
-        UHD_LOG_TRACE("DPDK::IO_SERVICE", "Servicing RX connect request...");
+        UHD_LOG_INFO("DPDK::IO_SERVICE", "Servicing RX connect request...");
         // Add to xport list for this NIC port
         auto& xport_list = _recv_xport_map.at(port->get_port_id());
         xport_list.push_back((dpdk_recv_io*)dpdk_io->io_client);
     } else {
-        UHD_LOG_TRACE("DPDK::IO_SERVICE", "Servicing TX connect request...");
+        UHD_LOG_INFO("DPDK::IO_SERVICE", "Servicing TX connect request...");
         dpdk_send_io* send_io = static_cast<dpdk_send_io*>(dpdk_io->io_client);
         // Add to xport list for this NIC port
         auto& xport_list = _tx_queues.at(port->get_port_id());
@@ -526,7 +526,7 @@ void dpdk_io_service::_service_xport_disconnect(dpdk::wait_req* req)
         }
     }
     if (dpdk_io->is_recv) {
-        UHD_LOG_TRACE("DPDK::IO_SERVICE", "Servicing RX disconnect request...");
+        UHD_LOG_INFO("DPDK::IO_SERVICE", "Servicing RX disconnect request...");
         dpdk_recv_io* recv_client = static_cast<dpdk_recv_io*>(dpdk_io->io_client);
         // Remove from xport list for this NIC port
         auto& xport_list = _recv_xport_map.at(port->get_port_id());
@@ -542,7 +542,7 @@ void dpdk_io_service::_service_xport_disconnect(dpdk::wait_req* req)
             dpdk_io->link->release_recv_buff(frame_buff::uptr(buff_ptr));
         }
     } else {
-        UHD_LOG_TRACE("DPDK::IO_SERVICE", "Servicing TX disconnect request...");
+        UHD_LOG_INFO("DPDK::IO_SERVICE", "Servicing TX disconnect request...");
         dpdk_send_io* send_client = static_cast<dpdk_send_io*>(dpdk_io->io_client);
         // Remove from xport list for this NIC port
         auto& xport_list = _tx_queues.at(port->get_port_id());
@@ -584,7 +584,7 @@ int dpdk_io_service::_service_arp_request(dpdk::wait_req* req)
     auto ctx_sptr                = _ctx.lock();
     UHD_ASSERT_THROW(ctx_sptr);
     dpdk::dpdk_port* port = ctx_sptr->get_port(arp_req_data->port);
-    UHD_LOG_TRACE("DPDK::IO_SERVICE",
+    UHD_LOG_INFO("DPDK::IO_SERVICE",
         "ARP: Requesting address for " << dpdk::ipv4_num_to_str(dst_addr));
 
     rte_spinlock_lock(&port->_spinlock);
@@ -599,18 +599,18 @@ int dpdk_io_service::_service_arp_request(dpdk::wait_req* req)
         entry->reqs.push_back(req);
         port->_arp_table[dst_addr] = entry;
         status                     = -EAGAIN;
-        UHD_LOG_TRACE("DPDK::IO_SERVICE", "Address not in table. Sending ARP request.");
+        UHD_LOG_INFO("DPDK::IO_SERVICE", "Address not in table. Sending ARP request.");
         _send_arp_request(port, 0, arp_req_data->tpa);
     } else {
         entry = port->_arp_table.at(dst_addr);
         if (rte_is_zero_ether_addr(&entry->mac_addr)) {
-            UHD_LOG_TRACE("DPDK::IO_SERVICE",
+            UHD_LOG_INFO("DPDK::IO_SERVICE",
                 "ARP: Address in table, but not populated yet. Resending ARP request.");
             port->_arp_table.at(dst_addr)->reqs.push_back(req);
             status = -EAGAIN;
             _send_arp_request(port, 0, arp_req_data->tpa);
         } else {
-            UHD_LOG_TRACE("DPDK::IO_SERVICE", "ARP: Address in table.");
+            UHD_LOG_INFO("DPDK::IO_SERVICE", "ARP: Address in table.");
             rte_ether_addr_copy(&entry->mac_addr, &arp_req_data->tha);
             status = 0;
         }
@@ -719,7 +719,7 @@ int dpdk_io_service::_process_arp(
 {
     uint32_t dest_ip                = arp_frame->arp_data.arp_sip;
     struct rte_ether_addr dest_addr = arp_frame->arp_data.arp_sha;
-    UHD_LOG_TRACE("DPDK::IO_SERVICE",
+    UHD_LOG_INFO("DPDK::IO_SERVICE",
         "Processing ARP packet: " << dpdk::ipv4_num_to_str(dest_ip) << " -> "
                                   << dpdk::eth_addr_to_string(dest_addr));
     /* Add entry to ARP table */
@@ -749,7 +749,7 @@ int dpdk_io_service::_process_arp(
     /* Respond if this was an ARP request */
     if (arp_frame->arp_opcode == rte_cpu_to_be_16(RTE_ARP_OP_REQUEST)
         && arp_frame->arp_data.arp_tip == port->get_ipv4()) {
-        UHD_LOG_TRACE("DPDK::IO_SERVICE", "Sending ARP reply.");
+        UHD_LOG_INFO("DPDK::IO_SERVICE", "Sending ARP reply.");
         port->_arp_reply(queue_id, arp_frame);
     }
 
