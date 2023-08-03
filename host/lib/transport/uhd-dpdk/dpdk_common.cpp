@@ -132,6 +132,7 @@ dpdk_port::dpdk_port(port_id_t port,
 #else
     port_conf.rxmode.offloads       = rx_offloads;
 #endif
+    printf("_mtu: %lu\n", _mtu);
 #if RTE_VER_YEAR > 21 || (RTE_VER_YEAR == 21 && RTE_VER_MONTH == 11)
     port_conf.rxmode.mtu = _mtu;
 #else
