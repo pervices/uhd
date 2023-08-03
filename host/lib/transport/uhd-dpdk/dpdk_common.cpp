@@ -216,9 +216,6 @@ dpdk_port::dpdk_port(port_id_t port,
         }
     }
 
-    printf("debug exit\n");
-    std::exit(0);
-
     /* TODO: Enable multiple queues (only support 1 right now) */
 
     /* Start the Ethernet device */
@@ -228,6 +225,9 @@ dpdk_port::dpdk_port(port_id_t port,
             << boost::format("Port %d: Could not start device") % _port;
         throw uhd::runtime_error("DPDK: Failure to start device");
     }
+
+    printf("debug exit\n");
+    std::exit(0);
 
     /* Grab and display the port MAC address. */
     rte_eth_macaddr_get(_port, &_mac_addr);
