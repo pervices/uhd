@@ -126,7 +126,8 @@ dpdk_port::dpdk_port(port_id_t port,
         _num_queues = num_queues;
     }
 
-    struct rte_eth_conf port_conf = {};
+    struct rte_eth_conf port_conf;
+    memset(&port_conf, 0, sizeof(struct rte_eth_conf));
 #ifdef DEV_RX_OFFLOAD_JUMBO_FRAME
     port_conf.rxmode.offloads = rx_offloads | DEV_RX_OFFLOAD_JUMBO_FRAME;
 #else
