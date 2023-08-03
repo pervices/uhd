@@ -483,6 +483,7 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint, const 
 {
 
     // temporarily make a UDP device only to look for devices
+#ifdef HAVE_DPDK
     udp_simple::sptr comm;
     if(use_dpdk) {
         // Check if DPDK is initialize, and initialize it if not ready
@@ -494,6 +495,10 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint, const 
     } else {
         comm = udp_simple::make_broadcast(hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
     }
+#else
+    (void) use_dpdk;
+    udp_simple::sptr comm = udp_simple::make_broadcast(hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+#endif
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
