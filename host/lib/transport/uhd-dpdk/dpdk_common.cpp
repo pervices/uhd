@@ -226,7 +226,11 @@ dpdk_port::dpdk_port(port_id_t port,
         throw uhd::runtime_error("DPDK: Failure to start device");
     }
 
-    printf("debug exit\n");
+    for(size_t n = 0 ; n < 10; n++) {
+        printf("sleep: %lu\n", n);
+        ::usleep(1000000);
+    }
+    printf("debug sleep\n");
     std::exit(0);
 
     /* Grab and display the port MAC address. */
