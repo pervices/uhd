@@ -226,11 +226,6 @@ dpdk_port::dpdk_port(port_id_t port,
         throw uhd::runtime_error("DPDK: Failure to start device");
     }
 
-    for(size_t n = 0 ; n < 10; n++) {
-        printf("sleep: %lu\n", n);
-        ::usleep(1000000);
-    }
-
     /* Grab and display the port MAC address. */
     rte_eth_macaddr_get(_port, &_mac_addr);
     UHD_LOGGER_INFO("DPDK") << "Port " << _port
