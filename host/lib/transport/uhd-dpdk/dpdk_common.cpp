@@ -96,8 +96,6 @@ dpdk_port::dpdk_port(port_id_t port,
     , _rx_pktbuf_pool(rx_pktbuf_pool)
     , _tx_pktbuf_pool(tx_pktbuf_pool)
 {
-    printf("debug exit\n");
-    std::exit(0);
     /* Set MTU and IPv4 address */
     int retval;
 
@@ -151,6 +149,9 @@ dpdk_port::dpdk_port(port_id_t port,
         UHD_LOG_ERROR("DPDK", "Failed to configure the device");
         throw uhd::runtime_error("DPDK: Failed to configure the device");
     }
+
+    printf("debug exit\n");
+    std::exit(0);
 
     retval = rte_eth_dev_set_mtu(_port, _mtu);
     if (retval) {
