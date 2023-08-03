@@ -588,7 +588,7 @@ int dpdk_io_service::_service_arp_request(dpdk::wait_req* req)
     UHD_LOG_INFO("DPDK::IO_SERVICE",
         "ARP: Requesting address for " << dpdk::ipv4_num_to_str(dst_addr));
 
-    // rte_spinlock_lock(&port->_spinlock);
+    rte_spinlock_lock(&port->_spinlock);
     struct dpdk::arp_entry* entry = NULL;
     if (port->_arp_table.count(dst_addr) == 0) {
         entry = (struct dpdk::arp_entry*)rte_zmalloc(NULL, sizeof(*entry), 0);
