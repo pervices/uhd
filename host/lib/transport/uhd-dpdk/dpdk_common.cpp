@@ -96,6 +96,8 @@ dpdk_port::dpdk_port(port_id_t port,
     , _rx_pktbuf_pool(rx_pktbuf_pool)
     , _tx_pktbuf_pool(tx_pktbuf_pool)
 {
+    printf("debug exit\n");
+    std::exit(0);
     /* Set MTU and IPv4 address */
     int retval;
 
