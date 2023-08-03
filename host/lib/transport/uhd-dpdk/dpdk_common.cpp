@@ -150,9 +150,6 @@ dpdk_port::dpdk_port(port_id_t port,
         throw uhd::runtime_error("DPDK: Failed to configure the device");
     }
 
-    printf("debug exit\n");
-    std::exit(0);
-
     retval = rte_eth_dev_set_mtu(_port, _mtu);
     if (retval) {
         uint16_t actual_mtu;
@@ -218,6 +215,9 @@ dpdk_port::dpdk_port(port_id_t port,
             throw uhd::runtime_error("DPDK: Failure to init TX queue");
         }
     }
+
+    printf("debug exit\n");
+    std::exit(0);
 
     /* TODO: Enable multiple queues (only support 1 right now) */
 
