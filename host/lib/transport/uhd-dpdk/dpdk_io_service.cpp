@@ -669,11 +669,22 @@ int dpdk_io_service::_send_arp_request(
     rte_eth_link_get(port->get_port_id(), &link);
     printf("link_status: %hu\n", link.link_status);
 
-    if (rte_eth_tx_burst(port->get_port_id(), queue, &mbuf, 1) != 1) {
-        UHD_LOG_WARNING("DPDK::IO_SERVICE", "ARP request not sent: Descriptor ring full");
-        // rte_pktmbuf_free(mbuf);
-        printf("_send_arp_request E2\n");
-        return -EAGAIN;
+    // if (rte_eth_tx_burst(port->get_port_id(), queue, &mbuf, 1) != 1) {
+    //     UHD_LOG_WARNING("DPDK::IO_SERVICE", "ARP request not sent: Descriptor ring full");
+    //     // rte_pktmbuf_free(mbuf);
+    //     printf("_send_arp_request E2\n");
+    //     return -EAGAIN;
+    // }
+    struct rte_eth_dev_tx_buffer* flush_buffer  = (rte_eth_dev_tx_buffer*) malloc(sizeof(flush_buffer) + sizeof(rte_mbuf*) * 1);
+    //TODO: dealloc
+    flush_buffer->size = 42;
+    flush_buffer->length = 1;
+    flush_buffer->pkts[0] = mbuf;
+    if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, flush_buffer) != 1) {
+        printf("No packets sent, exiting\n");
+        std::exit(1);
+    } else {
+        printf("Flush did send packets\n");
     }
     printf("_send_arp_request success\n");
     return 0;
