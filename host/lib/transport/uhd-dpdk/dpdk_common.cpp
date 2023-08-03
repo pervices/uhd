@@ -142,6 +142,7 @@ dpdk_port::dpdk_port(port_id_t port,
     port_conf.intr_conf.lsc   = 1;
 
     printf("Configuring device\n");
+    printf("_num_queues: %lu\n", _num_queues);
     retval = rte_eth_dev_configure(_port, _num_queues, _num_queues, &port_conf);
     if (retval != 0) {
         UHD_LOG_ERROR("DPDK", "Failed to configure the device");
