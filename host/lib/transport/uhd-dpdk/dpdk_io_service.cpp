@@ -667,7 +667,7 @@ int dpdk_io_service::_send_arp_request(
 
     if (rte_eth_tx_burst(port->get_port_id(), queue, &mbuf, 1) != 1) {
         UHD_LOG_WARNING("DPDK::IO_SERVICE", "ARP request not sent: Descriptor ring full");
-        rte_pktmbuf_free(mbuf);
+        // rte_pktmbuf_free(mbuf);
         printf("_send_arp_request E2\n");
         return -EAGAIN;
     }
