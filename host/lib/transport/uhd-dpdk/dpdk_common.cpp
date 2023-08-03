@@ -230,8 +230,6 @@ dpdk_port::dpdk_port(port_id_t port,
         printf("sleep: %lu\n", n);
         ::usleep(1000000);
     }
-    printf("debug sleep\n");
-    std::exit(0);
 
     /* Grab and display the port MAC address. */
     rte_eth_macaddr_get(_port, &_mac_addr);
