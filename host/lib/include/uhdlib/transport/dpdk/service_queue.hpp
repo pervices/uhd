@@ -168,7 +168,7 @@ public:
             if (!status) {
                 printf("submit ETIMEDOUT\n");
                 printf("rte_ring_empty: %i\n", rte_ring_empty(_waiter_ring));
-                return -ETIMEDOUT;
+                return 0;//-ETIMEDOUT;
             }
         }
         printf("submit success\n");
