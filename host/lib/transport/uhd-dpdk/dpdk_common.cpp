@@ -457,6 +457,13 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             throw uhd::runtime_error("No available DPDK devices (ports) found!");
         }
         device_addrs_t nics(num_dpdk_ports);
+
+        // Reset every device
+        RTE_ETH_FOREACH_DEV(i) {
+            printf("reseting dpdk port: %i\n", i);
+            rte_eth_dev_reset(i);
+        }
+
         RTE_ETH_FOREACH_DEV(i)
         {
             struct rte_ether_addr mac_addr;
