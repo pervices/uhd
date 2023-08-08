@@ -676,11 +676,13 @@ int dpdk_io_service::_send_arp_request(
         return -EAGAIN;
     }
     printf("T10\n");
-    struct rte_eth_dev_tx_buffer flush_buffer;
+    struct rte_eth_dev_tx_buffer *flush_buffer = (struct rte_eth_dev_tx_buffer*)malloc(sizeof(flush_buffer) + sizeof(rte_mbuf) * 1);
     memset(&flush_buffer, 0, sizeof(flush_buffer));
-    flush_buffer.pkts[0] = mbuf;
+    flush_buffer->length = 1;
+    flush_buffer->size = 42;
+    flush_buffer->pkts[0] = mbuf;
 
-    if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, &flush_buffer) != 1) {
+    if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, flush_buffer) != 1) {
         printf("No packets sent, exiting\n");
         std::exit(1);
     } else {
