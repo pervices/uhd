@@ -149,6 +149,8 @@ public:
      */
     int submit(wait_req* req, std::chrono::microseconds timeout)
     {
+        int i = 0;
+        struct rte_eth_stats eth_stats;
         auto timeout_point = std::chrono::steady_clock::now() + timeout;
         std::unique_lock<std::mutex> lock(req->mutex);
         /* Get a reference here, to be consumed by other thread (handshake) */
@@ -166,11 +168,28 @@ public:
             auto status = req->cond.wait_until(lock, timeout_point, is_complete);
             if (!status) {
                 printf("submit ETIMEDOUT\n");
-                printf("rte_ring_empty: %i\n", rte_ring_empty(_waiter_ring));
+                RTE_ETH_FOREACH_DEV(i) {
+                    rte_eth_stats_get(i, &eth_stats);
+                    printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
+                    printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
+                    printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
+                    printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
+                    printf("eth_stats.q_ipackets: %lu\n", eth_stats.q_ipackets);
+                    printf("eth_stats.q_errors: %lu\n", eth_stats.q_errors);
+                }
                 return -ETIMEDOUT;
             }
         }
         printf("submit success\n");
+        RTE_ETH_FOREACH_DEV(i) {
+            rte_eth_stats_get(i, &eth_stats);
+            printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
+            printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
+            printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
+            printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
+            printf("eth_stats.q_ipackets: %lu\n", eth_stats.q_ipackets);
+            printf("eth_stats.q_errors: %lu\n", eth_stats.q_errors);
+        }
         return 0;
     }
 
