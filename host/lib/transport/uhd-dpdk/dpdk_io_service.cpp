@@ -675,12 +675,12 @@ int dpdk_io_service::_send_arp_request(
     //     printf("_send_arp_request E2\n");
     //     return -EAGAIN;
     // }
-    struct rte_eth_dev_tx_buffer* flush_buffer  = (rte_eth_dev_tx_buffer*) malloc(sizeof(flush_buffer) + sizeof(rte_mbuf*) * 1);
+    struct rte_eth_dev_tx_buffer* flush_buffer  = (rte_eth_dev_tx_buffer*) malloc(sizeof(flush_buffer) + sizeof(rte_mbuf) * 1);
     //TODO: dealloc
     flush_buffer->size = 42;
     flush_buffer->length = 1;
-    memcpy(flush_buffer->pkts, mbuf, sizeof(mbuf));
-    std::cout << "sizeof(mbuf): " << sizeof(mbuf) << std::endl;
+    memcpy(flush_buffer->pkts, mbuf, sizeof(rte_mbuf));
+    std::cout << "sizeof(rte_mbuf): " << sizeof(rte_mbuf) << std::endl;
     if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, flush_buffer) != 1) {
         printf("No packets sent, exiting\n");
         std::exit(1);
