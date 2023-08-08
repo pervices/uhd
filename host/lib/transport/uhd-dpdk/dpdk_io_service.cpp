@@ -677,6 +677,7 @@ int dpdk_io_service::_send_arp_request(
     }
     printf("T10\n");
     struct rte_eth_dev_tx_buffer flush_buffer;
+    memset(&flush_buffer, 0, sizeof(flush_buffer));
 
     if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, &flush_buffer) != 1) {
         printf("No packets sent, exiting\n");
