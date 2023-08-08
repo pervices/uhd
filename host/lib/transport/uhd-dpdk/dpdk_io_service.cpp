@@ -676,7 +676,9 @@ int dpdk_io_service::_send_arp_request(
         return -EAGAIN;
     }
     printf("T10\n");
-    struct rte_eth_dev_tx_buffer *flush_buffer = (struct rte_eth_dev_tx_buffer*)malloc(sizeof(rte_eth_dev_tx_buffer) + sizeof(mbuf) * 1);
+    auto byte_to_malloc = sizeof(rte_eth_dev_tx_buffer) + sizeof(mbuf) * 1;
+    std::cout << "byte_to_malloc: " << byte_to_malloc << std::endl;
+    struct rte_eth_dev_tx_buffer *flush_buffer = (struct rte_eth_dev_tx_buffer*)malloc(byte_to_malloc);
     memset(&flush_buffer, 0, sizeof(flush_buffer));
     printf("T11\n");
     flush_buffer->length = 1;
