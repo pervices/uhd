@@ -675,6 +675,7 @@ int dpdk_io_service::_send_arp_request(
         printf("_send_arp_request E2\n");
         return -EAGAIN;
     }
+    printf("T10\n");
     struct rte_eth_dev_tx_buffer* flush_buffer;
 
     if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, flush_buffer) != 1) {
