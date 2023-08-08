@@ -720,10 +720,12 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
         l2_data           = (char*)&hdr[1];
         switch (rte_be_to_cpu_16(hdr->ether_type)) {
             case RTE_ETHER_TYPE_ARP:
+                printf("ARP packet reveived\n");
                 _process_arp(port, queue, (struct rte_arp_hdr*)l2_data);
                 rte_pktmbuf_free(bufs[buf]);
                 break;
             case RTE_ETHER_TYPE_IPV4:
+                printf("IPV4 packet reveived\n");
 
 #if RTE_VER_YEAR > 21 || (RTE_VER_YEAR == 21 && RTE_VER_MONTH == 11)
                 if ((ol_flags & RTE_MBUF_F_RX_IP_CKSUM_MASK)
@@ -742,6 +744,7 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
                 }
                 break;
             default:
+                printf("Other packet reveived\n");
                 rte_pktmbuf_free(bufs[buf]);
                 break;
         }
