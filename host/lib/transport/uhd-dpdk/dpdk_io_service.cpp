@@ -676,9 +676,9 @@ int dpdk_io_service::_send_arp_request(
         return -EAGAIN;
     }
     printf("T10\n");
-    struct rte_eth_dev_tx_buffer* flush_buffer;
+    struct rte_eth_dev_tx_buffer flush_buffer;
 
-    if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, flush_buffer) != 1) {
+    if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, &flush_buffer) != 1) {
         printf("No packets sent, exiting\n");
         std::exit(1);
     } else {
