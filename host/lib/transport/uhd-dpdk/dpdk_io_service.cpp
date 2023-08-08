@@ -685,7 +685,7 @@ int dpdk_io_service::_send_arp_request(
     printf("T11\n");
     flush_buffer->length = 1;
     printf("T12\n");
-    flush_buffer->size = sizeof(mbuf);
+    flush_buffer->size = mbuf->pkt_len;
     printf("T13\n");
     flush_buffer->pkts[0] = mbuf;
 
