@@ -170,6 +170,7 @@ public:
                 printf("submit ETIMEDOUT\n");
                 RTE_ETH_FOREACH_DEV(i) {
                     rte_eth_stats_get(i, &eth_stats);
+                    printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
                     printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
                     printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
                     printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
@@ -183,6 +184,7 @@ public:
         printf("submit success\n");
         RTE_ETH_FOREACH_DEV(i) {
             rte_eth_stats_get(i, &eth_stats);
+            printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
             printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
             printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
             printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
