@@ -576,6 +576,11 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             }
         } while (true);
 
+        printf("enabling promiscuous mode\n");
+        RTE_ETH_FOREACH_DEV(i) {
+            rte_eth_promiscuous_enable(i);
+        }
+
         UHD_LOG_INFO("DPDK", "Init done -- spawning IO services");
         _init_done = true;
 
