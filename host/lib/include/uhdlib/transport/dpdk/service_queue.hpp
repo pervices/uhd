@@ -175,8 +175,6 @@ public:
                     printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
                     printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
                     printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
-                    printf("eth_stats.q_ipackets: %lu\n", eth_stats.q_ipackets);
-                    printf("eth_stats.q_errors: %lu\n", eth_stats.q_errors);
                 }
                 return -ETIMEDOUT;
             }
@@ -189,8 +187,6 @@ public:
             printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
             printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
             printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
-            printf("eth_stats.q_ipackets: %lu\n", eth_stats.q_ipackets);
-            printf("eth_stats.q_errors: %lu\n", eth_stats.q_errors);
         }
         return 0;
     }
