@@ -681,7 +681,7 @@ int dpdk_io_service::_send_arp_request(
     struct rte_eth_dev_tx_buffer *flush_buffer;
     flush_buffer = (struct rte_eth_dev_tx_buffer*) malloc(byte_to_malloc);
     printf("T10.5\n");
-    memset(&flush_buffer, 0, sizeof(flush_buffer));
+    memset(flush_buffer, 0, byte_to_malloc);
     printf("T11\n");
     flush_buffer->length = 1;
     printf("T12\n");
