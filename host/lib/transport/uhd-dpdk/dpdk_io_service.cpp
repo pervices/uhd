@@ -679,7 +679,8 @@ int dpdk_io_service::_send_arp_request(
     //TODO: dealloc
     flush_buffer->size = 42;
     flush_buffer->length = 1;
-    flush_buffer->pkts[0] = mbuf;
+    memcpy(flush_buffer->pkts, mbuf, sizeof(mbuf));
+    std::cout << "sizeof(mbuf): " << sizeof(mbuf) << std::endl;
     if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, flush_buffer) != 1) {
         printf("No packets sent, exiting\n");
         std::exit(1);
