@@ -132,6 +132,20 @@ void dpdk_io_service::attach_send_link(send_link_if::sptr link)
             throw uhd::runtime_error("DPDK: Could not allocate wait_req for ARP request");
         }
         if (_servq.submit(arp_req, std::chrono::microseconds(3000000))) {
+            int i = 0;
+            RTE_ETH_FOREACH_DEV(i) {
+                rte_eth_dev_stop(i);
+                rte_eth_dev_start(i);
+            }
+            printf("sleeping after start stopping devices\n");
+            ::usleep(1000000);
+            ::usleep(1000000);
+            ::usleep(1000000);
+            ::usleep(1000000);
+            ::usleep(1000000);
+            ::usleep(1000000);
+            ::usleep(1000000);
+            printf("re attempting arp\n");
             // Try one more time...
             auto arp_req2 = wait_req_alloc(dpdk::wait_type::WAIT_ARP, (void*)&arp_data);
             if (_servq.submit(arp_req2, std::chrono::microseconds(30000000))) {
