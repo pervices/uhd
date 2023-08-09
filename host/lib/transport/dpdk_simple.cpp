@@ -178,12 +178,14 @@ private:
 
     bool _recv_callback(buff_t::uptr&)
     {
+        printf("_recv_callback\n");
         // Queue it up
         return true;
     }
 
     void _recv_fc_callback(buff_t::uptr buff)
     {
+        printf("_recv_fc_callback\n");
         _link->release_recv_buff(std::move(buff));
     }
 
