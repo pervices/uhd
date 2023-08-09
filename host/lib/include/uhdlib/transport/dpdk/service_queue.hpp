@@ -172,9 +172,8 @@ public:
                     rte_eth_stats_get(i, &eth_stats);
                     printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
                     printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
-                    printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
-                    printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
-                    printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
+                    printf("eth_stats.opackets: %lu\n", eth_stats.opackets);
+                    printf("eth_stats.obytes: %lu\n", eth_stats.obytes);
                 }
                 return -ETIMEDOUT;
             }
@@ -184,9 +183,8 @@ public:
             rte_eth_stats_get(i, &eth_stats);
             printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
             printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
-            printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
-            printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
-            printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
+            printf("eth_stats.opackets: %lu\n", eth_stats.opackets);
+            printf("eth_stats.obytes: %lu\n", eth_stats.obytes);
         }
         return 0;
     }
