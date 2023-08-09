@@ -198,11 +198,11 @@ public:
      */
     wait_req* pop()
     {
-        printf("pop\n");
         wait_req* req;
         if (rte_ring_dequeue(_waiter_ring, (void**)&req)) {
             return NULL;
         }
+        printf("pop success\n");
         return req;
     }
 
