@@ -532,11 +532,13 @@ void dpdk_io_service::_service_xport_disconnect(dpdk::wait_req* req)
         auto& xport_list = _recv_xport_map.at(port->get_port_id());
         xport_list.remove(recv_client);
         while (!rte_ring_empty(recv_client->_recv_queue)) {
+            printf("emptying recv queue\n");
             frame_buff* buff_ptr;
             rte_ring_dequeue(recv_client->_recv_queue, (void**)&buff_ptr);
             dpdk_io->link->release_recv_buff(frame_buff::uptr(buff_ptr));
         }
         while (!rte_ring_empty(recv_client->_release_queue)) {
+            printf("emptying release queue\n");
             frame_buff* buff_ptr;
             rte_ring_dequeue(recv_client->_release_queue, (void**)&buff_ptr);
             dpdk_io->link->release_recv_buff(frame_buff::uptr(buff_ptr));
