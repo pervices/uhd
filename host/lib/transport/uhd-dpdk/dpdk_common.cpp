@@ -551,6 +551,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
         }
 
         UHD_LOG_INFO("DPDK", "Waiting for links to come up...");
+        int consecutive_link_up = 0;
         do {
             bool all_ports_up = true;
             for (auto& port : _ports) {
@@ -565,7 +566,12 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             }
 
             if (all_ports_up) {
-                break;
+                consecutive_link_up++;
+                if(consecutive_link_up > 5) {
+                    break;
+                }
+            } else {
+                consecutive_link_up = 0;
             }
 
             rte_delay_ms(LINK_STATUS_INTERVAL);
