@@ -235,6 +235,7 @@ dpdk_port::dpdk_port(port_id_t port,
 dpdk_port::~dpdk_port()
 {
     rte_eth_dev_stop(_port);
+    rte_eth_dev_close(_port);
     rte_spinlock_lock(&_spinlock);
     for (auto kv : _arp_table) {
         for (auto req : kv.second->reqs) {
