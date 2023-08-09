@@ -168,25 +168,18 @@ public:
             auto status = req->cond.wait_until(lock, timeout_point, is_complete);
             if (!status) {
                 printf("submit ETIMEDOUT\n");
-                printf("RTE_ETHDEV_QUEUE_STAT_CNTRS: %i\n", RTE_ETHDEV_QUEUE_STAT_CNTRS);
                 RTE_ETH_FOREACH_DEV(i) {
                     rte_eth_stats_get(i, &eth_stats);
                     printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
                     printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
-                    printf("eth_stats.opackets: %lu\n", eth_stats.opackets);
-                    printf("eth_stats.obytes: %lu\n", eth_stats.obytes);
+                    printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
+                    printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
+                    printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
                 }
                 return -ETIMEDOUT;
             }
         }
         printf("submit success\n");
-        RTE_ETH_FOREACH_DEV(i) {
-            rte_eth_stats_get(i, &eth_stats);
-            printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
-            printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
-            printf("eth_stats.opackets: %lu\n", eth_stats.opackets);
-            printf("eth_stats.obytes: %lu\n", eth_stats.obytes);
-        }
         return 0;
     }
 
