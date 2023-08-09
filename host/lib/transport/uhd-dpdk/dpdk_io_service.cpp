@@ -135,6 +135,12 @@ void dpdk_io_service::attach_send_link(send_link_if::sptr link)
             // Try one more time...
             auto arp_req2 = wait_req_alloc(dpdk::wait_type::WAIT_ARP, (void*)&arp_data);
             if (_servq.submit(arp_req2, std::chrono::microseconds(30000000))) {
+                struct rte_eth_link link;
+                rte_eth_link_get(arp_data.port, &link);
+                unsigned int link_status = link.link_status;
+                unsigned int link_speed  = link.link_speed;
+                UHD_LOGGER_INFO("DPDK") << boost::format("ARP failed: Port %u UP: %d, %u Mbps")
+                                                % arp_data.port % link_status % link_speed;
                 wait_req_put(arp_req);
                 wait_req_put(arp_req2);
                 throw uhd::io_error("DPDK: Could not reach host");
@@ -533,13 +539,13 @@ void dpdk_io_service::_service_xport_disconnect(dpdk::wait_req* req)
         xport_list.remove(recv_client);
         while (!rte_ring_empty(recv_client->_recv_queue)) {
             printf("emptying recv queue\n");
-            frame_buff* buff_ptr;
+            frame_buff* buff_ptr = NULL;
             rte_ring_dequeue(recv_client->_recv_queue, (void**)&buff_ptr);
             dpdk_io->link->release_recv_buff(frame_buff::uptr(buff_ptr));
         }
         while (!rte_ring_empty(recv_client->_release_queue)) {
             printf("emptying release queue\n");
-            frame_buff* buff_ptr;
+            frame_buff* buff_ptr = NULL;
             rte_ring_dequeue(recv_client->_release_queue, (void**)&buff_ptr);
             dpdk_io->link->release_recv_buff(frame_buff::uptr(buff_ptr));
         }
@@ -550,12 +556,12 @@ void dpdk_io_service::_service_xport_disconnect(dpdk::wait_req* req)
         auto& xport_list = _tx_queues.at(port->get_port_id());
         xport_list.remove(send_client);
         while (!rte_ring_empty(send_client->_send_queue)) {
-            frame_buff* buff_ptr;
+            frame_buff* buff_ptr = NULL;
             rte_ring_dequeue(send_client->_send_queue, (void**)&buff_ptr);
             dpdk_io->link->release_send_buff(frame_buff::uptr(buff_ptr));
         }
         while (!rte_ring_empty(send_client->_buffer_queue)) {
-            frame_buff* buff_ptr;
+            frame_buff* buff_ptr = NULL;
             rte_ring_dequeue(send_client->_buffer_queue, (void**)&buff_ptr);
             dpdk_io->link->release_send_buff(frame_buff::uptr(buff_ptr));
         }
