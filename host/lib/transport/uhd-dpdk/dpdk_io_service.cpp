@@ -134,13 +134,20 @@ void dpdk_io_service::attach_send_link(send_link_if::sptr link)
         if (_servq.submit(arp_req, std::chrono::microseconds(3000000))) {
             // Try one more time...
             auto arp_req2 = wait_req_alloc(dpdk::wait_type::WAIT_ARP, (void*)&arp_data);
-            if (_servq.submit(arp_req2, std::chrono::microseconds(30000000))) {
+            if (_servq.submit(arp_req2, std::chrono::microseconds(6000000))) {
                 struct rte_eth_link link;
                 rte_eth_link_get(arp_data.port, &link);
                 unsigned int link_status = link.link_status;
                 unsigned int link_speed  = link.link_speed;
                 UHD_LOGGER_INFO("DPDK") << boost::format("ARP failed: Port %u UP: %d, %u Mbps")
                                                 % arp_data.port % link_status % link_speed;
+                struct rte_eth_stats eth_stats;
+                rte_eth_stats_get(arp_data.port, &eth_stats);
+                printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
+                printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
+                printf("eth_stats.imissed: %lu\n", eth_stats.imissed);
+                printf("eth_stats.ierrors: %lu\n", eth_stats.ierrors);
+                printf("eth_stats.rx_nombuf: %lu\n", eth_stats.rx_nombuf);
                 wait_req_put(arp_req);
                 wait_req_put(arp_req2);
                 throw uhd::io_error("DPDK: Could not reach host");
