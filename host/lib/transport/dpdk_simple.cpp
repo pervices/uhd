@@ -41,10 +41,10 @@ public:
         _io_service = ctx->get_io_service(_port_id);
         // This is normally done by the I/O service manager, but with DPDK, this
         // is all it does so we skip that step
-        UHD_LOG_TRACE("DPDK::SIMPLE", "Attaching link to I/O service...");
-        _io_service->attach_recv_link(_link);
-        _io_service->attach_send_link(_link);
-
+        // UHD_LOG_TRACE("DPDK::SIMPLE", "Attaching link to I/O service...");
+        // _io_service->attach_recv_link(_link);
+        // _io_service->attach_send_link(_link);
+        //
         auto recv_cb = [this](buff_t::uptr& buff, recv_link_if*, send_link_if*) {
             return this->_recv_callback(buff);
         };
