@@ -703,6 +703,7 @@ int dpdk_io_service::_send_arp_request(
     return 0;
 }
 
+static int packets_recv = 0;
 /* Do a burst of RX on port */
 int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
 {
@@ -714,7 +715,8 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
     if (unlikely(num_rx == 0)) {
         return 0;
     }
-    printf("Packets received\n");
+    packets_recv+=num_rx;
+    printf("packets_recv: %i\n", packets_recv);
 
     for (int buf = 0; buf < num_rx; buf++) {
         uint64_t ol_flags = bufs[buf]->ol_flags;
