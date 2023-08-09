@@ -168,8 +168,7 @@ public:
             auto status = req->cond.wait_until(lock, timeout_point, is_complete);
             if (!status) {
                 printf("submit ETIMEDOUT\n");
-                printf("rte_ring_full(_waiter_ring): %i\n", rte_ring_full(_waiter_ring));
-                printf("rte_ring_empty(_waiter_ring): %i\n", rte_ring_empty(_waiter_ring));
+                printf("RTE_ETHDEV_QUEUE_STAT_CNTRS: %i\n", RTE_ETHDEV_QUEUE_STAT_CNTRS);
                 RTE_ETH_FOREACH_DEV(i) {
                     rte_eth_stats_get(i, &eth_stats);
                     printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
@@ -180,8 +179,6 @@ public:
                 return -ETIMEDOUT;
             }
         }
-        printf("rte_ring_full(_waiter_ring): %i\n", rte_ring_full(_waiter_ring));
-        printf("rte_ring_empty(_waiter_ring): %i\n", rte_ring_empty(_waiter_ring));
         printf("submit success\n");
         RTE_ETH_FOREACH_DEV(i) {
             rte_eth_stats_get(i, &eth_stats);
