@@ -596,6 +596,10 @@ void dpdk_ctx::init(const device_addr_t& user_args)
                 {uhd::transport::dpdk_io_service::make(lcore_id, dpdk_ports, servq_depth),
                     lcore_portids_pair.second});
         }
+        RTE_ETH_FOREACH_DEV(i)
+        {
+            printf("rte_eth_allmulticast_get: %i\n", rte_eth_allmulticast_get(i));
+        }
     }
 }
 
