@@ -465,10 +465,10 @@ void dpdk_ctx::init(const device_addr_t& user_args)
         device_addrs_t nics(num_dpdk_ports);
 
         // Reset every device
-        RTE_ETH_FOREACH_DEV(i) {
-            printf("reseting dpdk port: %i\n", i);
-            rte_eth_dev_reset(i);
-        }
+        // RTE_ETH_FOREACH_DEV(i) {
+        //     printf("reseting dpdk port: %i\n", i);
+        //     rte_eth_dev_reset(i);
+        // }
 
         RTE_ETH_FOREACH_DEV(i)
         {
