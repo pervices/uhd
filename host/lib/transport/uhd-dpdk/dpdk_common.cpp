@@ -234,7 +234,7 @@ dpdk_port::dpdk_port(port_id_t port,
 
 dpdk_port::~dpdk_port()
 {
-    UHD_LOGGER_ERROR("DPDK") << "dpdk_port destructor";
+    UHD_LOGGER_ERROR("DPDK") << "dpdk_port start destructor";
     rte_eth_dev_stop(_port);
     rte_eth_dev_close(_port);
     rte_spinlock_lock(&_spinlock);
@@ -246,6 +246,7 @@ dpdk_port::~dpdk_port()
     }
     _arp_table.clear();
     rte_spinlock_unlock(&_spinlock);
+    UHD_LOGGER_ERROR("DPDK") << "dpdk_port end destructor";
 }
 
 uint16_t dpdk_port::alloc_udp_port(uint16_t udp_port)
@@ -347,7 +348,7 @@ dpdk_ctx::dpdk_ctx(void) : _init_done(false) {}
 
 dpdk_ctx::~dpdk_ctx(void)
 {
-    UHD_LOGGER_ERROR("DPDK") << "ctx destructor";
+    UHD_LOGGER_ERROR("DPDK") << "ctx start destructor";
     std::lock_guard<std::mutex> lock(global_ctx_mutex);
     global_ctx = nullptr;
     // Destroy the io service
@@ -363,6 +364,7 @@ dpdk_ctx::~dpdk_ctx(void)
     }
     // Free EAL resources
     rte_eal_cleanup();
+    UHD_LOGGER_ERROR("DPDK") << "ctx end destructor";
 }
 
 void dpdk_ctx::_eal_init(const device_addr_t& eal_args)
