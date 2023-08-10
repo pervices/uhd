@@ -716,7 +716,7 @@ struct rte_mempool* dpdk_ctx::_get_rx_pktbuf_pool(
             _mbuf_cache_size,
             DPDK_MBUF_PRIV_SIZE,
             mbuf_size,
-            SOCKET_ID_ANY);
+            cpu_socket);
         if (!_rx_pktbuf_pools.at(cpu_socket)) {
             UHD_LOG_ERROR("DPDK", "Could not allocate RX pktbuf pool");
             throw uhd::runtime_error("DPDK: Could not allocate RX pktbuf pool");
