@@ -347,6 +347,7 @@ dpdk_ctx::dpdk_ctx(void) : _init_done(false) {}
 
 dpdk_ctx::~dpdk_ctx(void)
 {
+    UHD_LOGGER_ERROR("DPDK") << "ctx destructor";
     std::lock_guard<std::mutex> lock(global_ctx_mutex);
     global_ctx = nullptr;
     // Destroy the io service
