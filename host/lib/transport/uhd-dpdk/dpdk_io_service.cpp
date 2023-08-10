@@ -678,8 +678,8 @@ int dpdk_io_service::_send_arp_request(
     memset(arp_frame->arp_data.arp_tha.addr_bytes, 0x00, RTE_ETHER_ADDR_LEN);
     arp_frame->arp_data.arp_tip = ip;
 
-    mbuf->pkt_len  = 42;
-    mbuf->data_len = 42;
+    mbuf->pkt_len  = 60;
+    mbuf->data_len = 60;
 
     struct rte_eth_link link;
     rte_eth_link_get(port->get_port_id(), &link);
