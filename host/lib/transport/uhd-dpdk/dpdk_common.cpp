@@ -284,6 +284,7 @@ uint16_t dpdk_port::alloc_udp_port(uint16_t udp_port)
 
 int dpdk_port::_arp_reply(queue_id_t queue_id, struct rte_arp_hdr* arp_req)
 {
+    UHD_LOG_WARNING("DPDK", "_arp_reply");;
     struct rte_mbuf* mbuf;
     struct rte_ether_hdr* hdr;
     struct rte_arp_hdr* arp_frame;
