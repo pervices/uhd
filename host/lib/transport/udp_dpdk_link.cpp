@@ -71,7 +71,9 @@ udp_dpdk_link::udp_dpdk_link(dpdk::port_id_t port_id,
                % params.send_frame_size;
 }
 
-udp_dpdk_link::~udp_dpdk_link() {}
+udp_dpdk_link::~udp_dpdk_link() {
+    UHD_LOGGER_ERROR("DPDK") << "udp_dpdk_link destructor";
+}
 
 udp_dpdk_link::sptr udp_dpdk_link::make(const std::string& remote_addr,
     const std::string& remote_port,
