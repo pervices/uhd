@@ -733,7 +733,7 @@ struct rte_mempool* dpdk_ctx::_get_tx_pktbuf_pool(
         char name[32];
         snprintf(name, sizeof(name), "tx_mbuf_pool_%u", cpu_socket);
         _tx_pktbuf_pools[cpu_socket] = rte_pktmbuf_pool_create(
-            name, num_bufs, _mbuf_cache_size, 0, mbuf_size, SOCKET_ID_ANY);
+            name, num_bufs, _mbuf_cache_size, 0, mbuf_size, cpu_socket);
         if (!_tx_pktbuf_pools.at(cpu_socket)) {
             UHD_LOG_ERROR("DPDK", "Could not allocate TX pktbuf pool");
             throw uhd::runtime_error("DPDK: Could not allocate TX pktbuf pool");
