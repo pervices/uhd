@@ -76,6 +76,7 @@ public:
 
     ~dpdk_simple_impl(void) override
     {
+        UHD_LOGGER_ERROR("DPDK") << "dpdk_simple_impl start destructor";
         UHD_LOG_TRACE("DPDK::SIMPLE",
             "~dpdk_simple_impl(), DPDK port index " << _link->get_port()->get_port_id());
         // Disconnect the clients from the I/O service
@@ -84,6 +85,7 @@ public:
         // Disconnect the link from the I/O service
         _io_service->detach_recv_link(_link);
         _io_service->detach_send_link(_link);
+        UHD_LOGGER_ERROR("DPDK") << "dpdk_simple_impl end destructor";
     }
 
     /*! Send and release outstanding buffer
