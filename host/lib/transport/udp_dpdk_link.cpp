@@ -152,6 +152,7 @@ void udp_dpdk_link::release_recv_buff(frame_buff::uptr buff)
 {
     dpdk_frame_buff* buff_ptr = (dpdk_frame_buff*)buff.release();
     assert(buff_ptr);
+    printf("free 8\n");
     rte_pktmbuf_free(buff_ptr->get_pktmbuf());
 }
 
@@ -205,6 +206,7 @@ void udp_dpdk_link::release_send_buff(frame_buff::uptr buff)
         }
     } else {
         // Release the buffer if there is nothing in it
+        printf("free 9\n");
         rte_pktmbuf_free(mbuf);
     }
 }

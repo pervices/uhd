@@ -506,6 +506,7 @@ void dpdk_io_service::_service_xport_connect(dpdk::wait_req* req)
                 break;
             }
             if (rte_ring_enqueue(send_io->_buffer_queue, buff_ptr)) {
+                printf("free 7\n");
                 rte_pktmbuf_free(buff_ptr->get_pktmbuf());
                 break;
             }
@@ -739,6 +740,7 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
             case RTE_ETHER_TYPE_ARP:
                 printf("ARP packet reveived\n");
                 _process_arp(port, queue, (struct rte_arp_hdr*)l2_data);
+                printf("free 7\n");
                 rte_pktmbuf_free(bufs[buf]);
                 break;
             case RTE_ETHER_TYPE_IPV4:
@@ -761,6 +763,7 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
                 }
                 break;
             default:
+                printf("free 8\n");
                 printf("Other packet reveived\n");
                 rte_pktmbuf_free(bufs[buf]);
                 break;
@@ -816,12 +819,14 @@ int dpdk_io_service::_process_ipv4(
 {
     bool bcast = port->dst_is_broadcast(pkt->dst_addr);
     if (pkt->dst_addr != port->get_ipv4() && !bcast) {
+        printf("free 1\n");
         rte_pktmbuf_free(mbuf);
         return -ENODEV;
     }
     if (pkt->next_proto_id == IPPROTO_UDP) {
         return _process_udp(port, mbuf, (struct rte_udp_hdr*)&pkt[1], bcast);
     }
+    printf("free 2\n");
     rte_pktmbuf_free(mbuf);
     return -EINVAL;
 }
@@ -839,6 +844,7 @@ int dpdk_io_service::_process_udp(
     void* hash_data;
     if (rte_hash_lookup_data(_rx_table, &ht_key, &hash_data) < 0) {
         UHD_LOG_WARNING("DPDK::IO_SERVICE", "Dropping packet: No link entry in rx table");
+        printf("free 3\n");
         rte_pktmbuf_free(mbuf);
         return -ENOENT;
     }
@@ -846,6 +852,7 @@ int dpdk_io_service::_process_udp(
     auto rx_entry = (std::list<dpdk_io_if*>*)(hash_data);
     if (rx_entry->empty()) {
         UHD_LOG_WARNING("DPDK::IO_SERVICE", "Dropping packet: No xports for link");
+        printf("free 4\n");
         rte_pktmbuf_free(mbuf);
         return -ENOENT;
     }
@@ -863,6 +870,7 @@ int dpdk_io_service::_process_udp(
                 auto recv_io  = (dpdk_recv_io*)client_if->io_client;
                 auto buff_ptr = (dpdk::dpdk_frame_buff*)buff.release();
                 if (rte_ring_enqueue(recv_io->_recv_queue, buff_ptr)) {
+                    printf("free 5\n");
                     rte_pktmbuf_free(buff_ptr->get_pktmbuf());
                     UHD_LOG_WARNING(
                         "DPDK::IO_SERVICE", "Dropping packet: No space in recv queue");
@@ -914,6 +922,7 @@ int dpdk_io_service::_tx_burst(dpdk::dpdk_port* port)
                     "TX mempool out of memory. Please increase dpdk_num_mbufs.");
                 send_io->_num_frames_in_use--;
             } else if (rte_ring_enqueue(send_io->_buffer_queue, buff_ptr)) {
+                printf("free 6\n");
                 rte_pktmbuf_free(buff_ptr->get_pktmbuf());
                 send_io->_num_frames_in_use--;
             } else {
