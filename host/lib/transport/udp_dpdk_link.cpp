@@ -153,7 +153,7 @@ void udp_dpdk_link::release_recv_buff(frame_buff::uptr buff)
     dpdk_frame_buff* buff_ptr = (dpdk_frame_buff*)buff.release();
     assert(buff_ptr);
     printf("free 8\n");
-    rte_pktmbuf_free(buff_ptr->get_pktmbuf());
+    //rte_pktmbuf_free(buff_ptr->get_pktmbuf());
 }
 
 frame_buff::uptr udp_dpdk_link::get_send_buff(int32_t /*timeout_ms*/)
@@ -207,7 +207,7 @@ void udp_dpdk_link::release_send_buff(frame_buff::uptr buff)
     } else {
         // Release the buffer if there is nothing in it
         printf("free 9\n");
-        rte_pktmbuf_free(mbuf);
+        //rte_pktmbuf_free(mbuf);
     }
 }
 #pragma GCC diagnostic pop
