@@ -363,7 +363,10 @@ dpdk_ctx::~dpdk_ctx(void)
         rte_mempool_free(pool);
     }
     // Free EAL resources
-    //rte_eal_cleanup();
+    int ret = rte_eal_cleanup();
+    if(ret != 0) {
+        UHD_LOGGER_ERROR("DPDK") << "error in rte_eal_cleanup";
+    }
     UHD_LOGGER_ERROR("DPDK") << "ctx end destructor";
 }
 
