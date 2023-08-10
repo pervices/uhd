@@ -948,6 +948,7 @@ int dpdk_io_service::_rx_release(dpdk::dpdk_port* port)
         num_buf              = (num_buf < RX_BURST_SIZE) ? num_buf : RX_BURST_SIZE;
         for (unsigned int i = 0; i < num_buf; i++) {
             dpdk::dpdk_frame_buff* buff_ptr;
+            printf("_rx_release\n");
             int status = rte_ring_dequeue(recv_io->_release_queue, (void**)&buff_ptr);
             if (status) {
                 UHD_LOG_ERROR("DPDK::IO_SERVICE", "RX Q Count doesn't match actual");
