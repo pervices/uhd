@@ -236,6 +236,7 @@ dpdk_port::~dpdk_port()
 {
     UHD_LOGGER_ERROR("DPDK") << "dpdk_port start destructor";
     rte_eth_dev_stop(_port);
+    rte_eth_dev_set_link_down(_port);
     rte_eth_dev_close(_port);
     rte_spinlock_lock(&_spinlock);
     for (auto kv : _arp_table) {
