@@ -707,6 +707,7 @@ struct rte_mempool* dpdk_ctx::_get_rx_pktbuf_pool(
     if (!_rx_pktbuf_pools.at(cpu_socket)) {
         const int mbuf_size =
             _mtu + RTE_PKTMBUF_HEADROOM + RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN;
+        printf("rx mbuf_size: %i\n", mbuf_size);
         char name[32];
         snprintf(name, sizeof(name), "rx_mbuf_pool_%u", cpu_socket);
         _rx_pktbuf_pools[cpu_socket] = rte_pktmbuf_pool_create(name,
