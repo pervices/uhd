@@ -189,6 +189,8 @@ dpdk_port::dpdk_port(port_id_t port,
     }
 
     retval = rte_eth_dev_adjust_nb_rx_tx_desc(_port, &rx_desc, &tx_desc);
+    printf("rx_desc: %hu\n", rx_desc);
+    printf("tx_desc: %hu\n", tx_desc);
     if (retval != 0) {
         UHD_LOG_ERROR("DPDK", "Failed to configure the DMA queues ");
         throw uhd::runtime_error("DPDK: Failed to configure the DMA queues");
