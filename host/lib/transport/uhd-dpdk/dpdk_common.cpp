@@ -710,6 +710,7 @@ struct rte_mempool* dpdk_ctx::_get_rx_pktbuf_pool(
         printf("rx mbuf_size: %i\n", mbuf_size);
         char name[32];
         snprintf(name, sizeof(name), "rx_mbuf_pool_%u", cpu_socket);
+        printf("_get_rx_pktbuf_pool num_bufs: %lu\n", num_bufs);
         _rx_pktbuf_pools[cpu_socket] = rte_pktmbuf_pool_create(name,
             num_bufs,
             _mbuf_cache_size,
