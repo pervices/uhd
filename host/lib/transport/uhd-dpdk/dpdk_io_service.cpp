@@ -685,33 +685,11 @@ int dpdk_io_service::_send_arp_request(
     rte_eth_link_get(port->get_port_id(), &link);
     printf("link_status: %hu\n", link.link_status);
 
-    // if (rte_eth_tx_burst(port->get_port_id(), queue, &mbuf, 1) != 1) {
-    //     UHD_LOG_WARNING("DPDK::IO_SERVICE", "ARP request not sent: Descriptor ring full");
-    //     // rte_pktmbuf_free(mbuf);
-    //     printf("_send_arp_request E2\n");
-    //     return -EAGAIN;
-    // }
-    printf("T10\n");
-    auto byte_to_malloc = sizeof(rte_eth_dev_tx_buffer) + sizeof(mbuf) * 1;
-    std::cout << "byte_to_malloc: " << byte_to_malloc << std::endl;
-    struct rte_eth_dev_tx_buffer *flush_buffer;
-    flush_buffer = (struct rte_eth_dev_tx_buffer*) malloc(byte_to_malloc);
-    printf("T10.5\n");
-    memset(flush_buffer, 0, byte_to_malloc);
-    printf("T11\n");
-    flush_buffer->length = 1;
-    printf("T12\n");
-    flush_buffer->size = mbuf->pkt_len;
-    printf("T13\n");
-    flush_buffer->pkts[0] = mbuf;
-
-    printf("T15\n");
-
-    if(rte_eth_tx_buffer_flush(port->get_port_id(), queue, flush_buffer) != 1) {
-        printf("No packets sent, exiting\n");
-        std::exit(1);
-    } else {
-        printf("Flush did send packets\n");
+    if (rte_eth_tx_burst(port->get_port_id(), queue, &mbuf, 1) != 1) {
+        UHD_LOG_WARNING("DPDK::IO_SERVICE", "ARP request not sent: Descriptor ring full");
+        // rte_pktmbuf_free(mbuf);
+        printf("_send_arp_request E2\n");
+        return -EAGAIN;
     }
     printf("_send_arp_request success\n");
     return 0;
