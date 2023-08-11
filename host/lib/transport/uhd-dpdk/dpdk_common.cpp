@@ -562,7 +562,6 @@ void dpdk_ctx::init(const device_addr_t& user_args)
         }
 
         UHD_LOG_INFO("DPDK", "Waiting for links to come up...");
-        int consecutive_link_up = 0;
         do {
             bool all_ports_up = true;
             for (auto& port : _ports) {
@@ -577,12 +576,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             }
 
             if (all_ports_up) {
-                consecutive_link_up++;
-                if(consecutive_link_up > 5) {
-                    break;
-                }
-            } else {
-                consecutive_link_up = 0;
+                break;
             }
 
             rte_delay_ms(LINK_STATUS_INTERVAL);
@@ -612,10 +606,6 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             _io_srv_portid_map.insert(
                 {uhd::transport::dpdk_io_service::make(lcore_id, dpdk_ports, servq_depth),
                     lcore_portids_pair.second});
-        }
-        RTE_ETH_FOREACH_DEV(i)
-        {
-            printf("rte_eth_allmulticast_get: %i\n", rte_eth_allmulticast_get(i));
         }
     }
 }
