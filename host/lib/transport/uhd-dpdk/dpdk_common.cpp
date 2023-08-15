@@ -161,6 +161,8 @@ dpdk_port::dpdk_port(port_id_t port,
         _mtu = actual_mtu;
     }
 
+    printf("num_desc: %hu\n", num_desc);
+
     /* Set descriptor ring sizes */
     uint16_t rx_desc = num_desc;
     if (dev_info.rx_desc_lim.nb_max < rx_desc || dev_info.rx_desc_lim.nb_min > rx_desc
