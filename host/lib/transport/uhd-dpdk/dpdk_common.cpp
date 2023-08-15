@@ -203,6 +203,7 @@ dpdk_port::dpdk_port(port_id_t port,
     struct rte_eth_rxconf rx_queue_conf = dev_info.default_rxconf;
     printf("rx_queue_conf.rx_drop_en: %hhu\n", rx_queue_conf.rx_drop_en);
     printf("rx_queue_conf.rx_deferred_start: %hhu\n", rx_queue_conf.rx_deferred_start);
+    rx_queue_conf.rx_nseg = 0;
 
     for (uint16_t i = 0; i < _num_queues; i++) {
         retval =
