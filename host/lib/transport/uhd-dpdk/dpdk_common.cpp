@@ -199,9 +199,12 @@ dpdk_port::dpdk_port(port_id_t port,
     /* Set up the RX and TX DMA queues (May not be generally supported after
      * eth_dev_start) */
     unsigned int cpu_socket = rte_eth_dev_socket_id(_port);
+
+    struct rte_eth_rxconf rx_queue_conf = dev_info.default_rxconf;
+
     for (uint16_t i = 0; i < _num_queues; i++) {
         retval =
-            rte_eth_rx_queue_setup(_port, i, rx_desc, cpu_socket, NULL, _rx_pktbuf_pool);
+            rte_eth_rx_queue_setup(_port, i, rx_desc, cpu_socket, &rx_queue_conf, _rx_pktbuf_pool);
         if (retval < 0) {
             UHD_LOGGER_ERROR("DPDK")
                 << boost::format("Port %d: Could not init RX queue %d") % _port % i;
