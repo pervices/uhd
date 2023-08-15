@@ -43,7 +43,15 @@ public:
         // is all it does so we skip that step
         UHD_LOG_TRACE("DPDK::SIMPLE", "Attaching link to I/O service...");
         _io_service->attach_recv_link(_link);
-        _io_service->attach_send_link(_link);
+        bool attach_send = false;
+        while(!attach_send) {
+            try {
+                _io_service->attach_send_link(_link);
+                attach_send = true;
+            } catch (...) {
+
+            }
+        }
 
         auto recv_cb = [this](buff_t::uptr& buff, recv_link_if*, send_link_if*) {
             return this->_recv_callback(buff);
