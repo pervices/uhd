@@ -358,6 +358,15 @@ dpdk_ctx::dpdk_ctx(void) : _init_done(false) {}
 dpdk_ctx::~dpdk_ctx(void)
 {
     UHD_LOGGER_ERROR("DPDK") << "ctx start destructor";
+    int i = 0;
+    struct rte_eth_stats eth_stats;
+    RTE_ETH_FOREACH_DEV(i) {
+        rte_eth_stats_get(i, &eth_stats);
+        printf("eth_stats.opackets: %lu\n", eth_stats.opackets);
+        printf("eth_stats.obytes: %lu\n", eth_stats.obytes);
+        printf("eth_stats.ipackets: %lu\n", eth_stats.ipackets);
+        printf("eth_stats.ibytes: %lu\n", eth_stats.ibytes);
+    }
     std::lock_guard<std::mutex> lock(global_ctx_mutex);
     global_ctx = nullptr;
     // Destroy the io service
