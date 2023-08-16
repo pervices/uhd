@@ -226,6 +226,8 @@ dpdk_port::dpdk_port(port_id_t port,
         }
     }
 
+    rte_eth_dev_rx_intr_disable(_port, 0);
+
     /* TODO: Enable multiple queues (only support 1 right now) */
 
     /* Start the Ethernet device */
