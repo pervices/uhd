@@ -249,10 +249,10 @@ dpdk_port::dpdk_port(port_id_t port,
 dpdk_port::~dpdk_port()
 {
     UHD_LOGGER_ERROR("DPDK") << "dpdk_port start destructor";
+    rte_spinlock_lock(&_spinlock);
     rte_eth_dev_rx_queue_stop(_port, 0);
     rte_eth_dev_stop(_port);
     rte_eth_dev_close(_port);
-    rte_spinlock_lock(&_spinlock);
     for (auto kv : _arp_table) {
         for (auto req : kv.second->reqs) {
             req->cond.notify_one();
