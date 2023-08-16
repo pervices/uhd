@@ -227,11 +227,11 @@ dpdk_port::dpdk_port(port_id_t port,
         }
     }
 
-    printf("rte_power_pmd_mgmt_get_emptypoll_max(): %u\n", rte_power_pmd_mgmt_get_emptypoll_max());
-
-    retval = rte_eth_dev_rx_intr_disable(_port, 0);
+    retval = rte_power_ethdev_pmgmt_queue_disable(cpu_socket, _port, 0);
     if(retval < 0) {
-        UHD_LOGGER_ERROR("DPDK") << "Unable to disable rx interrupt";
+        UHD_LOGGER_ERROR("DPDK") << "Unable to disable ethdev_pmgmt";
+    } else {
+            UHD_LOGGER_INFO("DPDK") << "Success disable ethdev_pmgmt";
     }
 
     /* TODO: Enable multiple queues (only support 1 right now) */
