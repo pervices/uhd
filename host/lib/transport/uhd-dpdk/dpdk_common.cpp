@@ -227,12 +227,8 @@ dpdk_port::dpdk_port(port_id_t port,
         }
     }
 
-    retval = rte_power_ethdev_pmgmt_queue_disable(cpu_socket, _port, 0);
-    if(retval < 0) {
-        UHD_LOGGER_ERROR("DPDK") << "Unable to disable ethdev_pmgmt";
-    } else {
-            UHD_LOGGER_INFO("DPDK") << "Success disable ethdev_pmgmt";
-    }
+    rte_power_pmd_mgmt_set_emptypoll_max(2000000000);
+    printf("rte_power_pmd_mgmt_get_emptypoll_max(): %u\n", rte_power_pmd_mgmt_get_emptypoll_max());
 
     /* TODO: Enable multiple queues (only support 1 right now) */
 
