@@ -703,7 +703,7 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
         printed_desc_used = true;
         printf("desc_used: %i\n", desc_used);
     }
-    for(int n = 0; n < desc_used; n++) {
+    for(int n = desc_used -1; n >= 0; n--) {
         int descriptor_status = rte_eth_rx_descriptor_status(port->get_port_id(), queue, n);
         if(descriptor_status != RTE_ETH_RX_DESC_AVAIL) {
             printf("descriptor %i status: %i\n", n, descriptor_status);
