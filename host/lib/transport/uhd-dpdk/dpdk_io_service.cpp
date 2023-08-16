@@ -690,6 +690,7 @@ int dpdk_io_service::_send_arp_request(
     return 0;
 }
 
+bool printed_desc_used = false;
 static int packets_recv = 0;
 /* Do a burst of RX on port */
 int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
@@ -698,8 +699,12 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
     char* l2_data;
     struct rte_mbuf* bufs[RX_BURST_SIZE];
     int desc_used = rte_eth_rx_queue_count(port->get_port_id(), queue);
+    if(!printed_desc_used) {
+        printed_desc_used = true;
+        printf("desc_used: %i\n", desc_used);
+    }
     for(int n = 0; n < desc_used; n++) {
-        int descriptor_status = rte_eth_rx_descriptor_status(port->get_port_id(), queue, 0);
+        int descriptor_status = rte_eth_rx_descriptor_status(port->get_port_id(), queue, n);
         if(descriptor_status != RTE_ETH_RX_DESC_AVAIL) {
             printf("descriptor %i status: %i\n", n, descriptor_status);
         }
