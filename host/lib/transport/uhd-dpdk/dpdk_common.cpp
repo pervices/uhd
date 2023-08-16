@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <rte_arp.h>
 #include <boost/algorithm/string.hpp>
+#include <rte_power_pmd_mgmt.h>
 
 #ifdef RTE_ETH_RX_OFFLOAD_IPV4_CKSUM
     #define COMMON_RX_OFFLOAD_IPV4_CKSUM RTE_ETH_RX_OFFLOAD_IPV4_CKSUM;
@@ -225,6 +226,8 @@ dpdk_port::dpdk_port(port_id_t port,
             throw uhd::runtime_error("DPDK: Failure to init TX queue");
         }
     }
+
+    printf("rte_power_pmd_mgmt_get_emptypoll_max(): %u\n", rte_power_pmd_mgmt_get_emptypoll_max());
 
     retval = rte_eth_dev_rx_intr_disable(_port, 0);
     if(retval < 0) {
