@@ -494,7 +494,6 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint, const 
     } else {
         comm = udp_simple::make_broadcast(hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
     }
-    return device_addrs_t();
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
