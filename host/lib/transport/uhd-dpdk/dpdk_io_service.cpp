@@ -820,6 +820,7 @@ int dpdk_io_service::_process_ipv4(
 int dpdk_io_service::_process_udp(
     dpdk::dpdk_port* port, struct rte_mbuf* mbuf, struct rte_udp_hdr* pkt, bool /*bcast*/)
 {
+    printf("_process_udp\n");
     // Get the link
     struct dpdk::ipv4_5tuple ht_key = {.flow_type = dpdk::flow_type::FLOW_TYPE_UDP,
         .src_ip                                   = 0,
