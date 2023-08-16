@@ -697,6 +697,10 @@ int dpdk_io_service::_rx_burst(dpdk::dpdk_port* port, dpdk::queue_id_t queue)
     struct rte_ether_hdr* hdr;
     char* l2_data;
     struct rte_mbuf* bufs[RX_BURST_SIZE];
+    int desc_used = rte_eth_rx_queue_count(port->get_port_id(), queue);
+    if(desc_used > 0) {
+        printf("desc_used: %i\n");
+    }
     const uint16_t num_rx =
         rte_eth_rx_burst(port->get_port_id(), queue, bufs, RX_BURST_SIZE);
     if (unlikely(num_rx == 0)) {
