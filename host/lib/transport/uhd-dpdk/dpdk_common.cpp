@@ -226,7 +226,10 @@ dpdk_port::dpdk_port(port_id_t port,
         }
     }
 
-    rte_eth_dev_rx_intr_disable(_port, 0);
+    retval = rte_eth_dev_rx_intr_disable(_port, 0);
+    if(retval < 0) {
+        UHD_LOGGER_ERROR("DPDK") << "Unable to disable rx interrupt";
+    }
 
     /* TODO: Enable multiple queues (only support 1 right now) */
 
