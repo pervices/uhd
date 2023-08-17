@@ -948,6 +948,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/min_lo", "system/min_lo", double, double);
+    _min_lo = _tree->access<double>(CRIMSON_TNG_MB_PATH / "system/min_lo").get();
+
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CRIMSON_TNG_MB_PATH / "time_source" / "options").set(time_sources);
 
@@ -1475,8 +1478,16 @@ constexpr double RX_SIGN = +1.0;
 constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-static bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
-	return freq + bw / 2.0 > dsp_range.stop();
+bool crimson_tng_impl::is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
+	bool within_dsp_nco = freq + bw / 2.0 <= dsp_range.stop();
+    if(within_dsp_nco) {
+        return false;
+    } else {
+        double distance_from_low_band = freq + (bw / 2.0 ) - dsp_range.stop();
+        double minimum_high_band_freq = _min_lo - dsp_range.stop();
+        double distance_from_high_band = abs(freq - (bw / 2.0 ) - minimum_high_band_freq);
+        return (distance_from_low_band >= distance_from_high_band);
+    }
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
@@ -1663,7 +1674,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 			case HIGH_BAND:
 				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
 				// in high band, we use the LO for most of the shift, and use the DSP for the difference
-				target_rf_freq = rf_range.clip( clipped_requested_freq - dsp_nco_shift );
+				target_rf_freq = std::max(rf_range.clip( clipped_requested_freq - dsp_nco_shift ), _min_lo);
 				break;
 			}
 		break;

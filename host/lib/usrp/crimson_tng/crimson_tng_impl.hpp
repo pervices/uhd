@@ -218,6 +218,9 @@ private:
 
     time_spec_t _command_time;
 
+    // Minimum valid lo
+    double _min_lo;
+
 	static void bm_thread_fn( crimson_tng_impl *dev );
 
     struct mb_container_type{
@@ -245,6 +248,8 @@ private:
     uhd::meta_range_t get_tx_dsp_freq_range(const std::string &);
     void update_clock_source(const std::string &, const std::string &);
     void program_stream_dest(uhd::transport::zero_copy_if::sptr &, const uhd::stream_args_t &);
+
+    bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw );
 
     // Calculate and set frequency
     tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request );
