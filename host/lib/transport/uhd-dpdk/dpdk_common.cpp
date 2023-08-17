@@ -542,6 +542,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             printf("PORT start loop for: %i\n", i);
             auto& conf = nics.at(i);
             if (conf.has_key("dpdk_ipv4")) {
+                printf("PORT has conf: %i\n", i);
                 UHD_ASSERT_THROW(conf.has_key("dpdk_lcore"));
                 const size_t lcore_id = conf.cast<size_t>("dpdk_lcore", 0);
                 if (!lcore_to_port_id_map.count(lcore_id)) {
