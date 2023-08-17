@@ -539,6 +539,7 @@ void dpdk_ctx::init(const device_addr_t& user_args)
         std::map<size_t, std::vector<size_t>> lcore_to_port_id_map;
         RTE_ETH_FOREACH_DEV(i)
         {
+            printf("PORT start loop for: %i\n", i);
             auto& conf = nics.at(i);
             if (conf.has_key("dpdk_ipv4")) {
                 UHD_ASSERT_THROW(conf.has_key("dpdk_lcore"));
