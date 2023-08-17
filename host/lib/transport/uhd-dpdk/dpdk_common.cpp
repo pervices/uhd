@@ -254,6 +254,7 @@ dpdk_port::~dpdk_port()
     if(ret != 0) {
         printf("_port %i failted to stop\n", _port);
     }
+    rte_eth_dev_reset(_port);
     ret = rte_eth_dev_close(_port);
     if(ret != 0) {
         printf("_port %i failted to clost\n", _port);
