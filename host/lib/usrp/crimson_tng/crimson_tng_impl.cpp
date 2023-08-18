@@ -1483,10 +1483,10 @@ bool crimson_tng_impl::is_high_band( const meta_range_t &dsp_range, const double
     if(within_dsp_nco) {
         return false;
     } else {
-        double distance_from_low_band = freq + (bw / 2.0 ) - dsp_range.stop();
         double minimum_high_band_freq = _min_lo - dsp_range.stop();
-        double distance_from_high_band = abs(freq - (bw / 2.0 ) - minimum_high_band_freq);
-        return (distance_from_low_band >= distance_from_high_band);
+        double distance_below_high_band = minimum_high_band_freq - freq + (bw / 2.0 );
+        double distance_above_low_band = freq + (bw / 2.0 ) - dsp_range.stop();
+        return (distance_above_low_band >= distance_below_high_band);
     }
 }
 

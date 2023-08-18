@@ -88,6 +88,20 @@ static void do_samp_rate_warning_message(
     }
 }
 
+static void do_freq_warning_message(
+    double target_freq, double actual_freq, const std::string& xx)
+{
+    static const double max_allowed_error = 1000.0; // Hz
+    if (std::abs(target_freq - actual_freq) > max_allowed_error) {
+        UHD_LOGGER_WARNING("MULTI_USRP")
+            << boost::format(
+                   "The hardware does not support the requested %s center frequency:\n"
+                   "Target center frequency: %f MHz\n"
+                   "Actual center frequency: %f MHz\n")
+                   % xx % (target_freq / 1e6) % (actual_freq / 1e6);
+    }
+}
+
 /***********************************************************************
  * Gain helper functions
  **********************************************************************/
@@ -898,7 +912,9 @@ public:
                 }
             }
         }
-        return get_device()->set_rx_freq(tune_request, chan);
+        tune_result_t actual_freq = get_device()->set_rx_freq(tune_request, chan);
+        do_freq_warning_message(tune_request.target_freq, actual_freq.actual_rf_freq - actual_freq.actual_dsp_freq, "RX" + std::to_string(chan));
+        return actual_freq;
     }
 
     // Anytime GNU Radio overflows it will try to create a take an get the center frequency
@@ -1931,7 +1947,9 @@ public:
 
     tune_result_t set_tx_freq(const tune_request_t& tune_request, size_t chan) override
     {
-        return get_device()->set_tx_freq(tune_request, chan);
+        tune_result_t actual_freq = get_device()->set_tx_freq(tune_request, chan);
+        do_freq_warning_message(tune_request.target_freq, actual_freq.actual_rf_freq + actual_freq.actual_dsp_freq, "TX" + std::to_string(chan));
+        return actual_freq;
     }
 
     double get_tx_freq(size_t chan) override
