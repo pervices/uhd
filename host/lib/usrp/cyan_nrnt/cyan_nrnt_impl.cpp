@@ -37,8 +37,8 @@
 
 #include <uhdlib/transport/udp_common.hpp>
 #ifdef HAVE_DPDK
-#    include <uhdlib/transport/dpdk_simple.hpp>
-#    include <uhdlib/transport/udp_dpdk_link.hpp>
+    #include <uhdlib/transport/dpdk_simple.hpp>
+    #include <uhdlib/transport/udp_dpdk_link.hpp>
 #endif
 
 namespace link_cyan_nrnt {
@@ -70,6 +70,23 @@ namespace asio = boost::asio;
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
+
+// If dpdk is enabled, create either udp_simple of dpdk_simple. If it is not enabled always create udp_simple
+// This exists because dpdk_simple will not exist if it is disabled
+#ifdef HAVE_DPDK
+static udp_simple::sptr create_simple_or_dpdk_udp(bool use_dpdk, const std::string& addr, const std::string& port) {
+    if(use_dpdk) {
+        return dpdk_simple::make_broadcast(addr, port);
+    } else {
+        return udp_simple::make_broadcast(addr, port);
+    }
+}
+#else
+static udp_simple::sptr create_simple_or_dpdk_udp(bool use_dpdk, const std::string& addr, const std::string& port) {
+    (void) use_dpdk;
+    return udp_simple::make_broadcast(addr, port);
+}
+#endif
 
 // Constants for paths in UHD side state tree
 const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
@@ -481,19 +498,8 @@ void cyan_nrnt_impl::set_properties_from_addr() {
 // This find function will be called if a hint is passed onto the find function
 static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint, const bool use_dpdk)
 {
-
     // temporarily make a UDP device only to look for devices
-    udp_simple::sptr comm;
-    if(use_dpdk) {
-        // Check if DPDK is initialize, and initialize it if not ready
-        auto dpdk_ctx = uhd::transport::dpdk::dpdk_ctx::get();
-        if (not dpdk_ctx->is_init_done()) {
-            dpdk_ctx->init(hint);
-        }
-        comm = dpdk_simple::make_broadcast(hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
-    } else {
-        comm = udp_simple::make_broadcast(hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
-    }
+    udp_simple::sptr comm = create_simple_or_dpdk_udp(use_dpdk, hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
@@ -535,8 +541,7 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint, const 
 
     // Gets the Serial number for all connected Cyans found in the previous loop, and adds them to the return list if all required parameters match filters
     for(auto& addr : cyan_nrnt_addrs) {
-        udp_simple::sptr comm = udp_simple::make_connected(
-        addr["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+        udp_simple::sptr comm = create_simple_or_dpdk_udp(use_dpdk, addr["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
 
 
         size_t bytes_sent = comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
@@ -579,6 +584,15 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint, const 
 static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
 {
     bool use_dpdk = device::has_use_dpdk(hint_);
+#ifdef HAVE_DPDK
+    if(use_dpdk) {
+        // Check if DPDK is initialized, and initialize it if not already
+        auto dpdk_ctx = uhd::transport::dpdk::dpdk_ctx::get();
+        if (not dpdk_ctx->is_init_done()) {
+            dpdk_ctx->init(hint_);
+        }
+    }
+#endif
 
     //handle the multi-device discovery
     device_addrs_t hints = separate_device_addr(hint_);
@@ -944,7 +958,17 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 // Returns a pointer to the SDR device, casted to the UHD base class
 static device::sptr cyan_nrnt_make(const device_addr_t &device_addr)
 {
-    return device::sptr(new cyan_nrnt_impl(device_addr, device::has_use_dpdk(device_addr)));
+    bool use_dpdk = device::has_use_dpdk(device_addr);
+#ifdef HAVE_DPDK
+    if(use_dpdk) {
+        // Check if DPDK is initialized, and initialize it if not already
+        auto dpdk_ctx = uhd::transport::dpdk::dpdk_ctx::get();
+        if (not dpdk_ctx->is_init_done()) {
+            dpdk_ctx->init(device_addr);
+        }
+    }
+#endif
+    return device::sptr(new cyan_nrnt_impl(device_addr, use_dpdk));
 }
 
 // This is the core function that registers itself with uhd::device base class. The base device class
@@ -988,10 +1012,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     _command_time(),
     _use_dpdk(use_dpdk)
 {
-    if(_use_dpdk) {
-        std::cout << "DPDK implementation in progress" << std::endl;
-        std::exit(0);
-    }
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
 
@@ -1010,10 +1030,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     static const std::string mb = std::to_string( mbi );
     // Makes the UDP comm connection
     _mbc[mb].iface = cyan_nrnt_iface::make(
-		udp_simple::make_connected(
-			_device_addr["addr"],
-			BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
-		)
+        create_simple_or_dpdk_udp(
+            _use_dpdk,
+            _device_addr["addr"],
+            BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
+        )
     );
 
     // TODO make transports for each RX/TX chain
@@ -1451,12 +1472,13 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 		get_tx_endpoint( dspno, ip_addr, udp_port, sfp );
 
         // Creates socket for getting buffer level
-		_mbc[mb].fifo_ctrl_xports.push_back(
-			udp_simple::make_connected(
-				_tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr" ).get(),
-				std::to_string( _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
-			)
-		);
+        _mbc[mb].fifo_ctrl_xports.push_back(
+            create_simple_or_dpdk_udp(
+                _use_dpdk,
+                _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr" ).get(),
+                std::to_string( _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
+            )
+        );
     }
 
 	const fs_path cm_path  = CYAN_NRNT_MB_PATH / "cm";
@@ -1536,7 +1558,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 		start_bm();
 		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 	}
-
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)

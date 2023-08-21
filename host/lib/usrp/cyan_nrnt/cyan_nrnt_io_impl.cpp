@@ -605,6 +605,11 @@ bool cyan_nrnt_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
+    if(_use_dpdk) {
+        std::cout << "DPDK tx implementation in progress" << std::endl;
+        std::exit(0);
+    }
+
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
@@ -856,6 +861,10 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 }
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    if(_use_dpdk) {
+        std::cout << "DPDK tx implementation in progress" << std::endl;
+        std::exit(0);
+    }
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
