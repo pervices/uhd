@@ -1913,6 +1913,10 @@ inline void cyan_nrnt_impl::request_resync_time_diff() {
 }
 
 void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
+    // TODO: implement check for DPDK
+    if(_use_dpdk) {
+        return;
+    }
     char cmd[128];
     snprintf(cmd, 128, "ping -c 1 -W 1 %s  > /dev/null 2>&1", ip.c_str());
     int check = system(cmd);
@@ -1922,6 +1926,10 @@ void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
 }
 
 void cyan_nrnt_impl::mtu_check(std::string sfp, std::string ip) {
+    // TODO: implement check for DPDK
+    if(_use_dpdk) {
+        return;
+    }
     char cmd[128];
     std::string data;
     FILE * stream;
