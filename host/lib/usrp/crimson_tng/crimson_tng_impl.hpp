@@ -127,6 +127,12 @@ private:
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_dsp_root(const size_t channel, const size_t mboard = 0);
 
+    // Changing the band results in the gain being reset. These are used to decide if a warning should be printed to let the user know
+    std::vector<int> rx_gain_is_set;
+    std::vector<int> last_set_rx_band;
+    std::vector<int> tx_gain_is_set;
+    std::vector<int> last_set_tx_band;
+
     // helper functions to wrap send and recv as get and set
     std::string get_string(std::string req);
     void set_string(const std::string pre, std::string data);
@@ -252,7 +258,7 @@ private:
     bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw );
 
     // Calculate and set frequency
-    tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request );
+    tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, size_t ch, int* gain_is_set, int* last_set_band );
 
     uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_rx_freq(size_t chan = 0);

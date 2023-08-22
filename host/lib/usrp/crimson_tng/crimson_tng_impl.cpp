@@ -875,6 +875,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	num_rx_channels = CRIMSON_TNG_RX_CHANNELS;
 	num_tx_channels = CRIMSON_TNG_TX_CHANNELS;
 
+    rx_gain_is_set.resize(num_rx_channels, false);
+    last_set_rx_band.resize(num_rx_channels, -1);
+    tx_gain_is_set.resize(num_tx_channels, false);
+    last_set_tx_band.resize(num_tx_channels, -1);
+
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
 
@@ -1636,7 +1641,7 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, size_t ch, int* gain_is_set, int* last_set_band ) {
 
 	enum {
 		LOW_BAND,
@@ -1691,6 +1696,15 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 
 	rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
+    if(*gain_is_set) {
+        if(*last_set_band != band) {
+            UHD_LOG_WARNING("GAIN", "Band changed after setting gain on ch " << std::string(1, ch +'A') << " old gain value will be ignored");
+            *gain_is_set = false;
+        }
+    }
+    *last_set_band = band;
+
+
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend
 	//------------------------------------------------------------------
@@ -1743,7 +1757,8 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
 			_tree->subtree(rx_dsp_root(chan)),
 			_tree->subtree(rx_rf_fe_root(chan)),
-			tune_request);
+			tune_request,
+            chan, &rx_gain_is_set[chan], &last_set_rx_band[chan]);
 	return result;
 
 }
@@ -1765,7 +1780,8 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
 			_tree->subtree(tx_dsp_root(chan)),
 			_tree->subtree(tx_rf_fe_root(chan)),
-			tune_request);
+			tune_request,
+            chan, &tx_gain_is_set[chan], &last_set_tx_band[chan]);
 	return result;
 
 }
@@ -1785,6 +1801,14 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
 
     if ( multi_usrp::ALL_CHANS != chan ) {
         (void)name;
+
+        // Used to decide if a warning should be printed when changing bands
+        if(gain != 0) {
+            tx_gain_is_set[chan] = true;
+        } else {
+            // Set to false to avoid spurious warning when changing band
+            tx_gain_is_set[chan] = false;
+        }
 
         double MAX_GAIN = 31.75;
         double MIN_GAIN = 0;
@@ -1821,6 +1845,14 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
     if ( multi_usrp::ALL_CHANS != chan ) {
 
         (void) name;
+
+        // Used to decide if a warning should be printed when changing bands
+        if(gain != 0) {
+            rx_gain_is_set[chan] = true;
+        } else {
+            // Set to false to avoid spurious warning when changing band
+            rx_gain_is_set[chan] = false;
+        }
 
         double atten_val = 0;
         double gain_val = 0;
