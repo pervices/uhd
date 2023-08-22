@@ -395,6 +395,11 @@ void dpdk_ctx::_eal_init(const device_addr_t& eal_args)
            int rte_openlog_stream( FILE * f)
          */
     }
+    printf("rte_eal_init args:\n");
+    for(size_t n = 0; n < argv.size(); n++) {
+        printf("%s\n", argv[n]);
+    }
+    printf("end of rte_eal_init args\n");
     /* Init DPDK's EAL */
     int ret = rte_eal_init(argv.size(), (char**)argv.data());
     /* Done with the temporaries */
