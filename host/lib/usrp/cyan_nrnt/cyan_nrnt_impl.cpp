@@ -1052,6 +1052,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     num_tx_channels = (size_t) (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/num_tx").get());
     is_num_tx_channels_set = true;
 
+    rx_gain_is_set.resize(num_rx_channels, false);
+    last_set_rx_band.resize(num_rx_channels, -1);
+    tx_gain_is_set.resize(num_tx_channels, false);
+    last_set_tx_band.resize(num_tx_channels, -1);
+
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
 
@@ -1705,7 +1710,7 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 //calculates and sets the band, nco, and lo shift
-static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request ) {
+static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, size_t ch, int* gain_is_set, int* last_set_band ) {
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
@@ -1750,6 +1755,15 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 	}
 
     rf_fe_subtree->access<int>( "freq/band" ).set( band );
+
+    if(*gain_is_set) {
+        if(*last_set_band != band) {
+            UHD_LOG_WARNING("GAIN", "Band changed after setting gain on ch " << std::string(1, ch +'A') << " old gain value will be ignored");
+            *gain_is_set = false;
+        }
+    }
+    *last_set_band = band;
+
 
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend
@@ -1803,7 +1817,8 @@ uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
 	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
 			_tree->subtree(rx_dsp_root(chan)),
 			_tree->subtree(rx_rf_fe_root(chan)),
-			tune_request);
+			tune_request,
+            chan, &rx_gain_is_set[chan], &last_set_rx_band[chan]);
 	return result;
 
 }
@@ -1825,7 +1840,8 @@ uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
 	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
 			_tree->subtree(tx_dsp_root(chan)),
 			_tree->subtree(tx_rf_fe_root(chan)),
-			tune_request);
+			tune_request,
+            chan, &tx_gain_is_set[chan], &last_set_tx_band[chan]);
 	return result;
 
 }
@@ -1845,6 +1861,14 @@ void cyan_nrnt_impl::set_tx_gain(double gain, const std::string &name, size_t ch
 
     if ( multi_usrp::ALL_CHANS != chan ) {
         (void) name;
+
+        // Used to decide if a warning should be printed when changing bands
+        if(gain != 0) {
+            tx_gain_is_set[chan] = true;
+        } else {
+            // Set to false to avoid spurious warning when changing band
+            tx_gain_is_set[chan] = false;
+        }
 
         _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
         return;
@@ -1870,6 +1894,14 @@ void cyan_nrnt_impl::set_rx_gain(double gain, const std::string &name, size_t ch
     if ( multi_usrp::ALL_CHANS != chan ) {
 
         (void) name;
+
+        // Used to decide if a warning should be printed when changing bands
+        if(gain != 0) {
+            rx_gain_is_set[chan] = true;
+        } else {
+            // Set to false to avoid spurious warning when changing band
+            rx_gain_is_set[chan] = false;
+        }
 
         //sets gain in the rf chain (variable amplifier, variable attenuator, bypassable amplifier
         //currently deciding how to combine them is calculated on the server. On older versions UHD determined how to adjust them

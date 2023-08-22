@@ -145,6 +145,12 @@ private:
     int otw_tx;
     std::string otw_tx_s;
 
+    // Changing the band results in the gain being reset. These are used to decide if a warning should be printed to let the user know
+    std::vector<int> rx_gain_is_set;
+    std::vector<int> last_set_rx_band;
+    std::vector<int> tx_gain_is_set;
+    std::vector<int> last_set_tx_band;
+
     // helper functions to wrap send and recv as get and set
     std::string get_string(std::string req);
     void set_string(const std::string pre, std::string data);
