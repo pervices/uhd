@@ -1641,7 +1641,7 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, size_t ch, int* gain_is_set, int* last_set_band ) {
+tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band ) {
 
 	enum {
 		LOW_BAND,
@@ -1696,13 +1696,16 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 
 	rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
-    if(*gain_is_set) {
-        if(*last_set_band != band) {
-            UHD_LOG_WARNING("GAIN", "Band changed after setting gain on ch " << std::string(1, ch +'A') << " old gain value will be ignored");
-            *gain_is_set = false;
+    if(!gain_reset_warning_printed) {
+        if(*gain_is_set) {
+            if(*last_set_band != band) {
+                UHD_LOG_INFO("GAIN", "Band changed after setting gain old gain value will be ignored. Remember to set gain again");
+                *gain_is_set = false;
+                gain_reset_warning_printed = true;
+            }
         }
+        *last_set_band = band;
     }
-    *last_set_band = band;
 
 
 	//------------------------------------------------------------------
@@ -1758,7 +1761,7 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 			_tree->subtree(rx_dsp_root(chan)),
 			_tree->subtree(rx_rf_fe_root(chan)),
 			tune_request,
-            chan, &rx_gain_is_set[chan], &last_set_rx_band[chan]);
+            &rx_gain_is_set[chan], &last_set_rx_band[chan]);
 	return result;
 
 }
@@ -1781,7 +1784,7 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 			_tree->subtree(tx_dsp_root(chan)),
 			_tree->subtree(tx_rf_fe_root(chan)),
 			tune_request,
-            chan, &tx_gain_is_set[chan], &last_set_tx_band[chan]);
+            &tx_gain_is_set[chan], &last_set_tx_band[chan]);
 	return result;
 
 }

@@ -1710,7 +1710,7 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 //calculates and sets the band, nco, and lo shift
-static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, size_t ch, int* gain_is_set, int* last_set_band ) {
+tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band ) {
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
@@ -1756,13 +1756,16 @@ static tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree
 
     rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
-    if(*gain_is_set) {
-        if(*last_set_band != band) {
-            UHD_LOG_WARNING("GAIN", "Band changed after setting gain on ch " << std::string(1, ch +'A') << " old gain value will be ignored");
-            *gain_is_set = false;
+    if(!gain_reset_warning_printed) {
+        if(*gain_is_set) {
+            if(*last_set_band != band) {
+                UHD_LOG_INFO("GAIN", "Band changed after setting gain old gain value will be ignored. Remember to set gain again");
+                *gain_is_set = false;
+                gain_reset_warning_printed = true;
+            }
         }
+        *last_set_band = band;
     }
-    *last_set_band = band;
 
 
 	//------------------------------------------------------------------
@@ -1818,7 +1821,7 @@ uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
 			_tree->subtree(rx_dsp_root(chan)),
 			_tree->subtree(rx_rf_fe_root(chan)),
 			tune_request,
-            chan, &rx_gain_is_set[chan], &last_set_rx_band[chan]);
+            &rx_gain_is_set[chan], &last_set_rx_band[chan]);
 	return result;
 
 }
@@ -1841,7 +1844,7 @@ uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
 			_tree->subtree(tx_dsp_root(chan)),
 			_tree->subtree(tx_rf_fe_root(chan)),
 			tune_request,
-            chan, &tx_gain_is_set[chan], &last_set_tx_band[chan]);
+            &tx_gain_is_set[chan], &last_set_tx_band[chan]);
 	return result;
 
 }
