@@ -122,12 +122,12 @@ static void tng_csv_parse(std::vector<std::string> &tokens, char* data, const ch
 	return;
 }
 
-// base wrapper that calls the simple UDP interface to get messages to and from Crimson
+// Gets a property on the device
 std::string cyan_nrnt_impl::get_string(std::string req) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
-	// format the string and poke (write)
+	// Send the get request
     _mbc[ "0" ].iface -> poke_str("get," + req);
 
 	// peek (read) back the data
@@ -136,11 +136,12 @@ std::string cyan_nrnt_impl::get_string(std::string req) {
 	if (ret == "TIMEOUT") 	throw uhd::runtime_error("cyan_nrnt_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
+// Sets a property on the device
 void cyan_nrnt_impl::set_string(const std::string pre, std::string data) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
-	// format the string and poke (write)
+	// Send the set request
 	_mbc[ "0" ].iface -> poke_str("set," + pre + "," + data);
 
 	// peek (read) anyways for error check, since Crimson will reply back
