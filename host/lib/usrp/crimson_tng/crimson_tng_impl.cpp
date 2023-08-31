@@ -1349,7 +1349,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	this->io_init();
 
     //do some post-init tasks
-    this->update_rates();
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 

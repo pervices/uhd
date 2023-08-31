@@ -244,10 +244,12 @@ private:
     uhd::dict<std::string, mb_container_type> _mbc;
 
     void io_init(void);
-    //void update_tick_rate(const double rate);
+    // Lets the streamers know the sample rate
     void update_rx_samp_rate(const std::string & mb, const size_t chan, const double rate);
     void update_tx_samp_rate(const std::string & mb, const size_t chan, const double rate);
-    void update_rates(void);
+    // Updates rates on all active channels
+    void update_all_rx_rates(void);
+    void update_all_tx_rates(void);
     //update spec methods are coercers until we only accept db_name == A
     void update_rx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
     void update_tx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);

@@ -477,6 +477,7 @@ void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
     }
 }
 
+// Lets the streamer know what the rate is
 void crimson_tng_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
 
     set_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
@@ -513,6 +514,7 @@ void crimson_tng_impl::tx_rate_check(size_t ch, double rate_samples) {
     }
 }
 
+// Lets the streamer know what the rate is
 void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
 
     set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
@@ -527,17 +529,22 @@ void crimson_tng_impl::update_tx_samp_rate(const std::string &mb, const size_t d
     my_streamer->set_samp_rate(rate);
 }
 
-void crimson_tng_impl::update_rates(void){
+void crimson_tng_impl::update_all_rx_rates(void){
     for (const std::string &mb : _mbc.keys()) {
         fs_path root = "/mboards/" + mb;
-        _tree->access<double>(root / "tick_rate").update();
 
         for(const std::string &name : _tree->list(root / "rx_dsps")) {
-            //and now that the tick rate is set, init the host rates to something
             if ( "1" == _tree->access<std::string>( root / "rx" / name / "pwr").get() ) {
                 _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
             }
         }
+    }
+}
+
+void crimson_tng_impl::update_all_tx_rates(void){
+    for (const std::string &mb : _mbc.keys()) {
+        fs_path root = "/mboards/" + mb;
+
         for(const std::string &name : _tree->list(root / "tx_dsps")) {
             if ( "1" == _tree->access<std::string>( root / "tx" / name / "pwr").get() ) {
                 _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
@@ -728,7 +735,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     }
 
     //sets all tick and samp rates on this streamer
-    this->update_rates();
+    this->update_all_rx_rates();
 
     allocated_rx_streamers.push_back( my_streamer );
     ::atexit( shutdown_lingering_rx_streamers );
@@ -937,7 +944,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     }
 
     //sets all tick and samp rates on this streamer
-    this->update_rates();
+    this->update_all_tx_rates();
 
     // Waits for time diff to converge
     wait_for_time_diff_converged();
