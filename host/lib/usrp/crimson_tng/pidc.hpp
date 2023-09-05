@@ -35,11 +35,11 @@ namespace uhd {
 
 		pidc()
 		:
-			pidc( 0.0, 0.0, 0.0, 0.0 )
+			pidc( 0.0, 0.0, 0.0, 0.0, 0.0 )
 		{
 		}
 
-		pidc( double sp, double Kp, double Ki, double Kd )
+		pidc( double sp, double Kp, double Ki, double Kd, double derivative_filter_frequency )
 		:
 			Kp( Kp ),
 			Ki( Ki ),
@@ -49,9 +49,10 @@ namespace uhd {
 			// initialize the control variable to be equal to the set point, so error is initially zero
 			cv( 0.0 ),
 			sp( sp ),
+            DERIVATE_MIN_FREQUENCY(derivative_filter_frequency),
 			offset( 0.0 ),
-			last_time( 0 ),
-			last_status_time( 0 ),
+			last_time( 0.0 ),
+			last_status_time( 0.0 ),
 			converged( false ),
 			max_error_for_divergence( DEFAULT_MAX_ERROR_FOR_DIVERGENCE )
 		{
@@ -66,14 +67,12 @@ namespace uhd {
 
 		virtual ~pidc() {}
 
-		double update_control_variable( const double sp, const double pv, double now ) {
+		double update_control_variable( const double sp, const double pv, const uhd::time_spec_t &now ) {
 			// XXX: @CF: Use "velocity algorithm" form?
 			// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation
 			// Possibly better to not use the velocity algorithm form to avoid several opportunities for numerical instability
 
-			double then = last_time;
-
-			double dt = now - then;
+			double dt = (now - last_time).get_real_secs();
 			double e_1 = e;
 
 			if ( std::abs( dt ) < 1e-9 || dt < 0 ) {
@@ -93,8 +92,13 @@ namespace uhd {
 			double I = Ki * i;
 
 			// derivative
-			// the only possible numerical instability in this format is division by dt
-			double D = Kd * (e - e_1) / dt;
+            // Noise can cause the derivative component to go haywire, to mitigate this a low pass filter is apllied
+            double alpha = 1 - exp(-DERIVATE_MIN_FREQUENCY*dt*2*M_PI);
+            double derivative = (e - e_1) / dt;
+            // f(n) = (1-a) * f(n-1) + a * f(n)
+            double filtered_derivative = (( 1 - alpha ) * previous_filtered_derivated) + (alpha * derivative);
+			double D = Kd * filtered_derivative;
+            previous_filtered_derivated = filtered_derivative;
 
 			// ouput
 			cv = P + I + D;
@@ -104,12 +108,12 @@ namespace uhd {
 			return cv - offset;
 		}
 
-		double get_last_time() {
+		uhd::time_spec_t get_last_time() {
 			return last_time;
 		}
 
 		// XXX: @CF: should only be used in the case where last time is not necessarily when the pidc constructor was called
-		void set_last_time( double t ) {
+		void set_last_time( const uhd::time_spec_t &t ) {
 			last_time = t;
 		}
 
@@ -126,7 +130,7 @@ namespace uhd {
 			}
 		}
 
-		void reset( const double time, const double offset ) {
+		void reset( const uhd::time_spec_t &time, const double offset ) {
             i = 0;
             cv = 0;
             this->offset = offset;
@@ -139,14 +143,14 @@ namespace uhd {
 		// Reset offset is the new offset to use if time diff exceeds the error limit
 		// time: current time on host system
 		// reset_advised: flag indicating that clocks are diverged to the point where it is is better to reset clock sync than continue
-		bool is_converged( const double time, bool *reset_advised ) {
+		bool is_converged( const uhd::time_spec_t &time, bool *reset_advised ) {
 
 			double filtered_error;
 
 			filtered_error = abs(error_filter.get_average());
 
             if ( filtered_error >= RESET_THRESHOLD ) {
-                if ( time - last_status_time >= 1 ) {
+                if ( (time - last_status_time).get_real_secs() >= 1 ) {
                     print_pid_diverged();
                     print_pid_status( time, cv, filtered_error );
                 }
@@ -154,7 +158,7 @@ namespace uhd {
                 return false;
             }
 
-			if ( time - last_status_time >= 1 ) {
+			if ( (time - last_status_time).get_real_secs() >= 1 ) {
 				print_pid_status( time, cv, filtered_error );
 				last_status_time = time;
 			}
@@ -195,24 +199,26 @@ namespace uhd {
 		double get_offset(){
 			return offset;
 		}
-	protected:
+	private:
 		double Kp, Ki, Kd;
 
 		double e; // error memory
 		double i; // integral memory
 		double cv; // output memory
 		double sp; // setpoint
+        double previous_filtered_derivated = 0; // derivative memory
+        double DERIVATE_MIN_FREQUENCY; // Cutoff frequency of the derivative gain
 
 		double offset; //time offset
 
-		double last_time;
-		double last_status_time;
+		uhd::time_spec_t last_time;
+		uhd::time_spec_t last_status_time;
 
 		bool converged;
 		double max_error_for_divergence;
 		uhd::sma error_filter;
 
-		static void print_pid_status( double t, double cv, double pv ) {
+		static void print_pid_status( uhd::time_spec_t t, double cv, double pv ) {
 #ifdef DEBUG_PIDC
 			std::cerr
 				<< "t: " << std::fixed << std::setprecision(6) << t << ", "

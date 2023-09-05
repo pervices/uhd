@@ -23,19 +23,19 @@ namespace uhd {
 
 		pidc_tl()
 		:
-			pidc_tl( 0.0, 0.0, 0.0, 0.0 )
+			pidc_tl( 0.0, 0.0, 0.0, 0.0, 0.0 )
 		{
 		}
 
-		pidc_tl( double sp, double Kp, double Ki, double Kd )
+		pidc_tl( double sp, double Kp, double Ki, double Kd, double derivative_filter_frequency )
 		:
-			uhd::pidc( sp, Kp, Ki, Kd )
+			uhd::pidc( sp, Kp, Ki, Kd, derivative_filter_frequency )
 		{
 		}
 
 		pidc_tl( double sp, double Ku, double Pu )
 		:
-			pidc_tl( sp, TL_KP( Ku, Pu ), TL_KI( Ku, Pu ), TL_KD( Ku, Pu ) )
+			pidc_tl( sp, TL_KP( Ku, Pu ), TL_KI( Ku, Pu ), TL_KD( Ku, Pu ), 2/Pu )
 		{
 		}
 

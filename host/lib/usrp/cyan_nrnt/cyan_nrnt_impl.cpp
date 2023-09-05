@@ -799,11 +799,11 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 
 	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
-	double cv = _time_diff_pidc.update_control_variable( sp, pv, now.get_real_secs() );
+	double cv = _time_diff_pidc.update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
-	_time_diff_converged = _time_diff_pidc.is_converged( now.get_real_secs(), &reset_advised );
+	_time_diff_converged = _time_diff_pidc.is_converged( now, &reset_advised );
 
     if(reset_advised) {
         auto reset_now = uhd::get_system_time();
@@ -811,7 +811,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
         time_diff_send( reset_now );
         time_diff_recv( reset_tdr );
         double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
-        _time_diff_pidc.reset(reset_now.get_real_secs(), new_offset);
+        _time_diff_pidc.reset(reset_now, new_offset);
     }
 
 	// For SoB, record the instantaneous time difference + compensation
