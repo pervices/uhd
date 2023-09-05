@@ -126,10 +126,10 @@ namespace uhd {
 			}
 		}
 
-		void reset( const double time, const double last_diff ) {
+		void reset( const double time, const double offset ) {
             i = 0;
             cv = 0;
-            this->offset = time + last_diff;
+            this->offset = offset;
 			last_time = time;
 			e = max_error_for_divergence;
 			i = 0;
@@ -138,8 +138,8 @@ namespace uhd {
 
 		// Reset offset is the new offset to use if time diff exceeds the error limit
 		// time: current time on host system
-		// last_diff: time of the last time diff request
-		bool is_converged( const double time, const double last_diff ) {
+		// reset_advised: flag indicating that clocks are diverged to the point where it is is better to reset clock sync than continue
+		bool is_converged( const double time, bool *reset_advised ) {
 
 			double filtered_error;
 
@@ -150,7 +150,7 @@ namespace uhd {
                     print_pid_diverged();
                     print_pid_status( time, cv, filtered_error );
                 }
-                reset( time, last_diff );
+                *reset_advised = true;
                 return false;
             }
 
@@ -175,10 +175,6 @@ namespace uhd {
 
 			return converged;
 		}
-
-		bool is_converged( const double time ) {
-            return is_converged(time, offset);
-        }
 
 		double get_max_error_for_convergence() {
 			return max_error_for_divergence;
