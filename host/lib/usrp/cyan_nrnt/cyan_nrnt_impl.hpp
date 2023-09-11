@@ -316,8 +316,6 @@ private:
 
     // Checks it an ip address can be pinged
     void ping_check(std::string sfp, std::string ip);
-    // Verifies the MTU is set to the correct value
-    void mtu_check(std::string sfp, std::string ip);
 
     // Samples per second being using per channel
     std::vector<double> tx_sfp_throughput_used;

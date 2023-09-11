@@ -34,6 +34,8 @@
 
 #include <uhdlib/utils/system_time.hpp>
 
+#define MIN_MTU 9000
+
 namespace uhd {
 namespace transport {
 namespace sph {
@@ -105,6 +107,12 @@ public:
             // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
             if(_ACTUAL_SEND_BUFFER_SIZE < 2*_DEFAULT_SEND_BUFFER_SIZE) {
                 fprintf(stderr, "Unable to set send buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.wmem_max=%i\"\n", _DEFAULT_SEND_BUFFER_SIZE, _ACTUAL_SEND_BUFFER_SIZE/2, _DEFAULT_SEND_BUFFER_SIZE);
+            }
+
+            int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
+            if(mtu < MIN_MTU) {
+                fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ips[n].c_str(), MIN_MTU, mtu);
+                throw uhd::system_error("MTU size to small");
             }
 
             send_sockets.push_back(send_socket_fd);
@@ -684,6 +692,60 @@ private:
             last_delay_check_time = uhd::get_system_time();
             delay_check_start_time_set = true;
         }
+    }
+
+    int get_mtu(int socket_fd, std::string ip) {
+        //Start of linked list containing interface info
+        struct ifaddrs *ifaces = nullptr;
+
+        // Gets a linked list of all interfaces
+        getifaddrs(&ifaces);
+        for(ifaddrs *iface = ifaces; iface != NULL; iface = iface->ifa_next) {
+
+            // Verifies this interface has a broadcast address
+            if(iface->ifa_broadaddr != nullptr) {
+                // Verifies said broadcast address is IPV4
+                if(iface->ifa_broadaddr->sa_family == AF_INET) {
+                    // Converts broadcast address to human readable format
+                    char broadcast_buffer[INET_ADDRSTRLEN] = {0, };
+                    auto ret = inet_ntop(AF_INET,  &((struct sockaddr_in*)(iface->ifa_broadaddr))->sin_addr, broadcast_buffer, INET_ADDRSTRLEN);
+                    if(ret == nullptr) {
+                        //TODO: throw error if inet_ntop failed
+                    }
+
+                    // Converts IP address to byte array
+                    uint8_t interface_ip[4];
+                    sscanf(broadcast_buffer, "%hhu.%hhu.%hhu.%hhu", &interface_ip[0], &interface_ip[1], &interface_ip[2], &interface_ip[3]);
+                    uint8_t device_ip[4];
+                    sscanf(ip.c_str(), "%hhu.%hhu.%hhu.%hhu", &device_ip[0], &device_ip[1], &device_ip[2], &device_ip[3]);
+
+                    // Checks if the interface subnet matches the Crimson ip to be checked
+                    bool ip_matches = true;
+                    for(int n = 0; n < 4; n++) {
+                        // Checks if the IPs match or the interface is 255 (which corresponds to any)
+                        if(interface_ip[n] != device_ip[n] && interface_ip[n] != 255) {
+                            ip_matches = false;
+                            break;
+                        }
+                    }
+                    if(!ip_matches) {
+                        continue;
+                    }
+
+                    struct ifreq ifr;
+                    ifr.ifr_addr.sa_family = AF_INET;//address family = IPV4
+                    strncpy(ifr.ifr_name, iface->ifa_name, sizeof(ifr.ifr_name));//interface name of MTU to get
+                    // Gets MTU
+                    if (ioctl(socket_fd, SIOCGIFMTU, (caddr_t)&ifr) < 0) {
+                        throw uhd::system_error("ioctl error when attempting to check MTU\n");
+                    }
+                    freeifaddrs(ifaces);
+                    return ifr.ifr_mtu;
+                }
+            }
+        }
+        freeifaddrs(ifaces);
+        throw uhd::system_error("No interface with subnet matching ip found");
     }
 };
 

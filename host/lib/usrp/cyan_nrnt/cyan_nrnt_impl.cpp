@@ -1190,19 +1190,15 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 
     std::string sfpa_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "ip_addr").get();
     ping_check("sfpa", sfpa_ip);
-    mtu_check("sfpa", sfpa_ip);
 
     std::string sfpb_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpb" / "ip_addr").get();
     ping_check("sfpb", sfpb_ip);
-    mtu_check("sfbd", sfpb_ip);
 
     std::string sfpc_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "ip_addr").get();
     ping_check("sfpc", sfpc_ip);
-    mtu_check("sfcd", sfpc_ip);
 
     std::string sfpd_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr").get();
     ping_check("sfpd", sfpd_ip);
-    mtu_check("sfpd", sfpd_ip);
 
     // This is the master clock rate
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
@@ -1947,34 +1943,6 @@ void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
     int check = system(cmd);
     if (check!=0){
         UHD_LOG_WARNING("PING", "Failed for " << ip << ", please check " << sfp);
-    }
-}
-
-void cyan_nrnt_impl::mtu_check(std::string sfp, std::string ip) {
-    char cmd[128];
-    std::string data;
-    FILE * stream;
-    char buffer[256];
-
-    std::string subnet = ip.substr(0, 9);
-
-    snprintf(cmd, 128, "ip addr show | grep -B2 %s | grep -E -o \"mtu.{0,5}\" 2>&1", subnet.c_str());
-    stream = popen(cmd, "r");
-    if (stream) {
-        while(!feof(stream))
-            if (fgets(buffer, 256, stream) != NULL) data.append(buffer);
-                pclose(stream);
-    }
-    // CHECK MTU
-    int check = 0;
-    for (int i =0; i < 4; i++) {
-        if (link_cyan_nrnt::mtu_ref[i] != buffer[i+4]) {
-            check ++;
-        }
-    }
-    if (check != 0) {
-        UHD_LOGGER_ERROR("MTU not set to recomended value of " + std::string(link_cyan_nrnt::mtu_ref) + " for subnet " + subnet + " may impact data sent over " + sfp);
-        throw uhd::system_error("Unable to set MTU size");
     }
 }
 
