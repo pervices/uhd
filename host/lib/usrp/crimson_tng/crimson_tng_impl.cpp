@@ -916,31 +916,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     device_addrs_t device_args = separate_device_addr(device_addr);
 
-    // XXX: @CF: 20180227: we need the property tree to extract actual values from hardware
-    //extract the user's requested MTU size or default
-//    mtu_result_t user_mtu;
-//    user_mtu.recv_mtu = size_t(device_addr.cast<double>("recv_frame_size", udp_simple::mtu));
-//    user_mtu.send_mtu = size_t(device_addr.cast<double>("send_frame_size", udp_simple::mtu));
-//
-//    try{
-//        //calculate the minimum send and recv mtu of all devices
-//        mtu_result_t mtu = determine_mtu(device_args[0]["addr"], user_mtu);
-//        for (size_t i = 1; i < device_args.size(); i++){
-//            mtu_result_t mtu_i = determine_mtu(device_args[i]["addr"], user_mtu);
-//            mtu.recv_mtu = std::min(mtu.recv_mtu, mtu_i.recv_mtu);
-//            mtu.send_mtu = std::min(mtu.send_mtu, mtu_i.send_mtu);
-//        }
-//
-//        device_addr["recv_frame_size"] = boost::lexical_cast<std::string>(mtu.recv_mtu);
-//        device_addr["send_frame_size"] = boost::lexical_cast<std::string>(mtu.send_mtu);
-//
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current recv frame size: %d bytes") % mtu.recv_mtu << std::endl;
-//        UHD_LOGGER_INFO("CRIMSON_IMPL") << boost::format("Current send frame size: %d bytes") % mtu.send_mtu << std::endl;
-//    }
-//    catch(const uhd::not_implemented_error &){
-//        //just ignore this error, makes older fw work...
-//    }
-
     device_args = separate_device_addr(device_addr); //update args for new frame sizes
 
     static const size_t mbi = 0;
