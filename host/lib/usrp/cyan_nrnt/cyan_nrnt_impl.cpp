@@ -283,44 +283,47 @@ stream_cmd_t cyan_nrnt_impl::get_stream_cmd(std::string req) {
 }
 
 //creates the stream cmd packet to be send over the sfp ports
-void cyan_nrnt_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
-    stream_cmd_t modified_cmd = stream_cmd_t(stream_cmd);
+void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
 
     // The number of samples requested must be a multiple of a certain number, depending on the variant
-    uint64_t original_nsamps_req = modified_cmd.num_samps;
-    modified_cmd.num_samps = (original_nsamps_req / nsamps_multiple_rx) * nsamps_multiple_rx;
-    if(original_nsamps_req != modified_cmd.num_samps) {
+    uint64_t original_nsamps_req = stream_cmd.num_samps;
+    stream_cmd.num_samps = (original_nsamps_req / nsamps_multiple_rx) * nsamps_multiple_rx;
+    if(original_nsamps_req != stream_cmd.num_samps) {
         // Effectively always round up
-        modified_cmd.num_samps+=nsamps_multiple_rx;
-        if(modified_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
-            UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_S) << "Number of samples requested must be multiple of " << nsamps_multiple_rx << ". The number of samples requested has been modified to " << modified_cmd.num_samps << std::endl;
+        stream_cmd.num_samps+=nsamps_multiple_rx;
+        if(stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+            UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_S) << "Number of samples requested must be multiple of " << nsamps_multiple_rx << ". The number of samples requested has been modified to " << stream_cmd.num_samps << std::endl;
         }
     }
 
     // The part of the FPGA that tracks how many samples are sent is hard coded to assume sc16
     // Therefore, we need to actually request a number of samples with the same amount of data if it were sc16 as what we actually want
     // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
-    modified_cmd.num_samps = modified_cmd.num_samps * otw_rx / 16;
+    stream_cmd.num_samps = stream_cmd.num_samps * otw_rx / 16;
 
 	const size_t ch = pre_to_ch( pre );
+
+    double current_time = get_time_now().get_real_secs();
+
 #ifdef DEBUG_COUT
     std::cout
         << std::fixed << std::setprecision(6)
-        << now.get_real_secs()
+        << current_time
         << ": "
-        << modified_cmd.stream_mode
+        << stream_cmd.stream_mode
         << ": "
         << pre
         << ": SETTING STREAM COMMAND: "
-        << modified_cmd.num_samps << ": "
-        << modified_cmd.stream_now << ": "
-        << modified_cmd.time_spec.get_real_secs() << std::endl;
+        << stream_cmd.num_samps << ": "
+        << stream_cmd.stream_now << ": "
+        << stream_cmd.time_spec.get_real_secs() << std::endl;
 #endif
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
-    if (modified_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && modified_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !modified_cmd.stream_now) {
-        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " Requested rx start time to close to current time");
+    if (stream_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
+        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabing stream_now";
+        stream_cmd.stream_now = true;
     }
 
     //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
@@ -330,7 +333,7 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, const stream_cmd_t s
     //9r7t only has one channel per port so it
     size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
 
-	make_rx_stream_cmd_packet( modified_cmd, jesd_num, rx_stream_cmd );
+	make_rx_stream_cmd_packet( stream_cmd, jesd_num, rx_stream_cmd );
 
     int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
 
