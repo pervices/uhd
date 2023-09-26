@@ -221,16 +221,17 @@ public:
 
         uhd::tx_metadata_t metadata = metadata_;
 
-        if ( _first_call_to_send ) {
+        if ( _first_call_to_send || metadata.start_of_burst ) {
 
-            if ( ! metadata.start_of_burst || metadata.time_spec.get_real_secs() == 0 ) {
+            if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
                 uhd::time_spec_t now = get_time_now();
                 metadata.start_of_burst = true;
                 metadata.time_spec = now + default_sob;
             } else {
                 double current_time = get_time_now().get_real_secs();
                 if (metadata.time_spec.get_real_secs() < current_time + 0.1) {
-                    throw uhd::value_error(CRIMSON_TNG_DEBUG_NAME_C " Requested tx start time to close to current time");
+                    UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + 0.1);
+                    metadata.time_spec = uhd::time_spec_t(current_time + 0.1);
                 }
             }
         }
