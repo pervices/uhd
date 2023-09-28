@@ -54,6 +54,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "help message")
+        ("dumpall", "show all the property path in file system")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
         ("path", po::value<std::string>(&path)->default_value(""), "The path for the value in the UHD state tree to get")
         ("type", po::value<std::string>(&type)->default_value("string"), "The data type of the variable to get")
@@ -70,10 +71,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
             << std::endl
             << "This gets the value at the path specified.\n"
             << std::endl;
-        return ~0;
+        return 0;
     }
 
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+  
+    if (vm.count("dumpall")) {
+        usrp->dump_tree("");
+        return 0;
+    }
 
     if(type.compare("double")==0) get_double_at_path(usrp, path);
     else if (type.compare("int")==0) get_int_at_path(usrp, path);
