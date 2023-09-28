@@ -268,13 +268,18 @@ stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
 	stream_cmd_t temp = stream_cmd_t(mode);
 	return temp;
 }
-void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t stream_cmd ) {
+void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
 
 	const size_t ch = pre_to_ch( pre );
+
+	uhd::usrp::rx_stream_cmd rx_stream_cmd;
+
+    double current_time = get_time_now().get_real_secs();
+
 #ifdef DEBUG_COUT
     std::cout
         << std::fixed << std::setprecision(6)
-        << now.get_real_secs()
+        << current_time
         << ": "
         << stream_cmd.stream_mode
         << ": "
@@ -285,10 +290,9 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, const stream_cmd_t
         << stream_cmd.time_spec.get_real_secs() << std::endl;
 #endif
 
-	uhd::usrp::rx_stream_cmd rx_stream_cmd;
-
-    if (stream_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
-        throw uhd::value_error(CRIMSON_TNG_DEBUG_NAME_C " Requested rx start time to close to current time");
+    if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
+        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabing stream_now";
+        stream_cmd.stream_now = true;
     }
 
 	make_rx_stream_cmd_packet( stream_cmd, ch, rx_stream_cmd );
