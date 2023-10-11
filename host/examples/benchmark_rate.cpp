@@ -614,7 +614,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // a delay. Also delay start in case we are using multiple streamers to stream
         // multi channel data to avoid management transaction contention between threads
         // during setup.
-        if ((tx_delay <= 0.5 || vm.count("multi_streamer")) && tx_channel_nums.size() > 1) {
+        if (tx_delay < 0.5 && vm.count("multi_streamer") && tx_channel_nums.size() > 1) {
             UHD_LOGGER_WARNING("BENCHMARK_RATE") << "tx delay start time to low for multiple streamers. Changing tx delay to 0.5";
             tx_delay = 0.5;
         }
