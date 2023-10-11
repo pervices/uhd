@@ -132,8 +132,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                             * rx_stream->get_num_channels();
             recv_timeout = burst_pkt_time;
         } catch (uhd::io_error& e) {
-            std::cerr << "[" << NOW() << "] Caught an IO exception. " << std::endl;
-            std::cerr << e.what() << std::endl;
+            UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Caught an IO exception. " << std::endl;
+            UHD_LOGGER_ERROR("BENCHMARK_RATE") << e.what() << std::endl;
             return;
         }
 
@@ -144,7 +144,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                     had_an_overflow          = false;
                     const long dropped_samps = (md.time_spec - last_time).to_ticks(rate);
                     if (dropped_samps < 0) {
-                        std::cerr << "[" << NOW()
+                        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW()
                                   << "] Timestamp after overrun recovery "
                                      "ahead of error timestamp! Unable to calculate "
                                      "number of dropped samples."
@@ -168,13 +168,13 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                     num_overruns++;
                 } else {
                     num_seqrx_errors++;
-                    std::cerr << "[" << NOW() << "] Detected Rx sequence error."
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Detected Rx sequence error."
                               << std::endl;
                 }
                 break;
 
             case uhd::rx_metadata_t::ERROR_CODE_LATE_COMMAND:
-                std::cerr << "[" << NOW() << "] Receiver error: " << md.strerror()
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << ", restart streaming..." << std::endl;
                 num_late_commands++;
                 // Radio core will be in the idle state. Issue stream command to restart
@@ -188,16 +188,16 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 if (burst_timer_elapsed) {
                     return;
                 }
-                std::cerr << "[" << NOW() << "] Receiver error: " << md.strerror()
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << ", continuing..." << std::endl;
                 num_timeouts_rx++;
                 break;
 
                 // Otherwise, it's an error
             default:
-                std::cerr << "[" << NOW() << "] Receiver error: " << md.strerror()
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << std::endl;
-                std::cerr << "[" << NOW() << "] Unexpected error on recv, continuing..."
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
                           << std::endl;
                 break;
         }
@@ -265,7 +265,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
             if (num_tx_samps_sent_now == 0) {
                 num_timeouts_tx++;
                 if ((num_timeouts_tx % 10000) == 1) {
-                    std::cerr << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx.load()
                               << std::endl;
                 }
             }
@@ -313,9 +313,9 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
                 break;
 
             default:
-                std::cerr << "[" << NOW() << "] Event code: " << async_md.event_code
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Event code: " << async_md.event_code
                           << std::endl;
-                std::cerr << "Unexpected event on async recv, continuing..." << std::endl;
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "Unexpected event on async recv, continuing..." << std::endl;
                 break;
         }
     }
@@ -417,8 +417,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << std::endl;
     uhd::device_addrs_t device_addrs = uhd::device::find(args, uhd::device::USRP);
     if (not device_addrs.empty() and device_addrs.at(0).get("type", "") == "usrp1") {
-        std::cerr << "*** Warning! ***" << std::endl;
-        std::cerr << "Benchmark results will be inaccurate on USRP1 due to insufficient "
+        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "*** Warning! ***" << std::endl;
+        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "Benchmark results will be inaccurate on USRP1 due to insufficient "
                      "features.\n"
                   << std::endl;
     }
@@ -443,7 +443,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     if (vm.count("ref")) {
         if (ref == "mimo") {
             if (num_mboards != 2) {
-                std::cerr
+                UHD_LOGGER_ERROR("BENCHMARK_RATE")
                     << "ERROR: ref = \"mimo\" implies 2 motherboards; your system has "
                     << num_mboards << " boards" << std::endl;
                 return -1;
@@ -466,7 +466,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     std::this_thread::sleep_for(1ms);
                 }
                 if (is_locked == false) {
-                    std::cerr << "ERROR: Unable to confirm clock signal locked on board:"
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "ERROR: Unable to confirm clock signal locked on board:"
                               << i << std::endl;
                     return -1;
                 }
@@ -477,7 +477,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     if (vm.count("pps")) {
         if (pps == "mimo") {
             if (num_mboards != 2) {
-                std::cerr
+                UHD_LOGGER_ERROR("BENCHMARK_RATE")
                     << "ERROR: ref = \"mimo\" implies 2 motherboards; your system has "
                     << num_mboards << " boards" << std::endl;
                 return -1;
