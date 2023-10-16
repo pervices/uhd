@@ -213,10 +213,10 @@ public:
         uhd::tx_metadata_t metadata = metadata_;
 
         if ( _first_call_to_send || metadata.start_of_burst ) {
+            metadata.start_of_burst = true;
 
             if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
                 uhd::time_spec_t now = get_time_now();
-                metadata.start_of_burst = true;
                 metadata.time_spec = now + default_sob;
             } else {
                 double current_time = get_time_now().get_real_secs();
