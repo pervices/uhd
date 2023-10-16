@@ -381,8 +381,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
          "Number of dropped packets (D) which will declare the benchmark a failure.")
         // NOTE: tx_delay defaults to 0.25 while rx_delay defaults to 0.05 when left unspecified
         // in multi-channel and multi-streamer configurations.
-        ("tx_delay", po::value<double>(&tx_delay)->default_value(0.0), "delay before starting TX in seconds")
-        ("rx_delay", po::value<double>(&rx_delay)->default_value(0.0), "delay before starting RX in seconds")
+        ("tx_delay", po::value<double>(&tx_delay)->default_value(5), "delay before starting TX in seconds")
+        ("rx_delay", po::value<double>(&rx_delay)->default_value(5), "delay before starting RX in seconds")
         ("priority", po::value<std::string>(&priority)->default_value("normal"), "thread priority (normal, high)")
         ("multi_streamer", "Create a separate streamer per channel")
     ;
