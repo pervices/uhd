@@ -25,9 +25,7 @@ DECLARE_CONVERTER(sc16_item32_le, 1, fc32, 1, PRIORITY_SIMD)
         /* load from input */                                                          \
         __m128i tmpi = _mm_loadu_si128(reinterpret_cast<const __m128i*>(input + i));   \
                                                                                        \
-        /* unpack + swap 16-bit pairs */                                               \
-        tmpi           = _mm_shufflelo_epi16(tmpi, _MM_SHUFFLE(2, 3, 0, 1));           \
-        tmpi           = _mm_shufflehi_epi16(tmpi, _MM_SHUFFLE(2, 3, 0, 1));           \
+        /* unpack */                                               \
         __m128i tmpilo = _mm_unpacklo_epi16(zeroi, tmpi); /* value in upper 16 bits */ \
         __m128i tmpihi = _mm_unpackhi_epi16(zeroi, tmpi);                              \
                                                                                        \
