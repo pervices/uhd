@@ -11,7 +11,12 @@ void buffer_tracker::set_sample_rate( const double rate ) {
 }
 
 // Returns true if waiting for start time
+// bool start_msg_printed = false;
 bool buffer_tracker::start_of_burst_pending( const uhd::time_spec_t & now ) {
+    // if(now >= sob_time && !start_msg_printed) {
+    //     start_msg_printed = true;
+    //     printf("sob of %lf reached at %lf\n", sob_time.get_real_secs(), now.get_real_secs());
+    // }
     return now < sob_time;
 }
 
