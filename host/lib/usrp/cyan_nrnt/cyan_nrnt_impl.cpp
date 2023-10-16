@@ -1687,7 +1687,7 @@ static int select_band( const double freq ) {
         return LOW_BAND;
 }
 
-static double choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree ) {
+double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign ) {
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
 
@@ -1700,6 +1700,11 @@ static double choose_lo_shift( double target_freq, int band, property_tree::sptr
     //finds out how far the lo should be from the target frequency
     for(lo_diff_range = 0; lo_diff_range < num_lo_diff_ranges; lo_diff_range++) {
         if(sample_rate < lo_diff_ranges[lo_diff_range]) break;
+    }
+
+    // Server cannot compensate for the lo in the ADC on its on if FPGA NCO is bypassed. To compensate shift LO
+    if(sample_rate >= CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G_MIN_RATE && flag_use_3g_as_1g && RX_SIGN == xx_sign) {
+        target_freq -= CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
     }
 
     //los that are the hgihest distance from the target, while still being within lo_diff
@@ -1753,7 +1758,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
             //The differences between mid and high band are handled on the server
 			case MID_BAND:
             case HIGH_BAND:
-				target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree );
+                target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree, xx_sign );
 				break;
 			}
 		break;
