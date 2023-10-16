@@ -116,11 +116,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout = burst_pkt_time + (rx_delay);
 
-    bool stop_called = false;
     while (true) {
-        if (burst_timer_elapsed and not stop_called) {
+        if (burst_timer_elapsed) {
             rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
-            stop_called = true;
+            return;
         }
         if (random_nsamps) {
             cmd.time_spec  = usrp->get_time_now() + uhd::time_spec_t(rx_delay);
@@ -153,7 +152,9 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                     }
                     num_dropped_samps += std::max<long>(1, dropped_samps);
                 }
-                if ((burst_timer_elapsed or stop_called) and md.end_of_burst) {
+                // Normally if eob then rx has completed
+                // however in random nsamps mode there are repeated bursts and each burst with have eob
+                if (md.end_of_burst && !random_nsamps) {
                     return;
                 }
                 break;
@@ -185,9 +186,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
 
             case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
-                if (burst_timer_elapsed) {
-                    return;
-                }
                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << ", continuing..." << std::endl;
                 num_timeouts_rx++;
