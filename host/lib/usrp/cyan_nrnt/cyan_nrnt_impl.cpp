@@ -1083,6 +1083,9 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     otw_tx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_tx").get());
     otw_tx_s = "sc" + std::to_string(otw_tx);
 
+    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G", "system/flags/USE_3G_AS_1G", int, int);
+    flag_use_3g_as_1g = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G").get());
+
     //Initializes the vectors contain caches of constant data
     is_tx_sfp_cached.resize(num_tx_channels, false);
     tx_sfp_cache.resize(num_tx_channels);

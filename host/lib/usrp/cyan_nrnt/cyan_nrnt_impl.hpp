@@ -145,6 +145,9 @@ private:
     int otw_tx;
     std::string otw_tx_s;
 
+    // Flag to indicate the unit is a 3G unit being operated in 1G mode
+    int flag_use_3g_as_1g;
+
     // Changing the band results in the gain being reset. These are used to decide if a warning should be printed to let the user know
     bool gain_reset_warning_printed = false;
     std::vector<int> rx_gain_is_set;
