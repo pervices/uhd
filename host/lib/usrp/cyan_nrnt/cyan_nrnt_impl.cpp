@@ -1704,7 +1704,7 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
 
     // Server cannot compensate for the lo in the ADC on its on if FPGA NCO is bypassed. To compensate shift LO
     if(sample_rate >= CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G_MIN_RATE && flag_use_3g_as_1g && RX_SIGN == xx_sign) {
-        target_freq -= CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
+        target_freq += CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
     }
 
     //los that are the hgihest distance from the target, while still being within lo_diff
