@@ -145,6 +145,9 @@ private:
     int otw_tx;
     std::string otw_tx_s;
 
+    // Flag to indicate the unit is a 3G unit being operated in 1G mode
+    int flag_use_3g_as_1g;
+
     // Changing the band results in the gain being reset. These are used to decide if a warning should be printed to let the user know
     bool gain_reset_warning_printed = false;
     std::vector<int> rx_gain_is_set;
@@ -274,6 +277,7 @@ private:
     void program_stream_dest(uhd::transport::zero_copy_if::sptr &, const uhd::stream_args_t &);
 
     // Calculate and set frequency
+    double choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign );
     tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band );
 
     uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);

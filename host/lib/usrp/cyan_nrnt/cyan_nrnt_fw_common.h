@@ -130,6 +130,13 @@
 #define CYAN_NRNT_MB_PATH   fs_path("/mboards/0")
 #define CYAN_NRNT_TIME_PATH fs_path(CYAN_NRNT_MB_PATH / "time")
 
+// Constants for special flags
+// Note: make sure this matches the value on the server
+// The minimnum rate where the server cannont compensate for the NCO shift in the ADC
+#define CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G_MIN_RATE 500000000
+// THe NCO shift in the ADC
+#define CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G 250000000
+
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
     LOW_BAND = 0,

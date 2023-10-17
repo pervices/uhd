@@ -22,8 +22,10 @@ namespace uhd {
 
 	public:
 
-        // Threshold for considering times as synced
+        // Threshold for considering times as synced for filtered error
 		static constexpr double DEFAULT_MAX_ERROR_FOR_DIVERGENCE = 20e-6;
+        // Threshold for considering times as desynced given a single value exceeding this error
+        static constexpr double INSTANTENOUS_MAX_ERROR_FOR_DIVERGENCE = 1;
         // Threshold for reseting clock sync instead of trying to continue
         static constexpr uint64_t RESET_THRESHOLD = 1000000;
 
@@ -82,6 +84,10 @@ namespace uhd {
 
 			this->sp = sp;
 			e = sp - pv;
+
+            if(e > INSTANTENOUS_MAX_ERROR_FOR_DIVERGENCE) {
+                converged = false;
+            }
 			error_filter.update(  e  );
 
 			// proportional
@@ -163,19 +169,17 @@ namespace uhd {
 				last_status_time = time;
 			}
 
-			if ( ! converged ) {
-				if ( filtered_error < max_error_for_divergence * 0.9 ) {
-					converged = true;
-					print_pid_status( time, cv, filtered_error );
-					print_pid_converged();
-				}
-			} else {
-				if ( filtered_error >= max_error_for_divergence ) {
-					converged = false;
-					print_pid_diverged();
-					print_pid_status( time, cv, filtered_error );
-				}
-			}
+			// Updates whether or not it is converged (the * 0.9 is to apply hysteresis)
+            if ( filtered_error < max_error_for_divergence * 0.9 ) {
+                converged = true;
+                print_pid_status( time, cv, filtered_error );
+                print_pid_converged();
+            }
+            if ( filtered_error >= max_error_for_divergence ) {
+                converged = false;
+                print_pid_diverged();
+                print_pid_status( time, cv, filtered_error );
+            }
 
 			return converged;
 		}
