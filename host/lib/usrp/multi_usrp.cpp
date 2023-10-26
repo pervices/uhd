@@ -95,7 +95,7 @@ static void do_freq_warning_message(
     if (std::abs(target_freq - actual_freq) > max_allowed_error) {
         UHD_LOGGER_WARNING("MULTI_USRP")
             << boost::format(
-                   "The hardware does not support the requested %s center frequency:\n"
+                   "Error while attempting to set the requested %s center frequency:\n"
                    "Target center frequency: %f MHz\n"
                    "Actual center frequency: %f MHz\n")
                    % xx % (target_freq / 1e6) % (actual_freq / 1e6);

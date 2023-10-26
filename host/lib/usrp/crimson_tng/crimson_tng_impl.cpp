@@ -1705,6 +1705,10 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
+    if(actual_rf_freq == 0 && target_rf_freq != 0) {
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Error when attempting to set lo. The PLL is likely unlocked. Rerun the update pacakge without nolut. If this error persists contact support");
+    }
+
 	//------------------------------------------------------------------
 	//-- Set the DSP frequency depending upon the DSP frequency policy.
 	//------------------------------------------------------------------
