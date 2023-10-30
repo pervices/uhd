@@ -210,6 +210,28 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         buff[n] = wave_generator(n);
     }
 
+    //Check Ref and LO Lock detect
+    std::vector<std::string> sensor_names;
+    const size_t tx_sensor_chan = channel_nums.empty() ? 0 : channel_nums[0];
+    sensor_names = usrp->get_tx_sensor_names(tx_sensor_chan);
+    if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
+        uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
+        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
+        UHD_ASSERT_THROW(lo_locked.to_bool());
+    }
+    const size_t mboard_sensor_idx = 0;
+    sensor_names = usrp->get_mboard_sensor_names(mboard_sensor_idx);
+    if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {
+        uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", mboard_sensor_idx);
+        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
+        UHD_ASSERT_THROW(mimo_locked.to_bool());
+    }
+    if ((ref == "external") and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end())) {
+        uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", mboard_sensor_idx);
+        std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
+        UHD_ASSERT_THROW(ref_locked.to_bool());
+    }
+
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if(pps != "bypass") {
         if (channel_nums.size() > 1)
@@ -244,32 +266,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "Bypassing setting clock, this may interfere with start time" << std::endl;
     }
 
-    //Check Ref and LO Lock detect
-    std::vector<std::string> sensor_names;
-    const size_t tx_sensor_chan = channel_nums.empty() ? 0 : channel_nums[0];
-    sensor_names = usrp->get_tx_sensor_names(tx_sensor_chan);
-    if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
-        uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
-        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(lo_locked.to_bool());
-    }
-    const size_t mboard_sensor_idx = 0;
-    sensor_names = usrp->get_mboard_sensor_names(mboard_sensor_idx);
-    if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {
-        uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(mimo_locked.to_bool());
-    }
-    if ((ref == "external") and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end())) {
-        uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
-        UHD_ASSERT_THROW(ref_locked.to_bool());
-    }
-
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
-
-    usrp->set_time_now(0.0);
 
     bool ignore_last = first > last;
 
