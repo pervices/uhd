@@ -177,4 +177,6 @@
 #define CRIMSON_TNG_MB_PATH   fs_path("/mboards/0")
 #define CRIMSON_TNG_TIME_PATH fs_path(CRIMSON_TNG_MB_PATH / "time")
 
+#define CRIMSON_TNG_MIN_TX_DELAY 0.1
+
 #endif /* INCLUDED_CRIMSON_TNG_FW_COMMON_H */

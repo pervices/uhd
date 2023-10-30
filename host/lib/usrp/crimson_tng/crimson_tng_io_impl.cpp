@@ -229,9 +229,9 @@ public:
                 metadata.time_spec = now + default_sob;
             } else {
                 double current_time = get_time_now().get_real_secs();
-                if (metadata.time_spec.get_real_secs() < current_time + 0.1) {
-                    UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + 0.1);
-                    metadata.time_spec = uhd::time_spec_t(current_time + 0.1);
+                if (metadata.time_spec.get_real_secs() < current_time + CRIMSON_TNG_MIN_TX_DELAY) {
+                    UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CRIMSON_TNG_MIN_TX_DELAY);
+                    metadata.time_spec = uhd::time_spec_t(current_time + CRIMSON_TNG_MIN_TX_DELAY);
                 }
             }
         }
