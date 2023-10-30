@@ -257,6 +257,11 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
+    // Get's the current time of the system
+    virtual time_spec_t get_time_now() {
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
 protected:
     uhd::property_tree::sptr _tree;
     device_filter_t _type;

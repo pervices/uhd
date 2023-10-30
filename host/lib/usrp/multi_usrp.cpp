@@ -373,14 +373,8 @@ public:
     // Currently this only checks the
     time_spec_t get_time_now(size_t mboard = 0) override
     {
-        _tree->access<std::string>(mb_root(mboard) / "gps_time").set("1");
-        int64_t secs = std::strtol(_tree->access<std::string>(mb_root(mboard) / "gps_time").get().c_str(), nullptr, 10);
-        _tree->access<std::string>(mb_root(mboard) / "gps_frac_time").set("1");
-        int64_t ticks = std::strtol(_tree->access<std::string>(mb_root(mboard) / "gps_frac_time").get().c_str(), nullptr, 10);
-
-        double tick_rate = get_master_clock_rate(mboard);
-
-        return time_spec_t(secs, ticks, tick_rate);
+        (void) mboard;
+        return get_device()->get_time_now();
     }
 
     // The time seconds time increments on pps, to the last pps pulse occured on the last full second
