@@ -78,6 +78,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("first", po::value<double>(&first)->default_value(5), "Time for first stacked command")
         ("last", po::value<double>(&last)->default_value(5), "Time for last stacked command")
         ("increment", po::value<double>(&increment)->default_value(1), "Increment for stack commands between <first> and <last> times")
+        ("constant_time", "When set, device time gets set to 0, and first and last's exact values are used. Otherwise first and last are relative to the time when initialization finished. In both cases the device time is set to 0 during init unless pps is bypassed")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -88,6 +89,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
         return ~0;
     }
+
+    bool use_constant_time = vm.count("constant_time");
 
     //create a usrp device
     std::cout << std::endl;
@@ -264,6 +267,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     } else {
         std::cout << "Bypassing setting clock, this may interfere with start time" << std::endl;
+    }
+
+    if(!use_constant_time) {
+        // Clock sync is lost when setting the time. Getting the time blocks until sync is established
+        uhd::time_spec_t converged_time = usrp->get_time_now();
+
+        // Shifts the requested start and stop times to match
+        double time_offset = converged_time.get_real_secs();
+        first+=time_offset;
+        last+=time_offset;
     }
 
     std::signal(SIGINT, &sig_int_handler);
