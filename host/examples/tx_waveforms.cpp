@@ -283,9 +283,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
     bool ignore_last = first > last;
+    bool first_loop = true;
 
-    for(double time = first; (ignore_last || time <= last) && !stop_signal_called ; time += increment)
+    for(double time = first; ((ignore_last && first_loop ) || time <= last) && !stop_signal_called ; time += increment)
     {
+        first_loop = false;
         // Set up metadata. We start streaming a bit in the future
         // to allow MIMO operation:
         uhd::tx_metadata_t md;
