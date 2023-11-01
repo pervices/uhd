@@ -51,12 +51,13 @@ int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
 // Now: the time the buffer was read at
 // Updating buffer level bias shouldn't be time sensitive so its fine to not implement thread synchronization mechanisms
 void buffer_tracker::update_buffer_level_bias( const int64_t level, const uhd::time_spec_t & now ) {
+    int64_t predicted_buffer_level = get_buffer_level(now);
     // Only update bias if most of the required samples to fill the buffer have been sent
-    if(!start_of_burst_pending(now) && total_samples_sent > (uint64_t) nominal_buffer_level) {
-        int64_t new_buffer_level_bias = buffer_level_bias + (int64_t)((level - nominal_buffer_level) * 0.01);
+    if(!start_of_burst_pending(now) && total_samples_sent > (uint64_t) predicted_buffer_level) {
+        int64_t new_buffer_level_bias = buffer_level_bias + (int64_t)((level - predicted_buffer_level) * 0.01);
 
         // Limit the bias to 1% of the desired buffer level per 1s of streaming
-        int64_t buffer_bias_limit = (int64_t)((now - sob_time).get_real_secs() * nominal_buffer_level * 0.01);
+        int64_t buffer_bias_limit = (int64_t)((now - sob_time).get_real_secs() * predicted_buffer_level * 0.01);
         if(buffer_level_bias > buffer_bias_limit) {
             buffer_level_bias = buffer_bias_limit;
         } else if(buffer_level_bias < -buffer_bias_limit) {
