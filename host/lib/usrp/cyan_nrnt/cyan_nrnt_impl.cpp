@@ -795,6 +795,15 @@ bool cyan_nrnt_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 	return true;
 }
 
+void cyan_nrnt_impl::reset_time_diff_pid() {
+    auto reset_now = uhd::get_system_time();
+    struct time_diff_resp reset_tdr;
+    time_diff_send( reset_now );
+    time_diff_recv( reset_tdr );
+    double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
+    _time_diff_pidc.reset(reset_now, new_offset);
+}
+
 /// SoB Time Diff: feed the time diff error back into out control system
 void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
@@ -809,12 +818,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 	_time_diff_converged = _time_diff_pidc.is_converged( now, &reset_advised );
 
     if(reset_advised) {
-        auto reset_now = uhd::get_system_time();
-        struct time_diff_resp reset_tdr;
-        time_diff_send( reset_now );
-        time_diff_recv( reset_tdr );
-        double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
-        _time_diff_pidc.reset(reset_now, new_offset);
+        reset_time_diff_pid();
     }
 
 	// For SoB, record the instantaneous time difference + compensation
@@ -915,6 +919,14 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 		then += T,
 			now = uhd::get_system_time()
 	) {
+        if(dev->time_resync_requested) {
+            // Reset PID to clear old values
+            dev->reset_time_diff_pid();
+            // Time did is no longer converged after the reset
+            dev->_time_diff_converged = false;
+            // Acknowledge resync has begun
+            dev->time_resync_requested = false;
+        }
 
 		dt = then - now;
 		if ( dt > 0.0 ) {
@@ -922,7 +934,6 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
 		}
-		bool resync_request_received = dev->time_resync_requested;
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
 		now = uhd::get_system_time();
@@ -933,11 +944,6 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
  			continue;
          }
 		dev->time_diff_process( tdr, now );
-
-        // Indicates that the time diff is has been resynced after a set time
-        if(resync_request_received) {
-            dev->time_resync_requested = !dev->_time_diff_converged;
-        }
 	}
 	dev->_bm_thread_running = false;
 }
