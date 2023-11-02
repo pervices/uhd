@@ -51,6 +51,11 @@ int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
 // Now: the time the buffer was read at
 // Updating buffer level bias shouldn't be time sensitive so its fine to not implement thread synchronization mechanisms
 void buffer_tracker::update_buffer_level_bias( const int64_t level, const uhd::time_spec_t & now ) {
+    // If the buffer level is 0 then the predicted level is definely wrong (since it can be negative)
+    // Therefore skip updating bias
+    if(level == 0) {
+        return;
+    }
     int64_t predicted_buffer_level = get_buffer_level(now);
     // Only update bias if most of the required samples to fill the buffer have been sent
     if(!start_of_burst_pending(now) && total_samples_sent > (uint64_t) predicted_buffer_level) {
