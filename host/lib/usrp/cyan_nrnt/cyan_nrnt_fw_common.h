@@ -144,6 +144,6 @@ enum {
     HIGH_BAND = 2,
 };
 
-#define CYAN_NRNT_MIN_TX_DELAY 0.1
+#define CYAN_NRNT_MIN_TX_DELAY 0.001
 
 #endif /* INCLUDED_CYAN_NRNT_FW_COMMON_H */
