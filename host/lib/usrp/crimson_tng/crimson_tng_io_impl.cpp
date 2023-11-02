@@ -206,6 +206,10 @@ public:
             _tx_streamer_channel_in_use->at(_channels[n]) = false;
         }
 	}
+
+    // For temporary workaround to reject underflows/overflows after an end of burst
+    uhd::time_spec_t sob_time;
+    bool streaming_active = false;
     
     //send fucntion called by external programs
     size_t send(
@@ -224,6 +228,7 @@ public:
         if ( _first_call_to_send || metadata.start_of_burst ) {
             metadata.start_of_burst = true;
 
+
             if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
                 uhd::time_spec_t now = get_time_now();
                 metadata.time_spec = now + default_sob;
@@ -234,7 +239,11 @@ public:
                     metadata.time_spec = uhd::time_spec_t(current_time + CRIMSON_TNG_MIN_TX_DELAY);
                 }
             }
+
+            sob_time = metadata.time_spec;
         }
+
+        streaming_active = (streaming_active || metadata.start_of_burst) && !metadata.end_of_burst;
 
         _first_call_to_send = false;
 
@@ -352,6 +361,11 @@ private:
 			const auto t0 = std::chrono::high_resolution_clock::now();
 
 			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
+                // Skip checking for overflows/underflows after an end of burst, and before the start time of the next burst
+                if(!self->streaming_active || self->get_time_now() < self->sob_time) {
+                    ::usleep( (int)(1.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC * 1e6) );
+                    continue;
+                }
 
 				eprops_type & ep = self->_eprops[ i ];
 
