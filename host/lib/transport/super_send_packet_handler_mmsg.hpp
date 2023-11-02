@@ -127,7 +127,6 @@ public:
         }
     }
 
-
     /*******************************************************************
      * Send:
      * The entry point for the fast-path send calls.
@@ -539,7 +538,15 @@ private:
                 int num_packets_to_send = num_packets - num_packets_alread_sent;
                 packets_to_send_this_sendmmsg = std::min(packets_to_send_this_sendmmsg, num_packets_to_send);
 
-                int num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_CONFIRM | MSG_DONTWAIT);
+                int num_packets_sent_this_send;
+                // Check if timestamp of next packet to send is in the past
+                if((int64_t)packet_header_infos[num_packets_alread_sent].tsf >= get_time_now().to_ticks(_TICK_RATE)) {
+                    // If not in the past, send packets
+                    num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_CONFIRM | MSG_DONTWAIT);
+                } else {
+                    // If it is in the past, skip sending it, but continue as if it was sent
+                    num_packets_sent_this_send = 1;
+                }
 
                 if(num_packets_sent_this_send < 0) {
                     if(errno != EAGAIN && errno != EWOULDBLOCK) {
