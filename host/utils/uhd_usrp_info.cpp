@@ -81,6 +81,26 @@ device_addrs_filtered_t find_devices(uhd::device_addrs_t device_addrs)
     return found_devices;
 }
 
+std::string extract_git_hash(std::string verbose_version) {
+    size_t version_line_start = verbose_version.find("Revision");
+    if(version_line_start == std::string::npos) {
+        std::cout << "Error when attempting to extract git hash from " << verbose_version << std::endl;
+        return verbose_version;
+    }
+    size_t version_line_end = verbose_version.find('\n', version_line_start);
+
+    size_t git_hash_start = version_line_end;
+    while(git_hash_start >= version_line_start) {
+        if(verbose_version[git_hash_start - 1] == 'g' || verbose_version[git_hash_start - 1] == ' ') {
+            return verbose_version.substr(git_hash_start, version_line_end - git_hash_start);
+        }
+        git_hash_start--;
+    }
+    std::cout << "Unable to locate git version line on: " << verbose_version << std::endl;
+    // If unable to locate the git hash, return the full verbose string
+    return verbose_version;
+}
+
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
@@ -92,7 +112,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // clang-format off
     desc.add_options()
         ("help,h", "help message")
-        ("all,v", "prints all information")
+        ("all,v", "prints information for all subsystems")
+        ("git,g", "prints only the git hash instead of full version info for subsystems")
         ("server,s", "prints all information related to the server")
         ("fpga,f", "prints all information related to the fpga")
         ("tx,t", "prints all information related to tx")
@@ -117,6 +138,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     bool all_info = vm.count("all");
+    bool git_hash_only = vm.count("git");
     bool server_info = all_info || vm.count("server");
     bool fpga_info = all_info || vm.count("fpga");
     bool tx_info = all_info || vm.count("tx");
@@ -163,8 +185,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         if(server_info) {
             try {
-            std::cout << "Server Version : " << get_from_tree(tree, i, "server_version")
-                    << std::endl;
+                std::string version = get_from_tree(tree, i, "server_version");
+                if(git_hash_only) {
+                    version = extract_git_hash(version);
+                }
+                std::cout << "Server Version : " <<  version << std::endl;
             } catch (const uhd::lookup_error&) {
                 std::cout << "Server version lookup not implemented" << std::endl;
             }
@@ -172,8 +197,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         if(fpga_info) {
             try {
-            std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version")
-                    << std::endl;
+                std::cout << "FPGA Version   : " << get_from_tree(tree, i, "fw_version") << std::endl;
             } catch (const uhd::lookup_error&) {
                 std::cout << "FPGA version lookup not implemented" << std::endl;
             }
@@ -183,22 +207,24 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 std::cout << "FPGA version lookup not implemented" << std::endl;
             }
 
-            try {
-                std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
+            if(!git_hash_only) {
+                try {
+                    std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
 
-                std::cout << "FPGA DDR in use: " << get_from_tree_int(tree, i, "imgparam/ddr_used") << std::endl;
+                    std::cout << "FPGA DDR in use: " << get_from_tree_int(tree, i, "imgparam/ddr_used") << std::endl;
 
-                std::cout << "FPGA is hps only image: " << get_from_tree_int(tree, i, "imgparam/hps_only") << std::endl;
+                    std::cout << "FPGA is hps only image: " << get_from_tree_int(tree, i, "imgparam/hps_only") << std::endl;
 
-                std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
+                    std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
 
-                std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
+                    std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
 
-                std::cout << "FPGA sample rate: " << get_from_tree_int(tree, i, "imgparam/rate") << std::endl;
+                    std::cout << "FPGA sample rate: " << get_from_tree_int(tree, i, "imgparam/rate") << std::endl;
 
-                std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
-            } catch (const uhd::lookup_error&) {
-                std::cout << "FPGA build parameter lookup not implemented (Only relevant on Cyan)" << std::endl;
+                    std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
+                } catch (const uhd::lookup_error&) {
+                    std::cout << "FPGA build parameter lookup not implemented (Only relevant on Cyan)" << std::endl;
+                }
             }
         }
 
@@ -209,15 +235,21 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 try {
                     char path[50];
                     sprintf(path, "rx/%lu/fw_version", rx_chan);
-                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
-                    try {
-                        sprintf(path, "rx/%lu/jesd/status", rx_chan);
-                        std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
-                    } catch (...) {}
-                    try {
-                        sprintf(path, "rx/%lu/status/lna", rx_chan);
-                        std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") lna status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
-                    } catch (...) {}
+                    std::string version = get_from_tree(tree, i, path);
+                    if(git_hash_only) {
+                        version = extract_git_hash(version);
+                    }
+                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << version << std::endl << std::endl;
+                    if(!git_hash_only) {
+                        try {
+                            sprintf(path, "rx/%lu/jesd/status", rx_chan);
+                            std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                        } catch (...) {}
+                        try {
+                            sprintf(path, "rx/%lu/status/lna", rx_chan);
+                            std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") lna status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                        } catch (...) {}
+                    }
                 } catch (...) {
                 }
             }
@@ -230,11 +262,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 try {
                     char path[50];
                     sprintf(path, "tx/%lu/fw_version", tx_chan);
-                    std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << get_from_tree(tree, i, path) << std::endl << std::endl;
-                    try {
-                        sprintf(path, "tx/%lu/jesd/status", tx_chan);
-                        std::cout << std::string("\ttx(" + std::to_string(tx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
-                    } catch (...) {}
+                    std::string version = get_from_tree(tree, i, path);
+                    if(git_hash_only) {
+                        version = extract_git_hash(version);
+                    }
+                    std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << version << std::endl << std::endl;
+                    if(!git_hash_only) {
+                        try {
+                            sprintf(path, "tx/%lu/jesd/status", tx_chan);
+                            std::cout << std::string("\ttx(" + std::to_string(tx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
+                        } catch (...) {}
+                    }
                 } catch (...) {
                 }
             }
@@ -257,7 +295,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         try {
             if (time_info) {
                 std::cout << "Board MCU revision: " << std::endl;
-                std::cout << "\tTime : " << get_from_tree(tree, i, "time/fw_version") << std::endl;
+                std::string version = get_from_tree(tree, i, "time/fw_version");
+                if(git_hash_only) {
+                    version = extract_git_hash(version);
+                }
+                std::cout << "\tTime : " << version << std::endl;
                 std::cout << "Time (fpga/gps_time) : " << get_from_tree(tree, i,"gps_time") << std::endl;
                 std::cout << "Time (time/curr_time): " << get_from_tree_time_spec(tree, i,"time/now") << std::endl;
             }
