@@ -229,6 +229,7 @@ private:
 
     // Minimum valid lo
     double _min_lo;
+    double _max_lo;
 
 	static void bm_thread_fn( crimson_tng_impl *dev );
 

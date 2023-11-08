@@ -115,7 +115,8 @@
 #define CRIMSON_TNG_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Crimson Tuning Range Settings
 #define CRIMSON_TNG_FREQ_RANGE_START	0
-#define CRIMSON_TNG_FREQ_RANGE_STOP	6000000000.0
+// Fallback max freq for older servers, the latest server will report this instead of UHD knowing
+#define CRIMSON_TNG_FALLBACK_FREQ_RANGE_STOP	6000000000.0
 #define CRIMSON_TNG_FREQ_RANGE_STEP	1
 //Crimson LO Tuning Range Step Size
 #define CRIMSON_TNG_LO_STEPSIZE         25000000
