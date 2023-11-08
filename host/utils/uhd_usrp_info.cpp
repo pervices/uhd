@@ -140,7 +140,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << std::endl;
     std::cout << ndevices << " SDRs found!" << std::endl << std::endl;
 
-    args+=",bypass_clock_sync=true";
     // create property tree for later
     uhd::usrp::multi_usrp::sptr dev         = uhd::usrp::multi_usrp::make(args);
     uhd::property_tree::sptr tree = dev->get_tree();
