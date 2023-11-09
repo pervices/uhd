@@ -2912,9 +2912,13 @@ private:
         {
             const std::string full = root + "/" + path;
             std::cout << full << std::endl;
-            std::string value = _tree->access<std::string>(full).get();;
-            std::cout << value << std::endl;
-            dump_tree(full);
+
+            if (_tree->list(full).size() == 0) {
+                std::string value = _tree->access<std::string>(full).get();;
+                std::cout << value << std::endl;
+            } else {
+                dump_tree(full);
+            }
         }
     }
 };
