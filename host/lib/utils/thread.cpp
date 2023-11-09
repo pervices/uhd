@@ -38,13 +38,63 @@ static void check_priority_range(float priority)
  **********************************************************************/
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
 #    include <pthread.h>
+#    include <fcntl.h>
+#    include <sys/stat.h>
+
+// Using realtime threading requires special setup in the OS
+// Returns if the OS is configured correctly
+static bool check_realtime_possible() {
+    // sched_rt_runtime_us is the maximum amount of time per sched_rt_period_us a realtime process can use
+    // The default values will cause a 50ms pause every second if running at a high rate
+    // Path for checking sched_rt_runtime_us
+    std::string rt_info_path = "/proc/sys/kernel/sched_rt_runtime_us";
+    int kernel_fd = open(rt_info_path.c_str(), O_RDONLY);
+
+    // If unable to check the file for sched_rt_runtime_us config, print warning but let realtime threading be used anyway
+    // (Shouldn't happen, but this way it is left to the user if they have a weird setup)
+    if(kernel_fd == -1) {
+        UHD_LOGGER_WARNING("THREAD") << "Unable to verify if sched_rt_runtime_us is disabled. Got error code \"" + std::string(strerror(errno)) + "\" while attempting to read " + rt_info_path + "Periodic stalls will occur when using realtime threading if it is not -1 (disabled)";
+        return true;
+    }
+
+    // Reads the kernel sched params
+    const char expected_value[] = "-1\n";
+    char params_buffer[sizeof(expected_value)];
+    int bytes_read = read(kernel_fd, params_buffer, sizeof(params_buffer));
+    if(bytes_read == -1) {
+        throw uhd::os_error("error in reading kernel params");
+    }
+
+    // Checks if sched_rt_runtime_us is disabled
+    bool allow_realtime = strncmp(params_buffer, expected_value, sizeof(expected_value)) == 0;
+
+    if(!allow_realtime) {
+        UHD_LOGGER_WARNING("THREAD") << "/proc/sys/kernel/sched_rt_runtime_us is enabled. Attempting to use realtime threading with this enabled will result in periodic slowdowns. To fix:\nsudo echo -1 > /proc/sys/kernel/sched_rt_runtime_us";
+    }
+
+    close(kernel_fd);
+
+    return allow_realtime;
+}
 
 void uhd::set_thread_priority(float priority, bool realtime)
 {
     check_priority_range(priority);
 
+    bool allow_realtime;
+    if(realtime) {
+        allow_realtime = check_realtime_possible();
+        if(!allow_realtime) {
+            UHD_LOGGER_WARNING("THREAD") << "Configuration issue that would disrupt realtime threading detected. Ignoring realtime threading request";
+        }
+    } else {
+        // If realtime threading is not requested, no reason to make sure it is usable
+        allow_realtime = false;
+    }
+
+
     // when realtime is not enabled, use sched other
-    int policy = (realtime) ? SCHED_RR : SCHED_OTHER;
+    int policy = (realtime && allow_realtime) ? SCHED_RR : SCHED_OTHER;
 
     // we cannot have below normal priority, set to zero
     if (priority < 0)

@@ -39,6 +39,7 @@
 #ifdef HAVE_DPDK
 #    include <uhdlib/transport/dpdk_simple.hpp>
 #endif
+#include <uhd/utils/thread.hpp>
 
 namespace link_cyan_nrnt {
     const char *mtu_ref = "9000";
@@ -887,6 +888,7 @@ void cyan_nrnt_impl::wait_for_time_diff_converged() {
 //Synchronizes clocks, this function should be run in its own thread
 //When calling it verify that it is not already running (_bm_thread_running)
 void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
+    uhd::set_thread_priority_safe(0, false);
 
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;

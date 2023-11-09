@@ -32,6 +32,7 @@
 #include "uhd/utils/static.hpp"
 
 #include <uhdlib/transport/udp_common.hpp>
+#include <uhd/utils/thread.hpp>
 
 namespace link_crimson {
     const char *mtu_ref = "9000";
@@ -787,6 +788,7 @@ void crimson_tng_impl::wait_for_time_diff_converged() {
 
 // the buffer monitor thread
 void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
+    uhd::set_thread_priority_safe(0, false);
 
 	dev->_bm_thread_running = true;
 
