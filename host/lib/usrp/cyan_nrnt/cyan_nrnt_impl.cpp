@@ -927,6 +927,8 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             dev->_time_diff_converged = false;
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
+        } else {
+            continue;
         }
 
 		dt = then - now;

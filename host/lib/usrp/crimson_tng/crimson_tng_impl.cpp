@@ -834,7 +834,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
 		} else {
-            //continue;
+            continue;
         }
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
