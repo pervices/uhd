@@ -418,15 +418,15 @@ private:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = !metadata_.end_of_burst; // Every packet except the end of burst must have a timestamp. End of burst must have no timestamp
-            // if(metadata_.has_time_spec) {
-            //     // Sets the timestamp based on what's specified by the user
-            //     packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
-            // } else {
-            //     // Sets the timestamp to follow from the previous send
-            //     packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
-            // }
+            if(metadata_.has_time_spec) {
+                // Sets the timestamp based on what's specified by the user
+                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
+            } else {
+                // Sets the timestamp to follow from the previous send
+                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
+            }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
-            packet_header_infos[n].tsf = packet_header_infos[n].sob;
+            packet_header_infos[n].has_tsf = packet_header_infos[n].sob;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
 
