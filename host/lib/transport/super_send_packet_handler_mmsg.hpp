@@ -40,6 +40,10 @@ namespace uhd {
 namespace transport {
 namespace sph {
 
+    // Socket priority for tx sockets
+    // Highest possible thread priority without CAP_NET_ADMIN
+    const int TX_SO_PRIORITY = 6;
+
 /***********************************************************************
  * Super send packet handler
  *
@@ -113,6 +117,11 @@ public:
             if(mtu < MIN_MTU) {
                 fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ips[n].c_str(), MIN_MTU, mtu);
                 throw uhd::system_error("MTU size to small");
+            }
+
+            int set_priority_ret = setsockopt(send_socket_fd, SOL_SOCKET, SO_PRIORITY, &TX_SO_PRIORITY, sizeof(TX_SO_PRIORITY));
+            if(set_priority_ret) {
+                fprintf(stderr, "Attempting to set tx socket priority failed with error code: %s", strerror(errno));
             }
 
             send_sockets.push_back(send_socket_fd);
