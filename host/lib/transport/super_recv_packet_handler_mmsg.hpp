@@ -38,6 +38,10 @@
 
 namespace uhd { namespace transport { namespace sph {
 
+    // Socket priority for rx sockets
+    // One less than the socket priority of tx
+    const int RX_SO_PRIORITY = 5;
+
 /***********************************************************************
  * Super receive packet handler
  *
@@ -113,6 +117,11 @@ public:
             if(mtu < MIN_MTU) {
                 fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ip[n].c_str(), MIN_MTU, mtu);
                 throw uhd::system_error("MTU size to small");
+            }
+
+            int set_priority_ret = setsockopt(recv_socket_fd, SOL_SOCKET, SO_PRIORITY, &RX_SO_PRIORITY, sizeof(RX_SO_PRIORITY));
+            if(set_priority_ret) {
+                fprintf(stderr, "Attempting to set rx socket priority failed with error code: %s", strerror(errno));
             }
 
             // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
