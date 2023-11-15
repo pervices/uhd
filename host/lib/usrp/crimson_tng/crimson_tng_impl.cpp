@@ -785,7 +785,9 @@ void crimson_tng_impl::wait_for_time_diff_converged() {
     }
 }
 
-// the buffer monitor thread
+// Synchronizes clocks between the host and device
+// This function should be run in its own thread
+// When calling it verify that it is not already running (_bm_thread_running)
 void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	dev->_bm_thread_running = true;

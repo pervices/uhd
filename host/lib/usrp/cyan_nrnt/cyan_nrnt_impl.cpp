@@ -884,8 +884,9 @@ void cyan_nrnt_impl::wait_for_time_diff_converged() {
     }
 }
 
-//Synchronizes clocks, this function should be run in its own thread
-//When calling it verify that it is not already running (_bm_thread_running)
+// Synchronizes clocks between the host and device
+// This function should be run in its own thread
+// When calling it verify that it is not already running (_bm_thread_running)
 void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 
     //the sfp port clock synchronization will be conducted on
