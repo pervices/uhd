@@ -704,13 +704,20 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 	return true;
 }
 
-void crimson_tng_impl::reset_time_diff_pid() {
+bool crimson_tng_impl::reset_time_diff_pid() {
     auto reset_now = uhd::get_system_time();
     struct time_diff_resp reset_tdr;
     time_diff_send( reset_now );
-    time_diff_recv( reset_tdr );
+
+    // Return false to indicate reset failed
+    if(!time_diff_recv( reset_tdr ) {
+        return false;
+    }
+
     double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
     _time_diff_pidc.reset(reset_now, new_offset);
+
+    return true;
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
@@ -830,7 +837,10 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
         if(dev->time_resync_requested) {
             // Reset PID to clear old values
-            dev->reset_time_diff_pid();
+            if(!dev->reset_time_diff_pid()) {
+                // Skip rest of clock sync and wait for next time diff time if reset attempt failed
+                continue;
+            }
             // Time did is no longer converged after the reset
             dev->_time_diff_converged = false;
             // Acknowledge resync has begun

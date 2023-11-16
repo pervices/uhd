@@ -210,7 +210,7 @@ private:
     void time_diff_send( const uhd::time_spec_t & crimson_now );
     bool time_diff_recv( time_diff_resp & tdr );
     // Resets the PID controller managing time diffs
-    void reset_time_diff_pid();
+    bool reset_time_diff_pid();
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
     void fifo_update_process( const time_diff_resp & tdr );
 
