@@ -69,7 +69,7 @@ public:
             printf("wait for recv failed\n");
             return 0;
         }
-        size_t data_received = 0;
+        ssize_t data_received = 0;
         if(_connected) {
             data_received = ::recv(_socket->native_handle(), buff.data(), buff.size(), MSG_DONTWAIT);
             if(data_received == -1) {
@@ -77,7 +77,7 @@ public:
                 data_received = 0;
             }
         } else {
-            data_received = _socket->receive_from(asio::buffer(buff), _recv_endpoint);
+            data_received = (ssize_t)_socket->receive_from(asio::buffer(buff), _recv_endpoint);
         }
 
         // If data has been received, then we know routing is good
@@ -87,7 +87,7 @@ public:
             route_good = 0;
         }
 
-        return data_received;
+        return (size_t)data_received;
     }
 
     std::string get_recv_addr(void) override
