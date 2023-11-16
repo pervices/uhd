@@ -41,6 +41,9 @@ public:
         // allow broadcasting
         _socket->set_option(asio::socket_base::broadcast(bcast));
 
+        const int send_buffer_size = 10000;
+        setsockopt(_socket->native_handle(), SOL_SOCKET, SO_SNDBUF, &send_buffer_size, sizeof(send_buffer_size));
+
         // connect the socket
         if (connect)
             _socket->connect(_send_endpoint);
