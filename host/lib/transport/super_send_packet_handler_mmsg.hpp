@@ -34,6 +34,8 @@
 
 #include <uhdlib/utils/system_time.hpp>
 
+#include <sched.h>
+
 #define MIN_MTU 9000
 
 namespace uhd {
@@ -195,6 +197,8 @@ public:
             }
         }
         cached_nsamps = nsamps_to_cache;
+
+        sched_yield();
 
         // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
         return actual_samples_send + nsamps_to_cache - previous_cached_nsamps;
