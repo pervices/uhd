@@ -710,7 +710,7 @@ bool crimson_tng_impl::reset_time_diff_pid() {
     time_diff_send( reset_now );
 
     // Return false to indicate reset failed
-    if(!time_diff_recv( reset_tdr )); {
+    if(!time_diff_recv( reset_tdr )) {
         return false;
     }
 
