@@ -695,6 +695,7 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 	r = _time_diff_iface->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
 
 	if ( 0 == r ) {
+        printf("time diff recv failed\n");
 		return false;
 	}
 
