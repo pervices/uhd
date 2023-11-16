@@ -198,8 +198,6 @@ public:
         }
         cached_nsamps = nsamps_to_cache;
 
-        sched_yield();
-
         // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
         return actual_samples_send + nsamps_to_cache - previous_cached_nsamps;
     }
@@ -535,6 +533,7 @@ private:
 
                 // Skip channel if it either is not time to send any packets yet of the desired number of packets have already been sent
                 if(packets_to_send_this_sendmmsg <= 0 || packets_sent_per_ch[ch_i] == num_packets) {
+                    sched_yield();
                     continue;
                 }
 
