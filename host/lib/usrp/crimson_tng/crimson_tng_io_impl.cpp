@@ -792,29 +792,36 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
 	boost::endian::big_to_native_inplace( req.header );
 
-	size_t r = 0;
+    size_t send_r = 0;
+    size_t recv_r = 0;
 
-	for( size_t tries = 0; tries < 100; tries++ ) {
-		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
-		if ( sizeof( req ) != r ) {
+	for( size_t tries = 0; tries < 1; tries++ ) {
+		send_r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
+		if ( sizeof( req ) != send_r ) {
 			continue;
 		}
 
-		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
-		if ( sizeof( rsp ) != r ) {
+		recv_r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
+		if ( sizeof( rsp ) != recv_r ) {
 			continue;
 		}
 
 		boost::endian::big_to_native_inplace( rsp.header );
 		if ( channel != ( ( rsp.header >> 48 ) & 0xffff ) ) {
-			r = 0;
+            send_r = 0;
+            recv_r = 0;
 			continue;
 		}
 
 		break;
 	}
-	if ( 0 == r ) {
-		UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+	if ( 0 == send_r ) {
+		UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
+	}
+
+	if ( 0 == recv_r ) {
+		UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to receive buffer level reply for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
 		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
 	}
 

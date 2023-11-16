@@ -31,6 +31,8 @@ public:
         asio::ip::udp::resolver::query query(
             asio::ip::udp::v4(), addr, port, asio::ip::resolver_query_base::all_matching);
         _send_endpoint = *resolver.resolve(query);
+        std::cout << "_connected: " << _connected << std::endl;
+        std::cout << "_send_endpoint.address().to_string(): " << _send_endpoint.address().to_string() << std::endl;
 
         // create and open the socket
         _socket = socket_sptr(new asio::ip::udp::socket(_io_service));
@@ -46,8 +48,16 @@ public:
 
     size_t send(const asio::const_buffer& buff) override
     {
-        if (_connected)
-            return _socket->send(asio::buffer(buff));
+        if (_connected) {
+            ssize_t data_sent = ::send(_socket->native_handle(), buff.data(), buff.size(), MSG_DONTWAIT | (MSG_CONFIRM & route_good));
+            if(data_sent == -1) {
+                printf("send errno: %s\n", strerror(errno));
+                return 0;
+            } else {
+                return data_sent;
+            }
+        }
+        printf("not connected send\n");
         return _socket->send_to(asio::buffer(buff), _send_endpoint);
     }
 
@@ -55,9 +65,29 @@ public:
     {
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
 
-        if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms))
+        if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms)) {
+            printf("wait for recv failed\n");
             return 0;
-        return _socket->receive_from(asio::buffer(buff), _recv_endpoint);
+        }
+        size_t data_received = 0;
+        if(_connected) {
+            data_received = ::recv(_socket->native_handle(), buff.data(), buff.size(), MSG_DONTWAIT);
+            if(data_received == -1) {
+                printf("recv errno: %s\n", strerror(errno));
+                data_received = 0;
+            }
+        } else {
+            data_received = _socket->receive_from(asio::buffer(buff), _recv_endpoint);
+        }
+
+        // If data has been received, then we know routing is good
+        if(data_received) {
+            route_good = ~0;
+        } else {
+            route_good = 0;
+        }
+
+        return data_received;
     }
 
     std::string get_recv_addr(void) override
@@ -76,6 +106,9 @@ private:
     socket_sptr _socket;
     asio::ip::udp::endpoint _send_endpoint;
     asio::ip::udp::endpoint _recv_endpoint;
+    // Set to 0 until a packet has been received, ~0 once a packet has been received
+    // If this has been confirmed send can be called with MSG_CONFIRM
+    int route_good = 0;
 };
 
 udp_simple::~udp_simple(void)
