@@ -84,6 +84,7 @@ static bool check_realtime_possible() {
     // Checks if the limit on how much of the time the realtime thread is either disabled (-1) or equal to the period
     // For unknown reason on some computers the host will freeze/become unable to send when using realtime threading
     // Assume that if the user has disabled the limit with -1 they know what they are doing and don't warn them about potential slowdown
+    // NOTE: the aformentioned part of limit = period being fine and -1 causing problems is wrong, both cause issues apparently only on Intel 10G nics
     bool allow_realtime = strncmp(runtime_max_buffer, max_rt_disabled_value, 50) == 0 || strncmp(runtime_max_buffer, runtime_period_buffer, 50);
 
     if(!allow_realtime) {
@@ -128,6 +129,9 @@ void uhd::set_thread_priority(float priority, bool realtime)
     // set the new priority and policy
     sched_param sp;
     sp.sched_priority = int(priority * (max_pri - min_pri)) + min_pri;
+    std::cout << "max_pri: " << max_pri << std::endl;
+    std::cout << "min_pri: " << min_pri << std::endl;
+    std::cout << "sp.sched_priority: " << sp.sched_priority << std::endl;
     int ret           = pthread_setschedparam(pthread_self(), policy, &sp);
     if (ret != 0)
         throw uhd::os_error("error in pthread_setschedparam");
