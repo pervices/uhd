@@ -46,8 +46,17 @@ public:
 
     size_t send(const asio::const_buffer& buff) override
     {
-        if (_connected)
-            return _socket->send(asio::buffer(buff));
+        // TODO: migrate to libc sendto for non connected socket to remove boost
+        if (_connected) {
+            // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
+            ssize_t data_sent = ::send(_socket->native_handle(), buff.data(), buff.size(), MSG_CONFIRM & route_good);
+            if(data_sent == -1) {
+                printf("send errno: %s\n", strerror(errno));
+                return 0;
+            } else {
+                return data_sent;
+            }
+        }
         return _socket->send_to(asio::buffer(buff), _send_endpoint);
     }
 
@@ -55,9 +64,29 @@ public:
     {
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
 
-        if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms))
+        if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms)) {
             return 0;
-        return _socket->receive_from(asio::buffer(buff), _recv_endpoint);
+        }
+        ssize_t data_received = 0;
+        // TODO: migrate to libc recvfrom for non connected socket to remove boost
+        if(_connected) {
+            // MSG_DONTWAIT since wait_for_recv_ready will already wait for data to be ready. If this would block something has gone wrong and return to avoid blocking
+            data_received = ::recv(_socket->native_handle(), buff.data(), buff.size(), MSG_DONTWAIT);
+            if(data_received == -1) {
+                data_received = 0;
+            }
+        } else {
+            data_received = (ssize_t)_socket->receive_from(asio::buffer(buff), _recv_endpoint);
+        }
+
+        // If data has been received, then we know routing is good
+        if(data_received) {
+            route_good = ~0;
+        } else {
+            route_good = 0;
+        }
+
+        return (size_t)data_received;
     }
 
     std::string get_recv_addr(void) override
@@ -76,6 +105,9 @@ private:
     socket_sptr _socket;
     asio::ip::udp::endpoint _send_endpoint;
     asio::ip::udp::endpoint _recv_endpoint;
+    // Set to 0 until a packet has been received, ~0 once a packet has been received
+    // If this has been confirmed send can be called with MSG_CONFIRM
+    int route_good = 0;
 };
 
 udp_simple::~udp_simple(void)
