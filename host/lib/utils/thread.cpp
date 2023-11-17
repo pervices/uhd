@@ -113,7 +113,7 @@ void uhd::set_thread_priority(float priority, bool realtime)
 
 
     // when realtime is not enabled, use sched other
-    int policy = (realtime && allow_realtime) ? SCHED_FIFO : SCHED_OTHER;
+    int policy = (realtime && allow_realtime) ? SCHED_RR : SCHED_OTHER;
 
     // we cannot have below normal priority, set to zero
     if (priority < 0)
