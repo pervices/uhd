@@ -46,33 +46,52 @@ static void check_priority_range(float priority)
 static bool check_realtime_possible() {
     // sched_rt_runtime_us is the maximum amount of time per sched_rt_period_us a realtime process can use
     // The default values will cause a 50ms pause every second if running at a high rate
-    // Path for checking sched_rt_runtime_us
-    std::string rt_info_path = "/proc/sys/kernel/sched_rt_runtime_us";
-    int kernel_fd = open(rt_info_path.c_str(), O_RDONLY);
+    std::string rt_max_path = "/proc/sys/kernel/sched_rt_runtime_us";
+    int runtime_max_fd = open(rt_max_path.c_str(), O_RDONLY);
 
     // If unable to check the file for sched_rt_runtime_us config, print warning but let realtime threading be used anyway
     // (Shouldn't happen, but this way it is left to the user if they have a weird setup)
-    if(kernel_fd == -1) {
-        UHD_LOGGER_WARNING("THREAD") << "Unable to verify if sched_rt_runtime_us is disabled. Got error code \"" + std::string(strerror(errno)) + "\" while attempting to read " + rt_info_path + "Periodic stalls will occur when using realtime threading if it is not -1 (disabled)";
+    if(runtime_max_fd == -1) {
+        UHD_LOGGER_WARNING("THREAD") << "Unable check sched_rt_runtime_us. Got error code \"" + std::string(strerror(errno)) + "\" while attempting to read " + rt_max_path + "Periodic stalls will occur when using realtime threading if it does not match sched_rt_period_us";
+        return true;
+    }
+
+    std::string rt_period_path = "/proc/sys/kernel/sched_rt_period_us";
+    int runtime_period_fd = open(rt_period_path.c_str(), O_RDONLY);
+
+    // If unable to check the file for sched_rt_period_us config, print warning but let realtime threading be used anyway
+    // (Shouldn't happen, but this way it is left to the user if they have a weird setup)
+    if(runtime_period_fd == -1) {
+        UHD_LOGGER_WARNING("THREAD") << "Unable to verify if sched_rt_period_us is disabled. Got error code \"" + std::string(strerror(errno)) + "\" while attempting to read " + rt_period_path + "Periodic stalls will occur when using realtime threading if it is does not match sched_rt_runtime_us";
         return true;
     }
 
     // Reads the kernel sched params
-    const char expected_value[] = "-1\n";
-    char params_buffer[sizeof(expected_value)];
-    int bytes_read = read(kernel_fd, params_buffer, sizeof(params_buffer));
+    char runtime_max_buffer[50];
+    int bytes_read = read(runtime_max_fd, runtime_max_buffer, 50);
     if(bytes_read == -1) {
-        throw uhd::os_error("error in reading kernel params");
+        throw uhd::os_error("error in reading " + rt_max_path);
     }
 
-    // Checks if sched_rt_runtime_us is disabled
-    bool allow_realtime = strncmp(params_buffer, expected_value, sizeof(expected_value)) == 0;
+    char runtime_period_buffer[50];
+    int period_bytes_read = read(runtime_period_fd, runtime_period_buffer, 50);
+    if(period_bytes_read == -1) {
+        throw uhd::os_error("error in reading " + rt_period_path);
+    }
+
+    // Checks if sched_rt_runtime_us is equal to the period or is disabled
+    const char max_rt_disabled_value[50] = "-1\n";
+    // Checks if the limit on how much of the time the realtime thread is either disabled (-1) or equal to the period
+    // For unknown reason on some computers the host will freeze/become unable to send when using realtime threading
+    // Assume that if the user has disabled the limit with -1 they know what they are doing and don't warn them about potential slowdown
+    bool allow_realtime = strncmp(runtime_max_buffer, max_rt_disabled_value, 50) == 0 || strncmp(runtime_max_buffer, runtime_period_buffer, 50);
 
     if(!allow_realtime) {
-        UHD_LOGGER_WARNING("THREAD") << "/proc/sys/kernel/sched_rt_runtime_us is enabled. Attempting to use realtime threading with this enabled will result in periodic slowdowns. To fix:\nsudo echo -1 > /proc/sys/kernel/sched_rt_runtime_us";
+        UHD_LOGGER_WARNING("THREAD") << rt_max_path << " is not equal to " << rt_period_path << " enabled. Attempting to use realtime threading with this enabled will result in periodic slowdowns. To fix copy << " << rt_period_path << " to " << rt_max_path;
     }
 
-    close(kernel_fd);
+    close(runtime_period_fd);
+    close(runtime_period_fd);
 
     return allow_realtime;
 }
