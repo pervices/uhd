@@ -56,21 +56,7 @@ void buffer_tracker::update_buffer_level_bias( const int64_t level, const uhd::t
     if(level == 0) {
         return;
     }
-    int64_t predicted_buffer_level = get_buffer_level(now);
-    // Only update bias if most of the required samples to fill the buffer have been sent
-    if(!start_of_burst_pending(now) && total_samples_sent > (uint64_t) predicted_buffer_level) {
-        int64_t new_buffer_level_bias = buffer_level_bias + (int64_t)((level - predicted_buffer_level) * 0.01);
 
-        // Limit the bias to 1% of the desired buffer level per 1s of streaming
-        int64_t buffer_bias_limit = (int64_t)((now - sob_time).get_real_secs() * predicted_buffer_level * 0.01);
-        if(buffer_level_bias > buffer_bias_limit) {
-            buffer_level_bias = buffer_bias_limit;
-        } else if(buffer_level_bias < -buffer_bias_limit) {
-            buffer_level_bias = -buffer_bias_limit;
-        } else {
-            buffer_level_bias = new_buffer_level_bias;
-        }
-    }
 #ifdef DEBUG_PRIMING
     else {
         if(level != 0 || buffer_samples_confirmed) {
@@ -87,6 +73,23 @@ void buffer_tracker::update_buffer_level_bias( const int64_t level, const uhd::t
         }
     }
 #endif
+
+    int64_t predicted_buffer_level = get_buffer_level(now);
+    // Only update bias if most of the required samples to fill the buffer have been sent
+    if(!start_of_burst_pending(now)) {
+        // If buffer level is above the target, adjust the bias upwards
+        if(level > nominal_buffer_level) {
+            buffer_level_bias += (int64_t)((level - nominal_buffer_level) * 0.01);
+            return;
+        // If the buffer level is below expected adjust bias downwards
+        } else if(level < predicted_buffer_level) {
+            buffer_level_bias += (int64_t)((level - predicted_buffer_level) * 0.01);
+            return;
+        // Otherwise do nothing
+        } else {
+            return;
+        }
+    }
 }
 
 void buffer_tracker::update( const uint64_t samples_sent ) {
