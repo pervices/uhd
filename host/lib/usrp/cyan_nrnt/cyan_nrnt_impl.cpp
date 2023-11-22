@@ -927,8 +927,6 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             dev->_time_diff_converged = false;
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
-        } else {
-            continue;
         }
 
 		dt = then - now;
@@ -936,7 +934,9 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 			req.tv_sec = dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
-		}
+		} else {
+            continue;
+        }
 
 		time_diff = dev->_time_diff_pidc.get_control_variable();
 		now = uhd::get_system_time();
