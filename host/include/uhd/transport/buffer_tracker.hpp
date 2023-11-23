@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <uhd/types/time_spec.hpp>
+#include <vector>
 
 namespace uhd { namespace transport {
 
@@ -25,7 +26,8 @@ public:
 
 	bool start_of_burst_pending( const uhd::time_spec_t & now );
     uhd::time_spec_t time_until_sob( const uhd::time_spec_t & now );
-	void set_start_of_burst_time( const uhd::time_spec_t & sob );
+    void set_start_of_burst_time( const uhd::time_spec_t & sob );
+    void set_end_of_burst_time( const uhd::time_spec_t & sob );
 
 	int64_t get_buffer_level( const uhd::time_spec_t & now );
 
@@ -50,7 +52,16 @@ private:
     int64_t buffer_level_bias = 0;
 
     // Time when the unit begins transmitting (start of burst)
-    uhd::time_spec_t sob_time;
+    // Used as a reference point for basing other calculations off of
+    bool first_sob_set = false;
+    uhd::time_spec_t first_sob_time;
+
+    // Stores times start and end times of periods where no samples are sent
+    std::vector<uhd::time_spec_t> blank_period_start;
+    std::vector<uhd::time_spec_t> blank_period_stop;
+    // Time skipped by past blank periods
+    // When a blank period is in the past, removed it from the list of blank periods and add the samples skipped to here
+    uhd::time_spec_t blanked_time;
 
 };
 }}

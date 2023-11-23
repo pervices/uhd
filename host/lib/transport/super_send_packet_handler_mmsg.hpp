@@ -439,6 +439,7 @@ private:
         // Expands size of buffers used to store data to be sent
         expand_send_buffer_info(num_packets);
 
+        // Sets the start os burst time
         if(metadata_.start_of_burst) {
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.set_start_of_burst_time(metadata_.time_spec);
@@ -641,10 +642,17 @@ private:
             dummy_buff_ptrs.push_back(dummy_buffs[n].data());
         }
 
-        // Sends the eob packet
+        // Clear cached sob flag, to handle edge case of where user sends 0 sample sob, followed by eob
+        cached_sob = false;
+
         uhd::tx_metadata_t eob_md = metadata;
         // Clears start of burst flag
         eob_md.start_of_burst = false;
+        // Sets the eof time so buffer tracking can account for time between sob and eob
+        for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+            ch_send_buffer_info_i.buffer_level_manager.set_end_of_burst_time(next_send_time);
+        }
+        // Sends the eob packet
         send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, eob_md, timeout);
     }
 
