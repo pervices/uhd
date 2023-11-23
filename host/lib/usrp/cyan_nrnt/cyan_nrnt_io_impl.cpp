@@ -223,6 +223,7 @@ public:
 
             if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
                 uhd::time_spec_t now = get_time_now();
+                metadata.has_time_spec = true;
                 metadata.time_spec = now + default_sob;
             } else {
                 double current_time = get_time_now().get_real_secs();

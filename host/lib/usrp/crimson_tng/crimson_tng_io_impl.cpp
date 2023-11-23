@@ -238,6 +238,7 @@ public:
             if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
                 uhd::time_spec_t now = get_time_now();
                 metadata.time_spec = now + default_sob;
+                metadata.has_time_spec = true;
             } else {
                 double current_time = get_time_now().get_real_secs();
                 if (metadata.time_spec.get_real_secs() < current_time + CRIMSON_TNG_MIN_TX_DELAY) {
