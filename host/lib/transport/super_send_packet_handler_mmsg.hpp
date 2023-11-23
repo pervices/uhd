@@ -641,7 +641,10 @@ private:
         }
 
         // Sends the eob packet
-        send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, metadata, timeout);
+        uhd::tx_metadata_t eob_md = metadata;
+        // Clears start of burst flag
+        eob_md.start_of_burst = false;
+        send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, eob_md, timeout);
     }
 
     /*!
