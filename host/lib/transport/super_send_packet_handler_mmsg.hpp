@@ -428,7 +428,10 @@ private:
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
         const uhd::tx_metadata_t &metadata_,
-        const double timeout
+        const double timeout,
+        // Don't count the samples sent towards the samples sent
+        // Used to prevent the dummy samples being added to eob packets from being counted for buffer monitoring
+        const bool dont_count_samples = false
     ) {
 
         // Number of packets to send
@@ -605,7 +608,9 @@ private:
                     // Update counter for number of samples sent this send
                     samples_sent_per_ch[ch_i] += nsamps_sent;
                     // Update buffer level count
-                    ch_send_buffer_info_group[ch_i].buffer_level_manager.update(nsamps_sent);
+                    if(!dont_count_samples) {
+                        ch_send_buffer_info_group[ch_i].buffer_level_manager.update(nsamps_sent);
+                    }
                 }
             }
             //Checks for timeout
@@ -631,7 +636,11 @@ private:
             next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
         }
 
-        return samples_sent;
+        if(dont_count_samples) {
+            return 0;
+        } else {
+            return samples_sent;
+        }
     }
 
     void send_eob_packet(const uhd::tx_metadata_t &metadata, double timeout) {
@@ -653,7 +662,7 @@ private:
             ch_send_buffer_info_i.buffer_level_manager.set_end_of_burst_time(next_send_time);
         }
         // Sends the eob packet
-        send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, eob_md, timeout);
+        send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, eob_md, timeout, true);
     }
 
     /*!
