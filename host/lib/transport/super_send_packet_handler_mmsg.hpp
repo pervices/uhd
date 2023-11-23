@@ -189,7 +189,7 @@ public:
         }
 
         // Create and sends packets
-        size_t actual_samples_send = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
+        size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
 
         // Sends the eob if requested
         if(eob_requested) {
@@ -197,16 +197,43 @@ public:
             send_eob_packet(metadata, timeout);
         }
 
+        size_t cached_samples_sent;
         // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
-        if(nsamps_to_cache > 0) {
+        if(actual_samples_sent == 0) {
+            // Do not update the cache if no samples were actually sent
+            cached_samples_sent = 0;
+        } else if(actual_samples_sent < previous_cached_nsamps) {
+            // If fewer samples were sent than were in the cache move the remaining samples to front of the cache
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + (actual_samples_send * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+                memmove(ch_send_buffer_info_group[ch_i].sample_cache.data(), ch_send_buffer_info_group[ch_i].sample_cache.data() + actual_samples_sent, (previous_cached_nsamps - actual_samples_sent) * _bytes_per_sample);
             }
+            cached_samples_sent = actual_samples_sent;
+            cached_nsamps = previous_cached_nsamps - actual_samples_sent;
+        } else if(actual_nsamps_to_send < actual_samples_sent) {
+            // If not the samples meant to actually be sent were sent, clear the cache and do not cache any samples
+            // The sample cache is meant to handle the case where the send was successful, but the number of samples the user requested isn't a multiple of the required amount
+            // Since in this case the send didn't send all the intended samples anyway, we don't need to bother with the cache
+            cached_nsamps = 0;
+            cached_samples_sent = 0;
         }
-        cached_nsamps = nsamps_to_cache;
+        else if(actual_samples_sent == actual_nsamps_to_send) {
+            // Since send was fully successful, copy samples that couldn't be sent this send due to limitations on packet sizing to the cache
+            if(nsamps_to_cache > 0) {
+                for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                    memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + (actual_samples_sent * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+                }
+            }
+            cached_samples_sent = previous_cached_nsamps;
+            cached_nsamps = nsamps_to_cache;
+        } else {
+            fprintf(stderr, "ERROR, more samples sent than intended. This should be impossible, contact support\n");
+            // Reaching here should be impossible, these values don't matter
+            cached_samples_sent = 0;
+            cached_nsamps = 0;
+        }
 
         // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
-        return actual_samples_send + nsamps_to_cache - previous_cached_nsamps;
+        return actual_samples_sent + cached_nsamps - cached_samples_sent;
     }
 
     void set_samp_rate(const double rate) {
