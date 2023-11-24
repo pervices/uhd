@@ -185,6 +185,15 @@ public:
 	}
 
 	void teardown() {
+        // Waits for all samples sent to be consumed before destructing, times out after 30s
+        uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
+        while(timeout_time > uhd::get_system_time()) {
+            if(!any_samples_in_buffer(get_time_now())) {
+                break;
+            }
+            usleep(10);
+        }
+
 		stop_buffer_monitor_thread();
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
