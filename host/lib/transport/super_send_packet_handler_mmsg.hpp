@@ -216,6 +216,7 @@ public:
             cached_nsamps = 0;
             cached_samples_sent = 0;
         }
+        // TODO: handle case where some but not all of the samples to be cached were sent
         else if(actual_samples_sent == actual_nsamps_to_send) {
             // Since send was fully successful, copy samples that couldn't be sent this send due to limitations on packet sizing to the cache
             if(nsamps_to_cache > 0) {
