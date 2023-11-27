@@ -333,12 +333,19 @@ void crimson_tng_impl::detect_crimson_pps( crimson_tng_impl *dev ) {
 	dev->_pps_thread_running = true;
 	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make("");
 	int pps_not_detected;
-	usrp->get_tree_value(CRIMSON_TNG_TIME_PATH / "pps_not_detected", pps_not_detected);
+	
 
 	while (! dev->_pps_thread_should_exit) {
-		sleep(2);
-		std::cout << "detect_output: " << std::endl;
-		std::cout << pps_not_detected << std::endl;
+		usrp->get_tree_value(CRIMSON_TNG_TIME_PATH / "pps_not_detected", pps_not_detected);
+
+		if (pps_not_detected == 1) {
+			std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
+#ifdef DEBUG_COUT
+			std::cout << "PPS flag" << pps_not_detected << std::endl;
+#endif
+		}
+	
+		sleep(1);
 	}
 	dev->_pps_thread_running = false;
 }
