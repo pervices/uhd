@@ -330,17 +330,17 @@ void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value )
 
 void crimson_tng_impl::detect_crimson_pps( crimson_tng_impl *dev ) {
 
-	dev->_bm_thread_running = true;
+	dev->_pps_thread_running = true;
 	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make("");
 	int pps_not_detected;
 	usrp->get_tree_value("/mboards/time/pps_not_detected", pps_not_detected);
 
-	while (! dev->_bm_thread_should_exit) {
+	while (! dev->_pps_thread_should_exit) {
 		sleep(2);
 		std::cout << "detect_output: " << std::endl;
 		std::cout << pps_not_detected << std::endl;
 	}
-	dev->_bm_thread_running = false;
+	dev->_pps_thread_running = false;
 }
 
 

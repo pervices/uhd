@@ -181,7 +181,7 @@ private:
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
     
-    void detect_crimson_pps(crimson_tng_impl *dev);
+    static void detect_crimson_pps(crimson_tng_impl *dev);
 
     user_reg_t get_user_reg(std::string req);
     void send_gpio_burst_req(const gpio_burst_req& req);
