@@ -333,7 +333,7 @@ void crimson_tng_impl::detect_crimson_pps( crimson_tng_impl *dev ) {
 	dev->_pps_thread_running = true;
 	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make("");
 	int pps_not_detected;
-	usrp->get_tree_value("/mboards/time/pps_not_detected", pps_not_detected);
+	usrp->get_tree_value("/mboards/time/clk/pps_not_detected", pps_not_detected);
 
 	while (! dev->_pps_thread_should_exit) {
 		sleep(2);
