@@ -221,8 +221,6 @@ public:
         const double timeout
     ){
         
-        static const double default_sob = 1.0;
-
         size_t r = 0;
 
         uhd::tx_metadata_t metadata = metadata_;
@@ -233,7 +231,7 @@ public:
             if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
                 uhd::time_spec_t now = get_time_now();
                 metadata.has_time_spec = true;
-                metadata.time_spec = now + default_sob;
+                metadata.time_spec = now + CYAN_NRNT_MIN_TX_DELAY;
             } else {
                 double current_time = get_time_now().get_real_secs();
                 if (metadata.time_spec.get_real_secs() < current_time + CYAN_NRNT_MIN_TX_DELAY) {
