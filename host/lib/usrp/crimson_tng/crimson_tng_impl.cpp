@@ -1054,9 +1054,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // This is the master clock rate
     TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "tick_rate", double, CRIMSON_TNG_MASTER_TICK_RATE);
 
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now", "time/clk/set_time", time_spec_t, time_spec);
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "cmd",              "time/clk/cmd",                 time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
+	TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_not_detected", "time/clk/pps_not_detected",    int,         int);
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
