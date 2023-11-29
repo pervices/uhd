@@ -1509,10 +1509,12 @@ public:
     
     virtual uint64_t tx_trigger_setup(
         std::vector<size_t> channels,
-        uint64_t num_samples_per_trigger
+        uint64_t num_samples_per_trigger,
+        std::string trigger_dir = "out"
     ) {
         (void) channels;
         (void) num_samples_per_trigger;
+        (void) trigger_dir;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
@@ -1537,10 +1539,12 @@ public:
 
     virtual uint64_t rx_trigger_setup(
         std::vector<size_t> channels,
-        uint64_t num_samples_per_trigger
+        uint64_t num_samples_per_trigger,
+        std::string trigger_dir = "out"
     ) {
         (void) channels;
         (void) num_samples_per_trigger;
+        (void) trigger_dir;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
