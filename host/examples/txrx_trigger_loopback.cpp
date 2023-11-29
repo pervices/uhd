@@ -48,7 +48,17 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     {
         //this statement will block until the data is sent
         //send the entire contents of the buffer
-        tx_stream->send(buffs, samples_per_trigger, md);
+        uint64_t samples_sent = 0;
+        std::vector<std::complex<float> *> sub_buffs = buffs;
+        while(!stop_signal_called && samples_sent < samples_per_trigger) {
+            samples_sent += tx_stream->send(sub_buffs, samples_per_trigger - samples_sent, md);
+
+            if(samples_sent < samples_per_trigger) {
+                for(size_t n = 0; n < buffs.size(); n++) {
+                    sub_buffs[n] = &buffs[n][samples_sent];
+                }
+            }
+        }
 
         md.start_of_burst = false;
         md.has_time_spec = false;
