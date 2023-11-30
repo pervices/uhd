@@ -174,7 +174,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, wave_type, channel_list, results_directory;
+    std::string args, wave_type, channel_list, results_directory, trigger_direction;
     size_t samples_per_trigger;
     uint64_t num_trigger, setpoint;
     double rate, freq, tx_gain, rx_gain, wave_freq, start_time;
@@ -202,6 +202,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("samples_per_trigger", po::value<size_t>(&samples_per_trigger), "Number of samples to send per trigger, default 10 * num_trigger")
         ("setpoint", po::value<uint64_t>(&setpoint), "Target buffer level")
         ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
+        ("trig_dir", po::value<std::string>(&trigger_direction)->default_value("out"), "Sets the SMA trigger direction. Setting to out will result in trigger output also applying to the unit. Valid values: out, in. Only relevant on devices where the same port is used as SMA input and output")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
         ("overwrite", "Overwrite the results files every trigger, instead of creating a new one each time")
@@ -363,14 +364,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     if(use_rx) {
-        size_t actual_samples_per_trigger = usrp->rx_trigger_setup(channel_nums, samples_per_trigger);
+        size_t actual_samples_per_trigger = usrp->rx_trigger_setup(channel_nums, samples_per_trigger, trigger_direction);
         if(actual_samples_per_trigger != samples_per_trigger) {
             std::cout << boost::format("Actual samples per trigger: %lu") % actual_samples_per_trigger << std::endl;
             samples_per_trigger = actual_samples_per_trigger;
         }
     }
     if(use_tx) {
-        usrp->tx_trigger_setup(channel_nums, samples_per_trigger);
+        usrp->tx_trigger_setup(channel_nums, samples_per_trigger, trigger_direction);
     }
 
     std::vector<std::complex<float> > tx_buff(samples_per_trigger);
