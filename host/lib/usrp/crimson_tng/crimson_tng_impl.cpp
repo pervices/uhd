@@ -332,16 +332,16 @@ void crimson_tng_impl::detect_crimson_pps( crimson_tng_impl *dev ) {
 
 	dev->_pps_thread_running = true;
 	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make("");
-	int pps_not_detected;
+	int pps_detected;
 	
 
 	while (! dev->_pps_thread_should_exit) {
-		usrp->get_tree_value(CRIMSON_TNG_TIME_PATH / "pps_not_detected", pps_not_detected);
+		usrp->get_tree_value(CRIMSON_TNG_TIME_PATH / "pps_detected", pps_detected);
 
-		if (pps_not_detected == 1) {
+		if (pps_detected == 1) {
 			std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
 #ifdef DEBUG_COUT
-			std::cout << "PPS flag" << pps_not_detected << std::endl;
+			std::cout << "PPS flag" << pps_detected << std::endl;
 #endif
 		}
 	
@@ -1107,7 +1107,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "cmd",              "time/clk/cmd",                 time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
-	TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_not_detected", "time/clk/pps_not_detected",    int,         int);
+	TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
