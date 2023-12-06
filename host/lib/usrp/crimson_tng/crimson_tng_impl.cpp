@@ -1108,6 +1108,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_mode"       , "rx_" + lc_num + "/trigger/ufl_mode"       , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_dir"        , "rx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_pol"        , "rx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
+		TREE_CREATE_RW(rx_path / dspno / "/trigger/time_disable"   , "rx_" + lc_num + "/trigger/time_disable"   , std::string, string);
 
 
 		// About information
@@ -1231,6 +1232,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"        , "tx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"        , "tx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
+		TREE_CREATE_RW(tx_path / dspno / "/trigger/time_disable"   , "tx_" + lc_num + "/trigger/time_disable"   , std::string, string);
 
 		// About information
 		TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
