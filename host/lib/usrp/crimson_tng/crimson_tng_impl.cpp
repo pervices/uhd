@@ -338,7 +338,7 @@ void crimson_tng_impl::detect_crimson_pps( crimson_tng_impl *dev ) {
 	while (! dev->_pps_thread_should_exit) {
 		usrp->get_tree_value(CRIMSON_TNG_TIME_PATH / "pps_detected", pps_detected);
 
-		if (pps_detected == 1) {
+		if (pps_detected == 0) {
 			std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
 #ifdef DEBUG_COUT
 			std::cout << "PPS flag" << pps_detected << std::endl;
