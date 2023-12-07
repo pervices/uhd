@@ -118,6 +118,11 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
                 const std::string time_disable_path {root + "trigger/time_disable" };
                 const std::string time_disable_value = "1";
                 usrp->set_tree_value(time_disable_path, time_disable_value);
+
+                const std::string tx_root { "/mboards/0/tx/" + std::to_string(channel_nums[n]) + "/" };
+                const std::string tx_time_disable_path {root + "trigger/time_disable" };
+                const std::string tx_time_disable_value = "1";
+                usrp->set_tree_value(tx_time_disable_path, tx_time_disable_value);
             }
         }
         // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
@@ -173,6 +178,11 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         const std::string time_disable_path {root + "trigger/time_disable" };
         const std::string time_disable_value = "0";
         usrp->set_tree_value(time_disable_path, time_disable_value);
+
+        const std::string tx_root { "/mboards/0/tx/" + std::to_string(channel_nums[n]) + "/" };
+        const std::string tx_time_disable_path {root + "trigger/time_disable" };
+        const std::string tx_time_disable_value = "0";
+        usrp->set_tree_value(tx_time_disable_path, tx_time_disable_value);
     }
 
 }
