@@ -119,6 +119,9 @@ public:
     void start_bm();
     void stop_bm();
 
+    void start_pps_dtc();
+    void stop_pps_dtc();
+
     void send_rx_stream_cmd_req( const rx_stream_cmd & req );
     static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
@@ -177,6 +180,8 @@ private:
     // wrapper for type <time_spec_t> through the ASCII Crimson interface
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
+    
+    static void detect_crimson_pps(crimson_tng_impl *dev);
 
     user_reg_t get_user_reg(std::string req);
     void send_gpio_burst_req(const gpio_burst_req& req);
@@ -224,6 +229,11 @@ private:
 	std::atomic<bool> _bm_thread_needed;
 	std::atomic<bool> _bm_thread_running;
 	std::atomic<bool> _bm_thread_should_exit;
+
+    std::thread _pps_thread;
+	std::atomic<bool> _pps_thread_needed;
+	std::atomic<bool> _pps_thread_running;
+	std::atomic<bool> _pps_thread_should_exit;
 
     time_spec_t _command_time;
 
