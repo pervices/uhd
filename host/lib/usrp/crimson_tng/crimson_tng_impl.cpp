@@ -363,6 +363,29 @@ void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value )
     }
 }
 
+// Loop that polls Crimson to verify the PPS is working
+void crimson_tng_impl::detect_crimson_pps( crimson_tng_impl *dev ) {
+
+	dev->_pps_thread_running = true;
+	int pps_detected;
+
+	while (! dev->_pps_thread_should_exit) {
+        dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").set(1);
+		pps_detected = dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").get();
+
+		if (pps_detected == 0) {
+			std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
+		}
+#ifdef DEBUG_COUT
+			std::cout << "PPS flag: " << pps_detected << std::endl;
+#endif
+	
+		sleep(1);
+	}
+	dev->_pps_thread_running = false;
+}
+
+
 user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
 
     (void) req;
@@ -792,7 +815,31 @@ void crimson_tng_impl::stop_bm() {
 
 		_bm_thread_should_exit = true;
 		_bm_thread.join();
+	}
+}
 
+void crimson_tng_impl::start_pps_dtc() {
+
+	if ( ! _pps_thread_needed ) {
+		return;
+	}
+
+	if ( ! _pps_thread_running ) {
+		_pps_thread_should_exit = false;
+		_pps_thread = std::thread( detect_crimson_pps, this );
+	}
+}
+
+void crimson_tng_impl::stop_pps_dtc() {
+
+	if ( ! _pps_thread_needed ) {
+		return;
+	}
+
+
+	if ( _pps_thread_running ) {
+		_pps_thread_should_exit = true;
+		_pps_thread.join();
 	}
 }
 
@@ -932,6 +979,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
+	_pps_thread_needed( true ),
+	_pps_thread_running( false ),
+	_pps_thread_should_exit( false ),
     _command_time()
 {
 	num_rx_channels = CRIMSON_TNG_RX_CHANNELS;
@@ -1120,10 +1170,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // This is the master clock rate
     TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "tick_rate", double, _master_tick_rate);
 
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "cmd",              "time/clk/cmd",                 time_spec_t, time_spec);
     // This line will get time spec, the time diff port must be initialized first
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now", "time/clk/set_time", time_spec_t, time_spec);
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
+	TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
@@ -1438,6 +1489,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     }
 
+	if ( _pps_thread_needed ) {
+		start_pps_dtc();
+	}
+
 	if ( _bm_thread_needed ) {
 
 		//Initialize "Time Diff" mechanism before starting flow control thread
@@ -1469,6 +1524,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 crimson_tng_impl::~crimson_tng_impl(void)
 {
        stop_bm();
+	   stop_pps_dtc();
 }
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
