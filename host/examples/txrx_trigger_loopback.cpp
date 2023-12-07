@@ -107,24 +107,24 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         timeout = 1.5;
         // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
         // Therefore we need to disable vita (skip waiting for packet)
-        if(vita_enabled) {
-            vita_enabled = false;
-            for(size_t n = 0; n < channel_nums.size(); n++) {
-                const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
-                const std::string value = "0";
-                usrp->set_tree_value(path, value);
+        // if(vita_enabled) {
+        //     vita_enabled = false;
+        //     for(size_t n = 0; n < channel_nums.size(); n++) {
+        //         const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
+        //         const std::string value = "0";
+        //         usrp->set_tree_value(path, value);
 
-                const std::string root { "/mboards/0/rx/" + std::to_string(channel_nums[n]) + "/" };
-                const std::string time_disable_path {root + "trigger/time_disable" };
-                const std::string time_disable_value = "1";
-                usrp->set_tree_value(time_disable_path, time_disable_value);
+        //         const std::string root { "/mboards/0/rx/" + std::to_string(channel_nums[n]) + "/" };
+        //         const std::string time_disable_path {root + "trigger/time_disable" };
+        //         const std::string time_disable_value = "1";
+        //         usrp->set_tree_value(time_disable_path, time_disable_value);
 
-                // const std::string tx_root { "/mboards/0/tx/" + std::to_string(channel_nums[n]) + "/" };
-                // const std::string tx_time_disable_path {root + "trigger/time_disable" };
-                // const std::string tx_time_disable_value = "1";
-                // usrp->set_tree_value(tx_time_disable_path, tx_time_disable_value);
-            }
-        }
+        //         const std::string tx_root { "/mboards/0/tx/" + std::to_string(channel_nums[n]) + "/" };
+        //         const std::string tx_time_disable_path {root + "trigger/time_disable" };
+        //         const std::string tx_time_disable_value = "1";
+        //         usrp->set_tree_value(tx_time_disable_path, tx_time_disable_value);
+        //     }
+        // }
         // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
         if((this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) || samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
             if(samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
@@ -169,21 +169,21 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
 
     //re-enables waiting for vita commands (regular stream commands)
     // Disables the temporary workaround for the lack of STREAM_MODE_NUM_SAMPS_AND_MORE implementation
-    // for(size_t n = 0; n < channel_nums.size(); n++) {
-    //     const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
-    //     const std::string value = "1";
-    //     usrp->set_tree_value(path, value);
+    for(size_t n = 0; n < channel_nums.size(); n++) {
+        const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
+        const std::string value = "1";
+        usrp->set_tree_value(path, value);
 
-    //     const std::string root { "/mboards/0/rx/" + std::to_string(channel_nums[n]) + "/" };
-    //     const std::string time_disable_path {root + "trigger/time_disable" };
-    //     const std::string time_disable_value = "0";
-    //     usrp->set_tree_value(time_disable_path, time_disable_value);
+        const std::string root { "/mboards/0/rx/" + std::to_string(channel_nums[n]) + "/" };
+        const std::string time_disable_path {root + "trigger/time_disable" };
+        const std::string time_disable_value = "0";
+        usrp->set_tree_value(time_disable_path, time_disable_value);
 
-    //     const std::string tx_root { "/mboards/0/tx/" + std::to_string(channel_nums[n]) + "/" };
-    //     const std::string tx_time_disable_path {root + "trigger/time_disable" };
-    //     const std::string tx_time_disable_value = "0";
-    //     usrp->set_tree_value(tx_time_disable_path, tx_time_disable_value);
-    // }
+        const std::string tx_root { "/mboards/0/tx/" + std::to_string(channel_nums[n]) + "/" };
+        const std::string tx_time_disable_path {root + "trigger/time_disable" };
+        const std::string tx_time_disable_value = "0";
+        usrp->set_tree_value(tx_time_disable_path, tx_time_disable_value);
+    }
 
 }
 
