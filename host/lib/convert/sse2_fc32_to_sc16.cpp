@@ -32,10 +32,8 @@ DECLARE_CONVERTER(fc32, 1, sc16_item32_le, 1, PRIORITY_SIMD)
         __m128i tmpilo = _mm_cvtps_epi32(_mm_mul_ps(tmplo, scalar));           \
         __m128i tmpihi = _mm_cvtps_epi32(_mm_mul_ps(tmphi, scalar));           \
                                                                                \
-        /* pack + swap 16-bit pairs */                                         \
+        /* pack */                                                             \
         __m128i tmpi = _mm_packs_epi32(tmpilo, tmpihi);                        \
-        tmpi         = _mm_shufflelo_epi16(tmpi, _MM_SHUFFLE(2, 3, 0, 1));     \
-        tmpi         = _mm_shufflehi_epi16(tmpi, _MM_SHUFFLE(2, 3, 0, 1));     \
                                                                                \
         /* store to output */                                                  \
         _mm_storeu_si128(reinterpret_cast<__m128i*>(output + i), tmpi);        \
