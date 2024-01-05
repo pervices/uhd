@@ -291,7 +291,7 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t strea
 #endif
 
     if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabing stream_now";
+        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
         stream_cmd.stream_now = true;
     }
 
@@ -1721,7 +1721,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
     if(actual_rf_freq == 0 && target_rf_freq != 0) {
-        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Error when attempting to set lo. The PLL is likely unlocked. Rerun the update pacakge without nolut. If this error persists contact support");
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Error when attempting to set lo. The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
     }
 
 	//------------------------------------------------------------------
