@@ -91,8 +91,8 @@ namespace
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/time/blink";
 
-        const std::string old, value;
-        const std::string blink_test_inputs[] = {"on", "off", "1", "0"};
+        std::string old, value;
+        std::string blink_test_inputs[] = {"on", "off", "1", "0"};
 
         usrp->get_tree_value(path, old);
 
