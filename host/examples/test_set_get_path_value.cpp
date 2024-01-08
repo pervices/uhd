@@ -86,6 +86,31 @@ namespace
         std::cout << value.get_real_secs() << std::endl;
     }
 
+    void test_time_blinky(uhd::usrp::multi_usrp::sptr& usrp)
+    {
+        std::cout << __FUNCTION__ << std::endl;
+        const std::string path = "/mboards/0/time/blink";
+
+        int old, blinking_state;
+        const int to_blink = 1;
+        const int not_blink = 0;
+
+        usrp->get_tree_value(path, blinking_state);
+        old = blinking_state;
+
+        usrp->set_tree_value(path, to_blink);
+        usrp->get_tree_value(path, blinking_state);
+        assert(blinking_state == to_blink);
+
+        usrp->set_tree_value(path, not_blink);
+        usrp->get_tree_value(path, blinking_state);
+        assert(blinking_state == not_blink);
+
+        usrp->set_tree_value(path, old);
+
+        std::cout << old << std::endl;
+    }
+
     void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
@@ -200,6 +225,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     test_time_specs(usrp);
     test_sfpa_port_change(usrp);
     test_trigger_settings(usrp);
+    test_time_blinky(usrp);
 
     return 0;
 }
