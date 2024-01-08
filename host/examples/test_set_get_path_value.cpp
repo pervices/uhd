@@ -91,20 +91,16 @@ namespace
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/time/blink";
 
-        int old, blinking_state;
-        const int to_blink = 1;
-        const int not_blink = 0;
+        const std::string old, value;
+        const std::string blink_test_inputs = {"on", "off", "1", "0"};
 
-        usrp->get_tree_value(path, blinking_state);
-        old = blinking_state;
+        usrp->get_tree_value(path, old);
 
-        usrp->set_tree_value(path, to_blink);
-        usrp->get_tree_value(path, blinking_state);
-        assert(blinking_state == to_blink);
-
-        usrp->set_tree_value(path, not_blink);
-        usrp->get_tree_value(path, blinking_state);
-        assert(blinking_state == not_blink);
+        for (int i = 0, i < 4, i++) {
+            usrp->set_tree_value(path, blink_test_inputs[i]);
+            usrp->get_tree_value(path, value);
+            assert(blink_test_inputs[i] == value);
+        }
 
         usrp->set_tree_value(path, old);
 
