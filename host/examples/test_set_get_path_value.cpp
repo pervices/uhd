@@ -92,11 +92,11 @@ namespace
         const std::string path = "/mboards/0/time/blink";
 
         const std::string old, value;
-        const std::string blink_test_inputs = {"on", "off", "1", "0"};
+        const std::string blink_test_inputs[] = {"on", "off", "1", "0"};
 
         usrp->get_tree_value(path, old);
 
-        for (int i = 0, i < 4, i++) {
+        for (int i = 0; i < 4; i++) {
             usrp->set_tree_value(path, blink_test_inputs[i]);
             usrp->get_tree_value(path, value);
             assert(blink_test_inputs[i] == value);
