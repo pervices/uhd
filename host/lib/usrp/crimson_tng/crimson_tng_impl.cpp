@@ -1598,9 +1598,45 @@ static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_
 		? AB_regions
 		: CD_regions
 	;
+
+    // Number of lo steps equivalent range to the dsp
 	const int K = (int) floor( abs( ( dsp_range.stop() - dsp_range.start() ) ) / lo_step );
 
-	for( int k = 0; k <= K; k++ ) {
+    // Start searching for a valid NCO/lo combo, starting at 1/4 the maximum DSP
+    // 1/4 the maximum of the NCO is meant to balance filter roll over from using a large NCO  and keeping the lo away from the center
+	for( int k = K/4; k >= 0; k-- ) {
+		for( double sign: { +1, -1 } ) {
+
+			double candidate_lo = target_freq;
+			if ( sign > 0 ) {
+				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
+				// above the target frequency
+				candidate_lo += lo_step - fmod( target_freq, lo_step );
+			} else {
+				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
+				// above the target frequency
+				candidate_lo -= fmod( target_freq, lo_step );
+			}
+			candidate_lo += k * sign * lo_step;
+
+			const double candidate_nco = target_freq - candidate_lo;
+
+			//Ensure that the combined NCO offset and signal bw fall within candidate range;
+			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
+
+			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
+			//the specified ranges (as they can't be negative).
+			//TBH: I'm not sure why this works right now, but it does.
+			for( const freq_range_t & _range: regions ) {
+				if ( range_contains( _range, candidate_range ) ) {
+					return candidate_nco;
+				}
+			}
+		}
+	}
+
+	// If unable to find a valid combination withing the lowest quarter of possible NCOs, continue searching above 1/4
+    for( int k = (K/4) + 1; k <= K; k++ ) {
 		for( double sign: { +1, -1 } ) {
 
 			double candidate_lo = target_freq;
