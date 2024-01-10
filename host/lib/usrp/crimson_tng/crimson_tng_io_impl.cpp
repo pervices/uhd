@@ -196,7 +196,11 @@ public:
         // Waits for all samples sent to be consumed before destructing, times out after 30s
         uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
         while(timeout_time > uhd::get_system_time()) {
-            if(!any_samples_in_buffer(get_time_now())) {
+            bool any_buffers_has_samples = false;
+            for(size_t n = 0; n < _channels.size(); n++) {
+                any_buffers_has_samples = any_buffers_has_samples || get_buffer_level_from_device(_channels[n]) != 0;
+            }
+            if(any_buffers_has_samples) {
                 break;
             }
             usleep(10);
