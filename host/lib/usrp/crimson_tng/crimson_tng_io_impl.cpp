@@ -195,12 +195,21 @@ public:
 	void teardown() {
         // Waits for all samples sent to be consumed before destructing, times out after 30s
         uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
-        while(timeout_time > uhd::get_system_time()) {
-            bool any_buffers_has_samples = false;
+        while(true) {
+            int64_t buffer_with_samples = -1;
+            // Checks if any buffers still have samples
             for(size_t n = 0; n < _channels.size(); n++) {
-                any_buffers_has_samples = any_buffers_has_samples || get_buffer_level_from_device(_channels[n]) != 0;
+                if(get_buffer_level_from_device(_channels[n]) != 0) {
+                    buffer_with_samples = _channels[n];
+                    break;
+                }
             }
-            if(any_buffers_has_samples) {
+            // If none have samples exit loop
+            if(buffer_with_samples == -1) {
+                break;
+            // If it is taking to long for the buffer to empty, continue anyway with an error message
+            } else if(timeout_time > uhd::get_system_time()) {
+                UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Timeout while waiting for tx " + std::string() + " to finish");
                 break;
             }
             usleep(10);
