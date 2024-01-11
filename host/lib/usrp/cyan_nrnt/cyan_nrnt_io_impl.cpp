@@ -120,7 +120,13 @@ public:
         vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
     }
 
+    bool teardown_run = false;
 	void teardown() {
+        if(teardown_run) {
+            // Prevents this function from being called multiple times
+            // see shutdown_lingering_tx_streamers for why this function is necessary
+            return;
+        }
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -184,7 +190,13 @@ public:
 		teardown();
 	}
 
+    bool teardown_run = false;
 	void teardown() {
+        if(teardown_run) {
+            // Prevents this function from being called multiple times
+            // see shutdown_lingering_tx_streamers for why this function is necessary
+            return;
+        }
         // Waits for all samples sent to be consumed before destructing, times out after 30s
         uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
         while(timeout_time > uhd::get_system_time()) {
