@@ -208,8 +208,8 @@ public:
             if(buffer_with_samples == -1) {
                 break;
             // If it is taking to long for the buffer to empty, continue anyway with an error message
-            } else if(timeout_time > uhd::get_system_time()) {
-                UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Timeout while waiting for tx " + std::string() + " to finish");
+            } else if(timeout_time < uhd::get_system_time()) {
+                UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples]) + " to finish");
                 break;
             }
             usleep(10);
