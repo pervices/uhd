@@ -570,8 +570,10 @@ public:
                 throw uhd::runtime_error("Can't set clock source on this device.");
             }
 
-            if(result.substr(0, source.size()) != source) {
-                UHD_LOGGER_WARNING("MULTI_USRP")  <<boost::format( "Unable to set clock source. The program attempted to set it to %s but it returned: %s") % source % result ;
+            if(result == "Error Unlocked PLL with External Reference") {
+                UHD_LOGGER_ERROR("MULTI_USRP")  << "PLL unlocked while using external reference. Verify if the external reference is connected";
+            } else if(result.substr(0, source.size()) != source) {
+                UHD_LOGGER_ERROR("MULTI_USRP")  <<boost::format( "Unable to set clock source. The program attempted to set it to %s but it returned: %s") % source % result ;
             }
             return;
         }
