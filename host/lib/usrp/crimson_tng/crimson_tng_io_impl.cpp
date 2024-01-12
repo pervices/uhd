@@ -205,6 +205,7 @@ public:
             // see shutdown_lingering_tx_streamers for why this function is necessary
             return;
         }
+        teardown_run = true;
         // Waits for all samples sent to be consumed before destructing, times out after 30s
         uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
         while(true) {
