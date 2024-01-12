@@ -200,20 +200,20 @@ public:
         // Waits for all samples sent to be consumed before destructing, times out after 30s
         uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
         while(timeout_time > uhd::get_system_time()) {
-            int64_t buffer_with_samples = -1;
+            int64_t buffer_with_samples_i = -1;
             // Checks if any buffers still have samples
             for(size_t n = 0; n < _channels.size(); n++) {
-                if(get_buffer_level_from_device(_channels[n]) != 0) {
-                    buffer_with_samples = _channels[n];
+                if(get_buffer_level_from_device(n) != 0) {
+                    buffer_with_samples_i = n;
                     break;
                 }
             }
             // If none have samples exit loop
-            if(buffer_with_samples == -1) {
+            if(buffer_with_samples_i == -1) {
                 break;
             // If it is taking to long for the buffer to empty, continue anyway with an error message
             } else if(timeout_time < uhd::get_system_time()) {
-                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples]) + " to finish");
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples_i]) + " to finish");
                 break;
             }
             usleep(10);
