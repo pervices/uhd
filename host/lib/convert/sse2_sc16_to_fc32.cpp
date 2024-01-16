@@ -11,6 +11,7 @@
 
 using namespace uhd::convert;
 
+// Expected input order: Q LSB, Q MSB, I LSB, Q MSB
 DECLARE_CONVERTER(sc16_item32_le, 1, fc32, 1, PRIORITY_SIMD)
 {
     const item32_t* input = reinterpret_cast<const item32_t*>(inputs[0]);
@@ -25,7 +26,9 @@ DECLARE_CONVERTER(sc16_item32_le, 1, fc32, 1, PRIORITY_SIMD)
         /* load from input */                                                          \
         __m128i tmpi = _mm_loadu_si128(reinterpret_cast<const __m128i*>(input + i));   \
                                                                                        \
-        /* unpack */                                               \
+        /* unpack + swap 16-bit pairs */                                               \
+        tmpi           = _mm_shufflelo_epi16(tmpi, _MM_SHUFFLE(2, 3, 0, 1));           \
+        tmpi           = _mm_shufflehi_epi16(tmpi, _MM_SHUFFLE(2, 3, 0, 1));           \
         __m128i tmpilo = _mm_unpacklo_epi16(zeroi, tmpi); /* value in upper 16 bits */ \
         __m128i tmpihi = _mm_unpackhi_epi16(zeroi, tmpi);                              \
                                                                                        \
@@ -64,6 +67,7 @@ DECLARE_CONVERTER(sc16_item32_le, 1, fc32, 1, PRIORITY_SIMD)
     item32_sc16_to_xx<uhd::htowx>(input + i, output + i, nsamps - i, scale_factor);
 }
 
+// Expected input order: I MSB, I LSB, Q MSB, Q LSB
 DECLARE_CONVERTER(sc16_item32_be, 1, fc32, 1, PRIORITY_SIMD)
 {
     const item32_t* input = reinterpret_cast<const item32_t*>(inputs[0]);
@@ -118,6 +122,7 @@ DECLARE_CONVERTER(sc16_item32_be, 1, fc32, 1, PRIORITY_SIMD)
     item32_sc16_to_xx<uhd::htonx>(input + i, output + i, nsamps - i, scale_factor);
 }
 
+// Expected input order: I LSB, I MSB, Q LSB, Q MSB
 DECLARE_CONVERTER(sc16_chdr, 1, fc32, 1, PRIORITY_SIMD)
 {
     const sc16_t* input = reinterpret_cast<const sc16_t*>(inputs[0]);

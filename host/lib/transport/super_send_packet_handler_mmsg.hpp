@@ -258,15 +258,6 @@ public:
     void disable_blocking_fc() {
         use_blocking_fc = false;
     }
-
-    bool any_samples_in_buffer(const uhd::time_spec_t & now) {
-        for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-            if(ch_send_buffer_info_i.buffer_level_manager.get_buffer_level(now) > 0) {
-                return true;
-            }
-        }
-        return false;
-    }
     
 protected:
     bool use_blocking_fc = false;
@@ -692,7 +683,13 @@ private:
             //set the converter
             uhd::convert::id_type converter_id;
             if(wire_little_endian) {
-                converter_id.output_format = wire_format + "_item32_le";
+                // item32 results in entire 32 bit words being converted to little endian
+                // i.e. _item32_le means Q LSB, Q MSB, I LSB, I MSB
+                // we want _item32_le means I LSB, I MSB, Q LSB, Q MSB
+                // We want 16 bit halves to be little endian, which chdr provides
+                // NOTE: chdr is a legacy data format for old Ettus stuff
+                // If it ever gets removes create an identical implementation named _item_16_le
+                converter_id.output_format = wire_format + "_chdr";
             } else {
                 converter_id.output_format = wire_format + "_item32_be";
             }

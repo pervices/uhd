@@ -120,7 +120,13 @@ public:
         vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
     }
 
+    bool teardown_run = false;
 	void teardown() {
+        if(teardown_run) {
+            // Prevents this function from being called multiple times
+            // see shutdown_lingering_tx_streamers for why this function is necessary
+            return;
+        }
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -184,11 +190,31 @@ public:
 		teardown();
 	}
 
+    bool teardown_run = false;
 	void teardown() {
+        if(teardown_run) {
+            // Prevents this function from being called multiple times
+            // see shutdown_lingering_tx_streamers for why this function is necessary
+            return;
+        }
+        teardown_run = true;
         // Waits for all samples sent to be consumed before destructing, times out after 30s
         uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
         while(timeout_time > uhd::get_system_time()) {
-            if(!any_samples_in_buffer(get_time_now())) {
+            int64_t buffer_with_samples_i = -1;
+            // Checks if any buffers still have samples
+            for(size_t n = 0; n < _channels.size(); n++) {
+                if(get_buffer_level_from_device(n) != 0) {
+                    buffer_with_samples_i = n;
+                    break;
+                }
+            }
+            // If none have samples exit loop
+            if(buffer_with_samples_i == -1) {
+                break;
+            // If it is taking to long for the buffer to empty, continue anyway with an error message
+            } else if(timeout_time < uhd::get_system_time()) {
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples_i]) + " to finish");
                 break;
             }
             usleep(10);
