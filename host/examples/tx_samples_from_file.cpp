@@ -35,16 +35,35 @@ void send_from_file(
     md.end_of_burst   = false;
     std::vector<samp_type> buff(samps_per_buff);
     std::ifstream infile(file.c_str(), std::ifstream::binary);
+    if(!infile.good()) {
+        if(infile.rdstate() & std::ifstream::failbit) {
+            UHD_LOG_ERROR("TX-STREAM", "Error when attempting to open: " + file);
+        }
+        std::exit(infile.rdstate());
+    }
 
     // loop until the entire file has been read
 
     while (not md.end_of_burst and not stop_signal_called) {
         infile.read((char*)&buff.front(), buff.size() * sizeof(samp_type));
         size_t num_tx_samps = size_t(infile.gcount() / sizeof(samp_type));
-
         md.end_of_burst = infile.eof();
 
+        if(!infile.good()) {
+            // Reaching the end of file will report bad, this check avoids a spurious error message
+            if(!(infile.rdstate() & std::ifstream::eofbit)) {
+                UHD_LOG_ERROR("TX-STREAM", "Error: " << infile.rdstate() << " when reading file: " << file);
+                std::exit(infile.rdstate());
+            } else if(num_tx_samps == 0) {
+                    // Reached eof before reading any samples
+                    UHD_LOG_ERROR("TX-STREAM", "Error, file empty: " + file);
+                    std::exit(std::ifstream::eofbit);
+            }
+            infile.clear();
+        }
+
         const size_t samples_sent = tx_stream->send(&buff.front(), num_tx_samps, md);
+
         if (samples_sent != num_tx_samps) {
             UHD_LOG_ERROR("TX-STREAM",
                 "The tx_stream timed out sending " << num_tx_samps << " samples ("
