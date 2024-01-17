@@ -28,11 +28,16 @@ void sig_int_handler(int)
 
 template <typename samp_type>
 void send_from_file(
-    uhd::tx_streamer::sptr tx_stream, const std::string& file, size_t samps_per_buff)
+    // start_time: the start time of this burst
+    // delay_used: whether or not a delay between bursts is used
+    uhd::tx_streamer::sptr tx_stream, const std::string& file, size_t samps_per_buff, uhd::time_spec_t start_time, bool first_send, bool delay_used)
 {
     uhd::tx_metadata_t md;
-    md.start_of_burst = false;
+    // If there is no delay send as one burst, otherwise have a start and end of burst for each send
+    md.start_of_burst = first_send || delay_used;
     md.end_of_burst   = false;
+    md.has_time_spec  = first_send || delay_used;
+    md.time_spec = start_time;
     std::vector<samp_type> buff(samps_per_buff);
     std::ifstream infile(file.c_str(), std::ifstream::binary);
     if(!infile.good()) {
@@ -44,10 +49,12 @@ void send_from_file(
 
     // loop until the entire file has been read
 
-    while (not md.end_of_burst and not stop_signal_called) {
+    bool all_samples_read = false;
+    while (not all_samples_read and not stop_signal_called) {
         infile.read((char*)&buff.front(), buff.size() * sizeof(samp_type));
         size_t num_tx_samps = size_t(infile.gcount() / sizeof(samp_type));
-        md.end_of_burst = infile.eof();
+        all_samples_read = infile.eof();
+        md.end_of_burst = all_samples_read && delay_used;
 
         if(!infile.good()) {
             // Reaching the end of file will report bad, this check avoids a spurious error message
@@ -62,7 +69,7 @@ void send_from_file(
             infile.clear();
         }
 
-        const size_t samples_sent = tx_stream->send(&buff.front(), num_tx_samps, md);
+        const size_t samples_sent = tx_stream->send(&buff.front(), num_tx_samps, md, 30);
 
         if (samples_sent != num_tx_samps) {
             UHD_LOG_ERROR("TX-STREAM",
@@ -70,6 +77,9 @@ void send_from_file(
                                                    << samples_sent << " sent).");
             return;
         }
+
+        // Clear start_of_burst once any samples have been sent
+        md.start_of_burst = md.start_of_burst && (samples_sent == 0);
     }
 
     infile.close();
@@ -238,21 +248,23 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     channel_nums.push_back(boost::lexical_cast<size_t>(channel));
     stream_args.channels             = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
+    uhd::time_spec_t start_time = usrp->get_time_now() + 0.01;
+
+    bool first_send = true;
 
     // send from file
     do {
         if (type == "double")
-            send_from_file<std::complex<double>>(tx_stream, file, spb);
+            send_from_file<std::complex<double>>(tx_stream, file, spb, start_time, first_send, delay != 0);
         else if (type == "float")
-            send_from_file<std::complex<float>>(tx_stream, file, spb);
+            send_from_file<std::complex<float>>(tx_stream, file, spb, start_time, first_send, delay != 0);
         else if (type == "short")
-            send_from_file<std::complex<short>>(tx_stream, file, spb);
+            send_from_file<std::complex<short>>(tx_stream, file, spb, start_time, first_send, delay != 0);
         else
             throw std::runtime_error("Unknown type " + type);
 
-        if (repeat and delay > 0.0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(int64_t(delay * 1000)));
-        }
+        first_send = false;
+        start_time+=delay;
     } while (repeat and not stop_signal_called);
 
     // finished
