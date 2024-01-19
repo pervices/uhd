@@ -185,13 +185,16 @@ void cyan_nrnt_impl::set_int(const std::string pre, int data){
 
 uhd::time_spec_t cyan_nrnt_impl::get_time_now() {
     // Waits for clock to be stable before getting time
-    // Clocks will go out of sync when setting time
-    if(time_resync_requested) {
+    if(_bm_thread_running) {
         wait_for_time_diff_converged();
+        double diff = time_diff_get();
+        return uhd::get_system_time() + diff;
+    // If clock sync thread is not running reset the time diff pid and use the initial offset
+    // Will get the time but without taking into account network latency (which would require the clock sync thread)
+    } else {
+        reset_time_diff_pid();
+        return uhd::get_system_time() - _time_diff_pidc.get_offset();
     }
-    double diff = time_diff_get();
-
-    return uhd::get_system_time() + diff;
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
@@ -1215,10 +1218,19 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     std::string sfpd_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr").get();
     ping_check("sfpd", sfpd_ip);
 
+    for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
+        std::string xg_intf = std::string(1, char('a' + i));
+        int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string time_diff_port = std::to_string( sfp_port );
+        _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
+    }
+
     // This is the master clock rate
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
 
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
+    // This line will get time spec, the time diff port must be initialized first
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
 
@@ -1532,14 +1544,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
         }
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
-    }
-
-	for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
-        std::string xg_intf = std::string(1, char('a' + i));
-        int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
-        std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
-        std::string time_diff_port = std::to_string( sfp_port );
-        _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
     }
 
 	if ( _bm_thread_needed ) {
