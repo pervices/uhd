@@ -409,13 +409,7 @@ private:
 
             int num_packets_to_send = (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));
 
-            if(num_packets_to_send > 0 || !ch_send_buffer_info_group[ch_i].buffer_level_manager.start_of_burst_pending(device_time+1e-6)) {
-                return num_packets_to_send;
-            } else {
-                uhd::time_spec_t sleep_time = ch_send_buffer_info_group[ch_i].buffer_level_manager.time_until_sob(device_time) - 1.0e-6;
-                sleep_time.sleep_for();
-                return num_packets_to_send;
-            }
+            return num_packets_to_send;
 
         } else {
             int64_t buffer_level = get_buffer_level_from_device(ch_i);
@@ -428,9 +422,9 @@ private:
         const size_t nsamps_to_send,
         const uhd::tx_metadata_t &metadata_,
         const double timeout,
-        // Don't count the samples sent towards the samples sent
-        // Used to prevent the dummy samples being added to eob packets from being counted for buffer monitoring
-        const bool dont_count_samples = false
+        // TODO: split sending the eob packets into their own function to be less spaghetti
+        // Call this function for sending eob packet (which only contains dummy samples)
+        const bool is_eob_send = false
     ) {
 
         // Number of packets to send
@@ -569,8 +563,13 @@ private:
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
 
+                // Always send 1 packet if eob (only contains dummy samples so they can be sent regardless of buffer level)
+                if(is_eob_send) {
+                    packets_to_send_this_sendmmsg = 1;
+                }
+
                 // Skip channel if it either is not time to send any packets yet of the desired number of packets have already been sent
-                if(packets_to_send_this_sendmmsg <= 0 || packets_sent_per_ch[ch_i] == num_packets) {
+                if((packets_to_send_this_sendmmsg <= 0 || packets_sent_per_ch[ch_i] == num_packets)) {
                     continue;
                 }
 
@@ -609,7 +608,7 @@ private:
                     // Update counter for number of samples sent this send
                     samples_sent_per_ch[ch_i] += nsamps_sent;
                     // Update buffer level count
-                    if(!dont_count_samples) {
+                    if(!is_eob_send) {
                         ch_send_buffer_info_group[ch_i].buffer_level_manager.update(nsamps_sent);
                     }
                 }
@@ -637,7 +636,29 @@ private:
             next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
         }
 
-        if(dont_count_samples) {
+        if(metadata_.start_of_burst && is_eob_send) {
+            printf("ERROR sob and eob at the same time\n");
+        }
+
+        // If no packets sent remove the sob time for this send from the list of start of bursts
+        if(metadata_.start_of_burst && !samples_sent) {
+            for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+                ch_send_buffer_info_i.buffer_level_manager.pop_back_start_of_burst_time();
+            }
+            // Add sob to cache to be used on the next attempt
+            cached_sob = true;
+            sob_time_cache = metadata_.time_spec;
+        }
+
+        // NOTE: samples_sent here will be non 0 because of the dummy samples
+        if(is_eob_send && !samples_sent) {
+            for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+                ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
+            }
+        }
+
+        if(is_eob_send) {
+            // The samples in an eob are unused, they only exist because the FPGA can't handle 0 samples per packet
             return 0;
         } else {
             return samples_sent;

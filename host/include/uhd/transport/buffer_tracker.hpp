@@ -25,9 +25,12 @@ public:
 	void set_sample_rate( const double rate );
 
 	bool start_of_burst_pending( const uhd::time_spec_t & now );
-    uhd::time_spec_t time_until_sob( const uhd::time_spec_t & now );
     void set_start_of_burst_time( const uhd::time_spec_t & sob );
+    // Removes the last sob added to the list
+    void pop_back_start_of_burst_time();
     void set_end_of_burst_time( const uhd::time_spec_t & sob );
+    // Removes the last sob added to the list
+    void pop_back_end_of_burst_time();
 
 	int64_t get_buffer_level( const uhd::time_spec_t & now );
 
@@ -57,11 +60,11 @@ private:
     uhd::time_spec_t first_sob_time;
 
     // Stores times start and end times of periods where no samples are sent
-    std::vector<uhd::time_spec_t> blank_period_start;
+    std::vector<uhd::time_spec_t> blank_period_start = {uhd::time_spec_t(0.0)};
     std::vector<uhd::time_spec_t> blank_period_stop;
     // Time skipped by past blank periods
     // When a blank period is in the past, removed it from the list of blank periods and add the samples skipped to here
-    uhd::time_spec_t blanked_time;
+    uhd::time_spec_t blanked_time = uhd::time_spec_t(0.0);
 
 };
 }}
