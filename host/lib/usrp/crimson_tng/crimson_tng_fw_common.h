@@ -110,8 +110,10 @@
 #define CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP	0.25
 
 // Crimson Clk Settings
-#define CRIMSON_TNG_MASTER_CLOCK_RATE	325000000
-#define CRIMSON_TNG_MASTER_TICK_RATE	162500000
+// Old default max sample rate, fallback if the server hasn't been updated
+#define CRIMSON_TNG_FALLBACK_MASTER_CLOCK_RATE	325000000
+// Tick rate for ticks in timestamps on Crimson
+#define CRIMSON_TNG_MASTER_TICK_RATE	(_max_rate / 2)
 #define CRIMSON_TNG_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Crimson Tuning Range Settings
 #define CRIMSON_TNG_FREQ_RANGE_START	0
@@ -124,9 +126,9 @@
 #define CRIMSON_TNG_LO_OFFSET           25000000
 
 // Crimson Sample Rate Settings
-#define CRIMSON_TNG_RATE_RANGE_START	(CRIMSON_TNG_MASTER_CLOCK_RATE/65536)
-#define CRIMSON_TNG_RATE_RANGE_STOP_FULL	CRIMSON_TNG_MASTER_CLOCK_RATE
-#define CRIMSON_TNG_RATE_RANGE_STOP_QUARTER     (CRIMSON_TNG_MASTER_CLOCK_RATE/4.0)
+#define CRIMSON_TNG_RATE_RANGE_START	(_max_rate/65536)
+#define CRIMSON_TNG_RATE_RANGE_STOP_FULL	_max_rate
+#define CRIMSON_TNG_RATE_RANGE_STOP_QUARTER     (_max_rate/4.0)
 #define CRIMSON_TNG_RATE_RANGE_STEP	1.0
 
 // All ADCs and DACs take complex sample at 325MSPS,
@@ -134,7 +136,7 @@
 // However, for user throughput, DACs A/B have a max user complex samplerate of
 // 162.5MSPS, and DACs C/D have 81.25MSPS due to backhaul bandwidth limitations
 // and FPGA transciever clocking limitaions.
-#define CRIMSON_TNG_ADC_BW                  (CRIMSON_TNG_MASTER_CLOCK_RATE/2.0)
+#define CRIMSON_TNG_ADC_BW                  (_max_rate/2.0)
 #define CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF      (0.8*CRIMSON_TNG_ADC_BW)
 #define CRIMSON_TNG_BW_FULL                 (CRIMSON_TNG_RATE_RANGE_STOP_FULL/2.0)
 #define CRIMSON_TNG_BW_QUARTER              CRIMSON_TNG_RATE_RANGE_STOP_QUARTER

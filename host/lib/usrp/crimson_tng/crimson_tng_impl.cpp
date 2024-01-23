@@ -611,15 +611,14 @@ static device_addrs_t crimson_tng_find(const device_addr_t &hint_)
  */
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-static constexpr double tick_period_ns = 2.0 / CRIMSON_TNG_MASTER_CLOCK_RATE * 1e9;
-static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
-	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
+inline int64_t crimson_tng_impl::ticks_to_nsecs( int64_t tv_tick ) {
+	return (int64_t)( (double) tv_tick * _tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
-static inline int64_t nsecs_to_ticks( int64_t tv_nsec ) {
-	return (int64_t)( (double) tv_nsec / tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
+inline int64_t crimson_tng_impl::nsecs_to_ticks( int64_t tv_nsec ) {
+	return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
 }
 
-static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
+inline void crimson_tng_impl::make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
 	pkt.header = (uint64_t)0x20002 << 16;
 	pkt.tv_sec = ts.get_full_secs();
 	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
@@ -809,7 +808,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 	now = uhd::get_system_time();
 	dev->time_diff_send( now );
 	dev->time_diff_recv( tdr );
-    dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+    dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
 		now = uhd::get_system_time(),
@@ -961,6 +960,16 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Begin FPGA reset at tx chain
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga" / "board" / "reg_rst_req",  "fpga/board/reg_rst_req", int, int);
     _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(17);
+
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/max_rate", "system/max_rate", double, double);
+    _max_rate = _tree->access<double>(CRIMSON_TNG_MB_PATH / "system/max_rate").get();
+
+    // Getting a double will return 0 ifthe property doesn't exist yet
+    if(_max_rate == 0) {
+        _max_rate = CRIMSON_TNG_FALLBACK_MASTER_CLOCK_RATE;
+    }
+
+    _tick_period_ns = 1.0 / CRIMSON_TNG_MASTER_TICK_RATE * 1e9;
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/min_lo", "system/min_lo", double, double);
     _min_lo = _tree->access<double>(CRIMSON_TNG_MB_PATH / "system/min_lo").get();
@@ -1515,7 +1524,7 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-static double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
+double crimson_tng_impl::choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
 
 	/*
 	 * Scenario 1) Channels A and B
