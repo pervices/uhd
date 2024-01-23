@@ -227,6 +227,12 @@ private:
 
     time_spec_t _command_time;
 
+    double _max_rate;
+
+    // Tick rate used for Crimson timestamps
+    double _master_tick_rate;
+    double _tick_period_ns;
+
     // Minimum valid lo
     double _min_lo;
     double _max_lo;
@@ -264,6 +270,7 @@ private:
     bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw );
 
     // Calculate and set frequency
+    double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree );
     tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band );
 
     uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
@@ -310,6 +317,10 @@ private:
     std::shared_ptr<std::vector<bool>> rx_channel_in_use{std::make_shared<std::vector<bool>>(std::vector<bool>(CRIMSON_TNG_RX_CHANNELS, false))};
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
+
+    int64_t ticks_to_nsecs( int64_t tv_tick );
+    int64_t nsecs_to_ticks( int64_t tv_nsec );
+    void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts );
 };
 
 }

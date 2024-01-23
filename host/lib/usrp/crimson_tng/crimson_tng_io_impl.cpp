@@ -180,9 +180,9 @@ public:
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
-	crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
+	crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, CRIMSON_TNG_MASTER_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
 		_first_call_to_send( true ),
 		_buffer_monitor_running( false ),
 		_stop_buffer_monitor( false )
@@ -802,9 +802,9 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
  * Transmit streamer
  **********************************************************************/
 
-static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, double tick_rate, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	static constexpr double tick_period_ps = 1.0 / CRIMSON_TNG_MASTER_TICK_RATE;
+	double tick_period_ps = 1.0 / tick_rate;
 
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
@@ -969,7 +969,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use );
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -989,7 +989,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
                 my_streamer->set_on_fini(chan_i, std::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
 
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                    &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc[mb].fifo_ctrl_xports[dsp], ph::_1, ph::_2, ph::_3, ph::_4
+                    &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc[mb].fifo_ctrl_xports[dsp], _master_tick_rate, ph::_1, ph::_2, ph::_3, ph::_4
                 ));
 
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
