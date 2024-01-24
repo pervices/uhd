@@ -26,6 +26,14 @@
 #include <filesystem>
 #include <uhd/utils/thread.hpp>
 
+// C Linux IO
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/uio.h>
+#include <aio.h>
+
+#include <algorithm>
+
 namespace po = boost::program_options;
 
 static bool stop_signal_called = false;
@@ -33,6 +41,18 @@ void sig_int_handler(int)
 {
     stop_signal_called = true;
 }
+
+void free_recv_buffers(union sigval aiocb_to_free) {
+    int ret = aio_error((aiocb*)(aiocb_to_free.sival_ptr));
+    if(ret != 0) {
+        UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "AIO write failed with error code: " + std::string(strerror(errno)));
+    }
+
+    free((void*)((aiocb*)(aiocb_to_free.sival_ptr))->aio_buf);
+
+    free((aiocb*)(aiocb_to_free.sival_ptr));
+}
+
 
 /**
  * Parses arguments
@@ -118,16 +138,34 @@ public:
     }
 };
 
+bool disk_rate_message_printed = false;
+
 void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, size_t spb, std::string folder, bool skip_save, bool strict) {
     uhd::stream_args_t rx_stream_args("sc16");
     rx_stream_args.channels = group_info->channels;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(rx_stream_args);
 
-    std::vector<std::ofstream> outfiles(group_info->channels.size());
-    if (!skip_save) {
+    // Open files to write data to
+    std::vector<int> output_fd(group_info->channels.size());
+    if(!skip_save) {
         for(size_t n = 0; n < group_info->channels.size(); n++) {
-            std::string path = folder + "/rx_ch_" + std::to_string(group_info->channels[n]) + ".dat";
-            outfiles[n].open(path.c_str(), std::ofstream::binary);
+            std::string path = folder + "/rx_ch_" + std::to_string(group_info->channels.at(n)) + ".dat";
+            output_fd[n] = open(path.c_str(), O_CREAT | O_WRONLY | O_LARGEFILE | O_TRUNC, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+            if(output_fd[n] == -1) {
+                UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "Unable to open file: " + path + ". Failed with error code: " + strerror(errno));
+                std::exit(errno);
+            }
+
+            // Allocates/advises kernel for write optimizations if the amount to of data required is known
+            if(group_info->common_nsamps_requested != 0) {
+                int64_t bytes_to_allocate = group_info->common_nsamps_requested * sizeof(std::complex<short>);
+
+                int r = posix_fallocate64(output_fd[n], 0, bytes_to_allocate);
+                if(r!=0) {
+                    UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "Unable to allocate file: " + path + ". Failed with error code: " + strerror(errno));
+                    std::exit(errno);
+                }
+            }
         }
     }
 
@@ -141,53 +179,142 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
     stream_cmd.time_spec  = uhd::time_spec_t(group_info->common_start_time_delay);
     rx_stream->issue_stream_cmd(stream_cmd);
 
-    // Buffers to store rx data in
-    std::vector<std::vector<std::complex<short>>> buffers(group_info->channels.size(), std::vector<std::complex<short>>(spb, 0));
-
-    // Pointers to where to store data for each channel
-    std::vector<void*> buffer_ptrs(group_info->channels.size());
-    for(size_t n = 0; n < buffers.size(); n++) {
-        buffer_ptrs[n] = buffers[n].data();
-    }
-
     size_t num_samples_received = 0;
+    size_t num_writes_issued = 0;
     bool overflow_occured = false;
     // Receive loop
     while(!stop_signal_called && (num_samples_received < group_info->common_nsamps_requested || group_info->common_nsamps_requested == 0)) {
-        size_t num_samples = rx_stream->recv(buffer_ptrs, spb, md, group_info->common_start_time_delay + 3);
+        // Initializes the to store rx data in
+        std::vector<void*>buffer_ptrs(group_info->channels.size());
+        struct aiocb* aiocb_info[group_info->channels.size()];
+
+        size_t samples_this_recv;
+        if(group_info->common_nsamps_requested != 0) {
+            samples_this_recv = std::min(spb, group_info->common_nsamps_requested - num_samples_received);
+        } else {
+            samples_this_recv = spb;
+        }
+
+        // Pointers to where to store data for each channel
+        for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
+
+            // Creates buffers to store rx data in
+            buffer_ptrs[ch] = malloc(samples_this_recv * sizeof(std::complex<short>));
+            if(buffer_ptrs[ch] == NULL) {
+                printf("malloc failed\n");
+                std::exit(~0);
+            }
+
+            memset(buffer_ptrs[ch], 0, samples_this_recv * sizeof(std::complex<short>));
+
+            // Creates struct to contian data for io write
+            aiocb_info[ch] = (aiocb*) malloc(sizeof(aiocb));
+            memset(aiocb_info[ch], 0, sizeof(aiocb));
+
+            aiocb_info[ch]->aio_fildes = output_fd[ch];
+            aiocb_info[ch]->aio_offset = num_samples_received * sizeof(std::complex<short>);
+            // By giving ascending priority the aio schedueler is able to more efficiently order writes
+            aiocb_info[ch]->aio_offset = num_writes_issued;
+            aiocb_info[ch]->aio_buf = buffer_ptrs[ch];
+
+            aiocb_info[ch]->aio_sigevent.sigev_notify = SIGEV_THREAD;
+
+            // Pointer passed to callback when async IO finishes. Used to know what memory to clean up
+            aiocb_info[ch]->aio_sigevent.sigev_value.sival_ptr = aiocb_info[ch];
+
+            aiocb_info[ch]->aio_sigevent.sigev_notify_function = &free_recv_buffers;
+        }
+
+        size_t num_samples = rx_stream->recv(buffer_ptrs, samples_this_recv, md, group_info->common_start_time_delay + 3);
 
         if(md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
             if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
                 fprintf(stderr, "Timeout received after %lu samples\n", num_samples_received);
                 // Break if overflow occured and a set number of samples was requested, since that probably means all samples were sent, and missed ones weren't counted
                 if(strict || (overflow_occured && group_info->common_nsamps_requested !=0)) {
+                    // Set to true so other threads know to stop
+                    stop_signal_called = true;
                     break;
+                } else {
+                    continue;
                 }
             } else if(md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
                 if(!overflow_occured) {
                     fprintf(stderr, "Overflow occured after %lu samples\n", num_samples_received);
                     overflow_occured = true;
                     if(strict) {
+                        // Set to true so other threads know to stop
+                        stop_signal_called = true;
                         break;
+                    } else {
+                        continue;
                     }
                 }
             }
         }
+
+        num_samples_received += num_samples;
+
         if(!skip_save) {
-            for(size_t n = 0; n < group_info->channels.size(); n++) {
-                outfiles[n].write((const char*)buffers[n].data(), num_samples * sizeof(std::complex<short>));
+            bool write_failed = false;
+            for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
+                aiocb_info[ch]->aio_nbytes = num_samples * sizeof(std::complex<short>);
+
+                // If this isn't fast enough look into lio_listio
+                if(aio_write(aiocb_info[ch])) {
+                    UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "Start AIO write failed for ch " + std::to_string(group_info->channels[ch]) + " with error code " + strerror(errno));
+                    // Free data here since it is not getting freed by the aio_write callback
+                    free(buffer_ptrs[ch]);
+                    free(aiocb_info[ch]);
+                    write_failed = true;
+                    num_writes_issued++;
+                }
+            }
+            // Exit recv loop if any of the writes failed and strict mode
+            if(write_failed && strict) {
+                // Set to true so other threads know to stop
+                stop_signal_called = true;
+                break;
+            }
+        } else {
+            for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
+                // Free data buffer and write struct here since aio_write is unused
+                // free is surprisingly slow, often writing will be faster
+                free(buffer_ptrs[ch]);
+                free(aiocb_info[ch]);
             }
         }
-        num_samples_received += num_samples;
+
     }
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
-    for(auto& outfile : outfiles) {
-        if(outfile.is_open()) {
-            outfile.close();
+    printf("Waiting for remaing writes to finish\n");
+
+    if(!skip_save) {
+        // DEBUG: lock to prevent overlapping fsyncs (may be causing segmentation faults)
+        // std::lock_guard<std::mutex> guard(fsync_mutex);
+        for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
+            struct aiocb aiocbp_fsync;
+            memset(&aiocbp_fsync, 0, sizeof(aiocb));
+            aiocbp_fsync.aio_fildes = output_fd[ch];
+
+            if(fsync(output_fd[ch])) {
+                UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "fsync failed with " + std::string(strerror(errno)));
+            }
+
+            // Wait for aio writes to be written to disk
+            if(aio_fsync(O_SYNC, &aiocbp_fsync)) {
+                UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "aio_fsync failed with " + std::string(strerror(errno)));
+                printf("output_fd[%lu]: %i\n", group_info->channels[ch], output_fd[ch]);
+            }
         }
+    }
+
+    //Closes data files
+    for(uint64_t n = 0; n < output_fd.size(); n++) {
+        close(output_fd[n]);
     }
 
     printf("Received %lu samples on ch", num_samples_received);
@@ -212,7 +339,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "uhd device address args")
         ("folder", po::value<std::string>(&folder)->default_value("results"), "name of the file to write binary samples to")
-        ("nsamps", po::value<std::string>(&nsamp_arg)->default_value("0"), "total number of samples to receive. Can be channel specific")
+        ("nsamps", po::value<std::string>(&nsamp_arg)->default_value("0"), "total number of samples to receive. Setting this will improve performance. Can be channel specific")
 
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<std::string>(&rate_arg)->default_value("1000000"), "rate of incoming samples. Can be channel specific")
