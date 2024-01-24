@@ -219,7 +219,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("freq", po::value<std::string>(&freq_arg)->default_value("0"), "RF center frequency in Hz. Can be channel specific")
         ("gain", po::value<std::string>(&gain_arg)->default_value("0"), "gain for the RF chain. Can be channel specific")
         ("channels", po::value<std::string>(&channel_arg)->default_value("0"), "which channel(s) to use")
-        ("start_delay", po::value<std::string>(&start_delay_arg)->default_value("0.0"), "The number of seconds to wait between issuing the stream command and starting streaming. Can be channel specific")
+        ("start_delay", po::value<std::string>(&start_delay_arg)->default_value("5"), "The number of seconds to wait between issuing the stream command and starting streaming. Can be channel specific")
         ("null", "run without writing to file")
         ("strict", "Abort on a bad packet")
     ;
