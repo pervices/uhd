@@ -253,6 +253,7 @@ public:
         }
 
         previous_num_samples = final_nsamps;
+
         return final_nsamps;
     }
 
@@ -511,12 +512,12 @@ private:
 
         if(timeout_occured) {
             for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-                if(ch_recv_buffer_info_i.num_headers_used > 0) {
-                    return rx_metadata_t::ERROR_CODE_NONE;
+                if(ch_recv_buffer_info_i.num_headers_used == 0) {
+                    return rx_metadata_t::ERROR_CODE_TIMEOUT;
                 }
             }
-            // Only return timeout if all channels received no data
-            return rx_metadata_t::ERROR_CODE_TIMEOUT;
+            // Only return timeout if one of the channels received no data
+            return rx_metadata_t::ERROR_CODE_NONE;
         } else {
             return rx_metadata_t::ERROR_CODE_NONE;
         }
