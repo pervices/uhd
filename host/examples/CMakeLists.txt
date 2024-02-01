@@ -51,6 +51,7 @@ set(example_sources
     txrx_multi_device_loopback.cpp
     rx_trigger_iterative_test_tool.cpp
     rx_to_tx_loopback.cpp
+    txrx_burst_streaming.cpp
     #benchmark_streamer.cpp
 )
 
