@@ -1,0 +1,2 @@
+pbuilder create --debootstrapopts --variant=buildd --distribution jammy
+python3 tools/debs/uhd_ubuntu_deb.py jammy --buildpath ../uhd-build-dir

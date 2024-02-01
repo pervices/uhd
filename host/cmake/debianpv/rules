@@ -1,0 +1,39 @@
+#!/usr/bin/make -f
+include /usr/share/dpkg/pkg-info.mk
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+export DEB_HOST_MULTIARCH
+DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
+					-DENABLE_CRIMSON_TNG="ON" \
+					-DENABLE_CYAN_4R4T="ON" \
+					-DENABLE_CYAN_8R="ON" \
+					-DENABLE_CYAN_16T="ON" \
+					-DENABLE_CYAN_64T="OFF" \
+					-DENABLE_CYAN_P1HDR16T="ON" \
+					-DENABLE_CYAN_P1HDR32T="ON" \
+					-DENABLE_N300="OFF" \
+					-DENABLE_E320="OFF" \
+					-DENABLE_USRP1="OFF" \
+					-DENABLE_USRP2="ON" \
+					-DENABLE_B200="OFF" \
+					-DENABLE_B100="OFF" \
+					-DENABLE_X300="OFF" \
+					-DENABLE_OCTOCLOCK="OFF" \
+					-DENABLE_DOXYGEN="OFF" \
+					-DENABLE_USB="OFF" \
+					-DENABLE_TESTS="OFF" \
+					-DPKG_LIB_DIR="/usr/lib/uhd" \
+					-DENABLE_EXAMPLES="ON" \
+					-DENABLE_UTILS="ON" \
+					-DENABLE_DPDK="OFF" \
+					-DPYTHON_EXECUTABLE=/usr/bin/python3 \
+					-DUHD_PYTHON_DIR="lib/python3/dist-packages"")
+
+%:
+	dh $@ --parallel --sourcedirectory=host --builddirectory=build
+
+override_dh_auto_configure:
+	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
+
+override_dh_auto_install:
+	dh_auto_install
+
