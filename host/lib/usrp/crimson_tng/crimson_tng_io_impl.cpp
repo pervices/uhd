@@ -516,7 +516,7 @@ void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
     double rate_used = 0;
     for(size_t n = 0; n < num_rx_channels; n++) {
         if(get_rx_sfp(n) == get_rx_sfp(ch) && rx_channel_in_use->at(n)) {
-            rate_used += rx_sfp_throughput_used[ch];
+            rate_used += rx_sfp_throughput_used[n];
         }
     }
 
@@ -552,7 +552,7 @@ void crimson_tng_impl::tx_rate_check(size_t ch, double rate_samples) {
     double rate_used = 0;
     for(size_t n = 0; n < num_tx_channels; n++) {
         if(get_tx_sfp(n) == get_tx_sfp(ch) && tx_channel_in_use->at(n)) {
-            rate_used += tx_sfp_throughput_used[ch];
+            rate_used += tx_sfp_throughput_used[n];
         }
     }
 
