@@ -1,0 +1,72 @@
+pkgname=libuhdpv
+pkgver=4.4.0.0
+_pkgid=git
+pkgrel=1
+pkgdesc="Official Per Vices libuhdpv build script supporting all Per Vices SDR products"
+arch=('x86_64')
+url="https://www.support.pervices.com"
+license=('GPL')
+makedepends=('cmake' 'glibc' 'git' 'orc' 'libusb' 'boost' 'boost-libs' 'icu' 'python-mako' 'python-requests' 'lapack' 'python-numpy' 'python-retrying' 'python-scipy' 'doxygen' 'gpsd' 'python-setuptools' 'gtk3')
+
+provides=('libuhdpv')
+conflicts=('libuhd')
+
+source=('uhd::git+https://github.com/pervices/uhd.git#branch=master')
+#source=('file://uhd.tar.gz')
+#You can specify #branch=,#commit=,#tag=fragment
+
+md5sums=('SKIP')
+sha1sums=('SKIP')
+
+_gitname="uhd"
+
+pkgver() {
+    cd ${srcdir}/${_gitname}/host/cmake/debian-pv
+    echo $(cat changelog | head -1 | cut -d ' ' -f2 | cut -d '-' -f1 | tr --delete ['('])
+}
+
+build() {
+    cd ${srcdir}/$_gitname/host
+    mkdir -p build
+    cd build
+    cmake \
+       -DCMAKE_INSTALL_PREFIX=/usr/ \
+       -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+       -DENABLE_PYTHON3=ON \
+       -DENABLE_EXAMPLES=ON \
+       -DENABLE_UTILS=ON \
+       -DENABLE_DPDK=OFF \
+       -DENABLE_TESTS=OFF \
+       -DENABLE_E100=OFF \
+       -DENABLE_N230=OFF \
+       -DENABLE_N300=OFF \
+       -DENABLE_E320=OFF \
+       -DENABLE_USRP1=OFF \
+       -DENABLE_USRP2=ON \
+       -DENABLE_USER2=OFF \
+       -DENABLE_B200=OFF \
+       -DENABLE_B100=OFF \
+       -DENABLE_X300=OFF \
+       -DENABLE_CRIMSON_TNG=ON \
+       -DENABLE_CYAN_16T=ON \
+       -DENABLE_CYAN_64T=OFF \
+       -DENABLE_OCTOCLOCK=OFF \
+       -DENABLE_DOXYGEN=OFF \
+       -DENABLE_USB=OFF \
+       -DENABLE_CYAN_8R=ON \
+       -DENABLE_CYAN_4R4T=ON \
+       ..
+    make -j$(nproc)
+}
+
+check() {
+    cd "$srcdir/$_gitname/host/build"
+    make test
+}
+
+package() {
+    depends=('python3' 'boost-libs' 'glibc' 'gcc-libs' 'libusb')
+    cd "$srcdir/$_gitname/host/build"
+    make DESTDIR="$pkgdir" install
+    install -Dm644 "../utils/uhd-usrp.rules" "$pkgdir/usr/lib/udev/rules.d/10-uhd-usrp.rules"
+} 
