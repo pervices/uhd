@@ -126,7 +126,7 @@ def main(args):
             print("Uploading requires signing. Add --sign.")
             sys.exit(1)
         result = subprocess.run(shlex.split(
-            "dput ppa:sfen/uhdpv uhdpv_${}-0ubuntu1~${}1_source.changes".format(uhd_version, args.release)), cwd=args.buildpath)
+            "dput -f ppa:sfen/uhdpv uhdpv_${}-0ubuntu1~${}1_source.changes".format(uhd_version, args.release)), cwd=args.buildpath)
         if result.returncode:
             print("PPA upload failed")
             sys.exit(result.returncode)
