@@ -21,7 +21,8 @@ import sys
 import tarfile
 
 supported_ubuntu_releases = ["bionic", "focal", "jammy"]
-tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
+#tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
+tar_command = "tar --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
 
@@ -125,7 +126,7 @@ def main(args):
             print("Uploading requires signing. Add --sign.")
             sys.exit(1)
         result = subprocess.run(shlex.split(
-            "dput ppa:ettusresearch/uhd uhd_${}-0ubuntu1~${}1_source.changes".format(uhd_version, args.release)), cwd=args.buildpath)
+            "dput ppa:sfen/uhdpv uhdpv_${}-0ubuntu1~${}1_source.changes".format(uhd_version, args.release)), cwd=args.buildpath)
         if result.returncode:
             print("PPA upload failed")
             sys.exit(result.returncode)
