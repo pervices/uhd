@@ -729,7 +729,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
                     // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
                 }
                 // vita enable
-                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+                // _tree->access<std::string>(rx_link_path / "vita_en").set("1");
             }
         }
     }
@@ -774,7 +774,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
                 _tree->access<std::string>(rx_path / chan / "stream").set("0");
                 // vita enable
-                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+                // _tree->access<std::string>(rx_link_path / "vita_en").set("1");
 
                 // power on the channel
                 _tree->access<std::string>(rx_path / chan / "pwr").set("1");
