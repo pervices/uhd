@@ -21,7 +21,8 @@ Build-Depends: cmake,
                python3-numpy,
                python3-requests,
                python3-ruamel.yaml,
-               python3-setuptools
+               python3-setuptools,
+               git
 Standards-Version: 1.0.0
 Homepage: https://www.pervices.com
 Vcs-Git: https://github.com/pervices/uhd
