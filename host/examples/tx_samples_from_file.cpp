@@ -18,6 +18,11 @@
 #include <iostream>
 #include <thread>
 
+#include <filesystem>
+#include <fcntl.h>
+#include <unistd.h>
+#include <atomic>
+
 namespace po = boost::program_options;
 
 static bool stop_signal_called = false;
@@ -26,70 +31,226 @@ void sig_int_handler(int)
     stop_signal_called = true;
 }
 
+// Manages
+template <typename samp_type>
+class SampleManager {
+public:
+    size_t buffers_per_file; // Number of buffers containing spb required per file
+    size_t total_samples; // Number of samples in the file
+
+    // max_buffered_samples: maximum number of samples to be stored in memory
+    // spb: number of samples to send at a time
+    SampleManager(std::string filepath, size_t max_buffered_samples, size_t spb)
+    :
+    _max_buffered_samples((max_buffered_samples/spb) * spb),
+    _spb(spb)
+    {
+        size_t file_size = std::filesystem::file_size(filepath);
+
+        // Makes sure the file is the correct size
+        if(file_size % sizeof(samp_type) != 0) {
+            UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "File does not contain a whole number of samples");
+            throw std::invalid_argument("File does not contain a whole number of samples");
+        }
+
+        total_samples = file_size / sizeof(samp_type);
+
+        buffers_per_file = std::ceil((double)total_samples/spb);
+
+        // Maximum number of buffers that can fit spb samples within size max_buffered_samples
+        size_t max_buffers_storable = max_buffered_samples / spb;
+
+        if(buffers_per_file <= max_buffers_storable) {
+            _large_file = false;
+            buffers_storable = buffers_per_file;
+        } else {
+            _large_file = true;
+            buffers_storable = max_buffers_storable;
+        }
+
+        sample_buffer = std::vector<samp_type>(buffers_storable * spb, 0);
+
+        buffer_status = std::vector<std::atomic<int8_t>>(buffers_storable);
+        for(auto& s : buffer_status) {
+            s = 0;
+        }
+
+        sample_fd = open(filepath.c_str(), O_RDONLY);
+        if(sample_fd == -1) {
+            UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "Unable to open file: " + filepath + ". Failed with error code: " + strerror(errno));
+            throw std::runtime_error("Sample file not found");
+        }
+
+        // Fills the buffer
+        for(size_t n = 0; n < buffers_storable; n++) {
+            load();
+        }
+
+    }
+
+    SampleManager() {
+        if(sample_fd != -1) {
+            close(sample_fd);
+        }
+    }
+
+    // Releases samples from the buffer after they are no longer immediatly needed
+    void release() {
+        if(_large_file) {
+            // Sets the flag indicating that this buffer is finished
+            buffer_status[real_buffer(buffers_consumed)] = 0;
+            buffers_consumed++;
+            // Load samples into the freed up space
+            load();
+        } else {
+            // Do not release the samples, the entire file can fit in memory
+            buffers_consumed++;
+        }
+    }
+
+    // Gets a pointer to a buffer containing the next nsamps
+    // nsamps: number of samples obtained is written here
+    // return: pointer for a buffer containing the number of samples written to nsamps. Will be _spb for everything but the last send buffer per pass through the file
+    samp_type* get_samples(size_t* nsamps) {
+
+        *nsamps = get_num_samples_in_buffer(buffers_requested);
+
+        samp_type* buffer_start = &sample_buffer[buffers_requested % buffers_storable];
+
+        // Waits until buffer to get returned is loaded
+        // Loading should be initiated on startup/when clearing
+        while(!buffer_status[real_buffer(buffers_requested)]) {
+            // Busy wait
+        }
+
+        buffers_requested++;
+
+        return buffer_start;
+    }
+
+private:
+    bool _large_file; // True if unable to fit all samples into the buffer
+    const size_t _max_buffered_samples; // Maximum number of samples that can be stored in memory
+    const size_t _spb; // Samples per send command
+
+    int sample_fd = -1;
+
+    size_t buffers_storable; // Maximum number of buffers than can be stored
+    size_t buffers_consumed = 0;
+    size_t buffers_requested = 0;
+    size_t buffers_loaded = 0;
+    size_t samples_loaded = 0;
+
+    // Contains samples to be sent, divded up to be used as a ring buffer of buffers
+    std::vector<samp_type> sample_buffer;
+
+    // 1 = the corresponding sub-buffer in samples_buffer is loaded
+    std::vector<std::atomic<int8_t>> buffer_status;
+
+    // Returns which real buffer in the ring buffer of buffers is being used
+    inline size_t real_buffer(size_t buffer) {
+        return buffer % buffers_storable;
+    }
+
+    // Loads samples into the buffer
+    // TODO: perform this asynchronously
+    void load() {
+        if(buffer_status[real_buffer(buffers_loaded)]) {
+            printf("buffers_loaded: %lu\n", buffers_loaded);
+            throw std::runtime_error("Attempting to load to section ring buffer that has not been unloaded");
+        }
+
+        size_t samples_to_load = get_num_samples_in_buffer(buffers_loaded);
+        // Offset in the file for where to load samples from
+        size_t sample_offset = samples_loaded % sample_buffer.size();
+
+        ssize_t ret = lseek(sample_fd, sample_offset * sizeof(samp_type), SEEK_SET);
+        if(ret == -1) {
+            UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "Unable to seek file, failed with error code: " + std::string(strerror(errno)));
+            throw std::runtime_error("Sample file not found");
+        }
+
+        ret = read(sample_fd, &sample_buffer[buffers_requested % buffers_storable], samples_to_load);
+
+        if(ret == -1) {
+            UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "Unable to read file, failed with error code: " + std::string(strerror(errno)));
+            throw std::runtime_error("Sample file not found");
+        } else if((size_t) ret != samples_to_load) {
+            UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "Unexpected number of samples read");
+            throw std::runtime_error("Sample file not found");
+        }
+
+        buffer_status[real_buffer(buffers_loaded)] = 1;
+        buffers_loaded++;
+        samples_loaded+=sample_offset;
+    }
+
+    // buffer_num: The number of the buffer in the sequence (starting at 0)
+    // return: Number of samples that should be in that buffer
+    size_t get_num_samples_in_buffer(size_t buffer_num) {
+        // Which buffer in the cycle this is
+        size_t cycle_point = buffer_num % buffers_per_file;
+
+        size_t remaining_samples_in_file = total_samples - (cycle_point * _spb);
+
+        return std::min(remaining_samples_in_file, _spb);
+    }
+};
+
 template <typename samp_type>
 void send_from_file(
-    // start_time: the start time of this burst
-    // delay_used: whether or not a delay between bursts is used
-    uhd::tx_streamer::sptr tx_stream, const std::string& file, size_t samps_per_buff, uhd::time_spec_t start_time, bool first_send, bool delay_used)
+    // sample_manager: Manages loading samples
+    // start_time: time to start the burst, ignored if include_sob not set
+    uhd::tx_streamer::sptr tx_stream, SampleManager<samp_type>* sample_manager, bool include_sob, bool include_eob, uhd::time_spec_t start_time)
 {
     uhd::tx_metadata_t md;
     // If there is no delay send as one burst, otherwise have a start and end of burst for each send
-    md.start_of_burst = first_send || delay_used;
+    md.start_of_burst = include_sob;
     md.end_of_burst   = false;
-    md.has_time_spec  = first_send || delay_used;
+    md.has_time_spec  = include_sob;
     md.time_spec = start_time;
-    std::vector<samp_type> buff(samps_per_buff);
-    std::ifstream infile(file.c_str(), std::ifstream::binary);
-    if(!infile.good()) {
-        if(infile.rdstate() & std::ifstream::failbit) {
-            UHD_LOG_ERROR("TX-STREAM", "Error when attempting to open: " + file);
-        }
-        std::exit(infile.rdstate());
-    }
 
     // loop until the entire file has been read
+    size_t total_samples_sent = 0;
+    for(size_t n = 0; n < sample_manager->buffers_per_file && !stop_signal_called; n++) {
 
-    bool all_samples_read = false;
-    while (not all_samples_read and not stop_signal_called) {
-        infile.read((char*)&buff.front(), buff.size() * sizeof(samp_type));
-        size_t num_tx_samps = size_t(infile.gcount() / sizeof(samp_type));
-        all_samples_read = infile.eof();
-        md.end_of_burst = all_samples_read && delay_used;
+        size_t samples_to_send;
+        samp_type* sample_buffer = sample_manager->get_samples(&samples_to_send);
 
-        if(!infile.good()) {
-            // Reaching the end of file will report bad, this check avoids a spurious error message
-            if(!(infile.rdstate() & std::ifstream::eofbit)) {
-                UHD_LOG_ERROR("TX-STREAM", "Error: " << infile.rdstate() << " when reading file: " << file);
-                std::exit(infile.rdstate());
-            } else if(num_tx_samps == 0) {
-                    // Reached eof before reading any samples
-                    UHD_LOG_ERROR("TX-STREAM", "Error, file empty: " + file);
-                    std::exit(std::ifstream::eofbit);
-            }
-            infile.clear();
-        }
+        std::vector<samp_type*> send_buff_ptr(tx_stream->get_num_channels(), sample_buffer);
 
-        const size_t samples_sent = tx_stream->send(&buff.front(), num_tx_samps, md, 30);
+        const size_t samples_sent = tx_stream->send(send_buff_ptr, samples_to_send, md, 30);
 
-        if (samples_sent != num_tx_samps) {
+        total_samples_sent += samples_sent;
+
+        if (samples_sent != samples_to_send) {
             UHD_LOG_ERROR("TX-STREAM",
-                "The tx_stream timed out sending " << num_tx_samps << " samples ("
-                                                   << samples_sent << " sent).");
+                "The tx_stream timed out sending " << sample_manager->total_samples << " samples ("
+                                                   << total_samples_sent << " sent).");
             return;
         }
 
+        // Released the samples just sent and begins pre-loading future samples
+        sample_manager->release();
+
         // Clear start_of_burst once any samples have been sent
         md.start_of_burst = md.start_of_burst && (samples_sent == 0);
+        md.has_time_spec = false;
     }
 
-    infile.close();
+    // Sends eob packet if requests
+    if(include_eob) {
+        md.end_of_burst = true;
+        tx_stream->send("", 0, md);
+    }
+
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
     std::string args, file, type, ant, subdev, ref, wirefmt, channel;
-    size_t spb;
+    size_t spb, max_buffer;
     double rate, freq, gain, bw, delay, lo_offset;
 
     // setup the program options
@@ -100,7 +261,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
         ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to read binary samples from")
         ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
-        ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
+        ("max_buffer", po::value<size_t>(&max_buffer)->default_value(1e9), "maximum number of samples that may be stored in memory")
+        ("spb", po::value<size_t>(&spb), "samples per send command. Useful for performance tuning")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
@@ -111,7 +273,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("ref", po::value<std::string>(&ref), "clock reference (internal, external, mimo, gpsdo)")
         ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8 or sc16)")
-        ("delay", po::value<double>(&delay)->default_value(0.0), "specify a delay between repeated transmission of file (in seconds)")
+        ("delay", po::value<double>(&delay), "specify a delay between repeated transmission of file (in seconds)")
         ("channel", po::value<std::string>(&channel)->default_value("0"), "which channel to use")
         ("repeat", "repeatedly transmit file")
         ("int-n", "tune USRP with integer-n tuning")
@@ -128,6 +290,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     bool repeat = vm.count("repeat") > 0;
+
+    bool delay_used = vm.count("delay");
 
     // create a usrp device
     std::cout << std::endl;
@@ -248,24 +412,59 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     channel_nums.push_back(boost::lexical_cast<size_t>(channel));
     stream_args.channels             = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
+
+    if(!vm.count("spb")) {
+        spb = tx_stream->get_max_num_samps()*10;
+    }
+
+    void* sample_manager;
+    if (type == "double") {
+        sample_manager = new SampleManager<std::complex<double>>(file, max_buffer, spb);
+    } else if (type == "float") {
+        sample_manager = new SampleManager<std::complex<float>>(file, max_buffer, spb);
+    } else if (type == "short") {
+        sample_manager = new SampleManager<std::complex<short>>(file, max_buffer, spb);
+    } else {
+        throw std::runtime_error("Unknown type " + type);
+    }
+
+    // TODO: add check to verify delay is valid
+
     uhd::time_spec_t start_time = usrp->get_time_now() + 0.01;
 
-    bool first_send = true;
+    bool include_sob = true;
+    // Include eob if either only 1 pulse is being sent or no delay is used
+    bool include_eob = delay_used || !repeat;
 
     // send from file
     do {
+
         if (type == "double")
-            send_from_file<std::complex<double>>(tx_stream, file, spb, start_time, first_send, delay != 0);
+            send_from_file<std::complex<double>>(tx_stream, (SampleManager<std::complex<double>>*) sample_manager, include_sob, include_eob, start_time);
         else if (type == "float")
-            send_from_file<std::complex<float>>(tx_stream, file, spb, start_time, first_send, delay != 0);
+            send_from_file<std::complex<float>>(tx_stream, (SampleManager<std::complex<float>>*) sample_manager, include_sob, include_eob, start_time);
         else if (type == "short")
-            send_from_file<std::complex<short>>(tx_stream, file, spb, start_time, first_send, delay != 0);
+            send_from_file<std::complex<short>>(tx_stream, (SampleManager<std::complex<short>>*) sample_manager, include_sob, include_eob, start_time);
         else
             throw std::runtime_error("Unknown type " + type);
 
-        first_send = false;
+        // If there is no delay between bursts only the first burst contains a sob
+        include_sob = delay_used;
+
         start_time+=delay;
     } while (repeat and not stop_signal_called);
+
+    std::cout << "Streaming complete" << std::endl;
+
+    if (type == "double")
+        delete (SampleManager<std::complex<double>>*) sample_manager;
+    else if (type == "float")
+        delete (SampleManager<std::complex<float>>*) sample_manager;
+    else if (type == "short")
+        delete (SampleManager<std::complex<short>>*) sample_manager;
+    else {
+        throw std::runtime_error("Unknown type " + type);
+    }
 
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
