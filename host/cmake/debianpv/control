@@ -21,16 +21,18 @@ Build-Depends: cmake,
                python3-numpy,
                python3-requests,
                python3-ruamel.yaml,
-               python3-setuptools,
-               git
-Standards-Version: 1.0.0
-Homepage: https://www.pervices.com
-Vcs-Git: https://github.com/pervices/uhd
+               python3-setuptools
+Build-Depends-Indep: doxygen,
+              	     doxygen-latex,
+               	     graphviz [!powerpcspe]
+Standards-Version: 4.6.0
+Homepage: https://www.ettus.com
+Vcs-Git: https://github.com/EttusResearch/uhd.git
 
-Package: uhdpv
+Package: uhdpv-host
 Architecture: any
-Pre-Depends: ${misc:Pre-Depends}
-Depends: python3,
+Depends: libuhdpv4.4.0 (= ${binary:Version}),
+         python3,
          python3-mako,
          python3-numpy,
          python3-requests,
@@ -38,10 +40,74 @@ Depends: python3,
          python3-setuptools,
          ${misc:Depends},
          ${shlibs:Depends}
-Provides: libuhd-dev, uhd, libuhd, uhd-host
-Conflicts: libuhd-dev, uhd, libuhd, uhd-host
-Description: hardware driver for Per Vices products - host apps
- Host utilities for the Hardware Driver for Per Vices products.
+Recommends: curl, procps
+Description: hardware driver for Ettus Research products - host apps
+ Host utilities for the USRP Hardware Driver for Ettus Research products.
+ .
+ The supported devices provide analog radio receiver and transmitter hardware
+ along with digital interfaces for getting signals to and from a software
+ defined radio running on the host computer.
+ .
+ This package includes the uhd_find_devices application to locate and
+ configure attached peripherals, the uhd_usrp_probe application to
+ display hardware configuration information, and Doxygen generated
+ documentation.
 
+Package: libuhdpv4.4.0
+Architecture: any
+Section: libs
+Pre-Depends: ${misc:Pre-Depends}
+Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
+Description: hardware driver for Ettus Research products
+ Host library for the USRP Hardware Driver for Ettus Research products.
+ .
+ The supported devices provide analog radio receiver and transmitter hardware
+ along with digital interfaces for getting signals to and from a software
+ defined radio running on the host computer.
 
+Package: libuhdpv-dev
+Architecture: any
+Section: libdevel
+Depends: libuhdpv4.4.0 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Suggests: uhdpv-doc
+Description: universal hardware driver for Ettus Research products
+ Host library for the USRP Hardware Driver for Ettus Research products.
+ .
+ The supported devices provide analog radio receiver and transmitter hardware
+ along with digital interfaces for getting signals to and from a software
+ defined radio running on the host computer.
+ .
+ This package contains the header files for developing with libuhd.
+ Doxygen generated documentation is in the uhd-host package.
 
+Package: python3-uhdpv
+Architecture: alpha amd64 arm64 armel armhf hppa i386 ia64 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64 x32
+Section: libdevel
+Depends: libuhdpv4.4.0 (= ${binary:Version}),
+         python3,
+         python3-mako,
+         python3-numpy,
+         python3-requests,
+         python3-ruamel.yaml,
+         python3-setuptools,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Suggests: uhdpv-doc
+Conflicts: uhdpv-host (<= 4.1.0.4-0)
+Description: universal hardware driver for Ettus Research products - Python3
+ Host library for the Universal Hardware Driver for Ettus Research products.
+ .
+ The supported devices provide analog radio receiver and transmitter hardware
+ along with digital interfaces for getting signals to and from a software
+ defined radio running on the host computer.
+ .
+ This package contains the Python API support for Python3.
+
+Package: uhdpv-doc
+Architecture: all
+Depends: ${misc:Depends}, libjs-mathjax
+Description: universal hardware driver for Ettus Research products - doc
+ Detailed documentation for the Universal Hardware Driver.
+ .
+ This package includes the Doxygen generated documentation.

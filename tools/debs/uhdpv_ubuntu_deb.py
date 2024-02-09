@@ -78,8 +78,8 @@ def main(args):
     print("Copying debian build files to the build folder...")
     shutil.copytree("host/cmake/debian", uhd_deb_build_path / "debian")
     shutil.copy2("host/utils/uhd-usrp.rules",
-                 uhd_deb_build_path / "debian/uhd-host.udev")
-    with open(uhd_deb_build_path / "debian/uhd-host.manpages", "w") as man_file:
+                 uhd_deb_build_path / "debian/uhdpv-host.udev")
+    with open(uhd_deb_build_path / "debian/uhdpv-host.manpages", "w") as man_file:
         for file in uhd_deb_build_path.glob("host/docs/*.1"):
             man_file.write(os.path.relpath(file, uhd_deb_build_path) + "\n")
         man_file.write("\n")
