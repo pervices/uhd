@@ -41,6 +41,7 @@ Depends: libuhdpv4.4.0 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: curl, procps
+Conflicts: uhd-host
 Description: hardware driver for Ettus Research products - host apps
  Host utilities for the USRP Hardware Driver for Ettus Research products.
  .
@@ -59,6 +60,7 @@ Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}
 Multi-Arch: same
+Conflicts: libuhd4.1.0, libuhd4.4.0, libuhd4.6.0
 Description: hardware driver for Ettus Research products
  Host library for the USRP Hardware Driver for Ettus Research products.
  .
@@ -71,6 +73,7 @@ Architecture: any
 Section: libdevel
 Depends: libuhdpv4.4.0 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
 Suggests: uhdpv-doc
+Conflicts: libuhd-dev
 Description: universal hardware driver for Ettus Research products
  Host library for the USRP Hardware Driver for Ettus Research products.
  .
@@ -94,7 +97,7 @@ Depends: libuhdpv4.4.0 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Suggests: uhdpv-doc
-Conflicts: uhdpv-host (<= 4.1.0.4-0)
+Conflicts: python3-uhd, uhdpv-host (<= 4.1.0.4-0)
 Description: universal hardware driver for Ettus Research products - Python3
  Host library for the Universal Hardware Driver for Ettus Research products.
  .
@@ -107,6 +110,7 @@ Description: universal hardware driver for Ettus Research products - Python3
 Package: uhdpv-doc
 Architecture: all
 Depends: ${misc:Depends}, libjs-mathjax
+Conflicts: uhd-doc
 Description: universal hardware driver for Ettus Research products - doc
  Detailed documentation for the Universal Hardware Driver.
  .
