@@ -1,3 +1,9 @@
+uhdpv (1.0.0.4-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Fixing issues with package conflicts
+
+ -- PV Testing <shiqi.f@pervices.com>  Fri, 9 Feb 2024 22:01:13 -0400
+
 uhdpv (1.0.0.3-0ubuntu1) ubuntu_release; urgency=medium
 
   * Separate packages based on up steam
