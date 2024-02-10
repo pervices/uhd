@@ -52,9 +52,9 @@ override_dh_auto_install-arch:
 	cp debian/uhdpv-host.limits debian/uhdpv-host/etc/security/limits.d/uhdpv.conf
 	cp debian/uhdpv-host.sysctl debian/uhdpv-host/etc/sysctl.d/uhdpv-usrp2.conf
 	dh_auto_install
-	chmod -x debian/tmp/usr/lib/uhd/tests/devtest/*.py
-	chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/parse_benchmark_rate.py
-	chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/run_benchmark_rate.py
+	#chmod -x debian/tmp/usr/lib/uhd/tests/devtest/*.py
+	#chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/parse_benchmark_rate.py
+	#chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/run_benchmark_rate.py
 	rm -rf debian/tmp/usr/share/man
 	rm -rf debian/tmp/usr/share/doc/uhd/LICENSE
 	rm -rf debian/tmp/usr/share/doc/uhd/README.md
