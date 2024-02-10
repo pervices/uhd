@@ -1,3 +1,9 @@
+uhdpv (1.0.0.5-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Setting net.core.wmem_max to 50000000
+
+ -- PV Testing <shiqi.f@pervices.com>  Sat, 10 Feb 2024 12:47:13 -0400
+
 uhdpv (1.0.0.4-0ubuntu1) ubuntu_release; urgency=medium
 
   * Fixing issues with package conflicts
