@@ -71,7 +71,7 @@ def main(args):
         result = subprocess.run(shlex.split(
             copy_command.format(args.tarfile, uhd_version, args.buildpath)))
         if result.returncode:
-            print("Compressing source failed")
+            print("Retrieving source failed")
             sys.exit(result.returncode)
 
     # Extract UHD source to build folder
