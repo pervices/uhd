@@ -25,6 +25,7 @@ supported_ubuntu_releases = ["bionic", "focal", "jammy"]
 tar_command = "tar --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
+copy_command = "cp -r {} {}"
 
 
 def main(args):
@@ -58,12 +59,20 @@ def main(args):
     if pathlib.Path(args.buildpath).exists():
         shutil.rmtree(args.buildpath)
     os.mkdir(args.buildpath)
-    print("Compressing UHD Source...")
-    result = subprocess.run(shlex.split(
-        tar_command.format(args.buildpath, uhd_version)))
-    if result.returncode:
-        print("Compressing source failed")
-        sys.exit(result.returncode)
+    if not args.tarfile:
+        print("Compressing UHD Source...")
+        result = subprocess.run(shlex.split(
+            tar_command.format(args.buildpath, uhd_version)))
+        if result.returncode:
+            print("Compressing source failed")
+            sys.exit(result.returncode)
+    else:
+        print("Retrieving existing UHD Source...")
+        result = subprocess.run(shlex.split(
+            copy_command.format(args.tarfile, args.buildpath)))
+        if result.returncode:
+            print("Compressing source failed")
+            sys.exit(result.returncode)
 
     # Extract UHD source to build folder
     print("Extractubg UHD source to build folder...")
@@ -134,6 +143,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--tarfile", type=str,
+                        help="Specify existing tar file")
     parser.add_argument("--sign", action='store_true',
                         help="Signs files with GPG key. Not required for test builds")
     parser.add_argument("--upload", action='store_true',
