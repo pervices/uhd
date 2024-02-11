@@ -25,7 +25,7 @@ supported_ubuntu_releases = ["bionic", "focal", "jammy"]
 tar_command = "tar --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
-copy_command = "cp -r {} {}"
+copy_command = "cp -r {}/uhdpv_{}.orig.tar.xz {}"
 
 
 def main(args):
@@ -69,7 +69,7 @@ def main(args):
     else:
         print("Retrieving existing UHD Source...")
         result = subprocess.run(shlex.split(
-            copy_command.format(args.tarfile, args.buildpath)))
+            copy_command.format(args.tarfile, uhd_version, args.buildpath)))
         if result.returncode:
             print("Compressing source failed")
             sys.exit(result.returncode)
