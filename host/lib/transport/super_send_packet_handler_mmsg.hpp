@@ -399,7 +399,6 @@ private:
     }
 
     // Gets the number of samples that can be sent now (can be less than 0)
-    // Also sleeps if start of burst hasn't happened yet and its a long time in the future
     int check_fc_npackets(const size_t ch_i) {
         if(BOOST_LIKELY(!use_blocking_fc)) {
 
