@@ -260,7 +260,7 @@ public:
                 metadata.time_spec = now + CYAN_NRNT_MIN_TX_DELAY;
             } else {
                 double current_time = get_time_now().get_real_secs();
-                if (metadata.time_spec.get_real_secs() < current_time + CYAN_NRNT_MIN_TX_DELAY) {
+                if (metadata.time_spec.get_real_secs() < current_time + CYAN_NRNT_MIN_TX_DELAY && _first_call_to_send) {
                     UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CYAN_NRNT_MIN_TX_DELAY);
                     metadata.time_spec = uhd::time_spec_t(current_time + CYAN_NRNT_MIN_TX_DELAY);
                 }
