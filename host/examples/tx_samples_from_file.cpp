@@ -251,7 +251,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // variables to be set by po
     std::string args, file, type, ant, subdev, ref, wirefmt, channel;
     size_t spb, max_buffer;
-    double rate, freq, gain, bw, delay, lo_offset;
+    double rate, freq, gain, bw, delay, lo_offset = 0;
 
     // setup the program options
     po::options_description desc("Allowed options");
@@ -317,7 +317,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
     std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate / 1e6) << std::endl;
     usrp->set_tx_rate(rate);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate() / 1e6)
+    rate = usrp->get_tx_rate();
+    std::cout << boost::format("Actual TX Rate: %f Msps...") % ( rate / 1e6)
               << std::endl
               << std::endl;
 
@@ -418,12 +419,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     void* sample_manager;
+    uhd::time_spec_t burst_duration;
     if (type == "double") {
         sample_manager = new SampleManager<std::complex<double>>(file, max_buffer, spb);
+        burst_duration = uhd::time_spec_t::from_ticks(((SampleManager<std::complex<double>>*)sample_manager)->total_samples, rate);
     } else if (type == "float") {
         sample_manager = new SampleManager<std::complex<float>>(file, max_buffer, spb);
+        burst_duration = uhd::time_spec_t::from_ticks(((SampleManager<std::complex<float>>*)sample_manager)->total_samples, rate);
     } else if (type == "short") {
         sample_manager = new SampleManager<std::complex<short>>(file, max_buffer, spb);
+        burst_duration = uhd::time_spec_t::from_ticks(((SampleManager<std::complex<short>>*)sample_manager)->total_samples, rate);
     } else {
         throw std::runtime_error("Unknown type " + type);
     }
@@ -451,7 +456,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // If there is no delay between bursts only the first burst contains a sob
         include_sob = delay_used;
 
-        start_time+=delay;
+        start_time+= burst_duration + delay;
     } while (repeat and not stop_signal_called);
 
     std::cout << "Streaming complete" << std::endl;
