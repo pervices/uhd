@@ -170,12 +170,12 @@ private:
             throw std::runtime_error("Sample file not found");
         }
 
-        ret = read(sample_fd, &sample_buffer[buffers_requested % buffers_storable], samples_to_load);
+        ret = read(sample_fd, &sample_buffer[buffers_requested % buffers_storable], samples_to_load * sizeof(samp_type));
 
         if(ret == -1) {
             UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "Unable to read file, failed with error code: " + std::string(strerror(errno)));
             throw std::runtime_error("Sample file not found");
-        } else if((size_t) ret != samples_to_load) {
+        } else if((size_t) ret != samples_to_load * sizeof(samp_type)) {
             UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "Unexpected number of samples read");
             throw std::runtime_error("Sample file not found");
         }
