@@ -75,8 +75,12 @@ int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
         partial_blank_period = uhd::time_spec_t(0.0);
     }
 
-
     uhd::time_spec_t time_streaming = now - blanked_time - partial_blank_period;
+    if(time_streaming.get_real_secs() != 0) {
+        printf("time_streaming.get_real_secs(): %lf\n", time_streaming.get_real_secs());
+        printf("now.get_real_secs(): %lf\n", now.get_real_secs());
+        printf("blanked_time.get_real_secs(): %lf\n", partial_blank_period.get_real_secs());
+    }
     uint64_t samples_consumed = (uint64_t)(time_streaming.get_full_secs() * nominal_sample_rate) + (uint64_t)(time_streaming.get_frac_secs() * nominal_sample_rate);
     if(samples_consumed > total_samples_sent) {
         return 0;
@@ -91,45 +95,45 @@ int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
 // Now: the time the buffer was read at
 // Updating buffer level bias shouldn't be time sensitive so its fine to not implement thread synchronization mechanisms
 void buffer_tracker::update_buffer_level_bias( const int64_t level, const uhd::time_spec_t & now ) {
-    // If the buffer level is 0 then the predicted level is definely wrong (since it can be negative)
-    // Therefore skip updating bias
-    if(level == 0) {
-        return;
-    }
-
-#ifdef DEBUG_PRIMING
-    else {
-        if(level != 0 || buffer_samples_confirmed) {
-            buffer_samples_confirmed = true;
-            return;
-        }
-        else if(total_samples_sent > 0) {
-            if(failure_to_prime_antirace) {
-                priming_message_printed = true;
-                std::cerr << "Buffer failed to prime" << std::endl;
-            } else {
-                failure_to_prime_antirace = true;
-            }
-        }
-    }
-#endif
-
-    int64_t predicted_buffer_level = get_buffer_level(now);
-    // Only update bias if most of the required samples to fill the buffer have been sent
-    if(!start_of_burst_pending(now)) {
-        // If buffer level is above the target, adjust the bias upwards
-        if(level > nominal_buffer_level) {
-            buffer_level_bias += (int64_t)((level - nominal_buffer_level) * 0.01);
-            return;
-        // If the buffer level is below expected adjust bias downwards
-        } else if(level < predicted_buffer_level) {
-            buffer_level_bias += (int64_t)((level - predicted_buffer_level) * 0.01);
-            return;
-        // Otherwise do nothing
-        } else {
-            return;
-        }
-    }
+//     // If the buffer level is 0 then the predicted level is definely wrong (since it can be negative)
+//     // Therefore skip updating bias
+//     if(level == 0) {
+//         return;
+//     }
+//
+// #ifdef DEBUG_PRIMING
+//     else {
+//         if(level != 0 || buffer_samples_confirmed) {
+//             buffer_samples_confirmed = true;
+//             return;
+//         }
+//         else if(total_samples_sent > 0) {
+//             if(failure_to_prime_antirace) {
+//                 priming_message_printed = true;
+//                 std::cerr << "Buffer failed to prime" << std::endl;
+//             } else {
+//                 failure_to_prime_antirace = true;
+//             }
+//         }
+//     }
+// #endif
+//
+//     int64_t predicted_buffer_level = get_buffer_level(now);
+//     // Only update bias if most of the required samples to fill the buffer have been sent
+//     if(!start_of_burst_pending(now)) {
+//         // If buffer level is above the target, adjust the bias upwards
+//         if(level > nominal_buffer_level) {
+//             buffer_level_bias += (int64_t)((level - nominal_buffer_level) * 0.01);
+//             return;
+//         // If the buffer level is below expected adjust bias downwards
+//         } else if(level < predicted_buffer_level) {
+//             buffer_level_bias += (int64_t)((level - predicted_buffer_level) * 0.01);
+//             return;
+//         // Otherwise do nothing
+//         } else {
+//             return;
+//         }
+//     }
 }
 
 void buffer_tracker::update( const uint64_t samples_sent ) {

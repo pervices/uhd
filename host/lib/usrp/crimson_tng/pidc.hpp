@@ -156,6 +156,7 @@ namespace uhd {
 			filtered_error = abs(error_filter.get_average());
 
             if ( filtered_error >= RESET_THRESHOLD ) {
+                printf("resetting pid\n");
                 if ( (time - last_status_time).get_real_secs() >= 1 ) {
                     print_pid_diverged();
                     print_pid_status( time, cv, filtered_error );

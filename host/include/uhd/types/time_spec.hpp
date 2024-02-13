@@ -80,6 +80,10 @@ public:
      */
     long long to_ticks(const double tick_rate) const;
 
+
+    // Carrys over extra _frac_ticks, _full_ticks, _full_secs to the next column
+    UHD_INLINE void carry(void);
+
     /*!
      * Get the time as a real-valued seconds count.
      * Note: If this time_spec_t represents an absolute time,
@@ -114,8 +118,12 @@ public:
 
     // private time storage details
 private:
+    // Number of full seconds
     int64_t _full_secs;
-    double _frac_secs;
+    // Number of ticks remaining after accounting for full secs (-_tick_rate to _tick_rate)
+    double _ticks;
+    // Tick rate in Hz
+    double _tick_rate;
 };
 
 //! Implement equality_comparable interface
@@ -131,7 +139,13 @@ UHD_INLINE int64_t time_spec_t::get_full_secs(void) const
 
 UHD_INLINE double time_spec_t::get_frac_secs(void) const
 {
-    return this->_frac_secs;
+    double tmp = (this->_ticks)/_tick_rate;
+    if(tmp > 1000000000.000000) {
+        printf("get_frac_secs _ticks: %lf\n", _ticks);
+        printf("get_frac_secs _tick_rate: %lf\n", _tick_rate);
+        printf("tmp: %lf\n", tmp);
+    }
+    return tmp;
 }
 
 } // namespace uhd

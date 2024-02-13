@@ -404,6 +404,10 @@ private:
 
             // Get the buffer level on the unit
             uhd::time_spec_t device_time = get_time_now();
+            if(device_time < 0.0) {
+                printf("device_time.get_real_secs(): %lf\n", device_time.get_real_secs());
+                std::exit(0);
+            }
             int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
 
             int num_packets_to_send = (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / (_max_samples_per_packet));

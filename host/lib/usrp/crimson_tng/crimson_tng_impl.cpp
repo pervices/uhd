@@ -831,11 +831,37 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         }
 
 		dt = then - now;
+        if(dt < -1.0) {
+            printf("then.get_real_secs(): %lf\n", then.get_real_secs());
+            printf("now.get_real_secs(): %lf\n", now.get_real_secs());
+            printf("dt.get_real_secs(): %lf\n", dt.get_real_secs());
+            printf("dt.get_full_secs(): %li\n", dt.get_full_secs());
+            printf("dt.get_frac_secs(): %lf\n", dt.get_frac_secs());
+            if(dt < uhd::time_spec_t(-1.0)) {
+                printf("also to negative with timespec\n");
+            } else {
+                printf("is positive?\n");
+            }
+            printf("dt is to negative\n");
+            std::exit(0);
+        }
+
 		if ( dt > 0.0 ) {
+            if(dt > T) {
+                printf("dt.get_real_secs(): %lf\n", dt.get_real_secs());
+                printf("dt is longer than update period\n");
+                std::exit(0);
+            }
+            if(dt.get_real_secs() > 0.1) {
+                printf("dt.get_real_secs(): %lf\n", dt.get_real_secs());
+                printf("dt is to long\n");
+                std::exit(0);
+            }
 			req.tv_sec = dt.get_full_secs();
 			req.tv_nsec = dt.get_frac_secs() * 1e9;
 			nanosleep( &req, &rem );
 		} else {
+            printf("continue\n");
             continue;
         }
 
