@@ -265,8 +265,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("spb", po::value<size_t>(&spb), "samples per send command. Useful for performance tuning")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
-        ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
-            "Offset for frontend LO in Hz (optional)")
+        ("lo-offset", po::value<double>(&lo_offset), "Offset for frontend LO in Hz (optional)")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
@@ -327,17 +326,29 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cerr << "Please specify the center frequency with --freq" << std::endl;
         return ~0;
     }
-    std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq / 1e6) << std::endl;
-    std::cout << boost::format("Setting TX LO Offset: %f MHz...") % (lo_offset / 1e6)
-              << std::endl;
+
+    bool manual_lo = vm.count("lo-offset");
+
     uhd::tune_request_t tune_request;
-    tune_request = uhd::tune_request_t(freq, lo_offset);
+    if(manual_lo) {
+        std::cout << boost::format("Setting TX Freq %f using LO Offset: %f MHz...") % (lo_offset / 1e6) % (lo_offset / 1e6) << std::endl;
+        tune_request = uhd::tune_request_t(freq, lo_offset);
+    } else {
+        std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq / 1e6) << std::endl;
+        tune_request = uhd::tune_request_t(freq);
+    }
+
     if (vm.count("int-n"))
         tune_request.args = uhd::device_addr_t("mode_n=integer");
-    usrp->set_tx_freq(tune_request);
-    std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq() / 1e6)
-              << std::endl
-              << std::endl;
+    uhd::tune_result_t tune_result = usrp->set_tx_freq(tune_request);
+
+    if(manual_lo) {
+        std::cout << boost::format("Actual TX LO Offset: %f MHz...") % (tune_result.actual_rf_freq / 1e6)
+            << std::endl;
+    }
+    std::cout << boost::format("Actual TX Freq: %f MHz...") % ((tune_result.actual_rf_freq + tune_result.actual_dsp_freq) / 1e6)
+            << std::endl
+            << std::endl;
 
     // set the rf gain
     if (vm.count("gain")) {
