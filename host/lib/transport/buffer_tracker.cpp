@@ -11,12 +11,7 @@ void buffer_tracker::set_sample_rate( const double rate ) {
 }
 
 // Returns true if waiting for start time
-// bool start_msg_printed = false;
 bool buffer_tracker::start_of_burst_pending( const uhd::time_spec_t & now ) {
-    // if(now >= first_sob_time && !start_msg_printed) {
-    //     start_msg_printed = true;
-    //     printf("sob of %lf reached at %lf\n", first_sob_time.get_real_secs(), now.get_real_secs());
-    // }
     return now < first_sob_time;
 }
 
@@ -82,7 +77,7 @@ int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
 
 
     uhd::time_spec_t time_streaming = now - blanked_time - partial_blank_period;
-    uint64_t samples_consumed =(uint64_t)(time_streaming.get_real_secs() * nominal_sample_rate);
+    uint64_t samples_consumed = (uint64_t)(time_streaming.get_full_secs() * nominal_sample_rate) + (uint64_t)(time_streaming.get_frac_secs() * nominal_sample_rate);
     if(samples_consumed > total_samples_sent) {
         return 0;
     } else {
