@@ -1610,7 +1610,7 @@ double crimson_tng_impl::choose_dsp_nco_shift( double target_freq, property_tree
 
 	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
 	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CRIMSON_TNG_BW_QUARTER ? 'A' : 'C';
-	const double bw = dsp_subtree->access<double>("/rate/value").get();
+	const double bw = ( dsp_range.stop() - dsp_range.start() );
 	const std::vector<freq_range_t> & regions =
 		( 'A' == channel || 'B' == channel )
 		? AB_regions
