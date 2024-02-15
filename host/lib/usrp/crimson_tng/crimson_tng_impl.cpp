@@ -1720,7 +1720,9 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
 	//------------------------------------------------------------------
+    // Desired LO frequency
 	double target_rf_freq = 0.0;
+    // FPGA NCO frequency
 	double dsp_nco_shift = 0;
 
 	// kb #3689, for phase coherency, we must set the DAC NCO to 0
@@ -1744,9 +1746,9 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 		break;
 
 		case tune_request_t::POLICY_MANUAL:
-            // prevent use of mid band when a specific lo is requested
-            if(band == LOW_BAND && tune_request.rf_freq !=0) band = HIGH_BAND;
-			target_rf_freq = tune_request.rf_freq;
+            // prevent use of low band when a specific lo is requested
+            if(band == LOW_BAND && tune_request.lo_freq !=0) band = HIGH_BAND;
+			target_rf_freq = tune_request.lo_freq;
 			break;
 
 		case tune_request_t::POLICY_NONE:

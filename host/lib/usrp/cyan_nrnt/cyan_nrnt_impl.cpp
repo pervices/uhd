@@ -1755,6 +1755,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
 	//------------------------------------------------------------------
+    // Desired LO frequency
 	double target_rf_freq = 0.0;
 
 	if ( TX_SIGN == xx_sign ) {
@@ -1778,8 +1779,8 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 
 		case tune_request_t::POLICY_MANUAL:
             // prevent use of mid band when a specific lo is requested
-            if(band == LOW_BAND && tune_request.rf_freq !=0) band = MID_BAND;
-			target_rf_freq = tune_request.rf_freq;
+            if(band == LOW_BAND && tune_request.lo_freq !=0) band = MID_BAND;
+			target_rf_freq = tune_request.lo_freq;
 			break;
 
 		case tune_request_t::POLICY_NONE:
