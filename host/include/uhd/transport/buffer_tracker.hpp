@@ -1,3 +1,4 @@
+// Copyright 2023-2024 Per Vices Corporation
 #pragma once
 
 #include <cstdint>

@@ -1,3 +1,5 @@
+// Copyright 2021-2023 Per Vices Corporation
+
 #include <uhd/utils/thread.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
