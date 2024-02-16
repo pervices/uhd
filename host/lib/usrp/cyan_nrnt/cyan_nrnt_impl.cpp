@@ -896,7 +896,6 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
     int xg_intf = 0;
     
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_NRNT_UPDATE_PER_SEC );
-	std::vector<size_t> fifo_lvl( dev->num_tx_channels );
 	uhd::time_spec_t now, then, dt;
     //the predicted time on the unit
 	uhd::time_spec_t crimson_now;
