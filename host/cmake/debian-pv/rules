@@ -35,8 +35,8 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_configure:
 	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
-	update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12
-	update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+	update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 13
+	update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 13
 	update-alternatives --set gcc /usr/bin/gcc
 	update-alternatives --set g++ /usr/bin/g++
 
