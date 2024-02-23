@@ -24,17 +24,11 @@ namespace Exit
 
     std::mutex mutex;
 
-    void set()
-    {
-        std::lock_guard<std::mutex> guard(mutex);
-        now = true;
-    }
-
     void interrupt(int)
     {
         std::lock_guard<std::mutex> guard(mutex);
         now = true;
-        std::cout << "\nInterrupt caught: Hit Enter for Crimson cleanup" << std::endl;
+        std::cout << "\nInterrupt caught" << std::endl;
     }
 
     bool get()
@@ -44,14 +38,11 @@ namespace Exit
     }
 
     //
-    // Ctrl-C and / or Enter will exit this program mid stream.
+    // Ctrl-C will exit this program mid stream.
     //
-
-    void wait()
+    void wait_interrupt()
     {
         signal(SIGINT, interrupt);
-        std::getchar();
-        set();
     }
 }
 
@@ -77,9 +68,7 @@ public:
     {
         poke();
         uint64_t lvl = peek().header & 0xFFFF;
-        
         lvl = lvl * usrp->get_tx_buff_scale();
-        
         return lvl;
     }
 
@@ -342,7 +331,7 @@ class Streamer
     const std::vector<size_t> channels;
 
 public:
-    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels)
+    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels, const int setpoint, const int samples)
     :
     channels {channels}
     {
@@ -352,14 +341,13 @@ public:
         tx = usrp->get_tx_stream(stream_args);
     }
 
-    void stream(const Buffer buffer, const double start_time, const int setpoint, const double period, const int samples) const
+    void stream(const Buffer buffer, const double start_time, const int setpoint, const double period, const int samples, const uint64_t num_trigger) const
     {
         //
         // Prime the FPGA FIFO buffer.
         //
         
         uhd::tx_metadata_t md;
-        md.start_of_burst = true;
         md.end_of_burst = false;
         md.has_time_spec = true;
         md.time_spec = uhd::time_spec_t(start_time);
@@ -371,8 +359,9 @@ public:
         //
         uint64_t total_sent = 0;
 
-        std::thread thread(Exit::wait);
-        while(!Exit::get())
+        Exit::wait_interrupt();
+
+        for(uint64_t pulses_sent = 0; ((pulses_sent < num_trigger || num_trigger == 0) && !Exit::get()); pulses_sent++)
         {
             std::vector<int> levels;
 
@@ -390,14 +379,18 @@ public:
             {
                 // To compensate for the hidden buffer inside FPGA empty_handler, we're
                 // sending an additional 30 more samples.
+                md.start_of_burst = true;
+                md.end_of_burst = false;
                 uint64_t sent = tx->send(buffer.mirrors, samples, md);
                 total_sent = sent + total_sent;
-//                 std::cout << "sent: " << sent << std::endl;
-//                 std::cout << "total_sent: " << total_sent << std::endl;
-                md.start_of_burst = false;
                 md.has_time_spec = false;
+
+                //send a mini EOB packet
+                md.start_of_burst = false;
+                md.end_of_burst = true;
+                tx->send("", 0, md);
             } else {
-//                 std::cout << "not sending" << std::endl;
+                //std::cout << "not sending, min: " << min << std::endl;
             }
 
             //
@@ -414,7 +407,6 @@ public:
 
             usleep(1.0e6 / period);
         }   
-        thread.join();
 
         md.end_of_burst = true;
         tx->send("", 0, md);
@@ -438,6 +430,8 @@ public:
     double tx_center_freq {0.0};
 
     double tx_gain {0.0};
+
+    uint64_t num_trigger {0};
 
     int setpoint {0};
 
@@ -468,6 +462,7 @@ public:
             ("tx_rate"       , po::value<double     >(&tx_rate       )->default_value(     100e3), "(Hz     ) Transmitter sample rate")
             ("tx_center_freq", po::value<double     >(&tx_center_freq)->default_value(     123e6), "(Hz     ) Transmitter center frequency")
             ("tx_gain"       , po::value<double     >(&tx_gain       )->default_value(      10.0), "(Scalar ) Transmitter gain")
+            ("num_trigger"   , po::value<uint64_t   >(&num_trigger   )->default_value(         0), "(Scalar ) Number of trigger event results to record. Set to 0 for continuous")
             ("setpoint"      , po::value<int        >(&setpoint      )->default_value(      5000), "(Samples) Closed loop control will maintain this sample count as the setpoint")
             ("samples"       , po::value<int        >(&samples       )->default_value(       400), "(Samples) Number of samples to send per trigger event")
             ("path"          , po::value<std::string>(&path          )->default_value("data.txt"), "(Path   ) File path of single column floating point data (Just I, not Q) in range [-1.0, 1.0] to be applied to all device channels")
@@ -505,7 +500,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Uhd uhd(args.channels, args.tx_rate, args.tx_center_freq, args.tx_gain);
 
-    Streamer streamer(uhd.usrp, args.channels);
+    Streamer streamer(uhd.usrp, args.channels, args.setpoint, args.samples);
 
     Buffer buffer(args.channels, args.path, args.iq_swap);
 
@@ -515,7 +510,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Trigger trigger(uhd.usrp, args.channels, args.samples, args.edge_debounce, args.gating);
 
-    streamer.stream(buffer, args.start_time, args.setpoint, args.period, args.samples);
+    streamer.stream(buffer, args.start_time, args.setpoint, args.period, args.samples, args.num_trigger);
 
     return 0;
 }
