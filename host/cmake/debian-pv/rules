@@ -49,8 +49,8 @@ override_dh_auto_install-indep:
 	rm -rf debian/tmp/usr/share/doc/uhd/doxygen/latex
 
 override_dh_auto_install-arch:
-	cp debian/uhdpv-host.limits debian/uhdpv-host/etc/security/limits.d/uhdpv.conf
-	cp debian/uhdpv-host.sysctl debian/uhdpv-host/etc/sysctl.d/uhdpv-usrp2.conf
+	cp debian/uhdpv-host.limits debian/uhd-host/etc/security/limits.d/uhd.conf
+	cp debian/uhdpv-host.sysctl debian/uhd-host/etc/sysctl.d/uhd-usrp2.conf
 	dh_auto_install
 	#chmod -x debian/tmp/usr/lib/uhd/tests/devtest/*.py
 	#chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/parse_benchmark_rate.py
@@ -66,7 +66,7 @@ override_dh_acc:
 	- cat logs/libuhdpv-dev/*/log.txt
 
 override_dh_shlibdeps:
-	dh_shlibdeps --package=uhdpv-host --libpackage=libuhdpv4.4.0
-	dh_shlibdeps --package=libuhdpv4.4.0 --libpackage=libuhdpv4.4.0
-	dh_shlibdeps --package=libuhdpv-dev --libpackage=libuhdpv4.4.0
-	dh_shlibdeps --package=python3-uhdpv --libpackage=libuhdpv4.4.0
+	dh_shlibdeps --package=uhdpv-host --libpackage=libuhdpv
+	dh_shlibdeps --package=libuhdpv --libpackage=libuhdpv
+	dh_shlibdeps --package=libuhdpv-dev --libpackage=libuhdpv
+	dh_shlibdeps --package=python3-uhdpv --libpackage=libuhdpv
