@@ -3,8 +3,8 @@ Section: science
 Priority: optional
 Maintainer: Per Vices <packages@pervices.com>
 Build-Depends: cmake,
-               gcc (>= 13),
-               g++ (>= 13),
+               gcc-13,
+               g++-13,
                git,
                debhelper (>= 9),
                libboost-date-time-dev,
