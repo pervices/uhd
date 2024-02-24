@@ -34,10 +34,10 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
-	#update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 13
-	#update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 13
-	#update-alternatives --set gcc /usr/bin/gcc
-	#update-alternatives --set g++ /usr/bin/g++
+	mkdir -p ~/.local/bin
+	ln -s /usr/bin/gcc-13 ~/.local/bin/gcc
+	ln -s /usr/bin/g++-13 ~/.local/bin/g++
+	PATH=~/.local/bin:${PATH}
 	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
 
 # The test suite for this package is busted on powerpc.
