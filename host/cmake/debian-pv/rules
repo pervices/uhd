@@ -5,6 +5,8 @@ export DEB_HOST_MULTIARCH
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
 DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
 DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
+                                        -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
+                                        -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
                                         -DENABLE_CRIMSON_TNG="ON" \
                                         -DENABLE_CYAN_4R4T="ON" \
                                         -DENABLE_CYAN_8R="ON" \
@@ -34,10 +36,6 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
-	mkdir -p ~/.local/bin
-	ln -s /usr/bin/gcc-13 ~/.local/bin/gcc
-	ln -s /usr/bin/g++-13 ~/.local/bin/g++
-	PATH=~/.local/bin:${PATH}
 	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
 
 # The test suite for this package is busted on powerpc.
