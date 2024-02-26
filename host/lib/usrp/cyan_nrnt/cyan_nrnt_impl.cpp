@@ -232,15 +232,44 @@ void cyan_nrnt_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t da
 
 // wrapper for type <sensor_value_t> through the ASCII Crimson interface
 sensor_value_t cyan_nrnt_impl::get_sensor_value(std::string req) {
-	(void)req;
-	// no sensors on Crimson
-	return sensor_value_t("NA", "0", "NA");
+    // Property values are only updated when written to
+    // Set sensor to it's current value in order to update it
+    try {
+        std::string original_value = get_string(req);
+        set_string(req, original_value);
+    } catch (...) { }
+
+
+    std::string reply;
+    try {
+        reply = get_string(req);
+    } catch (...) {
+        reply = "bad";
+    }
+
+    // Shifts reply to lower case
+    for(size_t i = 0; i < reply.size(); i++) {
+        if(reply[i] >= 'A' && reply[i] <= 'Z') {
+            reply[i] = reply[i] - 'A' + 'a';
+        }
+    }
+
+    // Result good if reply does not contain unlocked or bad
+    bool sensor_good = (reply.find("unlocked") == std::string::npos) && (reply.find("bad") == std::string::npos);
+
+    // Determines the sensor name based on the path
+    if(req.find("lmk_lockdetect") != std::string::npos) {
+        return sensor_value_t( "Reference", sensor_good, "locked", "unlocked" );
+    } else {
+        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
+        return sensor_value_t( req, sensor_good, "good", "bad" );
+    }
 }
 void cyan_nrnt_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
-	(void)pre;
-	(void)data;
-	// no sensors on Crimson
-	return;
+    try { set_string(pre, data.to_pp_string());
+    } catch (...) { }
+
+    return;
 }
 
 // wrapper for type <meta_range_t> through the ASCII Crimson interface
@@ -1252,7 +1281,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "time_source"  / "output", bool, true);
 
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t( "Reference", true, "unlocked", "locked" ) );
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
 
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
