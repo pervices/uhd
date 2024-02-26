@@ -2258,7 +2258,7 @@ public:
             const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
             _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
             _tree->access<std::string>(root + "trigger/trig_sel").set("1");
-            _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
+            _tree->access<std::string>(root + "trigger/edge_backoff").set("3350000000");
             _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
             actual_num_samples_per_trigger = std::stoul(_tree->access<std::string>(root + "trigger/edge_sample_num").get(),nullptr,10);
             _tree->access<std::string>(root + "trigger/gating").set("dsp");
@@ -2306,7 +2306,7 @@ public:
             _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
             actual_num_samples_per_trigger = std::stoul(_tree->access<std::string>(root + "trigger/edge_sample_num").get(),nullptr,10);
             _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
-            _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
+            _tree->access<std::string>(root + "trigger/edge_backoff").set("3350000000");
             _tree->access<std::string>(root + "trigger/trig_sel").set("1");
         }
         // Prints warning message in case the user set the direction to something different when using rx
