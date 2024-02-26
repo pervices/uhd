@@ -75,16 +75,16 @@ UHD_INLINE std::string string_vector_to_string(
  * Helper methods
  **********************************************************************/
 static void do_samp_rate_warning_message(
-    double target_rate, double actual_rate, const std::string& xx)
+    double target_rate, double actual_rate, const std::string& xx, const size_t chan)
 {
     static const double max_allowed_error = 1.0; // Sps
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
         UHD_LOGGER_WARNING("MULTI_USRP")
             << boost::format(
-                   "The hardware does not support the requested %s sample rate:\n"
+                   "The hardware does not support the requested %s sample rate on ch %li:\n"
                    "Target sample rate: %f MSps\n"
                    "Actual sample rate: %f MSps\n")
-                   % xx % (target_rate / 1e6) % (actual_rate / 1e6);
+                   % xx % chan % (target_rate / 1e6) % (actual_rate / 1e6);
     }
 }
 
@@ -866,7 +866,7 @@ public:
     {
         if (chan != ALL_CHANS) {
             _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
-            do_samp_rate_warning_message(rate, get_rx_rate(chan), "RX");
+            do_samp_rate_warning_message(rate, get_rx_rate(chan), "RX", chan);
             return;
         }
         for (size_t c = 0; c < get_rx_num_channels(); c++) {
@@ -1923,7 +1923,7 @@ public:
     {
         if (chan != ALL_CHANS) {
             _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
-            do_samp_rate_warning_message(rate, get_tx_rate(chan), "TX");
+            do_samp_rate_warning_message(rate, get_tx_rate(chan), "TX", chan);
             return;
         }
         for (size_t c = 0; c < get_tx_num_channels(); c++) {
