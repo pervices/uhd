@@ -12,7 +12,7 @@ provides=('libuhdpv')
 conflicts=('libuhd')
 
 source=('uhd::git+https://github.com/pervices/uhd.git#branch=master')
-#source=('file://uhd.tar.gz')
+#pkgsrc=('file://uhd.tar.gz')
 #You can specify #branch=,#commit=,#tag=fragment
 
 md5sums=('SKIP')
