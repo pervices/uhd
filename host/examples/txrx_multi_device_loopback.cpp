@@ -595,7 +595,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // clang-format off
     desc.add_options()
         ("help", "Transmits a sinewave on multiple channels on multiple devices and receive data from multiple channels. Arguments with device specific parameter are sperated by spaces between devices and seperated by commas within a device. \"n\" indicates don't use this parameter for this device. Only specifying for one channel on a device indicates use the argument is for all channels on that device")
-        ("args", po::value<std::string>(&args)->default_value("192.168.10.2"), "Arguments for selecting devices. Provide device specific parameters")
+        ("args", po::value<std::string>(&args)->default_value("ip_addr=192.168.10.2"), "Arguments for selecting devices. Provide device specific parameters")
         ("start_time", po::value<double>(&start_time)->default_value(5), "number of seconds in the future to begin receiving. (From when iniialization is complete, not from when the program is called")
         ("rate", po::value<double>(&rate)->default_value(100e6/16), "rate of incoming (Rx) and outgoing (Tx) samples")
         ("rx_channels", po::value<std::string>(&rx_channel_arg)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc). Provide device specific parameters")
