@@ -229,6 +229,8 @@ private:
 
     double _max_rate;
 
+    size_t _max_sample_bytes_per_packet;
+
     // Tick rate used for Crimson timestamps
     double _master_tick_rate;
     double _tick_period_ns;

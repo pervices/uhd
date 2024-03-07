@@ -95,8 +95,8 @@ class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use)
-	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, CRIMSON_TNG_MAX_NBYTES, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian),
+	crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use)
+	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, max_sample_bytes_per_packet, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian),
 	_channels(channels)
 	{
         _rx_streamer_channel_in_use = rx_channel_in_use;
@@ -732,7 +732,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, dst_ip, dst_port, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, dst_ip, dst_port, _max_sample_bytes_per_packet, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
