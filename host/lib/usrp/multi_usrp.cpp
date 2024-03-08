@@ -2385,6 +2385,9 @@ public:
             _tree->access<std::string>(rx_link_root(rx_channels[n]) / "ip_dest").set(tx_ip);
             std::string tx_port = tx_usrp->get_tree()->access<std::string>(tx_link_root(tx_channels[n]) / "port").get();
             _tree->access<std::string>(rx_link_root(rx_channels[n]) / "port").set(tx_port);
+
+            // Required on Crimson (but not Cyan) so the packets contain a vita header
+            _tree->access<std::string>(rx_link_root(rx_channels[n]) / "vita_en").set("1");
         }
     }
 
