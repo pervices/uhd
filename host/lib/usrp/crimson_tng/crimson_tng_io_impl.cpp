@@ -694,6 +694,27 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
     }
 
+    int payload_len = 0;
+    // Get vita payload length length (header + data, not including triler)
+    for(size_t n = 1; n < args.channels.size(); n++) {
+        std::string sfp = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/iface" ).get();
+        int other_payload_len = _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).get();
+        if(payload_len == 0) {
+            payload_len = other_payload_len;
+        }
+        // If unable to get length, fallback to hard coded version for variant
+        if(payload_len != other_payload_len && other_payload_len !=0) {
+            std::cout << "payload_len: " << payload_len << std::endl;
+            std::cout << "other_payload_len: " << payload_len << std::endl;
+            throw uhd::value_error("Payload length other_payload_len between channels");
+        }
+    }
+
+    // Fallback to hard coded values if attempt to get payload fails
+    if(payload_len == 0) {
+        payload_len = _max_sample_bytes_per_packet_fallback;
+    }
+
     bool little_endian_supported = true;
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -732,7 +753,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, dst_ip, dst_port, _max_sample_bytes_per_packet, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, dst_ip, dst_port, payload_len - CRIMSON_TNG_HEADER_SIZE, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

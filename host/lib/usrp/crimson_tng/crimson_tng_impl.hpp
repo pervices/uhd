@@ -229,7 +229,8 @@ private:
 
     double _max_rate;
 
-    size_t _max_sample_bytes_per_packet;
+    // Fallback maximum number of bytes per packet
+    size_t _max_sample_bytes_per_packet_fallback;
 
     // Tick rate used for Crimson timestamps
     double _master_tick_rate;
