@@ -26,7 +26,7 @@ Release:        master
 License:        GPLv3+
 Provides: uhdpv
 Conflicts: uhd
-BuildRequires:  gcc-toolset-11
+BuildRequires:  gcc-toolset-13
 BuildRequires:  cmake, git
 BuildRequires:  boost169-python3-devel, libusb1-devel, python3-cheetah, ncurses-devel
 BuildRequires:  python3-docutils, doxygen, pkgconfig, libpcap-devel
@@ -54,7 +54,7 @@ future Ettus Research products. It can be used standalone without GNU Radio.
 
 
 %build
-source /opt/rh/gcc-toolset-11/enable
+source /opt/rh/gcc-toolset-13/enable
 # fix python shebangs (run again for generated scripts)
 find . -type f -name "*.py" -exec sed -i '/^#!/ s|.*|#!%{__python3}|' {} \;
 mkdir -p host/build
