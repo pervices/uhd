@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tarfile
 
-supported_ubuntu_releases = ["bionic", "focal", "jammy"]
+supported_ubuntu_releases = ["focal", "jammy"]
 #tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 tar_command = "tar --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 debuild_command = "debuild -S -i -sa"
@@ -135,7 +135,7 @@ def main(args):
             print("Uploading requires signing. Add --sign.")
             sys.exit(1)
         result = subprocess.run(shlex.split(
-            "dput -f ppa:pervices/develop uhdpv_{}-0ubuntu1~{}1_source.changes".format(uhd_version, args.release)), cwd=args.buildpath)
+            "dput -f ppa:pervices/{} uhdpv_{}-0ubuntu1~{}1_source.changes".format(args.repo, uhd_version, args.release)), cwd=args.buildpath)
         if result.returncode:
             print("PPA upload failed")
             sys.exit(result.returncode)
@@ -145,6 +145,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tarfile", type=str,
                         help="Specify existing tar file")
+    parser.add_argument("--repo", type=str, required=True,
+                        help="Specify ppa repository")
     parser.add_argument("--sign", action='store_true',
                         help="Signs files with GPG key. Not required for test builds")
     parser.add_argument("--upload", action='store_true',
