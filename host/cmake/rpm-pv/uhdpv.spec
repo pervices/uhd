@@ -18,6 +18,7 @@
 #Disable generation of the debug packages because as we haven't quite figured out
 #a way to package them that doesn't also cause rpm build issues.
 %global debug_package %{nil}
+%global real_name uhd
 
 Name:           uhdpv
 URL:            http://github.com/pervices/uhd
@@ -50,7 +51,7 @@ future Ettus Research products. It can be used standalone without GNU Radio.
 
 
 %prep
-%setup -q -n %{name}
+%setup -q -n %{real_name}
 
 
 %build
