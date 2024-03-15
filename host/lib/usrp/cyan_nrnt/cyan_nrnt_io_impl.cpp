@@ -650,9 +650,10 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     args.otw_format = args.otw_format.empty()? otw_rx_s : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != otw_rx_s){
-        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
-    }
+    // TEST: allow sc16 to be requested for experimental 16bit FPGA
+    //if (args.otw_format != otw_rx_s){
+    //    throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+    //}
 
 
     std::vector<std::string> dst_ip(args.channels.size());
