@@ -54,6 +54,29 @@ void free_recv_buffers(union sigval aiocb_to_free) {
     free((aiocb*)(aiocb_to_free.sival_ptr));
 }
 
+// Waits for aio writes to finish, the closes the file descriptors
+void close_aio(int output_fd[], size_t num_fds) {
+    for(size_t ch = 0; ch < num_fds; ch++) {
+        struct aiocb aiocbp_fsync;
+        memset(&aiocbp_fsync, 0, sizeof(aiocb));
+        aiocbp_fsync.aio_fildes = output_fd[ch];
+
+        if(fsync(output_fd[ch])) {
+            UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "fsync failed with " + std::string(strerror(errno)));
+        }
+
+        // Wait for aio writes to be written to disk
+        if(aio_fsync(O_SYNC, &aiocbp_fsync)) {
+            UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "aio_fsync failed with " + std::string(strerror(errno)));
+        }
+    }
+
+    //Closes data files
+    for(uint64_t n = 0; n < num_fds; n++) {
+        close(output_fd[n]);
+    }
+}
+
 
 /**
  * Parses arguments
@@ -141,13 +164,13 @@ public:
 
 bool disk_rate_message_printed = false;
 
-void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, size_t spb, std::string folder, bool skip_save, bool strict) {
+// output_fd: vector to store file descriptors in. Must be a pointer with length = group_info->channels.size()
+void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, size_t spb, std::string folder, bool skip_save, bool strict, int output_fd[]) {
     uhd::stream_args_t rx_stream_args("sc16");
     rx_stream_args.channels = group_info->channels;
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(rx_stream_args);
 
     // Open files to write data to
-    std::vector<int> output_fd(group_info->channels.size());
     if(!skip_save) {
         for(size_t n = 0; n < group_info->channels.size(); n++) {
             std::string path = folder + "/rx_ch_" + std::to_string(group_info->channels.at(n)) + ".dat";
@@ -291,38 +314,13 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
-    printf("Waiting for remaing writes to finish\n");
-
-    if(!skip_save) {
-        // DEBUG: lock to prevent overlapping fsyncs (may be causing segmentation faults)
-        // std::lock_guard<std::mutex> guard(fsync_mutex);
-        for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
-            struct aiocb aiocbp_fsync;
-            memset(&aiocbp_fsync, 0, sizeof(aiocb));
-            aiocbp_fsync.aio_fildes = output_fd[ch];
-
-            if(fsync(output_fd[ch])) {
-                UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "fsync failed with " + std::string(strerror(errno)));
-            }
-
-            // Wait for aio writes to be written to disk
-            if(aio_fsync(O_SYNC, &aiocbp_fsync)) {
-                UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "aio_fsync failed with " + std::string(strerror(errno)));
-                printf("output_fd[%lu]: %i\n", group_info->channels[ch], output_fd[ch]);
-            }
-        }
-    }
-
-    //Closes data files
-    for(uint64_t n = 0; n < output_fd.size(); n++) {
-        close(output_fd[n]);
-    }
-
     printf("Received %lu samples on ch", num_samples_received);
     for(auto& channel : group_info->channels) {
         printf(", %lu", channel);
     }
     printf("\n");
+
+    // Close the file descriptors for writing to disk later. Doing so here would impact performance in threads that are still receiving
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
@@ -417,12 +415,26 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::signal(SIGINT, &sig_int_handler);
 
     std::vector<std::thread> receive_threads;
+    // Create array to store file descriptors
+    int* output_fd_groups[groups.size()];
     for(size_t n = 0; n < groups.size(); n++) {
-        receive_threads.emplace_back(std::thread(receive_function, usrp.get(), &groups[n], spb, folder, skip_save, strict));
+        output_fd_groups[n] = (int*) malloc(groups[n].channels.size() * sizeof(int));
+    }
+
+    for(size_t n = 0; n < groups.size(); n++) {
+
+        receive_threads.emplace_back(std::thread(receive_function, usrp.get(), &groups[n], spb, folder, skip_save, strict, output_fd_groups[n]));
     }
 
     for(auto& receive_thread : receive_threads) {
         receive_thread.join();
+    }
+
+    if(!skip_save) {
+        for(size_t n = 0; n < groups.size(); n++) {
+            close_aio(output_fd_groups[n], groups[n].channels.size());
+            free(output_fd_groups[n]);
+        }
     }
 
     // finished
