@@ -161,13 +161,14 @@ public:
             // Filled by Kernel with info needed to access submission queue
             // uring_params.cq_off;
 
-            int io_uring_fd = io_uring_setup(1, &uring_params);
-            if(io_uring_fd < 0) {
-                fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-io_uring_fd));
+            struct io_uring ring;
+            int error = io_uring_queue_init_params(1, &ring, &uring_params);
+            if(error) {
+                fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
                 throw uhd::system_error("io_uring error");
             }
 
-            uring_sockets.push_back(recv_socket_fd);
+            io_rings.push_back(ring);
         }
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -206,6 +207,7 @@ public:
     {
         for(size_t n = 0; n < recv_sockets.size(); n++) {
             close(recv_sockets[n]);
+            io_uring_queue_exit(&io_rings[n]);
         }
     }
 
@@ -324,8 +326,8 @@ private:
     // Number of existing header buffers, which is the current maximum number of packets to receive at a time
     size_t _num_header_buffers = 32;
     std::vector<int> recv_sockets;
-    // Stores sockets created for io_uring
-    std::vector<int> uring_sockets;
+    // Stores uring rings
+    std::vector<io_uring> io_rings;
     size_t previous_sample_cache_used = 0;
     // Maximum sequence number
     const size_t sequence_number_mask = 0xf;
