@@ -133,6 +133,9 @@ public:
 
             recv_sockets.push_back(recv_socket_fd);
 
+            struct io_uring ring;
+            io_uring_submit(&ring);
+
             struct io_uring_params uring_params;
             memset(&uring_params, 0, sizeof(io_uring_params));
 
