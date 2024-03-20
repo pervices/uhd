@@ -16,7 +16,7 @@ if(ENABLE_X300)
     INCLUDE_SUBDIRECTORY(nirio)
 endif(ENABLE_X300)
 
-target_link_libraries(-luring)
+target_link_libraries(LibUHD luring)
 
 ########################################################################
 # Setup libusb
