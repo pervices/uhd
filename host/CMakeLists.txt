@@ -15,6 +15,7 @@ if(POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW) # Suppress Version warnings
 endif(POLICY CMP0048)
 project(UHD CXX C)
+target_link_libraries(UHD PRIVATE luring)
 enable_testing()
 
 set(CMAKE_C_FLAGS "-fPIC")
