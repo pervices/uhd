@@ -35,7 +35,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-// TODO: make sure older versions of th kernel before this don't break
+// TODO: add cmake stuff and dependancies to make sure this works on all systems
 #include <liburing.h>
 
 #define MIN_MTU 9000
@@ -132,6 +132,35 @@ public:
             _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/(_NUM_CHANNELS + 1))/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET + 42));
 
             recv_sockets.push_back(recv_socket_fd);
+
+            struct io_uring_params uring_params;
+            memset(&uring_params, 0, sizeof(io_uring_params));
+
+            // Number of entries that can fit in the submission queue
+            uring_params.sq_entries = 1;
+            // Number of entries that can fit in the completion queue
+            uring_params.cq_entries = 1;
+            // IORING_SETUP_IOPOLL: use busy poll instead of interrupts
+            // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
+            uring_params.flags = IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL;
+            // Does nothing unless flag IORING_SETUP_SQ_AFF is set
+            // uring_params.sq_thread_cpu;
+            // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
+            uring_params.sq_thread_idle = 100000;
+            // Kernel sets this according to features supported
+            // uring_params.features;
+            // Does nothing unless flag IORING_SETUP_ATTACH_WQ is set
+            // uring_params.wq_fd;
+            // Must be all 0
+            // uring_params.resv[3];
+            // Filled by Kernel with info needed to access submission queue
+            // uring_params.sq_off;
+            // Filled by Kernel with info needed to access submission queue
+            // uring_params.cq_off;
+
+            io_uring_setup(1, &uring_params);
+
+            //TODO add uring fd to vector
         }
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -288,6 +317,8 @@ private:
     // Number of existing header buffers, which is the current maximum number of packets to receive at a time
     size_t _num_header_buffers = 32;
     std::vector<int> recv_sockets;
+    // Stores sockets created for io_uring
+    std::vector<int> uring_sockets;
     size_t previous_sample_cache_used = 0;
     // Maximum sequence number
     const size_t sequence_number_mask = 0xf;
