@@ -37,6 +37,9 @@
 
 // TODO: add cmake stuff and dependancies to make sure this works on all systems
 #include <liburing.h>
+// liburing notes
+// start with io_uring_prep_recvmsg for simplicity
+// TODO io_uring_prep_recvmsg_multishot probably is similar to recvmmsg
 
 #define MIN_MTU 9000
 
@@ -133,9 +136,6 @@ public:
 
             recv_sockets.push_back(recv_socket_fd);
 
-            struct io_uring ring;
-            io_uring_submit(&ring);
-
             struct io_uring_params uring_params;
             memset(&uring_params, 0, sizeof(io_uring_params));
 
@@ -161,9 +161,13 @@ public:
             // Filled by Kernel with info needed to access submission queue
             // uring_params.cq_off;
 
-            io_uring_setup(1, &uring_params);
+            int io_uring_fd = io_uring_setup(1, &uring_params);
+            if(io_uring_fd < 0) {
+                fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-io_uring_fd));
+                throw uhd::system_error("io_uring error");
+            }
 
-            //TODO add uring fd to vector
+            uring_sockets.push_back(recv_socket_fd);
         }
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
