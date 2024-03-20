@@ -35,6 +35,9 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
+// TODO: make sure older versions of th kernel before this don't break
+#include <liburing.h>
+
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
