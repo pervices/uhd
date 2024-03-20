@@ -477,6 +477,8 @@ private:
         // Flag to indicate if a timeout occured. Note: timeout should only be reported if no data was received
         bool timeout_occured = false;
         size_t num_channels_serviced = 0;
+        // True is a read request has been sent out on the channel
+        std::vector<bool> request_sent(_NUM_CHANNELS, false);
         while(num_channels_serviced < _NUM_CHANNELS) {
             struct timespec current_time;
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
@@ -488,6 +490,22 @@ private:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
+
+                // Sends recv request
+                if(!request_sent[ch]) {
+                    // Gets where to store info for request
+                    struct io_uring_sqe *sqe;
+                    sqe = io_uring_get_sqe(&io_rings[ch]);
+
+                    // Prepares request
+                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
+
+                    // Tells io_uring that the request is ready
+                    io_uring_submit(&io_rings[ch]);
+
+                    request_sent[ch] = true;
+                }
+
                 // Skip this channel if it has already received enough packets
                 if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
                     continue;
