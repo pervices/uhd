@@ -140,9 +140,9 @@ public:
             memset(&uring_params, 0, sizeof(io_uring_params));
 
             // Number of entries that can fit in the submission queue
-            uring_params.sq_entries = 1;
+            uring_params.sq_entries = 10;
             // Number of entries that can fit in the completion queue
-            uring_params.cq_entries = 1;
+            uring_params.cq_entries = 10;
             // IORING_SETUP_IOPOLL: use busy poll instead of interrupts
             // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
             uring_params.flags = 0;//= IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL;
@@ -163,8 +163,8 @@ public:
 
             struct io_uring ring;
             // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
-            // int error = io_uring_queue_init_params(10, &ring, &uring_params);
-            int error = io_uring_queue_init(10, &ring, 0);
+            int error = io_uring_queue_init_params(10, &ring, &uring_params);
+            // int error = io_uring_queue_init(10, &ring, 0);
             if(error) {
                 fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
                 throw uhd::system_error("io_uring error");
