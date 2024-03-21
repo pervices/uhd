@@ -139,10 +139,11 @@ public:
             struct io_uring_params uring_params;
             memset(&uring_params, 0, sizeof(io_uring_params));
 
+            const int NUM_ENTRIES = 10;
             // Number of entries that can fit in the submission queue
-            uring_params.sq_entries = 10;
+            uring_params.sq_entries = NUM_ENTRIES;
             // Number of entries that can fit in the completion queue
-            uring_params.cq_entries = 10;
+            uring_params.cq_entries = NUM_ENTRIES;
             // IORING_SETUP_IOPOLL: use busy poll instead of interrupts
             // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
             uring_params.flags = 0;//= IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL;
@@ -163,7 +164,7 @@ public:
 
             struct io_uring ring;
             // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
-            int error = io_uring_queue_init_params(10, &ring, &uring_params);
+            int error = io_uring_queue_init_params(NUM_ENTRIES, &ring, &uring_params);
             // int error = io_uring_queue_init(10, &ring, 0);
             if(error) {
                 fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
@@ -524,7 +525,7 @@ private:
                     // io_uring_prep_recv(sqe, recv_sockets[ch], (void*) tmp_buf, 2000, 0);
 
                     // Tells io_uring that the request is ready
-                    int requests_submitted = io_uring_submit_and_wait(&io_rings[ch], 1);
+                    int requests_submitted = io_uring_submit(&io_rings[ch], 1);
                     // TODO: gracefully handle these conditions
                     if(requests_submitted == 0) {
                         continue;
@@ -538,7 +539,7 @@ private:
 
                 // Gets the next completed receive
                 struct io_uring_cqe *cqe_ptr;
-                int recv_ready = io_uring_wait_cqe(&io_rings[ch], &cqe_ptr);
+                int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
 
                 // Indicates no reply to request has been received yet
                 if(recv_ready == -EAGAIN) {
@@ -571,7 +572,7 @@ private:
 
                 // // Receive packets system call
                 // int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
-                //
+
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
                     ch_recv_buffer_info_i.num_headers_used += num_packets_received_this_recv;
