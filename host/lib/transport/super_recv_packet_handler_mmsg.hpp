@@ -541,8 +541,10 @@ private:
                 int num_packets_received_this_recv;
                 if(recv_return >= 0) {
                     num_packets_received_this_recv = 1;
+                    printf("Packet received\n");
                 } else {
                     num_packets_received_this_recv = 0;
+                    printf("No packet received\n");
                 }
 
                 // // Receive packets system call
