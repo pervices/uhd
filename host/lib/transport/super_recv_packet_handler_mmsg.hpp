@@ -514,10 +514,6 @@ private:
                     }
 
                     // Prepares request
-                    struct msghdr *msg_to_add;
-                    msg_to_add  = &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr;
-                    printf("msg_to_add->msg_iovlen: %lu\n", msg_to_add->msg_iovlen);
-
                     io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
 
                     // int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
@@ -525,7 +521,7 @@ private:
                     // io_uring_prep_recv(sqe, recv_sockets[ch], (void*) tmp_buf, 2000, 0);
 
                     // Tells io_uring that the request is ready
-                    int requests_submitted = io_uring_submit(&io_rings[ch], 1);
+                    int requests_submitted = io_uring_submit(&io_rings[ch]);
                     // TODO: gracefully handle these conditions
                     if(requests_submitted == 0) {
                         continue;
@@ -565,6 +561,7 @@ private:
                 int num_packets_received_this_recv;
                 if(recv_return >= 0) {
                     num_packets_received_this_recv = 1;
+                    ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_len = recv_return;
                     printf("recv_return: %i\n", recv_return);
                 } else {
                     num_packets_received_this_recv = 0;
