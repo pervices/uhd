@@ -533,13 +533,15 @@ private:
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
 
-                printf("Data received\n");
-
                 // Tell the next loop that the request that was sent has been processed
                 request_sent[ch] = false;
 
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
                 volatile int recv_return = cqe_ptr->res;
+
+                if(recv_return < 0) {
+                    printf("recv_return: %s\n", strerror(-recv_return));
+                }
 
                 // Tell the ring buffer that the cqe_ptr has been processed
                 io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
