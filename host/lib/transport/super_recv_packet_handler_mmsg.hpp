@@ -494,6 +494,7 @@ private:
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                uint8_t tmp_buf[2000];
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
 
                 // Skip this channel if it has already received enough packets
@@ -521,7 +522,6 @@ private:
 
                     // int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
                     // printf("tmp: %li\n", tmp);
-                    uint8_t tmp_buf[2000];
                     io_uring_prep_recv(sqe, recv_sockets[ch], (void*) tmp_buf, 2000, 0);
 
                     // Tells io_uring that the request is ready
@@ -539,7 +539,7 @@ private:
 
                 // Gets the next completed receive
                 struct io_uring_cqe *cqe_ptr;
-                int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
+                int recv_ready = io_uring_wait_cqe(&io_rings[ch], &cqe_ptr);
 
                 // Indicates no reply to request has been received yet
                 if(recv_ready == -EAGAIN) {
