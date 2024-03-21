@@ -518,6 +518,9 @@ private:
 
                     io_uring_prep_recvmsg(sqe, recv_sockets[ch], msg_to_add, 0 /*TODO: test MSG_DONTWAIT*/);
 
+                    int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
+                    printf("tmp: %li\n", tmp);
+
                     // Tells io_uring that the request is ready
                     int requests_submitted = io_uring_submit_and_wait(&io_rings[ch], 1);
                     // TODO: gracefully handle these conditions
