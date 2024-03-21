@@ -516,7 +516,14 @@ private:
                     io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
 
                     // Tells io_uring that the request is ready
-                    io_uring_submit(&io_rings[ch]);
+                    int requests_submitted = io_uring_submit(&io_rings[ch]);
+                    // TODO: gracefully handle these conditions
+                    if(requests_submitted == 0) {
+                        throw uhd::runtime_error( "io_uring_submit didn't submit" );
+                    } else if(requests_submitted) {
+                        printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
+                        throw uhd::runtime_error( "io_uring_submit error" );
+                    }
 
                     request_sent[ch] = true;
                 }
