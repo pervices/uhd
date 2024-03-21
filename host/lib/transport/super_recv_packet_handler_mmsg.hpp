@@ -551,10 +551,6 @@ private:
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
                 volatile int recv_return = cqe_ptr->res;
 
-                if(recv_return < 0) {
-                    printf("recv_return: %s\n", strerror(-recv_return));
-                }
-
                 // Tell the ring buffer that the cqe_ptr has been processed
                 io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
 
@@ -562,7 +558,6 @@ private:
                 if(recv_return >= 0) {
                     num_packets_received_this_recv = 1;
                     ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_len = recv_return;
-                    printf("recv_return: %i\n", recv_return);
                 } else {
                     num_packets_received_this_recv = 0;
                 }
@@ -580,10 +575,10 @@ private:
                     }
                 }
                 // Moves onto next channel, these errors are expected if using MSG_DONTWAIT and no packets are ready
-                else if (recv_return == EAGAIN || recv_return == EWOULDBLOCK) {
+                else if (-recv_return == EAGAIN || -recv_return == EWOULDBLOCK) {
                     continue;
                 // Error cause when program received interrupt during recv
-                } else if (recv_return == EINTR) {
+                } else if (-recv_return == EINTR) {
                     return rx_metadata_t::ERROR_CODE_EINTR;
                 // Unexpected error
                 } else {
