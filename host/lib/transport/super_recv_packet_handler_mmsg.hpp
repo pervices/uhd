@@ -509,6 +509,10 @@ private:
                     struct io_uring_sqe *sqe;
                     sqe = io_uring_get_sqe(&io_rings[ch]);
 
+                    if(sqe == NULL) {
+                        printf("io_uring_get_sqe failed\n");
+                    }
+
                     printf("T30\n");
 
                     // Prepares request
