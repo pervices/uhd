@@ -516,10 +516,12 @@ private:
                     msg_to_add  = &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr;
                     printf("msg_to_add->msg_iovlen: %lu\n", msg_to_add->msg_iovlen);
 
-                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], msg_to_add, 0 /*TODO: test MSG_DONTWAIT*/);
+                    // io_uring_prep_recvmsg(sqe, recv_sockets[ch], msg_to_add, 0 /*TODO: test MSG_DONTWAIT*/);
 
-                    int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
-                    printf("tmp: %li\n", tmp);
+                    // int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
+                    // printf("tmp: %li\n", tmp);
+                    uint8_t tmp_buf[2000];
+                    io_uring_prep_recv(sqe, recv_sockets[ch], (void*) tmp_buf, 2000, 0);
 
                     // Tells io_uring that the request is ready
                     int requests_submitted = io_uring_submit_and_wait(&io_rings[ch], 1);
