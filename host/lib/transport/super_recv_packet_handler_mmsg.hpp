@@ -505,11 +505,16 @@ private:
                 // Sends recv request
                 if(!request_sent[ch]) {
                     // Gets where to store info for request
+                    printf("T20\n");
                     struct io_uring_sqe *sqe;
                     sqe = io_uring_get_sqe(&io_rings[ch]);
 
+                    printf("T30\n");
+
                     // Prepares request
                     io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
+
+                    printf("T40\n");
 
                     // Tells io_uring that the request is ready
                     io_uring_submit(&io_rings[ch]);
