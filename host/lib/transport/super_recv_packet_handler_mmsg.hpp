@@ -518,7 +518,7 @@ private:
                     io_uring_prep_recvmsg(sqe, recv_sockets[ch], msg_to_add, 0 /*TODO: test MSG_DONTWAIT*/);
 
                     // Tells io_uring that the request is ready
-                    int requests_submitted = io_uring_submit(&io_rings[ch]);
+                    int requests_submitted = io_uring_submit_and_wait(&io_rings[ch], 1);
                     // TODO: gracefully handle these conditions
                     if(requests_submitted == 0) {
                         continue;
