@@ -395,6 +395,7 @@ private:
      * returns error code
      ******************************************************************/
     UHD_INLINE uhd::rx_metadata_t::error_code_t recv_multiple_packets(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_length_bytes, double timeout) {
+        printf("T1\n");
 
         size_t nbytes_to_recv = buffer_length_bytes - sample_buffer_offset;
 
@@ -480,6 +481,7 @@ private:
         // True is a read request has been sent out on the channel
         std::vector<bool> request_sent(_NUM_CHANNELS, false);
         while(num_channels_serviced < _NUM_CHANNELS) {
+            printf("T10\n");
 
             // TODO: remove dropped io_uring requests
             // Check for timeout
@@ -514,9 +516,12 @@ private:
                     request_sent[ch] = true;
                 }
 
+                printf("T20\n");
+
                 // Gets the next completed receive
                 struct io_uring_cqe **cqe_ptr;
                 int recv_ready = io_uring_peek_cqe(&io_rings[ch], cqe_ptr);
+                printf("T30\n");
 
                 // Indicates no reply to request has been received yet
                 if(recv_ready == -EAGAIN) {
@@ -525,12 +530,13 @@ private:
                 } else if(recv_ready != 0) {
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
+                printf("T50\n");
 
                 // Tell the next loop that the request that was sent has been processed
                 request_sent[ch] = false;
 
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
-                int recv_return = (**cqe_ptr).res;
+                volatile int recv_return = (**cqe_ptr).res;
 
                 // Tell the ring buffer that the cqe_ptr has been processed
                 io_uring_cqe_seen(&io_rings[ch], *cqe_ptr);
