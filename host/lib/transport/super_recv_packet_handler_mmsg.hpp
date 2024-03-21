@@ -520,7 +520,7 @@ private:
                     // TODO: gracefully handle these conditions
                     if(requests_submitted == 0) {
                         throw uhd::runtime_error( "io_uring_submit didn't submit" );
-                    } else if(requests_submitted) {
+                    } else if(requests_submitted < 0) {
                         printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
                         throw uhd::runtime_error( "io_uring_submit error" );
                     }
