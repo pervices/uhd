@@ -396,7 +396,6 @@ private:
      * returns error code
      ******************************************************************/
     UHD_INLINE uhd::rx_metadata_t::error_code_t recv_multiple_packets(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_length_bytes, double timeout) {
-        printf("T1\n");
 
         size_t nbytes_to_recv = buffer_length_bytes - sample_buffer_offset;
 
@@ -519,7 +518,7 @@ private:
                     int requests_submitted = io_uring_submit(&io_rings[ch]);
                     // TODO: gracefully handle these conditions
                     if(requests_submitted == 0) {
-                        throw uhd::runtime_error( "io_uring_submit didn't submit" );
+                        continue;
                     } else if(requests_submitted < 0) {
                         printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
                         throw uhd::runtime_error( "io_uring_submit error" );
