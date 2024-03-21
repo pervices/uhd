@@ -481,7 +481,6 @@ private:
         // True is a read request has been sent out on the channel
         std::vector<bool> request_sent(_NUM_CHANNELS, false);
         while(num_channels_serviced < _NUM_CHANNELS) {
-            printf("T10\n");
 
             // TODO: remove dropped io_uring requests
             // Check for timeout
@@ -516,12 +515,9 @@ private:
                     request_sent[ch] = true;
                 }
 
-                printf("T20\n");
-
                 // Gets the next completed receive
                 struct io_uring_cqe *cqe_ptr;
                 int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
-                printf("T30\n");
 
                 // Indicates no reply to request has been received yet
                 if(recv_ready == -EAGAIN) {
@@ -530,7 +526,8 @@ private:
                 } else if(recv_ready != 0) {
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
-                printf("T50\n");
+
+                printf("Data received\n");
 
                 // Tell the next loop that the request that was sent has been processed
                 request_sent[ch] = false;
