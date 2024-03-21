@@ -480,6 +480,9 @@ private:
         // True is a read request has been sent out on the channel
         std::vector<bool> request_sent(_NUM_CHANNELS, false);
         while(num_channels_serviced < _NUM_CHANNELS) {
+
+            // TODO: remove dropped io_uring requests
+            // Check for timeout
             struct timespec current_time;
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
@@ -490,6 +493,11 @@ private:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
+
+                // Skip this channel if it has already received enough packets
+                if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
+                    continue;
+                }
 
                 // Sends recv request
                 if(!request_sent[ch]) {
@@ -506,13 +514,37 @@ private:
                     request_sent[ch] = true;
                 }
 
-                // Skip this channel if it has already received enough packets
-                if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
-                    continue;
-                }
-                // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
+                // Gets the next completed receive
+                struct io_uring_cqe **cqe_ptr;
+                int recv_ready = io_uring_peek_cqe(&io_rings[ch], cqe_ptr);
 
+                // Indicates no reply to request has been received yet
+                if(recv_ready == -EAGAIN) {
+                    continue;
+                // Errors other than EAGAIN should be impossible
+                } else if(recv_ready != 0) {
+                    throw uhd::runtime_error( "io_uring_peek_cqe error" );
+                }
+
+                // Tell the next loop that the request that was sent has been processed
+                request_sent[ch] = false;
+
+                // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
+                int recv_return = (**cqe_ptr).res;
+
+                // Tell the ring buffer that the cqe_ptr has been processed
+                io_uring_cqe_seen(&io_rings[ch], *cqe_ptr);
+
+                int num_packets_received_this_recv;
+                if(recv_return >= 0) {
+                    num_packets_received_this_recv = 1;
+                } else {
+                    num_packets_received_this_recv = 0;
+                }
+
+                // // Receive packets system call
+                // int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
+                //
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
                     ch_recv_buffer_info_i.num_headers_used += num_packets_received_this_recv;
@@ -523,14 +555,14 @@ private:
                     }
                 }
                 // Moves onto next channel, these errors are expected if using MSG_DONTWAIT and no packets are ready
-                else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                else if (recv_return == EAGAIN || recv_return == EWOULDBLOCK) {
                     continue;
                 // Error cause when program received interrupt during recv
-                } else if (errno == EINTR) {
+                } else if (recv_return == EINTR) {
                     return rx_metadata_t::ERROR_CODE_EINTR;
                 // Unexpected error
                 } else {
-                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(errno)));
+                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(recv_return)));
                 }
             }
         }
