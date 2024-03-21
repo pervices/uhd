@@ -163,7 +163,8 @@ public:
 
             struct io_uring ring;
             // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
-            int error = io_uring_queue_init_params(10, &ring, &uring_params);
+            // int error = io_uring_queue_init_params(10, &ring, &uring_params);
+            int error = io_uring_queue_init(10, &ring, 0);
             if(error) {
                 fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
                 throw uhd::system_error("io_uring error");
