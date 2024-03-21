@@ -512,7 +512,10 @@ private:
                     }
 
                     // Prepares request
-                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
+                    struct msghdr *msg_to_add;
+                    msg_to_add  = &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr;
+
+                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], msg_to_add, 0 /*TODO: test MSG_DONTWAIT*/);
 
                     // Tells io_uring that the request is ready
                     int requests_submitted = io_uring_submit(&io_rings[ch]);
