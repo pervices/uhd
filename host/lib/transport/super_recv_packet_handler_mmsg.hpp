@@ -494,7 +494,6 @@ private:
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                uint8_t tmp_buf[2000];
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
 
                 // Skip this channel if it has already received enough packets
@@ -518,7 +517,7 @@ private:
                     msg_to_add  = &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr;
                     printf("msg_to_add->msg_iovlen: %lu\n", msg_to_add->msg_iovlen);
 
-                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], msg_to_add, 0 /*TODO: test MSG_DONTWAIT*/);
+                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
 
                     // int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
                     // printf("tmp: %li\n", tmp);
