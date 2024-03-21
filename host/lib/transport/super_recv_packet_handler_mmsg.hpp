@@ -146,7 +146,7 @@ public:
             uring_params.cq_entries = NUM_ENTRIES;
             // IORING_SETUP_IOPOLL: use busy poll instead of interrupts
             // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
-            uring_params.flags = 0;//= IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL;
+            uring_params.flags = IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL;
             // Does nothing unless flag IORING_SETUP_SQ_AFF is set
             // uring_params.sq_thread_cpu;
             // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
