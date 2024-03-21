@@ -519,8 +519,8 @@ private:
                 printf("T20\n");
 
                 // Gets the next completed receive
-                struct io_uring_cqe **cqe_ptr;
-                int recv_ready = io_uring_peek_cqe(&io_rings[ch], cqe_ptr);
+                struct io_uring_cqe *cqe_ptr;
+                int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
                 printf("T30\n");
 
                 // Indicates no reply to request has been received yet
@@ -536,10 +536,10 @@ private:
                 request_sent[ch] = false;
 
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
-                volatile int recv_return = (**cqe_ptr).res;
+                volatile int recv_return = cqe_ptr->res;
 
                 // Tell the ring buffer that the cqe_ptr has been processed
-                io_uring_cqe_seen(&io_rings[ch], *cqe_ptr);
+                io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
 
                 int num_packets_received_this_recv;
                 if(recv_return >= 0) {
