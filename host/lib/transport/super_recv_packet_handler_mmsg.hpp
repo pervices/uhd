@@ -162,7 +162,8 @@ public:
             // uring_params.cq_off;
 
             struct io_uring ring;
-            int error = io_uring_queue_init_params(1, &ring, &uring_params);
+            // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
+            int error = io_uring_queue_init_params(10, &ring, &uring_params);
             if(error) {
                 fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
                 throw uhd::system_error("io_uring error");
@@ -488,12 +489,10 @@ private:
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
             if(current_time_ns > recv_timeout_time_ns) {
-                printf("Timeout\n");
                 timeout_occured = true;
                 break;
             }
 
-            printf("T10\n");
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
 
@@ -505,28 +504,22 @@ private:
                 // Sends recv request
                 if(!request_sent[ch]) {
                     // Gets where to store info for request
-                    printf("T20\n");
                     struct io_uring_sqe *sqe;
                     sqe = io_uring_get_sqe(&io_rings[ch]);
 
+                    // Happens when kernel thread takes a while to process io_uring_cqe_seen
                     if(sqe == NULL) {
-                        printf("io_uring_get_sqe failed\n");
+                        continue;
                     }
-
-                    printf("T30\n");
 
                     // Prepares request
                     io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
-
-                    printf("T40\n");
 
                     // Tells io_uring that the request is ready
                     io_uring_submit(&io_rings[ch]);
 
                     request_sent[ch] = true;
                 }
-
-                printf("T50\n");
 
                 // Gets the next completed receive
                 struct io_uring_cqe *cqe_ptr;
