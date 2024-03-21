@@ -493,6 +493,7 @@ private:
                 break;
             }
 
+            printf("T10\n");
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
 
@@ -515,6 +516,8 @@ private:
 
                     request_sent[ch] = true;
                 }
+
+                printf("T50\n");
 
                 // Gets the next completed receive
                 struct io_uring_cqe *cqe_ptr;
