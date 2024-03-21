@@ -144,7 +144,7 @@ public:
             uring_params.sq_entries = NUM_ENTRIES;
             // Number of entries that can fit in the completion queue
             uring_params.cq_entries = NUM_ENTRIES;
-            // IORING_SETUP_IOPOLL: use busy poll instead of interrupts
+            // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
             // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
             uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL;
             // Does nothing unless flag IORING_SETUP_SQ_AFF is set
@@ -514,7 +514,7 @@ private:
                     }
 
                     // Prepares request
-                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0 /*TODO: test MSG_DONTWAIT*/);
+                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, MSG_DONTWAIT);
 
                     // int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
                     // printf("tmp: %li\n", tmp);
@@ -555,7 +555,7 @@ private:
                 io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
 
                 int num_packets_received_this_recv;
-                if(recv_return >= 0) {
+                if(recv_return > 0) {
                     num_packets_received_this_recv = 1;
                     ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_len = recv_return;
                 } else {
