@@ -20,13 +20,13 @@
 %global debug_package %{nil}
 %global real_name uhd
 
-Name:           uhdpv
+Name:           libuhdpv
 URL:            http://github.com/pervices/uhd
 Version:        4.4.0.0
 Release:        master
 License:        GPLv3+
-Provides: uhdpv
-Conflicts: uhd
+Provides: libuhdpv
+Conflicts: uhd, libuhd
 BuildRequires:  gcc-toolset-13
 BuildRequires:  cmake, git
 BuildRequires:  boost169-python3-devel, libusb1-devel, python3-cheetah, ncurses-devel
