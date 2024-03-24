@@ -14,6 +14,8 @@
 %global mfpu_neon -Dhave_mfpu_neon=0
 %endif
 %endif
+%global __python3 /usr/bin/python3.11
+%global python3_pkgversion 3.11
 
 #Disable generation of the debug packages because as we haven't quite figured out
 #a way to package them that doesn't also cause rpm build issues.
@@ -29,13 +31,14 @@ Provides: libuhdpv
 Conflicts: uhd, libuhd
 BuildRequires:  gcc-toolset-13
 BuildRequires:  cmake, git
-BuildRequires:  boost169-python3-devel, libusb1-devel, python3-cheetah, ncurses-devel
-BuildRequires:  python3-docutils, doxygen, pkgconfig, libpcap-devel
-BuildRequires:  python3-numpy, vim-common, octave, dpdk
+BuildRequires:  boost169-python3-devel, libusb1-devel, python%{python3_pkgversion}-cheetah, ncurses-devel
+BuildRequires:  python%{python3_pkgversion}-docutils, doxygen, pkgconfig, libpcap-devel
+BuildRequires:  python%{python3_pkgversion}-numpy, vim-common, octave, dpdk
+BuildRequires:  python%{python3_pkgversion}, python%{python3_pkgversion}-setuptools
 %if %{with wireshark}
 BuildRequires:  wireshark-devel
 %endif
-BuildRequires:  python3-mako, python3-requests, python3-devel, tar
+BuildRequires:  python%{python3_pkgversion}-mako, python%{python3_pkgversion}-requests, python%{python3_pkgversion}-devel, tar
 %if ! %{with binary_firmware}
 BuildRequires: sed
 %endif
