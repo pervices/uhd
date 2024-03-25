@@ -863,9 +863,9 @@ rx_streamer::sptr cyan_4r4t_3g_impl::get_rx_stream(const uhd::stream_args_t &arg
     args.otw_format = args.otw_format.empty()? CYAN_4R4T_3G_OTW_RX : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != CYAN_4R4T_3G_OTW_RX){
-        throw uhd::value_error(CYAN_4R4T_3G_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
-    }
+    // if (args.otw_format != CYAN_4R4T_3G_OTW_RX){
+        // throw uhd::value_error(CYAN_4R4T_3G_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+    // }
 
     //calculate packet size
     static const size_t hdr_size = 0
