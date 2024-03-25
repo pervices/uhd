@@ -36,7 +36,7 @@
 #include <net/if.h>
 
 // TODO: add cmake stuff and dependancies to make sure this works on all systems
-#include <liburing.h>
+#include <linux/liburing.h>
 // liburing notes
 // start with io_uring_prep_recvmsg for simplicity
 // TODO io_uring_prep_recvmsg_multishot probably is similar to recvmmsg
