@@ -35,6 +35,8 @@
 
 #include <algorithm>
 
+#include <liburing.h>
+
 namespace po = boost::program_options;
 
 static bool stop_signal_called = false;
