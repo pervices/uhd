@@ -46,7 +46,7 @@ void sig_int_handler(int)
 void free_recv_buffers(union sigval aiocb_to_free) {
     int ret = aio_error((aiocb*)(aiocb_to_free.sival_ptr));
     if(ret != 0) {
-        UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "AIO write failed with error code: " + std::string(strerror(errno)));
+        UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "AIO write failed with error code: " + std::string(strerror(ret)));
     }
 
     free((void*)((aiocb*)(aiocb_to_free.sival_ptr))->aio_buf);
