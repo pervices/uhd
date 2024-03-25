@@ -143,6 +143,6 @@ if(ENABLE_DPDK)
     )
     set_source_files_properties(
         ${CMAKE_CURRENT_SOURCE_DIR}/udp_dpdk_link.cpp
-        PROPERTIES COMPILE_FLAGS "${UHD_DPDK_CFLAGS} -D_GNU_SOURCE -luring"
+        PROPERTIES COMPILE_FLAGS "${UHD_DPDK_CFLAGS} -D_GNU_SOURCE"
     )
 endif(ENABLE_DPDK)
