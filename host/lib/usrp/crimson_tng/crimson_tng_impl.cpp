@@ -998,15 +998,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         _max_rate = CRIMSON_TNG_FALLBACK_MASTER_CLOCK_RATE;
     }
 
-    if(_max_rate == 325e6) {
-        _max_sample_bytes_per_packet_fallback = CRIMSON_TNG_MAX_NBYTES_325;
-    } else if(_max_rate == 300e6) {
-        _max_sample_bytes_per_packet_fallback = CRIMSON_TNG_MAX_NBYTES_300;
-    } else {
-        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Unsupported max sample rate detected: " + std::to_string(_max_rate));
-    }
-
-
     _master_tick_rate = _max_rate / 2;
 
     _tick_period_ns = 1.0 / _master_tick_rate * 1e9;

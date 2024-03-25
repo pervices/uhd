@@ -72,10 +72,6 @@
 // Maximum number of bytes used to store samples in a tx packet
 #define CRIMSON_TNG_MAX_SEND_SAMPLE_BYTES 8920
 
-// Maximum number of bytes used to store sample data when receiving
-#define CRIMSON_TNG_MAX_NBYTES_300 6984
-#define CRIMSON_TNG_MAX_NBYTES_325 1384
-
 // Amount of the UDP packet used for overhead in data packets
 // 60 bit ipv4 header, 8 bit UDP header
 #define CRIMSON_TNG_UDP_OVERHEAD 68

@@ -710,7 +710,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // Fallback to hard coded values if attempt to get payload fails
     if(data_len == 0) {
-        data_len = _max_sample_bytes_per_packet_fallback;
+        throw uhd::runtime_error("Unable to get payload size from device");
     }
 
     bool little_endian_supported = true;
