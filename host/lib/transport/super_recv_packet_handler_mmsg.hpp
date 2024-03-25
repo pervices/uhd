@@ -36,7 +36,6 @@
 #include <net/if.h>
 
 // TODO: add cmake stuff and dependancies to make sure this works on all systems
-#include <linux/io_uring.h>
 #include <liburing.h>
 // liburing notes
 // start with io_uring_prep_recvmsg for simplicity
