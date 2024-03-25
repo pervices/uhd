@@ -215,7 +215,7 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
             aiocb_info[ch]->aio_fildes = output_fd[ch];
             aiocb_info[ch]->aio_offset = num_samples_received * sizeof(std::complex<short>);
             // By giving ascending priority the aio schedueler is able to more efficiently order writes
-            aiocb_info[ch]->aio_offset = num_writes_issued;
+            aiocb_info[ch]->aio_reqprio = num_writes_issued;
             aiocb_info[ch]->aio_buf = buffer_ptrs[ch];
 
             aiocb_info[ch]->aio_sigevent.sigev_notify = SIGEV_THREAD;
