@@ -288,8 +288,12 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
 
     }
 
-    stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
-    rx_stream->issue_stream_cmd(stream_cmd);
+    // Sends stop command if STREAM_MODE_NUM_SAMPS_AND_DONE was not used
+    // NOTE: for unknown reasons it appears that this command will cause slowdowns in other threads
+    if(group_info->common_nsamps_requested != 0) {
+        stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
+        rx_stream->issue_stream_cmd(stream_cmd);
+    }
 
     printf("Waiting for remaing writes to finish\n");
 
