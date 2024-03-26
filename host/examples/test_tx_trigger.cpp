@@ -331,7 +331,7 @@ class Streamer
     const std::vector<size_t> channels;
 
 public:
-    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels, const int setpoint, const int samples)
+    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels)
     :
     channels {channels}
     {
@@ -500,7 +500,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Uhd uhd(args.channels, args.tx_rate, args.tx_center_freq, args.tx_gain);
 
-    Streamer streamer(uhd.usrp, args.channels, args.setpoint, args.samples);
+    Streamer streamer(uhd.usrp, args.channels);
 
     Buffer buffer(args.channels, args.path, args.iq_swap);
 

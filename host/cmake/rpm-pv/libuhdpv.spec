@@ -125,6 +125,11 @@ getent group usrp >/dev/null || \
   %{_sbindir}/groupadd -r usrp >/dev/null 2>&1
 exit 0
 
+%post
+sysctl net.core.rmem_max=500000000
+sysctl net.core.wmem_max=500000000
+exit 0
+
 %files
 %doc _tmpdoc/*
 %doc %{_docdir}/uhd/doxygen
