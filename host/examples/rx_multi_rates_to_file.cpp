@@ -37,7 +37,8 @@
 
 namespace po = boost::program_options;
 
-static bool stop_signal_called = false;
+// Using uint_fast8_t instead of bool because bool causes weirdly inconsistent slowdowns
+static uint_fast8_t stop_signal_called = false;
 void sig_int_handler(int)
 {
     stop_signal_called = true;
