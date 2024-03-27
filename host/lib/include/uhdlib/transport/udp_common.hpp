@@ -39,6 +39,8 @@ constexpr size_t UDP_DEFAULT_BUFF_SIZE = 2500000;
 static const size_t MAX_BUFF_SIZE_ETH_MACOS = 0x100000; // 1Mib
 #endif
 
+// TODO: migrate away from boost socket
+// Bost sockets perform actions in the background that make performance less reliable
 typedef std::shared_ptr<boost::asio::ip::udp::socket> socket_sptr;
 
 /*!

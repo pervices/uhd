@@ -46,18 +46,33 @@ public:
 
     size_t send(const asio::const_buffer& buff) override
     {
-        // TODO: migrate to libc sendto for non connected socket to remove boost
         if (_connected) {
             // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
             ssize_t data_sent = ::send(_socket->native_handle(), buff.data(), buff.size(), MSG_CONFIRM & route_good);
             if(data_sent == -1) {
-                printf("send errno: %s\n", strerror(errno));
+                fprintf(stderr, "send failed for control packet. errno: %s\n", strerror(errno));
                 return 0;
             } else {
                 return data_sent;
             }
         }
-        return _socket->send_to(asio::buffer(buff), _send_endpoint);
+
+        struct sockaddr_in dst_address;
+        memset(&dst_address, 0, sizeof(dst_address));
+        dst_address.sin_family = AF_INET;
+        std::string ipv4_addr = _send_endpoint.address().to_string();
+        dst_address.sin_addr.s_addr = inet_addr(ipv4_addr.c_str());
+        dst_address.sin_port = htons(_send_endpoint.port());
+
+        ssize_t ret = sendto(_socket->native_handle(), buff.data(), buff.size(), MSG_CONFIRM & route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
+
+        if(ret > 0) {
+            return ret;
+        } else {
+            fprintf(stderr, "sendto failed for control packet. errno: %s\n", strerror(errno));
+            // Return 0 to keep behaviour from asio
+            return 0;
+        }
     }
 
     size_t recv(const asio::mutable_buffer& buff, double timeout) override
