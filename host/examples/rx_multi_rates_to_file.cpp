@@ -206,8 +206,6 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
                 std::exit(~0);
             }
 
-            memset(buffer_ptrs[ch], 0, samples_this_recv * sizeof(std::complex<short>));
-
             // Creates struct to contian data for io write
             aiocb_info[ch] = (aiocb*) malloc(sizeof(aiocb));
             memset(aiocb_info[ch], 0, sizeof(aiocb));
