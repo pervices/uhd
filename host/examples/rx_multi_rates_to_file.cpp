@@ -319,12 +319,6 @@ void receive_function(uhd::usrp::multi_usrp *usrp, channel_group *group_info, si
     for(uint64_t n = 0; n < output_fd.size(); n++) {
         close(output_fd[n]);
     }
-
-    printf("Received %lu samples on ch", num_samples_received);
-    for(auto& channel : group_info->channels) {
-        printf(", %lu", channel);
-    }
-    printf("\n");
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
