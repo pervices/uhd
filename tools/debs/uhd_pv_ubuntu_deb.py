@@ -43,11 +43,15 @@ def main(args):
     orig_release = ""
     with open("host/cmake/debian-pv/changelog") as cl:
         first_line = cl.readline()
-        uhd_version = re.findall("[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*", first_line)
-        if len(uhd_version) != 1:
-            print("uhd_version in changelog malformed. Check host/cmake/debian-pv/changelog")
-            sys.exit(1)
-        uhd_version = uhd_version[0]
+        if args.nightly:
+            uhd_version = re.search("\(([A-Za-z0-9+]+)", first_line)
+            uhd_version = uhd_version[1]
+        else:
+            uhd_version = re.findall("[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*", first_line)
+            if len(uhd_version) != 1:
+                print("uhd_version in changelog malformed. Check host/cmake/debian-pv/changelog")
+                sys.exit(1)
+            uhd_version = uhd_version[0]
         orig_release = re.findall("[A-Za-z_]*;", first_line)
         if len(orig_release) != 1:
             print(
@@ -147,6 +151,8 @@ if __name__ == "__main__":
                         help="Specify existing tar file")
     parser.add_argument("--repo", type=str, required=True,
                         help="Specify ppa repository")
+    parser.add_argument("--nightly", action='store_true',
+                        help="Update changelog for nightly build")
     parser.add_argument("--sign", action='store_true',
                         help="Signs files with GPG key. Not required for test builds")
     parser.add_argument("--upload", action='store_true',
