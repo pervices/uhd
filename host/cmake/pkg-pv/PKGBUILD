@@ -2,6 +2,7 @@ pkgname=libuhdpv
 pkgver=4.4.0.0
 _pkgid=git
 pkgrel=1
+nightly=0
 pkgdesc="Official Per Vices libuhdpv build script supporting all Per Vices SDR products"
 arch=('x86_64')
 url="https://www.support.pervices.com"
@@ -23,8 +24,13 @@ _gitname="uhd"
 install=$pkgname.install
 
 pkgver() {
-    cd ${srcdir}/${_gitname}/host/cmake/debian-pv
-    echo $(cat changelog | head -1 | cut -d ' ' -f2 | cut -d '-' -f1 | tr --delete ['('])
+    if [ $nightly == '0' ]; then
+        cd ${srcdir}/${_gitname}/host/cmake/debian-pv
+        echo $(cat changelog | head -1 | cut -d ' ' -f2 | cut -d '-' -f1 | tr --delete ['('])
+    else
+        cd ${srcdir}/$_gitname
+        echo -n `date +%Y%m%d%H%M`+g && git rev-parse --short HEAD
+    fi
 }
 
 build() {

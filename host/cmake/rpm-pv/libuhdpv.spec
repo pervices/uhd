@@ -24,7 +24,7 @@
 
 Name:           libuhdpv
 URL:            http://github.com/pervices/uhd
-Version:        4.4.0.0
+Version:        libuhdpv_ver
 Release:        master
 License:        GPLv3+
 Provides: libuhdpv
