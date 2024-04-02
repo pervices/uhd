@@ -71,7 +71,7 @@ void free_recv_buffers(union sigval aiocb_to_free) {
     free((aiocb*)(aiocb_to_free.sival_ptr));
 }
 
-// Waits for aio writes to finish, the closes the file descriptors
+// Waits for aio writes to finish, does not close file descriptors
 void close_aio(int output_fd) {
     struct aiocb aiocbp_fsync;
     memset(&aiocbp_fsync, 0, sizeof(aiocb));
@@ -85,9 +85,6 @@ void close_aio(int output_fd) {
     if(aio_fsync(O_SYNC, &aiocbp_fsync)) {
         UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "aio_fsync failed with " + std::string(strerror(errno)));
     }
-
-    //Closes data file
-    close(output_fd);
 }
 
 
@@ -407,10 +404,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // It is faster to save all data to one file than multiple
     // Data is saved to an intermediate file, then later copied to individual files
     int intermediate_fd = -1;
-    std::string path = folder + "/tmp.dat";
+    std::string path = folder + "/";
     if(!skip_save) {
         std::filesystem::create_directories(folder);
-        intermediate_fd = open(path.c_str(), O_CREAT | O_DIRECT | O_WRONLY | O_LARGEFILE, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+        // NOTE: O_DIRECT direct will cause write failures on ext4 filesystems
+        intermediate_fd = open(path.c_str(), O_EXCL | O_TMPFILE | O_RDWR | O_LARGEFILE, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 
         if(intermediate_fd == -1) {
             UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "Unable to open file: " + path + ". Failed with error code: " + strerror(errno));
@@ -492,7 +490,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         // Re-open the data was stored in during receive_function
         // For performance reasons the file was previously opened with settings optimized for writing that prevent reading for receive_function
-        intermediate_fd = open(path.c_str(), O_RDONLY | O_LARGEFILE, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
         if(intermediate_fd == -1) {
             fprintf(stderr, "errnor %s when attempting to open intermediate file for copying. Data collected is stored in %s\n", strerror(errno), path.c_str());
             return errno;
@@ -575,10 +572,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         for(size_t n = 0; n < channels.size(); n++) {
             close(final_fds[n]);
         }
-
-        // Deletes temporary file containing all data
-        // Will only delete the file, never the folder
-        unlink(path.c_str());
     }
 
     // finished
