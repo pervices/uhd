@@ -35,16 +35,29 @@
 
 #include <algorithm>
 
+#include <mutex>
+
 namespace po = boost::program_options;
 
 // Size of blocks of data for channel in continuous mode
 static const size_t DEFAULT_CH_BLOCK_SIZE = 1000000000;
 
+// mutex to prevent stop flags from being freed
+std::mutex stop_mtx;
+
 // Using uint_fast8_t instead of bool because bool causes weirdly inconsistent slowdowns
-static uint_fast8_t stop_signal_called = false;
+// Using seperate flags for each thread instead of 1 help performance
+// Verified experimentally, not sure why
+static std::vector<uint_fast8_t*> stop_signal_called(0);
+// Sets flags to notify threads to stop
 void sig_int_handler(int)
 {
-    stop_signal_called = true;
+    const std::lock_guard<std::mutex> lock(stop_mtx);
+    for(size_t n = 0; n < stop_signal_called.size(); n++) {
+        if(stop_signal_called[n] != nullptr) {
+            *stop_signal_called[n] = true;
+        }
+    }
 }
 
 void free_recv_buffers(union sigval aiocb_to_free) {
@@ -166,7 +179,13 @@ bool disk_rate_message_printed = false;
 
 // output_fd: file descriptor to where to save data to
 // total_num_channels: total number of channels in use (not just the number of channels in this thread. Used for calculating where to store data in continuous mode
-void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, size_t spb, bool skip_save, bool strict, uint_fast8_t continuous_mode, int output_fd, off_t output_offset, size_t total_num_channels, size_t *num_samples_received) {
+void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, size_t spb, bool skip_save, bool strict, uint_fast8_t continuous_mode, int output_fd, off_t output_offset, size_t total_num_channels, size_t *num_samples_received, uint_fast8_t **stop_signal) {
+
+    // Allocating the stop flag in each thread seems to improve performance
+    uint_fast8_t *stop_flag;
+    stop_flag = (uint_fast8_t*) malloc(sizeof(uint_fast8_t));
+    *stop_flag = false;
+    *stop_signal = stop_flag;
 
     // Metadata return struct
     uhd::rx_metadata_t md;
@@ -180,7 +199,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
 
     bool overflow_occured = false;
     // Receive loop
-    while(!stop_signal_called && (*num_samples_received < group_info->common_nsamps_requested || group_info->common_nsamps_requested == 0)) {
+    while(!*stop_flag && (*num_samples_received < group_info->common_nsamps_requested || group_info->common_nsamps_requested == 0)) {
         // Initializes the to store rx data in
         std::vector<void*>buffer_ptrs(group_info->channels.size());
         struct aiocb* aiocb_info[group_info->channels.size()];
@@ -231,8 +250,8 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
                 fprintf(stderr, "Timeout received after %lu samples\n", *num_samples_received);
                 // Break if overflow occured and a set number of samples was requested, since that probably means all samples were sent, and missed ones weren't counted
                 if(strict || (overflow_occured && group_info->common_nsamps_requested !=0)) {
-                    // Set to true so other threads know to stop
-                    stop_signal_called = true;
+                    // Set flags so other threads know to stop
+                    sig_int_handler(0);
                     break;
                 } else {
                     continue;
@@ -242,8 +261,8 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
                     fprintf(stderr, "Overflow occured after %lu samples\n", *num_samples_received);
                     overflow_occured = true;
                     if(strict) {
-                        // Set to true so other threads know to stop
-                        stop_signal_called = true;
+                        // Set flags so other threads know to stop
+                        sig_int_handler(0);
                         break;
                     } else {
                         continue;
@@ -270,8 +289,8 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
             }
             // Exit recv loop if any of the writes failed and strict mode
             if(write_failed && strict) {
-                // Set to true so other threads know to stop
-                stop_signal_called = true;
+                // Set flags so other threads know to stop
+                sig_int_handler(0);
                 break;
             }
         } else {
@@ -434,6 +453,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     size_t current_offset = 0;
     // Stores total number of samples received
     std::vector<size_t> num_samples_received(groups.size(), 0);
+    stop_signal_called = std::vector<uint_fast8_t*>(groups.size(), nullptr);
     for(size_t n = 0; n < groups.size(); n++) {
 
         uhd::stream_args_t rx_stream_args("sc16");
@@ -441,7 +461,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(rx_stream_args);
         rx_streamers.push_back(rx_stream);
 
-        receive_threads.emplace_back(std::thread(receive_function, rx_streamers[n].get(), &groups[n], spb, skip_save, strict, continuous_mode, intermediate_fd, current_offset, channels.size(), &num_samples_received[n]));
+        receive_threads.emplace_back(std::thread(receive_function, rx_streamers[n].get(), &groups[n], spb, skip_save, strict, continuous_mode, intermediate_fd, current_offset, channels.size(), &num_samples_received[n], &stop_signal_called[n]));
 
         size_t block_size;
         if(continuous_mode) {
@@ -453,8 +473,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         current_offset+= groups[n].channels.size() * block_size * sizeof(std::complex<short>);
     }
 
-    for(auto& receive_thread : receive_threads) {
-        receive_thread.join();
+    for(size_t n = 0; n < groups.size(); n++) {
+        receive_threads[n].join();
+    }
+
+    for(size_t n = 0; n < groups.size(); n++) {
+        const std::lock_guard<std::mutex> lock(stop_mtx);
+        if(stop_signal_called[n] != nullptr) {
+            // For performance each thread allocates it's own stop flag
+            free(stop_signal_called[n]);
+            stop_signal_called[n] = nullptr;
+        }
     }
 
     if(!skip_save) {
@@ -492,6 +521,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         for(size_t group_i = 0; group_i < groups.size(); group_i++) {
             // Buffer to use when copying data from intermediate file to individual files
+            // NOTE: do not create buffer in main function since it will slow down recv (even if it looks like it is created after receiving data)
             std::vector<uint8_t> buffer(DEFAULT_CH_BLOCK_SIZE * sizeof(std::complex<short>));
             size_t samples_to_copy = num_samples_received[group_i];
 
@@ -549,7 +579,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // Deletes temporary file containing all data
         // Will only delete the file, never the folder
         unlink(path.c_str());
-
     }
 
     // finished
