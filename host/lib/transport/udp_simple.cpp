@@ -42,13 +42,19 @@ public:
         // connect the socket
         if (connect)
             _socket->connect(_send_endpoint);
+
+        socket_fd = _socket->native_handle();
+
+        // Sets socket priority to minimum
+        int priority = 0;
+        setsockopt(socket_fd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority));
     }
 
     size_t send(const asio::const_buffer& buff) override
     {
         if (_connected) {
             // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
-            ssize_t data_sent = ::send(_socket->native_handle(), buff.data(), buff.size(), MSG_CONFIRM & route_good);
+            ssize_t data_sent = ::send(socket_fd, buff.data(), buff.size(), MSG_CONFIRM & route_good);
             if(data_sent == -1) {
                 fprintf(stderr, "send failed for control packet. errno: %s\n", strerror(errno));
                 return 0;
@@ -64,7 +70,7 @@ public:
         dst_address.sin_addr.s_addr = inet_addr(ipv4_addr.c_str());
         dst_address.sin_port = htons(_send_endpoint.port());
 
-        ssize_t ret = sendto(_socket->native_handle(), buff.data(), buff.size(), MSG_CONFIRM & route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
+        ssize_t ret = sendto(socket_fd, buff.data(), buff.size(), MSG_CONFIRM & route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
 
         if(ret > 0) {
             return ret;
@@ -79,14 +85,14 @@ public:
     {
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
 
-        if (not wait_for_recv_ready(_socket->native_handle(), timeout_ms)) {
+        if (not wait_for_recv_ready(socket_fd, timeout_ms)) {
             return 0;
         }
         ssize_t data_received = 0;
         // TODO: migrate to libc recvfrom for non connected socket to remove boost
         if(_connected) {
             // MSG_DONTWAIT since wait_for_recv_ready will already wait for data to be ready. If this would block something has gone wrong and return to avoid blocking
-            data_received = ::recv(_socket->native_handle(), buff.data(), buff.size(), MSG_DONTWAIT);
+            data_received = ::recv(socket_fd, buff.data(), buff.size(), MSG_DONTWAIT);
             if(data_received == -1) {
                 data_received = 0;
             }
@@ -123,6 +129,7 @@ private:
     // Set to 0 until a packet has been received, ~0 once a packet has been received
     // If this has been confirmed send can be called with MSG_CONFIRM
     int route_good = 0;
+    int socket_fd;
 };
 
 udp_simple::~udp_simple(void)
@@ -198,6 +205,7 @@ private:
     size_t _len, _off;
     uint8_t _buf[udp_simple::mtu];
     std::string _line;
+    int socket_fd;
 };
 
 uhd::uart_iface::sptr udp_simple::make_uart(sptr udp)
