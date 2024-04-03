@@ -72,6 +72,15 @@ public:
     virtual size_t send(const boost::asio::const_buffer& buff) = 0;
 
     /*!
+     * Send a single buffer.
+     * Blocks until the data is sent.
+     * \param buff a pointer to the buffer containing data to send
+     * \param count number of bytes to send
+     * \return the number of bytes sent
+     */
+    virtual size_t send(const void* buff, size_t count) = 0;
+
+    /*!
      * Receive into the provided buffer.
      * Blocks until data is received or a timeout occurs.
      * \param buff a mutable buffer to receive into
@@ -80,6 +89,17 @@ public:
      */
     virtual size_t recv(
         const boost::asio::mutable_buffer& buff, double timeout = 0.1) = 0;
+
+    /*!
+     * Receive into the provided buffer.
+     * Blocks until data is received or a timeout occurs.
+     * \param buff pointer to the buffer to write data in
+     * \param size size of the buffer in bytes
+     * \param timeout the timeout in seconds
+     * \return the number of bytes received or zero on timeout
+     */
+    virtual size_t recv(
+        void* buff, size_t size, double timeout = 0.1) = 0;
 
     /*!
      * Get the last IP address as seen by recv().

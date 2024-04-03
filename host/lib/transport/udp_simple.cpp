@@ -66,9 +66,14 @@ public:
 
     size_t send(const asio::const_buffer& buff) override
     {
+        return send(buff.data(), buff.size());
+    }
+
+    size_t send(const void* buff, size_t count) override
+    {
         if (_connected) {
             // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
-            ssize_t data_sent = ::send(socket_fd, buff.data(), buff.size(), MSG_CONFIRM & route_good);
+            ssize_t data_sent = ::send(socket_fd, buff, count, MSG_CONFIRM & route_good);
             if(data_sent == -1) {
                 fprintf(stderr, "send failed for control packet. errno: %s\n", strerror(errno));
                 return 0;
@@ -84,7 +89,7 @@ public:
         dst_address.sin_addr.s_addr = inet_addr(ipv4_addr.c_str());
         dst_address.sin_port = htons(_send_endpoint.port());
 
-        ssize_t ret = sendto(socket_fd, buff.data(), buff.size(), MSG_CONFIRM & route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
+        ssize_t ret = sendto(socket_fd, buff, count, MSG_CONFIRM & route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
 
         if(ret > 0) {
             return ret;
@@ -97,6 +102,12 @@ public:
 
     size_t recv(const asio::mutable_buffer& buff, double timeout) override
     {
+        return recv(buff.data(), buff.size(), timeout);
+    }
+
+
+    size_t recv(void* buff, size_t size, double timeout) override
+    {
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
 
         if (not wait_for_recv_ready(socket_fd, timeout_ms)) {
@@ -105,7 +116,7 @@ public:
         ssize_t data_received = 0;
         if(_connected) {
             // MSG_DONTWAIT since wait_for_recv_ready will already wait for data to be ready. If this would block something has gone wrong and return to avoid blocking
-            data_received = ::recv(socket_fd, buff.data(), buff.size(), MSG_DONTWAIT);
+            data_received = ::recv(socket_fd, buff, size, MSG_DONTWAIT);
             if(data_received == -1) {
                 data_received = 0;
             }
@@ -114,7 +125,7 @@ public:
             memset(&src_address, 0, sizeof(src_address));
             uint32_t addr_len = sizeof(src_address);
 
-            data_received = ::recvfrom(socket_fd, buff.data(), buff.size(), MSG_DONTWAIT, (struct sockaddr*)&src_address, &addr_len);
+            data_received = ::recvfrom(socket_fd, buff, size, MSG_DONTWAIT, (struct sockaddr*)&src_address, &addr_len);
             if(data_received == -1) {
                 data_received = 0;
             }
