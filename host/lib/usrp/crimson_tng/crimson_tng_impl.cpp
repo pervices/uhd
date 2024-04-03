@@ -702,7 +702,7 @@ void crimson_tng_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd,
 }
 
 void crimson_tng_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
+	_time_diff_iface->send( &req, sizeof( req ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
@@ -716,14 +716,14 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 		crimson_now
 	);
 
-	_time_diff_iface->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+    _time_diff_iface->send( &pkt, sizeof( pkt ) );
 }
 
 bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	size_t r;
 
-	r = _time_diff_iface->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+    r = _time_diff_iface->recv( &tdr, sizeof( tdr ) );
 
 	if ( 0 == r ) {
 		return false;
