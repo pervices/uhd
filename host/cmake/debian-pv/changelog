@@ -1,3 +1,9 @@
+uhdpv (4.4.0.1-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Packaging: Adding uhd_usrp_info to the uhdpv-host package
+
+ -- Per Vices <packages@pervices.com>  Wed, 03 Apr 2024 12:41:05 -0400
+
 uhdpv (4.4.0.0-0ubuntu1) ubuntu_release; urgency=medium
 
   * Initial release 
