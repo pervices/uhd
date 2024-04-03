@@ -33,21 +33,35 @@ public:
         _send_endpoint = *resolver.resolve(query);
 
         // create and open the socket
-        _socket = socket_sptr(new asio::ip::udp::socket(_io_service));
-        _socket->open(asio::ip::udp::v4());
+
+        socket_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 
         // allow broadcasting
-        _socket->set_option(asio::socket_base::broadcast(bcast));
+        int broadcast_enable = bcast;
+        setsockopt(socket_fd, SOL_SOCKET, SO_BROADCAST, &broadcast_enable, sizeof(broadcast_enable));
 
         // connect the socket
-        if (connect)
-            _socket->connect(_send_endpoint);
+        if (connect) {
+            struct sockaddr_in dst_address;
+            dst_address.sin_family = AF_INET;
+            std::string ipv4_addr = _send_endpoint.address().to_string();
+            dst_address.sin_addr.s_addr = inet_addr(ipv4_addr.c_str());
+            dst_address.sin_port = htons(_send_endpoint.port());
 
-        socket_fd = _socket->native_handle();
+            int r = ::connect(socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address));
+
+            if(r) {
+                throw uhd::runtime_error("Failed to connect send socket for control packets. Error code:" + std::string(strerror(errno)));
+            }
+        }
 
         // Sets socket priority to minimum
         int priority = 0;
         setsockopt(socket_fd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority));
+    }
+
+    ~udp_simple_impl(void) {
+        close(socket_fd);
     }
 
     size_t send(const asio::const_buffer& buff) override
@@ -89,7 +103,6 @@ public:
             return 0;
         }
         ssize_t data_received = 0;
-        // TODO: migrate to libc recvfrom for non connected socket to remove boost
         if(_connected) {
             // MSG_DONTWAIT since wait_for_recv_ready will already wait for data to be ready. If this would block something has gone wrong and return to avoid blocking
             data_received = ::recv(socket_fd, buff.data(), buff.size(), MSG_DONTWAIT);
@@ -97,7 +110,16 @@ public:
                 data_received = 0;
             }
         } else {
-            data_received = (ssize_t)_socket->receive_from(asio::buffer(buff), _recv_endpoint);
+            struct sockaddr_in src_address;
+            memset(&src_address, 0, sizeof(src_address));
+            uint32_t addr_len = sizeof(src_address);
+
+            data_received = ::recvfrom(socket_fd, buff.data(), buff.size(), MSG_DONTWAIT, (struct sockaddr*)&src_address, &addr_len);
+            if(data_received == -1) {
+                data_received = 0;
+            }
+
+            recv_ip = inet_ntoa(src_address.sin_addr);
         }
 
         // If data has been received, then we know routing is good
@@ -112,7 +134,7 @@ public:
 
     std::string get_recv_addr(void) override
     {
-        return _recv_endpoint.address().to_string();
+        return recv_ip;
     }
 
     std::string get_send_addr(void) override
@@ -123,9 +145,9 @@ public:
 private:
     bool _connected;
     asio::io_service _io_service;
-    socket_sptr _socket;
     asio::ip::udp::endpoint _send_endpoint;
-    asio::ip::udp::endpoint _recv_endpoint;
+    // IP address received packets originated from
+    std::string recv_ip = "0.0.0.0";
     // Set to 0 until a packet has been received, ~0 once a packet has been received
     // If this has been confirmed send can be called with MSG_CONFIRM
     int route_good = 0;
