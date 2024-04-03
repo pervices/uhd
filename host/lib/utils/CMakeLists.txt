@@ -228,6 +228,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/log.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/paths.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pathslib.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/performance_mode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platform.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/prefs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/serial_number.cpp

@@ -382,6 +382,8 @@ private:
 
     std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
 
+    bool _performance_warning_printed = false;
+
     /***********************************************************************
      * buffer_monitor_loop
      * - update buffer levels
@@ -442,6 +444,23 @@ private:
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
 					// assumes that underflow counter is monotonically increasing
 					self->push_async_msg( metadata );
+
+                    if(!self->_performance_warning_printed) {
+                        // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
+                        bool using_performance_governor = true;
+                        std::vector<std::string> governors = uhd::get_performance_governors();
+                        for(auto& g : governors) {
+                            if(g.find("performance") == std::string::npos) {
+                                using_performance_governor = false;
+                                break;
+                            }
+                        }
+                        if(!using_performance_governor) {
+                            UHD_LOG_FASTPATH("\nSend underflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        }
+                        self->_performance_warning_printed = true;
+                    }
+
 				}
 
 				ep.uflow = uflow;
@@ -456,6 +475,22 @@ private:
 					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
 					// assumes that overflow counter is monotonically increasing
 					self->push_async_msg( metadata );
+
+                    if(!self->_performance_warning_printed) {
+                        // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
+                        bool using_performance_governor = true;
+                        std::vector<std::string> governors = uhd::get_performance_governors();
+                        for(auto& g : governors) {
+                            if(g.find("performance") == std::string::npos) {
+                                using_performance_governor = false;
+                                break;
+                            }
+                        }
+                        if(!using_performance_governor) {
+                            UHD_LOG_FASTPATH("\nSend overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        }
+                        self->_performance_warning_printed = true;
+                    }
 				}
 
 				ep.oflow = oflow;
