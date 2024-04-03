@@ -135,7 +135,7 @@ def main(args):
 
     # Upload dsc to Launchpad
     if args.upload:
-    print("Uploading to ppa...")
+        print("Uploading to ppa...")
         if not args.sign:
             print("Uploading requires signing. Add --sign.")
             sys.exit(1)
