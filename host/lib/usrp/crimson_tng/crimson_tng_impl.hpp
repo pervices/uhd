@@ -237,6 +237,8 @@ private:
     double _min_lo;
     double _max_lo;
 
+    double _lo_stepsize;
+
 	static void bm_thread_fn( crimson_tng_impl *dev );
 
     struct mb_container_type{
@@ -270,8 +272,8 @@ private:
     bool is_high_band( const meta_range_t &dsp_range, const double freq, double bw );
 
     // Calculate and set frequency
-    double choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree );
-    tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band );
+    double choose_lo_shift( double target_freq, double dsp_bw, double user_bw  );
+    tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band);
 
     uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_rx_freq(size_t chan = 0);

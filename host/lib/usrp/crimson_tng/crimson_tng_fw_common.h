@@ -111,13 +111,15 @@
 #define CRIMSON_TNG_FALLBACK_MASTER_CLOCK_RATE	325000000
 #define CRIMSON_TNG_EXT_CLK_RATE	10000000	// only 10 MHz input sources allowed
 // Crimson Tuning Range Settings
+// Lower frequency Crimson can tune to
 #define CRIMSON_TNG_FREQ_RANGE_START	0
 // Fallback max freq for older servers, the latest server will report this instead of UHD knowing
 #define CRIMSON_TNG_FALLBACK_FREQ_RANGE_STOP	6000000000.0
-#define CRIMSON_TNG_FREQ_RANGE_STEP	1
+// Minimum tuning increment, using 0 since the DSP's increment is not constant (due to using a divisor)
+#define CRIMSON_TNG_FREQ_RANGE_STEP	0
 //Crimson LO Tuning Range Step Size
-#define CRIMSON_TNG_LO_STEPSIZE         25000000
-#define CRIMSON_TNG_LO_GUARDBAND	5000000
+#define CRIMSON_TNG_LO_STEPSIZE             _lo_stepsize
+#define CRIMSON_TNG_LO_STEPSIZE_FALLBACK    25000000
 #define CRIMSON_TNG_LO_OFFSET           25000000
 
 // Crimson Sample Rate Settings

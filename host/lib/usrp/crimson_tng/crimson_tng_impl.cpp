@@ -1000,6 +1000,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         _max_rate = CRIMSON_TNG_FALLBACK_MASTER_CLOCK_RATE;
     }
 
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/lo_step", "system/lo_step", double, double);
+    _lo_stepsize = _tree->access<double>(CRIMSON_TNG_MB_PATH / "system/lo_step").get();
+
+    // Fallback for when using servers before the property was added
+    // NOTE: the fallback is inaccurate for anything newer than RTM7
+    if(_lo_stepsize == 0) {
+        _lo_stepsize = CRIMSON_TNG_LO_STEPSIZE_FALLBACK;
+    }
+
     _master_tick_rate = _max_rate / 2;
 
     _tick_period_ns = 1.0 / _master_tick_rate * 1e9;
@@ -1310,6 +1319,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
 	    // TX bandwidth
+        // NOTE: this is not true for quarter rate DACs
 		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
 		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
 
@@ -1538,201 +1548,55 @@ constexpr double RX_SIGN = +1.0;
 constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-bool crimson_tng_impl::is_high_band( const meta_range_t &dsp_range, const double freq, double bw ) {
-	bool within_dsp_nco = freq + bw / 2.0 <= dsp_range.stop();
+// adc_dac_bw is the bandwidth of the ADC or DAC, not the bandwitdh of the stream to the user
+bool crimson_tng_impl::is_high_band( const meta_range_t &dsp_range, const double freq, double dsp_bw ) {
+	bool within_dsp_nco = freq + dsp_bw / 2.0 <= dsp_range.stop();
     if(within_dsp_nco) {
         return false;
     } else {
-        double minimum_high_band_freq = _min_lo - dsp_range.stop();
-        double distance_below_high_band = minimum_high_band_freq - freq + (bw / 2.0 );
-        double distance_above_low_band = freq + (bw / 2.0 ) - dsp_range.stop();
+        double minimum_high_band_freq = _min_lo + dsp_range.start();
+        double distance_below_high_band = minimum_high_band_freq - freq + (dsp_bw / 2.0 );
+        double distance_above_low_band = freq + (dsp_bw / 2.0 ) - dsp_range.stop();
         return (distance_above_low_band >= distance_below_high_band);
     }
 }
 
-// XXX: @CF: 20180418: stop-gap until moved to server
 // return true if b is a (not necessarily strict) subset of a
 static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-// XXX: @CF: 20180418: stop-gap until moved to server
-double crimson_tng_impl::choose_dsp_nco_shift( double target_freq, property_tree::sptr dsp_subtree ) {
+double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, double user_bw ) {
+    // Preferences:
+    // 1. have entire relevant range  lo
+    // 2. have entire relevant range below lo
+    // 3. have lo as close to the middle of the relevant range as possible
+    // candidate_x corresponds to the above numbers
 
-	/*
-	 * Scenario 1) Channels A and B
-	 *
-	 * We want a shift such that the full bandwidth fits inside of one of the
-	 * dashed regions.
-	 *
-	 * Our margin around each sensitive area is 1 MHz on either side.
-	 *
-	 * In order of increasing bandwidth & minimal interference, our
-	 * preferences are
-	 *
-	 * Region A
-	 * Region B
-	 * Region F
-	 * Region G
-	 * Region H
-	 *
-	 * Region A is preferred because it exhibits the least attenuation. B is
-	 * preferred over C for that reason (and because it has a more bandwidth
-	 * than C). F is the next largest band and is preferred over E because
-	 * it avoids the LO fundamental, but it contains FM. G is the next-to-last
-	 * preference because it includes the LO and FM but has a very large
-	 * bandwidth. Finally, H is the catch-all. It suffers at high frequencies
-	 * due to the ADC filterbank, but includes the entirety of the spectrum.
-	 *
-	[--]-------------------[+]-----------------------+-------------------------+-----------[///////////+////////]---------------+------------[\\\\\\\\\\\+\\\\\\\\\\\\\\>
-	 | |                    |                                                              |                    |                            |                      |    f (MHz)
-	 0 2                    25                                                           87.9                  107.9                        137                    162.5
-	DC                 LO fundamental                                                               FM                                   ADC Cutoff            Max Samp Rate
-           A (21 MHz)                            B (60.9 MHz)                                                             C (27.1 Mhz)                 D (26.5 MHz)
-                           E = A + B (includes LO)                                                                     F = B + C (includes FM)
-					                                           G = A + B + C
-					                                           H = A + B + C + D
-	 */
-	static const std::vector<freq_range_t> AB_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), 0 ), // A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_FM_LOWERLIMIT, 0 ), // B
-		//freq_range_t( -CRIMSON_TNG_FM_LOWERLIMIT,-(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), 0 ), // -B
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, 0 ), // F = B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), 0 ), // -F
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, 0 ), // G = A + B + C
-		//freq_range_t( -CRIMSON_TNG_ADC_FREQ_RANGE_ROLLOFF, -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -G
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, 0 ), // H = A + B + C + D (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -H
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, 0), // I = 2*H (Catch All)
-	};
-	/*
-	 * Scenario 2) Channels C and D
-	 *
-	 * Channels C & D only provide 1/4 the bandwidth of A & B due to silicon
-	 * limitations. This should be corrected in subsequent revisions of
-	 * Crimson.
-	 *
-	 * In order of increasing bandwidth & minimal interference, our
-	 * preferences are
-	 *
-	 * Region A
-	 * Region B
-	 * Region C
-	[--]-------------------[+]-----------------------+-------------------------+---->
-	 | |                    |                                                  |    f (MHz)
-	 0 2                    25                                               81.25
-	DC                 LO fundamental                                      Max Samp Rate
-           A (21 MHz)                            B (55.25 MHz)
-                           C = A + B (includes LO)
-	 */
-	static const std::vector<freq_range_t> CD_regions {
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, (CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), 0 ), // +A
-		//freq_range_t( -(CRIMSON_TNG_LO_STEPSIZE-CRIMSON_TNG_LO_GUARDBAND), -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -A
-		freq_range_t( (CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, 0 ), // B
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -(CRIMSON_TNG_LO_STEPSIZE+CRIMSON_TNG_LO_GUARDBAND), 0 ), // -B
-		freq_range_t( CRIMSON_TNG_DC_LOWERLIMIT, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, 0 ), // C = A + B (Catch All)
-		//freq_range_t( -CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, -CRIMSON_TNG_DC_LOWERLIMIT, 0 ), // -C
-		freq_range_t( CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, 0), // I = 2*H (Catch All)
-	};
-	// XXX: @CF: TODO: Dynamically construct data structure upon init when KB #3926 is addressed
+    const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw / 2.0), 0 );
 
-	static const double lo_step = CRIMSON_TNG_LO_STEPSIZE;
+    double c = std::ceil( relevant_range.stop() / _lo_stepsize );
+    double candidate_1 = c * _lo_stepsize;
+    // Frequence range observable below the candidate lo; candidate_1
+    const freq_range_t below_lo(candidate_1 - dsp_bw / 2.0, candidate_1, 0);
 
-	const meta_range_t dsp_range = dsp_subtree->access<meta_range_t>( "/freq/range" ).get();
-	const char channel = ( dsp_range.stop() - dsp_range.start() ) > CRIMSON_TNG_BW_QUARTER ? 'A' : 'C';
-	const double bw = dsp_subtree->access<double>("/rate/value").get();
-	const std::vector<freq_range_t> & regions =
-		( 'A' == channel || 'B' == channel )
-		? AB_regions
-		: CD_regions
-	;
+    // The relevant range can be fit between a viable lo and the dsp's lower limit
+    if(range_contains(below_lo, relevant_range) && candidate_1 >= _min_lo && candidate_1 <= _max_lo) return candidate_1;
 
-    // Number of lo steps equivalent range to the dsp
-	const int K = (int) floor( abs( ( dsp_range.stop() - dsp_range.start() ) ) / lo_step );
+    double a = std::floor( relevant_range.start() / _lo_stepsize );
+    double candidate_2 = a * _lo_stepsize;
+    const freq_range_t above_lo(candidate_2, candidate_2 + dsp_bw / 2.0, 0);
 
-    // Start searching for a valid NCO/lo combo, starting at 1/4 the maximum DSP
-    // 1/4 the maximum of the NCO is meant to balance filter roll over from using a large NCO  and keeping the lo away from the center
-	for( int k = K/4; k >= 0; k-- ) {
-		for( double sign: { +1, -1 } ) {
+    // The relevant range can be fit between a viable lo and the dsp's upper limit
+    if(range_contains(above_lo, relevant_range) && candidate_2 >= _min_lo && candidate_2 <= _max_lo) return candidate_2;
 
-			double candidate_lo = target_freq;
-			if ( sign > 0 ) {
-				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
-				// above the target frequency
-				candidate_lo += lo_step - fmod( target_freq, lo_step );
-			} else {
-				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
-				// above the target frequency
-				candidate_lo -= fmod( target_freq, lo_step );
-			}
-			candidate_lo += k * sign * lo_step;
-
-			const double candidate_nco = target_freq - candidate_lo;
-
-			//Ensure that the combined NCO offset and signal bw fall within candidate range;
-			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
-
-			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
-			//the specified ranges (as they can't be negative).
-			//TBH: I'm not sure why this works right now, but it does.
-			for( const freq_range_t & _range: regions ) {
-				if ( range_contains( _range, candidate_range ) ) {
-					return candidate_nco;
-				}
-			}
-		}
-	}
-
-	// If unable to find a valid combination withing the lowest quarter of possible NCOs, continue searching above 1/4
-    for( int k = (K/4) + 1; k <= K; k++ ) {
-		for( double sign: { +1, -1 } ) {
-
-			double candidate_lo = target_freq;
-			if ( sign > 0 ) {
-				// If sign > 0 we set the LO sequentially higher multiples of LO STEP
-				// above the target frequency
-				candidate_lo += lo_step - fmod( target_freq, lo_step );
-			} else {
-				// If sign < 0 we set the LO sequentially lower multiples of LO STEP
-				// above the target frequency
-				candidate_lo -= fmod( target_freq, lo_step );
-			}
-			candidate_lo += k * sign * lo_step;
-
-			const double candidate_nco = target_freq - candidate_lo;
-
-			//Ensure that the combined NCO offset and signal bw fall within candidate range;
-			const meta_range_t candidate_range( candidate_nco - (bw / 2), candidate_nco + (bw / 2) );
-
-			//Due to how the ranges are specified, a negative candidate NCO, will generally fall outside
-			//the specified ranges (as they can't be negative).
-			//TBH: I'm not sure why this works right now, but it does.
-			for( const freq_range_t & _range: regions ) {
-				if ( range_contains( _range, candidate_range ) ) {
-					return candidate_nco;
-				}
-			}
-		}
-	}
-
-	// Under normal operating parameters, this should never happen because
-	// the last-choice _range in each of AB_regions and CD_regions is
-	// a catch-all for the entire DSP bandwidth. Hitting this scenario is
-	// equivalent to saying that the LO is incapable of up / down mixing
-	// the RF signal into the baseband domain.
-	throw runtime_error(
-		(
-			boost::format( "No suitable baseband region found: target_freq: %f, bw: %f, dsp_range: %s" )
-			% target_freq
-			% bw
-			% dsp_range.to_pp_string()
-		).str()
-	);
+    // Fallback to having the lo centered
+    return std::max(std::min(::round( target_freq / _lo_stepsize ) * _lo_stepsize, _max_lo), _min_lo);
 }
 
-// XXX: @CF: 20180418: stop-gap until moved to server
-tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band ) {
+// xx_sign: flag to indicate whether this is tx or rx
+//dsp_bw: bandwidth of the dsp. Processing (most relevantly the NCO) occur at this bandwidth, later the signal gets downsampled to the user's requested rate
+tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band) {
 
 	enum {
 		LOW_BAND,
@@ -1740,27 +1604,20 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	};
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+    double dsp_bw = dsp_range.stop() - dsp_range.start();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
-	freq_range_t & min_range = dsp_range.stop() < adc_range.stop() ? dsp_range : adc_range;
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
-	double bw = dsp_subtree->access<double>( "/rate/value" ).get();
+    // Bandwidth of the data stream to the user
+	double user_bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
-	int band = is_high_band( min_range, clipped_requested_freq, bw ) ? HIGH_BAND : LOW_BAND;
+	int band = is_high_band( dsp_range, clipped_requested_freq, dsp_bw ) ? HIGH_BAND : LOW_BAND;
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
 	//------------------------------------------------------------------
     // Desired LO frequency
 	double target_rf_freq = 0.0;
-    // FPGA NCO frequency
-	double dsp_nco_shift = 0;
-
-	// kb #3689, for phase coherency, we must set the DAC NCO to 0
-	if ( TX_SIGN == xx_sign ) {
-		rf_fe_subtree->access<double>("nco").set( 0.0 );
-	}
 
 	switch (tune_request.rf_freq_policy){
 		case tune_request_t::POLICY_AUTO:
@@ -1770,9 +1627,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 				target_rf_freq = 0;
 				break;
 			case HIGH_BAND:
-				dsp_nco_shift = choose_dsp_nco_shift( clipped_requested_freq, dsp_subtree );
-				// in high band, we use the LO for most of the shift, and use the DSP for the difference
-				target_rf_freq = std::max(rf_range.clip( clipped_requested_freq - dsp_nco_shift ), _min_lo);
+                target_rf_freq = choose_lo_shift(clipped_requested_freq, dsp_bw, user_bw);
 				break;
 			}
 		break;
@@ -1858,7 +1713,8 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 			_tree->subtree(rx_dsp_root(chan)),
 			_tree->subtree(rx_rf_fe_root(chan)),
 			tune_request,
-            &rx_gain_is_set[chan], &last_set_rx_band[chan]);
+            &rx_gain_is_set[chan],
+            &last_set_rx_band[chan]);
 	return result;
 
 }
@@ -1881,7 +1737,8 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 			_tree->subtree(tx_dsp_root(chan)),
 			_tree->subtree(tx_rf_fe_root(chan)),
 			tune_request,
-            &tx_gain_is_set[chan], &last_set_tx_band[chan]);
+            &tx_gain_is_set[chan],
+            &last_set_tx_band[chan]);
 	return result;
 
 }
