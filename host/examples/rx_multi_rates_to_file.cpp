@@ -544,17 +544,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         size_t block = samples_copied / DEFAULT_CH_BLOCK_SIZE;
                         offset = ((block * DEFAULT_CH_BLOCK_SIZE) + (sample_copied_this_block) + ch_offset) * sizeof(std::complex<short>);
                     }
-                    ssize_t data_read = pread(final_fds[abs_ch_i], buffer.data(), target_samples_this_copy * sizeof(std::complex<short>), offset);
+                    ssize_t data_read = pread(intermediate_fd, buffer.data(), target_samples_this_copy * sizeof(std::complex<short>), offset);
 
-                    if(data_read == 1) {
+                    if(data_read == -1) {
                         fprintf(stderr, "read error %s while attempting to copy data from ch %lu to its own file\n", strerror(errno), groups[group_i].channels[ch_i]);
                         break;
                     }
 
                     samples_copied += (data_read / sizeof(std::complex<short>));
 
-                    size_t ret = write(final_fds[abs_ch_i], buffer.data(), data_read);
-                    if(ret == 0) {
+                    int64_t ret = write(final_fds[abs_ch_i], buffer.data(), data_read);
+                    if(ret <= 0) {
                         fprintf(stderr, "write error %s while attempting to copy data from ch %lu to its own file\n", strerror(errno), groups[group_i].channels[ch_i]);
                         break;
                     }
