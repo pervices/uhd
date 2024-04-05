@@ -509,7 +509,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         for(size_t n = 0; n < channels.size(); n++) {
             std::string ch_path = folder + "/rx_ch_" + std::to_string(channel_list[n]) + ".dat";
-            final_fds[n] = open(path.c_str(), O_CREAT | O_WRONLY | O_LARGEFILE | O_TRUNC, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+            final_fds[n] = open(ch_path.c_str(), O_CREAT | O_WRONLY | O_LARGEFILE | O_TRUNC, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+            if(final_fds[n] == -1) {
+                fprintf(stderr, "open error %s while attempting create results file %s\n", strerror(errno), ch_path.c_str());
+            }
         }
 
         size_t abs_ch_i = 0;
