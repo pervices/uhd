@@ -1,3 +1,9 @@
+uhdpv (4.4.0.2-0ubuntu1) ubuntu_release; urgency=medium
+
+  * RX_MULTI_RATES_TO_FILE: correcting fd used when reading from tmp file
+
+ -- Per Vices <packages@pervices.com>  Fri, 05 Apr 2024 18:26:16 -0400
+
 uhdpv (4.4.0.1-0ubuntu1) ubuntu_release; urgency=medium
 
   * Packaging: Adding uhd_usrp_info to the uhdpv-host package
