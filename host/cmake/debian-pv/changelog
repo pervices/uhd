@@ -1,3 +1,9 @@
+uhdpv (4.4.0.3-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Packaging: Adding uhd patch level to all packages
+
+ -- Per Vices <packages@pervices.com>  Sat, 06 Apr 2024 14:21:27 -0400
+
 uhdpv (4.4.0.2-0ubuntu1) ubuntu_release; urgency=medium
 
   * RX_MULTI_RATES_TO_FILE: correcting fd used when reading from tmp file
