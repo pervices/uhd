@@ -514,6 +514,9 @@ void cyan_nrnt_impl::io_init(void){
 }
 
 void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
+    // Skip check if otw format not been yet (should be impossible
+    if(otw_rx_cache == "") return;
+
     rx_sfp_throughput_used[ch] = rate_samples;
     // Only print the warning once
     if(rx_rate_warning_printed) {
@@ -526,7 +529,16 @@ void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
         }
     }
 
-    if(rate_used * otw_rx * 2 > get_link_rate()) {
+    if(otw_tx_cache.size() < 2) {
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S "RX currently set to invalid wire format: " + otw_rx_cache);
+    }
+    int otw_rx_bits = 0;
+    int r = sscanf(otw_rx_cache.c_str(), "sc%i", &otw_rx_bits);
+    if( r <= 0) {
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX currently set to invalid wire format: " + otw_rx_cache);
+    }
+
+    if(rate_used * otw_rx_bits * 2 > get_link_rate()) {
 
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C)
                 << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
@@ -553,6 +565,9 @@ void cyan_nrnt_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp
 }
 
 void cyan_nrnt_impl::tx_rate_check(size_t ch, double rate_samples) {
+    // Skip check if otw format not been yet (should be impossible
+    if(otw_tx_cache == "") return;
+
     tx_sfp_throughput_used[ch] = rate_samples;
     double rate_used = 0;
     for(size_t n = 0; n < num_tx_channels; n++) {
@@ -561,7 +576,16 @@ void cyan_nrnt_impl::tx_rate_check(size_t ch, double rate_samples) {
         }
     }
 
-    if(rate_used * otw_tx * 2 > get_link_rate() && !tx_rate_warning_printed) {
+    if(otw_tx_cache.size() < 2) {
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S "TX currently set to invalid wire format: " + otw_tx_cache);
+    }
+    int otw_tx_bits = 0;
+    int r = sscanf(otw_tx_cache.c_str(), "sc%i", &otw_tx_bits);
+    if( r <= 0) {
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX currently set to invalid wire format: " + otw_tx_cache);
+    }
+
+    if(rate_used * otw_tx_bits * 2 > get_link_rate() && !tx_rate_warning_printed) {
 
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C)
                 << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
@@ -680,14 +704,27 @@ bool cyan_nrnt_impl::recv_async_msg(
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
     stream_args_t args = args_;
 
-    //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? otw_rx_s : args.otw_format;
-    args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
-
-    if (args.otw_format != otw_rx_s){
-        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+    try {
+        if(args.otw_format.empty()) {
+            args.otw_format = _tree->access<std::string>( mb_root() + "link/otw_rx" ).get();
+        } else {
+            _tree->access<std::string>( mb_root() + "link/otw_rx" ).set(args.otw_format);
+            std::string actual_otw_format = _tree->access<std::string>( mb_root() + "link/otw_rx" ).get();
+            if (args.otw_format != actual_otw_format){
+                throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+            }
+        }
+    // Fallback for older servers without link/otw_rx
+    } catch(uhd::runtime_error const&) {
+        int otw_rx_bits = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_rx").get();
+        std::string actual_otw_format = "sc" + std::to_string(otw_rx_bits);
+        if(args.otw_format.empty()) {
+            args.otw_format = otw_rx_cache;
+        } else if (args.otw_format != actual_otw_format) {
+            throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+        }
     }
-
+    otw_rx_cache = args.otw_format;
 
     std::vector<std::string> dst_ip(args.channels.size());
     for(size_t n = 0; n < dst_ip.size(); n++) {
@@ -951,12 +988,29 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
-    args.otw_format = args.otw_format.empty()? otw_tx_s : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
-    if (args.otw_format != otw_tx_s){
-        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
+    try {
+        if(args.otw_format.empty()) {
+            args.otw_format = _tree->access<std::string>( mb_root() + "link/otw_tx" ).get();
+        } else {
+            _tree->access<std::string>( mb_root() + "link/otw_tx" ).set(args.otw_format);
+            std::string actual_otw_format = _tree->access<std::string>( mb_root() + "link/otw_tx" ).get();
+            if (args.otw_format != actual_otw_format){
+                throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
+            }
+        }
+    // Fallback for older servers without link/otw_tx
+    } catch(uhd::runtime_error const&) {
+        int otw_tx_bits = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_tx").get();
+        std::string actual_otw_format = "sc" + std::to_string(otw_tx_bits);
+        if(args.otw_format.empty()) {
+            args.otw_format = otw_tx_cache;
+        } else if (args.otw_format != actual_otw_format ){
+            throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
+        }
     }
+    otw_tx_cache = args.otw_format;
 
     const size_t spp = CYAN_NRNT_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
 

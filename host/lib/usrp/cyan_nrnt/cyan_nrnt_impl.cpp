@@ -332,7 +332,24 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_
     // The part of the FPGA that tracks how many samples are sent is hard coded to assume sc16
     // Therefore, we need to actually request a number of samples with the same amount of data if it were sc16 as what we actually want
     // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
-    stream_cmd.num_samps = stream_cmd.num_samps * otw_rx / 16;
+    if(otw_rx_cache == "") {
+        try {
+            otw_rx_cache = _tree->access<std::string>( mb_root() + "link/otw_rx" ).get();
+        // Fallback for older servers without link/otw_rx
+        } catch(uhd::runtime_error const&) {
+            int bits = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_rx").get();
+            otw_rx_cache = "sc" + std::to_string(bits);
+        }
+    }
+    if(otw_rx_cache.size() < 2) {
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX currently set to invalid wire format: " + otw_rx_cache);
+    }
+    int otw_rx_bits = 0;
+    int r = sscanf(otw_rx_cache.c_str(), "sc%i", &otw_rx_bits);
+    if( r <= 0) {
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX currently set to invalid wire format: " + otw_rx_cache);
+    }
+    stream_cmd.num_samps = stream_cmd.num_samps * otw_rx_bits / 16;
 
 	const size_t ch = pre_to_ch( pre );
 
@@ -1116,14 +1133,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
 
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_rx", "system/otw_rx", int, int);
-    otw_rx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_rx").get());
-    otw_rx_s = "sc" + std::to_string(otw_rx);
-
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_tx", "system/otw_tx", int, int);
-    otw_tx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_tx").get());
-    otw_tx_s = "sc" + std::to_string(otw_tx);
-
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G", "system/flags/USE_3G_AS_1G", int, int);
     flag_use_3g_as_1g = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G").get());
 
@@ -1224,6 +1233,14 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 
     // Link max rate refers to ethernet link rate
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link_max_rate", "fpga/link/rate", double, double);
+
+    // Set/get the over the wire format
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link/otw_tx", "fpga/link/otw_tx", std::string, string);
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link/otw_rx", "fpga/link/otw_rx", std::string, string);
+
+    // Get default otw format - depricated use link/ instead
+    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_rx", "system/otw_rx", int, int);
+    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_tx", "system/otw_tx", int, int);
 
     // SFP settings
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "ip_addr",  "fpga/link/sfpa/ip_addr", std::string, string);

@@ -140,12 +140,6 @@ private:
     // The maximum smaple rate of the unit
     double max_sample_rate;
 
-    // Over the wire format, int bits per half of the iq pair. i.e. 16 = sc16
-    int otw_rx;
-    std::string otw_rx_s;
-    int otw_tx;
-    std::string otw_tx_s;
-
     // Flag to indicate the unit is a 3G unit being operated in 1G mode
     int flag_use_3g_as_1g;
 
@@ -344,6 +338,9 @@ private:
     void rx_rate_check(size_t ch, double rate_samples);
 
     const bool _use_dpdk;
+
+    std::string otw_rx_cache = "";
+    std::string otw_tx_cache = "";
 };
 
 }
