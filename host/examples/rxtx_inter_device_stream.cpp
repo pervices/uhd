@@ -210,13 +210,13 @@ std::vector<std::string> tx_gain_strings, rx_gain_strings, tx_freq_strings, rx_f
             // Implicilty sets source to external
             tx_usrp->set_clock_reference_freq(ref_clock_freq);
         }
-    } else {
-        if(use_rx) {
-            rx_usrp->set_clock_source("internal");
-        }
-        if(use_tx) {
-            tx_usrp->set_clock_source("internal");
-        }
+    }
+
+    if(use_rx) {
+        rx_usrp->set_clock_source(ref);
+    }
+    if(use_tx) {
+        tx_usrp->set_clock_source(ref);
     }
 
     if(use_rx) {
