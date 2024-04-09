@@ -300,8 +300,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     version = extract_git_hash(version);
                 }
                 std::cout << "\tTime : " << version << std::endl;
-                std::cout << "Time (fpga/gps_time) : " << get_from_tree(tree, i,"gps_time") << std::endl;
-                std::cout << "Time (time/curr_time): " << get_from_tree_time_spec(tree, i,"time/now") << std::endl;
+                // Sets the property in order to update it
+                tree->access<std::string>("/mboards/0/gps_time").set("1");
+                std::cout << "Current time (fpga/gps_time) : " << get_from_tree(tree, i,"gps_time") << std::endl;
+                std::cout << "Last time set (time/curr_time): " << get_from_tree_time_spec(tree, i,"time/now") << std::endl;
             }
         } catch (...) {
             std::cout << "Unable to get all time info" << std::endl;
