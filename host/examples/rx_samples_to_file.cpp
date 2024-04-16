@@ -24,6 +24,7 @@
 #include <numeric>
 #include <regex>
 #include <thread>
+#include <algorithm>
 
 using namespace std::chrono_literals;
 
@@ -142,7 +143,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     const size_t total_num_channels,
     const std::string& file,
     size_t samps_per_buff,
-    unsigned long long num_requested_samples,
+    size_t num_requested_samples,
     double& bw,
     double time_requested            = 0.0,
     bool stats                       = false,
@@ -151,7 +152,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     bool continue_on_bad_packet      = false,
     const std::string& thread_prefix = "")
 {
-    unsigned long long num_total_samps = 0;
+    size_t num_total_samps = 0;
     // create a receive streamer
     uhd::stream_args_t stream_args(cpu_format, wire_format);
     stream_args.channels             = channel_nums;
@@ -206,12 +207,19 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     // the requested number of samples were collected (if such a number was
     // given), or until Ctrl-C was pressed.
     while (not stop_signal_called
-           and (num_requested_samples != num_total_samps or num_requested_samples == 0)
+           and (num_requested_samples >= num_total_samps or num_requested_samples == 0)
            and (time_requested == 0.0 or std::chrono::steady_clock::now() <= stop_time)) {
         const auto now = std::chrono::steady_clock::now();
 
+        size_t samples_to_recv;
+        if(num_requested_samples == 0) {
+            samples_to_recv = samps_per_buff;
+        } else {
+            samples_to_recv = std::min(samps_per_buff, num_requested_samples - num_total_samps);
+        }
+
         size_t num_rx_samps =
-                rx_stream->recv(buffs, samps_per_buff, md, 3.0, enable_size_map);
+                rx_stream->recv(buffs, samples_to_recv, md, 3.0, enable_size_map);
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << std::endl
