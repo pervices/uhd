@@ -215,7 +215,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << std::endl
-                      << thread_prefix << "Timeout while streaming" << std::endl;
+                      << thread_prefix << "Timeout while streaming after " << num_total_samps << " samples" << std::endl;
             break;
         }
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
