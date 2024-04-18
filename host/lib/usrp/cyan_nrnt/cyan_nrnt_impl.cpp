@@ -1730,44 +1730,53 @@ static int select_band( const double freq ) {
         return LOW_BAND;
 }
 
+// return true if b is a (not necessarily strict) subset of a
+static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
+	return b.start() >= a.start() && b.stop() <= a.stop();
+}
+
 double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign ) {
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
 
-    const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
-    double lo_diffs[] = CYAN_NRNT_LO_DIFF;
-    double lo_diff_ranges[] = CYAN_NRNT_LO_DIFF_RANGE;
-    int num_lo_diff_ranges = sizeof(lo_diff_ranges) / sizeof(lo_diff_ranges[0]);
+    // Preferences:
+    // 1. have entire relevant range lo, use NCO to shift the center frequency to the one desired by the user
+    // 2. have entire relevant range below lo, use NCO to shift the center frequency to the one desired by the user
+    // 3. have lo as close to the middle of the relevant range as possible
+    // candidate_x corresponds to the above numbers
 
-    int lo_diff_range;
-    //finds out how far the lo should be from the target frequency
-    for(lo_diff_range = 0; lo_diff_range < num_lo_diff_ranges; lo_diff_range++) {
-        if(sample_rate < lo_diff_ranges[lo_diff_range]) break;
-    }
+    freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+    const double dsp_bw = dsp_range.stop() - dsp_range.start();
+    const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
+    const double user_bw = sample_rate;
 
     // Server cannot compensate for the lo in the ADC on its on if FPGA NCO is bypassed. To compensate shift LO
     if(sample_rate >= CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G_MIN_RATE && flag_use_3g_as_1g && RX_SIGN == xx_sign) {
         target_freq += CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
     }
 
-    //los that are the hgihest distance from the target, while still being within lo_diff
-    double upper_target_lo = ((int64_t)((target_freq + lo_diffs[lo_diff_range])/CYAN_NRNT_LO_STEPSIZE))*CYAN_NRNT_LO_STEPSIZE;
-    double lower_target_lo = ceil((target_freq - lo_diffs[lo_diff_range])/CYAN_NRNT_LO_STEPSIZE)*CYAN_NRNT_LO_STEPSIZE;
+    // Attempt to see if 1 or 2 are valid. Skip if sample rate >= max /2 since the NCO is bypassed at those rates
+    if(sample_rate >= max_sample_rate / 2) {
+        const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw / 2.0), 0 );
 
-    //returns the valid lo, if the other one is invalid
-    if(upper_target_lo > CYAN_NRNT_MAX_LO) {
-        return lower_target_lo;
+        double c = std::ceil( relevant_range.stop() / CYAN_NRNT_LO_STEPSIZE );
+        double candidate_1 = c * CYAN_NRNT_LO_STEPSIZE;
+        // Frequence range observable below the candidate lo; candidate_1
+        const freq_range_t below_lo(candidate_1 - dsp_bw / 2.0, candidate_1, 0);
+
+        // The relevant range can be fit between a viable lo and the dsp's lower limit
+        if(range_contains(below_lo, relevant_range) && candidate_1 >= CYAN_NRNT_MIN_LO && candidate_1 <= CYAN_NRNT_MAX_LO) return candidate_1;
+
+        double a = std::floor( relevant_range.start() / CYAN_NRNT_LO_STEPSIZE );
+        double candidate_2 = a * CYAN_NRNT_LO_STEPSIZE;
+        const freq_range_t above_lo(candidate_2, candidate_2 + dsp_bw / 2.0, 0);
+
+        // The relevant range can be fit between a viable lo and the dsp's upper limit
+        if(range_contains(above_lo, relevant_range) && candidate_2 >= CYAN_NRNT_MIN_LO && candidate_2 <= CYAN_NRNT_MAX_LO) return candidate_2;
     }
-    else if (lower_target_lo < CYAN_NRNT_MIN_LO) {
-        return upper_target_lo;
-    }
-    //returns whichever of the los is further from the target
-    else if(upper_target_lo - target_freq >= target_freq - lower_target_lo) {
-        return upper_target_lo;
-    }
-    else {
-        return lower_target_lo;
-    }
+
+    // Fallback to having the lo centered
+    return std::max(std::min(::round( target_freq / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, CYAN_NRNT_MAX_LO), (double) CYAN_NRNT_MIN_LO);
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server

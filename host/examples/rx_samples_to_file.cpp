@@ -24,6 +24,7 @@
 #include <numeric>
 #include <regex>
 #include <thread>
+#include <algorithm>
 
 using namespace std::chrono_literals;
 
@@ -142,7 +143,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     const size_t total_num_channels,
     const std::string& file,
     size_t samps_per_buff,
-    unsigned long long num_requested_samples,
+    size_t num_requested_samples,
     double& bw,
     double time_requested            = 0.0,
     bool stats                       = false,
@@ -151,7 +152,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     bool continue_on_bad_packet      = false,
     const std::string& thread_prefix = "")
 {
-    unsigned long long num_total_samps = 0;
+    size_t num_total_samps = 0;
     // create a receive streamer
     uhd::stream_args_t stream_args(cpu_format, wire_format);
     stream_args.channels             = channel_nums;
@@ -206,16 +207,23 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     // the requested number of samples were collected (if such a number was
     // given), or until Ctrl-C was pressed.
     while (not stop_signal_called
-           and (num_requested_samples != num_total_samps or num_requested_samples == 0)
+           and (num_requested_samples >= num_total_samps or num_requested_samples == 0)
            and (time_requested == 0.0 or std::chrono::steady_clock::now() <= stop_time)) {
         const auto now = std::chrono::steady_clock::now();
 
+        size_t samples_to_recv;
+        if(num_requested_samples == 0) {
+            samples_to_recv = samps_per_buff;
+        } else {
+            samples_to_recv = std::min(samps_per_buff, num_requested_samples - num_total_samps);
+        }
+
         size_t num_rx_samps =
-                rx_stream->recv(buffs, samps_per_buff, md, 3.0, enable_size_map);
+                rx_stream->recv(buffs, samples_to_recv, md, 3.0, enable_size_map);
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << std::endl
-                      << thread_prefix << "Timeout while streaming" << std::endl;
+                      << thread_prefix << "Timeout while streaming after " << num_total_samps << " samples" << std::endl;
             break;
         }
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
@@ -372,7 +380,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
         ("rate", po::value<double>(&rate)->default_value(1e6), "rate of incoming samples")
         ("freq", po::value<double>(&freq)->default_value(0.0), "RF center frequency in Hz")
-        ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
+        ("lo-offset", po::value<double>(&lo_offset),
             "Offset for frontend LO in Hz (optional)")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
@@ -464,13 +472,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // set the center frequency
     if (vm.count("freq")) { // with default of 0.0 this will always be true
+        uhd::tune_request_t tune_request;
         std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq / 1e6)
                   << std::endl;
-        std::cout << boost::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
+        if(vm.count("lo-offset")) {
+            std::cout << boost::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
                   << std::endl;
-        uhd::tune_request_t tune_request(freq, lo_offset);
+            tune_request = uhd::tune_request_t(freq, lo_offset);
+        } else {
+            tune_request = uhd::tune_request_t(freq);
+        }
         if (vm.count("int-n"))
-            tune_request.args = uhd::device_addr_t("mode_n=integer");
+        tune_request.args = uhd::device_addr_t("mode_n=integer");
         for (size_t chan : channel_list)
             usrp->set_rx_freq(tune_request, chan);
         std::cout << boost::format("Actual RX Freq: %f MHz...")
