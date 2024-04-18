@@ -407,11 +407,10 @@ private:
             }
         }
 
-
-        // Amount of data stored in the cache betwen recv
-        size_t excess_data_in_last_packet = num_packets_to_recv * _MAX_SAMPLE_BYTES_PER_PACKET - nbytes_to_recv;
         // Amount of data in the last packet copied directly to buffer
-        size_t data_in_last_packet = _MAX_SAMPLE_BYTES_PER_PACKET - excess_data_in_last_packet;
+        // Amount of data stored in the cache betwen recv
+        size_t expected_excess_data_in_last_packet = num_packets_to_recv * _MAX_SAMPLE_BYTES_PER_PACKET - nbytes_to_recv;
+        size_t expected_data_in_last_packet = _MAX_SAMPLE_BYTES_PER_PACKET - expected_excess_data_in_last_packet;
 
         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
@@ -435,10 +434,10 @@ private:
             ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_len = _HEADER_SIZE;
             // Location to write sample data to
             ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[ch][n_last_packet];
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_len = data_in_last_packet;
+            ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_len = expected_data_in_last_packet;
             // Location to write samples that don't fit in sample_buffer to
             ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_i.sample_cache.data();
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_len = excess_data_in_last_packet;
+            ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_len = expected_excess_data_in_last_packet;
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n_last_packet];
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
         }
@@ -495,6 +494,10 @@ private:
 
         for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
             size_t num_bytes_received = 0;
+
+            // Clear count for number of samples in cache. Will be set in checking data received in the last packet if applicable
+            ch_recv_buffer_info_i.sample_cache_used = 0;
+
             // Records the amount of data received from each packet
             for(size_t n = 0; n < ch_recv_buffer_info_i.num_headers_used; n++) {
                 // Check if an invalid packet was received
@@ -505,14 +508,12 @@ private:
 
                 // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
                 if(n + 1 == num_packets_to_recv) {
-                    if(num_bytes_this_packets > data_in_last_packet) {
-                        ch_recv_buffer_info_i.data_bytes_from_packet[n] = data_in_last_packet;
-                        ch_recv_buffer_info_i.sample_cache_used = num_bytes_this_packets - data_in_last_packet;
-                        num_bytes_received += data_in_last_packet;
+                    if(num_bytes_this_packets > expected_data_in_last_packet) {
+                        ch_recv_buffer_info_i.data_bytes_from_packet[n] = expected_data_in_last_packet;
+                        ch_recv_buffer_info_i.sample_cache_used = num_bytes_this_packets - expected_data_in_last_packet;
+                        num_bytes_received += expected_data_in_last_packet;
                     } else {
                         ch_recv_buffer_info_i.data_bytes_from_packet[n] = num_bytes_this_packets;
-                        // sample_cache_used already set to 0 before this loop so doesn;t need to be set to 0 here
-                        ch_recv_buffer_info_i.sample_cache_used = 0;
                         num_bytes_received += num_bytes_this_packets;
                     }
                 // Records the amount of data received from most packets
@@ -520,11 +521,6 @@ private:
                     ch_recv_buffer_info_i.data_bytes_from_packet[n] = num_bytes_this_packets;
                     num_bytes_received += num_bytes_this_packets;
                 }
-            }
-
-            // Records the amount of data stored in the cache
-            if(num_packets_to_recv == ch_recv_buffer_info_i.num_headers_used) {
-                ch_recv_buffer_info_i.sample_cache_used = excess_data_in_last_packet;
             }
         }
 
