@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tarfile
 
-supported_ubuntu_releases = ["focal", "jammy"]
+supported_ubuntu_releases = ["focal", "jammy", "noble"]
 #tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 tar_command = "tar --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 debuild_command = "debuild -S -i -sa"
