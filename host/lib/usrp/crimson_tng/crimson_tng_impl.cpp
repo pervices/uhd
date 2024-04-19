@@ -248,6 +248,8 @@ sensor_value_t crimson_tng_impl::get_sensor_value(std::string req) {
     // Determines the sensor name based on the path
     if(req.find("lmk_lockdetect") != std::string::npos) {
         return sensor_value_t( "Reference", sensor_good, "locked", "unlocked" );
+    } else if(req.find("rfpll_lock") != std::string::npos) {
+        return sensor_value_t( "rfpll", sensor_good, "locked", "unlocked" );
     } else {
         UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
         return sensor_value_t( req, sensor_good, "good", "bad" );
@@ -1225,6 +1227,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		// RF receiver LNA
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "lna", "rx_"+lc_num+"/rf/freq/lna" , int, int);
 
+        // Rx rf pll lock detect
+        TREE_CREATE_RW(rx_fe_path / "sensors" / "rfpll_lock", "rx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
+
 		// these are phony properties for Crimson
 		TREE_CREATE_ST(db_path / "rx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 		TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
@@ -1346,6 +1351,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		// RF band
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/freq/band", int, int);
+
+        // Tx rf pll lock detect
+        TREE_CREATE_RW(tx_fe_path / "sensors" / "rfpll_lock", "tx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
 
 		// these are phony properties for Crimson
 		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());

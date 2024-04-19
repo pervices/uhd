@@ -24,6 +24,7 @@ uhd::device_addr_t append_findall(const uhd::device_addr_t& device_args)
 
 typedef std::map<std::string, std::set<std::string>> device_multi_addrs_t;
 typedef std::map<std::string, device_multi_addrs_t> device_addrs_filtered_t;
+typedef std::function<uhd::sensor_value_t(const std::string&)> get_sensor_fn_t;
 
 std::string get_from_tree(
     uhd::property_tree::sptr tree, const int device_id, std::string relative_path)
@@ -239,8 +240,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     if(git_hash_only) {
                         version = extract_git_hash(version);
                     }
+
                     std::cout << std::string("\trx(" + std::to_string(rx_chan) + "): ").c_str() << version << std::endl << std::endl;
                     if(!git_hash_only) {
+                        try {
+                            std::vector<std::string> sensor_list = dev->get_rx_sensor_names(rx_chan);
+                            for(size_t n = 0; n < sensor_list.size(); n++) {
+                                uhd::sensor_value_t sensor_value = dev->get_rx_sensor(sensor_list[n], rx_chan);
+                                std::cout << "\trx(" << std::to_string(rx_chan) << "): " << sensor_value.to_pp_string() << std::endl;
+                            }
+                        } catch (...) {}
+
                         try {
                             sprintf(path, "rx/%lu/jesd/status", rx_chan);
                             std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
@@ -259,6 +269,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             size_t num_tx_channels = dev->get_tx_num_channels();
             std::cout << num_tx_channels << " tx channels should be present on the unit" << std::endl;
             for(size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
+
                 try {
                     char path[50];
                     sprintf(path, "tx/%lu/fw_version", tx_chan);
@@ -267,7 +278,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         version = extract_git_hash(version);
                     }
                     std::cout << std::string("\ttx(" + std::to_string(tx_chan) + "): ").c_str() << version << std::endl << std::endl;
+
                     if(!git_hash_only) {
+                        try {
+                        std::vector<std::string> sensor_list = dev->get_tx_sensor_names(tx_chan);
+                            for(size_t n = 0; n < sensor_list.size(); n++) {
+                                uhd::sensor_value_t sensor_value = dev->get_tx_sensor(sensor_list[n], tx_chan);
+                                std::cout << "\ttx(" << std::to_string(tx_chan) << "): " << sensor_value.to_pp_string() << std::endl;
+                            }
+                        } catch (...) {}
+
                         try {
                             sprintf(path, "tx/%lu/jesd/status", tx_chan);
                             std::cout << std::string("\ttx(" + std::to_string(tx_chan) + ") JESD status: ").c_str() << get_from_tree(tree, i, path) << std::endl;
@@ -300,6 +320,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     version = extract_git_hash(version);
                 }
                 std::cout << "\tTime : " << version << std::endl;
+
+                try {
+                    std::vector<std::string> sensor_list = dev->get_mboard_sensor_names(0);
+                    for(size_t n = 0; n < sensor_list.size(); n++) {
+                        uhd::sensor_value_t sensor_value = dev->get_mboard_sensor(sensor_list[n]);
+                        std::cout << "\ttime: " << sensor_value.to_pp_string() << std::endl;
+                    }
+                } catch (...) {}
+
                 // Sets the property in order to update it
                 tree->access<std::string>("/mboards/0/gps_time").set("1");
                 std::cout << "Current time (fpga/gps_time) : " << get_from_tree(tree, i,"gps_time") << std::endl;
