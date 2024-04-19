@@ -325,8 +325,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     std::vector<std::string> sensor_list = dev->get_mboard_sensor_names(0);
                     for(size_t n = 0; n < sensor_list.size(); n++) {
                         uhd::sensor_value_t sensor_value = dev->get_mboard_sensor(sensor_list[n]);
-                        std::cout << "\ttime: " << sensor_value.to_pp_string() << std::endl;
+                        std::cout << "\tTime: " << sensor_value.to_pp_string() << std::endl;
                     }
+                } catch (...) {}
+
+                try {
+                    std::cout << "\tTime: reference: " << dev->get_clock_source(0) << std::endl;
                 } catch (...) {}
 
                 // Sets the property in order to update it
