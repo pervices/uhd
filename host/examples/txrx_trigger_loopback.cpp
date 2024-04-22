@@ -91,8 +91,6 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     for (size_t i = 0; i < buffs.size(); i++)
         buff_ptrs.push_back(&buffs[i].front());
 
-    bool vita_enabled = true;
-
     double timeout = start_time + 5;
 
     uint64_t num_trigger_passed = 0;
@@ -106,16 +104,6 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         }
         size_t samples_this_packet = rx_stream->recv(buff_ptrs, samples_per_trigger - num_samples_this_trigger, this_md, timeout, false);
         timeout = 1.5;
-        // Num samps and more is not implemented on the FPGA yet and will behave like nsamps and done
-        // Therefore we need to disable vita (skip waiting for packet)
-        if(vita_enabled) {
-            vita_enabled = false;
-            for(size_t n = 0; n < channel_nums.size(); n++) {
-                const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
-                const std::string value = "0";
-                usrp->set_tree_value(path, value);
-            }
-        }
         // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
         if((this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) || samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
             if(samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
