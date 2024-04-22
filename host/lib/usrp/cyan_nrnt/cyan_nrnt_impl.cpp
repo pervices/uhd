@@ -260,6 +260,8 @@ sensor_value_t cyan_nrnt_impl::get_sensor_value(std::string req) {
     // Determines the sensor name based on the path
     if(req.find("lmk_lockdetect") != std::string::npos) {
         return sensor_value_t( "Reference", sensor_good, "locked", "unlocked" );
+    } else if(req.find("rfpll_lock") != std::string::npos) {
+        return sensor_value_t( "rfpll", sensor_good, "locked", "unlocked" );
     } else {
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
         return sensor_value_t( req, sensor_good, "good", "bad" );
