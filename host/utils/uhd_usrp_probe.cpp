@@ -436,7 +436,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return EXIT_SUCCESS;
     }
 
-    args+=",bypass_clock_sync=true";
     device::sptr dev         = device::make(args);
     property_tree::sptr tree = dev->get_tree();
     rfnoc::rfnoc_graph::sptr graph;

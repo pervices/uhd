@@ -75,9 +75,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     const bool use_rx = rx_args!="";
     const bool use_tx = tx_args!="";
 
-    // Lets UHD knwo no to use clock sync when creating the device
-    rx_args+=",bypass_clock_sync=true";
-    tx_args+=",bypass_clock_sync=true";
 
     //create a usrp device
     std::cout << std::endl;
@@ -89,7 +86,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     else {
         if(use_rx) {
-            rx_args+=",bypass_clock_sync=true";
             std::cout << boost::format("Creating the usrp device with: %s...") % rx_args << std::endl;
             rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
         }
@@ -97,7 +93,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             std::cerr << "ERROR: No device adress specified for rx, rx will not be used. Note: runing this without rx is only useful for checking if rx is configured correctly" << std::endl;
         }
         if(use_tx) {
-            tx_args+=",bypass_clock_sync=true";
             std::cout << boost::format("Creating the usrp device with: %s...") % tx_args << std::endl;
             tx_usrp = uhd::usrp::multi_usrp::make(tx_args);
         }
