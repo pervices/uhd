@@ -129,10 +129,10 @@
 #define CYAN_NRNT_MB_PATH   fs_path("/mboards/0")
 #define CYAN_NRNT_TIME_PATH fs_path(CYAN_NRNT_MB_PATH / "time")
 
+// max_sample_rate / CYAN_NRNT_MAX_DSP_RATE_FACTOR = maximum rate the NCO operates at
+#define CYAN_NRNT_MAX_DSP_RATE_FACTOR 4.0
+
 // Constants for special flags
-// Note: make sure this matches the value on the server
-// The minimnum rate where the server cannont compensate for the NCO shift in the ADC
-#define CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G_MIN_RATE 500000000
 // THe NCO shift in the ADC
 #define CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G 250000000
 

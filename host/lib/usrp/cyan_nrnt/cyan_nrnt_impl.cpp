@@ -1754,35 +1754,39 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     // 3. have lo as close to the middle of the relevant range as possible
     // candidate_x corresponds to the above numbers
 
-    freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
-    const double dsp_bw = dsp_range.stop() - dsp_range.start();
     const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
     const double user_bw = sample_rate;
 
+    double dsp_bw;
+    if(sample_rate > max_sample_rate / CYAN_NRNT_MAX_DSP_RATE_FACTOR) {
+        // DSP is bypassed at higher rates
+        dsp_bw = 0;
+    } else {
+        freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+        dsp_bw = dsp_range.stop() - dsp_range.start();
+    }
+
     // Server cannot compensate for the lo in the ADC on its on if FPGA NCO is bypassed. To compensate shift LO
-    if(sample_rate >= CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G_MIN_RATE && flag_use_3g_as_1g && RX_SIGN == xx_sign) {
+    if(flag_use_3g_as_1g && RX_SIGN == xx_sign) {
         target_freq += CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
     }
 
-    // Attempt to see if 1 or 2 are valid. Skip if sample rate >= max /2 since the NCO is bypassed at those rates
-    if(sample_rate >= max_sample_rate / 2) {
-        const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw / 2.0), 0 );
+    const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw / 2.0), 0 );
 
-        double c = std::ceil( relevant_range.stop() / CYAN_NRNT_LO_STEPSIZE );
-        double candidate_1 = c * CYAN_NRNT_LO_STEPSIZE;
-        // Frequence range observable below the candidate lo; candidate_1
-        const freq_range_t below_lo(candidate_1 - dsp_bw / 2.0, candidate_1, 0);
+    double c = std::ceil( relevant_range.stop() / CYAN_NRNT_LO_STEPSIZE );
+    double candidate_1 = c * CYAN_NRNT_LO_STEPSIZE;
+    // Frequence range observable below the candidate lo; candidate_1
+    const freq_range_t below_lo(candidate_1 - (dsp_bw / 2.0), candidate_1, 0);
 
-        // The relevant range can be fit between a viable lo and the dsp's lower limit
-        if(range_contains(below_lo, relevant_range) && candidate_1 >= CYAN_NRNT_MIN_LO && candidate_1 <= CYAN_NRNT_MAX_LO) return candidate_1;
+    // The relevant range can be fit between a viable lo and the dsp's lower limit
+    if(range_contains(below_lo, relevant_range) && candidate_1 >= CYAN_NRNT_MIN_LO && candidate_1 <= CYAN_NRNT_MAX_LO) return candidate_1;
 
-        double a = std::floor( relevant_range.start() / CYAN_NRNT_LO_STEPSIZE );
-        double candidate_2 = a * CYAN_NRNT_LO_STEPSIZE;
-        const freq_range_t above_lo(candidate_2, candidate_2 + dsp_bw / 2.0, 0);
+    double a = std::floor( relevant_range.start() / CYAN_NRNT_LO_STEPSIZE );
+    double candidate_2 = a * CYAN_NRNT_LO_STEPSIZE;
+    const freq_range_t above_lo(candidate_2, candidate_2 + (dsp_bw / 2.0), 0);
 
-        // The relevant range can be fit between a viable lo and the dsp's upper limit
-        if(range_contains(above_lo, relevant_range) && candidate_2 >= CYAN_NRNT_MIN_LO && candidate_2 <= CYAN_NRNT_MAX_LO) return candidate_2;
-    }
+    // The relevant range can be fit between a viable lo and the dsp's upper limit
+    if(range_contains(above_lo, relevant_range) && candidate_2 >= CYAN_NRNT_MIN_LO && candidate_2 <= CYAN_NRNT_MAX_LO) return candidate_2;
 
     // Fallback to having the lo centered
     return std::max(std::min(::round( target_freq / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, CYAN_NRNT_MAX_LO), (double) CYAN_NRNT_MIN_LO);
@@ -1885,6 +1889,14 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 	//------------------------------------------------------------------
 	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
 	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+
+    // Warn user if they attempted manual tuning, and the resulting NCO is 0 and the intended NCO was not 0 (which occurs at high sample rates where the DSP is bypassed)
+    if( (tune_request.dsp_freq_policy == tune_request_t::POLICY_MANUAL || tune_request.rf_freq_policy == tune_request_t::POLICY_MANUAL) && target_dsp_freq != 0 && actual_dsp_freq == 0) {
+        const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
+        if(sample_rate > max_sample_rate / CYAN_NRNT_MAX_DSP_RATE_FACTOR) {
+            UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Manual tune request required use of the NCO, but the NCO is disabled at above " << (max_sample_rate / CYAN_NRNT_MAX_DSP_RATE_FACTOR) / 1e6 << "Msps" ;
+        }
+    }
 
 	//------------------------------------------------------------------
 	//-- Load and return the tune result
