@@ -307,6 +307,7 @@ private:
     const double _TICK_RATE;
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
     size_t cached_nsamps = 0;
+    bool dropped_cache_warning_printed = false;
 
     double _sample_rate = 0;
 
@@ -664,6 +665,8 @@ private:
     }
 
     void send_eob_packet(const uhd::tx_metadata_t &metadata, double timeout) {
+
+
         // Create vector of dummy samples, since the FPGA cannot handle 0 sample packets
         std::vector<std::vector<int8_t>> dummy_buffs(_NUM_CHANNELS, std::vector<int8_t>(_BYTES_PER_SAMPLE * _DEVICE_PACKET_NSAMP_MULTIPLE, 0));
         std::vector<const void *> dummy_buff_ptrs;
@@ -681,6 +684,14 @@ private:
         for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
             ch_send_buffer_info_i.buffer_level_manager.set_end_of_burst_time(next_send_time);
         }
+
+        if(cached_nsamps != 0 && !dropped_cache_warning_printed) {
+            UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << cached_nsamps << " samples to comply";
+            dropped_cache_warning_printed = true;
+        }
+        // Drop any samples in the cache, since otherwise they would be added to the next burst
+        cached_nsamps = 0;
+
         // Sends the eob packet
         send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, eob_md, timeout, true);
     }
