@@ -1765,31 +1765,40 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
         freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
         dsp_bw = dsp_range.stop() - dsp_range.start();
     }
-
-    // Server cannot compensate for the lo in the ADC on its on if FPGA NCO is bypassed. To compensate shift LO
-    if(flag_use_3g_as_1g && RX_SIGN == xx_sign) {
-        target_freq += CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
+    
+    // 3G rx has a fixed 250MHz NCO built into it in 1G mode
+    // if dsp NCO is not bypassed, try to keep LO 250MHz above the target 
+    double compensatory_dsp_shift;
+    if(flag_use_3g_as_1g && RX_SIGN == xx_sign && dsp_bw != 0) {
+        compensatory_dsp_shift = CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
+    } else {
+        compensatory_dsp_shift = 0;
     }
 
     const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw / 2.0), 0 );
 
-    double c = std::ceil( relevant_range.stop() / CYAN_NRNT_LO_STEPSIZE );
+    double c = std::ceil( (relevant_range.stop() + compensatory_dsp_shift) / CYAN_NRNT_LO_STEPSIZE );
     double candidate_1 = c * CYAN_NRNT_LO_STEPSIZE;
     // Frequence range observable below the candidate lo; candidate_1
-    const freq_range_t below_lo(candidate_1 - (dsp_bw / 2.0), candidate_1, 0);
+    const freq_range_t below_lo(candidate_1 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_1, 0);
 
     // The relevant range can be fit between a viable lo and the dsp's lower limit
     if(range_contains(below_lo, relevant_range) && candidate_1 >= CYAN_NRNT_MIN_LO && candidate_1 <= CYAN_NRNT_MAX_LO) return candidate_1;
 
-    double a = std::floor( relevant_range.start() / CYAN_NRNT_LO_STEPSIZE );
+    double a = std::floor( (relevant_range.start() - compensatory_dsp_shift) / CYAN_NRNT_LO_STEPSIZE );
     double candidate_2 = a * CYAN_NRNT_LO_STEPSIZE;
-    const freq_range_t above_lo(candidate_2, candidate_2 + (dsp_bw / 2.0), 0);
+    // compensatory_dsp_shift of the dsp bw is needed to complensate for the ADC NCO shift
+    const freq_range_t above_lo(candidate_2, candidate_2 + (dsp_bw / 2.0) - std::max(compensatory_dsp_shift, 0.0), 0);
 
     // The relevant range can be fit between a viable lo and the dsp's upper limit
     if(range_contains(above_lo, relevant_range) && candidate_2 >= CYAN_NRNT_MIN_LO && candidate_2 <= CYAN_NRNT_MAX_LO) return candidate_2;
 
     // Fallback to having the lo centered
-    return std::max(std::min(::round( target_freq / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, CYAN_NRNT_MAX_LO), (double) CYAN_NRNT_MIN_LO);
+    if(flag_use_3g_as_1g && RX_SIGN == xx_sign) {
+        return std::max(std::min(::round( (target_freq + CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, CYAN_NRNT_MAX_LO), (double) CYAN_NRNT_MIN_LO);
+    } else {
+        return std::max(std::min(::round( (target_freq) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, CYAN_NRNT_MAX_LO), (double) CYAN_NRNT_MIN_LO);
+    }
 }
 
 // XXX: @CF: 20180418: stop-gap until moved to server
