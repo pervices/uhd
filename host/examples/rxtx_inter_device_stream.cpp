@@ -418,14 +418,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
-    // TODO: see if set time can be removed
-    if(use_a) {
-        a_usrp->set_time_now(0.0);
-    }
-    if(use_b) {
-        b_usrp->set_time_now(0.0);
-    }
-
     /// Enable buffer level based stream on tx
     // Skip if in loopback mode and no channels are specified to avoid
     if(use_a && !loopback_mode) {
