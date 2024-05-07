@@ -300,6 +300,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         throw std::runtime_error("Mistmatch between number of rx channels in B and tx channels in A requested");
     }
     
+    //set the sample rate
+    if (not vm.count("rate")){
+        std::cerr << "Please specify the sample rate with --rate" << std::endl;
+        return ~0;
+    }
     // Actual rate used, used when verifying if all channels have the same rate
     double adjusted_rate = 0;
 
@@ -399,12 +404,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     if(use_b) {
         std::cout << boost::format("Using B Device: %s") % b_usrp->get_pp_string() << std::endl;
-    }
-
-    //set the sample rate
-    if (not vm.count("rate")){
-        std::cerr << "Please specify the sample rate with --rate" << std::endl;
-        return ~0;
     }
 
     // Sets the destination IP and port in rx_usrp to match tx_usrp for the specifed channels
