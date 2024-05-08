@@ -216,10 +216,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         a_rx_freq_arg = rx_freq_arg;
     }
     if(vm.count("tx_freq")) {
-        a_rx_freq_arg = b_tx_freq_arg;
+        b_tx_freq_arg = tx_freq_arg;
     }
     if(vm.count("rx_gain")) {
-        a_rx_freq_arg = rx_gain_arg;
+        a_rx_gain_arg = rx_gain_arg;
     }
     if(vm.count("tx_gain")) {
         b_tx_gain_arg = tx_gain_arg;
