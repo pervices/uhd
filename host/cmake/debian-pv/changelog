@@ -1,4 +1,4 @@
-uhdpv (4.4.0.3-0ubuntu1) ubuntu_release; urgency=medium
+uhdpv (4.4.0.4-0ubuntu1) ubuntu_release; urgency=medium
 
   * RXTX_MULTI_DEVICE_LOOPBACK: enabling duplex device to device
   * Overhauling lo tuning
