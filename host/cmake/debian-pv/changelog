@@ -1,5 +1,12 @@
 uhdpv (4.4.0.3-0ubuntu1) ubuntu_release; urgency=medium
 
+  * RXTX_MULTI_DEVICE_LOOPBACK: enabling duplex device to device
+  * Overhauling lo tuning
+
+ -- Per Vices <packages@pervices.com>  Wed, 08 May 2024 15:42:45 -0400
+
+uhdpv (4.4.0.3-0ubuntu1) ubuntu_release; urgency=medium
+
   * Packaging: Adding uhd patch level to all packages
 
  -- Per Vices <packages@pervices.com>  Sat, 06 Apr 2024 14:21:27 -0400
