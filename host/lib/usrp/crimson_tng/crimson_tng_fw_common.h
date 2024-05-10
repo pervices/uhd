@@ -121,6 +121,8 @@
 #define CRIMSON_TNG_LO_STEPSIZE             _lo_stepsize
 #define CRIMSON_TNG_LO_STEPSIZE_FALLBACK    25000000
 #define CRIMSON_TNG_LO_OFFSET           25000000
+// Desired seperation between band of interest to the user and the lo
+#define CRIMSON_TNG_LO_TARGET_SEPERATION           5000000
 
 // Crimson Sample Rate Settings
 #define CRIMSON_TNG_RATE_RANGE_START	(_max_rate/65536)
