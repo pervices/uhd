@@ -83,6 +83,9 @@
 // The step is wrong, the nco will often end ep with decimal results
 #define CYAN_NRNT_FREQ_RANGE_STEP	1.0
 
+// Desired seperation between band of interest to the user and the lo
+#define CYAN_NRNT_LO_TARGET_SEPERATION           5000000
+
 // Cyan NrNt Sample Rate Settings
 #define CYAN_NRNT_RATE_RANGE_START	(max_sample_rate/65536)
 #define CYAN_NRNT_RATE_RANGE_STOP_FULL	max_sample_rate

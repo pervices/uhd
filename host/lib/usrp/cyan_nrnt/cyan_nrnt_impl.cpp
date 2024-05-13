@@ -1764,9 +1764,11 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     if(band == LOW_BAND) return 0;
 
     // Preferences:
-    // 1. have entire relevant range lo, use NCO to shift the center frequency to the one desired by the user
-    // 2. have entire relevant range below lo, use NCO to shift the center frequency to the one desired by the user
-    // 3. have lo as close to the middle of the relevant range as possible
+    // Preferences:
+    // 1. have entire relevant range below the lo with CYAN_NRNT_LO_TARGET_SEPERATION of seperation
+    // 2. have entire relevant range above the lo with CYAN_NRNT_LO_TARGET_SEPERATION of seperation
+    // 3/4. have entire relevant range below/above the lo with the largest seperation possible
+    // 5. have lo as close to the middle of the relevant range as possible
     // candidate_x corresponds to the above numbers
 
     const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
@@ -1792,21 +1794,37 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
 
     const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw / 2.0), 0 );
 
-    double c = std::ceil( (relevant_range.stop() + compensatory_dsp_shift) / CYAN_NRNT_LO_STEPSIZE );
-    double candidate_1 = c * CYAN_NRNT_LO_STEPSIZE;
+    double a = std::ceil( (relevant_range.stop() + compensatory_dsp_shift + CYAN_NRNT_LO_TARGET_SEPERATION) / CYAN_NRNT_LO_STEPSIZE );
+    double candidate_1 = a * CYAN_NRNT_LO_STEPSIZE;
     // Frequence range observable below the candidate lo; candidate_1
     const freq_range_t below_lo(candidate_1 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_1, 0);
 
     // The relevant range can be fit between a viable lo and the dsp's lower limit
     if(range_contains(below_lo, relevant_range) && candidate_1 >= CYAN_NRNT_MIN_LO && candidate_1 <= CYAN_NRNT_MAX_LO) return candidate_1;
 
-    double a = std::floor( (relevant_range.start() - compensatory_dsp_shift) / CYAN_NRNT_LO_STEPSIZE );
-    double candidate_2 = a * CYAN_NRNT_LO_STEPSIZE;
+    double b = std::floor( (relevant_range.start() - compensatory_dsp_shift - CYAN_NRNT_LO_TARGET_SEPERATION) / CYAN_NRNT_LO_STEPSIZE );
+    double candidate_2 = b * CYAN_NRNT_LO_STEPSIZE;
     // compensatory_dsp_shift of the dsp bw is needed to complensate for the ADC NCO shift
     const freq_range_t above_lo(candidate_2, candidate_2 + (dsp_bw / 2.0) - std::max(compensatory_dsp_shift, 0.0), 0);
 
     // The relevant range can be fit between a viable lo and the dsp's upper limit
     if(range_contains(above_lo, relevant_range) && candidate_2 >= CYAN_NRNT_MIN_LO && candidate_2 <= CYAN_NRNT_MAX_LO) return candidate_2;
+
+    // Test los that are closer to the target band than CYAN_NRNT_LO_TARGET_SEPERATION, but still outside the band
+    while(a * CYAN_NRNT_LO_STEPSIZE + ((user_bw / 2.0)) > relevant_range.stop() && b * CYAN_NRNT_LO_STEPSIZE - (user_bw / 2.0) < relevant_range.start()) {
+        a--;
+        b++;
+
+        // Test a new lo that is above the target range and slightly closer than the last check
+        double candidate_3 = a * CYAN_NRNT_LO_STEPSIZE;
+        const freq_range_t below_lo_low_seperation(candidate_3 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_3, 0);
+        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= CYAN_NRNT_MIN_LO && candidate_3 <= CYAN_NRNT_MAX_LO) return candidate_3;
+
+        // Test a new lo that is above the target range and slightly closer than the last check
+        double candidate_4 = b * CYAN_NRNT_LO_STEPSIZE;
+        const freq_range_t above_lo_low_seperation(candidate_4, candidate_4 + (dsp_bw / 2.0) - std::max(compensatory_dsp_shift, 0.0), 0);
+        if(range_contains(above_lo_low_seperation, relevant_range) && candidate_4 >= CYAN_NRNT_MIN_LO && candidate_4 <= CYAN_NRNT_MAX_LO) return candidate_4;
+    }
 
     // Fallback to having the lo centered
     if(flag_use_3g_as_1g && RX_SIGN == xx_sign) {
