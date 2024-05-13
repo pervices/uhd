@@ -1,3 +1,9 @@
+uhdpv (4.4.0.6-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Crimson and Cyan: increase seperation between lo and relevant band
+
+ -- Per Vices <packages@pervices.com>  Mon, 13 May 2024 18:25:03 -0400
+
 uhdpv (4.4.0.5-0ubuntu1) ubuntu_release; urgency=medium
 
   * RXTX_MULTI_DEVICE_LOOPBACK: bug fix for legacy arguments
