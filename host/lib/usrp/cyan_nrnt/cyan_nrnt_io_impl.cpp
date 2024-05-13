@@ -682,6 +682,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     //setup defaults for unspecified values
     args.otw_format = args.otw_format.empty()? otw_rx_s : args.otw_format;
+
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != otw_rx_s){
@@ -718,7 +719,13 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         data_len = CYAN_NRNT_MAX_NBYTES;
     }
 
-    bool little_endian_supported = true;
+    bool little_endian_supported;
+    // There is no converter for little endian for sc12, even though Cyan is capable of it
+    if(args.otw_format == "sc12" && args.cpu_format != "sc12") {
+        little_endian_supported = false;
+    } else {
+        little_endian_supported = true;
+    }
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
@@ -746,7 +753,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
                         little_endian_supported = false;
                     }
                 } else {
-                    // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
+                    _tree->access<int>(rx_link_path / "endian_swap").set(0);
                 }
                 // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
@@ -972,7 +979,13 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
     }
 
-    bool little_endian_supported = true;
+    bool little_endian_supported;
+    // There is no converter for little endian for sc12, even though Cyan is capable of it
+    if(args.otw_format == "sc12" && args.cpu_format != "sc12") {
+        little_endian_supported = false;
+    } else {
+        little_endian_supported = true;
+    }
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
