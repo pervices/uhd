@@ -157,10 +157,12 @@ void cyan_nrnt_impl::set_string(const std::string pre, std::string data) {
 // wrapper for type <double> through the ASCII Crimson interface
 double cyan_nrnt_impl::get_double(std::string req) {
 	try { return boost::lexical_cast<double>( get_string(req) );
-	} catch (...) {
+    } catch(boost::bad_lexical_cast &e) {
+        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get double property: " << e.what();
+    } catch (...) {
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get property: " << req;
-        return 0;
     }
+    return 0;
 }
 void cyan_nrnt_impl::set_double(const std::string pre, double data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
@@ -172,10 +174,12 @@ void cyan_nrnt_impl::set_double(const std::string pre, double data){
 // wrapper for type <bool> through the ASCII Crimson interface
 bool cyan_nrnt_impl::get_bool(std::string req) {
 	try { return boost::lexical_cast<bool>( get_string(req) );
-	} catch (...) {
+    } catch(boost::bad_lexical_cast &e) {
+        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get bool property: " << e.what();
+    } catch (...) {
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get property: " << req;
-        return 0;
     }
+    return 0;
 }
 void cyan_nrnt_impl::set_bool(const std::string pre, bool data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
@@ -187,10 +191,12 @@ void cyan_nrnt_impl::set_bool(const std::string pre, bool data){
 // wrapper for type <int> through the ASCII Crimson interface
 int cyan_nrnt_impl::get_int(std::string req) {
 	try { return boost::lexical_cast<int>( get_string(req) );
-	} catch (...) {
-        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to set property: " << req;
-        return 0;
+    } catch(boost::bad_lexical_cast &e) {
+        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get int property: " << e.what();
+    } catch (...) {
+        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get property: " << req;
     }
+    return 0;
 }
 void cyan_nrnt_impl::set_int(const std::string pre, int data){
 	try { set_string(pre, boost::lexical_cast<std::string>(data));
