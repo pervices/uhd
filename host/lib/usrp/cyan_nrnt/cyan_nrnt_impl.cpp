@@ -1763,6 +1763,18 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
 
+    double band_max_lo;
+    double band_min_lo;
+    if(band == MID_BAND) {
+        band_max_lo = CYAN_NRNT_MID_MAX_LO;
+        band_min_lo = CYAN_NRNT_LOW_MID_BARRIER;
+    } else if (band == HIGH_BAND) {
+        band_min_lo = CYAN_NRNT_MID_HIGH_BARRIER;
+        band_max_lo = CYAN_NRNT_FREQ_RANGE_STOP;
+    } else {
+        throw uhd::runtime_error("invalid band");
+    }
+
     // Preferences:
     // Preferences:
     // 1. have entire relevant range below the lo with CYAN_NRNT_LO_TARGET_SEPERATION of seperation
@@ -1800,7 +1812,7 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     const freq_range_t below_lo(candidate_1 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_1, 0);
 
     // The relevant range can be fit between a viable lo and the dsp's lower limit
-    if(range_contains(below_lo, relevant_range) && candidate_1 >= CYAN_NRNT_MIN_LO && candidate_1 <= CYAN_NRNT_MAX_LO) return candidate_1;
+    if(range_contains(below_lo, relevant_range) && candidate_1 >= band_min_lo && candidate_1 <= band_max_lo) return candidate_1;
 
     double b = std::floor( (relevant_range.start() - compensatory_dsp_shift - CYAN_NRNT_LO_TARGET_SEPERATION) / CYAN_NRNT_LO_STEPSIZE );
     double candidate_2 = b * CYAN_NRNT_LO_STEPSIZE;
@@ -1808,7 +1820,7 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     const freq_range_t above_lo(candidate_2, candidate_2 + (dsp_bw / 2.0) - std::max(compensatory_dsp_shift, 0.0), 0);
 
     // The relevant range can be fit between a viable lo and the dsp's upper limit
-    if(range_contains(above_lo, relevant_range) && candidate_2 >= CYAN_NRNT_MIN_LO && candidate_2 <= CYAN_NRNT_MAX_LO) return candidate_2;
+    if(range_contains(above_lo, relevant_range) && candidate_2 >= band_min_lo && candidate_2 <= band_max_lo) return candidate_2;
 
     // Test los that are closer to the target band than CYAN_NRNT_LO_TARGET_SEPERATION, but still outside the band
     while(a * CYAN_NRNT_LO_STEPSIZE + ((user_bw / 2.0)) > relevant_range.stop() && b * CYAN_NRNT_LO_STEPSIZE - (user_bw / 2.0) < relevant_range.start()) {
@@ -1818,19 +1830,19 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_3 = a * CYAN_NRNT_LO_STEPSIZE;
         const freq_range_t below_lo_low_seperation(candidate_3 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_3, 0);
-        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= CYAN_NRNT_MIN_LO && candidate_3 <= CYAN_NRNT_MAX_LO) return candidate_3;
+        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= band_min_lo && candidate_3 <= band_max_lo) return candidate_3;
 
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_4 = b * CYAN_NRNT_LO_STEPSIZE;
         const freq_range_t above_lo_low_seperation(candidate_4, candidate_4 + (dsp_bw / 2.0) - std::max(compensatory_dsp_shift, 0.0), 0);
-        if(range_contains(above_lo_low_seperation, relevant_range) && candidate_4 >= CYAN_NRNT_MIN_LO && candidate_4 <= CYAN_NRNT_MAX_LO) return candidate_4;
+        if(range_contains(above_lo_low_seperation, relevant_range) && candidate_4 >= band_min_lo && candidate_4 <= band_max_lo) return candidate_4;
     }
 
     // Fallback to having the lo centered
     if(flag_use_3g_as_1g && RX_SIGN == xx_sign) {
-        return std::max(std::min(::round( (target_freq + CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, CYAN_NRNT_MAX_LO), (double) CYAN_NRNT_MIN_LO);
+        return std::max(std::min(::round( (target_freq + CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, band_max_lo), (double) band_min_lo);
     } else {
-        return std::max(std::min(::round( (target_freq) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, CYAN_NRNT_MAX_LO), (double) CYAN_NRNT_MIN_LO);
+        return std::max(std::min(::round( (target_freq) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, band_max_lo), (double) band_min_lo);
     }
 }
 
