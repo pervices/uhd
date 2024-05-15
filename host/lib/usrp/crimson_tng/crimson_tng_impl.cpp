@@ -246,7 +246,9 @@ sensor_value_t crimson_tng_impl::get_sensor_value(std::string req) {
     try {
         std::string original_value = get_string(req);
         set_string(req, original_value);
-    } catch (...) { }
+    } catch (...) {
+        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to update sensor property: " << req << "\nThe value returned may be stale";
+    }
 
 
     std::string reply;
@@ -279,7 +281,9 @@ sensor_value_t crimson_tng_impl::get_sensor_value(std::string req) {
 
 void crimson_tng_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
     try { set_string(pre, data.to_pp_string());
-    } catch (...) { }
+    } catch (...) {
+        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to set property: " << pre;
+    }
 
     return;
 }
