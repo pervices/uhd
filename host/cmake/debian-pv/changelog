@@ -1,3 +1,11 @@
+uhdpv (4.4.0.7-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Cyan: fixing lo selection at the transition betwen bands
+  * Crimson: fixing unable to get fpga/board/reg_rst_req error
+  * Cyan/Crimson: improving error messages when get p
+
+ -- Per Vices <packages@pervices.com>  Mon, 16 May 2024 11:58:56 -0400
+
 uhdpv (4.4.0.6-0ubuntu1) ubuntu_release; urgency=medium
 
   * Crimson and Cyan: increase seperation between lo and relevant band
