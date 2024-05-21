@@ -1818,7 +1818,8 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     const freq_range_t below_lo(candidate_1 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_1, 0);
 
     // The relevant range can be fit between a viable lo and the dsp's lower limit
-    if(range_contains(below_lo, relevant_range) && candidate_1 >= band_min_lo && candidate_1 <= band_max_lo) return candidate_1;
+    // Due to issues with rx in the 3G to 1G conversion the negative side band cannot be used with it
+    if(range_contains(below_lo, relevant_range) && candidate_1 >= band_min_lo && candidate_1 <= band_max_lo && !flag_use_3g_as_1g) return candidate_1;
 
     double b = std::floor( (relevant_range.start() - compensatory_dsp_shift - CYAN_NRNT_LO_TARGET_SEPERATION) / CYAN_NRNT_LO_STEPSIZE );
     double candidate_2 = b * CYAN_NRNT_LO_STEPSIZE;
@@ -1836,7 +1837,8 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_3 = a * CYAN_NRNT_LO_STEPSIZE;
         const freq_range_t below_lo_low_seperation(candidate_3 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_3, 0);
-        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= band_min_lo && candidate_3 <= band_max_lo) return candidate_3;
+        // Due to issues with rx in the 3G to 1G conversion the negative side band cannot be used with it
+        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= band_min_lo && candidate_3 <= band_max_lo && !flag_use_3g_as_1g) return candidate_3;
 
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_4 = b * CYAN_NRNT_LO_STEPSIZE;
