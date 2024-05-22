@@ -428,6 +428,28 @@ void cyan_nrnt_impl::set_time_spec( const std::string key, time_spec_t value ) {
     }
 }
 
+// Loop that polls Crimson to verify the PPS is working
+void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
+
+    dev->_pps_thread_running = true;
+    int pps_detected;
+
+    while (! dev->_pps_thread_should_exit) {
+        dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").set(1);
+        pps_detected = dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").get();
+
+        if (pps_detected == 0) {
+            std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
+        }
+#ifdef DEBUG_COUT
+            std::cout << "PPS flag: " << pps_detected << std::endl;
+#endif
+
+        sleep(1);
+    }
+    dev->_pps_thread_running = false;
+}
+
 //TODO: implement the ability for users to access registers
 user_reg_t cyan_nrnt_impl::get_user_reg(std::string req) {
 
@@ -918,6 +940,31 @@ void cyan_nrnt_impl::stop_bm() {
 	}
 }
 
+void cyan_nrnt_impl::start_pps_dtc() {
+
+    if ( ! _pps_thread_needed ) {
+        return;
+    }
+
+    if ( ! _pps_thread_running ) {
+        _pps_thread_should_exit = false;
+        _pps_thread = std::thread( detect_pps, this );
+    }
+}
+
+void cyan_nrnt_impl::stop_pps_dtc() {
+
+    if ( ! _pps_thread_needed ) {
+        return;
+    }
+
+
+    if ( _pps_thread_running ) {
+        _pps_thread_should_exit = true;
+        _pps_thread.join();
+    }
+}
+
 //checks if the clocks are synchronized
 inline bool cyan_nrnt_impl::time_diff_converged() {
 	return _time_diff_converged;
@@ -1293,7 +1340,19 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     // This line will get time spec, the time diff port must be initialized first
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps", 	   time_spec_t, time_spec);
+    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
+    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
+    _pps_thread_needed = true;
+    try {
+        // Attempt to read pps_detected
+        // If success the the pps monitoring loop should be run
+        // If failure then pps monitoring is not implemented on the server and the loop should not be run
+        _tree->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").get();
+    } catch(uhd::lookup_error &e) {
+        _pps_thread_needed = false;
+    }
+    _pps_thread_running = false;
+    _pps_thread_should_exit = false;
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
@@ -1610,9 +1669,12 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
                 sub_spec_tx+=" ";
             }
         }
-    _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
-
+        _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
     }
+
+	if ( _pps_thread_needed ) {
+		start_pps_dtc();
+	}
 
 	if ( _bm_thread_needed ) {
 
@@ -1646,6 +1708,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 cyan_nrnt_impl::~cyan_nrnt_impl(void)
 {
     stop_bm();
+    stop_pps_dtc();
 }
 
 //gets the jesd number to be used in creating stream command packets
