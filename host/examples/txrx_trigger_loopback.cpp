@@ -70,7 +70,7 @@ void tx_run(uhd::tx_streamer::sptr tx_stream, std::vector<std::complex<float> *>
     tx_stream->send("", 0, md);
 }
 
-void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, uhd::usrp::multi_usrp::sptr usrp, std::vector<size_t> channel_nums, bool overwrite) {
+void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_trigger, size_t samples_per_trigger, std::string burst_directory, std::vector<size_t> channel_nums, bool overwrite) {
     uhd::rx_metadata_t previous_md;
     bool first_packet_of_trigger = true;
     // setup streaming
@@ -145,14 +145,6 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
 
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
-
-    //re-enables waiting for vita commands (regular stream commands)
-    // Disables the temporary workaround for the lack of STREAM_MODE_NUM_SAMPS_AND_MORE implementation
-    for(size_t n = 0; n < channel_nums.size(); n++) {
-        const std::string path { "/mboards/0/rx_link/" + std::to_string(channel_nums[n]) + "/vita_en" };
-        const std::string value = "1";
-        usrp->set_tree_value(path, value);
-    }
 
 }
 
@@ -391,8 +383,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     if(use_rx) {
-        //TODO make this asynchronous
-        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, usrp, channel_nums, overwrite);
+        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, channel_nums, overwrite);
         usrp->rx_trigger_cleanup(channel_nums);
     }
 
