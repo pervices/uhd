@@ -137,8 +137,8 @@
 #define CYAN_NRNT_MAX_DSP_RATE_FACTOR 4.0
 
 // Constants for special flags
-// THe NCO shift in the ADC
-#define CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G 250000000
+// There is a fixed NCO shift (250MHz) in the ADC in this mode. It is mostly compensated for by another NCO in the ADC (249.98MHz)
+#define CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G (250000000 - 249984741.211)
 
 //The number corresponding to each band, eventually most of the stuff that relies on this should be moved to the server
 enum {
