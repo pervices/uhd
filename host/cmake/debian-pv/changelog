@@ -1,3 +1,9 @@
+uhdpv (4.4.0.8-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Cyan: 1G on 3G hardware: update tuning for improvments in the MCU that fix the 250MHz fixed NCO
+
+ -- Per Vices <packages@pervices.com>  Thu, 23 May 2024 15:44:35 -0400
+
 uhdpv (4.4.0.7-0ubuntu1) ubuntu_release; urgency=medium
 
   * Cyan: fixing lo selection at the transition betwen bands
