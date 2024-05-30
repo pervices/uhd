@@ -70,7 +70,7 @@ public:
         _async_msg_fifo(async_msg_fifo),
         _channels(channels),
         _DEVICE_BUFFER_SIZE(device_buffer_size),
-        _DEVICE_TARGET_NSAMPS(device_target_nsamps),
+        _DEVICE_TARGET_NSAMPS((int64_t)(device_buffer_size * 1.1)),
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
         _TICK_RATE(tick_rate),
         _intermediate_send_buffer_pointers(_NUM_CHANNELS),
