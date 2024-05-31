@@ -1,3 +1,10 @@
+uhdpv (4.4.0.9-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Cyan: 1G on 3G hardware: prevent use of negative side band in automatic tuning
+  * Setting thread affinity when realtime thread priority is requested
+
+ -- Per Vices <packages@pervices.com>  Thu, 31 May 2024 17:09:15 -0400
+
 uhdpv (4.4.0.8-0ubuntu1) ubuntu_release; urgency=medium
 
   * Cyan: 1G on 3G hardware: update tuning for improvments in the MCU that fix the 250MHz fixed NCO
