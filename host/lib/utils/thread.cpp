@@ -76,7 +76,9 @@ void uhd::set_thread_priority(float priority, bool realtime)
 
         // Set thread affinity because it would normally be a side effect of setting realtime priority and realtime priority was requested
         uint32_t current_core = 0;
-        int r = getcpu(&current_core, NULL);
+        // getcpu wrapper is implemented in libc 2.29
+        // Oracle 8 uses libc 2.28, so a direct syscall is required
+        int r = syscall(SYS_getcpu, &current_core, NULL);
         if(r == 0) {
             std::vector<size_t> current_core_v(1, (size_t) current_core);
             set_thread_affinity(current_core_v);
