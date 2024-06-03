@@ -110,7 +110,9 @@ std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
 }
 
 std::string cyan_nrnt_iface::peek_str() {
-	return peek_str( 8 );
+    // UART timeout on the server is 15s
+    // Worst case command time is from a UART timeout
+	return peek_str( 17 );
 }
 
 /***********************************************************************
