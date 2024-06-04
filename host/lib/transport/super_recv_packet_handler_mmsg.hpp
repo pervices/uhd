@@ -92,7 +92,27 @@ public:
             dst_address.sin_addr.s_addr = inet_addr(dst_ip[n].c_str());
             dst_address.sin_port = htons(dst_port[n]);
 
-            if(bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
+            // The OS takes an indeterminate amount of time to unbind addresses from previous runs
+            // As a workaround, repeatedly try to bind the port until the timeout is reached
+            struct timespec bind_timeout_time;
+            clock_gettime(CLOCK_MONOTONIC_COARSE, &bind_timeout_time);
+            bind_timeout_time.tv_sec+=30;
+            struct timespec current_time;
+            // Stores the return value of bind, used to check for errors
+            int bind_r;
+            do {
+                bind_r = bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address));
+                // bind_r >= 0: bind succeeded
+                // errno != EADDRINUSE: the issue causing bind to fail is not related to old binds not being cleaned up by the OS,
+                // stop the loop since retrying won't fix it
+                if(bind_r >= 0 || errno != EADDRINUSE) {
+                    break;
+                }
+                ::usleep(5000);
+                clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+            } while (current_time.tv_sec < bind_timeout_time.tv_sec || (current_time.tv_sec == bind_timeout_time.tv_sec && current_time.tv_nsec < bind_timeout_time.tv_nsec));
+
+            if(bind_r < 0)
             {
                 fprintf(stderr, "ERROR Unable to bind to IP address %s and port %i\n", dst_ip[n].c_str(), dst_port[n]);
                 if(errno == EADDRINUSE) {
