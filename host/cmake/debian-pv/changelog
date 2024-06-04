@@ -1,3 +1,9 @@
+uhdpv (4.4.0.11-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing occasional unable to bind error when running programs repeatedly
+
+ -- Per Vices <packages@pervices.com>  Tue, 4 Jun 2024 18:35:42 -0400
+
 uhdpv (4.4.0.10-0ubuntu1) ubuntu_release; urgency=medium
 
   * Fixing compilation error when using libc before 2.29
