@@ -87,7 +87,7 @@ std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
         // if parameter was not initialized
         if (tokens.size() < 3) {
             std::cout << "Parameter no initialized\n";
-            return "0";
+            return "PROP_MISSING";
         }
 
         // if flow control

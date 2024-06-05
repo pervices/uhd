@@ -134,6 +134,10 @@ std::string cyan_nrnt_impl::get_string(std::string req) {
 	// peek (read) back the data
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
+    if(ret == "PROP_MISSING") {
+        std::cout << "g parameter missing:" + req << std::endl;
+        throw uhd::resolve_error("cyan_nrnt_impl::get_string - UDP resp. Property missing on the server: " + req);
+    }
 	if (ret == "TIMEOUT") 	throw uhd::runtime_error("cyan_nrnt_impl::get_string - UDP resp. timed out: " + req);
 	else 			return ret;
 }
@@ -148,6 +152,10 @@ void cyan_nrnt_impl::set_string(const std::string pre, std::string data) {
 	// peek (read) anyways for error check, since Crimson will reply back
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
+    if(ret == "PROP_MISSING") {
+        std::cout << "s parameter missing:" + pre << std::endl;
+        throw uhd::resolve_error("cyan_nrnt_impl::get_string - UDP resp. Property missing on the server: " + pre);
+    }
 	if (ret == "TIMEOUT" || ret == "ERROR")
 		throw uhd::runtime_error("cyan_nrnt_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
 	else
