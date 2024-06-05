@@ -173,6 +173,12 @@ public:
             }
         }
 
+        // Lets the user know if the last burst dropped samples due to packet length multiple requirements
+        if(dropped_cached_nsamps) {
+            UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << dropped_cached_nsamps << " samples to comply";
+            dropped_cached_nsamps = 0;
+        }
+
         uhd::tx_metadata_t modified_metadata = metadata;
         if(cached_sob) {
             cached_sob = false;
@@ -307,7 +313,8 @@ private:
     const double _TICK_RATE;
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
     size_t cached_nsamps = 0;
-    bool dropped_cache_warning_printed = false;
+    // Number of cached_samples dropped during the last EOB, resets after printing warning to user
+    size_t dropped_cached_nsamps = 0;
 
     double _sample_rate = 0;
 
@@ -685,10 +692,10 @@ private:
             ch_send_buffer_info_i.buffer_level_manager.set_end_of_burst_time(next_send_time);
         }
 
-        if(cached_nsamps != 0 && !dropped_cache_warning_printed) {
-            UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << cached_nsamps << " samples to comply";
-            dropped_cache_warning_printed = true;
-        }
+        // Record amount of samples dropped so that user may be informed of it if they start a new stream
+        // Don't print warning about dropped samples here because it often results in umimportant warnings
+        dropped_cached_nsamps = cached_nsamps;
+
         // Drop any samples in the cache, since otherwise they would be added to the next burst
         cached_nsamps = 0;
 
