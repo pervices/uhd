@@ -1060,6 +1060,8 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 /***********************************************************************
  * Structors
  **********************************************************************/
+// .set in TREE_CREATE_ sets the value of the property retrieved by calling get without having a publisher assigned
+// The value for set is irrelevant for RW and RO since a publisher is always assigned, and irrlevant for WO
 // Macro to create the tree, all properties created with this are R/W properties
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
@@ -1073,6 +1075,13 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
 		.set_publisher(std::bind(&cyan_nrnt_impl::get_ ## HANDLER, this, (PROP)    ));	\
+	} while(0)
+
+// Macro to create the tree, all properties created with this are WO properties
+#define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)						\
+	do { _tree->create<TYPE> (PATH)								\
+    		.set( static_cast<TYPE>(0) )							\
+		.add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_ ## HANDLER, this, (PROP), ph::_1));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are static
@@ -1225,7 +1234,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/num_tx", "fpga/about/imgparam/num_tx", int, int);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/rate", "fpga/about/imgparam/rate", int, int);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/rtm", "fpga/about/imgparam/rtm", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "blink", "fpga/board/led", int, int);
+    TREE_CREATE_WO(CYAN_NRNT_MB_PATH / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "temp", "fpga/board/temp", std::string, string);
 
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "user/regs", "fpga/user/regs", user_reg_t, user_reg);
@@ -1550,7 +1559,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
         //interface for setting all ncos
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+ "/dsp/all_nco", double, double);
 
-		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
+		TREE_CREATE_WO(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
 		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/fpga_nco", double, double);
 
         //accesses the interface function for all DAC ncos
@@ -1585,13 +1594,13 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
-	TREE_CREATE_RW(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
-	TREE_CREATE_RW(cm_path / "rx/gain/val", "cm/rx/gain/val", int, int);
+	TREE_CREATE_WO(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
+	TREE_CREATE_WO(cm_path / "rx/gain/val", "cm/rx/gain/val", int, int);
     TREE_CREATE_RW(cm_path / "rx/force_stream", "cm/rx/force_stream", int, int);
-	TREE_CREATE_RW(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
+	TREE_CREATE_WO(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
     TREE_CREATE_RW(cm_path / "tx/force_stream", "cm/tx/force_stream", int, int);
-	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
-	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/fpga_nco", double, double);
+	TREE_CREATE_WO(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
+	TREE_CREATE_WO(cm_path / "trx/nco_adj", "cm/trx/fpga_nco", double, double);
 
 	this->io_init();
 
