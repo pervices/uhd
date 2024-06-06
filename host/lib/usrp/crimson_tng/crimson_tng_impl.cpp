@@ -1000,7 +1000,6 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // Macro to create the tree, all properties created with this are R/W properties
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
-    		.set( get_ ## HANDLER (PROP))							\
 		.add_desired_subscriber(std::bind(&crimson_tng_impl::set_ ## HANDLER, this, (PROP), ph::_1))	\
 		.set_publisher(std::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
@@ -1008,14 +1007,12 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
-    		.set( get_ ## HANDLER (PROP))							\
 		.publish  (std::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are WO properties
 #define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
-        .set( static_cast<TYPE>(0) )							\
 		.add_desired_subscriber(std::bind(&crimson_tng_impl::set_ ## HANDLER, this, (PROP), ph::_1));	\
 	} while(0)
 
