@@ -162,53 +162,38 @@ void crimson_tng_impl::set_string(const std::string pre, std::string data) {
 
 // wrapper for type <double> through the ASCII Crimson interface
 double crimson_tng_impl::get_double(std::string req) {
-	try { return boost::lexical_cast<double>( get_string(req) );
+    try { return boost::lexical_cast<double>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
         UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get double property: " << e.what();
-    } catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get property: " << req;
     }
     return 0;
 }
 void crimson_tng_impl::set_double(const std::string pre, double data){
-	try { set_string(pre, boost::lexical_cast<std::string>(data));
-	} catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to set property: " << pre;
-    }
+    set_string(pre, boost::lexical_cast<std::string>(data));
 }
 
 // wrapper for type <bool> through the ASCII Crimson interface
 bool crimson_tng_impl::get_bool(std::string req) {
-	try { return boost::lexical_cast<bool>( get_string(req) );
+    try { return boost::lexical_cast<bool>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
         UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get bool property: " << e.what();
-    } catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get property: " << req;
     }
     return 0;
 }
 void crimson_tng_impl::set_bool(const std::string pre, bool data){
-	try { set_string(pre, boost::lexical_cast<std::string>(data));
-	} catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to set property: " << pre;
-    }
+    set_string(pre, boost::lexical_cast<std::string>(data));
 }
 
 // wrapper for type <int> through the ASCII Crimson interface
 int crimson_tng_impl::get_int(std::string req) {
-	try { return boost::lexical_cast<int>( get_string(req) );
+    try { return boost::lexical_cast<int>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
         UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get int property: " << e.what();
-    } catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get property: " << req;
     }
     return 0;
 }
 void crimson_tng_impl::set_int(const std::string pre, int data){
-	try { set_string(pre, boost::lexical_cast<std::string>(data));
-	} catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to set property: " << pre;
-    }
+    set_string(pre, boost::lexical_cast<std::string>(data));
 }
 
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
@@ -1223,7 +1208,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
-    _pps_thread_needed = _tree->exists(CRIMSON_TNG_TIME_PATH / "pps_detected");
+    _pps_thread_needed = true;
+    try {
+        // Attempt to read pps_detected
+        // If success the the pps monitoring loop should be run
+        // If failure then pps monitoring is not implemented on the server and the loop should not be run
+        _tree->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").get();
+    } catch(uhd::lookup_error &e) {
+        _pps_thread_needed = false;
+    }
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
