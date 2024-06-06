@@ -131,7 +131,10 @@ public:
 
     ~send_packet_handler_mmsg(void){
         for(size_t n = 0; n < send_sockets.size(); n++) {
-            close(send_sockets[n]);
+            int r = close(send_sockets[n]);
+            if(r) {
+                fprintf(stderr, "close failed on data send socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
+            }
         }
     }
 

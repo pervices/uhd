@@ -197,7 +197,10 @@ public:
     ~recv_packet_handler_mmsg(void)
     {
         for(size_t n = 0; n < recv_sockets.size(); n++) {
-            close(recv_sockets[n]);
+            int r = close(recv_sockets[n]);
+            if(r) {
+                fprintf(stderr, "close failed on data receive socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
+            }
         }
     }
 
