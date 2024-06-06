@@ -1,3 +1,11 @@
+uhdpv (4.4.0.12-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Implementing PPS monitoring on Cyan
+  * Making failed get/set property attempts throw errors instead of silently failing
+  * Faster device initialization
+
+ -- Per Vices <packages@pervices.com>  Thu, 06 Jun 2024 13:00:19 -0400
+
 uhdpv (4.4.0.11-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing occasional unable to bind error when running programs repeatedly
