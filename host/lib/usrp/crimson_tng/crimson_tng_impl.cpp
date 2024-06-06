@@ -992,10 +992,11 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 	set_log_level( uhd::log::severity_level::info );
     device::register_device(&crimson_tng_find, &crimson_tng_make, device::USRP);
 }
-
 /***********************************************************************
  * Structors
  **********************************************************************/
+// .set in TREE_CREATE_ sets the value of the property retrieved by calling get without having a publisher assigned
+// The value for set is irrelevant for RW and RO since a publisher is always assigned, and irrlevant for WO
 // Macro to create the tree, all properties created with this are R/W properties
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
 	do { _tree->create<TYPE> (PATH)								\
@@ -1009,6 +1010,13 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 	do { _tree->create<TYPE> (PATH)								\
     		.set( get_ ## HANDLER (PROP))							\
 		.publish  (std::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
+	} while(0)
+
+// Macro to create the tree, all properties created with this are WO properties
+#define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)						\
+	do { _tree->create<TYPE> (PATH)								\
+        .set( static_cast<TYPE>(0) )							\
+		.add_desired_subscriber(std::bind(&crimson_tng_impl::set_ ## HANDLER, this, (PROP), ph::_1));	\
 	} while(0)
 
 // Macro to create the tree, all properties created with this are static
@@ -1147,7 +1155,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "blink", "fpga/board/led", int, int);
+    TREE_CREATE_WO(CRIMSON_TNG_MB_PATH / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "temp", "fpga/board/temp", std::string, string);
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "user/regs", "fpga/user/regs", user_reg_t, user_reg);
@@ -1484,7 +1492,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 
-		TREE_CREATE_RW(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
+		TREE_CREATE_WO(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
 		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
@@ -1514,13 +1522,13 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	// Common Mode
 	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
 	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
-	TREE_CREATE_RW(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
-	TREE_CREATE_RW(cm_path / "rx/gain/val", "cm/rx/gain/val", double, double);
+	TREE_CREATE_WO(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
+	TREE_CREATE_WO(cm_path / "rx/gain/val", "cm/rx/gain/val", double, double);
     TREE_CREATE_RW(cm_path / "rx/force_stream", "cm/rx/force_stream", int, int);
-	TREE_CREATE_RW(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
+	TREE_CREATE_WO(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
     TREE_CREATE_RW(cm_path / "tx/force_stream", "cm/tx/force_stream", int, int);
-	TREE_CREATE_RW(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
-	TREE_CREATE_RW(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
+	TREE_CREATE_WO(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
+	TREE_CREATE_WO(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
 
 	this->io_init();
 
