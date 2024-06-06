@@ -84,7 +84,9 @@ std::string crimson_tng_iface::peek_str( float timeout_s ) {
         this -> parse(tokens, _buff, ',');
 
         // if parameter was not initialized
-        if (tokens.size() < 3) return "0";
+        if (tokens.size() < 3) {
+            return "GET_ERROR";
+        }
 
         // if flow control
         if (tokens[0] == "flow") flow_cntrl = true;

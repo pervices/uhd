@@ -122,8 +122,18 @@ std::string crimson_tng_impl::get_string(std::string req) {
 	// peek (read) back the data
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
-	if (ret == "TIMEOUT") 	throw uhd::runtime_error("crimson_tng_impl::get_string - UDP resp. timed out: " + req);
-	else 			return ret;
+    if(ret == "GET_ERROR") {
+        throw uhd::lookup_error("crimson_tng_impl::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
+    }
+    else if (ret == "TIMEOUT") {
+        throw uhd::runtime_error("crimson_tng_impl::get_string - UDP resp. timed out: get: " + req);
+    }
+    else  if(ret == "ERROR") {
+        throw uhd::runtime_error("crimson_tng_impl::get_string - UDP unpecified error: " + req);
+    }
+    else {
+        return ret;
+    }
 }
 // Sets a property on the device
 void crimson_tng_impl::set_string(const std::string pre, std::string data) {
@@ -136,10 +146,18 @@ void crimson_tng_impl::set_string(const std::string pre, std::string data) {
 	// peek (read) anyways for error check, since Crimson will reply back
 	std::string ret = _mbc[ "0" ].iface -> peek_str();
 
-	if (ret == "TIMEOUT" || ret == "ERROR")
-		throw uhd::runtime_error("crimson_tng_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
-	else
-		return;
+    if(ret == "GET_ERROR") {
+        throw uhd::lookup_error("crimson_tng_impl::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
+    }
+    else if (ret == "TIMEOUT") {
+        throw uhd::runtime_error("crimson_tng_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
+    }
+    else  if(ret == "ERROR") {
+        throw uhd::runtime_error("crimson_tng_impl::set_string - UDP unpecified error: " + pre);
+    }
+    else {
+        return;
+    }
 }
 
 // wrapper for type <double> through the ASCII Crimson interface
