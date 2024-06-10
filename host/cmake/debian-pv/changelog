@@ -1,3 +1,10 @@
+uhdpv (4.4.0.13-0ubuntu1) ubuntu_release; urgency=high
+
+  * tx_waveforms: only set clock source if the user requests it. Attempting to set a property to blanks result in issues with the server's reply, which are interpreted by uhd and unable to get property
+  * Adding warning message if attempts to close data sockets fails
+
+ -- Per Vices <packages@pervices.com>  Thu, 06 Jun 2024 13:00:19 -0400
+
 uhdpv (4.4.0.12-0ubuntu1) ubuntu_release; urgency=medium
 
   * Implementing PPS monitoring on Cyan
