@@ -331,7 +331,7 @@ class Streamer
     const std::vector<size_t> channels;
 
 public:
-    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels)
+    Streamer(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> channels, uint64_t setpoint)
     :
     channels {channels}
     {
@@ -339,9 +339,12 @@ public:
         stream_args.channels = channels;
         this->usrp = usrp;
         tx = usrp->get_tx_stream(stream_args);
+        // Switches buffer management to blocking mode
+        // The default mode attempts to predict the buffer level, which is impossible in trigger mode
+        tx->enable_blocking_fc(setpoint);
     }
 
-    void stream(const Buffer buffer, const double start_time, const int setpoint, const double period, const int samples, const uint64_t num_trigger) const
+    void stream(const Buffer buffer, const double start_time, const double period, const uint64_t samples, const uint64_t num_trigger) const
     {
         //
         // Prime the FPGA FIFO buffer.
@@ -351,6 +354,8 @@ public:
         md.end_of_burst = false;
         md.has_time_spec = true;
         md.time_spec = uhd::time_spec_t(start_time);
+        double timeout = start_time + 1.5;
+
 
         //
         // Transmission will start at <start_time>.
@@ -375,23 +380,19 @@ public:
             // The fuzzy bit.
             //
 
-            if(min < setpoint)
-            {
-                // To compensate for the hidden buffer inside FPGA empty_handler, we're
-                // sending an additional 30 more samples.
-                md.start_of_burst = true;
-                md.end_of_burst = false;
-                uint64_t sent = tx->send(buffer.mirrors, samples, md);
-                total_sent = sent + total_sent;
-                md.has_time_spec = false;
-
-                //send a mini EOB packet
-                md.start_of_burst = false;
-                md.end_of_burst = true;
-                tx->send("", 0, md);
-            } else {
-                //std::cout << "not sending, min: " << min << std::endl;
+            md.start_of_burst = true;
+            md.end_of_burst = false;
+            uint64_t sent = tx->send(buffer.mirrors, samples, md, timeout);
+            if(sent != samples) {
+                throw uhd::runtime_error("timeout, the time between triggers is to long");
             }
+            total_sent = sent + total_sent;
+            md.has_time_spec = false;
+
+            //send a mini EOB packet
+            md.start_of_burst = false;
+            md.end_of_burst = true;
+            tx->send("", 0, md);
 
             //
             // Print FIFO levels.
@@ -435,7 +436,7 @@ public:
 
     int setpoint {0};
 
-    int samples {0};
+    uint64_t samples {0};
 
     std::string path;
 
@@ -464,7 +465,7 @@ public:
             ("tx_gain"       , po::value<double     >(&tx_gain       )->default_value(      10.0), "(Scalar ) Transmitter gain")
             ("num_trigger"   , po::value<uint64_t   >(&num_trigger   )->default_value(         0), "(Scalar ) Number of trigger event results to record. Set to 0 for continuous")
             ("setpoint"      , po::value<int        >(&setpoint      )->default_value(      5000), "(Samples) Closed loop control will maintain this sample count as the setpoint")
-            ("samples"       , po::value<int        >(&samples       )->default_value(       400), "(Samples) Number of samples to send per trigger event")
+            ("samples"       , po::value<uint64_t        >(&samples       )->default_value(       400), "(Samples) Number of samples to send per trigger event")
             ("path"          , po::value<std::string>(&path          )->default_value("data.txt"), "(Path   ) File path of single column floating point data (Just I, not Q) in range [-1.0, 1.0] to be applied to all device channels")
             ("gating"        , po::value<std::string>(&gating        )->default_value(     "dsp"), "(String ) Gating mode [\"dsp\" | \"output\"]")
             ("edge_debounce" , po::value<int        >(&edge_debounce )->default_value(         0), "(Samples) Number of samples to ignore after first trigger (for debouncing)")
@@ -500,7 +501,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Uhd uhd(args.channels, args.tx_rate, args.tx_center_freq, args.tx_gain);
 
-    Streamer streamer(uhd.usrp, args.channels);
+    Streamer streamer(uhd.usrp, args.channels, (uint64_t) args.setpoint);
 
     Buffer buffer(args.channels, args.path, args.iq_swap);
 
@@ -510,7 +511,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Trigger trigger(uhd.usrp, args.channels, args.samples, args.edge_debounce, args.gating);
 
-    streamer.stream(buffer, args.start_time, args.setpoint, args.period, args.samples, args.num_trigger);
+    streamer.stream(buffer, args.start_time, args.period, args.samples, args.num_trigger);
 
     return 0;
 }
