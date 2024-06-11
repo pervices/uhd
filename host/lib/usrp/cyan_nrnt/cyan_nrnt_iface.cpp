@@ -68,12 +68,12 @@ void cyan_nrnt_iface::poke_str(std::string data) {
 
 // Never call this function by itself, always call through cyan_nrnt_impl::get/set(),
 // else it will mess up the protocol with the sequencing and will contian no error checks.
+// Format: <sequence number>,<error code>,<data>
 std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
     uint32_t iseq;
     std::vector<std::string> tokens;
     uint8_t tries = 0;
     uint8_t num_tries = 5;
-    bool flow_cntrl = false;
 
     do {
         // clears the buffer and receives the message
@@ -84,30 +84,28 @@ std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
         // parses it through tokens: seq, status, [data]
         this -> parse(tokens, _buff, ',');
 
-        // if parameter was not initialized
-        if (tokens.size() < 3) {
+        // Malformed packet
+        if (tokens.size() < 2) {
+            return "ERROR";
+        // Error while reading property
+        } else if(tokens[1].c_str()[0] == CMD_ERROR) {
             return "GET_ERROR";
         }
-
-        // if flow control
-        if (tokens[0] == "flow") flow_cntrl = true;
-
-        // If the message has an error, return ERROR
-        if((flow_cntrl==false)&&(tokens[1].c_str()[0] == CMD_ERROR)) return "ERROR";
 
         // if seq is incorrect, return an error
         sscanf(tokens[0].c_str(), "%" SCNd32, &iseq);
 
-    } while(iseq != seq - 1 && tries++ < num_tries && !flow_cntrl);
+    } while(iseq != seq - 1 && tries++ < num_tries);
 
     // exits with an error if can't find a matching sequence
     if (tries == num_tries) return "INVLD_SEQ";
 
-    // Return the message, tokens[1] is the sequence number
-    if (flow_cntrl) {
-    	return _buff;
+    // Return the message (tokens[2])
+    // If the error checking passed and tokens is size 2, then the intended data is "" (since parse will not add "" if the packets ends with a ","
+    if(tokens.size() < 3) {
+        return "";
     } else {
-    	return tokens[2];
+        return tokens[2];
     }
 }
 
