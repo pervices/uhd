@@ -1,3 +1,10 @@
+uhdpv (4.4.0.14-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding support for properties with blank data to Crimson and Cyan
+  * Improving tx trigger test
+
+ -- Per Vices <packages@pervices.com>  Wed, 12 Jun 2024 12:54:00 -0400
+
 uhdpv (4.4.0.13-0ubuntu1) ubuntu_release; urgency=high
 
   * tx_waveforms: only set clock source if the user requests it. Attempting to set a property to blanks result in issues with the server's reply, which are interpreted by uhd and unable to get property
