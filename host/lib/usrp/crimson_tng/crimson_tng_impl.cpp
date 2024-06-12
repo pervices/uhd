@@ -402,7 +402,9 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
         pps_detected = dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").get();
 
         if (pps_detected == 0) {
-            std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
+            std::cout << "WARNING: PPS has not been detected in the past two seconds" << std::endl;
+            // Stop PPS monitoring after one failure to avoid spamming the user with the same warning message
+            dev->_pps_thread_should_exit = true;
         }
 #ifdef DEBUG_COUT
             std::cout << "PPS flag: " << pps_detected << std::endl;

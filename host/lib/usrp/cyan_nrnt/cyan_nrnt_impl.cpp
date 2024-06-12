@@ -440,6 +440,8 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
 
         if (pps_detected == 0) {
             std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
+            // Stop PPS monitoring after one failure to avoid spamming the user with the same warning message
+            dev->_pps_thread_should_exit = true;
         }
 #ifdef DEBUG_COUT
             std::cout << "PPS flag: " << pps_detected << std::endl;
