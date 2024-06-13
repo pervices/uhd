@@ -1,3 +1,9 @@
+uhdpv (4.4.0.15-0ubuntu1) ubuntu_release; urgency=low
+
+  * Only print PPS not detected error message once
+
+ -- Per Vices <packages@pervices.com>  Thu, 13 Jun 2024 15:04:50 -0400
+
 uhdpv (4.4.0.14-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding support for properties with blank data to Crimson and Cyan
