@@ -867,7 +867,7 @@ void crimson_tng_impl::stop_pps_dtc() {
     }
 
 
-    if ( _pps_thread_running ) {
+    if(_pps_thread.joinable()) {
         _pps_thread_should_exit = true;
         _pps_thread.join();
     }

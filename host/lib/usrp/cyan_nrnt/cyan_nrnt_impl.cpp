@@ -960,8 +960,7 @@ void cyan_nrnt_impl::stop_pps_dtc() {
         return;
     }
 
-
-    if ( _pps_thread_running ) {
+    if(_pps_thread.joinable()) {
         _pps_thread_should_exit = true;
         _pps_thread.join();
     }
