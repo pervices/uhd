@@ -880,29 +880,24 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
 	size_t r = 0;
 
-	for( size_t tries = 0; tries < 100; tries++ ) {
-		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
-		if ( sizeof( req ) != r ) {
-			continue;
-		}
+    r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
+    if ( sizeof( req ) != r ) {
+        UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+        throw new io_error( "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) );
+    }
 
-		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
-		if ( sizeof( rsp ) != r ) {
-			continue;
-		}
+    r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
+    if ( sizeof( rsp ) != r ) {
+        UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+        throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
+    }
 
-		boost::endian::big_to_native_inplace( rsp.header );
-		if ( channel != ( ( rsp.header >> 48 ) & 0xffff ) ) {
-			r = 0;
-			continue;
-		}
+    boost::endian::big_to_native_inplace( rsp.header );
+    if ( channel != ( ( rsp.header >> 48 ) & 0xffff ) ) {
+        UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Invalid buffer level packet for channel " + std::string( 1, 'A' + channel ) << std::endl;
+        throw new runtime_error( "Invalid packet" + std::string( 1, 'A' + channel ) );
+    }
 
-		break;
-	}
-	if ( 0 == r ) {
-		UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
-		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
-	}
 
 	boost::endian::big_to_native_inplace( rsp.oflow );
 	boost::endian::big_to_native_inplace( rsp.uflow );
