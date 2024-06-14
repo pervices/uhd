@@ -76,7 +76,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("int-n", "tune USRP with integer-N tuning")
         ("first", po::value<double>(&first)->default_value(5), "Time for first stacked command")
-        ("last", po::value<double>(&last)->default_value(5), "Time for last stacked command")
+        ("last", po::value<double>(&last), "Time for last stacked command")
         ("increment", po::value<double>(&increment)->default_value(1), "Increment for stack commands between <first> and <last> times")
         ("constant_time", "When set, device time gets set to 0, and first and last's exact values are used. Otherwise first and last are relative to the time when initialization finished. In both cases the device time is set to 0 during init unless pps is bypassed")
     ;
@@ -284,7 +284,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::signal(SIGINT, &sig_int_handler);
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
-    bool ignore_last = first > last;
+    bool ignore_last = !vm.count("last");
     bool first_loop = true;
 
     for(double time = first; ((ignore_last && first_loop ) || time <= last) && !stop_signal_called ; time += increment)
