@@ -64,28 +64,14 @@ void uhd::set_thread_priority(float priority, bool realtime)
 {
     check_priority_range(priority);
 
+
     // TODO fix realtime priority
     // Old SCHED_RR results in random slowdowns in the 10s of ms, SCHED_DEADLINE will randomly lock up non headless systems
 
     (void) realtime;
     if(0/*realtime*/) {
-        // Sets thread priority and enables realtime schedueler (disabled due to aformentioned issues with realtime schedueler)
         set_thread_priority_realtime(priority);
-    } else if (realtime) {
-        set_thread_priority_non_realtime(priority);
-
-        // Set thread affinity because it would normally be a side effect of setting realtime priority and realtime priority was requested
-        uint32_t current_core = 0;
-        // getcpu wrapper is implemented in libc 2.29
-        // Oracle 8 uses libc 2.28, so a direct syscall is required
-        int r = syscall(SYS_getcpu, &current_core, NULL);
-        if(r == 0) {
-            std::vector<size_t> current_core_v(1, (size_t) current_core);
-            set_thread_affinity(current_core_v);
-        } else {
-            UHD_LOG_WARNING("UHD", "Unable to get current cpu num while setting thread affinity. errno: " + std::string(strerror(errno)));
-        }
-    }else {
+    } else {
         set_thread_priority_non_realtime(priority);
     }
 }
