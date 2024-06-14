@@ -848,16 +848,43 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
  * Transmit streamer
  **********************************************************************/
 
+static void request_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport );
+static void receive_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now );
+
 static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+    request_fifo_lvl_udp_abs( channel, xport );
+    receive_fifo_lvl_udp_abs( channel, bl_multiple, xport, lvl, uflow, oflow, now );
+}
+
+// Issues buffer level request
+static void request_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport ) {
+    #pragma pack(push,1)
+    struct fifo_lvl_req {
+        uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
+        //uint64_t cookie;
+    };
+    #pragma pack(pop)
+
+    fifo_lvl_req req;
+
+    req.header = (uint64_t)0x10001 << 16;
+    req.header |= (channel & 0xffff);
+
+    boost::endian::big_to_native_inplace( req.header );
+
+    size_t r = 0;
+
+    r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
+    if ( sizeof( req ) != r ) {
+        UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+        throw new io_error( "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) );
+    }
+}
+
+// Receives buffer level request
+static void receive_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 1.0 / CYAN_NRNT_TICK_RATE;
-
-	#pragma pack(push,1)
-	struct fifo_lvl_req {
-		uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
-		//uint64_t cookie;
-	};
-	#pragma pack(pop)
 
 	#pragma pack(push,1)
 	struct fifo_lvl_rsp {
@@ -870,21 +897,9 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 	};
 	#pragma pack(pop)
 
-	fifo_lvl_req req;
 	fifo_lvl_rsp rsp;
 
-	req.header = (uint64_t)0x10001 << 16;
-	req.header |= (channel & 0xffff);
-
-	boost::endian::big_to_native_inplace( req.header );
-
-	size_t r = 0;
-
-    r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
-    if ( sizeof( req ) != r ) {
-        UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
-        throw new io_error( "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) );
-    }
+    size_t r = 0;
 
     r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
     if ( sizeof( rsp ) != r ) {
