@@ -160,6 +160,7 @@ public:
             struct io_uring_params uring_params;
             memset(&uring_params, 0, sizeof(io_uring_params));
 
+            // TODO: optimize this. 100 results in everything being extremely slow
             const int NUM_ENTRIES = 10;
             // Number of entries that can fit in the submission queue
             uring_params.sq_entries = NUM_ENTRIES;
@@ -512,6 +513,34 @@ private:
             ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
         }
 
+        // TODO: make it work with higher numbers of sample requested
+        // Adds receive requests to io_uring queue
+        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+            ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
+
+            // Gets where to store info for request
+            struct io_uring_sqe *sqe;
+            sqe = io_uring_get_sqe(&io_rings[ch]);
+
+            // Happens when kernel thread takes a while to process io_uring_cqe_seen
+            if(sqe == NULL) {
+                continue;
+            }
+
+            // Prepares request
+            io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0);
+
+            // Tells io_uring that the request is ready
+            int requests_submitted = io_uring_submit(&io_rings[ch]);
+            // TODO: gracefully handle these conditions
+            if(requests_submitted == 0) {
+                continue;
+            } else if(requests_submitted < 0) {
+                printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
+                throw uhd::runtime_error( "io_uring_submit error" );
+            }
+        }
+
         // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
         struct timespec recv_start_time;
         clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
@@ -542,37 +571,6 @@ private:
                     continue;
                 }
 
-                // Sends recv request
-                if(!request_sent[ch]) {
-                    // Gets where to store info for request
-                    struct io_uring_sqe *sqe;
-                    sqe = io_uring_get_sqe(&io_rings[ch]);
-
-                    // Happens when kernel thread takes a while to process io_uring_cqe_seen
-                    if(sqe == NULL) {
-                        continue;
-                    }
-
-                    // Prepares request
-                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0);
-
-                    // int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
-                    // printf("tmp: %li\n", tmp);
-                    // io_uring_prep_recv(sqe, recv_sockets[ch], (void*) tmp_buf, 2000, 0);
-
-                    // Tells io_uring that the request is ready
-                    int requests_submitted = io_uring_submit(&io_rings[ch]);
-                    // TODO: gracefully handle these conditions
-                    if(requests_submitted == 0) {
-                        continue;
-                    } else if(requests_submitted < 0) {
-                        printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
-                        throw uhd::runtime_error( "io_uring_submit error" );
-                    }
-
-                    request_sent[ch] = true;
-                }
-
                 // Gets the next completed receive
                 struct io_uring_cqe *cqe_ptr;
                 int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
@@ -584,9 +582,6 @@ private:
                 } else if(recv_ready != 0) {
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
-
-                // Tell the next loop that the request that was sent has been processed
-                request_sent[ch] = false;
 
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
                 volatile int recv_return = cqe_ptr->res;
