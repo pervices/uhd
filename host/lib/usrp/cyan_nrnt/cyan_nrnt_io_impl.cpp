@@ -423,6 +423,10 @@ private:
                 // Reset failed reads counter after a success
                 failed_buffer_level_reads = 0;
 
+                if(level != 0) {
+                    std::cout << "level: " << level << std::endl;
+                }
+
                 // self->update_buffer_level(i, level, then);
 
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
