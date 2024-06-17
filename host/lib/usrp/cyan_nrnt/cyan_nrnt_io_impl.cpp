@@ -380,6 +380,8 @@ private:
         // Sets a lower thread priority sine this isn't time sensitive
         uhd::set_thread_priority_safe(0, false);
 
+        int failed_buffer_level_reads = 0;
+
 		for( ; ! self->_stop_buffer_monitor; ) {
 
 			const auto t0 = std::chrono::high_resolution_clock::now();
@@ -410,8 +412,16 @@ private:
 				try {
 					get_fifo_level( level, uflow, oflow, then );
 				} catch( ... ) {
+                    failed_buffer_level_reads++;
+                    // Only print the error message on the 100th's read
+                    // TODO: keep track of number of requests issued and print error is the requests send is more than 100 more than received
+                    if(failed_buffer_level_reads == 100) {
+                        UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + self->_eprops.at(i).name + "\nCheck SFP port connections and cofiguration" << std::endl;
+                    }
                     continue;
                 }
+                // Reset failed reads counter after a success
+                failed_buffer_level_reads = 0;
 
                 self->update_buffer_level(i, level, then);
 
