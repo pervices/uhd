@@ -36,6 +36,12 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
+// TODO: add cmake stuff and dependancies to make sure this works on all systems
+#include <liburing.h>
+// liburing notes
+// start with io_uring_prep_recvmsg for simplicity
+// Implement linking to force the correct order: IOSQE_IO_LINK
+
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
@@ -150,6 +156,43 @@ public:
             _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/(_NUM_CHANNELS + 1))/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET + 42));
 
             recv_sockets.push_back(recv_socket_fd);
+
+            struct io_uring_params uring_params;
+            memset(&uring_params, 0, sizeof(io_uring_params));
+
+            const int NUM_ENTRIES = 10;
+            // Number of entries that can fit in the submission queue
+            uring_params.sq_entries = NUM_ENTRIES;
+            // Number of entries that can fit in the completion queue
+            uring_params.cq_entries = NUM_ENTRIES;
+            // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
+            // TODO: figure out how to get busy poll working
+            // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
+            uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL;
+            // Does nothing unless flag IORING_SETUP_SQ_AFF is set
+            // uring_params.sq_thread_cpu;
+            // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
+            uring_params.sq_thread_idle = 100000;
+            // Kernel sets this according to features supported
+            // uring_params.features;
+            // Does nothing unless flag IORING_SETUP_ATTACH_WQ is set
+            // uring_params.wq_fd;
+            // Must be all 0
+            // uring_params.resv[3];
+            // Filled by Kernel with info needed to access submission queue
+            // uring_params.sq_off;
+            // Filled by Kernel with info needed to access submission queue
+            // uring_params.cq_off;
+
+            struct io_uring ring;
+            // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
+            int error = io_uring_queue_init_params(NUM_ENTRIES, &ring, &uring_params);
+            if(error) {
+                fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
+                throw uhd::system_error("io_uring error");
+            }
+
+            io_rings.push_back(ring);
         }
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -201,6 +244,8 @@ public:
             if(r) {
                 fprintf(stderr, "close failed on data receive socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
             }
+            // TODO: figure out order of queue_exit and close
+            io_uring_queue_exit(&io_rings[n]);
         }
     }
 
@@ -319,6 +364,8 @@ private:
     // Number of existing header buffers, which is the current maximum number of packets to receive at a time
     size_t _num_header_buffers = 32;
     std::vector<int> recv_sockets;
+    // Stores uring rings
+    std::vector<io_uring> io_rings;
     size_t previous_sample_cache_used = 0;
     // Maximum sequence number
     const size_t sequence_number_mask = 0xf;
@@ -473,7 +520,12 @@ private:
         // Flag to indicate if a timeout occured. Note: timeout should only be reported if no data was received
         bool timeout_occured = false;
         size_t num_channels_serviced = 0;
+        // True is a read request has been sent out on the channel
+        std::vector<bool> request_sent(_NUM_CHANNELS, false);
         while(num_channels_serviced < _NUM_CHANNELS) {
+
+            // TODO: remove dropped io_uring requests
+            // Check for timeout
             struct timespec current_time;
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
@@ -484,12 +536,74 @@ private:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
+
                 // Skip this channel if it has already received enough packets
                 if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
                     continue;
                 }
-                // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
+
+                // Sends recv request
+                if(!request_sent[ch]) {
+                    // Gets where to store info for request
+                    struct io_uring_sqe *sqe;
+                    sqe = io_uring_get_sqe(&io_rings[ch]);
+
+                    // Happens when kernel thread takes a while to process io_uring_cqe_seen
+                    if(sqe == NULL) {
+                        continue;
+                    }
+
+                    // Prepares request
+                    io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0);
+
+                    // int64_t tmp = recvmsg(recv_sockets[ch], msg_to_add, 0);
+                    // printf("tmp: %li\n", tmp);
+                    // io_uring_prep_recv(sqe, recv_sockets[ch], (void*) tmp_buf, 2000, 0);
+
+                    // Tells io_uring that the request is ready
+                    int requests_submitted = io_uring_submit(&io_rings[ch]);
+                    // TODO: gracefully handle these conditions
+                    if(requests_submitted == 0) {
+                        continue;
+                    } else if(requests_submitted < 0) {
+                        printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
+                        throw uhd::runtime_error( "io_uring_submit error" );
+                    }
+
+                    request_sent[ch] = true;
+                }
+
+                // Gets the next completed receive
+                struct io_uring_cqe *cqe_ptr;
+                int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
+
+                // Indicates no reply to request has been received yet
+                if(recv_ready == -EAGAIN) {
+                    continue;
+                // Errors other than EAGAIN should be impossible
+                } else if(recv_ready != 0) {
+                    throw uhd::runtime_error( "io_uring_peek_cqe error" );
+                }
+
+                // Tell the next loop that the request that was sent has been processed
+                request_sent[ch] = false;
+
+                // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
+                volatile int recv_return = cqe_ptr->res;
+
+                // Tell the ring buffer that the cqe_ptr has been processed
+                io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
+
+                int num_packets_received_this_recv;
+                if(recv_return > 0) {
+                    num_packets_received_this_recv = 1;
+                    ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_len = recv_return;
+                } else {
+                    num_packets_received_this_recv = 0;
+                }
+
+                // // Receive packets system call
+                // int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
 
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
@@ -501,14 +615,14 @@ private:
                     }
                 }
                 // Moves onto next channel, these errors are expected if using MSG_DONTWAIT and no packets are ready
-                else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                else if (-recv_return == EAGAIN || -recv_return == EWOULDBLOCK) {
                     continue;
                 // Error cause when program received interrupt during recv
-                } else if (errno == EINTR) {
+                } else if (-recv_return == EINTR) {
                     return rx_metadata_t::ERROR_CODE_EINTR;
                 // Unexpected error
                 } else {
-                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(errno)));
+                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(recv_return)));
                 }
             }
         }

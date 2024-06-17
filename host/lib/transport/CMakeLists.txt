@@ -131,7 +131,10 @@ if(ENABLE_X300)
     )
 endif(ENABLE_X300)
 
-
+set_source_files_properties(
+    ${CMAKE_CURRENT_SOURCE_DIR}/super_recv_packet_handler_mmsg.hpp
+    PROPERTIES COMPILE_FLAGS "-luring"
+)
 
 if(ENABLE_DPDK)
     INCLUDE_SUBDIRECTORY(uhd-dpdk)
