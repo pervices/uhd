@@ -173,9 +173,9 @@ public:
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
-	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
+	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::vector<uhd::transport::udp_simple::sptr> buffer_level_port, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, buffer_level_port),
 		_first_call_to_send( true ),
 		_buffer_monitor_running( false ),
 		_stop_buffer_monitor( false )
@@ -205,6 +205,7 @@ public:
             int64_t buffer_with_samples_i = -1;
             // Checks if any buffers still have samples
             for(size_t n = 0; n < _channels.size(); n++) {
+                issue_buffer_level_request(n);
                 if(get_buffer_level_from_device(n) != 0) {
                     buffer_with_samples_i = n;
                     break;
@@ -329,6 +330,8 @@ protected:
 
     // TODO: refactor this so that it does not rely on binding to a function in the device
     int64_t get_buffer_level_from_device(const size_t ch_i) {
+
+        issue_buffer_level_request(ch_i);
 
         uint64_t level;
         uint64_t uflow;
@@ -848,41 +851,9 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
  * Transmit streamer
  **********************************************************************/
 
-static void request_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport );
-static void receive_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now );
-
+// Reads a buffer level request
+// Request must be issued seperately
 static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
-    request_fifo_lvl_udp_abs( channel, xport );
-    receive_fifo_lvl_udp_abs( channel, bl_multiple, xport, lvl, uflow, oflow, now );
-}
-
-// Issues buffer level request
-static void request_fifo_lvl_udp_abs( const size_t channel, uhd::transport::udp_simple::sptr xport ) {
-    #pragma pack(push,1)
-    struct fifo_lvl_req {
-        uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
-        //uint64_t cookie;
-    };
-    #pragma pack(pop)
-
-    fifo_lvl_req req;
-
-    req.header = (uint64_t)0x10001 << 16;
-    req.header |= (channel & 0xffff);
-
-    boost::endian::big_to_native_inplace( req.header );
-
-    size_t r = 0;
-
-    r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
-    if ( sizeof( req ) != r ) {
-        UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
-        throw new io_error( "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) );
-    }
-}
-
-// Receives buffer level request
-static void receive_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	static constexpr double tick_period_ps = 1.0 / CYAN_NRNT_TICK_RATE;
 
@@ -1031,7 +1002,23 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use);
+    // Create vector containing the UDP connections
+    std::vector<uhd::transport::udp_simple::sptr> buffer_level_port(args.channels.size());
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+        size_t num_chan_so_far = 0;
+        for (const std::string &mb : _mbc.keys()) {
+            num_chan_so_far += _mbc[mb].tx_chan_occ;
+            if (chan < num_chan_so_far){
+                const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
+
+                buffer_level_port[chan_i] = _mbc[mb].fifo_ctrl_xports[dsp];
+                break;
+            }
+        }
+    }
+
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, buffer_level_port, tx_channel_in_use);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

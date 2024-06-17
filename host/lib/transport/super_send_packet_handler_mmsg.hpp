@@ -32,6 +32,11 @@
 #include <uhd/transport/bounded_buffer.hpp>
 
 #include <uhdlib/utils/system_time.hpp>
+#include <uhd/utils/log.hpp>
+
+// Used for issue buffer level request
+#include <uhd/transport/udp_simple.hpp>
+#include <boost/endian/conversion.hpp>
 
 #define MIN_MTU 9000
 
@@ -63,7 +68,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::vector<uhd::transport::udp_simple::sptr> buffer_level_port)
         : _max_samples_per_packet(max_samples_per_packet),
         _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample),
         _NUM_CHANNELS(channels.size()),
@@ -74,7 +79,8 @@ public:
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
         _TICK_RATE(tick_rate),
         _intermediate_send_buffer_pointers(_NUM_CHANNELS),
-        _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS)
+        _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
+        _buffer_level_port(buffer_level_port)
     {
         ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
 
@@ -240,6 +246,14 @@ public:
             cached_nsamps = 0;
         }
 
+        // Issue buffer level request if it has been more than 0.001s since the last request to be received in a different thread
+        // Not applicable in blocking fc mode since it will issue a request whenever the buffer level is read
+        uhd::time_spec_t current_time = uhd::get_system_time();
+        if(current_time - last_buffer_request_level_issued > 0.001 && !use_blocking_fc) {
+            last_buffer_request_level_issued = current_time;
+            issue_buffer_level_request();
+        }
+
         // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
         return actual_samples_sent + cached_nsamps - cached_samples_sent;
     }
@@ -266,7 +280,41 @@ public:
     void disable_blocking_fc() {
         use_blocking_fc = false;
     }
-    
+
+    // Issues buffer level request to specific channel
+    void issue_buffer_level_request(size_t ch_i) {
+        size_t channel = _channels[ch_i];
+
+        #pragma pack(push,1)
+        struct fifo_lvl_req {
+            uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
+            //uint64_t cookie;
+        };
+        #pragma pack(pop)
+
+        fifo_lvl_req req;
+
+        req.header = (uint64_t)0x10001 << 16;
+        req.header |= (channel & 0xffff);
+
+        boost::endian::big_to_native_inplace( req.header );
+
+        size_t r = 0;
+
+        r = _buffer_level_port[ch_i]->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
+        if ( sizeof( req ) != r ) {
+            UHD_LOGGER_ERROR("SEND") << "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+            throw new io_error( "Failed to send buffer level request for channel " + std::string( 1, 'A' + channel ) );
+        }
+    }
+
+    // Issues buffer level request to all channels
+    void issue_buffer_level_request() {
+        for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+            issue_buffer_level_request(ch_i);
+        }
+    }
+
 protected:
     bool use_blocking_fc = false;
     ssize_t _max_samples_per_packet;
@@ -392,6 +440,12 @@ private:
     std::vector<void*> _intermediate_send_buffer_pointers;
     // Wrapper to be use the same dataype as the regular buffer
     uhd::tx_streamer::buffs_type _intermediate_send_buffer_wrapper;
+
+    // UDP port used to issue a buffer level request
+    std::vector<uhd::transport::udp_simple::sptr> _buffer_level_port;
+
+    // Time the last buffer level request (in system time, not device time)
+    uhd::time_spec_t last_buffer_request_level_issued;
 
     // Converts samples between wire and cpu formats
     uhd::convert::converter::sptr _converter;
@@ -863,8 +917,8 @@ private:
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::vector<uhd::transport::udp_simple::sptr> buffer_level_port):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, buffer_level_port)
     {
     }
 
