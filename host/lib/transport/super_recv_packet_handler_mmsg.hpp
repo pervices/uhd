@@ -543,9 +543,7 @@ private:
             // Submits requests
             int requests_submitted = io_uring_submit(&io_rings[ch]);
             // TODO: gracefully handle these conditions
-            if(requests_submitted == 0) {
-                continue;
-            } else if(requests_submitted < 0) {
+            if(requests_submitted < 0) {
                 printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
                 throw uhd::runtime_error( "io_uring_submit error" );
             }
@@ -594,7 +592,7 @@ private:
                 }
 
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
-                volatile int recv_return = cqe_ptr->res;
+                int recv_return = cqe_ptr->res;
 
                 // Tell the ring buffer that the cqe_ptr has been processed
                 io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
