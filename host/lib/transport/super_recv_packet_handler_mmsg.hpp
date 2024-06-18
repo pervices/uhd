@@ -587,8 +587,6 @@ private:
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
 
-                printf("Data received: %lu\n", ch);
-
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
                 volatile int recv_return = cqe_ptr->res;
 
