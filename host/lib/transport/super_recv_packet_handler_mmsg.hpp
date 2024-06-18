@@ -524,8 +524,9 @@ private:
                 sqe = io_uring_get_sqe(&io_rings[ch]);
 
                 // Happens when kernel thread takes a while to process io_uring_cqe_seen
+                // TODO: handle this gracefully
                 if(sqe == NULL) {
-                    continue;
+                    throw uhd::runtime_error( "io queue full" );
                 }
 
                 // Prepares request
@@ -561,6 +562,7 @@ private:
             struct timespec current_time;
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
+            // Disabled because io_uring needs to flush the requests
             if(/*current_time_ns > recv_timeout_time_ns*/ 0) {
                 printf("TIMEOUT\n");
                 timeout_occured = true;
