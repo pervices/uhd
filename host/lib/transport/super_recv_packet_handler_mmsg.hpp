@@ -530,6 +530,9 @@ private:
             // Prepares request
             io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0);
 
+            // Set flag to ensure reads are in the correct order
+            sqe->flags |= IOSQE_IO_LINK;
+
             // Tells io_uring that the request is ready
             int requests_submitted = io_uring_submit(&io_rings[ch]);
             // TODO: gracefully handle these conditions
