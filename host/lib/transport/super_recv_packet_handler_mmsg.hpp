@@ -579,7 +579,10 @@ private:
                 int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
 
                 // Indicates no reply to request has been received yet
-                if(recv_ready != 0) {
+                if(recv_ready == -EAGAIN) {
+                    continue;
+                // Errors other than EAGAIN should be impossible
+                } if(recv_ready != 0) {
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
 
