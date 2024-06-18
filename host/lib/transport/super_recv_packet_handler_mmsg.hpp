@@ -534,7 +534,7 @@ private:
                 io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[n].msg_hdr, 0);
 
                 // Set flag to ensure reads are in the correct order
-                sqe->flags |= IOSQE_IO_LINK;
+                // sqe->flags |= IOSQE_IO_LINK;
             }
 
             // Submits requests
