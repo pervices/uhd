@@ -561,7 +561,7 @@ private:
             struct timespec current_time;
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
-            if(current_time_ns > recv_timeout_time_ns) {
+            if(/*current_time_ns > recv_timeout_time_ns*/ 0) {
                 printf("TIMEOUT\n");
                 timeout_occured = true;
                 break;
