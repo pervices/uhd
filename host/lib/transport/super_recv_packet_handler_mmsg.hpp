@@ -576,10 +576,7 @@ private:
                 int recv_ready = io_uring_peek_cqe(&io_rings[ch], &cqe_ptr);
 
                 // Indicates no reply to request has been received yet
-                if(recv_ready == -EAGAIN) {
-                    continue;
-                // Errors other than EAGAIN should be impossible
-                } else if(recv_ready != 0) {
+                if(recv_ready != 0) {
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
 
@@ -596,9 +593,6 @@ private:
                 } else {
                     num_packets_received_this_recv = 0;
                 }
-
-                // // Receive packets system call
-                // int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
 
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
