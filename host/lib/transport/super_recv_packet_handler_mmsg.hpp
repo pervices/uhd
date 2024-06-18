@@ -562,6 +562,7 @@ private:
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
             if(current_time_ns > recv_timeout_time_ns) {
+                printf("TIMEOUT\n");
                 timeout_occured = true;
                 break;
             }
@@ -585,6 +586,8 @@ private:
                 } if(recv_ready != 0) {
                     throw uhd::runtime_error( "io_uring_peek_cqe error" );
                 }
+
+                printf("Data received: %lu\n", ch);
 
                 // Will return the normal return value of recvmsg on success, what would be -errno of after recvmsg on failure
                 volatile int recv_return = cqe_ptr->res;
