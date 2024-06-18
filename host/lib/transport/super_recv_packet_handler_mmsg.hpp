@@ -615,7 +615,7 @@ private:
                     return rx_metadata_t::ERROR_CODE_EINTR;
                 // Unexpected error
                 } else {
-                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(recv_return)));
+                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(-recv_return)));
                 }
             }
         }
