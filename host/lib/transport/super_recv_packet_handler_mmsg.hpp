@@ -517,30 +517,32 @@ private:
         // Adds receive requests to io_uring queue
         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
+            for(size_t n = 0; n < num_packets_to_recv; n++) {
 
-            // Gets where to store info for request
-            struct io_uring_sqe *sqe;
-            sqe = io_uring_get_sqe(&io_rings[ch]);
+                // Gets where to store info for request
+                struct io_uring_sqe *sqe;
+                sqe = io_uring_get_sqe(&io_rings[ch]);
 
-            // Happens when kernel thread takes a while to process io_uring_cqe_seen
-            if(sqe == NULL) {
-                continue;
-            }
+                // Happens when kernel thread takes a while to process io_uring_cqe_seen
+                if(sqe == NULL) {
+                    continue;
+                }
 
-            // Prepares request
-            io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used].msg_hdr, 0);
+                // Prepares request
+                io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[n].msg_hdr, 0);
 
-            // Set flag to ensure reads are in the correct order
-            sqe->flags |= IOSQE_IO_LINK;
+                // Set flag to ensure reads are in the correct order
+                sqe->flags |= IOSQE_IO_LINK;
 
-            // Tells io_uring that the request is ready
-            int requests_submitted = io_uring_submit(&io_rings[ch]);
-            // TODO: gracefully handle these conditions
-            if(requests_submitted == 0) {
-                continue;
-            } else if(requests_submitted < 0) {
-                printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
-                throw uhd::runtime_error( "io_uring_submit error" );
+                // Tells io_uring that the request is ready
+                int requests_submitted = io_uring_submit(&io_rings[ch]);
+                // TODO: gracefully handle these conditions
+                if(requests_submitted == 0) {
+                    continue;
+                } else if(requests_submitted < 0) {
+                    printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
+                    throw uhd::runtime_error( "io_uring_submit error" );
+                }
             }
         }
 
