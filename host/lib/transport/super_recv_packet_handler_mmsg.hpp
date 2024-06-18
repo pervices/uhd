@@ -552,8 +552,6 @@ private:
         // Flag to indicate if a timeout occured. Note: timeout should only be reported if no data was received
         bool timeout_occured = false;
         size_t num_channels_serviced = 0;
-        // True is a read request has been sent out on the channel
-        std::vector<bool> request_sent(_NUM_CHANNELS, false);
         while(num_channels_serviced < _NUM_CHANNELS) {
 
             // TODO: remove dropped io_uring requests
