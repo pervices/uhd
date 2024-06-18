@@ -349,6 +349,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
+    uhd::set_thread_priority_safe();
+
     bool skip_save = vm.count("null");
     bool strict = vm.count("strict");
 
