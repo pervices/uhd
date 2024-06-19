@@ -81,6 +81,7 @@ public:
     _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
     _intermediate_recv_buffer_wrapper(_intermediate_recv_buffer_pointers.data(), _NUM_CHANNELS)
     {
+        printf("_MAX_SAMPLE_BYTES_PER_PACKET: %lu\n", _MAX_SAMPLE_BYTES_PER_PACKET);
         if (wire_format=="sc16") {
             _BYTES_PER_SAMPLE = 4;
         } else if (wire_format=="sc12") {
