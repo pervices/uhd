@@ -595,12 +595,11 @@ private:
                 io_timeout.tv_nsec = 0;
                 sigset_t sigmask;
                 sigemptyset(&sigmask);
-                int num_completed = io_uring_wait_cqes(&io_rings[ch], cqe_ptrs, num_packets_to_recv, &io_timeout, &sigmask);
-                if(num_completed == (int) num_packets_to_recv) {
-                    ch_recv_buffer_info_i.num_headers_used += num_completed;
+                int r = io_uring_wait_cqes(&io_rings[ch], cqe_ptrs, num_packets_to_recv, &io_timeout, &sigmask);
+                if(r == 0) {
+                    ch_recv_buffer_info_i.num_headers_used += num_packets_to_recv;
                     num_channels_serviced++;
                 } else {
-                        printf("num_completed: %i\n", num_completed);
                     printf("num_packets_to_recv: %lu\n", num_packets_to_recv);
                     throw uhd::runtime_error( "not all recvs processed" );
                 }
