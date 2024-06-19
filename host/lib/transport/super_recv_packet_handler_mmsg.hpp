@@ -528,6 +528,7 @@ private:
                 // Happens when kernel thread takes a while to process io_uring_cqe_seen
                 // TODO: handle this gracefully
                 if(sqe == NULL) {
+                    printf("unconsumed entries: %u\n", io_uring_cq_ready(&io_rings[ch]));
                     throw uhd::runtime_error( "io queue full" );
                 }
 
