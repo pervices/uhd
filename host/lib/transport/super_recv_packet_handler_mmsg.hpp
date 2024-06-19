@@ -531,6 +531,7 @@ private:
                 // Happens when kernel thread takes a while to process io_uring_cqe_seen
                 // TODO: handle this gracefully
                 if(sqe == NULL) {
+                    printf("num_packets_to_recv: %lu\n", num_packets_to_recv);
                     printf("sqe_requests: %lu\n", sqe_requests);
                     printf("cqe_seen: %lu\n", cqe_seen);
                     printf("unconsumed entries: %u\n", io_uring_cq_ready(&io_rings[ch]));
