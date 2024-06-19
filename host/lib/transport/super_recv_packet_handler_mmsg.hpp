@@ -540,14 +540,14 @@ private:
                 if(n + 1 != num_packets_to_recv) {
                     sqe->flags |= IOSQE_IO_LINK;
                 }
-            }
 
-            // Submits requests
-            int requests_submitted = io_uring_submit(&io_rings[ch]);
-            // TODO: gracefully handle these conditions
-            if(requests_submitted < 0) {
-                printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
-                throw uhd::runtime_error( "io_uring_submit error" );
+                // Submits requests
+                int requests_submitted = io_uring_submit(&io_rings[ch]);
+                // TODO: gracefully handle these conditions
+                if(requests_submitted < 0) {
+                    printf("io_uring_submit failed: %s\n", strerror(-requests_submitted));
+                    throw uhd::runtime_error( "io_uring_submit error" );
+                }
             }
         }
 
