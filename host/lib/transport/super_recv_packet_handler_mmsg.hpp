@@ -62,6 +62,7 @@ class recv_packet_handler_mmsg : public recv_packet_handler
 public:
 
     size_t sqe_requests = 0;
+    size_t cqe_seen = 0;
 
     /*!
      * Make a new packet handler for receive
@@ -531,6 +532,7 @@ private:
                 // TODO: handle this gracefully
                 if(sqe == NULL) {
                     printf("sqe_requests: %lu\n", sqe_requests);
+                    printf("cqe_seen: %lu\n", cqe_seen);
                     printf("unconsumed entries: %u\n", io_uring_cq_ready(&io_rings[ch]));
                     throw uhd::runtime_error( "io queue full" );
                 }
@@ -604,6 +606,7 @@ private:
 
                 // Tell the ring buffer that the cqe_ptr has been processed
                 io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
+                cqe_seen++;
 
                 int num_packets_received_this_recv;
                 if(recv_return > 0) {
