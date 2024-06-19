@@ -161,7 +161,7 @@ public:
             memset(&uring_params, 0, sizeof(io_uring_params));
 
             // TODO: optimize this. 100 results in everything being extremely slow
-            const int NUM_ENTRIES = 10;
+            const int NUM_ENTRIES = 20;
             // Number of entries that can fit in the submission queue
             uring_params.sq_entries = NUM_ENTRIES;
             // Number of entries that can fit in the completion queue
