@@ -600,6 +600,8 @@ private:
                     ch_recv_buffer_info_i.num_headers_used += num_completed;
                     num_channels_serviced++;
                 } else {
+                        printf("num_completed: %i\n", num_completed);
+                    printf("num_packets_to_recv: %lu\n", num_packets_to_recv);
                     throw uhd::runtime_error( "not all recvs processed" );
                 }
                 //
