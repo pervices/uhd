@@ -600,9 +600,33 @@ private:
                     ch_recv_buffer_info_i.num_headers_used += num_packets_to_recv;
                     num_channels_serviced++;
                 } else {
+                    throw uhd::runtime_error( "io_uring_wait_cqes failed" );
+                }
+
+
+                struct io_uring_cqe *cqe_ptr;
+                uint32_t for_each_n = 0;
+                size_t num_received = 0;
+                io_uring_for_each_cqe(&io_rings[ch], for_each_n, cqe_ptr) {
+
+                    int recv_return = cqe_ptr->res;
+                    if(recv_return > 0) {
+                        ch_recv_buffer_info_i.msgs[num_received].msg_len = recv_return;
+                    } else {
+                        throw uhd::runtime_error( "recv failed" );
+                    }
+
+                    num_received++;
+                }
+
+                if(num_received != num_packets_to_recv) {
+                    printf("num_received: %lu\n", num_received);
                     printf("num_packets_to_recv: %lu\n", num_packets_to_recv);
                     throw uhd::runtime_error( "not all recvs processed" );
                 }
+
+                io_uring_cq_advance(&io_rings[ch], num_received);
+
                 //
                 // // Gets the next completed receive
                 // struct io_uring_cqe *cqe_ptr;
