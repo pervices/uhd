@@ -540,7 +540,7 @@ private:
                 }
 
                 // Prepares request
-                io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[n].msg_hdr, 0);
+                io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[n].msg_hdr, IORING_RECVSEND_POLL_FIRST);
 
                 // Set flag to ensure reads are in the correct order
                 // Doesn't work across submits
