@@ -61,9 +61,6 @@ class recv_packet_handler_mmsg : public recv_packet_handler
 {
 public:
 
-    size_t sqe_requests = 0;
-    size_t cqe_seen = 0;
-
     /*!
      * Make a new packet handler for receive
      * \param dst_ip the IPV4 desination IP address of packets for each channe;
@@ -81,7 +78,6 @@ public:
     _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
     _intermediate_recv_buffer_wrapper(_intermediate_recv_buffer_pointers.data(), _NUM_CHANNELS)
     {
-        printf("_MAX_SAMPLE_BYTES_PER_PACKET: %lu\n", _MAX_SAMPLE_BYTES_PER_PACKET);
         if (wire_format=="sc16") {
             _BYTES_PER_SAMPLE = 4;
         } else if (wire_format=="sc12") {
@@ -164,8 +160,6 @@ public:
             struct io_uring_params uring_params;
             memset(&uring_params, 0, sizeof(io_uring_params));
 
-            // TODO: optimize this. 100 results in everything being extremely slow
-            const int NUM_ENTRIES = 20;
             // Number of entries that can fit in the submission queue
             uring_params.sq_entries = NUM_ENTRIES;
             // Number of entries that can fit in the completion queue
@@ -358,6 +352,9 @@ protected:
     virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
+    // TODO: optimize this. 100 results in everything being extremely slow, this get's rounded up to the next power of 2 by most kernels
+    // The number of entries in the ring buffer
+    const int NUM_ENTRIES = 32;
     // TODO dynamically adjust recv buffer size based on system RAM, number of channels, and maximum sample rate. Should be capable of storing 100ms of data
     // Desired recv buffer size
     const int _DEFAULT_RECV_BUFFER_SIZE = 500000000;
@@ -467,6 +464,11 @@ private:
 
         size_t num_packets_to_recv = samples_sg_dst[0].size();
 
+        // TODO: support any number of packets
+        if(num_packets_to_recv > (size_t)NUM_ENTRIES) {
+            printf("To many packets requests for io_uring: %lu\n", num_packets_to_recv);
+        }
+
         // Adds more room to store headers if required
         if(num_packets_to_recv > _num_header_buffers) {
             _num_header_buffers = num_packets_to_recv;
@@ -533,13 +535,9 @@ private:
                 // TODO: handle this gracefully
                 if(sqe == NULL) {
                     printf("num_packets_to_recv: %lu\n", num_packets_to_recv);
-                    printf("sqe_requests: %lu\n", sqe_requests);
-                    printf("cqe_seen: %lu\n", cqe_seen);
                     printf("unconsumed entries: %u\n", io_uring_cq_ready(&io_rings[ch]));
                     throw uhd::runtime_error( "io queue full" );
                 }
-
-                sqe_requests++;
 
                 // Prepares request
                 io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[n].msg_hdr, 0);
@@ -560,8 +558,6 @@ private:
                 }
             }
         }
-
-        printf("Finished submitting\n");
 
         // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
         struct timespec recv_start_time;
@@ -610,7 +606,6 @@ private:
 
                 // Tell the ring buffer that the cqe_ptr has been processed
                 io_uring_cqe_seen(&io_rings[ch], cqe_ptr);
-                cqe_seen++;
 
                 int num_packets_received_this_recv;
                 if(recv_return > 0) {
