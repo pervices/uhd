@@ -716,8 +716,8 @@ private:
                 // Checks if sequence number is correct, ignore check if timestamp is 0
                 if((ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count != (sequence_number_mask & (ch_recv_buffer_info_i.previous_sequence_number + 1)))  && (ch_recv_buffer_info_i.vrt_metadata[header_i].tsf != 0)) {
                     oflow_error = true;
-                    //UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
-                    UHD_LOG_FASTPATH("D");
+                    UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
+                    // UHD_LOG_FASTPATH("D");
                     if(!_using_performance_governor && !_performance_warning_printed) {
                         UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
                         _performance_warning_printed = true;
