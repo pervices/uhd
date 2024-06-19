@@ -537,9 +537,9 @@ private:
 
                 // Set flag to ensure reads are in the correct order
                 // Don't set flag on last request, might help performance
-                if(n + 1 != num_packets_to_recv) {
+                // if(n + 1 != num_packets_to_recv) {
                     sqe->flags |= IOSQE_IO_LINK;
-                }
+                // }
 
                 // Submits requests
                 int requests_submitted = io_uring_submit(&io_rings[ch]);
