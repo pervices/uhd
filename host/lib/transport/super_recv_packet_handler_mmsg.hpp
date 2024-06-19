@@ -540,6 +540,7 @@ private:
                 // if(n + 1 != num_packets_to_recv) {
                     sqe->flags |= IOSQE_IO_LINK;
                 // }
+                sqe->flags |= IOSQE_IO_DRAIN;
 
                 // Submits requests
                 int requests_submitted = io_uring_submit(&io_rings[ch]);
