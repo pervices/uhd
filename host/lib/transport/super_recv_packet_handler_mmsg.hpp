@@ -544,10 +544,10 @@ private:
 
                 // Set flag to ensure reads are in the correct order
                 // Doesn't work across submits
-                // sqe->flags |= IOSQE_IO_LINK;
+                sqe->flags |= IOSQE_IO_LINK;
 
                 // Forces requests to be done in the order they appear in (works between submits)
-                sqe->flags |= IOSQE_IO_DRAIN;
+                // sqe->flags |= IOSQE_IO_DRAIN;
             }
             // Submits requests
             int requests_submitted = io_uring_submit(&io_rings[ch]);
