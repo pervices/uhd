@@ -559,6 +559,8 @@ private:
             }
         }
 
+        printf("Finished submitting\n");
+
         // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
         struct timespec recv_start_time;
         clock_gettime(CLOCK_MONOTONIC_COARSE, &recv_start_time);
