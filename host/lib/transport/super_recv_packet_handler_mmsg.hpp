@@ -536,10 +536,10 @@ private:
                 io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[n].msg_hdr, 0);
 
                 // Set flag to ensure reads are in the correct order
-                // Don't set flag on last request, might help performance
-                // if(n + 1 != num_packets_to_recv) {
-                    sqe->flags |= IOSQE_IO_LINK;
-                // }
+                // Doesn't work across submits
+                // sqe->flags |= IOSQE_IO_LINK;
+
+                // Forces requests to be done in the order they appear in (works between submits)
                 sqe->flags |= IOSQE_IO_DRAIN;
 
                 // Submits requests
