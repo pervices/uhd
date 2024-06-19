@@ -61,6 +61,8 @@ class recv_packet_handler_mmsg : public recv_packet_handler
 {
 public:
 
+    size_t sqe_requests = 0;
+
     /*!
      * Make a new packet handler for receive
      * \param dst_ip the IPV4 desination IP address of packets for each channe;
@@ -528,9 +530,12 @@ private:
                 // Happens when kernel thread takes a while to process io_uring_cqe_seen
                 // TODO: handle this gracefully
                 if(sqe == NULL) {
+                    printf("sqe_requests: %lu\n", sqe_requests);
                     printf("unconsumed entries: %u\n", io_uring_cq_ready(&io_rings[ch]));
                     throw uhd::runtime_error( "io queue full" );
                 }
+
+                sqe_requests++;
 
                 // Prepares request
                 io_uring_prep_recvmsg(sqe, recv_sockets[ch], &ch_recv_buffer_info_i.msgs[n].msg_hdr, 0);
