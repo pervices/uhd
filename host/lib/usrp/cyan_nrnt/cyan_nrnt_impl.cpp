@@ -1190,6 +1190,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 
     rx_gain_is_set.resize(num_rx_channels, false);
     last_set_rx_band.resize(num_rx_channels, -1);
+    rx_rfe_rate_cache.resize(num_rx_channels, 0);
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
 
@@ -1411,6 +1412,15 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 		TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
 		TREE_CREATE_RW(rx_path / dspno / "hw_version", "rx_"+lc_num+"/about/hw_ver", std::string, string);
 		TREE_CREATE_RW(rx_path / dspno / "sw_version", "rx_"+lc_num+"/about/sw_ver", std::string, string);
+
+        TREE_CREATE_RW(rx_path / dspno / "about/rfe_rate", "rx_"+lc_num+"/about/rfe_rate", double, double);
+        try {
+            rx_rfe_rate_cache[dspno] = _tree->access<double>(rx_path / dspno / "about/rfe_rate").get();
+        } catch(uhd::lookup_error &e) {
+            // rx_rfe_rate_cache is only used when using 3G backplane and either 1G or 3G rfe boards
+            // If using an old server assume that 3G backplane means 3G rfe boards
+            rx_rfe_rate_cache[dspno] = 3000000000;
+        }
 
 		// Power status
 		TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
@@ -1838,7 +1848,7 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign ) {
+double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign, size_t chan ) {
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
 
@@ -1877,7 +1887,7 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     // 3G rx has a fixed 250MHz NCO built into it in 1G mode
     // if dsp NCO is not bypassed, try to keep LO 250MHz above the target 
     double compensatory_dsp_shift;
-    if(flag_use_3g_as_1g && RX_SIGN == xx_sign && dsp_bw != 0) {
+    if(flag_use_3g_as_1g && RX_SIGN == xx_sign && dsp_bw != 0 && rx_rfe_rate_cache[chan]) {
         compensatory_dsp_shift = CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
     } else {
         compensatory_dsp_shift = 0;
@@ -1929,7 +1939,7 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 //calculates and sets the band, nco, and lo shift
-tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band ) {
+tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band, size_t chan ) {
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
@@ -1959,7 +1969,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
             //The differences between mid and high band are handled on the server
 			case MID_BAND:
             case HIGH_BAND:
-                target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree, xx_sign );
+                target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree, xx_sign, chan );
 				break;
 			}
 		break;
@@ -2053,7 +2063,8 @@ uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
 			_tree->subtree(rx_dsp_root(chan)),
 			_tree->subtree(rx_rf_fe_root(chan)),
 			tune_request,
-            &rx_gain_is_set[chan], &last_set_rx_band[chan]);
+            &rx_gain_is_set[chan], &last_set_rx_band[chan],
+            chan);
 	return result;
 
 }
@@ -2076,7 +2087,8 @@ uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
 			_tree->subtree(tx_dsp_root(chan)),
 			_tree->subtree(tx_rf_fe_root(chan)),
 			tune_request,
-            &tx_gain_is_set[chan], &last_set_tx_band[chan]);
+            &tx_gain_is_set[chan], &last_set_tx_band[chan],
+            chan);
 	return result;
 
 }

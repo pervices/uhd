@@ -290,8 +290,8 @@ private:
     void program_stream_dest(uhd::transport::zero_copy_if::sptr &, const uhd::stream_args_t &);
 
     // Calculate and set frequency
-    double choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign );
-    tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band );
+    double choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign, size_t chan );
+    tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band, size_t chan );
 
     uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_rx_freq(size_t chan = 0);
@@ -352,6 +352,9 @@ private:
     std::shared_ptr<std::vector<bool>> rx_channel_in_use;
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
+
+    // Stores the deault rate rx boards operate at so that is doesn't need to be asked every time it is accessed
+    std::vector<double> rx_rfe_rate_cache;
 
     const bool _use_dpdk;
 };
