@@ -1,3 +1,9 @@
+uhdpv (4.4.0.17-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fix treating 1G rx boards with 3G backplane as 3G boards
+
+ -- Per Vices <packages@pervices.com>  Mon, 24 Jun 2024 11:57:30 -0400
+
 uhdpv (4.4.0.16-0ubuntu1) ubuntu_release; urgency=low
 
   * Fix crash on PPS check loop on exit
