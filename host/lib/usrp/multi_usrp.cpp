@@ -148,14 +148,16 @@ public:
         }
         // Disables trimming
         // I think this removes the costs deallocating unused memory but means that hte program will always be increasing in size
-        r = mallopt(M_TRIM_THRESHOLD, -1);
-        if(r == 0) {
-            printf("mallopt M_TRIM_THRESHOLD error\n");
-        }
-        // r = mallopt(M_ARENA_MAX, 384);
+        // r = mallopt(M_TRIM_THRESHOLD, -1);
         // if(r == 0) {
-        //     printf("mallopt M_ARENA_MAX error\n");
+        //     printf("mallopt M_TRIM_THRESHOLD error\n");
         // }
+        // Experimentally proven to improve performance
+        // TODO: soft code this, the limit 8 * number of cores
+        r = mallopt(M_ARENA_MAX, 384);
+        if(r == 0) {
+            printf("mallopt M_ARENA_MAX error\n");
+        }
         _tree = _dev->get_tree();
     }
 
