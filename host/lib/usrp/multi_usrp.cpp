@@ -141,15 +141,16 @@ public:
     multi_usrp_impl(device::sptr dev) : _dev(dev)
     {
         // Increases the number of fastbins available
+        // Experimentally proven to improve performance
         // Speeds up memory allocation at the cost of taking more memory
-        // int r = mallopt(M_MXFAST, 80*sizeof(size_t)/4);
-        // if(r == 0) {
-        //     printf("mallopt M_MXFAST error\n");
-        // }
+        int r = mallopt(M_MXFAST, 80*sizeof(size_t)/4);
+        if(r == 0) {
+            printf("mallopt M_MXFAST error\n");
+        }
         // Disables trimming
         // Experimentally proven to improve performance
-        // Prevents releasing memory to the OS
-        int r = mallopt(M_TRIM_THRESHOLD, -1);
+        // Prevents releasing memory to the OS, avoids needing to claim more memory
+        r = mallopt(M_TRIM_THRESHOLD, -1);
         if(r == 0) {
             printf("mallopt M_TRIM_THRESHOLD error\n");
         }
