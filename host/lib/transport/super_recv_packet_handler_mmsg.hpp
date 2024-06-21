@@ -83,6 +83,7 @@ public:
         // Creates and binds to sockets
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             struct sockaddr_in dst_address;
+            memset(&dst_address, 0, sizeof(dst_address));
             int recv_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
             if(recv_socket_fd < 0) {
                 throw uhd::runtime_error( "Failed to create recv socket. Error code:" + std::string(strerror(errno)));
