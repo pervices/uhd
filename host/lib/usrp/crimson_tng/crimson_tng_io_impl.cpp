@@ -95,8 +95,8 @@ class crimson_tng_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<std::string>& dsp_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use)
-	: sph::recv_packet_streamer_mmsg(dsp_ip, dst_port, max_sample_bytes_per_packet, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian),
+	crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dsp_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use)
+	: sph::recv_packet_streamer_mmsg(recv_sockets, dsp_ip, max_sample_bytes_per_packet, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian),
 	_channels(channels)
 	{
         _rx_streamer_channel_in_use = rx_channel_in_use;
@@ -750,6 +750,49 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     bool little_endian_supported = true;
 
+    // Create and bind sockets
+    // Done here instead of the packet handler class due to the need to auto change ports if the default is busy
+    std::vector<int> recv_sockets(args.channels.size());
+    for(size_t n = 0; n < dst_port.size(); n++) {
+        struct sockaddr_in dst_address;
+        memset(&dst_address, 0, sizeof(sockaddr_in));
+        int recv_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if(recv_socket_fd < 0) {
+            throw uhd::runtime_error( "Failed to create recv socket. Error code:" + std::string(strerror(errno)));
+        }
+
+        dst_address.sin_family = AF_INET;
+        dst_address.sin_addr.s_addr = inet_addr(dst_ip[n].c_str());
+        dst_address.sin_port = htons(dst_port[n]);
+
+        int bind_r;
+        int bind_attempts = 0;
+        const int max_band_attempts = 3;
+        do {
+            bind_r = bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address));
+
+            // If a bind error occured pick a new
+            if(bind_r < 0 && errno == EADDRINUSE && bind_attempts < max_band_attempts) {
+                std::string error_message = "Channel " + std::to_string(args.channels[n]) + " IP address " + dst_ip[n] + " and port " + std::to_string(dst_port[n]) + " is already in use. UHD will change the channel's port and trying again. The most likely causes are either there are multiple instances of UHD running or the OS has not cleaned up a previous UHD program's binds";
+                UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+
+                // Pick new port to attempt that shouldn't interfere with other channels
+                int desired_new_port = dst_port[n] + 32;
+                _tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).set(std::to_string(desired_new_port));
+                dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
+
+            } else if (bind_r < 0) {
+                std::string error_message = "Channel " + std::to_string(args.channels[n]) + " bind to IP address " + dst_ip[n] + " and port " + std::to_string(dst_port[n]) + " failed with error code: " + std::string(strerror(errno));
+                UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+                throw uhd::io_error( error_message );
+            }
+
+            bind_attempts++;
+        } while (bind_attempts < max_band_attempts && bind_r < 0);
+
+        recv_sockets[n] = recv_socket_fd;
+    }
+
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         size_t num_chan_so_far = 0;
@@ -786,7 +829,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, dst_ip, dst_port, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

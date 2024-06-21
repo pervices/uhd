@@ -57,18 +57,19 @@ public:
 
     /*!
      * Make a new packet handler for receive
-     * \param dst_ip the IPV4 desination IP address of packets for each channe;
-     * \param dst_port the detination port of packet for each channel
+     * \param recv_sockets sockets to receive data packets on. Must be bound to the desired IP/port already. This close will handle all other setup and closing the socket
+     * \param dst_ip destination IP address of the packets to be received
      * \param max_sample_bytes_per_packet the number of transport channels
      * \param header_size the number of transport channels
      * \param cpu_format datatype of samples on the host system
      * \param wire_format datatype of samples in the packets
      * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
      */
-    recv_packet_handler_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
-    : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(dst_ip.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
+    recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(recv_sockets.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
+    _recv_sockets(recv_sockets),
     _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
     _intermediate_recv_buffer_wrapper(_intermediate_recv_buffer_pointers.data(), _NUM_CHANNELS)
     {
@@ -80,54 +81,15 @@ public:
             throw uhd::runtime_error( "Unsupported wire format:" + wire_format);
         }
 
-        // Creates and binds to sockets
+        // Performs socket setup
+        // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            struct sockaddr_in dst_address;
-            int recv_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
-            if(recv_socket_fd < 0) {
-                throw uhd::runtime_error( "Failed to create recv socket. Error code:" + std::string(strerror(errno)));
-            }
-
-            dst_address.sin_family = AF_INET;
-            dst_address.sin_addr.s_addr = inet_addr(dst_ip[n].c_str());
-            dst_address.sin_port = htons(dst_port[n]);
-
-            // The OS takes an indeterminate amount of time to unbind addresses from previous runs
-            // As a workaround, repeatedly try to bind the port until the timeout is reached
-            struct timespec bind_timeout_time;
-            clock_gettime(CLOCK_MONOTONIC_COARSE, &bind_timeout_time);
-            bind_timeout_time.tv_sec+=30;
-            struct timespec current_time;
-            // Stores the return value of bind, used to check for errors
-            int bind_r;
-            do {
-                bind_r = bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address));
-                // bind_r >= 0: bind succeeded
-                // errno != EADDRINUSE: the issue causing bind to fail is not related to old binds not being cleaned up by the OS,
-                // stop the loop since retrying won't fix it
-                if(bind_r >= 0 || errno != EADDRINUSE) {
-                    break;
-                }
-                ::usleep(5000);
-                clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
-            } while (current_time.tv_sec < bind_timeout_time.tv_sec || (current_time.tv_sec == bind_timeout_time.tv_sec && current_time.tv_nsec < bind_timeout_time.tv_nsec));
-
-            if(bind_r < 0)
-            {
-                fprintf(stderr, "ERROR Unable to bind to IP address %s and port %i\n", dst_ip[n].c_str(), dst_port[n]);
-                if(errno == EADDRINUSE) {
-                    fprintf(stderr, "Address already in use. This is usually caused by attempting to run multiple UHD programs at once\n");
-                } else {
-                    fprintf(stderr, "Bind failed with error: %s\n", strerror(errno));
-                }
-            }
-
             // Sets the recv buffer size
-            setsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
+            setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
 
             // Checks the recv buffer size
             socklen_t opt_len = sizeof(_ACTUAL_RECV_BUFFER_SIZE);
-            getsockopt(recv_socket_fd, SOL_SOCKET, SO_RCVBUF, &_ACTUAL_RECV_BUFFER_SIZE, &opt_len);
+            getsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_ACTUAL_RECV_BUFFER_SIZE, &opt_len);
 
             // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
             if(_ACTUAL_RECV_BUFFER_SIZE < 2*_DEFAULT_RECV_BUFFER_SIZE) {
@@ -135,21 +97,19 @@ public:
                 throw uhd::system_error("Unable to set recv socket size");
             }
 
-            int mtu = get_mtu(recv_socket_fd, dst_ip[n].c_str());
+            int mtu = get_mtu(_recv_sockets[n], dst_ip[n].c_str());
             if(mtu < MIN_MTU) {
                 fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ip[n].c_str(), MIN_MTU, mtu);
                 throw uhd::system_error("MTU size to small");
             }
 
-            int set_priority_ret = setsockopt(recv_socket_fd, SOL_SOCKET, SO_PRIORITY, &RX_SO_PRIORITY, sizeof(RX_SO_PRIORITY));
+            int set_priority_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_PRIORITY, &RX_SO_PRIORITY, sizeof(RX_SO_PRIORITY));
             if(set_priority_ret) {
                 fprintf(stderr, "Attempting to set rx socket priority failed with error code: %s", strerror(errno));
             }
 
             // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
             _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/(_NUM_CHANNELS + 1))/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET + 42));
-
-            recv_sockets.push_back(recv_socket_fd);
         }
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -196,8 +156,8 @@ public:
 
     ~recv_packet_handler_mmsg(void)
     {
-        for(size_t n = 0; n < recv_sockets.size(); n++) {
-            int r = close(recv_sockets[n]);
+        for(size_t n = 0; n < _recv_sockets.size(); n++) {
+            int r = close(_recv_sockets[n]);
             if(r) {
                 fprintf(stderr, "close failed on data receive socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
             }
@@ -318,7 +278,7 @@ private:
     size_t _TRAILER_SIZE;
     // Number of existing header buffers, which is the current maximum number of packets to receive at a time
     size_t _num_header_buffers = 32;
-    std::vector<int> recv_sockets;
+    std::vector<int> _recv_sockets;
     size_t previous_sample_cache_used = 0;
     // Maximum sequence number
     const size_t sequence_number_mask = 0xf;
@@ -489,7 +449,7 @@ private:
                     continue;
                 }
                 // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
+                int num_packets_received_this_recv = recvmmsg(_recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
 
                 //Records number of packets received if no error
                 if(num_packets_received_this_recv >= 0) {
@@ -691,7 +651,7 @@ private:
 
         int total_packets_received = 0;
         do {
-            int packets_received = recvmmsg(recv_sockets[ch], msgs, num_packets, MSG_DONTWAIT, 0);
+            int packets_received = recvmmsg(_recv_sockets[ch], msgs, num_packets, MSG_DONTWAIT, 0);
             if(packets_received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                 // MSG_DONTWAIT + EAGAIN or EWOULDBLOCK indicate that there are no more packets to receive in the buffer
                 return total_packets_received;
@@ -880,8 +840,8 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<std::string>& dst_ip, std::vector<int>& dst_port, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
-    : recv_packet_handler_mmsg(dst_ip, dst_port, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian)
+    recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    : recv_packet_handler_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian)
     {
     }
 
