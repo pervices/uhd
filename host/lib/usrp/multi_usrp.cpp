@@ -152,6 +152,10 @@ public:
         if(r == 0) {
             printf("mallopt M_TRIM_THRESHOLD error\n");
         }
+        r = mallopt(M_ARENA_MAX, 384);
+        if(r == 0) {
+            printf("mallopt M_ARENA_MAX error\n");
+        }
         _tree = _dev->get_tree();
     }
 
