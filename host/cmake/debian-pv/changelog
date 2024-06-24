@@ -1,3 +1,9 @@
+uhdpv (4.4.0.18-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding automatic port changing if the receive port/IP combination is already in use
+
+ -- Per Vices <packages@pervices.com>  Mon, 24 Jun 2024 17:50:40 -0400
+
 uhdpv (4.4.0.17-0ubuntu1) ubuntu_release; urgency=low
 
   * Fix treating 1G rx boards with 3G backplane as 3G boards
