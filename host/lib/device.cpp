@@ -179,3 +179,20 @@ device::device_filter_t device::get_device_type() const
 {
     return _type;
 }
+
+// Helper function for parsing server commands
+// seperates the input data into the vector tokens based on delim
+void device::tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
+    int i = 0;
+    while (data[i]) {
+        std::string token = "";
+        while (data[i] && data[i] != delim) {
+            token.push_back(data[i]);
+            if (data[i+1] == 0 || data[i+1] == delim)
+                tokens.push_back(token);
+            i++;
+        }
+        i++;
+    }
+    return;
+}

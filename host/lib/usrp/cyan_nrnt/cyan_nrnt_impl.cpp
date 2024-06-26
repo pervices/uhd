@@ -107,22 +107,6 @@ static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) 
     return mb_root(mboard) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
 }
 
-// seperates the input data into the vector tokens based on delim
-static void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim) {
-	int i = 0;
-	while (data[i]) {
-		std::string token = "";
-		while (data[i] && data[i] != delim) {
-			token.push_back(data[i]);
-			if (data[i+1] == 0 || data[i+1] == delim)
-				tokens.push_back(token);
-			i++;
-		}
-		i++;
-	}
-	return;
-}
-
 // Gets a property on the device
 std::string cyan_nrnt_impl::get_string(std::string req) {
 
@@ -565,9 +549,8 @@ void cyan_nrnt_impl::set_properties_from_addr() {
  * Discovery over the udp transport
  **********************************************************************/
 // This find function will be called if a hint is passed onto the find function
-static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint)
+device_addrs_t cyan_nrnt_impl::cyan_nrnt_find_with_addr(const device_addr_t &hint)
 {
-
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
@@ -654,7 +637,7 @@ static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint)
 }
 
 // This is the core find function that will be called when uhd:device find() is called because this is registered
-static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_)
+device_addrs_t cyan_nrnt_impl::cyan_nrnt_find(const device_addr_t &hint_)
 {
     //handle the multi-device discovery
     device_addrs_t hints = separate_device_addr(hint_);
@@ -1087,7 +1070,7 @@ static device::sptr cyan_nrnt_make(const device_addr_t &device_addr)
 UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 {
 	set_log_level( uhd::log::severity_level::info );
-    device::register_device(&cyan_nrnt_find, &cyan_nrnt_make, device::USRP);
+    device::register_device(&cyan_nrnt_impl::cyan_nrnt_find, &cyan_nrnt_make, device::USRP);
 }
 
 /***********************************************************************

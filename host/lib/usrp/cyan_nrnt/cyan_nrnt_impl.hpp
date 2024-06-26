@@ -93,6 +93,9 @@ public:
     cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk);
     ~cyan_nrnt_impl(void);
 
+    static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint);
+    static device_addrs_t cyan_nrnt_find(const device_addr_t &hint_);
+
     // pointers to the streams for the device
     // these functions are defined in cyan_nrnt_io_impl.cpp
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);

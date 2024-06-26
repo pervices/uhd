@@ -45,6 +45,7 @@ public:
         CLOCK,
         CRIMSON_TNG,
         CYAN_NRNT,
+        CHESTNUT
     };
 
 
@@ -261,6 +262,8 @@ public:
     virtual time_spec_t get_time_now() {
         throw std::runtime_error("concrete classes are expected to override this method");
     }
+
+    static void tng_csv_parse(std::vector<std::string> &tokens, char* data, const char delim);
 
 protected:
     uhd::property_tree::sptr _tree;

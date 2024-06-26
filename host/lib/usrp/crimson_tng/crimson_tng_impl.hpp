@@ -92,6 +92,9 @@ public:
     crimson_tng_impl(const uhd::device_addr_t &);
     ~crimson_tng_impl(void);
 
+    static device_addrs_t crimson_tng_find_with_addr(const device_addr_t &hint);
+    static device_addrs_t crimson_tng_find(const device_addr_t &hint_);
+
     // pointers to the streams for the device
     // these functions are defined in crimson_tng_io_impl.cpp
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);
