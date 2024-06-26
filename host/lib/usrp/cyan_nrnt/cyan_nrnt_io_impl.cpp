@@ -737,14 +737,14 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
             throw uhd::runtime_error( "Failed to create recv socket. Error code:" + std::string(strerror(errno)));
         }
 
-        dst_address.sin_family = AF_INET;
-        dst_address.sin_addr.s_addr = inet_addr(dst_ip[n].c_str());
-        dst_address.sin_port = htons(dst_port[n]);
-
         int bind_r;
         int bind_attempts = 0;
         const int max_band_attempts = 3;
         do {
+            dst_address.sin_family = AF_INET;
+            dst_address.sin_addr.s_addr = inet_addr(dst_ip[n].c_str());
+            dst_address.sin_port = htons(dst_port[n]);
+
             bind_r = bind(recv_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address));
 
             // If a bind error occured pick a new
