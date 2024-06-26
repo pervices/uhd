@@ -1,3 +1,9 @@
+uhdpv (4.4.0.19-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing automatic port changing if the receive port/IP combination is already in use
+
+ -- Per Vices <packages@pervices.com>  Wed, 26 Jun 2024 11:17:30 -0400
+
 uhdpv (4.4.0.18-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding automatic port changing if the receive port/IP combination is already in use
