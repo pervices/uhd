@@ -16,7 +16,11 @@ bool uhd::set_thread_priority_safe(float priority, bool realtime)
     try {
         set_thread_priority(priority, realtime);
         return true;
-    } catch (const std::exception& e) {
+    } catch (const uhd::access_error &e) {
+        UHD_LOGGER_WARNING("UHD") << "Unable to set thread priority due to insufficient permission, performance will be negatively affected. Run the program with sudo or add the required permissions to this user\n"
+            << e.what();
+        return false;
+    } catch (const uhd::os_error& e) {
         UHD_LOGGER_WARNING("UHD")
             << "Unable to set the thread priority. Performance may be "
                "negatively affected.\n"
@@ -95,8 +99,11 @@ void uhd::set_thread_priority_realtime(float priority) {
     int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
 
     if (ret != 0) {
-        printf("errno: %s", strerror(errno));
-        throw uhd::os_error("error in pthread_setschedparam");
+        if(errno == EPERM) {
+            throw uhd::access_error("error in pthread_setschedparam SCHED_DEADLINE: " + std::string(strerror(errno)));
+        } else {
+            throw uhd::os_error("error in pthread_setschedparam SCHED_DEADLINE: " + std::string(strerror(errno)));
+        }
     }
 }
 
@@ -118,7 +125,7 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     int ret = pthread_setschedparam(pthread_self(), policy, &sp);
 
     if (ret != 0) {
-        throw uhd::os_error("error in pthread_setschedparam: " + std::string(strerror(errno)));
+        throw uhd::os_error("error in pthread_setschedparam SCHED_OTHER: " + std::string(strerror(errno)));
     }
     int current_niceness = nice(0);
 
