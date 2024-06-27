@@ -1,3 +1,11 @@
+uhdpv (4.4.0.20-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Fixing rx_samples_to_file not exiting in nsamps mode
+  * Changed rx_multi_rates_to_file to work even without permission to set realtime threading
+  * Added fallback to rx_multi_rates_to_file for filesystems that do not support fallocate with FALLOC_FL_ZERO_RANGE
+
+ -- Per Vices <packages@pervices.com>  Thu, 27 Jun 2024 14:24:22 -0400
+
 uhdpv (4.4.0.19-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing automatic port changing if the receive port/IP combination is already in use
