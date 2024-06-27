@@ -1075,9 +1075,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
-    // Begin FPGA reset at tx chain
+    // Begin FPGA reset at system_time
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga" / "board" / "reg_rst_req",  "fpga/board/reg_rst_req", int, int);
-    _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(17);
+    _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(15);
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     _max_rate = _tree->access<double>(CRIMSON_TNG_MB_PATH / "system/max_rate").get();
