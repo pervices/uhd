@@ -177,7 +177,7 @@ bool disk_rate_message_printed = false;
 // output_fd: file descriptor to where to save data to
 // total_num_channels: total number of channels in use (not just the number of channels in this thread. Used for calculating where to store data in continuous mode
 void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, size_t spb, bool skip_save, bool strict, uint_fast8_t continuous_mode, int output_fd, off_t output_offset, size_t total_num_channels, size_t *num_samples_received, uint_fast8_t **stop_signal) {
-    uhd::set_thread_priority();
+    uhd::set_thread_priority_safe();
 
     // Allocating the stop flag in each thread seems to improve performance
     uint_fast8_t *stop_flag;
@@ -411,7 +411,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         intermediate_fd = open(path.c_str(), O_EXCL | O_TMPFILE | O_RDWR | O_LARGEFILE, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
 
         if(intermediate_fd == -1) {
-            UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "Unable to open file: " + path + ". Failed with error code: " + strerror(errno));
+            UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "Unable to create temp file at: " + path + ". Failed with error code: " + strerror(errno));
             std::exit(errno);
         }
 
