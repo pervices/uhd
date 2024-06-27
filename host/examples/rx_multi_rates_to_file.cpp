@@ -429,6 +429,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
 
         int r = fallocate(intermediate_fd, FALLOC_FL_ZERO_RANGE, 0, bytes_to_allocate);
+        if(r != 0 && errno == EOPNOTSUPP) {
+            // If fallocate failes fallback to posix_fallocate
+            // fallocate with FALLOC_FL_ZERO_RANGE is prefered since it prevents slowdowns from lazy allocation
+            r = posix_fallocate(intermediate_fd, 0, bytes_to_allocate);
+        }
         if(r!=0) {
             UHD_LOG_ERROR("RX_MULTI_RATES_TO_FILE", "Unable to allocate file: " + path + ". Failed with error code: " + strerror(errno));
             std::exit(errno);
