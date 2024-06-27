@@ -207,7 +207,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     // the requested number of samples were collected (if such a number was
     // given), or until Ctrl-C was pressed.
     while (not stop_signal_called
-           and (num_requested_samples >= num_total_samps or num_requested_samples == 0)
+           and (num_requested_samples > num_total_samps or num_requested_samples == 0)
            and (time_requested == 0.0 or std::chrono::steady_clock::now() <= stop_time)) {
         const auto now = std::chrono::steady_clock::now();
 
@@ -550,11 +550,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
-    if (total_num_samps == 0) {
-        std::signal(SIGINT, &sig_int_handler);
-        std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
-    }
-
     const double req_disk_rate = usrp->get_rx_rate(channel_list[0]) * channel_list.size()
                                  * uhd::convert::get_bytes_per_item(wirefmt);
     const double disk_rate_meas = disk_rate_check(
@@ -568,6 +563,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                    "  The disk write rate is also affected by system load\n"
                    "  and OS/disk caching capacity.\n")
                    % (req_disk_rate / 1e6) % (disk_rate_meas / 1e6);
+    }
+
+    std::signal(SIGINT, &sig_int_handler);
+    if (total_num_samps == 0) {
+        std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
+    } else {
+        std::cout << "Starting stream" << std::endl;
     }
 
     std::vector<size_t> chans_in_thread;
