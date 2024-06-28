@@ -238,7 +238,6 @@ public:
 
     Uhd(const std::vector<size_t> channels, const double tx_rate, const double tx_center_freq, const double tx_gain)
     {
-        uhd::set_thread_priority_safe();
 
         for(const auto ch : channels)
         {
