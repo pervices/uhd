@@ -22,8 +22,8 @@
 #include <iomanip>
 #include <mutex>
 
-#include "../../transport/super_recv_packet_handler_mmsg.hpp"
-#include "../../transport/super_send_packet_handler_mmsg.hpp"
+#include "../../transport/super_recv_packet_handler_mmsg.cpp"
+#include "../../transport/super_send_packet_handler_mmsg.cpp"
 
 #include "cyan_nrnt_impl.hpp"
 #include "cyan_nrnt_fw_common.h"
@@ -88,8 +88,8 @@ class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
 public:
 	typedef std::function<void(void)> onfini_type;
 
-	cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use)
-	: sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian),
+	cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels)
+	: sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels),
 	_channels(channels)
 	{
         _rx_streamer_channel_in_use = rx_channel_in_use;
@@ -805,7 +805,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

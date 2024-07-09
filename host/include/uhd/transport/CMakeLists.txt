@@ -7,6 +7,7 @@
 
 UHD_INSTALL(FILES
     adapter_id.hpp
+    async_recv_manager.hpp
     bounded_buffer.hpp
     bounded_buffer.ipp
     buffer_pool.hpp

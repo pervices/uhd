@@ -254,6 +254,16 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
                 } else {
                     continue;
                 }
+            } else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_ALIGNMENT) {
+                fprintf(stderr, "Alignment error (usually caused by overflows) received after %lu samples\n", *num_samples_received);
+                // Break if overflow occured and a set number of samples was requested, since that probably means all samples were sent, and missed ones weren't counted
+                if(strict || (overflow_occured && group_info->common_nsamps_requested !=0)) {
+                    // Set flags so other threads know to stop
+                    sig_int_handler(0);
+                    break;
+                } else {
+                    continue;
+                }
             } else if(md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
                 if(!overflow_occured) {
                     fprintf(stderr, "Overflow occured after %lu samples\n", *num_samples_received);
@@ -265,6 +275,13 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
                     } else {
                         continue;
                     }
+                }
+            } else {
+                fprintf(stderr, "Unhandled recv error\n");
+                if(strict) {
+                    // Set flags so other threads know to stop
+                    sig_int_handler(0);
+                    break;
                 }
             }
         }
@@ -487,6 +504,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             free(stop_signal_called[n]);
             stop_signal_called[n] = nullptr;
         }
+    }
+
+    for(size_t n = 0; n < num_samples_received.size(); n++) {
+        UHD_LOGGER_INFO("RX_MULTI_RATES_TO_FILE") << " Streamer " << n << " received " << num_samples_received[n] << " samples";
     }
 
     if(!skip_save) {
