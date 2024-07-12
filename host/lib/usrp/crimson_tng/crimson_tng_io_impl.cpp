@@ -533,8 +533,8 @@ void crimson_tng_impl::io_init(void){
 
     //allocate streamer weak ptrs containers
     for (const std::string &mb : _mbc.keys()) {
-        _mbc[mb].rx_streamers.resize( CRIMSON_TNG_RX_CHANNELS );
-        _mbc[mb].tx_streamers.resize( CRIMSON_TNG_TX_CHANNELS );
+        _mbc[mb].rx_streamers.resize( num_rx_channels );
+        _mbc[mb].tx_streamers.resize( num_tx_channels );
     }
 }
 

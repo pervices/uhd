@@ -1002,14 +1002,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_pps_thread_should_exit( false ),
     _command_time()
 {
-	num_rx_channels = CRIMSON_TNG_RX_CHANNELS;
-	num_tx_channels = CRIMSON_TNG_TX_CHANNELS;
-
-    rx_gain_is_set.resize(num_rx_channels, false);
-    last_set_rx_band.resize(num_rx_channels, -1);
-    tx_gain_is_set.resize(num_tx_channels, false);
-    last_set_tx_band.resize(num_tx_channels, -1);
-
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
 
@@ -1043,7 +1035,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		)
     );
 
-    // TODO make transports for each RX/TX chain
+    // Create the file tree of properties.
+    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
+    // All the initial settings are read from the current status of the board.
+    _tree = uhd::property_tree::make();
+
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
 
@@ -1051,12 +1047,27 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
     const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
 
-    std::string lc_num;
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/num_rx", "system/num_rx", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/num_tx", "system/num_tx", int, int);
+    try {
+        num_rx_channels = (size_t) (_tree->access<int>(CRIMSON_TNG_MB_PATH / "system/num_rx").get());
+    } catch(uhd::lookup_error &e) {
+        num_rx_channels = CRIMSON_TNG_FALLBACK_RX_CHANNELS;
+    }
+    is_num_rx_channels_set = true;
+    try {
+        num_tx_channels = (size_t) (_tree->access<int>(CRIMSON_TNG_MB_PATH / "system/num_tx").get());
+    } catch(uhd::lookup_error &e) {
+        num_tx_channels = CRIMSON_TNG_FALLBACK_TX_CHANNELS;
+    }
+    is_num_tx_channels_set = true;
 
-    // Create the file tree of properties.
-    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
-    // All the initial settings are read from the current status of the board.
-    _tree = uhd::property_tree::make();
+    rx_gain_is_set.resize(num_rx_channels, false);
+    last_set_rx_band.resize(num_rx_channels, -1);
+    tx_gain_is_set.resize(num_tx_channels, false);
+    last_set_tx_band.resize(num_tx_channels, -1);
+
+    std::string lc_num;
 
     // Begin FPGA reset at tx chain
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga" / "board" / "reg_rst_req",  "fpga/board/reg_rst_req", int, int);
@@ -1092,6 +1103,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     if(_max_lo == 0) {
         _max_lo = CRIMSON_TNG_FALLBACK_FREQ_RANGE_STOP;
     }
+
+    tx_sfp_throughput_used.resize(num_tx_channels, 0);
+    tx_channel_in_use = std::make_shared<std::vector<bool>>(num_tx_channels, false);
+
+    rx_sfp_throughput_used.resize(num_rx_channels, 0);
+    rx_channel_in_use = std::make_shared<std::vector<bool>>(num_rx_channels, false);
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CRIMSON_TNG_MB_PATH / "time_source" / "options").set(time_sources);
@@ -1226,7 +1243,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
-    for( size_t dspno = 0; dspno < CRIMSON_TNG_RX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < num_rx_channels; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1351,7 +1368,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     }
 
     // loop for all TX chains
-    for( int dspno = 0; dspno < CRIMSON_TNG_TX_CHANNELS; dspno++ ) {
+    for( size_t dspno = 0; dspno < num_tx_channels; dspno++ ) {
 		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
 		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
 		std::string chan    = "Channel_" + num;
@@ -1511,8 +1528,26 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     for(const std::string &mb:  _mbc.keys()){
         fs_path root = "/mboards/" + mb;
 
-    _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
-    _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( "A:Channel_A B:Channel_B C:Channel_C D:Channel_D" ));
+        std::string sub_spec_rx;
+        for(size_t n =0; n < num_rx_channels; n++) {
+            sub_spec_rx.push_back(n+'A');
+            sub_spec_rx+= ":Channel_";
+            sub_spec_rx.push_back(n+'A');
+            if(n+1 !=num_rx_channels) {
+                sub_spec_rx+=" ";
+            }
+        }
+		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( sub_spec_rx ));
+        std::string sub_spec_tx;
+        for(size_t n = 0; n < num_tx_channels; n++) {
+            sub_spec_tx.push_back(n+'A');
+            sub_spec_tx+= ":Channel_";
+            sub_spec_tx.push_back(n+'A');
+            if(n+1 !=num_tx_channels) {
+                sub_spec_tx+=" ";
+            }
+        }
+        _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
     }
 
@@ -1891,7 +1926,7 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
         //}
         return;
     }
-    for (size_t c = 0; c < CRIMSON_TNG_TX_CHANNELS; c++){
+    for (size_t c = 0; c < num_tx_channels; c++){
         set_tx_gain(gain, name, c);
     }
 }
@@ -1993,7 +2028,7 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
         return;
     }
 
-    for (size_t c = 0; c < CRIMSON_TNG_RX_CHANNELS; c++){
+    for (size_t c = 0; c < num_rx_channels; c++){
         set_rx_gain( gain, name, c );
     }
 }

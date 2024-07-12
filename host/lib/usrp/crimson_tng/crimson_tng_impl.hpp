@@ -315,9 +315,9 @@ private:
     void ping_check(std::string sfp, std::string ip);
 
     // Samples per second being using per channel
-    std::vector<double> tx_sfp_throughput_used{std::vector<double>(CRIMSON_TNG_TX_CHANNELS, 0)};
+    std::vector<double> tx_sfp_throughput_used;
     // Used to check if a tx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> tx_channel_in_use{std::make_shared<std::vector<bool>>(std::vector<bool>(CRIMSON_TNG_TX_CHANNELS, false))};
+    std::shared_ptr<std::vector<bool>> tx_channel_in_use;
 
     // SFP link speed in bits per second
     double link_rate_cache = 0;
@@ -327,9 +327,9 @@ private:
     void tx_rate_check(size_t ch, double rate_samples);
 
     // Samples per second being using per channel
-    std::vector<double> rx_sfp_throughput_used{std::vector<double>(CRIMSON_TNG_RX_CHANNELS, 0)};
+    std::vector<double> rx_sfp_throughput_used;
     // Used to check if a rx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> rx_channel_in_use{std::make_shared<std::vector<bool>>(std::vector<bool>(CRIMSON_TNG_RX_CHANNELS, false))};
+    std::shared_ptr<std::vector<bool>> rx_channel_in_use;
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
 
