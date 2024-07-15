@@ -146,11 +146,17 @@ public:
         // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
         _using_performance_governor = true;
         std::vector<std::string> governors = uhd::get_performance_governors();
-        for(auto& g : governors) {
-            if(g.find("performance") == std::string::npos) {
-                _using_performance_governor = false;
-                break;
+        if(governors.size() != 0) {
+            _governor_known = true;
+            for(auto& g : governors) {
+                if(g.find("performance") == std::string::npos) {
+                    _using_performance_governor = false;
+                    break;
+                }
             }
+        } else {
+            _governor_known = false;
+            _using_performance_governor = false;
         }
     }
 
@@ -339,6 +345,7 @@ private:
     // Stores whether or not the CPU governor is set to performance mode
     // NOTE: getting this is done at the start, but the warning related to it only prints during streaming, assumes the governor does not change while hte program is running
     bool _using_performance_governor;
+    bool _governor_known;
     // The warning for using non performance governor has already been printed
     bool _performance_warning_printed = false;
 
@@ -562,9 +569,14 @@ private:
                     oflow_error = true;
                     //UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
                     UHD_LOG_FASTPATH("D");
-                    if(!_using_performance_governor && !_performance_warning_printed) {
-                        UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                    if(!_performance_warning_printed) {
                         _performance_warning_printed = true;
+                        if(!_governor_known) {
+                            UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        }
+                        else if(!_using_performance_governor) {
+                            UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        }
                     }
                 }
                 ch_recv_buffer_info_i.previous_sequence_number = ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count;

@@ -48,8 +48,8 @@ std::vector<std::string> uhd::get_performance_governors(void)
             converter << file.rdbuf(); // reading data
             ret[n] = converter.str();
         } else {
-            UHD_LOG_ERROR("PERFORMANCE_MODE", "unable to open" + paths_to_check[n] + " when checking CPU governor");
-            ret[n] = "unable to read property";
+            // Return empty vector if unable to check the CPU governor
+            return std::vector<std::string>(0);
         }
     }
 
