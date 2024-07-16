@@ -11,6 +11,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/thread.hpp>
 #include <sys/mman.h>
+#include <uhdlib/utils/system_time.hpp>
 
 namespace uhd { namespace transport {
 
@@ -91,10 +92,13 @@ packet_size(header_size + max_sample_bytes_per_packet)
         ch_offset+=ch_per_thread;
     }
 
+    uhd::time_spec_t start = uhd::get_system_time();
     for(size_t n = 0; n < flush_complete.size(); n++) {
         while(!flush_complete[n]) {
-            ::usleep(10);
-            // Wait for channel to finish flushing
+            if(start + 30.0 < uhd::get_system_time()) {
+                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+                throw std::runtime_error("Timeout while flushing buffers");
+            }
         }
     }
 }
@@ -120,7 +124,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     // Enables use of a realtime schedueler which will prevent this program from being interrupted, but will result in it's core being fully utilized
     uhd::set_thread_priority_safe();
 
-    size_t num_ch = sockets.size();;
+    size_t num_ch = sockets.size();
     std::vector<std::vector<std::vector<struct iovec>>> iovecs(num_ch, std::vector<std::vector<struct iovec>>(NUM_BUFFERS, std::vector<struct iovec>(self->packets_per_buffer)));
 
     for(size_t ch = 0; ch < num_ch; ch++) {
