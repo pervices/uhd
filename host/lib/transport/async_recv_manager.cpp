@@ -239,9 +239,9 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             int_fast64_t packets_in_buffer = self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed);
 
             // Debug only send 2 packets
-            if(packets_in_buffer > 2) {
-                while(!self->stop_flag);
-            }
+            // if(packets_in_buffer > 2) {
+            //     while(!self->stop_flag);
+            // }
 
             // TODO: re-enable these if I start submitting requests at one
             // Number of packets to be received this recvmmsg
