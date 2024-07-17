@@ -135,15 +135,16 @@ recv_rings(recv_sockets.size())
         ch_offset+=ch_per_thread;
     }
 
-    uhd::time_spec_t start = uhd::get_system_time();
-    for(size_t n = 0; n < flush_complete.size(); n++) {
-        while(!flush_complete[n]) {
-            if(start + 30.0 < uhd::get_system_time()) {
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-                throw std::runtime_error("Timeout while flushing buffers");
-            }
-        }
-    }
+    // TODO: re-enable flushing once liburing is implemented
+    // uhd::time_spec_t start = uhd::get_system_time();
+    // for(size_t n = 0; n < flush_complete.size(); n++) {
+    //     while(!flush_complete[n]) {
+    //         if(start + 30.0 < uhd::get_system_time()) {
+    //             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+    //             throw std::runtime_error("Timeout while flushing buffers");
+    //         }
+    //     }
+    // }
 }
 
 async_recv_manager::~async_recv_manager()
@@ -164,6 +165,8 @@ async_recv_manager::~async_recv_manager()
     }
 }
 
+
+// TODO: make advance packet submit requests or switch to multishot
 void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
     // Enables use of a realtime schedueler which will prevent this program from being interrupted, but will result in it's core being fully utilized
     uhd::set_thread_priority_safe();
@@ -191,14 +194,6 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     // Tracks if the loop has already started filling the current buffer (uint8_t
     std::vector<uint_fast8_t> b_active(num_ch, 0);
 
-    uint32_t max_packets;
-    if(num_ch == 1) {
-        max_packets = UINT32_MAX;
-    } else {
-        // Limit maximum number of packets received per call to prevent one channel's receive from taking to long and causing another packet to drop
-        max_packets = MAX_PACKETS_PER_RECVMMSG;
-    }
-
     // Memory order to use when setting flush_complete
     // Used to avoid non relaxed writes and branches
     std::vector<std::memory_order> flush_order(num_ch, std::memory_order_release);
@@ -216,6 +211,8 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
 
         for(size_t ch = 0; ch < num_ch; ch++) {
 
+            // TODO: get completion events
+
             // Aquire the buffer if not already aquired
             // Buffer can be aquired if it is empty
             b_active[ch] = !(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(b_aquire_load_order[ch])) || b_active[ch];
@@ -225,71 +222,69 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
                 b_aquire_load_order[ch] = std::memory_order_consume;
                 continue;
             }
-
             // Switch to relaxed memory ordering for check if the buffer is available since synchronization is no longer needed
             b_aquire_load_order[ch] = std::memory_order_relaxed;
 
+            // TODO: issue submit multiple recv at once or multishot
+            // TODO: avoid false sharing in msghdr
+            struct io_uring_sqe *sqe;
+            sqe = io_uring_get_sqe(self->recv_rings[ch]);
+            if(sqe == nullptr) {
+                continue;
+            }
+
             // memory_order_relaxed is used since only this thread is writing to this variable once a buffer is activ
             int_fast64_t packets_in_buffer = self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed);
+                        // TODO: re-enable these if I start submitting requests at one
+            // Number of packets to be received this recvmmsg
+            // uint32_t packets_to_recv = (uint32_t) std::min(self->packets_per_buffer - packets_in_buffer, (int_fast64_t) max_packets);
 
-            // Number of packets to be received this recvmmsge
-            uint32_t packets_to_recv = (uint32_t) std::min(self->packets_per_buffer - packets_in_buffer, (int_fast64_t) max_packets);
+            io_uring_prep_recvmsg(sqe, sockets[ch], &self->mmsghdrs[ch + ch_offset][b[ch]][packets_in_buffer].msg_hdr, IORING_RECVSEND_POLL_FIRST);
 
-            // Receives any packets already in the buffer
-            int packets_received = recvmmsg(sockets[ch], &self->mmsghdrs[ch + ch_offset][b[ch]][packets_in_buffer], packets_to_recv, MSG_DONTWAIT, 0);
+            // Forces requests to be done in the order they appear in (works between submits)
+            // IOSQE_IO_LINK would ensure they are n the correct order within a submit but not across submits
+            sqe->flags |= IOSQE_IO_DRAIN;
 
-            // If packets received
-            if(packets_received >= 0) {
-                // Increment the counter for number of packets stored
-                // Relaxed load is acceptable here since the only time the other thread writes to this is beore the buffer is aqquired
-                // * flush_complete skips recording that packets were received until the sockets have been flushed
-                self->num_packets_stored[ch + ch_offset]->at(b[ch]).store(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + (packets_received * self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed)), std::memory_order_release);
-
-                 if(packets_in_buffer + packets_received >= self->packets_per_buffer) {
-
-                    // This buffer is full, shift to the next one, loop back to first buffer
-                    b[ch] = (b[ch] + 1) & (NUM_BUFFERS -1);
-                    // Reset flag that indicates that the buffer has been aqquired
-                    b_active[ch] = false;
-                }
-
-            // EAGAIN, EWOULDBLOCK are caused by MSG_DONTWAIT when no packets are available and expected
-            // EINTR is caused by the program receiving an interrupt during recvmmsg and is expected (such as the user pressing ctrl c to exit)
-            } else if(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                // Sets the flag to indicate that the buffers have been cleared once a recvmmsg returns nothing
-                // Only sets it if not already set to avoid need for non relaxed atomic access
-                self->flush_complete[ch + ch_offset].store(1, flush_order[ch]);
-                flush_order[ch] = std::memory_order_relaxed;
-                continue;
+            // Increment buffer level before submitting to avoid race condition where the consumer thread clears the buffer level
+            // TODO: clean this up and switch to a simple flag system since the consumer thread no longer cares about the number of samples in the buffer
+            if(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + 1 < self->packets_per_buffer) {
+                self->num_packets_stored[ch + ch_offset]->at(b[ch]).store(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + (1 * self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed)), std::memory_order_release);
             } else {
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(errno));
-                self->recv_error = errno;
-                self->stop_flag = true;
-                return;
+                // Move the the next buffer, also atomic increment buffer count to avoid
+                self->num_packets_stored[ch + ch_offset]->at(b[ch]).store(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + (1 * self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed)), std::memory_order_relaxed);
+                b[ch] = (b[ch] + 1) & (NUM_BUFFERS -1);
+            }
+
+            // Submits requests
+            int requests_submitted = io_uring_submit(self->recv_rings[ch]);
+            // TODO: gracefully handle these conditions
+            if(requests_submitted < 0) {
+                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "io_uring_submit failed: " << strerror(-requests_submitted);
+                throw uhd::runtime_error( "io_uring_submit error" );
             }
         }
     }
 }
 
-uint8_t* async_recv_manager::get_next_packet(const size_t ch) {
+uint32_t async_recv_manager::get_next_packet(const size_t ch, uint8_t** packet) {
     size_t b = active_consumer_buffer[ch];
-    // Check if this thread already knows that the next packet is ready (reduces inter-thread communication)
-    if(known_num_packets_stored[ch] > num_packets_consumed[ch]) {
-        return packet_buffer_ptrs[ch][b] + (packet_size * num_packets_consumed[ch]);
-    }
-    // Check the variable set by the other thread if the next packet is ready
-    else if(num_packets_stored[ch]->at(b) > num_packets_consumed[ch]) {
-        known_num_packets_stored[ch] = num_packets_stored[ch]->at(b).load(std::memory_order_relaxed);
-        return packet_buffer_ptrs[ch][b] + (packet_size * num_packets_consumed[ch]);
-    }
-    else {
-        return nullptr;
-    }
-}
 
-uint32_t async_recv_manager::get_next_packet_length(const size_t ch) {
-    size_t b = active_consumer_buffer[ch];
-    return mmsghdrs[ch][b][num_packets_consumed[ch]].msg_len;
+    // Non-block get next completion even
+    io_uring_cqe *cqe_ptr;
+    int r = io_uring_peek_cqe(recv_rings[ch], &cqe_ptr);
+
+    if(r == 0) {
+        // cqe_ptr->res is the return value of the corresponding function
+        if(cqe_ptr->res >= 0) {
+            *packet = packet_buffer_ptrs[ch][b] + num_packets_consumed[ch];
+            return cqe_ptr->res;
+        } else {
+            UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error returned by recvmmsg: " + std::string(strerror(errno));
+            throw uhd::io_error( "recvmsg error" );
+        }
+    } else {
+        return 0;
+    }
 }
 
 void async_recv_manager::advance_packet(const size_t ch) {

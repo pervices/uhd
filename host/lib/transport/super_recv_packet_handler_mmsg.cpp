@@ -210,14 +210,13 @@ public:
             bool realignment_required = false;
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                packets[ch] = recv_manager->get_next_packet(ch);
+                uint32_t packet_length = recv_manager->get_next_packet(ch, &packets[ch]);
 
                 if(packets[ch] == nullptr) {
                     all_ready = false;
                     break;
                 }
 
-                uint32_t packet_length = recv_manager->get_next_packet_length(ch);
                 if(packet_length < _HEADER_SIZE) {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }

@@ -30,9 +30,6 @@ private:
     // (1 / this) is the maximum portion of CPU cores and RAM that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
-    // Maximum packets per recvmmsg with multiple channels per thread, ignored when only 1 channel per thread
-    static constexpr uint32_t MAX_PACKETS_PER_RECVMMSG = 20;
-
     // Maximum number of entries Kernels support for liburing's ring buffer
     static constexpr uint32_t MAX_IO_RING_ENTRIES = 32768;
 
@@ -98,18 +95,12 @@ public:
 
     /**
      * Gets the location of the next packet.
+     * You must call advance_packet if this returns success
      * @param ch
-     * @return returns a pointer to the next packet if one is available, returns nullptr if the next packet isn't ready yet
+     * @param packet a pointer to where to store a pointer the next packet
+     * @return Length of the packet, or 0 if no packet is available
      */
-    uint8_t* get_next_packet(const size_t ch);
-
-    /**
-     * Gets the msg_len of the mmsghdr for the next packet.
-     * Does not check to make sure the next packet is ready, make sure it is ready by using get_next_packet first
-     * @param ch
-     * @return returns msg_len of the mmsghdr corresponding to the next packet
-     */
-    uint32_t get_next_packet_length(const size_t ch);
+    uint32_t get_next_packet(const size_t ch, uint8_t** packet);
 
     /**
      * Advances the the next packet to be read by the consumer thread
