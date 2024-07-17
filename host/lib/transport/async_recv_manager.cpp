@@ -137,14 +137,15 @@ recv_rings(recv_sockets.size())
 
     // TODO: re-enable flushing once liburing is implemented
     // uhd::time_spec_t start = uhd::get_system_time();
-    // for(size_t n = 0; n < flush_complete.size(); n++) {
-    //     while(!flush_complete[n]) {
-    //         if(start + 30.0 < uhd::get_system_time()) {
-    //             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-    //             throw std::runtime_error("Timeout while flushing buffers");
-    //         }
-    //     }
-    // }
+    for(size_t n = 0; n < flush_complete.size(); n++) {
+        // while(!flush_complete[n]) {
+        //     if(start + 30.0 < uhd::get_system_time()) {
+        //         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+        //         throw std::runtime_error("Timeout while flushing buffers");
+        //     }
+        // }
+        flush_complete[n] = 1;
+    }
 }
 
 async_recv_manager::~async_recv_manager()
