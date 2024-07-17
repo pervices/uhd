@@ -55,23 +55,10 @@ recv_rings(recv_sockets.size())
     struct io_uring_params uring_params;
     memset(&uring_params, 0, sizeof(io_uring_params));
 
-    const size_t min_uring_queue_size = packets_per_buffer * (NUM_BUFFERS);
-    int queue_power = 0;
-    while(pow(2, queue_power) < min_uring_queue_size) {
-        queue_power++;
-    }
-    const size_t uring_queue_size = pow(2, queue_power);
-
-    // uring_params.sq_entries is uint32_t
-    if(uring_queue_size > UINT32_MAX) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Buffer larger than io_uring supports";
-        throw uhd::value_error("Unsupported io_uring buffer size");
-    }
-
     // Number of entries that can fit in the submission queue
-    uring_params.sq_entries = uring_queue_size;
+    uring_params.sq_entries = MAX_IO_RING_ENTRIES;
     // Number of entries that can fit in the completion queue
-    uring_params.cq_entries = uring_queue_size;
+    uring_params.cq_entries = 2 * MAX_IO_RING_ENTRIES;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
     // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
@@ -121,7 +108,7 @@ recv_rings(recv_sockets.size())
         recv_rings[ch] = (io_uring*) aligned_alloc(std::hardware_destructive_interference_size, padded_io_ring_size);
         memset(recv_rings[ch], 0, padded_io_ring_size);
 
-        int error = io_uring_queue_init_params(uring_queue_size, recv_rings[ch], &uring_params);
+        int error = io_uring_queue_init_params(MAX_IO_RING_ENTRIES, recv_rings[ch], &uring_params);
         if(error) {
             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Error when creating io_uring: " << strerror(-error);
             throw uhd::system_error("io_uring error");
@@ -209,7 +196,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
         max_packets = UINT32_MAX;
     } else {
         // Limit maximum number of packets received per call to prevent one channel's receive from taking to long and causing another packet to drop
-        max_packets = 20;
+        max_packets = MAX_PACKETS_PER_RECVMMSG;
     }
 
     // Memory order to use when setting flush_complete

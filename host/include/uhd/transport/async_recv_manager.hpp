@@ -31,7 +31,10 @@ private:
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
     // Maximum packets per recvmmsg with multiple channels per thread, ignored when only 1 channel per thread
-    static constexpr uint32_t MAX_PACKETS_PER_RECVMMSG = 3;
+    static constexpr uint32_t MAX_PACKETS_PER_RECVMMSG = 20;
+
+    // Maximum number of entries Kernels support for liburing's ring buffer
+    static constexpr uint32_t MAX_IO_RING_ENTRIES = 32768;
 
     // Pointer to buffers where packet data is stored
     // channel, buffer_num
