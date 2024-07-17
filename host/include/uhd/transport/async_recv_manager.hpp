@@ -7,6 +7,8 @@
 #include <atomic>
 #include <thread>
 
+#include <liburing.h>
+
 namespace uhd { namespace transport {
 
 // Creates and manages receive threads

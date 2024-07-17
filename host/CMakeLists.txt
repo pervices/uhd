@@ -17,8 +17,8 @@ endif(POLICY CMP0048)
 project(UHD CXX C)
 enable_testing()
 
-set(CMAKE_C_FLAGS "-fPIC")
-set(CMAKE_CXX_FLAGS "-fPIC")
+set(CMAKE_C_FLAGS "-fPIC -luring")
+set(CMAKE_CXX_FLAGS "-fPIC -luring")
 
 #make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
