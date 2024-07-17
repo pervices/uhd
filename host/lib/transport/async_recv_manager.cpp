@@ -40,9 +40,6 @@ recv_rings(recv_sockets.size())
     recv_error = 0;
     stop_flag = false;
 
-    // Gets the amount of RAM the system has
-    const int_fast64_t system_ram = get_phys_pages() * page_size;
-
     packets_per_buffer = MAX_IO_RING_ENTRIES / NUM_BUFFERS;
     // The actual size of the buffers in bytes
     int_fast64_t actual_buffer_size = packets_per_buffer * packet_size;
@@ -167,6 +164,8 @@ async_recv_manager::~async_recv_manager()
     }
 }
 
+static size_t packet_submitted = 0;
+
 
 // TODO: make advance packet submit requests or switch to multishot
 void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
@@ -238,10 +237,11 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             // memory_order_relaxed is used since only this thread is writing to this variable once a buffer is activ
             int_fast64_t packets_in_buffer = self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed);
 
-            // Debug only send 2 packets
-            if(packets_in_buffer + 1 >= self->packets_per_buffer) {
+            // Debug stop after a number of packets
+            if(packet_submitted > 0) {
                 while(!self->stop_flag);
             }
+            packet_submitted++;
 
             // TODO: re-enable these if I start submitting requests at one
             // Number of packets to be received this recvmmsg
