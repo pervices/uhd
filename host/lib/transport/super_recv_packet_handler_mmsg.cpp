@@ -211,6 +211,7 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 uint32_t packet_length = recv_manager->get_next_packet(ch, &packets[ch]);
+                std::cout << "packet_length: " << packet_length << std::endl;
 
                 if(packets[ch] == nullptr) {
                     all_ready = false;
