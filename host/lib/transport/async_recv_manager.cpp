@@ -55,12 +55,19 @@ recv_rings(recv_sockets.size())
     struct io_uring_params uring_params;
     memset(&uring_params, 0, sizeof(io_uring_params));
 
-    // uring queue max size (maximum number of packets per call to submit, not maximum number of elements in the ring)
-    if(packets_per_buffer > UINT32_MAX) {
+    const size_t min_uring_queue_size = packets_per_buffer * (NUM_BUFFERS);
+    int queue_power = 0;
+    while(pow(2, queue_power) < min_uring_queue_size) {
+        queue_power++;
+    }
+    const size_t uring_queue_size = pow(2, queue_power);
+
+    // uring_params.sq_entries is uint32_t
+    if(uring_queue_size > UINT32_MAX) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Buffer larger than io_uring supports";
         throw uhd::value_error("Unsupported io_uring buffer size");
     }
-    const uint32_t uring_queue_size = packets_per_buffer;
+
     // Number of entries that can fit in the submission queue
     uring_params.sq_entries = uring_queue_size;
     // Number of entries that can fit in the completion queue
