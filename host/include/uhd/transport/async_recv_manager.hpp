@@ -76,6 +76,10 @@ private:
     // Used to communicate to the consumer thread that an error occured
     std::atomic<int> recv_error;
 
+    // Pointers to rings containing info for each channel's liburing receive ring
+    // channel
+    std::vector<io_uring*> recv_rings;
+
 public:
 
     /**

@@ -24,7 +24,8 @@ num_packets_stored(recv_sockets.size()),
 known_num_packets_stored(recv_sockets.size(), 0),
 active_consumer_buffer(recv_sockets.size(), 0),
 num_packets_consumed(recv_sockets.size(), 0),
-packet_size(header_size + max_sample_bytes_per_packet)
+packet_size(header_size + max_sample_bytes_per_packet),
+recv_rings(recv_sockets.size())
 {
     const size_t page_size = getpagesize();
     // Initializing atomic variables
@@ -50,10 +51,42 @@ packet_size(header_size + max_sample_bytes_per_packet)
     // Add padding to ensure this buffer is not on the same cache line as anything else
     actual_buffer_size += actual_buffer_size % std::hardware_destructive_interference_size;
 
-    // Allocates buffes to store packets and message headers
+    // Creates setting for liburing
+    struct io_uring_params uring_params;
+    memset(&uring_params, 0, sizeof(io_uring_params));
+
+    // uring queue contain at least as many entries as there is space in the buffer + extra  to deal with lazy freeing up of buffer space
+    const size_t uring_queue_size = packets_per_buffer * (NUM_BUFFERS + 1);
+    // Number of entries that can fit in the submission queue
+    uring_params.sq_entries = uring_queue_size;
+    // Number of entries that can fit in the completion queue
+    uring_params.cq_entries = uring_queue_size;
+    // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
+    // TODO: figure out how to get IORING_SETUP_IOPOLL working
+    // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
+    // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
+    // IORING_SETUP_CQSIZE: pay attention to cq_entries
+    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER;
+    // Does nothing unless flag IORING_SETUP_SQ_AFF is set
+    // uring_params.sq_thread_cpu;
+    // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
+    uring_params.sq_thread_idle = 100000;
+    // Kernel sets this according to features supported
+    // uring_params.features;
+    // Does nothing unless flag IORING_SETUP_ATTACH_WQ is set
+    // uring_params.wq_fd;
+    // Must be all 0
+    // uring_params.resv[3];
+    // Filled by Kernel with info needed to access submission queue
+    // uring_params.sq_off;
+    // Filled by Kernel with info needed to access submission queue
+    // uring_params.cq_off;
+
+    // Allocates buffes to store packets, message headers and io rings
     for(size_t ch = 0; ch < recv_sockets.size(); ch++) {
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
             // Create buffers that are aligned to pages to reduce contention between threads
+            // TODO: change from page aligned to aligned with cache line size (std::hardware_destructive_interference_size)
             packet_buffer_ptrs[ch][b] = (uint8_t*) aligned_alloc(page_size, actual_buffer_size);
             if(packet_buffer_ptrs[ch][b] == nullptr) {
                 throw uhd::environment_error( "out of memory when attempting to allocate:" + std::to_string(actual_buffer_size) + " bytes");
@@ -69,6 +102,18 @@ packet_size(header_size + max_sample_bytes_per_packet)
                 throw uhd::environment_error( "out of memory when attempting to allocate:" + std::to_string(mmmsghdr_buffer_size) + " bytes");
             }
             memset(mmsghdrs[ch][b], 0, mmmsghdr_buffer_size);
+        }
+
+        // Allocate io_ring
+        // pad io_ring to avoid false sharing
+        size_t padded_io_ring_size = (size_t) (ceil(((double)sizeof(io_uring))/ std::hardware_destructive_interference_size) * std::hardware_destructive_interference_size);
+        recv_rings[ch] = (io_uring*) aligned_alloc(std::hardware_destructive_interference_size, padded_io_ring_size);
+        memset(recv_rings[ch], 0, padded_io_ring_size);
+
+        int error = io_uring_queue_init_params(uring_queue_size, recv_rings[ch], &uring_params);
+        if(error) {
+            UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Error when creating io_uring: " << strerror(-error);
+            throw uhd::system_error("io_uring error");
         }
     }
 
@@ -113,6 +158,7 @@ async_recv_manager::~async_recv_manager()
     // Frees packets and mmsghdr buffers
     for(size_t ch = 0; ch < packet_buffer_ptrs.size(); ch++) {
         free(num_packets_stored[ch]);
+        free(recv_rings[ch]);
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
             free(packet_buffer_ptrs[ch][b]);
             free(mmsghdrs[ch][b]);
