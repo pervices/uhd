@@ -238,11 +238,11 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             // memory_order_relaxed is used since only this thread is writing to this variable once a buffer is activ
             int_fast64_t packets_in_buffer = self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed);
 
-            // Debug stop after a number of packets
-            if(packet_submitted > MAX_IO_RING_ENTRIES - 1) {
-                while(!self->stop_flag);
-            }
-            packet_submitted++;
+            // // Debug stop after a number of packets
+            // if(packet_submitted > MAX_IO_RING_ENTRIES - 1) {
+            //     while(!self->stop_flag);
+            // }
+            // packet_submitted++;
 
             // TODO: re-enable these if I start submitting requests at one
             // Number of packets to be received this recvmmsg
