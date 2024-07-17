@@ -55,8 +55,12 @@ recv_rings(recv_sockets.size())
     struct io_uring_params uring_params;
     memset(&uring_params, 0, sizeof(io_uring_params));
 
-    // uring queue contain at least as many entries as there is space in the buffer + extra  to deal with lazy freeing up of buffer space
-    const size_t uring_queue_size = 32;//packets_per_buffer * (NUM_BUFFERS + 1);
+    // uring queue max size (maximum number of packets per call to submit, not maximum number of elements in the ring)
+    if(packets_per_buffer > UINT32_MAX) {
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Buffer larger than io_uring supports";
+        throw uhd::value_error("Unsupported io_uring buffer size");
+    }
+    const uint32_t uring_queue_size = packets_per_buffer;
     // Number of entries that can fit in the submission queue
     uring_params.sq_entries = uring_queue_size;
     // Number of entries that can fit in the completion queue
@@ -65,8 +69,8 @@ recv_rings(recv_sockets.size())
     // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
     // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
-    // IORING_SETUP_CQSIZE: pay attention to cq_entries
-    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER;
+    // IORING_FEAT_NODROP: don't drop events even if the completion queue is full (will result in a performance hit when the kernel needs to resize related buffer)
+    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_FEAT_NODROP;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // uring_params.sq_thread_cpu;
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
