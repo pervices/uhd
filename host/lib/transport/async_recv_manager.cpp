@@ -56,7 +56,7 @@ recv_rings(recv_sockets.size())
     memset(&uring_params, 0, sizeof(io_uring_params));
 
     // uring queue contain at least as many entries as there is space in the buffer + extra  to deal with lazy freeing up of buffer space
-    const size_t uring_queue_size = packets_per_buffer * (NUM_BUFFERS + 1);
+    const size_t uring_queue_size = 32;//packets_per_buffer * (NUM_BUFFERS + 1);
     // Number of entries that can fit in the submission queue
     uring_params.sq_entries = uring_queue_size;
     // Number of entries that can fit in the completion queue
