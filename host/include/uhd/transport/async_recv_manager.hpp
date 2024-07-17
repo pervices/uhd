@@ -31,6 +31,7 @@ private:
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
     // Maximum number of entries Kernels support for liburing's ring buffer
+    // TODO: replace with built in IORING_MAX_ENTRIES constant
     static constexpr uint32_t MAX_IO_RING_ENTRIES = 32768;
 
     // Pointer to buffers where packet data is stored
