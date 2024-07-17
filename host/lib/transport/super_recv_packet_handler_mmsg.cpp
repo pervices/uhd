@@ -217,9 +217,6 @@ public:
                     break;
                 }
 
-                std::cout << "2 packet_length: " << packet_length << std::endl;
-                printf("packets[ch]: %p\n", packets[ch]);
-
                 if(packet_length < _HEADER_SIZE) {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
