@@ -230,7 +230,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             // TODO: issue submit multiple recv at once or multishot
             // TODO: avoid false sharing in msghdr
             struct io_uring_sqe *sqe;
-            sqe = io_uring_get_sqe(self->recv_rings[ch]);
+            sqe = io_uring_get_sqe(self->recv_rings[ch + ch_offset]);
             if(sqe == nullptr) {
                 continue;
             }
@@ -264,7 +264,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             }
 
             // Submits requests
-            int requests_submitted = io_uring_submit(self->recv_rings[ch]);
+            int requests_submitted = io_uring_submit(self->recv_rings[ch + ch_offset]);
             std::cout << "io_uring_submit\n";
             // TODO: gracefully handle these conditions
             if(requests_submitted < 0) {
@@ -280,7 +280,8 @@ uint32_t async_recv_manager::get_next_packet(const size_t ch, uint8_t** packet) 
 
     // Non-block get next completion even
     io_uring_cqe *cqe_ptr;
-    int r = io_uring_peek_cqe(recv_rings[ch], &cqe_ptr);
+    // int r = io_uring_peek_cqe(recv_rings[ch], &cqe_ptr);
+    int r = io_uring_wait_cqe(recv_rings[ch], &cqe_ptr);
 
     if(r == 0) {
         // cqe_ptr->res is the return value of the corresponding function
