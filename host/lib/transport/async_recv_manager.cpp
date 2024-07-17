@@ -54,15 +54,13 @@ recv_rings(recv_sockets.size())
     // Number of entries that can fit in the submission queue
     uring_params.sq_entries = MAX_IO_RING_ENTRIES;
     // Number of entries that can fit in the completion queue
-    uring_params.cq_entries = 2 * MAX_IO_RING_ENTRIES;
+    uring_params.cq_entries = 2* MAX_IO_RING_ENTRIES;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
     // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
     // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
     // IORING_SETUP_CQSIZE: use cq_entries?
-    // IORING_FEAT_NODROP: don't drop events even if the completion queue is full (will result in a performance hit when the kernel needs to resize related buffer), might cause weird error messages if buffer limit is exceeded
-    // IORING_SETUP_CLAMP: prevents recv buffer from being expanded above IORING_MAX_ENTRIES
-    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_CLAMP;
+    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL /*| IORING_SETUP_SINGLE_ISSUER*/ | IORING_SETUP_CQSIZE;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // uring_params.sq_thread_cpu;
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
