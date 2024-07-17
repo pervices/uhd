@@ -211,12 +211,15 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 uint32_t packet_length = recv_manager->get_next_packet(ch, &packets[ch]);
-                std::cout << "packet_length: " << packet_length << std::endl;
 
                 if(packets[ch] == nullptr) {
+                    // TODO: fix this for multiple channels, get_next_packet will now consume a packet in the ring
                     all_ready = false;
                     break;
                 }
+
+                std::cout << "packet_length: " << packet_length << std::endl;
+                printf("packets[ch]: %p\n", packets[ch]);
 
                 if(packet_length < _HEADER_SIZE) {
                     throw std::runtime_error("Received sample packet smaller than header size");
