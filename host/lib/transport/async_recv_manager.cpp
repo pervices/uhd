@@ -238,7 +238,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             int_fast64_t packets_in_buffer = self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed);
 
             // Debug stop after a number of packets
-            if(packet_submitted > 0) {
+            if(packet_submitted > 2*MAX_IO_RING_ENTRIES) {
                 while(!self->stop_flag);
             }
             packet_submitted++;
