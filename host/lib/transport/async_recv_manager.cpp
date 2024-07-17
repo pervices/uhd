@@ -237,11 +237,17 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
 
             // memory_order_relaxed is used since only this thread is writing to this variable once a buffer is activ
             int_fast64_t packets_in_buffer = self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed);
-                        // TODO: re-enable these if I start submitting requests at one
+
+            // Debug only send 2 packets
+            if(packets_in_buffer > 2) {
+                while(!self->stop_flag);
+            }
+
+            // TODO: re-enable these if I start submitting requests at one
             // Number of packets to be received this recvmmsg
             // uint32_t packets_to_recv = (uint32_t) std::min(self->packets_per_buffer - packets_in_buffer, (int_fast64_t) max_packets);
 
-            io_uring_prep_recvmsg(sqe, sockets[ch], &self->mmsghdrs[ch + ch_offset][b[ch]][0/*packets_in_buffer*/].msg_hdr, IORING_RECVSEND_POLL_FIRST);
+            io_uring_prep_recvmsg(sqe, sockets[ch], &self->mmsghdrs[ch + ch_offset][b[ch]][packets_in_buffer].msg_hdr, IORING_RECVSEND_POLL_FIRST);
 
             // Forces requests to be done in the order they appear in (works between submits)
             // IOSQE_IO_LINK would ensure they are n the correct order within a submit but not across submits
