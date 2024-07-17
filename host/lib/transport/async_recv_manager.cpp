@@ -144,7 +144,8 @@ recv_rings(recv_sockets.size())
         //         throw std::runtime_error("Timeout while flushing buffers");
         //     }
         // }
-        flush_complete[n] = 1;
+        // This may be causing bad address errors
+        // flush_complete[n] = 1;
     }
 }
 
