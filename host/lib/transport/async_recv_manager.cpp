@@ -43,8 +43,7 @@ recv_rings(recv_sockets.size())
     // Gets the amount of RAM the system has
     const int_fast64_t system_ram = get_phys_pages() * page_size;
 
-    const int_fast64_t max_buffer_size = std::min((int_fast64_t) ((double) system_ram / (total_rx_channels * MAX_RESOURCE_FRACTION * NUM_BUFFERS)), HARD_MAX_BUFFER_SIZE);
-    packets_per_buffer = std::max(max_buffer_size / packet_size, HARD_MIN_BUFFER_SIZE_PACKETS);
+    packets_per_buffer = MAX_IO_RING_ENTRIES / NUM_BUFFERS;
     // The actual size of the buffers in bytes
     int_fast64_t actual_buffer_size = packets_per_buffer * packet_size;
 
@@ -63,8 +62,9 @@ recv_rings(recv_sockets.size())
     // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
     // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
-    // IORING_FEAT_NODROP: don't drop events even if the completion queue is full (will result in a performance hit when the kernel needs to resize related buffer)
-    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_FEAT_NODROP;
+    // IORING_SETUP_CQSIZE: use cq_entries?
+    // IORING_FEAT_NODROP: don't drop events even if the completion queue is full (will result in a performance hit when the kernel needs to resize related buffer), might cause weird error messages if buffer limit is exceeded
+    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // uring_params.sq_thread_cpu;
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
