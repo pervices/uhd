@@ -280,8 +280,7 @@ uint32_t async_recv_manager::get_next_packet(const size_t ch, uint8_t** packet) 
 
     // Non-block get next completion even
     io_uring_cqe *cqe_ptr;
-    // int r = io_uring_peek_cqe(recv_rings[ch], &cqe_ptr);
-    int r = io_uring_wait_cqe(recv_rings[ch], &cqe_ptr);
+    int r = io_uring_peek_cqe(recv_rings[ch], &cqe_ptr);
 
     if(r == 0) {
         // cqe_ptr->res is the return value of the corresponding function
@@ -300,6 +299,7 @@ uint32_t async_recv_manager::get_next_packet(const size_t ch, uint8_t** packet) 
 void async_recv_manager::advance_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     num_packets_consumed[ch]++;
+    io_uring_cq_advance(recv_rings[ch], 1);
     if(num_packets_consumed[ch] >= packets_per_buffer) {
         // Marks this buffer as clear
         num_packets_stored[ch]->at(b).store(0, std::memory_order_release);
