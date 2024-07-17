@@ -280,7 +280,7 @@ uint32_t async_recv_manager::get_next_packet(const size_t ch, uint8_t** packet) 
             *packet = packet_buffer_ptrs[ch][b] + (num_packets_consumed[ch] * packet_size);
             return cqe_ptr->res;
         } else {
-            UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error returned by recvmmsg: " + std::string(strerror(errno));
+            UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error returned by recvmmsg: " + std::string(strerror(-cqe_ptr->res));
             throw uhd::io_error( "recvmsg error" );
         }
     } else {
