@@ -250,10 +250,10 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             // Increment buffer level before submitting to avoid race condition where the consumer thread clears the buffer level
             // TODO: clean this up and switch to a simple flag system since the consumer thread no longer cares about the number of samples in the buffer
             if(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + 1 < self->packets_per_buffer) {
-                self->num_packets_stored[ch + ch_offset]->at(b[ch]).store(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + (1 * self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed)), std::memory_order_release);
+                self->num_packets_stored[ch + ch_offset]->at(b[ch]).fetch_add(1, std::memory_order_relaxed);
             } else {
                 // Move the the next buffer, also atomic increment buffer count to avoid
-                self->num_packets_stored[ch + ch_offset]->at(b[ch]).store(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + (1 * self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed)), std::memory_order_relaxed);
+                self->num_packets_stored[ch + ch_offset]->at(b[ch]).fetch_add(1, std::memory_order_release);
                 b[ch] = (b[ch] + 1) & (NUM_BUFFERS -1);
             }
 
