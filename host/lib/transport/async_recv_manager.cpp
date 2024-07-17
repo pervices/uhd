@@ -265,6 +265,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
 
             // Submits requests
             int requests_submitted = io_uring_submit(self->recv_rings[ch]);
+            std::cout << "io_uring_submit\n";
             // TODO: gracefully handle these conditions
             if(requests_submitted < 0) {
                 UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "io_uring_submit failed: " << strerror(-requests_submitted);
