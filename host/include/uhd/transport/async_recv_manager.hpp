@@ -95,7 +95,6 @@ public:
 
     /**
      * Gets the location of the next packet.
-     * You must call advance_packet if this returns success
      * @param ch
      * @param packet a pointer to where to store a pointer the next packet
      * @return Length of the packet, or 0 if no packet is available
