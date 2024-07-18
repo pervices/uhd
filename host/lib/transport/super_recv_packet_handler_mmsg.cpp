@@ -252,6 +252,8 @@ public:
 
             // Not all channels have data ready
             if(!all_ready) {
+                // TODO remove after debugging done
+                usleep(1);
                 continue;
             }
 

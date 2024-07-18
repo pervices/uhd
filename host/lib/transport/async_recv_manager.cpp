@@ -36,20 +36,26 @@ packet_size(header_size + max_sample_bytes_per_packet)
             num_packets_stored[ch]->at(b) = 0;
         }
     }
-    recv_error = 0;
     stop_flag = false;
 
-    // Gets the amount of RAM the system has
-    const int_fast64_t system_ram = get_phys_pages() * page_size;
-
-    const int_fast64_t max_buffer_size = std::min((int_fast64_t) ((double) system_ram / (total_rx_channels * MAX_RESOURCE_FRACTION * NUM_BUFFERS)), HARD_MAX_BUFFER_SIZE);
-    packets_per_buffer = std::max(max_buffer_size / packet_size, HARD_MIN_BUFFER_SIZE_PACKETS);
+    // Have 1 page worth of packet mmsghdrs and iovec per buffer
+    // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
+    // TODO allocate mmsghdr and iovec to that they are on the same page
+    packets_per_buffer = page_size / (sizeof(mmsghdr) + sizeof(iovec));
+    std::cout << "packets_per_buffer: " << packets_per_buffer << std::endl;
     // The actual size of the buffers in bytes
     int_fast64_t actual_buffer_size = packets_per_buffer * packet_size;
 
     // Add padding to ensure this buffer is not on the same cache line as anything else
     actual_buffer_size += actual_buffer_size % std::hardware_destructive_interference_size;
 
+    // Each mmmsghdr_buffer_size buffer contains both mmsghdrs and their corresponding iovec
+    size_t mmmsghdr_buffer_size = (sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer;
+
+    std::cout << "actual_buffer_size: " << actual_buffer_size << std::endl;
+    std::cout << "mmmsghdr_buffer_size: " << mmmsghdr_buffer_size << std::endl;
+    std::cout << "actual_buffer_size * NUM_BUFFERS: " << actual_buffer_size * NUM_BUFFERS << std::endl;
+    std::cout << "mmmsghdr_buffer_size * NUM_BUFFERS: " << mmmsghdr_buffer_size * NUM_BUFFERS << std::endl;
     // Allocates buffes to store packets and message headers
     for(size_t ch = 0; ch < recv_sockets.size(); ch++) {
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
@@ -62,8 +68,7 @@ packet_size(header_size + max_sample_bytes_per_packet)
             memset(packet_buffer_ptrs[ch][b], 0, actual_buffer_size);
 
             // Resizes mmsghdr buffers to be able to contain all the packets
-            size_t mmmsghdr_buffer_size = sizeof(struct mmsghdr) * packets_per_buffer;
-            mmmsghdr_buffer_size += mmmsghdr_buffer_size % std::hardware_destructive_interference_size;
+            mmmsghdr_buffer_size += mmmsghdr_buffer_size % page_size;
             mmsghdrs[ch][b] = (struct mmsghdr*) aligned_alloc(page_size, mmmsghdr_buffer_size);
             if(mmsghdrs[ch][b] == nullptr) {
                 throw uhd::environment_error( "out of memory when attempting to allocate:" + std::to_string(mmmsghdr_buffer_size) + " bytes");
@@ -101,6 +106,7 @@ packet_size(header_size + max_sample_bytes_per_packet)
             }
         }
     }
+    std::cout << "flush complete\n";
 }
 
 async_recv_manager::~async_recv_manager()
@@ -125,19 +131,21 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     uhd::set_thread_priority_safe();
 
     size_t num_ch = sockets.size();
-    std::vector<std::vector<std::vector<struct iovec>>> iovecs(num_ch, std::vector<std::vector<struct iovec>>(NUM_BUFFERS, std::vector<struct iovec>(self->packets_per_buffer)));
 
+    // Configure iovecs
     for(size_t ch = 0; ch < num_ch; ch++) {
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
+            // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
+            struct iovec* iovecs =(iovec*) &self->mmsghdrs[ch + ch_offset][b][self->packets_per_buffer];
             for(int_fast64_t p = 0; p < self->packets_per_buffer; p++) {
+
                 // Points iovecs to the corresponding point in the buffers
-                uint8_t* tmp = self->packet_buffer_ptrs[ch + ch_offset][b] + (p * self->packet_size);
-                iovecs[ch][b][p].iov_base = tmp;
-                iovecs[ch][b][p].iov_len = self->packet_size;
+                iovecs[p].iov_base = self->packet_buffer_ptrs[ch + ch_offset][b] + (p * self->packet_size);;
+                iovecs[p].iov_len = self->packet_size;
 
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
-                self->mmsghdrs[ch + ch_offset][b][p].msg_hdr.msg_iov = &iovecs[ch][b][p];
+                self->mmsghdrs[ch + ch_offset][b][p].msg_hdr.msg_iov = &iovecs[p];
                 self->mmsghdrs[ch + ch_offset][b][p].msg_hdr.msg_iovlen = 1;
             }
         }
@@ -147,13 +155,6 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     // Tracks if the loop has already started filling the current buffer (uint8_t
     std::vector<uint_fast8_t> b_active(num_ch, 0);
 
-    uint32_t max_packets;
-    if(num_ch == 1) {
-        max_packets = UINT32_MAX;
-    } else {
-        // Limit maximum number of packets received per call to prevent one channel's receive from taking to long and causing another packet to drop
-        max_packets = 20;
-    }
 
     // Memory order to use when setting flush_complete
     // Used to avoid non relaxed writes and branches
@@ -162,6 +163,8 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     std::vector<std::memory_order> b_aquire_load_order(num_ch, std::memory_order_consume);
 
     std::memory_order stop_flag_order = std::memory_order_relaxed;
+
+    std::vector<size_t> num_packets_received(num_ch, 0);
 
     uint_fast8_t loop_counts = 0;
     while(!self->stop_flag.load(stop_flag_order)) {
@@ -179,35 +182,30 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
             if(!b_active[ch]) {
                 // If unable to aquire buffer, switch to atomic checks to see future changes immediately
                 b_aquire_load_order[ch] = std::memory_order_consume;
+                std::cout << "Main thread slow\n";
                 continue;
             }
 
             // Switch to relaxed memory ordering for check if the buffer is available since synchronization is no longer needed
             b_aquire_load_order[ch] = std::memory_order_relaxed;
 
-            // memory_order_relaxed is used since only this thread is writing to this variable once a buffer is activ
-            int_fast64_t packets_in_buffer = self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed);
-
-            // Number of packets to be received this recvmmsge
-            uint32_t packets_to_recv = (uint32_t) std::min(self->packets_per_buffer - packets_in_buffer, (int_fast64_t) max_packets);
-
             // Receives any packets already in the buffer
-            int packets_received = recvmmsg(sockets[ch], &self->mmsghdrs[ch + ch_offset][b[ch]][packets_in_buffer], packets_to_recv, MSG_DONTWAIT, 0);
+            int packets_received = recvmmsg(sockets[ch], self->mmsghdrs[ch + ch_offset][b[ch]], self->packets_per_buffer, MSG_DONTWAIT, 0);
 
             // If packets received
             if(packets_received >= 0) {
+                num_packets_received[ch]+=packets_received;
+                // Increment/multiple by flush_complete because packets should not be counted before flush is complete
+
                 // Increment the counter for number of packets stored
                 // Relaxed load is acceptable here since the only time the other thread writes to this is beore the buffer is aqquired
                 // * flush_complete skips recording that packets were received until the sockets have been flushed
-                self->num_packets_stored[ch + ch_offset]->at(b[ch]).store(self->num_packets_stored[ch + ch_offset]->at(b[ch]).load(std::memory_order_relaxed) + (packets_received * self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed)), std::memory_order_release);
+                self->num_packets_stored[ch + ch_offset]->at(b[ch]).store(packets_received * self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed), std::memory_order_release);
 
-                 if(packets_in_buffer + packets_received >= self->packets_per_buffer) {
-
-                    // This buffer is full, shift to the next one, loop back to first buffer
-                    b[ch] = (b[ch] + 1) & (NUM_BUFFERS -1);
-                    // Reset flag that indicates that the buffer has been aqquired
-                    b_active[ch] = false;
-                }
+                // Shift to the next buffer if there is any data ready in the buffer, loop back to first buffer
+                b[ch] = (b[ch] + self->flush_complete[ch + ch_offset].load(std::memory_order_relaxed)) & (NUM_BUFFERS -1);
+                // Reset flag that indicates that the buffer has been aqquired
+                b_active[ch] = false;
 
             // EAGAIN, EWOULDBLOCK are caused by MSG_DONTWAIT when no packets are available and expected
             // EINTR is caused by the program receiving an interrupt during recvmmsg and is expected (such as the user pressing ctrl c to exit)
@@ -218,12 +216,15 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
                 flush_order[ch] = std::memory_order_relaxed;
                 continue;
             } else {
+                // TODO: handle case where packets were received during flush
                 UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(errno));
-                self->recv_error = errno;
                 self->stop_flag = true;
                 return;
             }
         }
+    }
+    for(size_t ch = 0; ch < num_ch; ch++) {
+        std::cout << "num_packets_received[ch]: " << num_packets_received[ch] << std::endl;
     }
 }
 
@@ -251,7 +252,9 @@ uint32_t async_recv_manager::get_next_packet_length(const size_t ch) {
 void async_recv_manager::advance_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     num_packets_consumed[ch]++;
-    if(num_packets_consumed[ch] >= packets_per_buffer) {
+    // TODO: optimize accessing num_packets_stored to reduce thread contention
+    // Move to the next buffer once all packets in this buffer are consumed
+    if(num_packets_consumed[ch] >= num_packets_stored[ch]->at(b)) {
         // Marks this buffer as clear
         num_packets_stored[ch]->at(b).store(0, std::memory_order_release);
 

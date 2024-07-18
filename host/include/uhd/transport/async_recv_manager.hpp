@@ -16,26 +16,25 @@ namespace uhd { namespace transport {
 class async_recv_manager {
 
 private:
-    // Hard limit on the maximum size of buffers used to store data in bytes
-    static constexpr int_fast64_t HARD_MAX_BUFFER_SIZE = (int_fast64_t) 1073741824 * 2; //2 GB
-
-    // Hard limit on the minimum number of packets that can fit in buffers
-    static constexpr int_fast64_t HARD_MIN_BUFFER_SIZE_PACKETS = 100;
 
     // Number of buffers to be created per channel cycle through, must be a power of 2
-    static constexpr int_fast64_t NUM_BUFFERS = 4;
+    // Enough for 0.1s of data with 1 packet per buffer with packets containing 2220 samples
+    // TODO: reduce number of buffer depending on system RAM
+    static constexpr int_fast64_t NUM_BUFFERS = 65536;
 
     // (1 / this) is the maximum portion of CPU cores and RAM that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
     // Maximum packets per recvmmsg with multiple channels per thread, ignored when only 1 channel per thread
-    static constexpr uint32_t MAX_PACKETS_PER_RECVMMSG = 3;
+    static constexpr uint32_t MAX_PACKETS_PER_RECVMMSG = 20;
 
     // Pointer to buffers where packet data is stored
     // channel, buffer_num
     std::vector<std::vector<uint8_t*>> packet_buffer_ptrs;
-    // Pointer to buffers where mmsghdrs are stored for each channel
+
+    // Pointer to buffers which contain mmsghdr for each buffer, followed by the iovec containing data
     // channel, buffer_num, packet
+    // Each buffer should be on it's own memory page
     std::vector<std::vector<struct mmsghdr*>> mmsghdrs;
 
     // Flag to indicate that hte sockets have been purged of old data
@@ -70,9 +69,6 @@ private:
 
     // Flag used to tell receive threads when to stop
     std::atomic<uint_fast8_t> stop_flag;
-
-    // Used to communicate to the consumer thread that an error occured
-    std::atomic<int> recv_error;
 
 public:
 
