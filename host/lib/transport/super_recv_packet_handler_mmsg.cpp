@@ -126,13 +126,23 @@ public:
         }
 
         // Create manager for receive threads and access to buffer recv data
-        recv_manager = new async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+        size_t cache_line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+        if(cache_line_size == 0) {
+            UHD_LOGGER_ERROR("PACKET_HANDLER_MMSG") << "Unable to get cache line size, assuming it is 64";
+            cache_line_size = 64;
+        }
+        // Create manager for threads that receive data to buffers using placement new to avoid false sharing
+        size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)cache_line_size) * cache_line_size;
+        recv_manager = (async_recv_manager*) aligned_alloc(cache_line_size, recv_manager_size);
+        new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
     }
 
     ~recv_packet_handler_mmsg(void)
     {
         // recv_manager must be deleted before closing sockets
-        delete recv_manager;
+        // Destructor must be manually called when using placement new
+        recv_manager->~async_recv_manager();
+        free(recv_manager);
         for(size_t n = 0; n < _recv_sockets.size(); n++) {
             int r = close(_recv_sockets[n]);
             if(r) {
@@ -348,7 +358,7 @@ public:
         }
 
         // Return a timeout error only if no samples were received
-        if(samples_received == 0 && metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) {
+        if(samples_received == 0 && metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
             metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
         }
 
