@@ -103,8 +103,6 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
     size_t recv_loops_size = (size_t) ceil((sizeof(std::thread) * num_recv_loops) / (double)cache_line_size) * cache_line_size;
     recv_loops = (std::thread*) aligned_alloc(cache_line_size, recv_loops_size);
 
-    std::cout << "Starting threads\n";
-
     // Creates thread to receive data
     size_t ch_offset = 0;
     for(size_t n = 0; n < num_recv_loops; n++) {
@@ -125,7 +123,6 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
             }
         }
     }
-    std::cout << "flush complete\n";
 }
 
 async_recv_manager::~async_recv_manager()
@@ -224,6 +221,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     }
 
     std::memory_order stop_flag_order = std::memory_order_relaxed;
+    uint_fast8_t main_thread_slow_message_printed = false;
 
     uint_fast8_t loop_counts = 0;
     while(!self->stop_flag->load(stop_flag_order)) {
@@ -236,9 +234,12 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
 
             // Check if buffer is empty (ready to have data stored)
             if(self->access_num_packets_stored(ch, ch_offset, b[ch])->load(b_aquire_load_order[ch])) {
+                if(!main_thread_slow_message_printed && b_aquire_load_order[ch] == std::memory_order_consume) {
+                    main_thread_slow_message_printed = true;
+                    UHD_LOG_FASTPATH("Time between and/or duration of UHD recv calls to long, recv provider thread forced to wait for buffers to clear. This message will only appear once per thread");
+                }
                 // If unable to aquire buffer, switch to atomic checks to see future changes immediately
                 b_aquire_load_order[ch] = std::memory_order_consume;
-                std::cout << "Main thread slow\n";
                 continue;
             }
 
