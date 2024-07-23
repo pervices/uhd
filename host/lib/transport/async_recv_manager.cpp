@@ -157,10 +157,27 @@ async_recv_manager::~async_recv_manager()
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
-    // Enables use of a realtime schedueler which will prevent this program from being interrupted, but will result in it's core being fully utilized
-    uhd::set_thread_priority_safe();
+    // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
+    bool priority_set = uhd::set_thread_priority_safe();
 
     size_t num_ch = sockets.size();
+
+    // Set the socket's affinity, improves speed and reliability
+    // Skip setting if setting priority (which also sets affinity failed)
+    if(priority_set) {
+        unsigned int cpu;
+        int r = getcpu(&cpu, nullptr);
+        if(!r) {
+            for(size_t ch = 0; ch < num_ch; ch++) {
+                r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+                if(r) {
+                    UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
+                }
+            }
+        } else {
+            UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno));
+        }
+    }
 
     // Configure iovecs
     for(size_t ch = 0; ch < num_ch; ch++) {
