@@ -42,10 +42,6 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
     // Create buffer to store count of number of packets stored
     num_packets_stored = (uint8_t*) aligned_alloc(cache_line_size, _num_ch * NUM_BUFFERS * padded_atomic_fast_64_size);
 
-    // Create stop flag and ensure it is not on a cache line shared with anything else
-    stop_flag = (std::atomic<uint_fast8_t>*) aligned_alloc(cache_line_size, padded_atomic_fast_u8_size);
-    new(stop_flag) std::atomic<uint_fast8_t>(0);
-
     for(size_t ch = 0; ch < _num_ch; ch++) {
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
@@ -58,7 +54,6 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
             new(access_num_packets_stored(ch, 0, b)) std::atomic<int_fast64_t>(0);
         }
     }
-    *stop_flag = false;
 
     // Have 1 page worth of packet mmsghdrs and iovec per buffer
     // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
@@ -128,7 +123,7 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
 async_recv_manager::~async_recv_manager()
 {
     // Manual destructor calls are required when using placement new
-    *stop_flag = true;
+    stop_flag = true;
     for(size_t n = 0; n < num_recv_loops; n++) {
         recv_loops[n].join();
         recv_loops[n].~thread();
@@ -144,8 +139,6 @@ async_recv_manager::~async_recv_manager()
         }
         access_flush_complete(ch, 0)->~atomic<uint_fast8_t>();
     }
-    stop_flag->~atomic<uint_fast8_t>();
-    free(stop_flag);
     free(flush_complete);
     free(num_packets_stored);
     free(active_consumer_buffer);
@@ -220,15 +213,9 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
         b_aquire_load_order[ch] = std::memory_order_consume;
     }
 
-    std::memory_order stop_flag_order = std::memory_order_relaxed;
     uint_fast8_t main_thread_slow_message_printed = false;
 
-    uint_fast8_t loop_counts = 0;
-    while(!self->stop_flag->load(stop_flag_order)) {
-        // Use atomic check for stop flag every 0x3f samples to balance need to update flag and avoiding interprocess communication
-        loop_counts++;
-        // stop_flag_order = (std::memory_order) ((size_t) (std::memory_order_consume * (loop_counts >> 6)) + (size_t) std::memory_order_relaxed - (size_t) (std::memory_order_relaxed * (loop_counts >> 6)));
-        loop_counts &= 0x3f;
+    while(!self->stop_flag) {
 
         for(size_t ch = 0; ch < num_ch; ch++) {
 
@@ -269,7 +256,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
                 continue;
             } else {
                 UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(errno));
-                *(self->stop_flag) = true;
+                self->stop_flag = true;
                 return;
             }
         }

@@ -101,10 +101,6 @@ private:
         return (std::atomic<int_fast64_t>*) (num_packets_stored + ((ch + ch_offset) * _num_ch * NUM_BUFFERS * padded_atomic_fast_64_size) + (b * padded_atomic_fast_64_size));
     }
 
-    // Flag used to tell receive threads when to stop
-    // Pointer instead of value so it can be on it's own cache line
-    std::atomic<uint_fast8_t>* stop_flag;
-
     // The buffer currently being used by the consumer thread
     size_t* active_consumer_buffer;
 
@@ -116,6 +112,9 @@ private:
     // Buffer containing the threads the receive data
     size_t num_recv_loops;
     std::thread* recv_loops;
+
+    // Flag used to tell receive threads when to stop
+    uint_fast8_t stop_flag = false;
 
 public:
 
