@@ -15,19 +15,53 @@
 
 namespace uhd { namespace transport {
 
-async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet )
+async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
 :
 _num_ch(recv_sockets.size()),
-cache_line_size(sysconf(_SC_LEVEL1_DCACHE_LINESIZE)),
-packet_size(header_size + max_sample_bytes_per_packet),
-padded_atomic_fast_u8_size(ceil( (size_t)sizeof(std::atomic<uint_fast8_t>) / (double)cache_line_size) * cache_line_size),
-padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (double)cache_line_size) * cache_line_size)
+packet_size(header_size + max_sample_bytes_per_packet)
 {
+    if(device_total_rx_channels > MAX_CHANNELS) {
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
+        throw assertion_error("Unsupported number of channels");
+    }
+
+    cache_line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
     if(cache_line_size == 0) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unable to get cache line size, assuming it is 64";
         cache_line_size = 64;
     }
+    padded_atomic_fast_u8_size = ceil( (size_t)sizeof(std::atomic<uint_fast8_t>) / (double)cache_line_size ) * cache_line_size;
+    padded_atomic_fast_64_size = ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (double)cache_line_size ) * cache_line_size;
+
     const size_t page_size = getpagesize();
+
+    struct sysinfo mem_info;
+    size_t total_ram;
+    int r = sysinfo(&mem_info);
+    if(r) {
+        // Asumme 128GB system if unable to get sysinfo
+        total_ram = 134930006016;
+    } else {
+        total_ram = mem_info.totalram;
+    }
+    // Maximum space that is allowed to be taken up by packet buffers per channel
+    size_t max_packet_buffers_space_per_ch = total_ram / ( MAX_RESOURCE_FRACTION * device_total_rx_channels);
+
+    // Have 1 page worth of packet mmsghdrs and iovec per buffer
+    // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
+    packets_per_buffer = page_size / (sizeof(mmsghdr) + sizeof(iovec));
+    // The actual size of the buffers in bytes
+    packet_buffer_size = packets_per_buffer * packet_size;
+
+    // Add padding to ensure each buffer starts at a new memory page
+    packet_buffer_size = (size_t) ceil(packet_buffer_size / (double)page_size) * page_size;
+
+    // Finds how many buffers can fix in the allowed amount per channel, capped at MAX_NUM_BUFFERS
+    for(_num_buffers = 2; _num_buffers < MAX_NUM_BUFFERS; _num_buffers = _num_buffers * 2) {
+        if(_num_buffers * 2 * packet_buffer_size > max_packet_buffers_space_per_ch) {
+            break;
+        }
+    }
 
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
@@ -40,7 +74,7 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
     // Create buffer for flush complete flag in seperate cache lines
     flush_complete = (uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_atomic_fast_u8_size);
     // Create buffer to store count of number of packets stored
-    num_packets_stored = (uint8_t*) aligned_alloc(cache_line_size, _num_ch * NUM_BUFFERS * padded_atomic_fast_64_size);
+    num_packets_stored = (uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buffers * padded_atomic_fast_64_size);
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
         active_consumer_buffer[ch] = 0;
@@ -49,23 +83,14 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
         // Placement new
         new(access_flush_complete(ch, 0)) std::atomic<uint_fast8_t>(0);
         // Create buffers for the sample count for each channel's buffers. Elements in the buffer are aligned to the cache line and padded to avoid false sharing
-        for(size_t b = 0; b < NUM_BUFFERS; b++) {
+        for(size_t b = 0; b < _num_buffers; b++) {
             // Placement new
             new(access_num_packets_stored(ch, 0, b)) std::atomic<int_fast64_t>(0);
         }
     }
 
-    // Have 1 page worth of packet mmsghdrs and iovec per buffer
-    // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
-    packets_per_buffer = page_size / (sizeof(mmsghdr) + sizeof(iovec));
-    // The actual size of the buffers in bytes
-    packet_buffer_size = packets_per_buffer * packet_size;
-
-    // Add padding to ensure each buffer starts at a new memory page
-    packet_buffer_size = (size_t) ceil(packet_buffer_size / (double)page_size) * page_size;
-
     // Allocates buffer to store all data, buffer start and each buffer are aligned to a memory page for performance
-    size_t combined_packet_buffer_size = _num_ch * NUM_BUFFERS * packet_buffer_size;
+    size_t combined_packet_buffer_size = _num_ch * _num_buffers * packet_buffer_size;
     packet_buffer = (uint8_t*) aligned_alloc(page_size, combined_packet_buffer_size);
     if(packet_buffer == nullptr) {
         throw uhd::environment_error( "out of memory when attempting to allocate:" + std::to_string(combined_packet_buffer_size) + " bytes");
@@ -77,7 +102,7 @@ padded_atomic_fast_64_size(ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (do
     // Each buffer needs to be page aligned to that all elements sent to mmsg at a time are on the same page
     mmmsghdr_iovec_buffer_size = (size_t) ceil(mmmsghdr_iovec_buffer_size / (double)page_size) * page_size;
 
-    size_t combined_mmsghdr_size =  _num_ch * NUM_BUFFERS * mmmsghdr_iovec_buffer_size;
+    size_t combined_mmsghdr_size =  _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size;
 
     mmsghdr_iovecs = (uint8_t*) aligned_alloc(page_size, combined_mmsghdr_size);
     if(mmsghdr_iovecs == nullptr) {
@@ -133,7 +158,7 @@ async_recv_manager::~async_recv_manager()
     free(packet_buffer);
     free(mmsghdr_iovecs);
     for(size_t ch = 0; ch < _num_ch; ch++) {
-        for(size_t b = 0; b < NUM_BUFFERS; b++) {
+        for(size_t b = 0; b < _num_buffers; b++) {
             // Unlike normal, when using pacement new the destructor must be manually called
             access_num_packets_stored(ch, 0, b)->~atomic<int_fast64_t>();
         }
@@ -146,11 +171,18 @@ async_recv_manager::~async_recv_manager()
     free(recv_loops);
 }
 
-void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
+void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets, const size_t ch_offset) {
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe();
 
-    size_t num_ch = sockets.size();
+    const size_t num_ch = sockets.size();
+
+    // Mask used to roll over the buffers
+    const size_t buffer_mask = self->_num_buffers - 1;
+
+    // Create local buffer so the flush compelte flag is only written once to the heap, keeping other operations on the stack
+    uint_fast8_t local_flush_complete[MAX_CHANNELS];
+    memset(local_flush_complete, 0, MAX_CHANNELS);
 
     // Set the socket's affinity, improves speed and reliability
     // Skip setting if setting priority (which also sets affinity failed)
@@ -171,7 +203,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
 
     // Configure iovecs
     for(size_t ch = 0; ch < num_ch; ch++) {
-        for(size_t b = 0; b < NUM_BUFFERS; b++) {
+        for(size_t b = 0; b < self->_num_buffers; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
             struct iovec* iovecs =(iovec*) self->access_mmsghdr(ch, ch_offset, b, self->packets_per_buffer);
             for(int_fast64_t p = 0; p < self->packets_per_buffer; p++) {
@@ -188,16 +220,16 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     }
 
     // Create a copy of sockets that is cache line aligned/padded to ensure no false sharing
-    size_t aligned_sockets_size = (size_t) ceil(num_ch * sizeof(int)/ (double) self->cache_line_size) * self->cache_line_size;
-    int* aligned_sockets = (int*) aligned_alloc(self->cache_line_size, aligned_sockets_size);
+    const size_t aligned_sockets_size = (size_t) ceil(num_ch * sizeof(int)/ (double) self->cache_line_size) * self->cache_line_size;
+    int* const aligned_sockets = (int*) aligned_alloc(self->cache_line_size, aligned_sockets_size);
     for(size_t ch = 0; ch < num_ch; ch++) {
         aligned_sockets[ch] = sockets[ch];
     }
 
     // Tracks which buffer is currently being written to by each channel
     // Access: b[ch]
-    size_t b_size = (size_t) ceil(num_ch * sizeof(size_t)/ (double) self->cache_line_size) * self->cache_line_size;
-    size_t* b = (size_t*) aligned_alloc(self->cache_line_size, b_size);
+    const size_t b_size = (size_t) ceil(num_ch * sizeof(size_t)/ (double) self->cache_line_size) * self->cache_line_size;
+    size_t* const b = (size_t*) aligned_alloc(self->cache_line_size, b_size);
 
     // Sets initial values
     for(size_t ch = 0; ch < num_ch; ch++) {
@@ -211,27 +243,28 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     size_t ch = 0;
     while(!self->stop_flag) {
 
-        int_fast64_t packets_to_recv = (!self->access_num_packets_stored(ch, ch_offset, b[ch])->load(std::memory_order_relaxed)) ? self->packets_per_buffer : 0;
+        const int_fast64_t packets_to_recv = (!self->access_num_packets_stored(ch, ch_offset, b[ch])->load(std::memory_order_relaxed)) ? self->packets_per_buffer : 0;
 
         main_thread_slow = !packets_to_recv || main_thread_slow;
 
         // Receives any packets already in the buffer
-        int r = recvmmsg(aligned_sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
+        const int r = recvmmsg(aligned_sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
-        int packets_received = (r >= 0) ? r : 0;
+        const int packets_received = (r >= 0) ? r : 0;
 
         // Increment the counter for number of packets stored
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        self->access_num_packets_stored(ch, ch_offset, b[ch])->store(packets_received * self->access_flush_complete(ch, ch_offset)->load(std::memory_order_relaxed), std::memory_order_relaxed);
+        self->access_num_packets_stored(ch, ch_offset, b[ch])->store(packets_received * local_flush_complete[ch], std::memory_order_relaxed);
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        b[ch] = (packets_received) ? (b[ch] + self->access_flush_complete(ch, ch_offset)->load(std::memory_order_relaxed)) & (NUM_BUFFERS -1) : b[ch];
+        b[ch] = (packets_received) ? (b[ch] + local_flush_complete[ch]) & (buffer_mask) : b[ch];
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
-        self->access_flush_complete(ch, ch_offset)->fetch_or((r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)), std::memory_order_relaxed);
+        local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+        self->access_flush_complete(ch, ch_offset)->store(local_flush_complete[ch], std::memory_order_relaxed);
 
-        error_code = (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) ? errno : 0;
-        self->stop_flag = error_code || self->stop_flag ? true : false;
+        // Set error_code to the first unhandled error encountered
+        error_code = (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) ? errno : error_code;
 
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
@@ -241,6 +274,7 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
 
     if(error_code) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::to_string(error_code);
+        self->stop_flag = true;
     }
 
     if(main_thread_slow) {
@@ -277,7 +311,7 @@ void async_recv_manager::advance_packet(const size_t ch) {
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
-        active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & (NUM_BUFFERS -1);
+        active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & (_num_buffers -1);
 
         // Resets count for number of samples consumed in the active buffer
         num_packets_consumed[ch] = 0;

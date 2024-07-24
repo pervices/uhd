@@ -19,13 +19,16 @@ class async_recv_manager {
 
 private:
 
-    // Number of buffers to be created per channel cycle through, must be a power of 2
-    // Enough for 0.1s of data with 1 packet per buffer with packets containing 2220 samples
-    // TODO: reduce number of buffer depending on system RAM
-    static constexpr int_fast64_t NUM_BUFFERS = 65536;
-
     // (1 / this) is the maximum portion of CPU cores and RAM that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
+
+
+    static constexpr size_t MAX_CHANNELS = 8;
+
+    // Number of buffers to be created per channel cycle through, must be a power of 2
+    // Enough for 0.1s of data with 1 packet per buffer with packets containing 2220 samples
+    static constexpr size_t MAX_NUM_BUFFERS = 65536;
+    size_t _num_buffers;
 
     const size_t _num_ch;
 
@@ -42,7 +45,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return packet_buffer + ((ch + ch_offset) * NUM_BUFFERS * packet_buffer_size) + (b * packet_buffer_size);
+        return packet_buffer + ((ch + ch_offset) * _num_buffers * packet_buffer_size) + (b * packet_buffer_size);
     }
 
     // Size of the packets to be received not including the trailer
@@ -62,7 +65,7 @@ private:
 
     // Gets a pointer to specific mmsghdr buffer
     inline mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * NUM_BUFFERS * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size));
+        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * _num_buffers * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size));
     }
 
     // Gets a pointer to specific mmsghdr
@@ -71,11 +74,11 @@ private:
     // b: buffer
     // p: packet number
     inline mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
-        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * NUM_BUFFERS * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size) + (p * sizeof(mmsghdr)));
+        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * _num_buffers * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size) + (p * sizeof(mmsghdr)));
     }
 
     // Size of std::atomic<uint_fast8_t> + padding so it takes a whole number of cache lines
-    const size_t padded_atomic_fast_u8_size;
+    size_t padded_atomic_fast_u8_size;
 
     // Buffer to store flags to indicate sockets have been flushed
     // Not an array of uint8_t, this is done to make manual memory operations easier
@@ -88,7 +91,7 @@ private:
     }
 
     // Size of std::atomic<int_fast64_t> + padding so it takes a whole number of cache lines
-    const size_t padded_atomic_fast_64_size;
+    size_t padded_atomic_fast_64_size;
 
     // Number of packets stored in each buffer
     // Accessed by both provider and consumer threads
@@ -98,7 +101,7 @@ private:
 
     // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
     inline std::atomic<int_fast64_t>* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (std::atomic<int_fast64_t>*) (num_packets_stored + ((ch + ch_offset) * _num_ch * NUM_BUFFERS * padded_atomic_fast_64_size) + (b * padded_atomic_fast_64_size));
+        return (std::atomic<int_fast64_t>*) (num_packets_stored + ((ch + ch_offset) * _num_ch * _num_buffers * padded_atomic_fast_64_size) + (b * padded_atomic_fast_64_size));
     }
 
     // The buffer currently being used by the consumer thread
@@ -125,7 +128,7 @@ public:
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
      */
-    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
+    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels );
 
     ~async_recv_manager();
 
