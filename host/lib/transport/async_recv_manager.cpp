@@ -199,78 +199,62 @@ void async_recv_manager::recv_loop(async_recv_manager* self, const std::vector<i
     size_t b_size = (size_t) ceil(num_ch * sizeof(size_t)/ (double) self->cache_line_size) * self->cache_line_size;
     size_t* b = (size_t*) aligned_alloc(self->cache_line_size, b_size);
 
-    // Memory order to use when setting flush_complete
-    // Used to avoid non relaxed writes and branches
-    size_t order_size = (size_t) ceil(num_ch * sizeof(std::memory_order)/ (double) self->cache_line_size) * self->cache_line_size;
-    std::memory_order* flush_order = (std::memory_order*) aligned_alloc(self->cache_line_size, order_size);
-
-    std::memory_order* b_aquire_load_order = (std::memory_order*) aligned_alloc(self->cache_line_size, order_size);
-
     // Sets initial values
     for(size_t ch = 0; ch < num_ch; ch++) {
         b[ch] = 0;
-        flush_order[ch] = std::memory_order_release;
-        b_aquire_load_order[ch] = std::memory_order_consume;
     }
 
-    uint_fast8_t main_thread_slow_message_printed = false;
+    uint_fast8_t main_thread_slow = false;
 
+    int error_code = 0;
+
+    size_t ch = 0;
     while(!self->stop_flag) {
 
-        for(size_t ch = 0; ch < num_ch; ch++) {
+        int_fast64_t packets_to_recv = (!self->access_num_packets_stored(ch, ch_offset, b[ch])->load(std::memory_order_relaxed)) ? self->packets_per_buffer : 0;
 
-            // Check if buffer is empty (ready to have data stored)
-            if(self->access_num_packets_stored(ch, ch_offset, b[ch])->load(b_aquire_load_order[ch])) {
-                if(!main_thread_slow_message_printed && b_aquire_load_order[ch] == std::memory_order_consume) {
-                    main_thread_slow_message_printed = true;
-                    UHD_LOG_FASTPATH("Time between and/or duration of UHD recv calls to long, recv provider thread forced to wait for buffers to clear. This message will only appear once per thread");
-                }
-                // If unable to aquire buffer, switch to atomic checks to see future changes immediately
-                b_aquire_load_order[ch] = std::memory_order_consume;
-                continue;
-            }
+        main_thread_slow = !packets_to_recv || main_thread_slow;
 
-            // Switch to relaxed memory ordering for check if the buffer is available since synchronization is no longer needed
-            b_aquire_load_order[ch] = std::memory_order_relaxed;
+        // Receives any packets already in the buffer
+        int r = recvmmsg(aligned_sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
-            // Receives any packets already in the buffer
-            int packets_received = recvmmsg(aligned_sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), self->packets_per_buffer, MSG_DONTWAIT, 0);
+        int packets_received = (r >= 0) ? r : 0;
 
-            // If packets received
-            if(packets_received >= 0) {
-                // Increment the counter for number of packets stored
-                // Relaxed load is acceptable here since the only time the other thread writes to this is beore the buffer is aqquired
-                // * flush_complete skips recording that packets were received until the sockets have been flushed
-                self->access_num_packets_stored(ch, ch_offset, b[ch])->store(packets_received * self->access_flush_complete(ch, ch_offset)->load(std::memory_order_relaxed), std::memory_order_release);
+        // Increment the counter for number of packets stored
+        // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
+        self->access_num_packets_stored(ch, ch_offset, b[ch])->store(packets_received * self->access_flush_complete(ch, ch_offset)->load(std::memory_order_relaxed), std::memory_order_relaxed);
 
-                // Shift to the next buffer if there is any data ready in the buffer, loop back to first buffer
-                b[ch] = (b[ch] + self->access_flush_complete(ch, ch_offset)->load(std::memory_order_relaxed)) & (NUM_BUFFERS -1);
+        // Shift to the next buffer is any packets received, the & loops back to the first buffer
+        b[ch] = (packets_received) ? (b[ch] + self->access_flush_complete(ch, ch_offset)->load(std::memory_order_relaxed)) & (NUM_BUFFERS -1) : b[ch];
 
-            // EAGAIN, EWOULDBLOCK are caused by MSG_DONTWAIT when no packets are available and expected
-            // EINTR is caused by the program receiving an interrupt during recvmmsg and is expected (such as the user pressing ctrl c to exit)
-            } else if(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                // Sets the flag to indicate that the buffers have been cleared once a recvmmsg returns nothing
-                // Only sets it if not already set to avoid need for non relaxed atomic access
-                self->access_flush_complete(ch, ch_offset)->store(1, flush_order[ch]);
-                flush_order[ch] = std::memory_order_relaxed;
-                continue;
-            } else {
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(errno));
-                self->stop_flag = true;
-                return;
-            }
-        }
+        // Set flush complete (already complete || recvmmsg returned with no packets)
+        self->access_flush_complete(ch, ch_offset)->fetch_or((r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)), std::memory_order_relaxed);
+
+        error_code = (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) ? errno : 0;
+        self->stop_flag = error_code || self->stop_flag ? true : false;
+
+        // Move onto the next channel, looping back to the start once reaching the end
+        // Achieves results like a for loop while reducing branches
+        ch++;
+        ch = (ch >= num_ch) ? 0 : ch;
+    }
+
+    if(error_code) {
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::to_string(error_code);
+    }
+
+    if(main_thread_slow) {
+        UHD_LOGGER_INFO("ASYNC_RECV_MANAGER") << "The internal buffer filled up while streaming, this is likely to caused by having to long gaps between calling the rx streamer's recv. Please reduce the time between/duration of recv calls in future runs. This is the likely cause if you had rx overflow/alignment errors.";
     }
 
     free(aligned_sockets);
     free(b);
-    free(flush_order);
 }
 
 uint8_t* async_recv_manager::get_next_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     // Check if the next packet is ready
-    if(access_num_packets_stored(ch, 0, b)->load(std::memory_order_consume) > num_packets_consumed[ch]) {
+    if(access_num_packets_stored(ch, 0, b)->load(std::memory_order_relaxed) > num_packets_consumed[ch]) {
         return access_packet_buffer(ch, 0, b) + (packet_size * num_packets_consumed[ch]);
     }
     else {
@@ -287,9 +271,9 @@ void async_recv_manager::advance_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     num_packets_consumed[ch]++;
     // Move to the next buffer once all packets in this buffer are consumed
-    if(num_packets_consumed[ch] >= access_num_packets_stored(ch, 0, b)->load(std::memory_order_consume)) {
+    if(num_packets_consumed[ch] >= access_num_packets_stored(ch, 0, b)->load(std::memory_order_relaxed)) {
         // Marks this buffer as clear
-        access_num_packets_stored(ch, 0, b)->store(0, std::memory_order_release);
+        access_num_packets_stored(ch, 0, b)->store(0, std::memory_order_relaxed);
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
