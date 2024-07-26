@@ -217,7 +217,7 @@ public:
         uint_fast8_t first_loop = true;
 
         // Main receive loop
-        while(samples_received < nsamps_per_buff && (recv_start_time + timeout > get_system_time() || first_loop)) {
+        while(samples_received < nsamps_per_buff && (recv_start_time + timeout > get_system_time() || first_loop)) [[likely]] {
             first_loop = false;
 
             bool all_ready = true;
@@ -227,13 +227,14 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 packets[ch] = recv_manager->get_next_packet(ch);
 
-                if(packets[ch] == nullptr) {
+                // The case where this is true is more important, even though this is very likely
+                if(packets[ch] == nullptr) [[unlikely]] {
                     all_ready = false;
                     break;
                 }
 
                 uint32_t packet_length = recv_manager->get_next_packet_length(ch);
-                if(packet_length < _HEADER_SIZE) {
+                if(packet_length < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
 
@@ -259,21 +260,20 @@ public:
                 realignment_required = packet_tsfs[ch] != packet_tsfs[0] || realignment_required;
 
                 // Detect and warn user of overflow error
-                if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) {
+                if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     underflow_detected = true;
                 }
             }
 
             // Not all channels have data ready
-            if(!all_ready) {
-                // TODO remove after debugging done
-                usleep(1);
+            // Actually very likely, tagged as unlikely because we care about speed more when it is ready
+            if(!all_ready) [[unlikely]] {
                 continue;
             }
 
             // Advance (skip) packets that are behind the latest packet so that they catch up after a few iterations of this
-            if(underflow_detected) {
+            if(underflow_detected) [[unlikely]] {
                 // Warn user that an overflow occured
                 UHD_LOG_FASTPATH("D");
                 if(!_using_performance_governor && !_performance_warning_printed) {
@@ -291,7 +291,7 @@ public:
                 }
             }
 
-            if(realignment_required) {
+            if(realignment_required) [[unlikely]] {
                 if(realignment_attempts >= max_realignment_attempts) {
                     if(!align_message_printed) {
                         UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
@@ -331,7 +331,7 @@ public:
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Error checking for if there is a mismatch in packet lengths
-                if(packet_sample_bytes != vita_md[ch].num_payload_bytes) {
+                if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
                     UHD_LOGGER_ERROR("STREAMER") << "Mismatch in sample count between packets";
 
@@ -365,14 +365,15 @@ public:
             samples_received += packet_sample_bytes / _BYTES_PER_SAMPLE;
 
             // Exit loop if user only wants one packet
-            if(one_packet) {
+            // Not actually unlikely, but performance matters more when false
+            if(one_packet) [[unlikely]] {
                 break;
             }
 
         }
 
         // Return a timeout error only if no samples were received
-        if(samples_received == 0 && metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
+        if(samples_received == 0 && metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) [[unlikely]] {
             metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
         }
 
