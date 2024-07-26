@@ -241,7 +241,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     int error_code = 0;
 
     size_t ch = 0;
-    while(!self->stop_flag) {
+    while(!self->stop_flag) [[likely]] {
 
         const int_fast64_t packets_to_recv = (!self->access_num_packets_stored(ch, ch_offset, b[ch])->load(std::memory_order_relaxed)) ? self->packets_per_buffer : 0;
 
