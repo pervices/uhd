@@ -18,49 +18,30 @@ namespace uhd { namespace transport {
 async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
 :
 _num_ch(recv_sockets.size()),
-packet_size(header_size + max_sample_bytes_per_packet)
+cache_line_size(std::hardware_destructive_interference_size),
+page_size(getpagesize()),
+packet_size(header_size + max_sample_bytes_per_packet),
+// Have 1 page worth of packet mmsghdrs and iovec per buffer
+// NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
+packets_per_buffer(page_size / (sizeof(mmsghdr) + sizeof(iovec))),
+// Size of each packet buffer + padding to be a whole number of pages
+_packet_buffer_size((size_t) ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
+_num_buffers(calc_num_buffers(device_total_rx_channels, _packet_buffer_size)),
+// Allocates buffer to store all packet payloads, each channel's buffer are aligned to a memory page for performance
+packet_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * _packet_buffer_size)),
+// Size of the buffer containing mmsghdrs and iovecs, must be a whole number of pages
+mmmsghdr_iovec_buffer_size((uint_fast32_t) ceil((sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer / (double)page_size) * page_size),
+mmsghdr_iovecs((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size)),
+padded_atomic_fast_u8_size(ceil( (uint_fast32_t)sizeof(std::atomic<uint_fast8_t>) / (double)cache_line_size ) * cache_line_size),
+padded_atomic_fast_64_size(ceil( (uint_fast32_t)sizeof(std::atomic<int_fast64_t>) / (double)cache_line_size ) * cache_line_size),
+// Create buffer for flush complete flag in seperate cache lines
+flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_atomic_fast_u8_size)),
+// Create buffer to store count of number of packets stored
+num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buffers * padded_atomic_fast_64_size))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
         throw assertion_error("Unsupported number of channels");
-    }
-
-    cache_line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
-    if(cache_line_size == 0) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unable to get cache line size, assuming it is 64";
-        cache_line_size = 64;
-    }
-    padded_atomic_fast_u8_size = ceil( (size_t)sizeof(std::atomic<uint_fast8_t>) / (double)cache_line_size ) * cache_line_size;
-    padded_atomic_fast_64_size = ceil( (size_t)sizeof(std::atomic<int_fast64_t>) / (double)cache_line_size ) * cache_line_size;
-
-    const size_t page_size = getpagesize();
-
-    struct sysinfo mem_info;
-    size_t total_ram;
-    int r = sysinfo(&mem_info);
-    if(r) {
-        // Asumme 128GB system if unable to get sysinfo
-        total_ram = 134930006016;
-    } else {
-        total_ram = mem_info.totalram;
-    }
-    // Maximum space that is allowed to be taken up by packet buffers per channel
-    size_t max_packet_buffers_space_per_ch = total_ram / ( MAX_RESOURCE_FRACTION * device_total_rx_channels);
-
-    // Have 1 page worth of packet mmsghdrs and iovec per buffer
-    // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
-    packets_per_buffer = page_size / (sizeof(mmsghdr) + sizeof(iovec));
-    // The actual size of the buffers in bytes
-    packet_buffer_size = packets_per_buffer * packet_size;
-
-    // Add padding to ensure each buffer starts at a new memory page
-    packet_buffer_size = (size_t) ceil(packet_buffer_size / (double)page_size) * page_size;
-
-    // Finds how many buffers can fix in the allowed amount per channel, capped at MAX_NUM_BUFFERS
-    for(_num_buffers = 2; _num_buffers < MAX_NUM_BUFFERS; _num_buffers = _num_buffers * 2) {
-        if(_num_buffers * 2 * packet_buffer_size > max_packet_buffers_space_per_ch) {
-            break;
-        }
     }
 
     // Create buffers used to store control data for the consumer thread
@@ -70,11 +51,6 @@ packet_size(header_size + max_sample_bytes_per_packet)
     size_t num_packets_consumed_size = _num_ch * sizeof(int_fast64_t);
     num_packets_consumed_size = (size_t) ceil(num_packets_consumed_size / (double)cache_line_size) * cache_line_size;
     num_packets_consumed = (int_fast64_t*) aligned_alloc(cache_line_size, num_packets_consumed_size);
-
-    // Create buffer for flush complete flag in seperate cache lines
-    flush_complete = (uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_atomic_fast_u8_size);
-    // Create buffer to store count of number of packets stored
-    num_packets_stored = (uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buffers * padded_atomic_fast_64_size);
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
         active_consumer_buffer[ch] = 0;
@@ -89,26 +65,18 @@ packet_size(header_size + max_sample_bytes_per_packet)
         }
     }
 
-    // Allocates buffer to store all data, buffer start and each buffer are aligned to a memory page for performance
-    size_t combined_packet_buffer_size = _num_ch * _num_buffers * packet_buffer_size;
-    packet_buffer = (uint8_t*) aligned_alloc(page_size, combined_packet_buffer_size);
+    // Check if memory allocation failed
     if(packet_buffer == nullptr) {
-        throw uhd::environment_error( "out of memory when attempting to allocate:" + std::to_string(combined_packet_buffer_size) + " bytes");
+        throw uhd::environment_error( "aligned_alloc failed for packet buffers" );
     }
-    memset(packet_buffer, 0, combined_packet_buffer_size);
+    // Set entire buffer to 0 to avoid issues with lazy allocation
+    memset(packet_buffer, 0, _num_ch * _num_buffers * _packet_buffer_size);
 
-    // Each mmmsghdr_iovec_buffer_size buffer contains both mmsghdrs and their corresponding iovec
-    mmmsghdr_iovec_buffer_size = (sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer;
-    // Each buffer needs to be page aligned to that all elements sent to mmsg at a time are on the same page
-    mmmsghdr_iovec_buffer_size = (size_t) ceil(mmmsghdr_iovec_buffer_size / (double)page_size) * page_size;
-
-    size_t combined_mmsghdr_size =  _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size;
-
-    mmsghdr_iovecs = (uint8_t*) aligned_alloc(page_size, combined_mmsghdr_size);
     if(mmsghdr_iovecs == nullptr) {
-        throw uhd::environment_error( "out of memory when attempting to allocate:" + std::to_string(combined_mmsghdr_size) + " bytes");
+        throw uhd::environment_error( "aligned_alloc failed for mmsghdr buffers" );
     }
-    memset(mmsghdr_iovecs, 0, combined_mmsghdr_size);
+    // Set clear mmsghdrs and iovecs
+    memset(mmsghdr_iovecs, 0, _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size);
 
     int64_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -172,21 +140,22 @@ async_recv_manager::~async_recv_manager()
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
+
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe();
 
-    const size_t num_ch = sockets_.size();
+    const uint_fast32_t num_ch = sockets_.size();
 
     // Mask used to roll over the buffers
-    const size_t buffer_mask = self->_num_buffers - 1;
+    const uint_fast32_t buffer_mask = self->_num_buffers - 1;
 
     // Records the buffer in use by each channel
-    size_t b[MAX_CHANNELS];
+    uint_fast32_t b[MAX_CHANNELS];
     // Copy of sockets used by this thread on the stack
     int sockets[MAX_CHANNELS];
     // Local copy of flush complete flag so that we never need to read from the shared flag
     uint_fast8_t local_flush_complete[MAX_CHANNELS];
-    for(size_t ch = 0; ch < num_ch; ch++) {
+    for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
         sockets[ch] = sockets_[ch];
         b[ch] = 0;
         local_flush_complete[ch] = 0;
@@ -198,7 +167,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         unsigned int cpu;
         int r = getcpu(&cpu, nullptr);
         if(!r) {
-            for(size_t ch = 0; ch < num_ch; ch++) {
+            for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
                 r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
                 if(r) {
                     UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
@@ -210,11 +179,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     }
 
     // Configure iovecs
-    for(size_t ch = 0; ch < num_ch; ch++) {
-        for(size_t b = 0; b < self->_num_buffers; b++) {
+    for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
+        for(uint_fast32_t b = 0; b < self->_num_buffers; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
             struct iovec* iovecs =(iovec*) self->access_mmsghdr(ch, ch_offset, b, self->packets_per_buffer);
-            for(int_fast64_t p = 0; p < self->packets_per_buffer; p++) {
+            for(uint_fast32_t p = 0; p < self->packets_per_buffer; p++) {
                 // Points iovecs to the corresponding point in the buffers
                 iovecs[p].iov_base = self->access_packet_buffer(ch, ch_offset, b) + (p * self->packet_size);
                 iovecs[p].iov_len = self->packet_size;
@@ -231,7 +200,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     int error_code = 0;
 
-    size_t ch = 0;
+    uint_fast32_t ch = 0;
     while(!self->stop_flag) [[likely]] {
 
         const int_fast64_t packets_to_recv = (!self->access_num_packets_stored(ch, ch_offset, b[ch])->load(std::memory_order_relaxed)) ? self->packets_per_buffer : 0;
@@ -305,6 +274,30 @@ void async_recv_manager::advance_packet(const size_t ch) {
         // Resets count for number of samples consumed in the active buffer
         num_packets_consumed[ch] = 0;
     }
+}
+
+// Calculates number of buffers used
+// Done here instead of constructor so that _num_buffers can be declared as const
+uint_fast32_t async_recv_manager::calc_num_buffers(const size_t device_total_rx_channels, const uint_fast32_t packet_buffer_size) {
+    struct sysinfo mem_info;
+    size_t total_ram;
+    int r = sysinfo(&mem_info);
+    if(r) {
+        // Asumme 128GB system if unable to get sysinfo
+        total_ram = 134930006016;
+    } else {
+        total_ram = mem_info.totalram;
+    }
+    // Maximum space that is allowed to be taken up by packet buffers per channel
+    size_t max_packet_buffers_space_per_ch = total_ram / ( MAX_RESOURCE_FRACTION * device_total_rx_channels);
+
+    // Finds how many buffers can fix in the allowed amount per channel, capped at MAX_NUM_BUFFERS
+    for(uint_fast32_t num_buffers = 2; num_buffers < MAX_NUM_BUFFERS; num_buffers = num_buffers * 2) {
+        if(num_buffers * 2 * packet_buffer_size > max_packet_buffers_space_per_ch) {
+            return num_buffers;
+        }
+    }
+    return MAX_NUM_BUFFERS;
 }
 
 }}

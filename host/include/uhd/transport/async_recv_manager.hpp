@@ -27,40 +27,43 @@ private:
     // Number of buffers to be created per channel cycle through, must be a power of 2
     // Enough for 0.1s of data with 1 packet per buffer with packets containing 2220 samples
     static constexpr size_t MAX_NUM_BUFFERS = 65536;
-    size_t _num_buffers;
 
-    const size_t _num_ch;
+    const uint_fast32_t _num_ch;
 
-    size_t cache_line_size;
+    const uint_fast32_t cache_line_size;
+
+    const uint_fast32_t page_size;
+
+    // Size of the packets to be received not including the trailer
+    const uint_fast32_t packet_size;
+
+    // Size of the buffer used to store packets
+    const uint_fast32_t packets_per_buffer;
 
     // Real size of each data buffer (include's some extra padding to contain a while number of pages)
-    int_fast64_t packet_buffer_size;
+    const size_t _packet_buffer_size;
+
+    const uint_fast32_t _num_buffers;
 
     // Pointer to buffers where packet data is stored
     // channel, buffer_num
-    uint8_t* packet_buffer;
+    uint8_t* const packet_buffer;
     // Gets a pointer a packet buffer
     // ch: channel
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return packet_buffer + ((ch + ch_offset) * _num_buffers * packet_buffer_size) + (b * packet_buffer_size);
+        return packet_buffer + ((ch + ch_offset) * _num_buffers * _packet_buffer_size) + (b * _packet_buffer_size);
     }
 
-    // Size of the packets to be received not including the trailer
-    const int_fast64_t packet_size;
-
-    // Size of the buffer used to store packets
-    int_fast64_t packets_per_buffer;
-
     // Size of the buffer to contain all mmsghdrs and io_vecs
-    size_t mmmsghdr_iovec_buffer_size;
+    const uint_fast32_t mmmsghdr_iovec_buffer_size;
 
     // Pointer to a buffer which contains mmsghdr and iovec buffers
     // Each buffer contains packets_per_buffer mmsghdrs followed by packets_per_buffer iovecs
     // channel, buffer_num, packet
     // Each buffer should be on it's own memory page
-    uint8_t* mmsghdr_iovecs;
+    uint8_t* const mmsghdr_iovecs;
 
     // Gets a pointer to specific mmsghdr buffer
     inline mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
@@ -77,26 +80,26 @@ private:
     }
 
     // Size of std::atomic<uint_fast8_t> + padding so it takes a whole number of cache lines
-    size_t padded_atomic_fast_u8_size;
+    const uint_fast32_t padded_atomic_fast_u8_size;
+
+    // Size of std::atomic<int_fast64_t> + padding so it takes a whole number of cache lines
+    const uint_fast32_t padded_atomic_fast_64_size;
 
     // Buffer to store flags to indicate sockets have been flushed
     // Not an array of uint8_t, this is done to make manual memory operations easier
-    uint8_t* flush_complete;
+    uint8_t* const flush_complete;
 
-    //Access flags to indicate that the sockets have been purged of old data
+    // Access flags to indicate that the sockets have been purged of old data
     // channel
     inline std::atomic<uint_fast8_t>* access_flush_complete(size_t ch, size_t ch_offset) {
         return (std::atomic<uint_fast8_t>*) (flush_complete + ((ch + ch_offset) * padded_atomic_fast_u8_size));
     }
 
-    // Size of std::atomic<int_fast64_t> + padding so it takes a whole number of cache lines
-    size_t padded_atomic_fast_64_size;
-
     // Number of packets stored in each buffer
     // Accessed by both provider and consumer threads
     // Use access_num_packets_stored to access
     // Actually a buffer that stores std::atomic<int_fast64_t>, using std::atomic<int_fast64_t>* messes with the math when trying to specify where elements in the buffer go to because of padding
-    uint8_t* num_packets_stored;
+    uint8_t* const num_packets_stored;
 
     // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
     inline std::atomic<int_fast64_t>* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
@@ -117,6 +120,10 @@ private:
 
     // Flag used to tell receive threads when to stop
     uint_fast8_t stop_flag = false;
+
+    // Calculates number of buffers used
+    // Done here instead of constructor so that _num_buffers can be declared as const
+    static uint_fast32_t calc_num_buffers(const size_t device_total_rx_channels, const uint_fast32_t packet_buffer_size);
 
 public:
 
