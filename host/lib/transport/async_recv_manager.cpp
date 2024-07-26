@@ -171,18 +171,26 @@ async_recv_manager::~async_recv_manager()
     free(recv_loops);
 }
 
-void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets, const size_t ch_offset) {
+void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe();
 
-    const size_t num_ch = sockets.size();
+    const size_t num_ch = sockets_.size();
 
     // Mask used to roll over the buffers
     const size_t buffer_mask = self->_num_buffers - 1;
 
-    // Create local buffer so the flush compelte flag is only written once to the heap, keeping other operations on the stack
+    // Records the buffer in use by each channel
+    size_t b[MAX_CHANNELS];
+    // Copy of sockets used by this thread on the stack
+    int sockets[MAX_CHANNELS];
+    // Local copy of flush complete flag so that we never need to read from the shared flag
     uint_fast8_t local_flush_complete[MAX_CHANNELS];
-    memset(local_flush_complete, 0, MAX_CHANNELS);
+    for(size_t ch = 0; ch < num_ch; ch++) {
+        sockets[ch] = sockets_[ch];
+        b[ch] = 0;
+        local_flush_complete[ch] = 0;
+    }
 
     // Set the socket's affinity, improves speed and reliability
     // Skip setting if setting priority (which also sets affinity failed)
@@ -219,23 +227,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         }
     }
 
-    // Create a copy of sockets that is cache line aligned/padded to ensure no false sharing
-    const size_t aligned_sockets_size = (size_t) ceil(num_ch * sizeof(int)/ (double) self->cache_line_size) * self->cache_line_size;
-    int* const aligned_sockets = (int*) aligned_alloc(self->cache_line_size, aligned_sockets_size);
-    for(size_t ch = 0; ch < num_ch; ch++) {
-        aligned_sockets[ch] = sockets[ch];
-    }
-
-    // Tracks which buffer is currently being written to by each channel
-    // Access: b[ch]
-    const size_t b_size = (size_t) ceil(num_ch * sizeof(size_t)/ (double) self->cache_line_size) * self->cache_line_size;
-    size_t* const b = (size_t*) aligned_alloc(self->cache_line_size, b_size);
-
-    // Sets initial values
-    for(size_t ch = 0; ch < num_ch; ch++) {
-        b[ch] = 0;
-    }
-
     uint_fast8_t main_thread_slow = false;
 
     int error_code = 0;
@@ -248,7 +239,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         main_thread_slow = !packets_to_recv || main_thread_slow;
 
         // Receives any packets already in the buffer
-        const int r = recvmmsg(aligned_sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
+        const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
         const int packets_received = (r >= 0) ? r : 0;
 
@@ -281,8 +272,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         UHD_LOGGER_INFO("ASYNC_RECV_MANAGER") << "The internal buffer filled up while streaming, this is likely to caused by having to long gaps between calling the rx streamer's recv. Please reduce the time between/duration of recv calls in future runs. This is the likely cause if you had rx overflow/alignment errors.";
     }
 
-    free(aligned_sockets);
-    free(b);
 }
 
 uint8_t* async_recv_manager::get_next_packet(const size_t ch) {

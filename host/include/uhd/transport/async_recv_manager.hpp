@@ -22,8 +22,7 @@ private:
     // (1 / this) is the maximum portion of CPU cores and RAM that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
-
-    static constexpr size_t MAX_CHANNELS = 8;
+    static constexpr size_t MAX_CHANNELS = 16;
 
     // Number of buffers to be created per channel cycle through, must be a power of 2
     // Enough for 0.1s of data with 1 packet per buffer with packets containing 2220 samples
