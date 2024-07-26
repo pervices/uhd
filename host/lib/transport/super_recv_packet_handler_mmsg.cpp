@@ -118,11 +118,16 @@ public:
         // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
         _using_performance_governor = true;
         std::vector<std::string> governors = uhd::get_performance_governors();
-        for(auto& g : governors) {
-            if(g.find("performance") == std::string::npos) {
-                _using_performance_governor = false;
-                break;
+        if(governors.size() != 0) {
+            for(auto& g : governors) {
+                if(g.find("performance") == std::string::npos) {
+                    _using_performance_governor = false;
+                    break;
+                }
             }
+        } else {
+            _governor_known = false;
+            _using_performance_governor = false;
         }
 
         // Create manager for receive threads and access to buffer recv data
@@ -275,6 +280,15 @@ public:
                     UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
                     _performance_warning_printed = true;
                 }
+                if(!_performance_warning_printed) {
+                    _performance_warning_printed = true;
+                    if(!_governor_known) {
+                        UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                    }
+                    else if(!_using_performance_governor) {
+                        UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                    }
+                }
             }
 
             if(realignment_required) {
@@ -402,8 +416,9 @@ private:
     double _sample_rate = 0;
 
     // Stores whether or not the CPU governor is set to performance mode
-    // NOTE: getting this is done at the start, but the warning related to it only prints during streaming, assumes the governor does not change while hte program is running
+    // NOTE: getting this is done at the start, but the warning related to it only prints during streaming, assumes the governor does not change while the program is running
     bool _using_performance_governor;
+    bool _governor_known;
     // The warning for using non performance governor has already been printed
     bool _performance_warning_printed = false;
 

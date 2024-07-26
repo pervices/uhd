@@ -52,8 +52,9 @@
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH0_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 #define CRIMSON_TNG_DEFAULT_NETMASK_ETH1_10G   (255 << 24 | 255 << 16 | 255  << 8  | 0 << 0)
 
-#define CRIMSON_TNG_RX_CHANNELS 4
-#define CRIMSON_TNG_TX_CHANNELS 4
+// Channel count to fall back to if the server has not been updated to provide them
+#define CRIMSON_TNG_FALLBACK_RX_CHANNELS 4
+#define CRIMSON_TNG_FALLBACK_TX_CHANNELS 4
 
 // Numer of bits per half of the iq pair (i.e. sc16 mean 16 bits for the i half of the iq pair)
 #define CRIMSON_TNG_RX_SAMPLE_BITS 16

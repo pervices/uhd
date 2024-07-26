@@ -1,3 +1,16 @@
+uhdpv (4.4.0.22-0ubuntu1) ubuntu_release; urgency=low
+
+  * Improving CPU governor warning message
+
+ -- Per Vices <packages@pervices.com>  Mon, 15 Jul 2024 14:31:15 -0400
+
+uhdpv (4.4.0.21-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Remove part of test_tx_trigger that requires root
+  * CRIMSON: get channel count from the device instead of hard coding
+
+ -- Per Vices <packages@pervices.com>  Mon, 15 Jul 2024 11:16:14 -0400
+
 uhdpv (4.4.0.20-0ubuntu1) ubuntu_release; urgency=medium
 
   * Fixing rx_samples_to_file not exiting in nsamps mode
