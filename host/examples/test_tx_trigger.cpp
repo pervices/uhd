@@ -343,7 +343,7 @@ public:
         tx->enable_blocking_fc(setpoint);
     }
 
-    void stream(const Buffer buffer, const double start_time, const double period, const uint64_t samples, const uint64_t num_trigger) const
+    void stream(const Buffer buffer, const double start_time, const uint64_t samples, const uint64_t num_trigger) const
     {
         //
         // Prime the FPGA FIFO buffer.
@@ -400,13 +400,7 @@ public:
             for(const auto level : levels)
                 std::cout << level << "\t";
             std::cout << max - min << std::endl;
-
-            //
-            // Loop control rate must be faster than SMA trigger rate.
-            //
-
-            usleep(1.0e6 / period);
-        }   
+        }
 
         md.end_of_burst = true;
         tx->send("", 0, md);
@@ -458,7 +452,7 @@ public:
         description.add_options()
             ("help", "This help screen")
             ("start_time"    , po::value<double     >(&start_time    )->default_value(       5.0), "(Seconds) Transmitter will enable after this many seconds")
-            ("period"        , po::value<double     >(&period        )->default_value(      20.0), "(Hz     ) Closed loop control frequency updates at this rate")
+            ("period"        , po::value<double     >(&period        )->default_value(      20.0), "(Hz     ) Does nothing, used to be \"Closed loop control frequency updates at this rate\"")
             ("tx_rate"       , po::value<double     >(&tx_rate       )->default_value(     100e3), "(Hz     ) Transmitter sample rate")
             ("tx_center_freq", po::value<double     >(&tx_center_freq)->default_value(     123e6), "(Hz     ) Transmitter center frequency")
             ("tx_gain"       , po::value<double     >(&tx_gain       )->default_value(      10.0), "(Scalar ) Transmitter gain")
@@ -510,7 +504,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     Trigger trigger(uhd.usrp, args.channels, args.samples, args.edge_debounce, args.gating);
 
-    streamer.stream(buffer, args.start_time, args.period, args.samples, args.num_trigger);
+    streamer.stream(buffer, args.start_time, args.samples, args.num_trigger);
 
     return 0;
 }
