@@ -103,7 +103,7 @@ private:
 
     // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
     inline std::atomic<int_fast64_t>* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (std::atomic<int_fast64_t>*) (num_packets_stored + ((ch + ch_offset) * _num_ch * _num_buffers * padded_atomic_fast_64_size) + (b * padded_atomic_fast_64_size));
+        return (std::atomic<int_fast64_t>*) (num_packets_stored + ((ch + ch_offset) * _num_buffers * padded_atomic_fast_64_size) + (b * padded_atomic_fast_64_size));
     }
 
     // The buffer currently being used by the consumer thread
