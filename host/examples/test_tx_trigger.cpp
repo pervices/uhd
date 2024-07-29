@@ -140,8 +140,10 @@ public:
     usrp {usrp},
     gating {gating}
     {
+        const int minus_one = samples - 1;
+        const int actual_samples = minus_one - (minus_one % 4) + 8;
         for(const auto ch : channels)
-            apply(sma(ch, samples, edge_debounce));
+            apply(sma(ch, actual_samples, edge_debounce));
     }
 
     ~Trigger()
@@ -190,11 +192,13 @@ private:
     {
         const std::string root { "/mboards/0/tx/" + std::to_string(channel) + "/" };
         const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channel) + "/" };
+        const int minus_one = samples - 1;
+        const int actual_samples = minus_one - (minus_one % 4) + 8;
         const std::vector<Set> sets {
             { root + "trigger/sma_mode"       , "edge"                          , true},
             { root + "trigger/trig_sel"       , samples > 0 ? "1" : "0"         , true},
             { root + "trigger/edge_backoff"   , std::to_string(edge_debounce)   , true},
-            { root + "trigger/edge_sample_num", std::to_string(samples)         , true},
+            { root + "trigger/edge_sample_num", std::to_string(actual_samples)  , true},
             { root + "trigger/gating"         , gating                          , true},
             { "/mboards/0/trigger/sma_dir"    , "in"                            , true},
             { "/mboards/0/trigger/sma_pol"    , "positive"                      , true},
