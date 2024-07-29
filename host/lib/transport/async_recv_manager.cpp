@@ -12,6 +12,7 @@
 #include <uhd/utils/thread.hpp>
 #include <sys/mman.h>
 #include <uhdlib/utils/system_time.hpp>
+#include <immintrin.h>
 
 namespace uhd { namespace transport {
 
@@ -32,12 +33,12 @@ packet_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * _pack
 // Size of the buffer containing mmsghdrs and iovecs, must be a whole number of pages
 mmmsghdr_iovec_buffer_size((uint_fast32_t) ceil((sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer / (double)page_size) * page_size),
 mmsghdr_iovecs((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size)),
-padded_atomic_fast_u8_size(ceil( (uint_fast32_t)sizeof(std::atomic<uint_fast8_t>) / (double)cache_line_size ) * cache_line_size),
-padded_atomic_fast_64_size(ceil( (uint_fast32_t)sizeof(std::atomic<int_fast64_t>) / (double)cache_line_size ) * cache_line_size),
+padded_uint_fast8_t_size(ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
+padded_int_fast64_t_size(ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
 // Create buffer for flush complete flag in seperate cache lines
-flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_atomic_fast_u8_size)),
+flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size)),
 // Create buffer to store count of number of packets stored
-num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buffers * padded_atomic_fast_64_size))
+num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buffers * padded_int_fast64_t_size))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -52,16 +53,13 @@ num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buff
     num_packets_consumed_size = (size_t) ceil(num_packets_consumed_size / (double)cache_line_size) * cache_line_size;
     num_packets_consumed = (int_fast64_t*) aligned_alloc(cache_line_size, num_packets_consumed_size);
 
+    // Initialize control variables to 0
     for(size_t ch = 0; ch < _num_ch; ch++) {
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
-
-        // Placement new
-        new(access_flush_complete(ch, 0)) std::atomic<uint_fast8_t>(0);
-        // Create buffers for the sample count for each channel's buffers. Elements in the buffer are aligned to the cache line and padded to avoid false sharing
+        *access_flush_complete(ch, 0) = 0;
         for(size_t b = 0; b < _num_buffers; b++) {
-            // Placement new
-            new(access_num_packets_stored(ch, 0, b)) std::atomic<int_fast64_t>(0);
+            *access_num_packets_stored(ch, 0, b) = 0;
         }
     }
 
@@ -104,7 +102,7 @@ num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buff
 
     uhd::time_spec_t start = uhd::get_system_time();
     for(size_t n = 0; n < _num_ch; n++) {
-        while(!access_flush_complete(n, 0)->load()) {
+        while(! *access_flush_complete(n, 0)) {
             if(start + 30.0 < uhd::get_system_time()) {
                 UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
                 throw std::runtime_error("Timeout while flushing buffers");
@@ -125,13 +123,6 @@ async_recv_manager::~async_recv_manager()
     // Frees packets and mmsghdr buffers
     free(packet_buffer);
     free(mmsghdr_iovecs);
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        for(size_t b = 0; b < _num_buffers; b++) {
-            // Unlike normal, when using pacement new the destructor must be manually called
-            access_num_packets_stored(ch, 0, b)->~atomic<int_fast64_t>();
-        }
-        access_flush_complete(ch, 0)->~atomic<uint_fast8_t>();
-    }
     free(flush_complete);
     free(num_packets_stored);
     free(active_consumer_buffer);
@@ -203,7 +194,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     uint_fast32_t ch = 0;
     while(!self->stop_flag) [[likely]] {
 
-        const int_fast64_t packets_to_recv = (!self->access_num_packets_stored(ch, ch_offset, b[ch])->load(std::memory_order_relaxed)) ? self->packets_per_buffer : 0;
+        const int_fast64_t packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) ? self->packets_per_buffer : 0;
 
         main_thread_slow = !packets_to_recv || main_thread_slow;
 
@@ -212,16 +203,19 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         const int packets_received = (r >= 0) ? r : 0;
 
+        // Fence to ensure recvmmsg data is written before num_packets_stored is updated
+        _mm_sfence();
+
         // Increment the counter for number of packets stored
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        self->access_num_packets_stored(ch, ch_offset, b[ch])->store(packets_received * local_flush_complete[ch], std::memory_order_relaxed);
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = packets_received * local_flush_complete[ch];//->store(packets_received * local_flush_complete[ch], std::memory_order_relaxed);
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (packets_received) ? (b[ch] + local_flush_complete[ch]) & (buffer_mask) : b[ch];
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
-        self->access_flush_complete(ch, ch_offset)->store(local_flush_complete[ch], std::memory_order_relaxed);
+        *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
 
         // Set error_code to the first unhandled error encountered
         error_code = (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) ? errno : error_code;
@@ -230,6 +224,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Achieves results like a for loop while reducing branches
         ch++;
         ch = (ch >= num_ch) ? 0 : ch;
+
+        // Prefetch num_packets_stored for the next loop iteration
+        _mm_prefetch(self->access_num_packets_stored(ch, ch_offset, b[ch]), _MM_HINT_T0);
     }
 
     if(error_code) {
@@ -246,7 +243,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 uint8_t* async_recv_manager::get_next_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     // Check if the next packet is ready
-    if(access_num_packets_stored(ch, 0, b)->load(std::memory_order_relaxed) > num_packets_consumed[ch]) {
+    if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
         return access_packet_buffer(ch, 0, b) + (packet_size * num_packets_consumed[ch]);
     }
     else {
@@ -263,9 +260,9 @@ void async_recv_manager::advance_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     num_packets_consumed[ch]++;
     // Move to the next buffer once all packets in this buffer are consumed
-    if(num_packets_consumed[ch] >= access_num_packets_stored(ch, 0, b)->load(std::memory_order_relaxed)) {
+    if(num_packets_consumed[ch] >= *access_num_packets_stored(ch, 0, b)) {
         // Marks this buffer as clear
-        access_num_packets_stored(ch, 0, b)->store(0, std::memory_order_relaxed);
+        *access_num_packets_stored(ch, 0, b) = 0;
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
@@ -273,6 +270,9 @@ void async_recv_manager::advance_packet(const size_t ch) {
 
         // Resets count for number of samples consumed in the active buffer
         num_packets_consumed[ch] = 0;
+
+        // Fence to ensure num_packets_stored is updated
+        _mm_sfence();
     }
 }
 

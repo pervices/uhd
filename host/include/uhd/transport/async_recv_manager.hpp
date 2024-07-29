@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <vector>
 #include <sys/socket.h>
-#include <atomic>
 #include <thread>
 #include <cmath>
 #include <iostream>
@@ -79,11 +78,11 @@ private:
         return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * _num_buffers * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size) + (p * sizeof(mmsghdr)));
     }
 
-    // Size of std::atomic<uint_fast8_t> + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_atomic_fast_u8_size;
+    // Size of uint_fast8_t + padding so it takes a whole number of cache lines
+    const uint_fast32_t padded_uint_fast8_t_size;
 
-    // Size of std::atomic<int_fast64_t> + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_atomic_fast_64_size;
+    // Size of int_fast64_t + padding so it takes a whole number of cache lines
+    const uint_fast32_t padded_int_fast64_t_size;
 
     // Buffer to store flags to indicate sockets have been flushed
     // Not an array of uint8_t, this is done to make manual memory operations easier
@@ -91,8 +90,8 @@ private:
 
     // Access flags to indicate that the sockets have been purged of old data
     // channel
-    inline std::atomic<uint_fast8_t>* access_flush_complete(size_t ch, size_t ch_offset) {
-        return (std::atomic<uint_fast8_t>*) (flush_complete + ((ch + ch_offset) * padded_atomic_fast_u8_size));
+    inline uint_fast8_t* access_flush_complete(size_t ch, size_t ch_offset) {
+        return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
     }
 
     // Number of packets stored in each buffer
@@ -102,8 +101,11 @@ private:
     uint8_t* const num_packets_stored;
 
     // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
-    inline std::atomic<int_fast64_t>* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (std::atomic<int_fast64_t>*) (num_packets_stored + ((ch + ch_offset) * _num_buffers * padded_atomic_fast_64_size) + (b * padded_atomic_fast_64_size));
+    // Use _mm_sfence after to ensure data written to this is complete
+    // Theoretically the compiler could optimize out writes to this without atomic or valatile
+    // Practically/experimentally it does not optimize the writes out
+    inline int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
+        return (int_fast64_t*) (num_packets_stored + ((ch + ch_offset) * _num_buffers * padded_int_fast64_t_size) + (b * padded_int_fast64_t_size));
     }
 
     // The buffer currently being used by the consumer thread
