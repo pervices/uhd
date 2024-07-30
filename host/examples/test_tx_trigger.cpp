@@ -365,7 +365,7 @@ public:
 
         Exit::wait_interrupt();
 
-        for(uint64_t pulses_sent = 0; ((pulses_sent < num_trigger || num_trigger == 0) && !Exit::get()); pulses_sent++)
+        for(uint64_t pulses_sent = 0; ((pulses_sent < num_trigger*4 || num_trigger == 0) && !Exit::get()); pulses_sent++)
         {
             std::vector<int> levels;
 
@@ -405,7 +405,7 @@ public:
             // Loop control rate must be faster than SMA trigger rate.
             //
 
-            usleep(1.0e6 / period / 4);
+            // usleep(1.0e6 / period / 4);
         }   
 
         md.end_of_burst = true;
