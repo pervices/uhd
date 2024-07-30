@@ -405,6 +405,8 @@ public:
             // Loop control rate must be faster than SMA trigger rate.
             //
 
+            std::cout << "test" << "\n";
+
             // usleep(1.0e6 / period / 4);
         }   
 
