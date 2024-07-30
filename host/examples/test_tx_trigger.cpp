@@ -405,7 +405,7 @@ public:
             // Loop control rate must be faster than SMA trigger rate.
             //
 
-            usleep(1.0e6 / period);
+            usleep(1.0e6 / period / 4);
         }   
 
         md.end_of_burst = true;
