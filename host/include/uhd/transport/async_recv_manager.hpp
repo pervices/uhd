@@ -51,7 +51,7 @@ private:
     // ch: channel
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
-    inline uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t b) {
+    inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t b) {
         return packet_buffer + ((ch + ch_offset) * _num_buffers * _packet_buffer_size) + (b * _packet_buffer_size);
     }
 
@@ -65,7 +65,7 @@ private:
     uint8_t* const mmsghdr_iovecs;
 
     // Gets a pointer to specific mmsghdr buffer
-    inline mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
+    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
         return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * _num_buffers * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size));
     }
 
@@ -74,7 +74,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     // p: packet number
-    inline mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
+    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
         return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * _num_buffers * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size) + (p * sizeof(mmsghdr)));
     }
 
@@ -90,7 +90,7 @@ private:
 
     // Access flags to indicate that the sockets have been purged of old data
     // channel
-    inline uint_fast8_t* access_flush_complete(size_t ch, size_t ch_offset) {
+    inline __attribute__((always_inline)) uint_fast8_t* access_flush_complete(size_t ch, size_t ch_offset) {
         return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
     }
 
@@ -104,7 +104,7 @@ private:
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
-    inline int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
+    inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) (num_packets_stored + ((ch + ch_offset) * _num_buffers * padded_int_fast64_t_size) + (b * padded_int_fast64_t_size));
     }
 

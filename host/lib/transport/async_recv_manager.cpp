@@ -193,40 +193,39 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast32_t ch = 0;
     while(!self->stop_flag) [[likely]] {
+        // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
-        const int_fast64_t packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) ? self->packets_per_buffer : 0;
+        const int_fast64_t packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
 
         main_thread_slow = !packets_to_recv || main_thread_slow;
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
-        const int packets_received = (r >= 0) ? r : 0;
+        bool packets_received = r >= 0;
 
         // Fence to ensure recvmmsg data is written before num_packets_stored is updated
         _mm_sfence();
 
         // Increment the counter for number of packets stored
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = packets_received * local_flush_complete[ch];//->store(packets_received * local_flush_complete[ch], std::memory_order_relaxed);
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = r * packets_received * local_flush_complete[ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        b[ch] = (packets_received) ? (b[ch] + local_flush_complete[ch]) & (buffer_mask) : b[ch];
+        b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
 
         // Set error_code to the first unhandled error encountered
-        error_code = (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) ? errno : error_code;
+        error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
 
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
         ch++;
-        ch = (ch >= num_ch) ? 0 : ch;
+        ch = ch * !(ch >= num_ch);
 
-        // Prefetch num_packets_stored for the next loop iteration
-        _mm_prefetch(self->access_num_packets_stored(ch, ch_offset, b[ch]), _MM_HINT_T0);
     }
 
     if(error_code) {
