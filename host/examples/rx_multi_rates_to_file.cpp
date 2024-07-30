@@ -196,6 +196,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
     rx_stream->issue_stream_cmd(stream_cmd);
 
     bool overflow_occured = false;
+    size_t num_pages = getpagesize();
     // Receive loop
     while(!*stop_flag && (*num_samples_received < group_info->common_nsamps_requested || group_info->common_nsamps_requested == 0)) {
         // Initializes the to store rx data in
@@ -216,7 +217,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
         for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
 
             // Creates buffers to store rx data in
-            buffer_ptrs[ch] = malloc(samples_this_recv * sizeof(std::complex<short>));
+            buffer_ptrs[ch] = aligned_alloc(num_pages, samples_this_recv * sizeof(std::complex<short>));
             if(buffer_ptrs[ch] == NULL) {
                 printf("malloc failed\n");
                 std::exit(~0);
