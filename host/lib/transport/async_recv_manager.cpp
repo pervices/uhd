@@ -202,7 +202,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
-        bool packets_received = r >= 0;
+        bool packets_received = r > 0;
 
         // Fence to ensure recvmmsg data is written before num_packets_stored is updated
         _mm_sfence();
