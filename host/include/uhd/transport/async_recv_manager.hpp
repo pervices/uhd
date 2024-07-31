@@ -104,7 +104,7 @@ private:
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
-    inline __attribute__((always_inline)) int_fast64_t* volatile access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
+    inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) (num_packets_stored + ((ch + ch_offset) * _num_buffers * padded_int_fast64_t_size) + (b * padded_int_fast64_t_size));
     }
 
