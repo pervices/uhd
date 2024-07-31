@@ -266,6 +266,9 @@ void async_recv_manager::advance_packet(const size_t ch) {
     // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
     int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
     if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
+        // Fence to ensure all writes related to the packet are complete
+        _mm_sfence();
+
         // Marks this buffer as clear
         *num_packets_stored_addr = 0;
 
@@ -275,9 +278,6 @@ void async_recv_manager::advance_packet(const size_t ch) {
 
         // Resets count for number of samples consumed in the active buffer
         num_packets_consumed[ch] = 0;
-
-        // Fence to ensure num_packets_stored is updated
-        _mm_sfence();
     }
 }
 
