@@ -493,7 +493,7 @@ private:
      * @param num_samples the number of samples to copy
      */
     inline void convert_samples(const ref_vector<void*> dst, void* src, size_t num_samples) {
-        // _converter->conv(src, dst, num_samples);
+        _converter->conv(src, dst, num_samples);
     }
 
     int get_mtu(int socket_fd, std::string ip) {
