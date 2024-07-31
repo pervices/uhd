@@ -192,10 +192,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     int error_code = 0;
 
     uint_fast32_t ch = 0;
+
+    int_fast64_t packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
-
-        const int_fast64_t packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
 
         main_thread_slow = !packets_to_recv || main_thread_slow;
 
@@ -218,14 +219,17 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
 
-        // Set error_code to the first unhandled error encountered
-        error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
-
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
         ch++;
         ch = ch * !(ch >= num_ch);
 
+        // Get packets_to_recv to give as much distance between when it is requested and needed
+        // Essentially a prefetch but unlike _mm_prefetch, this helps performance
+        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+
+        // Set error_code to the first unhandled error encountered
+        error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
     }
 
     if(error_code) {
@@ -260,9 +264,10 @@ void async_recv_manager::advance_packet(const size_t ch) {
     num_packets_consumed[ch]++;
     // Move to the next buffer once all packets in this buffer are consumed
     // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
-    if(num_packets_consumed[ch] >= *access_num_packets_stored(ch, 0, b)) [[unlikely]] {
+    int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
+    if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
         // Marks this buffer as clear
-        *access_num_packets_stored(ch, 0, b) = 0;
+        *num_packets_stored_addr = 0;
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
