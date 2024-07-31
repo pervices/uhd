@@ -19,7 +19,7 @@ namespace uhd { namespace transport {
 async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
 :
 _num_ch(recv_sockets.size()),
-cache_line_size(std::hardware_destructive_interference_size),
+cache_line_size(getpagesize() /*std::hardware_destructive_interference_size*/),
 page_size(getpagesize()),
 packet_size(header_size + max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs and iovec per buffer
