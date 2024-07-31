@@ -193,7 +193,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast32_t ch = 0;
 
-    int_fast64_t packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+    int_fast64_t* volatile tmp1 = self->access_num_packets_stored(ch, ch_offset, b[ch]);
+    int_fast64_t packets_to_recv = (!(*tmp1)) * self->packets_per_buffer;
 
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
@@ -207,7 +208,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Increment the counter for number of packets stored
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = r * packets_received * local_flush_complete[ch];
+        int_fast64_t* volatile tmp2 = self->access_num_packets_stored(ch, ch_offset, b[ch]);
+        *tmp2 = r * packets_received * local_flush_complete[ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
@@ -221,15 +223,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         ch++;
         ch = ch * !(ch >= num_ch);
 
-        // TODO: if this works get it working for multiple channels
-        uint_fast32_t future_buffer1 = (b[ch] + 1) & buffer_mask;
-        _mm_prefetch(self->access_num_packets_stored(ch, ch_offset, future_buffer1), _MM_HINT_T2);
-        uint_fast32_t future_buffer2 = (b[ch] + 2) & buffer_mask;
-        _mm_prefetch(self->access_num_packets_stored(ch, ch_offset, future_buffer2), _MM_HINT_T2);
-
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+        int_fast64_t* volatile tmp3 = self->access_num_packets_stored(ch, ch_offset, b[ch]);
+        packets_to_recv = (!(*tmp3)) * self->packets_per_buffer;
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
@@ -269,11 +266,10 @@ void async_recv_manager::advance_packet(const size_t ch) {
     // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
     int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
     if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
+        int_fast64_t* volatile tmp4 = num_packets_stored_addr;
 
         // Marks this buffer as clear
-        *num_packets_stored_addr = 0;
-
-        _mm_clflush(num_packets_stored_addr);
+        *tmp4 = 0;
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
