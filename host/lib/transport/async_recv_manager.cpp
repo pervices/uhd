@@ -221,10 +221,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         ch++;
         ch = ch * !(ch >= num_ch);
 
-        // TODO: if this works get it working for multiple channels
-        uint_fast32_t future_buffer = (b[ch] + 1) & buffer_mask;
-        _mm_prefetch(self->access_num_packets_stored(ch, ch_offset, future_buffer), _MM_HINT_T2);
-
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
         // packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
