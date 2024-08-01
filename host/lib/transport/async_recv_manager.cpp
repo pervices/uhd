@@ -287,7 +287,7 @@ uint_fast32_t async_recv_manager::calc_num_buffers(const uint_fast32_t packet_bu
     std::cout << "sysconf(_SC_LEVEL2_CACHE_SIZE): " << sysconf(_SC_LEVEL2_CACHE_SIZE) << std::endl;
     // Get the size of L1 and L2 caches. L1 and L2 give very consistent speed since they are connected to one core
     // Don't count L3 because it is shared which introduces inconsistencies
-    size_t cache_ram = sysconf(_SC_LEVEL1_DCACHE_SIZE) + sysconf(_SC_LEVEL2_CACHE_SIZE);
+    size_t cache_ram = sysconf(_SC_LEVEL1_DCACHE_SIZE) + sysconf(_SC_LEVEL2_CACHE_SIZE) + sysconf(_SC_LEVEL3_CACHE_SIZE);
 
     uint_fast32_t num_buffers;
     // Finds the smallest number of buffers with the combined size of the packet buffers and their mmsghdr/iovecs (=getpagesize) exceed the cache RAM
