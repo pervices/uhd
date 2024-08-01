@@ -130,7 +130,11 @@ async_recv_manager::~async_recv_manager()
     free(recv_loops);
 }
 
-void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
+void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset) {
+    // Create shallow copy of self
+    size_t self_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
+    async_recv_manager* const self = (async_recv_manager*) aligned_alloc(getpagesize(), self_size);
+    memcpy(self, self_, self_size);
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe();
