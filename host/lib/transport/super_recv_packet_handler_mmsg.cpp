@@ -119,6 +119,7 @@ public:
         _using_performance_governor = true;
         std::vector<std::string> governors = uhd::get_performance_governors();
         if(governors.size() != 0) {
+            _governor_known = true;
             for(auto& g : governors) {
                 if(g.find("performance") == std::string::npos) {
                     _using_performance_governor = false;
