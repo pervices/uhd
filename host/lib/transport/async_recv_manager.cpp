@@ -263,7 +263,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 uint8_t* async_recv_manager::get_next_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
-        _mm_lfence();
         return access_packet_buffer(ch, 0, b) + (packet_size * num_packets_consumed[ch]);
     }
     else {
@@ -287,8 +286,6 @@ void async_recv_manager::advance_packet(const size_t ch) {
 
         // Marks this buffer as clear
         *num_packets_stored_addr = 0;
-
-        // _mm_clflush(num_packets_stored_addr);
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
