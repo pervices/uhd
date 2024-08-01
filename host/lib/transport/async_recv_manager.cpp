@@ -284,6 +284,7 @@ void async_recv_manager::advance_packet(const size_t ch) {
         // Resets count for number of samples consumed in the active buffer
         num_packets_consumed[ch] = 0;
     }
+    _mm_lfence();
 }
 
 // Calculates number of buffers used
