@@ -184,18 +184,15 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         }
     }
 
-    uint_fast8_t main_thread_slow = false;
-
     int error_code = 0;
 
     uint_fast32_t ch = 0;
 
+    // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
-
-        main_thread_slow = !packets_to_recv || main_thread_slow;
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
@@ -233,12 +230,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::to_string(error_code);
         self->stop_flag = true;
     }
-
-    // TODO: only print if an overflow occured
-    if(main_thread_slow) {
-        UHD_LOGGER_INFO("ASYNC_RECV_MANAGER") << "The internal buffer filled up while streaming, this is likely caused by having to long gaps between calling the rx streamer's recv. Please reduce the time between/duration of recv calls in future runs. This is the likely cause if you had rx overflow/alignment errors.";
-    }
-
 }
 
 uint8_t* async_recv_manager::get_next_packet(const size_t ch) {
