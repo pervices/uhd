@@ -24,7 +24,7 @@ page_size(getpagesize()),
 packet_size(header_size + max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs and iovec per buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
-packets_per_buffer(1 /*page_size / (sizeof(mmsghdr) + sizeof(iovec))*/),
+packets_per_buffer(page_size / (sizeof(mmsghdr) + sizeof(iovec))),
 // Size of each packet buffer + padding to be a whole number of pages
 _packet_buffer_size((size_t) ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
 _num_buffers(calc_num_buffers(device_total_rx_channels, _packet_buffer_size)),
