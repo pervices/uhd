@@ -19,16 +19,17 @@ async_recv_manager::async_recv_manager( const size_t total_rx_channels, const st
 _num_ch(recv_sockets.size()),
 cache_line_size(getpagesize() /*std::hardware_destructive_interference_size*/),
 page_size(getpagesize()),
+_header_size(header_size),
 packet_size(header_size + max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs and iovec per buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
-packets_per_buffer(page_size / (sizeof(mmsghdr) + sizeof(iovec))),
+packets_per_buffer(page_size / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ) + _header_size)),
 // Size of each packet buffer + padding to be a whole number of pages
 _packet_buffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
 // Allocates buffer to store all packet payloads, each channel's buffer are aligned to a memory page for performance
 packet_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _packet_buffer_size)),
 // Size of the buffer containing mmsghdrs and iovecs, must be a whole number of pages
-mmmsghdr_iovec_buffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer / (double)page_size) * page_size),
+mmmsghdr_iovec_buffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec)) + _header_size) * packets_per_buffer / (double)page_size) * page_size),
 mmsghdr_iovecs((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * mmmsghdr_iovec_buffer_size)),
 padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
 padded_int_fast64_t_size(std::ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
@@ -171,15 +172,24 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         for(uint_fast32_t b = 0; b < self->NUM_BUFFERS; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
             struct iovec* iovecs =(iovec*) self->access_mmsghdr(ch, ch_offset, b, self->packets_per_buffer);
+            uint8_t* vita_header_buffer = (uint8_t*) &iovecs[2 * self->packets_per_buffer];
             for(uint_fast32_t p = 0; p < self->packets_per_buffer; p++) {
+
+                uint_fast32_t header_iovec = 2 * p;
+                uint_fast32_t data_iovec = 2 * p + 1;
+
+                // Point iovecs to the location to store the vita header
+                iovecs[header_iovec].iov_base = (void*) &vita_header_buffer[p * self->_header_size];
+                iovecs[header_iovec].iov_len = self->_header_size;
+
                 // Points iovecs to the corresponding point in the buffers
-                iovecs[p].iov_base = self->access_packet_buffer(ch, ch_offset, b) + (p * self->packet_size);
-                iovecs[p].iov_len = self->packet_size;
+                iovecs[data_iovec].iov_base = (void*) (self->access_packet_data(ch, ch_offset, b) + (p * self->packet_size));
+                iovecs[data_iovec].iov_len = self->packet_size - self->_header_size;
 
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
-                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[p];
-                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iovlen = 1;
+                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
+                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
             }
         }
     }
@@ -220,26 +230,32 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+        // packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
     }
 
     if(error_code) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::to_string(error_code);
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(error_code));
         self->stop_flag = true;
     }
 }
 
-uint8_t* async_recv_manager::get_next_packet(const size_t ch) {
+uint8_t* async_recv_manager::get_next_packet_vita_header(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
+    uint8_t* addr = mmsghdr_iovecs + (packets_per_buffer * sizeof(mmsghdr)) + (packets_per_buffer * 2 * sizeof(iovec)) + (num_packets_consumed[ch] * _header_size);
     if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
-        return access_packet_buffer(ch, 0, b) + (packet_size * num_packets_consumed[ch]);
+        return addr;
     }
     else {
         return nullptr;
     }
+}
+
+uint8_t* async_recv_manager::get_next_packet_samples(const size_t ch) {
+    size_t b = active_consumer_buffer[ch];
+    return access_packet_data(ch, 0, b) + (packet_size * num_packets_consumed[ch]);
 }
 
 uint32_t async_recv_manager::get_next_packet_length(const size_t ch) {
@@ -261,9 +277,6 @@ void async_recv_manager::advance_packet(const size_t ch) {
 
         // Marks this buffer as clear
         *num_packets_stored_addr = 0;
-
-        // Fence to ensure the provider thread is informed the buffer is ready immediately
-        _mm_sfence();
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached

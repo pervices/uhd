@@ -25,7 +25,7 @@ private:
 
     // Number of buffers per ch
     // Must be a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_BUFFERS = 1024;
+    static constexpr size_t NUM_BUFFERS = 4096;
 
     const uint_fast32_t _num_ch;
 
@@ -33,30 +33,32 @@ private:
 
     const uint_fast32_t page_size;
 
+    const uint_fast32_t _header_size;
+
     // Size of the packets to be received not including the trailer
     const uint_fast32_t packet_size;
 
     // Size of the buffer used to store packets
     const uint_fast32_t packets_per_buffer;
 
-    // Real size of each data buffer (include's some extra padding to contain a while number of pages)
+    // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
     const size_t _packet_buffer_size;
 
-    // Pointer to buffers where packet data is stored
+    // Pointer to buffers where packet samples are stored
     // channel, buffer_num
     uint8_t* const packet_buffer;
     // Gets a pointer a packet buffer
     // ch: channel
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
-    inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t b) {
+    inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b) {
         return packet_buffer + ((ch + ch_offset) * NUM_BUFFERS * _packet_buffer_size) + (b * _packet_buffer_size);
     }
 
-    // Size of the buffer to contain all mmsghdrs and io_vecs
+    // Size of the buffer to contain all mmsghdrs, io_vecs (length 2: header, data) and vita headers
     const uint_fast32_t mmmsghdr_iovec_buffer_size;
 
-    // Pointer to a buffer which contains mmsghdr and iovec buffers
+    // Pointer to a buffer which contains mmsghdr, iovec buffers, and vita headers
     // Each buffer contains packets_per_buffer mmsghdrs followed by packets_per_buffer iovecs
     // channel, buffer_num, packet
     // Each buffer should be on it's own memory page
@@ -135,15 +137,22 @@ public:
     ~async_recv_manager();
 
     /**
-     * Gets the location of the next packet.
+     * Gets the location of the next packet's vita header
      * @param ch
-     * @return returns a pointer to the next packet if one is available, returns nullptr if the next packet isn't ready yet
+     * @return returns a pointer to the next packet's vita header, returns nullptr if the next packet isn't ready yet
      */
-    uint8_t* get_next_packet(const size_t ch);
+    uint8_t* get_next_packet_vita_header(const size_t ch);
+
+    /**
+     * Gets the location of the next packet's samples
+     * @param ch
+     * @return returns a pointer to the next packet if one is available, make sure it is ready by called get_next_packet_vita_header first
+     */
+    uint8_t* get_next_packet_samples(const size_t ch);
 
     /**
      * Gets the msg_len of the mmsghdr for the next packet.
-     * Does not check to make sure the next packet is ready, make sure it is ready by using get_next_packet first
+     * Does not check to make sure the next packet is ready, make sure it is ready by using get_next_packet get_next_packet_vita_header
      * @param ch
      * @return returns msg_len of the mmsghdr corresponding to the next packet
      */

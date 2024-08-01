@@ -703,6 +703,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     // Get vita payload length length (header + data, not including triler)
     for(size_t n = 0; n < args.channels.size(); n++) {
         std::string sfp = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/iface" ).get();
+        _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).set(CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES + CYAN_NRNT_HEADER_SIZE);
         int payload_len = _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).get();
         if(data_len == 0) {
             data_len = payload_len - CYAN_NRNT_HEADER_SIZE;
@@ -715,7 +716,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Fallback to hard coded values if attempt to get payload fails
     if(data_len == 0) {
-        data_len = CYAN_NRNT_MAX_NBYTES;
+        data_len = CYAN_NRNT_FALLBACK_MAX_NBYTES;
     }
 
     bool little_endian_supported;

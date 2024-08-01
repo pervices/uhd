@@ -169,7 +169,8 @@ public:
         metadata.reset();
 
         // Metadata of Vita packets
-        std::vector<uint8_t*> packets(_NUM_CHANNELS);
+        std::vector<uint8_t*> packet_hdrs(_NUM_CHANNELS);
+        std::vector<uint8_t*> packet_samples(_NUM_CHANNELS);
         std::vector<vrt::if_packet_info_t> vita_md(_NUM_CHANNELS);
         std::vector<uint64_t> packet_tsfs(_NUM_CHANNELS);
 
@@ -187,11 +188,11 @@ public:
             if(_num_cached_samples[ch]) {
                 size_t cached_samples_to_use = std::min(_num_cached_samples[ch], nsamps_per_buff);
                 // Copies samples from the cache to the user requested buffer
-                convert_samples(buffs[ch], _sample_cache[ch].data(), cached_samples_to_use);
+                // convert_samples(buffs[ch], _sample_cache[ch].data(), cached_samples_to_use);
 
                 // Move extra cached samples to the start of the buffer
                 _num_cached_samples[ch] -= cached_samples_to_use;
-                memmove(_sample_cache[ch].data(), _sample_cache[ch].data() + (cached_samples_to_use * _BYTES_PER_SAMPLE), _num_cached_samples[ch] * _BYTES_PER_SAMPLE);
+                // memmove(_sample_cache[ch].data(), _sample_cache[ch].data() + (cached_samples_to_use * _BYTES_PER_SAMPLE), _num_cached_samples[ch] * _BYTES_PER_SAMPLE);
 
 
                 // Record that samples have been received, setting this for each is fine since they should be equal at this time
@@ -226,13 +227,15 @@ public:
             bool realignment_required = false;
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                packets[ch] = recv_manager->get_next_packet(ch);
+                packet_hdrs[ch] = recv_manager->get_next_packet_vita_header(ch);
 
                 // The case where this is true is more important, even though this is very likely
-                if(packets[ch] == nullptr) [[unlikely]] {
+                if(packet_hdrs[ch] == nullptr) [[unlikely]] {
                     all_ready = false;
                     break;
                 }
+
+                packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
 
                 uint32_t packet_length = recv_manager->get_next_packet_length(ch);
                 if(packet_length < _HEADER_SIZE) [[unlikely]] {
@@ -243,7 +246,7 @@ public:
                 vita_md[ch].num_packet_words32 = (packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
 
                 // Extract Vita metadata
-                if_hdr_unpack((uint32_t*) packets[ch], vita_md[ch]);
+                if_hdr_unpack((uint32_t*) packet_hdrs[ch], vita_md[ch]);
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
@@ -348,11 +351,11 @@ public:
                 // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                convert_samples(buffs[ch], packets[ch] + _HEADER_SIZE, samples_to_consume);
+                // convert_samples(buffs[ch], packet_samples[ch], samples_to_consume);
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
-                    memcpy(_sample_cache[ch].data(), packets[ch] + _HEADER_SIZE + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
+                    // memcpy(_sample_cache[ch].data(), packet_samples[ch] + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
                     eob_cached = metadata.end_of_burst;
                     metadata.end_of_burst = false;
                 }
