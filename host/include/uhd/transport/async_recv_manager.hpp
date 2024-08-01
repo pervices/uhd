@@ -23,6 +23,10 @@ private:
 
     static constexpr size_t MAX_CHANNELS = 16;
 
+    // Number of buffers per ch
+    // Must be a constexpr, for some reason having it non constexpr will result in random lag spikes
+    static constexpr size_t NUM_BUFFERS = 16;
+
     const uint_fast32_t _num_ch;
 
     const uint_fast32_t cache_line_size;
@@ -38,8 +42,6 @@ private:
     // Real size of each data buffer (include's some extra padding to contain a while number of pages)
     const size_t _packet_buffer_size;
 
-    const uint_fast32_t _num_buffers;
-
     // Pointer to buffers where packet data is stored
     // channel, buffer_num
     uint8_t* const packet_buffer;
@@ -48,7 +50,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return packet_buffer + ((ch + ch_offset) * _num_buffers * _packet_buffer_size) + (b * _packet_buffer_size);
+        return packet_buffer + ((ch + ch_offset) * NUM_BUFFERS * _packet_buffer_size) + (b * _packet_buffer_size);
     }
 
     // Size of the buffer to contain all mmsghdrs and io_vecs
@@ -62,7 +64,7 @@ private:
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * _num_buffers * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size));
+        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * NUM_BUFFERS * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size));
     }
 
     // Gets a pointer to specific mmsghdr
@@ -71,7 +73,7 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
-        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * _num_buffers * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size) + (p * sizeof(mmsghdr)));
+        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * NUM_BUFFERS * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size) + (p * sizeof(mmsghdr)));
     }
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
@@ -101,7 +103,7 @@ private:
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) (num_packets_stored + ((ch + ch_offset) * _num_buffers * padded_int_fast64_t_size) + (b * padded_int_fast64_t_size));
+        return (int_fast64_t*) (num_packets_stored + ((ch + ch_offset) * NUM_BUFFERS * padded_int_fast64_t_size) + (b * padded_int_fast64_t_size));
     }
 
     // The buffer currently being used by the consumer thread
@@ -118,14 +120,6 @@ private:
 
     // Flag used to tell receive threads when to stop
     uint_fast8_t stop_flag = false;
-
-    /**
-     * Calculates number of buffers to use.
-     * Done here instead of constructor so that _num_buffers can be declared as const
-     * @param  packet_buffer_size size of each buffer
-     * @return Number of buffers per channel
-    */
-    static uint_fast32_t calc_num_buffers(const uint_fast32_t packet_buffer_size);
 
 public:
 
