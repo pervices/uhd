@@ -302,6 +302,8 @@ void async_recv_manager::advance_packet(const size_t ch) {
 // Calculates number of buffers used
 // Done here instead of constructor so that _num_buffers can be declared as const
 uint_fast32_t async_recv_manager::calc_num_buffers(const size_t device_total_rx_channels, const uint_fast32_t packet_buffer_size) {
+    std::cout << "sysconf(_SC_LEVEL1_DCACHE_SIZE): " << sysconf(_SC_LEVEL1_DCACHE_SIZE) << std::endl;
+    std::cout << "sysconf(_SC_LEVEL2_CACHE_SIZE): " << sysconf(_SC_LEVEL2_CACHE_SIZE) << std::endl;
     struct sysinfo mem_info;
     size_t total_ram;
     int r = sysinfo(&mem_info);
