@@ -4,15 +4,13 @@
 
 #include <iostream>
 #include <unistd.h>
-#include <sys/sysinfo.h>
 #include <uhd/exception.hpp>
-#include <cmath>
 #include <string.h>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/thread.hpp>
-#include <sys/mman.h>
 #include <uhdlib/utils/system_time.hpp>
 #include <immintrin.h>
+#include <algorithm>
 
 namespace uhd { namespace transport {
 
@@ -26,15 +24,15 @@ packet_size(header_size + max_sample_bytes_per_packet),
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
 packets_per_buffer(page_size / (sizeof(mmsghdr) + sizeof(iovec))),
 // Size of each packet buffer + padding to be a whole number of pages
-_packet_buffer_size((size_t) ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
-_num_buffers(calc_num_buffers(device_total_rx_channels, _packet_buffer_size)),
+_packet_buffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
+_num_buffers(calc_num_buffers(_packet_buffer_size)),
 // Allocates buffer to store all packet payloads, each channel's buffer are aligned to a memory page for performance
 packet_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * _packet_buffer_size)),
 // Size of the buffer containing mmsghdrs and iovecs, must be a whole number of pages
-mmmsghdr_iovec_buffer_size((uint_fast32_t) ceil((sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer / (double)page_size) * page_size),
+mmmsghdr_iovec_buffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer / (double)page_size) * page_size),
 mmsghdr_iovecs((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size)),
-padded_uint_fast8_t_size(ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
-padded_int_fast64_t_size(ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
+padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
+padded_int_fast64_t_size(std::ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size)),
 // Create buffer to store count of number of packets stored
@@ -82,11 +80,11 @@ num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buff
         num_cores = 4;
     }
 
-    int64_t ch_per_thread = (int64_t) ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
+    int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
 
-    num_recv_loops = (size_t) ceil( _num_ch / (double) ch_per_thread );
+    num_recv_loops = (size_t) std::ceil( _num_ch / (double) ch_per_thread );
 
-    size_t recv_loops_size = (size_t) ceil((sizeof(std::thread) * num_recv_loops) / (double)cache_line_size) * cache_line_size;
+    size_t recv_loops_size = (size_t) std::ceil((sizeof(std::thread) * num_recv_loops) / (double)cache_line_size) * cache_line_size;
     recv_loops = (std::thread*) aligned_alloc(cache_line_size, recv_loops_size);
 
     // Creates thread to receive data
@@ -195,9 +193,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
-    // Used to see if the problem is from memory access
-    uint16_t previous_sequence_num = 15;
-
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
@@ -276,9 +271,6 @@ void async_recv_manager::advance_packet(const size_t ch) {
         // Marks this buffer as clear
         *num_packets_stored_addr = 0;
 
-        // Fence so that the count gets updated immediatly
-        _mm_sfence();
-
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
         active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & (_num_buffers -1);
@@ -290,28 +282,20 @@ void async_recv_manager::advance_packet(const size_t ch) {
 
 // Calculates number of buffers used
 // Done here instead of constructor so that _num_buffers can be declared as const
-uint_fast32_t async_recv_manager::calc_num_buffers(const size_t device_total_rx_channels, const uint_fast32_t packet_buffer_size) {
+uint_fast32_t async_recv_manager::calc_num_buffers(const uint_fast32_t packet_buffer_size) {
     std::cout << "sysconf(_SC_LEVEL1_DCACHE_SIZE): " << sysconf(_SC_LEVEL1_DCACHE_SIZE) << std::endl;
     std::cout << "sysconf(_SC_LEVEL2_CACHE_SIZE): " << sysconf(_SC_LEVEL2_CACHE_SIZE) << std::endl;
-    struct sysinfo mem_info;
-    size_t total_ram;
-    int r = sysinfo(&mem_info);
-    if(r) {
-        // Asumme 128GB system if unable to get sysinfo
-        total_ram = 134930006016;
-    } else {
-        total_ram = mem_info.totalram;
-    }
-    // Maximum space that is allowed to be taken up by packet buffers per channel
-    size_t max_packet_buffers_space_per_ch = total_ram / ( MAX_RESOURCE_FRACTION * device_total_rx_channels);
+    // Get the size of L1 and L2 caches. L1 and L2 give very consistent speed since they are connected to one core
+    // Don't count L3 because it is shared which introduces inconsistencies
+    size_t cache_ram = sysconf(_SC_LEVEL1_DCACHE_SIZE) + sysconf(_SC_LEVEL2_CACHE_SIZE);
 
-    // Finds how many buffers can fix in the allowed amount per channel, capped at MAX_NUM_BUFFERS
-    for(uint_fast32_t num_buffers = 2; num_buffers < MAX_NUM_BUFFERS; num_buffers = num_buffers * 2) {
-        if(num_buffers * 2 * packet_buffer_size > max_packet_buffers_space_per_ch) {
-            // return num_buffers;
-        }
+    uint_fast32_t num_buffers;
+    // Finds the smallest number of buffers with the combined size of the packet buffers and their mmsghdr/iovecs (=getpagesize) exceed the cache RAM
+    for(num_buffers = 2; num_buffers * (packet_buffer_size + getpagesize()) < cache_ram; num_buffers = num_buffers * 2) {
     }
-    return MAX_NUM_BUFFERS;
+    // Return the larges number of buffers that fit in the cache, with a minimum of 4 buffers
+    std::cout << "num_buffers: " << num_buffers << std::endl;
+    return std::max(num_buffers / 2, (uint_fast32_t) 4);
 }
 
 }}

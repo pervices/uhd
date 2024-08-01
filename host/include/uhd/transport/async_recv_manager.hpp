@@ -18,14 +18,10 @@ class async_recv_manager {
 
 private:
 
-    // (1 / this) is the maximum portion of CPU cores and RAM that can be used by this program
+    // (1 / this) is the maximum portion of CPU cores that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
     static constexpr size_t MAX_CHANNELS = 16;
-
-    // Number of buffers to be created per channel cycle through, must be a power of 2
-    // Enough for 0.1s of data with 1 packet per buffer with packets containing 2220 samples
-    static constexpr size_t MAX_NUM_BUFFERS = 8;
 
     const uint_fast32_t _num_ch;
 
@@ -123,9 +119,13 @@ private:
     // Flag used to tell receive threads when to stop
     uint_fast8_t stop_flag = false;
 
-    // Calculates number of buffers used
-    // Done here instead of constructor so that _num_buffers can be declared as const
-    static uint_fast32_t calc_num_buffers(const size_t device_total_rx_channels, const uint_fast32_t packet_buffer_size);
+    /**
+     * Calculates number of buffers to use.
+     * Done here instead of constructor so that _num_buffers can be declared as const
+     * @param  packet_buffer_size size of each buffer
+     * @return Number of buffers per channel
+    */
+    static uint_fast32_t calc_num_buffers(const uint_fast32_t packet_buffer_size);
 
 public:
 
