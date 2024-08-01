@@ -29,16 +29,16 @@ packets_per_buffer(page_size / (sizeof(mmsghdr) + sizeof(iovec))),
 _packet_buffer_size((size_t) ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
 _num_buffers(calc_num_buffers(device_total_rx_channels, _packet_buffer_size)),
 // Allocates buffer to store all packet payloads, each channel's buffer are aligned to a memory page for performance
-packet_buffer((uint8_t*) mmap(NULL, _num_ch * _num_buffers * _packet_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+packet_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * _packet_buffer_size)),
 // Size of the buffer containing mmsghdrs and iovecs, must be a whole number of pages
 mmmsghdr_iovec_buffer_size((uint_fast32_t) ceil((sizeof(mmsghdr) + sizeof(iovec)) * packets_per_buffer / (double)page_size) * page_size),
-mmsghdr_iovecs((uint8_t*) mmap(NULL, _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+mmsghdr_iovecs((uint8_t*) aligned_alloc(page_size, _num_ch * _num_buffers * mmmsghdr_iovec_buffer_size)),
 padded_uint_fast8_t_size(ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
 padded_int_fast64_t_size(ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
 // Create buffer for flush complete flag in seperate cache lines
-flush_complete((uint8_t*) mmap(NULL, _num_ch * padded_uint_fast8_t_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size)),
 // Create buffer to store count of number of packets stored
-num_packets_stored((uint8_t*) mmap(NULL, _num_ch * _num_buffers * padded_int_fast64_t_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))
+num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * _num_buffers * padded_int_fast64_t_size))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -100,8 +100,6 @@ num_packets_stored((uint8_t*) mmap(NULL, _num_ch * _num_buffers * padded_int_fas
         ch_offset+=ch_per_thread;
     }
 
-
-
     uhd::time_spec_t start = uhd::get_system_time();
     for(size_t n = 0; n < _num_ch; n++) {
         while(! *access_flush_complete(n, 0)) {
@@ -123,14 +121,13 @@ async_recv_manager::~async_recv_manager()
     }
 
     // Frees packets and mmsghdr buffers
-    // TODO: munmap where applicable
-    // free(packet_buffer);
-    // free(mmsghdr_iovecs);
-    // free(flush_complete);
-    // free(num_packets_stored);
-    // free(active_consumer_buffer);
-    // free(num_packets_consumed);
-    // free(recv_loops);
+    free(packet_buffer);
+    free(mmsghdr_iovecs);
+    free(flush_complete);
+    free(num_packets_stored);
+    free(active_consumer_buffer);
+    free(num_packets_consumed);
+    free(recv_loops);
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
