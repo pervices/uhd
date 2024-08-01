@@ -252,6 +252,7 @@ uint8_t* async_recv_manager::get_next_packet(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     // Check if the next packet is ready
     if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
+        _mm_lfence();
         return access_packet_buffer(ch, 0, b) + (packet_size * num_packets_consumed[ch]);
     }
     else {
@@ -284,7 +285,6 @@ void async_recv_manager::advance_packet(const size_t ch) {
         // Resets count for number of samples consumed in the active buffer
         num_packets_consumed[ch] = 0;
     }
-    _mm_lfence();
 }
 
 // Calculates number of buffers used
