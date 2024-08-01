@@ -290,7 +290,7 @@ uint_fast32_t async_recv_manager::calc_num_buffers(const uint_fast32_t packet_bu
     std::cout << "getpagesize(): " << getpagesize() << std::endl;
     // Get the size of L1 and L2 caches. L1 and L2 give very consistent speed since they are connected to one core
     // Use part of L3 cache since L1 and L2 alone are tiny
-    size_t cache_ram = sysconf(_SC_LEVEL1_DCACHE_SIZE) + sysconf(_SC_LEVEL2_CACHE_SIZE) + (sysconf(_SC_LEVEL3_CACHE_SIZE) / std::thread::hardware_concurrency());
+    size_t cache_ram = sysconf(_SC_LEVEL1_DCACHE_SIZE) + sysconf(_SC_LEVEL2_CACHE_SIZE) + (sysconf(_SC_LEVEL3_CACHE_SIZE) / 2);
     std::cout << "cache_ram: " << cache_ram << std::endl;
 
     uint_fast32_t num_buffers;
