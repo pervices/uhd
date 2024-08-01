@@ -317,7 +317,7 @@ uint_fast32_t async_recv_manager::calc_num_buffers(const size_t device_total_rx_
     // Finds how many buffers can fix in the allowed amount per channel, capped at MAX_NUM_BUFFERS
     for(uint_fast32_t num_buffers = 2; num_buffers < MAX_NUM_BUFFERS; num_buffers = num_buffers * 2) {
         if(num_buffers * 2 * packet_buffer_size > max_packet_buffers_space_per_ch) {
-            return num_buffers;
+            // return num_buffers;
         }
     }
     return MAX_NUM_BUFFERS;

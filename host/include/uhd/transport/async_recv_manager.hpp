@@ -25,7 +25,7 @@ private:
 
     // Number of buffers to be created per channel cycle through, must be a power of 2
     // Enough for 0.1s of data with 1 packet per buffer with packets containing 2220 samples
-    static constexpr size_t MAX_NUM_BUFFERS = 256;
+    static constexpr size_t MAX_NUM_BUFFERS = 65536;//256;
 
     const uint_fast32_t _num_ch;
 
