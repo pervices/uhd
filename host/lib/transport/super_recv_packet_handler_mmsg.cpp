@@ -187,7 +187,7 @@ public:
             if(_num_cached_samples[ch]) {
                 size_t cached_samples_to_use = std::min(_num_cached_samples[ch], nsamps_per_buff);
                 // Copies samples from the cache to the user requested buffer
-                convert_samples(buffs[ch], _sample_cache[ch].data(), cached_samples_to_use);
+                // convert_samples(buffs[ch], _sample_cache[ch].data(), cached_samples_to_use);
 
                 // Move extra cached samples to the start of the buffer
                 _num_cached_samples[ch] -= cached_samples_to_use;
@@ -348,7 +348,7 @@ public:
                 // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                convert_samples(buffs[ch], packets[ch] + _HEADER_SIZE, samples_to_consume);
+                // convert_samples(buffs[ch], packets[ch] + _HEADER_SIZE, samples_to_consume);
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
