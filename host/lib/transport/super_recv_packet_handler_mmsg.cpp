@@ -352,7 +352,7 @@ public:
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
-                    // memcpy(_sample_cache[ch].data(), packets[ch] + _HEADER_SIZE + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
+                    memcpy(_sample_cache[ch].data(), packets[ch] + _HEADER_SIZE + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
                     eob_cached = metadata.end_of_burst;
                     metadata.end_of_burst = false;
                 }
