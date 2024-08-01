@@ -73,7 +73,7 @@ public:
     _TRAILER_SIZE(trailer_size),
     _recv_sockets(recv_sockets),
     _num_cached_samples(_NUM_CHANNELS, 0),
-    _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET))
+    _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
     {
         if (wire_format=="sc16") {
             _BYTES_PER_SAMPLE = 4;
@@ -352,7 +352,7 @@ public:
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
-                    memcpy(_sample_cache[ch].data(), packets[ch] + _HEADER_SIZE + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
+                    // memcpy(_sample_cache[ch].data(), packets[ch] + _HEADER_SIZE + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
                     eob_cached = metadata.end_of_burst;
                     metadata.end_of_burst = false;
                 }
