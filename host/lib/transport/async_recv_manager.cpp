@@ -132,6 +132,7 @@ async_recv_manager::~async_recv_manager()
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset) {
     // Create shallow copy of self
+    // TODO: replace with copy init
     size_t self_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
     async_recv_manager* const self = (async_recv_manager*) aligned_alloc(getpagesize(), self_size);
     memcpy(self, self_, self_size);
@@ -209,11 +210,12 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
         bool packets_received = r > 0;
 
+        // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written
+        _mm_sfence();
+
         // Increment the counter for number of packets stored
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = r * packets_received * local_flush_complete[ch];
-
-        _mm_sfence();
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
