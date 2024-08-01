@@ -200,6 +200,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
     const int_fast64_t packets_to_recv = self->packets_per_buffer;
 
+    // Used to see if the problem is from memory access
+    int64_t sequence_num = 15;
+
     while(1 /*!self->stop_flag*/) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
@@ -207,6 +210,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
+
+        for(int n = 0; n < r; n++) {
+            int64_t next_sequence_num = *((uint16_t* )(self->access_mmsghdr(ch, ch_offset, b[ch], n)->msg_hdr.msg_iov->iov_base)) & 0xf00 >> 0x100;
+            if((sequence_num + 1) & 0xf != next_sequence_num) {
+                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Overflow in internal receive loop";
+            }
+            sequence_num = next_sequence_num;
+        }
 
         bool packets_received = r > 0;
 
