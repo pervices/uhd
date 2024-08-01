@@ -255,7 +255,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     }
 
     if(main_thread_slow) {
-        UHD_LOGGER_INFO("ASYNC_RECV_MANAGER") << "The internal buffer filled up while streaming, this is likely to caused by having to long gaps between calling the rx streamer's recv. Please reduce the time between/duration of recv calls in future runs. This is the likely cause if you had rx overflow/alignment errors.";
+        UHD_LOGGER_INFO("ASYNC_RECV_MANAGER") << "The internal buffer filled up while streaming, this is likely caused by having to long gaps between calling the rx streamer's recv. Please reduce the time between/duration of recv calls in future runs. This is the likely cause if you had rx overflow/alignment errors.";
     }
 
 }
@@ -289,6 +289,9 @@ void async_recv_manager::advance_packet(const size_t ch) {
 
         // Marks this buffer as clear
         *num_packets_stored_addr = 0;
+
+        // Fence so that the count gets updated immediatly
+        _mm_sfence();
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
