@@ -147,13 +147,13 @@ public:
     {
         // recv_manager must be deleted before closing sockets
         // Destructor must be manually called when using placement new
-        recv_manager->~async_recv_manager();
-        free(recv_manager);
+        // recv_manager->~async_recv_manager();
+        // free(recv_manager);
         for(size_t n = 0; n < _recv_sockets.size(); n++) {
-            int r = close(_recv_sockets[n]);
-            if(r) {
-                fprintf(stderr, "close failed on data receive socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
-            }
+            // int r = close(_recv_sockets[n]);
+            // if(r) {
+            //     fprintf(stderr, "close failed on data receive socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
+            // }
         }
     }
 

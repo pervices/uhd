@@ -195,7 +195,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     const int_fast64_t packets_to_recv = self->packets_per_buffer;
 
-    while(!self->stop_flag) [[likely]] {
+    while(1 /*!self->stop_flag*/) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
         main_thread_slow = !packets_to_recv || main_thread_slow;
