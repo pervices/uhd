@@ -267,7 +267,7 @@ void async_recv_manager::advance_packet(const size_t ch) {
         // Marks this buffer as clear
         *num_packets_stored_addr = 0;
 
-        _mm_clflush(num_packets_stored_addr);
+        // _mm_clflush(num_packets_stored_addr);
 
         // Moves to the next buffer
         // & is to roll over the the first buffer once the limit is reached
