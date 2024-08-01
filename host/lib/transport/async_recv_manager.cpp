@@ -210,7 +210,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
             uint16_t expected_sequence_num = (previous_sequence_num + 1) & 0xf;
             uint16_t header_bytes = *((uint16_t* )(self->access_mmsghdr(ch, ch_offset, b[ch], n)->msg_hdr.msg_iov->iov_base));
             uint16_t actual_sequence_num = (header_bytes & 0xf00) >> 8;
-            if(expected_sequence_num != actual_sequence_num) {
+            if(expected_sequence_num != actual_sequence_num) [[unlikely]] {
                 std::cout << "Expected: " << expected_sequence_num << std::endl;
                 std::cout << "header_bytes: " << header_bytes << std::endl;
                 std::cout << "Actual: " << actual_sequence_num << std::endl;
