@@ -206,20 +206,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
-        for(int n = 0; n < r; n++) {
-            uint16_t expected_sequence_num = (previous_sequence_num + 1) & 0xf;
-            uint16_t header_bytes = *((uint16_t* )(self->access_mmsghdr(ch, ch_offset, b[ch], n)->msg_hdr.msg_iov->iov_base));
-            uint16_t actual_sequence_num = (header_bytes & 0xf00) >> 8;
-            if(expected_sequence_num != actual_sequence_num) [[unlikely]] {
-                std::cout << "Expected: " << expected_sequence_num << std::endl;
-                std::cout << "header_bytes: " << header_bytes << std::endl;
-                std::cout << "Actual: " << actual_sequence_num << std::endl;
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Overflow in internal receive loop";
-                self->stop_flag = 1;
-            }
-            previous_sequence_num = actual_sequence_num;
-        }
-
         bool packets_received = r > 0;
 
         // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
