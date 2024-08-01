@@ -130,12 +130,7 @@ async_recv_manager::~async_recv_manager()
     free(recv_loops);
 }
 
-void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset) {
-    // Create shallow copy of self
-    // TODO: replace with copy init
-    size_t self_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
-    async_recv_manager* const self = (async_recv_manager*) aligned_alloc(getpagesize(), self_size);
-    memcpy(self, self_, self_size);
+void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe();
@@ -201,9 +196,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     const int_fast64_t packets_to_recv = self->packets_per_buffer;
 
     // Used to see if the problem is from memory access
-    int64_t sequence_num = 15;
+    uint16_t previous_sequence_num = 15;
 
-    while(1 /*!self->stop_flag*/) [[likely]] {
+    while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
         main_thread_slow = !packets_to_recv || main_thread_slow;
@@ -212,11 +207,17 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
         for(int n = 0; n < r; n++) {
-            int64_t next_sequence_num = *((uint16_t* )(self->access_mmsghdr(ch, ch_offset, b[ch], n)->msg_hdr.msg_iov->iov_base)) & 0xf00 >> 0x100;
-            if((sequence_num + 1) & 0xf != next_sequence_num) {
+            uint16_t expected_sequence_num = (previous_sequence_num + 1) & 0xf;
+            uint16_t header_bytes = *((uint16_t* )(self->access_mmsghdr(ch, ch_offset, b[ch], n)->msg_hdr.msg_iov->iov_base));
+            uint16_t actual_sequence_num = (header_bytes & 0xf00) >> 8;
+            if(expected_sequence_num != actual_sequence_num) {
+                std::cout << "Expected: " << expected_sequence_num << std::endl;
+                std::cout << "header_bytes: " << header_bytes << std::endl;
+                std::cout << "Actual: " << actual_sequence_num << std::endl;
                 UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Overflow in internal receive loop";
+                self->stop_flag = 1;
             }
-            sequence_num = next_sequence_num;
+            previous_sequence_num = actual_sequence_num;
         }
 
         bool packets_received = r > 0;
