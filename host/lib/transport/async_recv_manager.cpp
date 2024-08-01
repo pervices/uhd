@@ -193,7 +193,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast32_t ch = 0;
 
-    const int_fast64_t packets_to_recv = self->packets_per_buffer;
+    uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
     // Used to see if the problem is from memory access
     uint16_t previous_sequence_num = 15;
@@ -222,7 +222,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         bool packets_received = r > 0;
 
-        // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written
+        // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
         _mm_sfence();
 
         // Increment the counter for number of packets stored
@@ -243,7 +243,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        // packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
@@ -283,6 +283,9 @@ void async_recv_manager::advance_packet(const size_t ch) {
     // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
     int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
     if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
+
+        // Fence to ensure all actions related to the buffer are complete before marking it as clear
+        _mm_sfence();
 
         // Marks this buffer as clear
         *num_packets_stored_addr = 0;
