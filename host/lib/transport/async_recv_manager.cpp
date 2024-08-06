@@ -176,7 +176,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
                 // Points iovecs to the corresponding point in the buffers
                 iovecs[data_iovec].iov_base = (void*) (self->access_packet_data(ch, ch_offset, b) + (p * self->packet_size));
-                iovecs[data_iovec].iov_len = 0;//self->packet_size - self->_header_size;
+                iovecs[data_iovec].iov_len = self->packet_size - self->_header_size;
 
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
@@ -255,9 +255,8 @@ uint8_t* async_recv_manager::get_next_packet_samples(const size_t ch) {
 }
 
 uint32_t async_recv_manager::get_next_packet_length(const size_t ch) {
-    // size_t b = active_consumer_buffer[ch];
-    //return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
-    return (16 + 8192);
+    size_t b = active_consumer_buffer[ch];
+    return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
 }
 
 void async_recv_manager::advance_packet(const size_t ch) {
