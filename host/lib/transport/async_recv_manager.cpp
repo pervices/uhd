@@ -41,6 +41,8 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         throw assertion_error("Unsupported number of channels");
     }
 
+    std::cout << "packets_per_buffer: " << packets_per_buffer << std::endl;
+
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
     active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)cache_line_size) * cache_line_size;
