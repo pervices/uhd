@@ -47,7 +47,7 @@ private:
     // Size of the buffer used to store packets
     const uint_fast32_t packets_per_buffer;
 
-        // Size of the buffer to contain all mmsghdrs, io_vecs (length 2: header, data) and vita headers
+    // Size of the buffer to contain: packets in the buffer, all: mmsghdrs, io_vecs (length 2: header, data) and vita headers
     const uint_fast32_t _mmmsghdr_iovec_vitahdr_subbuffer_size;
 
     // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
