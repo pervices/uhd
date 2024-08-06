@@ -21,16 +21,15 @@ cache_line_size(std::hardware_destructive_interference_size),
 page_size(getpagesize()),
 _header_size(header_size),
 packet_size(header_size + max_sample_bytes_per_packet),
-// Have 1 page worth of packet mmsghdrs and iovec per buffer
-// NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 1 element
+// Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer
+// NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
 packets_per_buffer(page_size / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ) + _header_size)),
+_mmmsghdr_iovec_vitahdr_subbuffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec)) + _header_size) * packets_per_buffer / (double)page_size) * page_size),
 // Size of each packet buffer + padding to be a whole number of pages
-_packet_buffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
-// Allocates buffer to store all packet payloads, each channel's buffer are aligned to a memory page for performance
-packet_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _packet_buffer_size)),
-// Size of the buffer containing mmsghdrs and iovecs, must be a whole number of pages
-mmmsghdr_iovec_buffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec)) + _header_size) * packets_per_buffer / (double)page_size) * page_size),
-mmsghdr_iovecs((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * mmmsghdr_iovec_buffer_size)),
+_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
+_combined_buffer_size(_mmmsghdr_iovec_vitahdr_subbuffer_size + _data_subbuffer_size),
+// Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
+_combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
 padded_int_fast64_t_size(std::ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
 // Create buffer for flush complete flag in seperate cache lines
@@ -62,17 +61,11 @@ num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * NUM_BUFFE
     }
 
     // Check if memory allocation failed
-    if(packet_buffer == nullptr) {
-        throw uhd::environment_error( "aligned_alloc failed for packet buffers" );
+    if(_combined_buffer == nullptr) {
+        throw uhd::environment_error( "aligned_alloc failed for internal buffers" );
     }
     // Set entire buffer to 0 to avoid issues with lazy allocation
-    memset(packet_buffer, 0, _num_ch * NUM_BUFFERS * _packet_buffer_size);
-
-    if(mmsghdr_iovecs == nullptr) {
-        throw uhd::environment_error( "aligned_alloc failed for mmsghdr buffers" );
-    }
-    // Set clear mmsghdrs and iovecs
-    memset(mmsghdr_iovecs, 0, _num_ch * NUM_BUFFERS * mmmsghdr_iovec_buffer_size);
+    memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
 
     int64_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -119,8 +112,7 @@ async_recv_manager::~async_recv_manager()
     }
 
     // Frees packets and mmsghdr buffers
-    free(packet_buffer);
-    free(mmsghdr_iovecs);
+    free(_combined_buffer);
     free(flush_complete);
     free(num_packets_stored);
     free(active_consumer_buffer);
@@ -244,7 +236,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
 uint8_t* async_recv_manager::get_next_packet_vita_header(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
-    uint8_t* addr = mmsghdr_iovecs + (packets_per_buffer * sizeof(mmsghdr)) + (packets_per_buffer * 2 * sizeof(iovec)) + (num_packets_consumed[ch] * _header_size);
+    uint8_t* addr = access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
     if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
         return addr;
     }

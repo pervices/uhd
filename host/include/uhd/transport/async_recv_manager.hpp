@@ -41,32 +41,30 @@ private:
     // Size of the buffer used to store packets
     const uint_fast32_t packets_per_buffer;
 
+        // Size of the buffer to contain all mmsghdrs, io_vecs (length 2: header, data) and vita headers
+    const uint_fast32_t _mmmsghdr_iovec_vitahdr_subbuffer_size;
+
     // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
-    const size_t _packet_buffer_size;
+    const size_t _data_subbuffer_size;
+
+    // Size of the combined buffer
+    // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
+    const size_t _combined_buffer_size;
+
+    uint8_t* const _combined_buffer;
 
     // Pointer to buffers where packet samples are stored
-    // channel, buffer_num
-    uint8_t* const packet_buffer;
     // Gets a pointer a packet buffer
     // ch: channel
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b) {
-        return packet_buffer + ((ch + ch_offset) * NUM_BUFFERS * _packet_buffer_size) + (b * _packet_buffer_size);
+        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + _mmmsghdr_iovec_vitahdr_subbuffer_size;
     }
-
-    // Size of the buffer to contain all mmsghdrs, io_vecs (length 2: header, data) and vita headers
-    const uint_fast32_t mmmsghdr_iovec_buffer_size;
-
-    // Pointer to a buffer which contains mmsghdr, iovec buffers, and vita headers
-    // Each buffer contains packets_per_buffer mmsghdrs followed by packets_per_buffer iovecs
-    // channel, buffer_num, packet
-    // Each buffer should be on it's own memory page
-    uint8_t* const mmsghdr_iovecs;
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * NUM_BUFFERS * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size));
+        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size));
     }
 
     // Gets a pointer to specific mmsghdr
@@ -75,7 +73,11 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
-        return (mmsghdr*) (mmsghdr_iovecs + ((ch + ch_offset) * NUM_BUFFERS * mmmsghdr_iovec_buffer_size) + (b * mmmsghdr_iovec_buffer_size) + (p * sizeof(mmsghdr)));
+        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + (p * sizeof(mmsghdr)));
+    }
+
+    inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (packets_per_buffer * (sizeof(mmsghdr) + (2 * sizeof(iovec)))) + (p * _header_size);
     }
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
@@ -104,6 +106,7 @@ private:
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
+    // TODO: move this to combined buffer
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) (num_packets_stored + ((ch + ch_offset) * NUM_BUFFERS * padded_int_fast64_t_size) + (b * padded_int_fast64_t_size));
     }
