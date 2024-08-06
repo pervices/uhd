@@ -19,23 +19,22 @@ async_recv_manager::async_recv_manager( const size_t total_rx_channels, const st
 _num_ch(recv_sockets.size()),
 cache_line_size(std::hardware_destructive_interference_size),
 page_size(getpagesize()),
-_header_size(header_size),
-packet_size(header_size + max_sample_bytes_per_packet),
-// Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer
-// NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-packets_per_buffer(page_size / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ) + _header_size)),
-_mmmsghdr_iovec_vitahdr_subbuffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec)) + _header_size) * packets_per_buffer / (double)page_size) * page_size),
-// Size of each packet buffer + padding to be a whole number of pages
-_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
-_combined_buffer_size(_mmmsghdr_iovec_vitahdr_subbuffer_size + _data_subbuffer_size),
-// Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-_combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
 padded_int_fast64_t_size(std::ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
+_header_size(header_size),
+packet_size(header_size + max_sample_bytes_per_packet),
+// Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
+// NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
+packets_per_buffer(page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ) + _header_size)),
+_mmmsghdr_iovec_vitahdr_subbuffer_size((uint_fast32_t) std::ceil((padded_int_fast64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec)) + _header_size) * packets_per_buffer / (double)page_size) * page_size),
+// Size of each packet buffer + padding to be a whole number of pages
+_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
+// padded_int_fast64_t_size is for the count for number of packets stored
+_combined_buffer_size(padded_int_fast64_t_size + _mmmsghdr_iovec_vitahdr_subbuffer_size + _data_subbuffer_size),
+// Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
+_combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
-flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size)),
-// Create buffer to store count of number of packets stored
-num_packets_stored((uint8_t*) aligned_alloc(cache_line_size, _num_ch * NUM_BUFFERS * padded_int_fast64_t_size))
+flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -114,7 +113,6 @@ async_recv_manager::~async_recv_manager()
     // Frees packets and mmsghdr buffers
     free(_combined_buffer);
     free(flush_complete);
-    free(num_packets_stored);
     free(active_consumer_buffer);
     free(num_packets_consumed);
     free(recv_loops);

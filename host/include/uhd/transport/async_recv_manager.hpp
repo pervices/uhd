@@ -33,6 +33,12 @@ private:
 
     const uint_fast32_t page_size;
 
+    // Size of uint_fast8_t + padding so it takes a whole number of cache lines
+    const uint_fast32_t padded_uint_fast8_t_size;
+
+    // Size of int_fast64_t + padding so it takes a whole number of cache lines
+    const uint_fast32_t padded_int_fast64_t_size;
+
     const uint_fast32_t _header_size;
 
     // Size of the packets to be received not including the trailer
@@ -59,12 +65,12 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b) {
-        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + _mmmsghdr_iovec_vitahdr_subbuffer_size;
+        return _combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + _mmmsghdr_iovec_vitahdr_subbuffer_size;
     }
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size));
+        return (mmsghdr*) (_combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size));
     }
 
     // Gets a pointer to specific mmsghdr
@@ -73,18 +79,12 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
-        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + (p * sizeof(mmsghdr)));
+        return (mmsghdr*) (_combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + (p * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + (packets_per_buffer * (sizeof(mmsghdr) + (2 * sizeof(iovec)))) + (p * _header_size);
+        return _combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (packets_per_buffer * (sizeof(mmsghdr) + (2 * sizeof(iovec)))) + (p * _header_size);
     }
-
-    // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_uint_fast8_t_size;
-
-    // Size of int_fast64_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_int_fast64_t_size;
 
     // Buffer to store flags to indicate sockets have been flushed
     // Not an array of uint8_t, this is done to make manual memory operations easier
@@ -96,19 +96,12 @@ private:
         return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
     }
 
-    // Number of packets stored in each buffer
-    // Accessed by both provider and consumer threads
-    // Use access_num_packets_stored to access
-    // Actually a buffer that stores std::atomic<int_fast64_t>, using std::atomic<int_fast64_t>* messes with the math when trying to specify where elements in the buffer go to because of padding
-    uint8_t* const num_packets_stored;
-
     // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
-    // TODO: move this to combined buffer
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) (num_packets_stored + ((ch + ch_offset) * NUM_BUFFERS * padded_int_fast64_t_size) + (b * padded_int_fast64_t_size));
+        return (int_fast64_t*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size));
     }
 
     // The buffer currently being used by the consumer thread
