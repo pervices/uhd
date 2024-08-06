@@ -201,9 +201,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         bool packets_received = r > 0;
 
-        if(packets_received) {
-            std::cout << "r: " << r << std::endl;
-        }
+        // if(packets_received) {
+        //     std::cout << "r: " << r << std::endl;
+        // }
 
         // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
         _mm_sfence();
@@ -255,7 +255,7 @@ uint8_t* async_recv_manager::get_next_packet_samples(const size_t ch) {
 }
 
 uint32_t async_recv_manager::get_next_packet_length(const size_t ch) {
-    size_t b = active_consumer_buffer[ch];
+    // size_t b = active_consumer_buffer[ch];
     //return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
     return (16 + 8192);
 }
