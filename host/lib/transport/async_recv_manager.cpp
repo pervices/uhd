@@ -25,7 +25,7 @@ _header_size(header_size),
 packet_size(header_size + max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-packets_per_buffer(page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ) + _header_size)),
+packets_per_buffer(2 * page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ) + _header_size)),
 _mmmsghdr_iovec_vitahdr_subbuffer_size(padded_int_fast64_t_size + (uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec)) + _header_size) * packets_per_buffer / (double)page_size) * page_size),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
