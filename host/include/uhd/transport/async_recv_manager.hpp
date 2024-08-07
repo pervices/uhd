@@ -39,7 +39,12 @@ private:
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
     const uint_fast32_t padded_int_fast64_t_size;
 
+
+    // Vita header size
     const uint_fast32_t _header_size;
+
+    // Size of VIta header + padding to be on it's own cache line
+    const uint_fast32_t _padded_header_size;
 
     // Size of the packets to be received not including the trailer
     const uint_fast32_t packet_size;
@@ -115,7 +120,7 @@ private:
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + (p * _header_size);
+        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
     }
 
     // Buffer to store flags to indicate sockets have been flushed
