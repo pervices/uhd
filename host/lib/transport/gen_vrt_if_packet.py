@@ -310,6 +310,7 @@ void vrt::if_hdr_unpack_${suffix}(
     {
     case if_packet_info_t::LINK_TYPE_NONE:
         vrt_hdr_word32 = ${XE_MACRO}(packet_buff[0]);
+        printf("1 vrt_hdr_word32 %u\\n", vrt_hdr_word32);
         __if_hdr_unpack_${suffix}(packet_buff, if_packet_info, vrt_hdr_word32);
         break;
 
@@ -317,6 +318,7 @@ void vrt::if_hdr_unpack_${suffix}(
     {
         const uint32_t chdr = ${XE_MACRO}(packet_buff[0]);
         vrt_hdr_word32 = chdr_to_vrt(chdr, if_packet_info);
+        printf("2 vrt_hdr_word32 %u\\n", vrt_hdr_word32);
         size_t packet_count = if_packet_info.packet_count;
         __if_hdr_unpack_${suffix}(packet_buff, if_packet_info, vrt_hdr_word32);
         if_packet_info.num_payload_bytes -= (~chdr + 1) & 0x3;
@@ -331,7 +333,7 @@ void vrt::if_hdr_unpack_${suffix}(
         vrt_hdr_word32 = ${XE_MACRO}(packet_buff[2]);
         if (if_packet_info.num_packet_words32 < (vrl_hdr & 0xfffff)) throw uhd::value_error("bad vrl header or packet fragment");
         if (${XE_MACRO}(packet_buff[(vrl_hdr & 0xfffff)-1]) != VEND) throw uhd::value_error("bad vrl trailer VEND");
-        printf("vrt_hdr_word32: %u\\n", vrt_hdr_word32);
+        printf("3 vrt_hdr_word32 %u\\n", vrt_hdr_word32);
         __if_hdr_unpack_${suffix}(packet_buff+2, if_packet_info, vrt_hdr_word32);
         if_packet_info.num_header_words32 += 2; //add vrl header
         if_packet_info.packet_count = (vrl_hdr >> 20) & 0xfff;
