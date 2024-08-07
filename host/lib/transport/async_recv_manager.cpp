@@ -248,6 +248,9 @@ uint8_t* async_recv_manager::get_next_packet_vita_header(const size_t ch) {
         printf("1 access_num_packets_stored(%lu, 0, %lu): %p\n", ch, b, access_num_packets_stored(ch, 0, b));
         printf("1 *access_num_packets_stored(%lu, 0, %lu): %li\n", ch, b, *access_num_packets_stored(ch, 0, b));
         printf("num_packets_consumed[ch]: %lu\n", num_packets_consumed[ch]);
+        if(*access_num_packets_stored(ch, 0, b) == 0) {
+            throw std::runtime_error("Impossible comparison result\n");
+        }
         return addr;
     }
     else {
