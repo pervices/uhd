@@ -270,6 +270,7 @@ void async_recv_manager::advance_packet(const size_t ch) {
     // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
     int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
     if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
+        printf("T5\n");
 
         // Fence to ensure all actions related to the buffer are complete before marking it as clear
         _mm_sfence();
