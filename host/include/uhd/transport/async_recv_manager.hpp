@@ -47,8 +47,11 @@ private:
     // Size of the buffer used to store packets
     const uint_fast32_t packets_per_buffer;
 
-    // Size of the buffer to contain: packets in the buffer, all: mmsghdrs, io_vecs (length 2: header, data) and vita headers
-    const uint_fast32_t _mmmsghdr_iovec_vitahdr_subbuffer_size;
+    // Size of the buffer to contain: packets in the buffer, all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
+    const uint_fast32_t _num_packets_stored_mmmsghdr_iovec_subbuffer_size;
+
+    // Size of the buffer to contain: all vita headers padded to a whole number of pages
+    const uint_fast32_t _vitahdr_subbuffer_size;
 
     // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
     const size_t _data_subbuffer_size;
@@ -57,20 +60,30 @@ private:
     // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
     const size_t _combined_buffer_size;
 
+    // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
     uint8_t* const _combined_buffer;
 
-    // Pointer to buffers where packet samples are stored
+    // Pointer to the start of where packet samples are stored in the buffer
     // Gets a pointer a packet buffer
     // ch: channel
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
-    inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b) {
-        return _combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + _mmmsghdr_iovec_vitahdr_subbuffer_size;
+    inline __attribute__((always_inline)) uint8_t* access_packet_data_buffer(size_t ch, size_t ch_offset, size_t b) {
+        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
+    }
+
+    // Pointer to buffers where a specific packet's samples are stored
+    // Gets a pointer a packet buffer
+    // ch: channel
+    // ch_offset: channel offset (the first channel of the thread)
+    // b: buffer
+    inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + (p * packet_size);
     }
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (mmsghdr*) (_combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size));
+        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + padded_int_fast64_t_size);
     }
 
     // Gets a pointer to specific mmsghdr
@@ -79,11 +92,11 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
-        return (mmsghdr*) (_combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (b * _combined_buffer_size) + (p * sizeof(mmsghdr)));
+        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + padded_int_fast64_t_size + (p * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _combined_buffer + padded_int_fast64_t_size + ((ch + ch_offset) * b * _combined_buffer_size) + (packets_per_buffer * (sizeof(mmsghdr) + (2 * sizeof(iovec)))) + (p * _header_size);
+        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + (p * _header_size);
     }
 
     // Buffer to store flags to indicate sockets have been flushed

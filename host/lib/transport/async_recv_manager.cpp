@@ -25,12 +25,13 @@ _header_size(header_size),
 packet_size(header_size + max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-packets_per_buffer(2 * page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ) + _header_size)),
-_mmmsghdr_iovec_vitahdr_subbuffer_size(padded_int_fast64_t_size + (uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec)) + _header_size) * packets_per_buffer / (double)page_size) * page_size),
+packets_per_buffer(page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
+_num_packets_stored_mmmsghdr_iovec_subbuffer_size(padded_int_fast64_t_size + (uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
+_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_header_size * packets_per_buffer / (double)page_size)),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
 // padded_int_fast64_t_size is for the count for number of packets stored
-_combined_buffer_size(_mmmsghdr_iovec_vitahdr_subbuffer_size + _data_subbuffer_size),
+_combined_buffer_size(_num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
@@ -164,18 +165,17 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         for(uint_fast32_t b = 0; b < self->NUM_BUFFERS; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
             struct iovec* iovecs =(iovec*) self->access_mmsghdr(ch, ch_offset, b, self->packets_per_buffer);
-            uint8_t* vita_header_buffer = (uint8_t*) &iovecs[2 * self->packets_per_buffer];
             for(uint_fast32_t p = 0; p < self->packets_per_buffer; p++) {
 
                 uint_fast32_t header_iovec = 2 * p;
                 uint_fast32_t data_iovec = 2 * p + 1;
 
                 // Point iovecs to the location to store the vita header
-                iovecs[header_iovec].iov_base = (void*) &vita_header_buffer[p * self->_header_size];
+                iovecs[header_iovec].iov_base = (void*) self->access_vita_hdr(ch, ch_offset, b, p);
                 iovecs[header_iovec].iov_len = self->_header_size;
 
                 // Points iovecs to the corresponding point in the buffers
-                iovecs[data_iovec].iov_base = (void*) (self->access_packet_data(ch, ch_offset, b) + (p * self->packet_size));
+                iovecs[data_iovec].iov_base = (void*) self->access_packet_data(ch, ch_offset, b, p);
                 iovecs[data_iovec].iov_len = self->packet_size - self->_header_size;
 
                 // Points mmsghdrs to the corresponding io_vec
@@ -251,7 +251,7 @@ uint8_t* async_recv_manager::get_next_packet_vita_header(const size_t ch) {
 
 uint8_t* async_recv_manager::get_next_packet_samples(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
-    return access_packet_data(ch, 0, b) + (packet_size * num_packets_consumed[ch]);
+    return access_packet_data(ch, 0, b, num_packets_consumed[ch]);
 }
 
 uint32_t async_recv_manager::get_next_packet_length(const size_t ch) {
