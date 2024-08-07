@@ -173,12 +173,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
                 // Point iovecs to the location to store the vita header
                 iovecs[header_iovec].iov_base = (void*) self->access_vita_hdr(ch, ch_offset, b, p);
                 iovecs[header_iovec].iov_len = self->_header_size;
-                printf("iovecs[%lu].iov_base: %p\n", header_iovec, iovecs[header_iovec].iov_base);
 
                 // Points iovecs to the corresponding point in the buffers
                 iovecs[data_iovec].iov_base = (void*) self->access_packet_data(ch, ch_offset, b, p);
                 iovecs[data_iovec].iov_len = self->packet_size - self->_header_size;
-                printf("iovecs[%lu].iov_base: %p\n", data_iovec, iovecs[data_iovec].iov_base);
 
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
@@ -193,7 +191,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     uint_fast32_t ch = 0;
 
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
-    uint_fast32_t packets_to_recv = 1;//self->packets_per_buffer;
+    uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
@@ -224,17 +222,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * 1;//self->packets_per_buffer;
+        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
 
-        if(packets_received) {
-            printf("r: %i\n", r);
-            uint32_t* header = (uint32_t*) self->access_vita_hdr(0, 0, 0, 0);
-            printf("*header: %x\n", *header);
-            break;
-        }
     }
 
     if(error_code) {
