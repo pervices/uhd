@@ -214,8 +214,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         if(packets_received) {
             mprotect(self->_combined_buffer, self->_combined_buffer_size, PROT_READ);
-            printf("received: %i\n", r);
-            printf("0 *access_num_packets_stored(%lu, %lu, %lu): %li\n", ch, ch_offset, b[ch], *self->access_num_packets_stored(ch, ch_offset, b[ch]));
             break;
         }
 
