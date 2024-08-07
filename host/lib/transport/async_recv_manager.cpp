@@ -235,6 +235,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
             printf("ch: %lu\n", ch);
             printf("ch_offset: %lu\n", ch_offset);
             printf("b[ch]: %lu\n", b[ch]);
+            printf("*self->access_num_packets_stored(ch, ch_offset, b[ch]): %li\n", *self->access_num_packets_stored(ch, ch_offset, b[ch]));
             break;
         }
 
