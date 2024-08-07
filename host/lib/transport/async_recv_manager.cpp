@@ -278,6 +278,7 @@ void async_recv_manager::advance_packet(const size_t ch) {
     int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
     if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
         printf("num_packets_consumed[ch]: %lu\n", num_packets_consumed[ch]);
+        printf("50 num_packets_stored_addr: %p\n", num_packets_stored_addr);
         printf("50 *num_packets_stored_addr: %li\n", *num_packets_stored_addr);
         if(*num_packets_stored_addr == 0) {
             throw std::runtime_error("Advancing buffer despite no samples in it");

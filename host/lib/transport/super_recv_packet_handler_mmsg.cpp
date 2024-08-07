@@ -236,6 +236,9 @@ public:
                 }
                 std::cout << "10 access_num_packets_stored(0, 0, 0): " << recv_manager->access_num_packets_stored(0, 0, 0) << std::endl;
                 std::cout << "10 *access_num_packets_stored(0, 0, 0): " << *recv_manager->access_num_packets_stored(0, 0, 0) << std::endl;
+                if(*recv_manager->access_num_packets_stored(0, 0, 0)) {
+                    throw std::runtime_error("Buffer empty immediatly after saying it is not");
+                }
 
                 packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
 
