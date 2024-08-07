@@ -299,8 +299,6 @@ public:
                 }
             }
 
-            std::cout << "40 *access_num_packets_stored(0, 0, 0): " << *recv_manager->access_num_packets_stored(0, 0, 0) << std::endl;
-
             if(realignment_required) [[unlikely]] {
                 if(realignment_attempts >= max_realignment_attempts) {
                     if(!align_message_printed) {
