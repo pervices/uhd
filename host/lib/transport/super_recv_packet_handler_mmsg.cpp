@@ -238,7 +238,7 @@ public:
                 packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
 
                 uint32_t packet_length = recv_manager->get_next_packet_length(ch);
-                printf("packet_length: %u\n");
+                printf("packet_length: %u\n", packet_length);
                 if(packet_length < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
