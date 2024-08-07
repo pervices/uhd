@@ -195,9 +195,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
-        // Load fence to ensure packets_to_recv is properly updated (
-        _mm_lfence();
-
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
@@ -208,7 +205,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Increment the counter for number of packets stored
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = r * packets_received * local_flush_complete[ch];
+        // Set num_packets_stored to the number of packets recieved if any were received or the current value if no packets were requested
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received * local_flush_complete[ch]) | (*self->access_num_packets_stored(ch, ch_offset, b[ch]) * !packets_to_recv) ;
+
+        // Good here
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
