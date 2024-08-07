@@ -92,8 +92,8 @@ private:
     }
 
     // Gets a pointer to specific mmsghdr buffer
-    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (mmsghdr*) (access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size);
+    inline __attribute__((always_inline)) uint8_t* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
+        return access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size;
     }
 
     // Gets a pointer to specific mmsghdr
