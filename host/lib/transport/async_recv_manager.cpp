@@ -192,7 +192,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     uint_fast32_t ch = 0;
 
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
-    uint_fast32_t packets_to_recv = self->packets_per_buffer;
+    uint_fast32_t packets_to_recv = 1;//self->packets_per_buffer;
 
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
@@ -201,10 +201,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
         bool packets_received = r > 0;
-
-        // if(packets_received) {
-        //     std::cout << "r: " << r << std::endl;
-        // }
 
         // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
         _mm_sfence();
@@ -227,7 +223,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * 1;//self->packets_per_buffer;
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
