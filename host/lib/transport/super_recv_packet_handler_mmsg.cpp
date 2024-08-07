@@ -220,7 +220,6 @@ public:
 
         // Main receive loop
         while(samples_received < nsamps_per_buff && (recv_start_time + timeout > get_system_time() || first_loop)) [[likely]] {
-            sleep(20);
             first_loop = false;
 
             bool all_ready = true;
