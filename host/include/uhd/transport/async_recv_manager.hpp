@@ -91,8 +91,17 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     // p: packet number
-    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset,size_t b, size_t p) {
+    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
         return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + padded_int_fast64_t_size + (p * sizeof(mmsghdr)));
+    }
+
+    // Gets a pointer to iovecs for a buffer
+    // ch: channel
+    // ch_offset: channel offset (the first channel of the thread)
+    // b: buffer
+    // p: packet number
+    inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
+        return (iovec*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {

@@ -164,7 +164,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
         for(uint_fast32_t b = 0; b < self->NUM_BUFFERS; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
-            struct iovec* iovecs =(iovec*) self->access_mmsghdr(ch, ch_offset, b, self->packets_per_buffer);
+            struct iovec* iovecs = self->access_iovec_buffer(ch, ch_offset, b);
             for(uint_fast32_t p = 0; p < self->packets_per_buffer; p++) {
 
                 uint_fast32_t header_iovec = 2 * p;
