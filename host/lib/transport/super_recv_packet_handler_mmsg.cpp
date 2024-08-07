@@ -242,6 +242,8 @@ public:
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
 
+                printf("packet_hdrs[ch]: %p\n", packet_hdrs[ch]);
+
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
                 vita_md[ch].num_packet_words32 = (packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
 

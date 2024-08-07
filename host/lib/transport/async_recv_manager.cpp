@@ -173,6 +173,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
                 // Point iovecs to the location to store the vita header
                 iovecs[header_iovec].iov_base = (void*) self->access_vita_hdr(ch, ch_offset, b, p);
                 iovecs[header_iovec].iov_len = self->_header_size;
+                printf("iovecs[%lu].iov_base: %p\n", header_iovec, iovecs[header_iovec].iov_base);
 
                 // Points iovecs to the corresponding point in the buffers
                 iovecs[data_iovec].iov_base = (void*) self->access_packet_data(ch, ch_offset, b, p);
@@ -226,7 +227,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        // packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
