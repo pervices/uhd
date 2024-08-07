@@ -27,7 +27,7 @@ packet_size(header_size + max_sample_bytes_per_packet),
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
 packets_per_buffer(page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
 _num_packets_stored_mmmsghdr_iovec_subbuffer_size(padded_int_fast64_t_size + (uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
-_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_header_size * packets_per_buffer / (double)page_size)),
+_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_header_size * packets_per_buffer / (double)page_size) * page_size),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
 // padded_int_fast64_t_size is for the count for number of packets stored
@@ -183,7 +183,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
                 self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
-                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iovlen = 1;
+                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
             }
         }
     }
