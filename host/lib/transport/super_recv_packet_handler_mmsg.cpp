@@ -234,6 +234,7 @@ public:
                     all_ready = false;
                     break;
                 }
+                std::cout << "*access_num_packets_stored(0, 0, 0): " << *recv_manager->access_num_packets_stored(0, 0, 0) << std::endl;
 
                 packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
 

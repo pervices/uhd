@@ -118,6 +118,8 @@ private:
         return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
     }
 
+    // TMP public for debugging
+public:
     // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
@@ -125,6 +127,7 @@ private:
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size));
     }
+private:
 
     // The buffer currently being used by the consumer thread
     size_t* active_consumer_buffer;
