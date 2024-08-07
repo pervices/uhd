@@ -56,9 +56,6 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
-        for(size_t b = 0; b < NUM_BUFFERS; b++) {
-            *access_num_packets_stored(ch, 0, b) = 0;
-        }
     }
 
     // Check if memory allocation failed
@@ -215,10 +212,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
-        if(b[ch] == 0 && packets_received) {
-            printf("Buffer wrapped around\n");
-        }
-
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
@@ -231,14 +224,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
         packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
-
-        if(!packets_to_recv) {
-            printf("ch: %lu\n", ch);
-            printf("ch_offset: %lu\n", ch_offset);
-            printf("b[ch]: %lu\n", b[ch]);
-            printf("*self->access_num_packets_stored(ch, ch_offset, b[ch]): %li\n", *self->access_num_packets_stored(ch, ch_offset, b[ch]));
-            break;
-        }
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
