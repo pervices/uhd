@@ -230,7 +230,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
         if(packets_received) {
-            printf("received: %i\n", packets_received);
+            printf("received: %i\n", r);
             _mm_sfence();
         }
     }
