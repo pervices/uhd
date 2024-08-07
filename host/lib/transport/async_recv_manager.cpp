@@ -194,6 +194,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast8_t main_thread_slow = 0;
 
+    bool once = false;
+
     while(!self->stop_flag) [[likely]] {
         main_thread_slow = main_thread_slow || !packets_to_recv;
 
@@ -203,6 +205,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
         bool packets_received = r > 0;
+
+        if(packets_received && !once) {
+            printf("length: %u\n", self->access_mmsghdr(ch, ch_offset, b[ch], 0)->msg_len);
+            once = true;
+        }
 
         // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
         _mm_sfence();
