@@ -210,10 +210,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = r * packets_received * local_flush_complete[ch];
 
-        if(packets_received) {
-            // mprotect(self->_combined_buffer, self->_combined_buffer_size, PROT_READ);
-            break;
-        }
+        // Good here
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
@@ -233,6 +230,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
+        if(packets_received) {
+            break;
+        }
     }
 
     if(error_code) {
