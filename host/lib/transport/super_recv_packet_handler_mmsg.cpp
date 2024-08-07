@@ -220,7 +220,7 @@ public:
 
         // Main receive loop
         while(samples_received < nsamps_per_buff && (recv_start_time + timeout > get_system_time() || first_loop)) [[likely]] {
-            sleep(15);
+            sleep(20);
             first_loop = false;
 
             bool all_ready = true;
@@ -236,8 +236,9 @@ public:
                     break;
                 }
                 std::cout << "10 access_num_packets_stored(0, 0, 0): " << recv_manager->access_num_packets_stored(0, 0, 0) << std::endl;
-                std::cout << "10 *access_num_packets_stored(0, 0, 0): " << *recv_manager->access_num_packets_stored(0, 0, 0) << std::endl;
-                if(*recv_manager->access_num_packets_stored(0, 0, 0)) {
+                printf("10 *access_num_packets_stored(0, 0, 0): %li\n", *recv_manager->access_num_packets_stored(0, 0, 0));
+                if(*recv_manager->access_num_packets_stored(0, 0, 0) == 0) {
+                    printf("11 *access_num_packets_stored(0, 0, 0): %li\n", *recv_manager->access_num_packets_stored(0, 0, 0));
                     throw std::runtime_error("Buffer empty immediatly after saying it is not");
                 }
 
