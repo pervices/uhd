@@ -192,7 +192,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
+    uint_fast8_t main_thread_slow = 0;
+
     while(!self->stop_flag) [[likely]] {
+        main_thread_slow = main_thread_slow || !packets_to_recv;
+
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
         // Receives any packets already in the buffer
@@ -207,8 +211,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
         // Set num_packets_stored to the number of packets recieved if any were received or the current value if no packets were requested
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received * local_flush_complete[ch]) | (*self->access_num_packets_stored(ch, ch_offset, b[ch]) * !packets_to_recv) ;
-
-        // Good here
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
@@ -230,9 +232,13 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
     }
 
+    // TODO:downgrade to debug one stable
+    if(main_thread_slow) {
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows";
+    }
+
     if(error_code) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(error_code));
-        self->stop_flag = true;
     }
 }
 
