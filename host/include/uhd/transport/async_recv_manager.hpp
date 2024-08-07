@@ -63,13 +63,23 @@ private:
     // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
     uint8_t* const _combined_buffer;
 
+    // Get's a specific channel's combined buffers
+    inline __attribute__((always_inline)) uint8_t* access_ch_combined_buffers(size_t ch, size_t ch_offset) {
+        return _combined_buffer + ((ch + ch_offset) * NUM_BUFFERS * _combined_buffer_size);
+    }
+
+    // Get's a specific combined buffer belonging to a specific channel
+    inline __attribute__((always_inline)) uint8_t* access_ch_combined_buffer(size_t ch, size_t ch_offset, size_t b) {
+        return access_ch_combined_buffers(ch, ch_offset) + (b * _combined_buffer_size);
+    }
+
     // Pointer to the start of where packet samples are stored in the buffer
     // Gets a pointer a packet buffer
     // ch: channel
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
+        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
     }
 
     // Pointer to buffers where a specific packet's samples are stored
@@ -78,12 +88,12 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + (p * packet_size);
+        return access_packet_data_buffer(ch, ch_offset, b) + (p * packet_size);
     }
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + padded_int_fast64_t_size);
+        return (mmsghdr*) (access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size);
     }
 
     // Gets a pointer to specific mmsghdr
@@ -92,7 +102,7 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return (mmsghdr*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + padded_int_fast64_t_size + (p * sizeof(mmsghdr)));
+        return (mmsghdr*) (access_mmsghdr_buffer(ch, ch_offset, b) + (p * sizeof(mmsghdr)));
     }
 
     // Gets a pointer to iovecs for a buffer
@@ -101,11 +111,11 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (iovec*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
+        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + (p * _header_size);
+        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + (p * _header_size);
     }
 
     // Buffer to store flags to indicate sockets have been flushed
@@ -118,16 +128,13 @@ private:
         return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
     }
 
-    // TMP public for debugging
-public:
     // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) (_combined_buffer + ((ch + ch_offset) * b * _combined_buffer_size));
+        return (int_fast64_t*) access_ch_combined_buffer(ch, ch_offset, b);
     }
-private:
 
     // The buffer currently being used by the consumer thread
     size_t* active_consumer_buffer;
