@@ -26,7 +26,7 @@ packet_size(header_size + max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
 packets_per_buffer(page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
-_num_packets_stored_mmmsghdr_iovec_subbuffer_size(padded_int_fast64_t_size + (uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
+_num_packets_stored_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((padded_int_fast64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
 _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_header_size * packets_per_buffer / (double)page_size) * page_size),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
@@ -196,7 +196,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
-        // Load fence to ensure packets_to_recv is properly updated
+        // Load fence to ensure packets_to_recv is properly updated (
         _mm_lfence();
 
         // Receives any packets already in the buffer
