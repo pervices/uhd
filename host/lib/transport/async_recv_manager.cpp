@@ -213,7 +213,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = r * packets_received * local_flush_complete[ch];
 
         if(packets_received) {
-            mprotect(self->_combined_buffer, self->_combined_buffer_size, PROT_READ);
+            // mprotect(self->_combined_buffer, self->_combined_buffer_size, PROT_READ);
             break;
         }
 
