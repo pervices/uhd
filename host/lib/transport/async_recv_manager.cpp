@@ -196,6 +196,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     while(!self->stop_flag) [[likely]] {
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
+        // Load fence to ensure packets_to_recv is properly updated
+        _mm_lfence();
+
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
