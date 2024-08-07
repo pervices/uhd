@@ -243,6 +243,7 @@ public:
                 }
 
                 printf("packet_hdrs[ch]: %p\n", packet_hdrs[ch]);
+                printf("packet_length: %u\n", packet_length);
 
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
                 vita_md[ch].num_packet_words32 = (packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
