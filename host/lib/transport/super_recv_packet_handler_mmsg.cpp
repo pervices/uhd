@@ -234,10 +234,6 @@ public:
                     all_ready = false;
                     break;
                 }
-                if(*recv_manager->access_num_packets_stored(0, 0, 0) == 0) {
-                    printf("11 *access_num_packets_stored(0, 0, 0): %li\n", *recv_manager->access_num_packets_stored(0, 0, 0));
-                    throw std::runtime_error("Buffer empty immediatly after saying it is not");
-                }
 
                 packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
 
