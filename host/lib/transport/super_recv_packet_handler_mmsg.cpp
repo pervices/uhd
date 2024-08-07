@@ -234,8 +234,6 @@ public:
                     all_ready = false;
                     break;
                 }
-                std::cout << "10 access_num_packets_stored(0, 0, 0): " << recv_manager->access_num_packets_stored(0, 0, 0) << std::endl;
-                printf("10 *access_num_packets_stored(0, 0, 0): %li\n", *recv_manager->access_num_packets_stored(0, 0, 0));
                 if(*recv_manager->access_num_packets_stored(0, 0, 0) == 0) {
                     printf("11 *access_num_packets_stored(0, 0, 0): %li\n", *recv_manager->access_num_packets_stored(0, 0, 0));
                     throw std::runtime_error("Buffer empty immediatly after saying it is not");
