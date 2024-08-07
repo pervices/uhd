@@ -183,7 +183,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
                 self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
-                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
+                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iovlen = 1;
             }
         }
     }
