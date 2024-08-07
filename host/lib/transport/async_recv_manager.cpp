@@ -43,8 +43,6 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         throw assertion_error("Unsupported number of channels");
     }
 
-    std::cout << "packets_per_buffer: " << packets_per_buffer << std::endl;
-
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
     active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)cache_line_size) * cache_line_size;
@@ -247,7 +245,6 @@ uint8_t* async_recv_manager::get_next_packet_vita_header(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     uint8_t* addr = access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
     if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
-        printf("1 *access_num_packets_stored(%lu, 0, %lu): %li\n", ch, b, *access_num_packets_stored(ch, 0, b));
         if(*access_num_packets_stored(ch, 0, b) == 0) {
             throw std::runtime_error("Impossible comparison result\n");
         }
@@ -275,7 +272,6 @@ void async_recv_manager::advance_packet(const size_t ch) {
     // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
     int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
     if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
-        printf("50 *num_packets_stored_addr: %li\n", *num_packets_stored_addr);
         if(*num_packets_stored_addr == 0) {
             throw std::runtime_error("Advancing buffer despite no samples in it");
         }
