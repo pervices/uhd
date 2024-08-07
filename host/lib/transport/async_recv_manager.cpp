@@ -269,6 +269,9 @@ void async_recv_manager::advance_packet(const size_t ch) {
     if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
         printf("num_packets_consumed[ch]: %lu\n", num_packets_consumed[ch]);
         printf("*num_packets_stored_addr: %li\n", *num_packets_stored_addr);
+        if(*num_packets_stored_addr == 0) {
+            throw std::runtime_error("Advancing buffer despite no samples in it");
+        }
 
         // Fence to ensure all actions related to the buffer are complete before marking it as clear
         _mm_sfence();
