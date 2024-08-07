@@ -262,6 +262,7 @@ uint32_t async_recv_manager::get_next_packet_length(const size_t ch) {
 }
 
 void async_recv_manager::advance_packet(const size_t ch) {
+    printf("T1\n");
 
     size_t b = active_consumer_buffer[ch];
     num_packets_consumed[ch]++;
