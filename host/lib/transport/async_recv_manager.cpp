@@ -242,7 +242,7 @@ uint8_t* async_recv_manager::get_next_packet_vita_header(const size_t ch) {
     size_t b = active_consumer_buffer[ch];
     uint8_t* addr = access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
     if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
-        printf("*access_num_packets_stored(ch, 0, b): %li\n", *access_num_packets_stored(ch, 0, b));
+        printf("*access_num_packets_stored(%lu, 0, %lu): %li\n", ch, b, *access_num_packets_stored(ch, 0, b));
         printf("num_packets_consumed[ch]: %lu\n", num_packets_consumed[ch]);
         return addr;
     }
