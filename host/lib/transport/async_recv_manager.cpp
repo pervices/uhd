@@ -230,6 +230,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         if(packets_received) {
             printf("r: %i\n", r);
+            uint32_t* header = (uint32_t*) self->access_vita_hdr(0, 0, 0, 0);
+            printf("*header: %x\n", *header);
             break;
         }
     }
