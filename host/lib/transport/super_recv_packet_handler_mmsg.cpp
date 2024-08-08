@@ -247,9 +247,12 @@ public:
             size_t ch = 0;
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 packet_hdrs[ch] = recv_manager->get_next_packet_vita_header(ch);
+                // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
                 packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
+                packet_length[ch] = recv_manager->get_next_packet_length(ch);
                 // Increment the channel count when packet_hdrs[ch] is not null (!! turns any non 0 value into 1);
                 ch += !!packet_hdrs[ch];
+                _mm_pause();
                 // TODO: see if _mm_pause helps
             }
 
@@ -269,7 +272,6 @@ public:
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                packet_length[ch] = recv_manager->get_next_packet_length(ch);
                 if(packet_length[ch] < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
