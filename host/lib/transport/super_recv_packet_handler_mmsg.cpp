@@ -68,7 +68,10 @@ public:
      * \param device_total_rx_channels Total number of rx channels on the device, used to determine how many threads to use for receiving
      */
     recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels)
-    : recv_packet_handler(max_sample_bytes_per_packet + header_size), _NUM_CHANNELS(recv_sockets.size()), _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
+    : recv_packet_handler(max_sample_bytes_per_packet + header_size),
+    page_size(getpagesize()),
+    _NUM_CHANNELS(recv_sockets.size()),
+    _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _recv_sockets(recv_sockets),
@@ -167,6 +170,16 @@ public:
         // Clears the metadata struct
         // Reponsible for setting error_code to none, has_time_spec to false and eob to false
         metadata.reset();
+
+        // TMP check to verify other changes worked
+        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+            if((size_t)buffs[ch] % page_size != 0) {
+                throw uhd::runtime_error( "Buffers not aligned to page");
+            }
+            if((nsamps_per_buff * 4) % (page_size * 2) != 0) {
+                throw uhd::runtime_error( "Samples request not a whole number of packets");
+            }
+        }
 
         // Metadata of Vita packets
         std::vector<uint8_t*> packet_hdrs(_NUM_CHANNELS);
@@ -391,6 +404,7 @@ public:
     }
 
 protected:
+    const size_t page_size;
     size_t _NUM_CHANNELS;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
     size_t _BYTES_PER_SAMPLE;
