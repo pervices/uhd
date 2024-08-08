@@ -37,6 +37,8 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
+#include <immintrin.h>
+
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
@@ -367,6 +369,13 @@ public:
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
                 // convert_samples(buffs[ch], packet_samples[ch], samples_to_consume);
+                if(samples_to_consume % 512 != 0) {
+                   throw std::runtime_error("Incorrect samples per packet");
+                }
+                // TODO: experiment with _mm512_stream_si512 foolowed by sfence
+                for(size_t n = 0; n * 512 < samples_to_consume; n++) {
+                    _mm512_store_si512( (((uint8_t*) buffs[ch]) + (n * 512)), _mm512_load_si512(packet_samples[ch] + (n *512)));
+                }
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
