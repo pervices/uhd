@@ -185,12 +185,21 @@ public:
             }
         }
 
-        // Metadata of Vita packets
-        std::vector<uint8_t*> packet_hdrs(_NUM_CHANNELS);
-        std::vector<uint8_t*> packet_samples(_NUM_CHANNELS);
-        std::vector<uint_fast32_t> packet_length(_NUM_CHANNELS);
+        // Vector of variables used to improve cache locality
+        struct packet_info{
+            // Pointer to Vita header of a packet
+            uint8_t* packet_hdr;
+            // Pointer to the start of samples in the packet
+            uint8_t* packet_samples;
+            // Length of the packet received (usually does not include the trailers)
+            uint_fast32_t packet_length;
+        };
+
+        std::vector<packet_info> packet_infos(_NUM_CHANNELS);
+
+        // Place to store metadata of Vita packets
+        // Not included in packet_info becuase packet_info's memory are accessed togther within a channel, vita_md is better to have it be adjacent for different channels
         std::vector<vrt::if_packet_info_t> vita_md(_NUM_CHANNELS);
-        std::vector<uint64_t> packet_tsfs(_NUM_CHANNELS);
 
         // Sequence number and timestamp on the latest packet
         // Should be equal for all packets, used during realignment
@@ -211,7 +220,6 @@ public:
                 // Move extra cached samples to the start of the buffer
                 _num_cached_samples[ch] -= cached_samples_to_use;
                 memmove(_sample_cache[ch].data(), _sample_cache[ch].data() + (cached_samples_to_use * _BYTES_PER_SAMPLE), _num_cached_samples[ch] * _BYTES_PER_SAMPLE);
-
 
                 // Record that samples have been received, setting this for each is fine since they should be equal at this time
                 samples_received = cached_samples_to_use;
@@ -246,14 +254,15 @@ public:
 
             size_t ch = 0;
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
-                packet_hdrs[ch] = recv_manager->get_next_packet_vita_header(ch);
+                packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
                 // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
-                packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
-                packet_length[ch] = recv_manager->get_next_packet_length(ch);
-                // Increment the channel count when packet_hdrs[ch] is not null (!! turns any non 0 value into 1);
-                ch += !!packet_hdrs[ch];
+                packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
+                packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
+                // Increment the channel count when packet_infos[ch].packet_hdr is not null (!! turns any non 0 value into 1);
+                ch += !!packet_infos[ch].packet_hdr;
+                // Lets CPU know this is in a spin loop
+                // Helps performance so the branch predictor doesn't get killed by the loop
                 _mm_pause();
-                // TODO: see if _mm_pause helps
             }
 
             // Check if timeout occured
@@ -272,15 +281,15 @@ public:
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                if(packet_length[ch] < _HEADER_SIZE) [[unlikely]] {
+                if(packet_infos[ch].packet_length < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
 
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (packet_length[ch] + _TRAILER_SIZE) / sizeof(uint32_t);
+                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
 
                 // Extract Vita metadata
-                if_hdr_unpack((uint32_t*) packet_hdrs[ch], vita_md[ch]);
+                if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr, vita_md[ch]);
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
@@ -288,14 +297,13 @@ public:
 
                 // Finds and records the sequence number and timestamp of whichever channel's next packet is last
                 // Used for realignment, normally they will be the same for all packets
-                packet_tsfs[ch] = vita_md[ch].tsf;
-                if(latest_packet < packet_tsfs[ch]) {
-                    latest_packet = packet_tsfs[ch];
+                if(latest_packet < vita_md[ch].tsf) {
+                    latest_packet = vita_md[ch].tsf;
                     latest_sequence_number = vita_md[ch].packet_count;
                 }
 
                 // Set the flag for realignment required if there is a mismatch in timestamps between packets
-                realignment_required = packet_tsfs[ch] != packet_tsfs[0] || realignment_required;
+                realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
 
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
@@ -340,7 +348,7 @@ public:
                     metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
                 } else {
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                        if(packet_tsfs[ch] != latest_packet) {
+                        if(vita_md[ch].tsf != latest_packet) {
                             recv_manager->advance_packet(ch);
                         }
                     }
@@ -386,20 +394,20 @@ public:
                 // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                // convert_samples(buffs[ch], packet_samples[ch], samples_to_consume);
+                // convert_samples(buffs[ch], packet_infos[ch].packet_samples, samples_to_consume);
                 if(samples_to_consume % 256 != 0) [[unlikely]] {
                    throw std::runtime_error("Incorrect samples per packet");
                 }
                 // Stream required sfence after which is called during advance packet
                 for(size_t n = 0; n * 256 < samples_to_consume; n++) {
-                    __m256i from = _mm256_stream_load_si256((const __m256i*) (packet_samples[ch] + (n *256)));
+                    __m256i from = _mm256_stream_load_si256((const __m256i*) (packet_infos[ch].packet_samples + (n *256)));
                     _mm256_stream_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), from);
                 }
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache) [[unlikely]] {
                     // Copy extra samples from the packet to the cache
-                    memcpy(_sample_cache[ch].data(), packet_samples[ch] + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
+                    memcpy(_sample_cache[ch].data(), packet_infos[ch].packet_samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
                     eob_cached = metadata.end_of_burst;
                     metadata.end_of_burst = false;
                 }

@@ -203,7 +203,7 @@ public:
      * @param ch
      * @return returns msg_len of the mmsghdr corresponding to the next packet
      */
-    inline __attribute__((always_inline)) uint32_t get_next_packet_length(const size_t ch) {
+    inline __attribute__((always_inline)) uint_fast32_t get_next_packet_length(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
         return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
     }
