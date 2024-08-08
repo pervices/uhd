@@ -177,6 +177,8 @@ public:
                 throw uhd::runtime_error( "Buffers not aligned to page");
             }
             if((nsamps_per_buff * 4) % (page_size * 2) != 0) {
+                std::cout << "nsamps_per_buff: " << nsamps_per_buff << std::endl;
+                std::cout << "page_size: " << page_size << std::endl;
                 throw uhd::runtime_error( "Samples request not a whole number of packets");
             }
         }
