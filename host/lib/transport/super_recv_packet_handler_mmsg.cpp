@@ -372,10 +372,12 @@ public:
                 if(samples_to_consume % 256 != 0) {
                    throw std::runtime_error("Incorrect samples per packet");
                 }
-                // TODO: experiment with _mm512_stream_si512 foolowed by sfence
+                printf("T1\n");
+                // TODO: experiment with _mm512_stream_si512 followed by sfence
                 for(size_t n = 0; n * 256 < samples_to_consume; n++) {
                     _mm256_store_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), _mm256_load_si256((const __m256i*) (packet_samples[ch] + (n *256))));
                 }
+                printf("T2\n");
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
