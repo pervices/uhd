@@ -373,7 +373,7 @@ public:
                    throw std::runtime_error("Incorrect samples per packet");
                 }
                 // Stream required sfence after which is called during advance packet
-                for(size_t n = 0; n * 256 < samples_to_consume; n++) {
+                for(size_t n = 0; n * 256 < 1 /*samples_to_consume*/; n++) {
                     __m256i from = _mm256_stream_load_si256((const __m256i*) (packet_samples[ch] + (n *256)));
                     _mm256_stream_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), from);
                 }
