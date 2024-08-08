@@ -57,14 +57,15 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
+        for(size_t b = 0; b < NUM_BUFFERS; b++) {
+            madvise(access_mmsghdr_buffer(ch, 0, b), _vitahdr_subbuffer_size, MADV_WILLNEED);
+        }
     }
 
     // Check if memory allocation failed
     if(_combined_buffer == nullptr) {
         throw uhd::environment_error( "aligned_alloc failed for internal buffers" );
     }
-
-    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
