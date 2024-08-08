@@ -24,14 +24,14 @@ padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (doubl
 padded_int_fast64_t_size(std::ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
 _header_size(header_size),
 _padded_header_size(std::ceil( header_size / (double)cache_line_size ) * cache_line_size),
-packet_size(header_size + max_sample_bytes_per_packet),
+_packet_data_size(max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
 packets_per_buffer(page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
 _num_packets_stored_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((padded_int_fast64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
 _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * packets_per_buffer / (double)page_size) * page_size),
 // Size of each packet buffer + padding to be a whole number of pages
-_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * packet_size) / (double)page_size) * page_size),
+_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * _packet_data_size) / (double)page_size) * page_size),
 // padded_int_fast64_t_size is for the count for number of packets stored
 _combined_buffer_size(_num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
@@ -181,7 +181,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
                 // Points iovecs to the corresponding point in the buffers
                 iovecs[data_iovec].iov_base = (void*) self->access_packet_data(ch, ch_offset, b, p);
-                iovecs[data_iovec].iov_len = self->packet_size - self->_header_size;
+                iovecs[data_iovec].iov_len = self->_packet_data_size;
 
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to

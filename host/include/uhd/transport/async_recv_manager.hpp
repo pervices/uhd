@@ -44,11 +44,12 @@ private:
     // Vita header size
     const uint_fast32_t _header_size;
 
-    // Size of VIta header + padding to be on it's own cache line
+    // TODO: see if padding the vita header is actually usefull
+    // Size of Vita header + padding to be on it's own cache line
     const uint_fast32_t _padded_header_size;
 
-    // Size of the packets to be received not including the trailer
-    const uint_fast32_t packet_size;
+    // Size of the sample portion of Vita packets
+    const uint_fast32_t _packet_data_size;
 
     // Size of the buffer used to store packets
     const uint_fast32_t packets_per_buffer;
@@ -94,13 +95,13 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        uint8_t* tmp = access_packet_data_buffer(ch, ch_offset, b) + (p * packet_size);
+        uint8_t* tmp = access_packet_data_buffer(ch, ch_offset, b) + (p * _packet_data_size);
         if((size_t) tmp % 4096 != 0) {
             printf("b: %lu\n", b);
             printf("p: %lu\n", p);
             throw std::runtime_error("Packet data not aligned\n");
         }
-        return access_packet_data_buffer(ch, ch_offset, b) + (p * packet_size);
+        return access_packet_data_buffer(ch, ch_offset, b) + (p * _packet_data_size);
     }
 
     // Gets a pointer to specific mmsghdr buffer
