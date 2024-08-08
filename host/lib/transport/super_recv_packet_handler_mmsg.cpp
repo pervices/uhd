@@ -188,6 +188,7 @@ public:
         // Metadata of Vita packets
         std::vector<uint8_t*> packet_hdrs(_NUM_CHANNELS);
         std::vector<uint8_t*> packet_samples(_NUM_CHANNELS);
+        std::vector<uint_fast32_t> packet_length(_NUM_CHANNELS);
         std::vector<vrt::if_packet_info_t> vita_md(_NUM_CHANNELS);
         std::vector<uint64_t> packet_tsfs(_NUM_CHANNELS);
 
@@ -236,31 +237,45 @@ public:
         uint_fast8_t first_loop = true;
 
         // Main receive loop
-        while(samples_received < nsamps_per_buff && (recv_start_time + timeout > get_system_time() || first_loop)) [[likely]] {
+        while(samples_received < (nsamps_per_buff || first_loop)) [[likely]] {
             first_loop = false;
 
             bool all_ready = true;
             bool underflow_detected = false;
             bool realignment_required = false;
 
-            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+            size_t ch = 0;
+            while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 packet_hdrs[ch] = recv_manager->get_next_packet_vita_header(ch);
-
-                // The case where this is true is more important, even though this is very likely
-                if(packet_hdrs[ch] == nullptr) [[unlikely]] {
-                    all_ready = false;
-                    break;
-                }
-
                 packet_samples[ch] = recv_manager->get_next_packet_samples(ch);
+                // Increment the channel count when packet_hdrs[ch] is not null (!! turns any non 0 value into 1);
+                ch += !!packet_hdrs[ch];
+                // TODO: see if _mm_pause helps
+            }
 
-                uint32_t packet_length = recv_manager->get_next_packet_length(ch);
-                if(packet_length < _HEADER_SIZE) [[unlikely]] {
+            // Check if timeout occured
+            // TODO: refactor to be branchless
+            if(ch < _NUM_CHANNELS) [[unlikely]] {
+                if(samples_received) {
+                    // Does not set timeout error when
+                    return samples_received;
+                } else {
+                    // Set timeout if no other error occured and no samples received
+                    if(metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
+                        metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+                    }
+                    return 0;
+                }
+            }
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                packet_length[ch] = recv_manager->get_next_packet_length(ch);
+                if(packet_length[ch] < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
 
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
+                vita_md[ch].num_packet_words32 = (packet_length[ch] + _TRAILER_SIZE) / sizeof(uint32_t);
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) packet_hdrs[ch], vita_md[ch]);
@@ -285,6 +300,7 @@ public:
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     underflow_detected = true;
                 }
+
             }
 
             // Not all channels have data ready
@@ -400,11 +416,6 @@ public:
                 break;
             }
 
-        }
-
-        // Return a timeout error only if no samples were received
-        if(samples_received == 0 && metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) [[unlikely]] {
-            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
         }
 
         return samples_received;
