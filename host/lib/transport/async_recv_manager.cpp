@@ -39,6 +39,8 @@ _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _co
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size))
 {
+    printf("_num_packets_stored_mmmsghdr_iovec_subbuffer_size: %lx\n", _num_packets_stored_mmmsghdr_iovec_subbuffer_size);
+    printf("_vitahdr_subbuffer_size: %lx\n", _vitahdr_subbuffer_size);
     printf("_combined_buffer_size: %lx\n", _combined_buffer_size);
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
