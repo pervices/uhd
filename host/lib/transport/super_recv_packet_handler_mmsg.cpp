@@ -374,7 +374,7 @@ public:
                 }
                 // TODO: experiment with _mm512_stream_si512 followed by sfence
                 for(size_t n = 0; n * 256 < samples_to_consume; n++) {
-                    __m256i from = _mm256_load_si256((const __m256i*) (packet_samples[ch] + (n *256)));
+                    __m256i from = _mm256_stream_load_si256((const __m256i*) (packet_samples[ch] + (n *256)));
                     _mm256_stream_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), from);
                 }
 

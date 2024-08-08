@@ -19,7 +19,7 @@ enable_testing()
 
 set(CMAKE_C_FLAGS "-fPIC")
 # TODO: only enable mavx where applicable
-set(CMAKE_CXX_FLAGS "-fPIC -mavx")
+set(CMAKE_CXX_FLAGS "-fPIC -mavx2")
 
 #make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
