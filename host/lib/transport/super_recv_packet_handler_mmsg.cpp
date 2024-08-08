@@ -369,7 +369,7 @@ public:
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
                 // convert_samples(buffs[ch], packet_samples[ch], samples_to_consume);
-                if(samples_to_consume % 256 != 0) {
+                if(samples_to_consume % 256 != 0) [[unlikely]] {
                    throw std::runtime_error("Incorrect samples per packet");
                 }
                 // TODO: experiment with _mm512_stream_si512 followed by sfence
@@ -378,7 +378,8 @@ public:
                     _mm256_stream_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), from);
                 }
 
-                if(samples_to_cache) {
+                // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
+                if(samples_to_cache) [[unlikely]] {
                     // Copy extra samples from the packet to the cache
                     memcpy(_sample_cache[ch].data(), packet_samples[ch] + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
                     eob_cached = metadata.end_of_burst;
