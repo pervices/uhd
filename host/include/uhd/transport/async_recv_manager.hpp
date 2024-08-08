@@ -7,6 +7,7 @@
 #include <thread>
 #include <cmath>
 #include <iostream>
+#include <immintrin.h>
 
 namespace uhd { namespace transport {
 
@@ -175,14 +176,26 @@ public:
      * @param ch
      * @return returns a pointer to the next packet's vita header, returns nullptr if the next packet isn't ready yet
      */
-    uint8_t* get_next_packet_vita_header(const size_t ch);
+    inline __attribute__((always_inline)) uint8_t* get_next_packet_vita_header(const size_t ch) {
+        size_t b = active_consumer_buffer[ch];
+        uint8_t* addr = access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
+        if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
+            return addr;
+        }
+        else {
+            return nullptr;
+        }
+    }
 
     /**
      * Gets the location of the next packet's samples
      * @param ch
      * @return returns a pointer to the next packet if one is available, make sure it is ready by called get_next_packet_vita_header first
      */
-    uint8_t* get_next_packet_samples(const size_t ch);
+    inline __attribute__((always_inline)) uint8_t* get_next_packet_samples(const size_t ch) {
+        size_t b = active_consumer_buffer[ch];
+        return access_packet_data(ch, 0, b, num_packets_consumed[ch]);
+    }
 
     /**
      * Gets the msg_len of the mmsghdr for the next packet.
@@ -190,13 +203,37 @@ public:
      * @param ch
      * @return returns msg_len of the mmsghdr corresponding to the next packet
      */
-    uint32_t get_next_packet_length(const size_t ch);
+    inline __attribute__((always_inline)) uint32_t get_next_packet_length(const size_t ch) {
+        size_t b = active_consumer_buffer[ch];
+        return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
+    }
 
     /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
      */
-    void advance_packet(const size_t ch);
+    inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
+        size_t b = active_consumer_buffer[ch];
+        num_packets_consumed[ch]++;
+        // Move to the next buffer once all packets in this buffer are consumed
+        // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
+        int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
+        if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
+
+            // Fence to ensure all actions related to the buffer are complete before marking it as clear
+            _mm_sfence();
+
+            // Marks this buffer as clear
+            *num_packets_stored_addr = 0;
+
+            // Moves to the next buffer
+            // & is to roll over the the first buffer once the limit is reached
+            active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & (NUM_BUFFERS -1);
+
+            // Resets count for number of samples consumed in the active buffer
+            num_packets_consumed[ch] = 0;
+        }
+    }
 
 
 private:
