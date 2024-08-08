@@ -372,7 +372,7 @@ public:
                 if(samples_to_consume % 256 != 0) [[unlikely]] {
                    throw std::runtime_error("Incorrect samples per packet");
                 }
-                // TODO: experiment with _mm512_stream_si512 followed by sfence
+                // Stream required sfence after which is called during advance packet
                 for(size_t n = 0; n * 256 < samples_to_consume; n++) {
                     __m256i from = _mm256_stream_load_si256((const __m256i*) (packet_samples[ch] + (n *256)));
                     _mm256_stream_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), from);
@@ -406,9 +406,6 @@ public:
         if(samples_received == 0 && metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) [[unlikely]] {
             metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
         }
-
-        // Frence required because certain SIMD instructions ignore cache coherency, this restores it
-        _mm_sfence();
 
         return samples_received;
     }
