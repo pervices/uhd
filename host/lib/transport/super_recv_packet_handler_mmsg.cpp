@@ -369,12 +369,12 @@ public:
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
                 // convert_samples(buffs[ch], packet_samples[ch], samples_to_consume);
-                if(samples_to_consume % 512 != 0) {
+                if(samples_to_consume % 256 != 0) {
                    throw std::runtime_error("Incorrect samples per packet");
                 }
                 // TODO: experiment with _mm512_stream_si512 foolowed by sfence
-                for(size_t n = 0; n * 512 < samples_to_consume; n++) {
-                    _mm512_store_si512( (((uint8_t*) buffs[ch]) + (n * 512)), _mm512_load_si512(packet_samples[ch] + (n *512)));
+                for(size_t n = 0; n * 256 < samples_to_consume; n++) {
+                    _mm256_store_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), _mm256_load_si256((const __m256i*) (packet_samples[ch] + (n *256))));
                 }
 
                 if(samples_to_cache) {
