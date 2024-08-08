@@ -58,6 +58,7 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
+            // Hint to keep the mmsghdrs/iovecs in cache
             madvise(access_mmsghdr_buffer(ch, 0, b), _vitahdr_subbuffer_size, MADV_WILLNEED);
         }
     }
