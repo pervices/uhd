@@ -210,30 +210,31 @@ public:
 
         size_t samples_received = 0;
 
-        // Withdraw samples from the cache
-        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-            if(_num_cached_samples[ch]) {
-                size_t cached_samples_to_use = std::min(_num_cached_samples[ch], nsamps_per_buff);
-                // Copies samples from the cache to the user requested buffer
-                // convert_samples(buffs[ch], _sample_cache[ch].data(), cached_samples_to_use);
-
-                // Move extra cached samples to the start of the buffer
-                _num_cached_samples[ch] -= cached_samples_to_use;
-                memmove(_sample_cache[ch].data(), _sample_cache[ch].data() + (cached_samples_to_use * _BYTES_PER_SAMPLE), _num_cached_samples[ch] * _BYTES_PER_SAMPLE);
-
-                // Record that samples have been received, setting this for each is fine since they should be equal at this time
-                samples_received = cached_samples_to_use;
-
-                // Generate a timestamp to simulate what the timestamp of the cached samples based off of the timestamp in the last packet (other the previous synthetic timestamp
-                metadata.has_time_spec = true;
-                // Shift cached timestamp by number of samples withdrawn from the cache
-                tsf_cache+=cached_samples_to_use;
-                metadata.time_spec = time_spec_t::from_ticks(tsf_cache, _sample_rate);
-
-                // Set EOB flag if there is a cached eob flag and there are no extra samples in the buffer
-                metadata.end_of_burst = eob_cached && !_num_cached_samples[ch];
-            }
-        }
+        // TODO: replace with optimized version once fastest path is complete
+        // // Withdraw samples from the cache
+        // for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+        //     if(_num_cached_samples[ch]) {
+        //         size_t cached_samples_to_use = std::min(_num_cached_samples[ch], nsamps_per_buff);
+        //         // Copies samples from the cache to the user requested buffer
+        //         // convert_samples(buffs[ch], _sample_cache[ch].data(), cached_samples_to_use);
+        //
+        //         // Move extra cached samples to the start of the buffer
+        //         _num_cached_samples[ch] -= cached_samples_to_use;
+        //         memmove(_sample_cache[ch].data(), _sample_cache[ch].data() + (cached_samples_to_use * _BYTES_PER_SAMPLE), _num_cached_samples[ch] * _BYTES_PER_SAMPLE);
+        //
+        //         // Record that samples have been received, setting this for each is fine since they should be equal at this time
+        //         samples_received = cached_samples_to_use;
+        //
+        //         // Generate a timestamp to simulate what the timestamp of the cached samples based off of the timestamp in the last packet (other the previous synthetic timestamp
+        //         metadata.has_time_spec = true;
+        //         // Shift cached timestamp by number of samples withdrawn from the cache
+        //         tsf_cache+=cached_samples_to_use;
+        //         metadata.time_spec = time_spec_t::from_ticks(tsf_cache, _sample_rate);
+        //
+        //         // Set EOB flag if there is a cached eob flag and there are no extra samples in the buffer
+        //         metadata.end_of_burst = eob_cached && !_num_cached_samples[ch];
+        //     }
+        // }
 
         time_spec_t recv_start_time = get_system_time();
 
@@ -248,16 +249,18 @@ public:
         while(samples_received < (nsamps_per_buff || first_loop)) [[likely]] {
             first_loop = false;
 
-            bool all_ready = true;
             bool underflow_detected = false;
             bool realignment_required = false;
 
             size_t ch = 0;
+            // Fewest branches loop to wait for packets to be ready
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
                 // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
+                // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
+                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
                 // Increment the channel count when packet_infos[ch].packet_hdr is not null (!! turns any non 0 value into 1);
                 ch += !!packet_infos[ch].packet_hdr;
                 // Lets CPU know this is in a spin loop
@@ -285,9 +288,6 @@ public:
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
 
-                // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
-
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr, vita_md[ch]);
 
@@ -311,12 +311,6 @@ public:
                     underflow_detected = true;
                 }
 
-            }
-
-            // Not all channels have data ready
-            // Actually very likely, tagged as unlikely because we care about speed more when it is ready
-            if(!all_ready) [[unlikely]] {
-                continue;
             }
 
             // Advance (skip) packets that are behind the latest packet so that they catch up after a few iterations of this
