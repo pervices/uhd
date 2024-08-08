@@ -43,6 +43,11 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         throw assertion_error("Unsupported number of channels");
     }
 
+    // Check if memory allocation failed
+    if(_combined_buffer == nullptr) {
+        throw uhd::environment_error( "aligned_alloc failed for internal buffers" );
+    }
+
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
     active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)cache_line_size) * cache_line_size;
@@ -64,10 +69,8 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         }
     }
 
-    // Check if memory allocation failed
-    if(_combined_buffer == nullptr) {
-        throw uhd::environment_error( "aligned_alloc failed for internal buffers" );
-    }
+    // Disbale huge pages, huge pages could help but they are unpredictable would could caused a latency spike
+    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
