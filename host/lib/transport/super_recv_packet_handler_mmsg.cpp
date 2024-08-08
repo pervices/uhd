@@ -242,13 +242,8 @@ public:
         const size_t max_realignment_attempts = 100;
         size_t realignment_attempts = 0;
 
-        // Flag used to ignore the timeout on the first check for data
-        uint_fast8_t first_loop = true;
-
         // Main receive loop
-        while(samples_received < (nsamps_per_buff || first_loop)) [[likely]] {
-            first_loop = false;
-
+        while(samples_received < nsamps_per_buff) [[likely]] {
             bool underflow_detected = false;
             bool realignment_required = false;
 
