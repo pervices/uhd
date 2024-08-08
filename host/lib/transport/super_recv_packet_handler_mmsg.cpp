@@ -376,7 +376,6 @@ public:
                 printf("packet_samples[ch]: %p\n", packet_samples[ch]);
                 // TODO: experiment with _mm512_stream_si512 followed by sfence
                 for(size_t n = 0; n * 256 < samples_to_consume; n++) {
-                    printf("packet_samples[ch] + (n *256): %p\n", packet_samples[ch] + (n *256));
                     __m256i from = _mm256_load_si256((const __m256i*) (packet_samples[ch] + (n *256)));
                     printf("T50\n");
                     _mm256_store_si256((__m256i*) (((uint8_t*) buffs[ch]) + (n * 256)), from);
