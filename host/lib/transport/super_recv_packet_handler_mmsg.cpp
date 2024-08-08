@@ -192,7 +192,7 @@ public:
 
                 // Move extra cached samples to the start of the buffer
                 _num_cached_samples[ch] -= cached_samples_to_use;
-                // memmove(_sample_cache[ch].data(), _sample_cache[ch].data() + (cached_samples_to_use * _BYTES_PER_SAMPLE), _num_cached_samples[ch] * _BYTES_PER_SAMPLE);
+                memmove(_sample_cache[ch].data(), _sample_cache[ch].data() + (cached_samples_to_use * _BYTES_PER_SAMPLE), _num_cached_samples[ch] * _BYTES_PER_SAMPLE);
 
 
                 // Record that samples have been received, setting this for each is fine since they should be equal at this time
@@ -355,7 +355,7 @@ public:
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
-                    // memcpy(_sample_cache[ch].data(), packet_samples[ch] + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
+                    memcpy(_sample_cache[ch].data(), packet_samples[ch] + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
                     eob_cached = metadata.end_of_burst;
                     metadata.end_of_burst = false;
                 }
