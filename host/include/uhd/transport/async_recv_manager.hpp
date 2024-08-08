@@ -95,12 +95,6 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        uint8_t* tmp = access_packet_data_buffer(ch, ch_offset, b) + (p * _packet_data_size);
-        if((size_t) tmp % 4096 != 0) {
-            printf("b: %lu\n", b);
-            printf("p: %lu\n", p);
-            throw std::runtime_error("Packet data not aligned\n");
-        }
         return access_packet_data_buffer(ch, ch_offset, b) + (p * _packet_data_size);
     }
 
