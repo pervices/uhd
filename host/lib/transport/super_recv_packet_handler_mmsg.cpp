@@ -165,7 +165,7 @@ public:
     }
 
     // TODO: inline
-    size_t recv(const uhd::rx_streamer::buffs_type& buffs,
+    inline __attribute__((always_inline)) size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
@@ -174,7 +174,79 @@ public:
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
-    // Function used to receive data
+    // Function used to receive data for multiple channels
+    size_t single_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
+        const size_t nsamps_per_buff,
+        uhd::rx_metadata_t& metadata,
+        const double timeout,
+        const bool one_packet)
+    {
+        // Clears the metadata struct
+        // Reponsible for setting error_code to none, has_time_spec to false and eob to false
+        metadata.reset();
+
+        // TMP: verify buffers are properly aligned
+        // TODO: remove once support for variable alignment is returned
+       for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+            if((size_t)buffs[ch] % page_size != 0) {
+                throw uhd::runtime_error( "Buffers not aligned to page");
+            }
+            if((nsamps_per_buff * 4) % (page_size * 2) != 0) {
+                std::cout << "nsamps_per_buff: " << nsamps_per_buff << std::endl;
+                std::cout << "page_size: " << page_size << std::endl;
+                throw uhd::runtime_error( "Samples request not a whole number of packets");
+            }
+        }
+
+        // TODO: copy data from cache
+
+        time_spec_t recv_start_time = get_system_time();
+        size_t samples_received;
+        // Prevents the timeout heck on the first iteration of the loop
+        bool first_loop;
+
+        // This variant of recv is meant for a single channel only
+        constexpr size_t ch = 0;
+
+        while((recv_start_time + timeout > get_system_time() || first_loop) && samples_received < nsamps_per_buff) {
+            first_loop = false;
+
+            // Pointer to Vita header of a packet, will be nullptr if the next packet isn't ready yet
+            uint8_t* packet_hdr = recv_manager->get_next_packet_vita_header(ch);
+            bool packet_ready = packet_hdr != nullptr;
+            // Pointer to the start of samples in the packet
+            // NOTE: will be garbage if packet_hdr == nullptr, get now anyway since it is on the same page
+            uint8_t* packet_samples = recv_manager->get_next_packet_samples(ch);
+            // Length of the packet received (usually does not include the trailers)
+            // NOTE: will be garbage if packet_hdr == nullptr, get noew anyway since it on the same page
+            uint_fast32_t packet_length = recv_manager->get_next_packet_length(ch);
+
+            vrt::if_packet_info_t vita_md;
+            vita_md.num_packet_words32 = (packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
+
+            if(packet_length < _HEADER_SIZE && packet_ready) [[unlikely]] {
+                throw std::runtime_error("Received sample packet smaller than header size");
+            }
+
+            // Extract Vita metadata, skip if packet not ready
+            // Cannot be branchless because unpack will throw an error if given garbage
+            // Not actually unlikely, but we care most about performance when
+            if(packet_ready) [[unlikely]] {
+                if_hdr_unpack((uint32_t*) packet_hdr, vita_md);
+            }
+
+            // Detect and warn user of overflow error
+            // packet_count is a 4 bit number that increments every packet, if the sequence number did not increment by 1 then there is a discontinuity that is either from an overflow or from the start of a new burst. tsf != check if it the start of a new burst
+            bool overflow_detected = vita_md.packet_count != (sequence_number_mask & (previous_sequence_number + 1)) && vita_md.tsf != 0 && packet_ready;
+            // Update sequence number
+            previous_sequence_number = (packet_ready * vita_md.packet_count) | (!packet_ready * previous_sequence_number);
+            // Branchless set flag for overflow
+            metadata.error_code = (uhd::rx_metadata_t::error_code_t) ((overflow_detected * rx_metadata_t::ERROR_CODE_OVERFLOW) | (!overflow_detected * metadata.error_code));
+
+        }
+    }
+
+    // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
@@ -186,7 +258,7 @@ public:
         metadata.reset();
 
         // TMP check to verify other changes worked
-        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+       for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             if((size_t)buffs[ch] % page_size != 0) {
                 throw uhd::runtime_error( "Buffers not aligned to page");
             }
