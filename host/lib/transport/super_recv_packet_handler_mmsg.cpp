@@ -166,7 +166,7 @@ public:
         // Create manager for receive threads and access to buffer recv data
         size_t cache_line_size = std::hardware_destructive_interference_size;
         if(cache_line_size == 0) {
-            UHD_LOGGER_ERROR("PACKET_HANDLER_MMSG") << "Unable to get cache line size, assuming it is 64";
+            UHD_LOGGER_ERROR("RECV_PACKET_HANDLER_MMSG") << "Unable to get cache line size, assuming it is 64";
             cache_line_size = 64;
         }
         // With 1 channel the old method is used which doesn't use the manager
@@ -192,6 +192,10 @@ public:
                 fprintf(stderr, "close failed on data receive socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
             }
         }
+
+        if(_overflow_occured && _suboptimal_spb) {
+            UHD_LOGGER_ERROR("RECV_PACKET_HANDLER_MMSG") << "An overflow occured during a run where a subopitmal number of samples were requested from recv. To reduce the chance of an overflow in the future ensure nsamps_per_buff is multiple of " << _MAX_SAMPLE_BYTES_PER_PACKET / _BYTES_PER_SAMPLE;
+        }
     }
 
     inline __attribute__((always_inline)) size_t recv(const uhd::rx_streamer::buffs_type& buffs,
@@ -200,6 +204,8 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        // A suboptimal number of samples per call is anything that is not a multiple of the packet length
+        _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
@@ -272,6 +278,7 @@ public:
             // Detect and warn user of overflow error
             // packet_count is a 4 bit number that increments every packet, if the sequence number did not increment by 1 then there is a discontinuity that is either from an overflow or from the start of a new burst. tsf != check if it the start of a new burst
             bool overflow_detected = vita_md.packet_count != (sequence_number_mask & (previous_sequence_number + 1)) && vita_md.tsf != 0;
+            _overflow_occured|= overflow_detected;
             // Update sequence number
             previous_sequence_number = vita_md.packet_count;
             // Branchless set flag for overflow
@@ -473,6 +480,7 @@ public:
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                    _overflow_occured = true;
                     underflow_detected = true;
                 }
 
@@ -781,6 +789,11 @@ private:
 
     // EOB was detected and should be applied to the cached samples
     uint_fast8_t eob_cached = false;
+
+    // Flag for if an overflow occured, used to decide if advice should be printed to the user
+    uint_fast8_t _overflow_occured = false;
+    // An spb was requested that was not a multiple of packet length
+    uint_fast8_t _suboptimal_spb = false;
 
     /*!
      * Prepares the converter.
@@ -1183,6 +1196,7 @@ private:
         // Record if an overflow error occured and no other errors occured
         if(error_code == uhd::rx_metadata_t::ERROR_CODE_NONE && oflow_error) {
             error_code = uhd::rx_metadata_t::ERROR_CODE_OVERFLOW;
+            _overflow_occured = true;
         }
 
         return aligned_bytes;
@@ -1200,12 +1214,13 @@ public:
 
     //Consider merging recv_packet_streamer_mmsg and recv_packet_handler_mmsg
     //This is here to implement a virtual function from rx_streamer
-    size_t recv(const rx_streamer::buffs_type& buffs,
+    UHD_INLINE size_t recv(const rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
         const bool one_packet) override
     {
+        // Set flag for if the user ever requested a subopitmal number of samples per buffer
         return recv_packet_handler_mmsg::recv(
             buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
