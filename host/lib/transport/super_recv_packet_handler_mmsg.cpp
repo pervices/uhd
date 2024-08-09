@@ -198,7 +198,7 @@ public:
         }
     }
 
-    inline __attribute__((always_inline)) size_t recv(const uhd::rx_streamer::buffs_type& buffs,
+    UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
@@ -592,7 +592,7 @@ public:
     }
 
     // TODO: replace with single_ch_recv_threaded once it is fast enough
-    UHD_INLINE size_t recv_single_ch_sequential(const uhd::rx_streamer::buffs_type& buffs,
+    size_t recv_single_ch_sequential(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
@@ -866,14 +866,14 @@ private:
      * @param src the source to copy to. Must be at least src sample size * num_samples
      * @param num_samples the number of samples to copy
      */
-    inline void convert_samples(const ref_vector<void*> dst, void* src, size_t num_samples) {
+    UHD_INLINE void convert_samples(const ref_vector<void*> dst, void* src, size_t num_samples) {
         // TODO: investigate if this be optimized to reduce branching
         _converter->conv(src, dst, num_samples);
     }
 
     // TODO: remove once recv_single_ch_sequential is removed
     // Copies samples from _intermediate_recv_buffer_pointers to user_buffer
-    void old_convert_samples(const uhd::rx_streamer::buffs_type& user_buffer_ptrs, size_t num_samples) {
+    UHD_INLINE void old_convert_samples(const uhd::rx_streamer::buffs_type& user_buffer_ptrs, size_t num_samples) {
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             // TODO figure out how the converter works to optimize this, it might be possible to do all at once
             const ref_vector<void*> user_buffer_ch(user_buffer_ptrs[n]);
