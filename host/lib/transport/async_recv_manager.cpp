@@ -239,9 +239,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
     }
 
-    // TODO:downgrade to debug one stable
     if(main_thread_slow) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows";
+        UHD_LOGGER_DEBUG("ASYNC_RECV_MANAGER") << "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows";
     }
 
     if(error_code) {
