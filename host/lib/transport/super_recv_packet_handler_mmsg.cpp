@@ -74,6 +74,8 @@ public:
     page_size(getpagesize()),
     _NUM_CHANNELS(recv_sockets.size()),
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
+    // TODO: select based on number of channels
+    _optimized_recv(&uhd::transport::sph::recv_packet_handler_mmsg::multi_ch_recv),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _recv_sockets(recv_sockets),
@@ -162,8 +164,18 @@ public:
         }
     }
 
-    // Function used to receive data
+    // TODO: inline
     size_t recv(const uhd::rx_streamer::buffs_type& buffs,
+        const size_t nsamps_per_buff,
+        uhd::rx_metadata_t& metadata,
+        const double timeout,
+        const bool one_packet)
+    {
+        return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
+    }
+
+    // Function used to receive data
+    size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
@@ -435,6 +447,15 @@ protected:
     virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
 private:
+    // Used to select between variants of the receive function optimized for a single channel o
+    typedef size_t (uhd::transport::sph::recv_packet_handler_mmsg::*optimized_recv_type) (const uhd::rx_streamer::buffs_type& buffs,
+        const size_t nsamps_per_buff,
+        uhd::rx_metadata_t& metadata,
+        const double timeout,
+        const bool one_packet);
+
+    optimized_recv_type _optimized_recv;
+
     // Desired recv buffer size
     const int _DEFAULT_RECV_BUFFER_SIZE = 500000000;
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
