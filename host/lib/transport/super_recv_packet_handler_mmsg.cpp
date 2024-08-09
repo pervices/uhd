@@ -125,29 +125,25 @@ public:
             _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/(_NUM_CHANNELS + 1))/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET + 42));
         }
 
-        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            ch_recv_buffer_info tmp = {
-                (size_t) 0, // sample_cache_used
-                std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(_HEADER_SIZE, 0)), // headers
-                std::vector<vrt::if_packet_info_t>(_num_header_buffers), // vrt_metadata
-                sequence_number_mask, //previous_sequence_number
-                std::vector<size_t>(_num_header_buffers, 0), // data_bytes_from_packet
-                std::vector<int8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0), // sample_cache
-                (size_t) 0, // previous_sample_cache_used
-                (size_t) _num_header_buffers, // max_num_packets_to_flush
-                std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET, 0)), // flush_buffer
-                std::vector<mmsghdr>(_num_header_buffers),
-                std::vector<iovec>(2*_num_header_buffers+1),
-                std::vector<int8_t>(0)
-            };
-            // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
-            memset(tmp.msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
-            // Contains data about where to store received data
-            // Alternating between pointer to header, pointer to data
-            memset(tmp.iovecs.data(), 0, sizeof(iovec)*tmp.iovecs.size());
-
-            ch_recv_buffer_info_group.push_back(tmp);
-        }
+        ch_recv_buffer_info_i = {
+            (size_t) 0, // sample_cache_used
+            std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(_HEADER_SIZE, 0)), // headers
+            std::vector<vrt::if_packet_info_t>(_num_header_buffers), // vrt_metadata
+            sequence_number_mask, //previous_sequence_number
+            std::vector<size_t>(_num_header_buffers, 0), // data_bytes_from_packet
+            std::vector<int8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0), // sample_cache
+            (size_t) 0, // previous_sample_cache_used
+            (size_t) _num_header_buffers, // max_num_packets_to_flush
+            std::vector<std::vector<int8_t>>(_num_header_buffers, std::vector<int8_t>(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET, 0)), // flush_buffer
+            std::vector<mmsghdr>(_num_header_buffers),
+            std::vector<iovec>(2*_num_header_buffers+1),
+            std::vector<int8_t>(0)
+        };
+        // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
+        memset(ch_recv_buffer_info_i.msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
+        // Contains data about where to store received data
+        // Alternating between pointer to header, pointer to data
+        memset(ch_recv_buffer_info_i.iovecs.data(), 0, sizeof(iovec)*ch_recv_buffer_info_i.iovecs.size());
 
         setup_converter(cpu_format, wire_format, wire_little_endian);
 
@@ -594,6 +590,8 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        // This function is not only used for single channel mode only
+        constexpr size_t ch = 0;
         // Clears the metadata struct, theoretically not required but included to make sure mistakes don't cause non-deterministic behaviour
         metadata.reset();
 
@@ -602,32 +600,25 @@ public:
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::rx_streamer::buffs_type *recv_buffer = (converter_required) ? prepare_intermediate_buffers(bytes_per_buff) : &buffs;
 
-        std::vector<size_t> nsamps_received(_NUM_CHANNELS, 0);
-
         // Number of bytes copied from the cache (should be the same for every channel)
         size_t cached_bytes_to_copy = 0;
         // Number of samples to copy, this will be reduced by the number cached samples copied
         size_t bytes_to_recv = bytes_per_buff;
+
         // Copies the data from the sample cache
-        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-            // Channel info group for this ch
-            ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
-            // Copies cached data from previous recv
-            cached_bytes_to_copy = std::min(ch_recv_buffer_info_i.sample_cache_used, bytes_per_buff);
-            memcpy((*recv_buffer)[ch], ch_recv_buffer_info_i.sample_cache.data(), cached_bytes_to_copy);
-            // How many bytes still need to be received after copying from the cache
-            size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
+        // Copies cached data from previous recv
+        cached_bytes_to_copy = std::min(ch_recv_buffer_info_i.sample_cache_used, bytes_per_buff);
+        memcpy((*recv_buffer)[ch], ch_recv_buffer_info_i.sample_cache.data(), cached_bytes_to_copy);
+        // How many bytes still need to be received after copying from the cache
+        size_t remaining_nbytes_per_buff = bytes_per_buff - cached_bytes_to_copy;
 
-            if(one_packet && 0) {
-                bytes_to_recv = std::min(remaining_nbytes_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET - cached_bytes_to_copy);
-            } else {
-                bytes_to_recv = remaining_nbytes_per_buff;
-            }
-            // Indicates that the cache is clear
-            ch_recv_buffer_info_i.sample_cache_used-= cached_bytes_to_copy;
-
-            nsamps_received[ch] += cached_bytes_to_copy / _BYTES_PER_SAMPLE;
+        if(one_packet && 0) {
+            bytes_to_recv = std::min(remaining_nbytes_per_buff, _MAX_SAMPLE_BYTES_PER_PACKET - cached_bytes_to_copy);
+        } else {
+            bytes_to_recv = remaining_nbytes_per_buff;
         }
+        // Indicates that the cache is clear
+        ch_recv_buffer_info_i.sample_cache_used-= cached_bytes_to_copy;
 
         // Returns the number of samples requested, if there were enough samples in the cache
         if(!bytes_to_recv || eob_cached) {
@@ -651,7 +642,7 @@ public:
         // Setting metadata fields
 
         metadata.has_time_spec = true;
-        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_group[0].vrt_metadata[0].tsf - /* Simulate what timestamp would'bve been if it was for the start of the cached samples */cached_bytes_to_copy, _sample_rate);
+        metadata.time_spec = time_spec_t::from_ticks(ch_recv_buffer_info_i.vrt_metadata[0].tsf - /* Simulate what timestamp would'bve been if it was for the start of the cached samples */cached_bytes_to_copy, _sample_rate);
         previous_timestamp = metadata.time_spec;
 
         // Check for overflow errors and flushed packets to keep buffers aligned
@@ -751,8 +742,8 @@ private:
         std::vector<int8_t> intermediate_recv_buffer;
 
     };
-    // Group of recv info for each channels
-    std::vector<ch_recv_buffer_info> ch_recv_buffer_info_group;
+    // Group of recv info (used in 1 channel mode)
+    ch_recv_buffer_info ch_recv_buffer_info_i;
 
     // Whether or not a conversion is required between CPU and wire formats (convert still may be used anyway since it is a fast way of copying)
     bool converter_required;
@@ -842,63 +833,16 @@ private:
         _converter->set_scalar(cpu_max / wire_max);
     }
 
-    /*******************************************************************
-     * flush_packets:
-     * Flushes the buffer by receiving packets but doing nothing with them
-     * ch: channel to receive packets for
-     * limit: maximum number of packets
-     * no_limit: ignore the limit
-     * aligned_samples: stores the number of aligned sample
-     * return: rx metadata error code
-     ******************************************************************/
-    size_t flush_packets(size_t ch, int limit, bool no_limit = false) {
-        int num_packets;
-        ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
-        if(no_limit) {
-            num_packets = ch_recv_buffer_info_i.max_num_packets_to_flush;
-        } else {
-            //TODO resize buffer if requested limit exceeds the buffer size
-            num_packets = std::min((int)ch_recv_buffer_info_i.max_num_packets_to_flush, limit);
-        }
-        struct mmsghdr msgs[num_packets];
-        struct iovec iovecs[num_packets];
-
-        memset(msgs, 0, sizeof(msgs));
-
-        for (size_t n = 0; n < (size_t) num_packets; n++) {
-            iovecs[n].iov_base = ch_recv_buffer_info_i.flush_buffer[n].data();
-            iovecs[n].iov_len = _HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET;
-            msgs[n].msg_hdr.msg_iov = &iovecs[n];
-            msgs[n].msg_hdr.msg_iovlen = 1;
-        }
-
-        int total_packets_received = 0;
-        do {
-            int packets_received = recvmmsg(_recv_sockets[ch], msgs, num_packets, MSG_DONTWAIT, 0);
-            if(packets_received == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                // MSG_DONTWAIT + EAGAIN or EWOULDBLOCK indicate that there are no more packets to receive in the buffer
-                return total_packets_received;
-            } else if(packets_received == -1) {
-                throw uhd::runtime_error( "System recvmmsg error while flushing buffer:" + std::string(strerror(errno)));
-            } else {
-                total_packets_received+=packets_received;
-            }
-        } while(total_packets_received < limit || no_limit);
-        return total_packets_received;
-    }
-
     // TODO: remove once recv_single_ch_sequential is removed
     // Resizes the intermediate buffers (if needed) and updates the
     // Returns the wrapper (set to the data in the constructor, done as a workaround because the UHD uses a vector wrapper)
     UHD_INLINE uhd::rx_streamer::buffs_type* prepare_intermediate_buffers(size_t bytes) {
-        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            if(ch_recv_buffer_info_group[n].intermediate_recv_buffer.size() < bytes) {
-                // Resizes intermediate buffer
-                ch_recv_buffer_info_group[n].intermediate_recv_buffer.resize(bytes);
-            }
-            // Updates the pointer to the intermediate buffer
-            _intermediate_recv_buffer_pointers[n] = ch_recv_buffer_info_group[n].intermediate_recv_buffer.data();
+        if(ch_recv_buffer_info_i.intermediate_recv_buffer.size() < bytes) {
+            // Resizes intermediate buffer
+            ch_recv_buffer_info_i.intermediate_recv_buffer.resize(bytes);
         }
+        // Updates the pointer to the intermediate buffer
+        _intermediate_recv_buffer_pointers[0] = ch_recv_buffer_info_i.intermediate_recv_buffer.data();
 
         return &_intermediate_recv_buffer_wrapper;
     }
@@ -930,22 +874,18 @@ private:
         //TODO: fix FPGA and re-enable this function. At time of writing Crimson will always have eob flag and Cyan will never have it
         return false;
         // bool end_of_burst_received = false;
-        // for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-        //     if(ch_recv_buffer_info_i.num_headers_used > 0) {
-        //         // Set end of burst if received on any channel
-        //         if(ch_recv_buffer_info_i.vrt_metadata[ch_recv_buffer_info_i.num_headers_used-1].eob) {
-        //             end_of_burst_received = true;
-        //         }
+        // if(ch_recv_buffer_info_i.num_headers_used > 0) {
+        //     // Set end of burst if received on any channel
+        //     if(ch_recv_buffer_info_i.vrt_metadata[ch_recv_buffer_info_i.num_headers_used-1].eob) {
+        //         end_of_burst_received = true;
         //     }
         // }
         //
         // bool should_cache_eob = end_of_burst_received;
         // if(end_of_burst_received) {
-        //     for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-        //         if(ch_recv_buffer_info_i.sample_cache_used == 0) {
-        //             should_cache_eob = false;
-        //         }
-        //     }
+            // if(ch_recv_buffer_info_i.sample_cache_used == 0) {
+            //     should_cache_eob = false;
+            // }
         // }
         //
         // // EOB received, but there as samples in the cache so it should be saved until the next receive
@@ -1032,42 +972,39 @@ private:
      * returns error code
      ******************************************************************/
     UHD_INLINE uhd::rx_metadata_t::error_code_t recv_multiple_packets(const uhd::rx_streamer::buffs_type& sample_buffers, size_t sample_buffer_offset, size_t buffer_length_bytes, double timeout) {
+        // This function is not only used for single channel mode only
+        constexpr size_t ch = 0;
 
         size_t nbytes_to_recv = buffer_length_bytes - sample_buffer_offset;
 
         // Pointers for where to write samples to from each packet using scatter gather
-        std::vector<std::vector<void*>> samples_sg_dst(_NUM_CHANNELS);
+        std::vector<void*> samples_sg_dst;
 
-        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-            ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
-            // Clears number of headers (which is also a count of number of packets received
-            ch_recv_buffer_info_i.num_headers_used = 0;
-            // Resets the count for amount of data in the cache
-            ch_recv_buffer_info_i.sample_cache_used = 0;
+        // Clears number of headers (which is also a count of number of packets received
+        ch_recv_buffer_info_i.num_headers_used = 0;
+        // Resets the count for amount of data in the cache
+        ch_recv_buffer_info_i.sample_cache_used = 0;
 
-            //Fills the pointer to where in the buffer to write samples from the packet to
-            for(size_t p = sample_buffer_offset; p < buffer_length_bytes; p += _MAX_SAMPLE_BYTES_PER_PACKET) {
-                samples_sg_dst[ch].push_back(p+(uint8_t*)(sample_buffers[ch]));
-            }
+        //Fills the pointer to where in the buffer to write samples from the packet to
+        for(size_t p = sample_buffer_offset; p < buffer_length_bytes; p += _MAX_SAMPLE_BYTES_PER_PACKET) {
+            samples_sg_dst.push_back(p+(uint8_t*)(sample_buffers[ch]));
         }
 
-        size_t num_packets_to_recv = samples_sg_dst[0].size();
+        size_t num_packets_to_recv = samples_sg_dst.size();
 
         // Adds more room to store headers if required
         if(num_packets_to_recv > _num_header_buffers) {
             _num_header_buffers = num_packets_to_recv;
-            for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-                ch_recv_buffer_info_i.headers.resize(_num_header_buffers, std::vector<int8_t>(_HEADER_SIZE, 0));
-                ch_recv_buffer_info_i.vrt_metadata.resize(_num_header_buffers);
-                ch_recv_buffer_info_i.data_bytes_from_packet.resize(_num_header_buffers, 0);
-                ch_recv_buffer_info_i.msgs.resize(_num_header_buffers);
-                // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
-                memset(ch_recv_buffer_info_i.msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
-                // Contains data about where to store received data
-                // Alternating between pointer to header, pointer to data
-                ch_recv_buffer_info_i.iovecs.resize(2*_num_header_buffers+1);
-                memset(ch_recv_buffer_info_i.iovecs.data(), 0, sizeof(iovec)*ch_recv_buffer_info_i.iovecs.size());
-            }
+            ch_recv_buffer_info_i.headers.resize(_num_header_buffers, std::vector<int8_t>(_HEADER_SIZE, 0));
+            ch_recv_buffer_info_i.vrt_metadata.resize(_num_header_buffers);
+            ch_recv_buffer_info_i.data_bytes_from_packet.resize(_num_header_buffers, 0);
+            ch_recv_buffer_info_i.msgs.resize(_num_header_buffers);
+            // Sets all mmsghdrs to 0, to avoid both non-deterministic behaviour and slowdowns from lazy memory allocation
+            memset(ch_recv_buffer_info_i.msgs.data(), 0, sizeof(mmsghdr)*_num_header_buffers);
+            // Contains data about where to store received data
+            // Alternating between pointer to header, pointer to data
+            ch_recv_buffer_info_i.iovecs.resize(2*_num_header_buffers+1);
+            memset(ch_recv_buffer_info_i.iovecs.data(), 0, sizeof(iovec)*ch_recv_buffer_info_i.iovecs.size());
         }
 
         // Amount of data in the last packet copied directly to buffer
@@ -1075,35 +1012,32 @@ private:
         size_t expected_excess_data_in_last_packet = num_packets_to_recv * _MAX_SAMPLE_BYTES_PER_PACKET - nbytes_to_recv;
         size_t expected_data_in_last_packet = _MAX_SAMPLE_BYTES_PER_PACKET - expected_excess_data_in_last_packet;
 
-        for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-            ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
-            for (size_t n = 0; n < num_packets_to_recv - 1; n++) {
-                // Location to write header data to
-                ch_recv_buffer_info_i.iovecs[2*n].iov_base = 0;
-                ch_recv_buffer_info_i.iovecs[2*n].iov_base = ch_recv_buffer_info_i.headers[n].data();
-                ch_recv_buffer_info_i.iovecs[2*n].iov_len = _HEADER_SIZE;
-                ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = 0;
-                // Location to write sample data to
-                ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = samples_sg_dst[ch][n];
-                ch_recv_buffer_info_i.iovecs[2*n+1].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET;
-                ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n];
-                ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iovlen = 2;
-            }
-
-
-            size_t n_last_packet = num_packets_to_recv - 1;
+        for (size_t n = 0; n < num_packets_to_recv - 1; n++) {
             // Location to write header data to
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_base =ch_recv_buffer_info_i.headers[n_last_packet].data();
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_len = _HEADER_SIZE;
+            ch_recv_buffer_info_i.iovecs[2*n].iov_base = 0;
+            ch_recv_buffer_info_i.iovecs[2*n].iov_base = ch_recv_buffer_info_i.headers[n].data();
+            ch_recv_buffer_info_i.iovecs[2*n].iov_len = _HEADER_SIZE;
+            ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = 0;
             // Location to write sample data to
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[ch][n_last_packet];
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_len = expected_data_in_last_packet;
-            // Location to write samples that don't fit in sample_buffer to
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_i.sample_cache.data();
-            ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_len = expected_excess_data_in_last_packet;
-            ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n_last_packet];
-            ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
+            ch_recv_buffer_info_i.iovecs[2*n+1].iov_base = samples_sg_dst[n];
+            ch_recv_buffer_info_i.iovecs[2*n+1].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET;
+            ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n];
+            ch_recv_buffer_info_i.msgs[n].msg_hdr.msg_iovlen = 2;
         }
+
+
+        size_t n_last_packet = num_packets_to_recv - 1;
+        // Location to write header data to
+        ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_base =ch_recv_buffer_info_i.headers[n_last_packet].data();
+        ch_recv_buffer_info_i.iovecs[2*n_last_packet].iov_len = _HEADER_SIZE;
+        // Location to write sample data to
+        ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_base = samples_sg_dst[n_last_packet];
+        ch_recv_buffer_info_i.iovecs[2*n_last_packet+1].iov_len = expected_data_in_last_packet;
+        // Location to write samples that don't fit in sample_buffer to
+        ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_base = ch_recv_buffer_info_i.sample_cache.data();
+        ch_recv_buffer_info_i.iovecs[2*n_last_packet+2].iov_len = expected_excess_data_in_last_packet;
+        ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iov = &ch_recv_buffer_info_i.iovecs[2*n_last_packet];
+        ch_recv_buffer_info_i.msgs[n_last_packet].msg_hdr.msg_iovlen = 3;
 
         // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
         struct timespec recv_start_time;
@@ -1122,76 +1056,69 @@ private:
                 break;
             }
 
-            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                ch_recv_buffer_info& ch_recv_buffer_info_i = ch_recv_buffer_info_group[ch];
-                // Skip this channel if it has already received enough packets
-                if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
-                    continue;
-                }
-                // Receive packets system call
-                int num_packets_received_this_recv = recvmmsg(_recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
+            // Skip this channel if it has already received enough packets
+            if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv) {
+                continue;
+            }
+            // Receive packets system call
+            int num_packets_received_this_recv = recvmmsg(_recv_sockets[ch], &ch_recv_buffer_info_i.msgs[ch_recv_buffer_info_i.num_headers_used], std::min((int)(num_packets_to_recv - ch_recv_buffer_info_i.num_headers_used), _MAX_PACKETS_TO_RECV), MSG_DONTWAIT, 0);
 
-                //Records number of packets received if no error
-                if(num_packets_received_this_recv >= 0) {
-                    ch_recv_buffer_info_i.num_headers_used += num_packets_received_this_recv;
-                    if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv)
-                    {
-                        //Record that a channel has received all its packets
-                        num_channels_serviced++;
-                    }
+            //Records number of packets received if no error
+            if(num_packets_received_this_recv >= 0) {
+                ch_recv_buffer_info_i.num_headers_used += num_packets_received_this_recv;
+                if(ch_recv_buffer_info_i.num_headers_used >= num_packets_to_recv)
+                {
+                    //Record that a channel has received all its packets
+                    num_channels_serviced++;
                 }
-                // Moves onto next channel, these errors are expected if using MSG_DONTWAIT and no packets are ready
-                else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                    continue;
-                // Error cause when program received interrupt during recv
-                } else if (errno == EINTR) {
-                    return rx_metadata_t::ERROR_CODE_EINTR;
-                // Unexpected error
-                } else {
-                    throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(errno)));
-                }
+            }
+            // Moves onto next channel, these errors are expected if using MSG_DONTWAIT and no packets are ready
+            else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            // Error cause when program received interrupt during recv
+            } else if (errno == EINTR) {
+                return rx_metadata_t::ERROR_CODE_EINTR;
+            // Unexpected error
+            } else {
+                throw uhd::runtime_error( "System recvmmsg error:" + std::string(strerror(errno)));
             }
         }
 
         extract_vrt_metadata();
 
-        for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-            size_t num_bytes_received = 0;
+        size_t num_bytes_received = 0;
 
-            // Clear count for number of samples in cache. Will be set in checking data received in the last packet if applicable
-            ch_recv_buffer_info_i.sample_cache_used = 0;
+        // Clear count for number of samples in cache. Will be set in checking data received in the last packet if applicable
+        ch_recv_buffer_info_i.sample_cache_used = 0;
 
-            // Records the amount of data received from each packet
-            for(size_t n = 0; n < ch_recv_buffer_info_i.num_headers_used; n++) {
-                // Check if an invalid packet was received
-                if(ch_recv_buffer_info_i.msgs[n].msg_len < _HEADER_SIZE) {
-                    throw std::runtime_error("Received sample packet smaller than header size");
-                }
-                uint32_t num_bytes_this_packets = ch_recv_buffer_info_i.vrt_metadata[n].num_payload_words32 * sizeof(int32_t);
+        // Records the amount of data received from each packet
+        for(size_t n = 0; n < ch_recv_buffer_info_i.num_headers_used; n++) {
+            // Check if an invalid packet was received
+            if(ch_recv_buffer_info_i.msgs[n].msg_len < _HEADER_SIZE) {
+                throw std::runtime_error("Received sample packet smaller than header size");
+            }
+            uint32_t num_bytes_this_packets = ch_recv_buffer_info_i.vrt_metadata[n].num_payload_words32 * sizeof(int32_t);
 
-                // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
-                if(n + 1 == num_packets_to_recv) {
-                    if(num_bytes_this_packets > expected_data_in_last_packet) {
-                        ch_recv_buffer_info_i.data_bytes_from_packet[n] = expected_data_in_last_packet;
-                        ch_recv_buffer_info_i.sample_cache_used = num_bytes_this_packets - expected_data_in_last_packet;
-                        num_bytes_received += expected_data_in_last_packet;
-                    } else {
-                        ch_recv_buffer_info_i.data_bytes_from_packet[n] = num_bytes_this_packets;
-                        num_bytes_received += num_bytes_this_packets;
-                    }
-                // Records the amount of data received from most packets
+            // Records the amount of data received in the last packet if the desired number of packets were received (which means data could have been written to the cache)
+            if(n + 1 == num_packets_to_recv) {
+                if(num_bytes_this_packets > expected_data_in_last_packet) {
+                    ch_recv_buffer_info_i.data_bytes_from_packet[n] = expected_data_in_last_packet;
+                    ch_recv_buffer_info_i.sample_cache_used = num_bytes_this_packets - expected_data_in_last_packet;
+                    num_bytes_received += expected_data_in_last_packet;
                 } else {
                     ch_recv_buffer_info_i.data_bytes_from_packet[n] = num_bytes_this_packets;
                     num_bytes_received += num_bytes_this_packets;
                 }
+            // Records the amount of data received from most packets
+            } else {
+                ch_recv_buffer_info_i.data_bytes_from_packet[n] = num_bytes_this_packets;
+                num_bytes_received += num_bytes_this_packets;
             }
         }
 
         if(timeout_occured) {
-            for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-                if(ch_recv_buffer_info_i.num_headers_used == 0) {
-                    return rx_metadata_t::ERROR_CODE_TIMEOUT;
-                }
+            if(ch_recv_buffer_info_i.num_headers_used == 0) {
+                return rx_metadata_t::ERROR_CODE_TIMEOUT;
             }
             // Only return timeout if one of the channels received no data
             return rx_metadata_t::ERROR_CODE_NONE;
@@ -1206,17 +1133,14 @@ private:
      * extracts metadata fromthe vrt headers in ch_recv_buffer_info.headers and stores in ch_recv_buffer_info.vrt_metadata
      ******************************************************************/
     UHD_INLINE void extract_vrt_metadata() {
-
-        for(size_t ch_i = 0; ch_i < ch_recv_buffer_info_group.size(); ch_i++) {
-            for(size_t packet_i = 0; packet_i < ch_recv_buffer_info_group[ch_i].num_headers_used; packet_i++) {
-                // Number of 32 bit words per vrt packet
-                // will be compared against packet length field
-                ch_recv_buffer_info_group[ch_i].vrt_metadata[packet_i].num_packet_words32 = (_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET +_TRAILER_SIZE)/sizeof(uint32_t);
-                // First word of the packet
-                const uint32_t* vrt_hdr = (uint32_t*) ch_recv_buffer_info_group[ch_i].headers[packet_i].data();
-                //ifpi.has_tsf = true;
-                if_hdr_unpack(vrt_hdr, ch_recv_buffer_info_group[ch_i].vrt_metadata[packet_i]);
-            }
+        for(size_t packet_i = 0; packet_i < ch_recv_buffer_info_i.num_headers_used; packet_i++) {
+            // Number of 32 bit words per vrt packet
+            // will be compared against packet length field
+            ch_recv_buffer_info_i.vrt_metadata[packet_i].num_packet_words32 = (_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET +_TRAILER_SIZE)/sizeof(uint32_t);
+            // First word of the packet
+            const uint32_t* vrt_hdr = (uint32_t*) ch_recv_buffer_info_i.headers[packet_i].data();
+            //ifpi.has_tsf = true;
+            if_hdr_unpack(vrt_hdr, ch_recv_buffer_info_i.vrt_metadata[packet_i]);
         }
     }
 
@@ -1231,79 +1155,37 @@ private:
 
         bool oflow_error = false;
 
-        std::vector<uint64_t> aligned_bytes(_NUM_CHANNELS, 0);
+        uint64_t aligned_bytes = 0;
 
         // Checks for overflows
-        size_t ch = 0;
-        for(auto& ch_recv_buffer_info_i : ch_recv_buffer_info_group) {
-            // Each channel should end up with the same number of aligned bytes so its fine to reset the counter each channel which will end up using the last one
-            for(size_t header_i = 0; header_i < ch_recv_buffer_info_i.num_headers_used; header_i++) {
-                //assume vrt_metadata.hst_tsf is true
-                // Checks if sequence number is correct, ignore check if timestamp is 0
-                if((ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count != (sequence_number_mask & (ch_recv_buffer_info_i.previous_sequence_number + 1)))  && (ch_recv_buffer_info_i.vrt_metadata[header_i].tsf != 0)) {
-                    oflow_error = true;
-                    //UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
-                    UHD_LOG_FASTPATH("D");
-                    if(!_performance_warning_printed) {
-                        _performance_warning_printed = true;
-                        if(!_governor_known) {
-                            UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                        }
-                        else if(!_using_performance_governor) {
-                            UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                        }
+        // Each channel should end up with the same number of aligned bytes so its fine to reset the counter each channel which will end up using the last one
+        for(size_t header_i = 0; header_i < ch_recv_buffer_info_i.num_headers_used; header_i++) {
+            //assume vrt_metadata.hst_tsf is true
+            // Checks if sequence number is correct, ignore check if timestamp is 0
+            if((ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count != (sequence_number_mask & (ch_recv_buffer_info_i.previous_sequence_number + 1)))  && (ch_recv_buffer_info_i.vrt_metadata[header_i].tsf != 0)) {
+                oflow_error = true;
+                //UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
+                UHD_LOG_FASTPATH("D");
+                if(!_performance_warning_printed) {
+                    _performance_warning_printed = true;
+                    if(!_governor_known) {
+                        UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                    }
+                    else if(!_using_performance_governor) {
+                        UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
                     }
                 }
-                ch_recv_buffer_info_i.previous_sequence_number = ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count;
-                aligned_bytes[ch] += ch_recv_buffer_info_i.data_bytes_from_packet[header_i];
             }
-            ch++;
+            ch_recv_buffer_info_i.previous_sequence_number = ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count;
+            aligned_bytes += ch_recv_buffer_info_i.data_bytes_from_packet[header_i];
         }
 
-        bool alignment_required = (error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) || oflow_error;
-
-        // Will acts as if the channel with the lowest number of samples is the amount of samples received for all
-        uint64_t smallest_aligned_bytes = aligned_bytes[0];
-        for(size_t n = 1; n < _NUM_CHANNELS; n++) {
-            // Alignment is required if a different number of samples was received on each channel
-            alignment_required = alignment_required || (smallest_aligned_bytes != aligned_bytes[n]);
-            smallest_aligned_bytes = std::min(smallest_aligned_bytes, aligned_bytes[n]);
+        // Record if an overflow error occured and no other errors occured
+        if(error_code == uhd::rx_metadata_t::ERROR_CODE_NONE && oflow_error) {
+            error_code = uhd::rx_metadata_t::ERROR_CODE_OVERFLOW;
         }
 
-        if(alignment_required) {
-            // Sets the error code to overflow if not already seat to something
-            // Done here to avoid an extra if in a pass without errors
-            if(error_code == uhd::rx_metadata_t::ERROR_CODE_NONE && oflow_error) {
-                error_code = uhd::rx_metadata_t::ERROR_CODE_OVERFLOW;
-            }
-            std::vector<uint64_t> last_tsf(_NUM_CHANNELS);
-            uint64_t latest_tsf = 0;
-            uint64_t last_packet_count = 0;
-            // Figures out how many packets to drop
-            for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-                // Skips if no packets were received on this channel
-                if(ch_recv_buffer_info_group[n].num_headers_used == 0) {
-                    continue;
-                }
-                // Gets the last timestamp and last sequence number on every channel
-                size_t last_header = ch_recv_buffer_info_group[n].num_headers_used - 1;
-                last_tsf[n] = ch_recv_buffer_info_group[n].vrt_metadata[last_header].tsf;
-                if(latest_tsf< last_tsf[n]) {
-                    latest_tsf = last_tsf[n];
-                    last_packet_count = ch_recv_buffer_info_group[n].vrt_metadata[last_header].packet_count;
-                }
-            }
-            for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-                // Receives packets and does nothing with them to realign
-                // Not the most robust system, but anything more through would slow
-                int num_packet_to_drop =(int) ((latest_tsf - last_tsf[n]) / (_MAX_SAMPLE_BYTES_PER_PACKET/_BYTES_PER_SAMPLE));
-                flush_packets(n, num_packet_to_drop);
-                // Sets packets count to match what
-                ch_recv_buffer_info_group[n].previous_sequence_number = last_packet_count;
-            }
-        }
-
-        return smallest_aligned_bytes;
+        return aligned_bytes;
     }
 
 };
