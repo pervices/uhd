@@ -25,6 +25,7 @@
         try {                                                     \
             return _main(argc, argv);                             \
         } catch (const std::exception& e) {                       \
+            std::cout << "SAFE_MAIN_CATCH\n";\
             std::cerr << "Error: " << e.what() << std::endl;      \
         } catch (...) {                                           \
             std::cerr << "Error: unknown exception" << std::endl; \
