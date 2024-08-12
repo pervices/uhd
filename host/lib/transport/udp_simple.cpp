@@ -73,7 +73,7 @@ public:
     {
         if (_connected) {
             // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
-            ssize_t data_sent = ::send(socket_fd, buff, count, MSG_CONFIRM & route_good);
+            ssize_t data_sent = ::send(socket_fd, buff, count, /*MSG_CONFIRM & route_good*/ 0);
             if(data_sent == -1) {
                 UHD_LOG_ERROR("UDP", "Attempt to send UDP control packet failed with: " + std::string(strerror(errno)));
                 return 0;
@@ -89,7 +89,7 @@ public:
         dst_address.sin_addr.s_addr = inet_addr(ipv4_addr.c_str());
         dst_address.sin_port = htons(_send_endpoint.port());
 
-        ssize_t ret = sendto(socket_fd, buff, count, MSG_CONFIRM & route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
+        ssize_t ret = sendto(socket_fd, buff, count, /*MSG_CONFIRM & route_good*/ 0, (struct sockaddr*)&dst_address, sizeof(dst_address));
 
         if(ret > 0) {
             return ret;
