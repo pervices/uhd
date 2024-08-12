@@ -377,6 +377,7 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_
 	make_rx_stream_cmd_packet( stream_cmd, jesd_num, rx_stream_cmd );
 
     int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
+    printf("xg_intf: %i\n", xg_intf);
 
 	send_rx_stream_cmd_req( rx_stream_cmd, xg_intf );
 }
