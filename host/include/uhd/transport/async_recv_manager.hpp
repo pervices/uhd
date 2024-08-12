@@ -160,6 +160,8 @@ private:
     // Flag used to tell receive threads when to stop
     uint_fast8_t stop_flag = false;
 
+    uint8_t any_packets_received = false;
+
 public:
 
     /**
