@@ -224,8 +224,10 @@ private:
 	 * Clock Domain Synchronization Objects
 	 */
 
-	/// UDP endpoint that receives our Time Diff packets
-	std::array<uhd::transport::udp_simple::sptr,NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface;
+	/// UDP endpoint that receives our Time Diff packets and rx stream command packets
+    std::array<uhd::transport::udp_simple::sptr, NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface;
+    // Mutex to prevent sending rx commands and time diffs from interfering with each other
+    std::array<std::mutex, NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface_send_mutex;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.

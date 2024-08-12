@@ -781,6 +781,7 @@ void cyan_nrnt_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 
 //sends a stream command over sfp port 0
 void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
+    std::lock_guard<std::mutex> guard(_time_diff_iface_send_mutex[0]);
 	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
@@ -791,6 +792,7 @@ void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
 
+    std::lock_guard<std::mutex> guard(_time_diff_iface_send_mutex[xg_intf]);
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
@@ -806,6 +808,7 @@ void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 	);
 
     // By default send over SFPA
+    std::lock_guard<std::mutex> guard(_time_diff_iface_send_mutex[0]);
 	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
@@ -822,6 +825,7 @@ void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int x
     if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
+    std::lock_guard<std::mutex> guard(_time_diff_iface_send_mutex[xg_intf]);
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
