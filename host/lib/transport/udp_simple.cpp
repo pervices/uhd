@@ -73,12 +73,15 @@ public:
     {
         if (_connected) {
             // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
-            ssize_t data_sent = ::send(socket_fd, buff, count, MSG_CONFIRM * route_good);
+            ssize_t data_sent = ::send(socket_fd, buff, count, MSG_CONFIRM & route_good);
             if(data_sent == -1) {
                 UHD_LOG_ERROR("UDP", "Attempt to send UDP control packet failed with: " + std::string(strerror(errno)));
                 return 0;
-            } else {
+            } else if((size_t) data_sent == count) {
                 return data_sent;
+            } else {
+                UHD_LOG_ERROR("UDP", "Mistmatch between data sent and data attempted to be sent during send");
+                return 0;
             }
         }
 
@@ -89,13 +92,15 @@ public:
         dst_address.sin_addr.s_addr = inet_addr(ipv4_addr.c_str());
         dst_address.sin_port = htons(_send_endpoint.port());
 
-        ssize_t ret = sendto(socket_fd, buff, count, MSG_CONFIRM * route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
+        ssize_t ret = sendto(socket_fd, buff, count, MSG_CONFIRM & route_good, (struct sockaddr*)&dst_address, sizeof(dst_address));
 
-        if(ret > 0) {
+        if(ret == -1) {
+            UHD_LOG_ERROR("UDP", "Attempt to send UDP control packet failed with: " + std::string(strerror(errno)));
+            return 0;
+        } else if((size_t) ret == count) {
             return ret;
         } else {
-            UHD_LOG_ERROR("UDP", "Attempt to sendto UDP control packet failed with: " + std::string(strerror(errno)));
-            // Return 0 to keep behaviour from asio
+            UHD_LOG_ERROR("UDP", "Mistmatch between data sent and data attempted to be sent during sendto");
             return 0;
         }
     }
