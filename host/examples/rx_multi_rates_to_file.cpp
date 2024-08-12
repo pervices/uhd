@@ -247,6 +247,10 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
         if(md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
             if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
                 fprintf(stderr, "Timeout received after %lu samples\n", *num_samples_received);
+                while(!*stop_flag)
+                {
+                    sleep(1);
+                }
                 // Break if overflow occured and a set number of samples was requested, since that probably means all samples were sent, and missed ones weren't counted
                 if(strict || (overflow_occured && group_info->common_nsamps_requested !=0)) {
                     // Set flags so other threads know to stop
