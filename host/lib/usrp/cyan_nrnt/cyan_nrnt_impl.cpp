@@ -1145,6 +1145,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
+        // Begin FPGA reset at tx chain
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fpga" / "reset",  "fpga/reset", int, int);
+    _tree->access<int>(CYAN_NRNT_MB_PATH / "fpga/reset").set(27);
+
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/get_max_buffer_level", "system/get_max_buffer_level", double, double);
