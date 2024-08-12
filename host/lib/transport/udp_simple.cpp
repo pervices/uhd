@@ -71,6 +71,7 @@ public:
 
     size_t send(const void* buff, size_t count) override
     {
+        std::lock_guard<std::mutex> guard(socket_mutex);
         if (_connected) {
             // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
             ssize_t data_sent = ::send(socket_fd, buff, count, MSG_DONTWAIT | (MSG_CONFIRM & route_good));
@@ -113,6 +114,7 @@ public:
 
     size_t recv(void* buff, size_t size, double timeout) override
     {
+        std::lock_guard<std::mutex> guard(socket_mutex);
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
 
         if (not wait_for_recv_ready(socket_fd, timeout_ms)) {
@@ -170,6 +172,7 @@ private:
     // If this has been confirmed send can be called with MSG_CONFIRM
     int route_good = 0;
     int socket_fd;
+    std::mutex socket_mutex;
 };
 
 udp_simple::~udp_simple(void)
