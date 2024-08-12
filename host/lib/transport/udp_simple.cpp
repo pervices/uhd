@@ -21,7 +21,7 @@ class udp_simple_impl : public udp_simple
 public:
     udp_simple_impl(
         const std::string& addr, const std::string& port, bool bcast, bool connect)
-        : _connected(connect)
+        : _connected(0 /*connect*/)
     {
         UHD_LOGGER_TRACE("UDP")
             << boost::format("Creating udp transport for %s %s") % addr % port;
