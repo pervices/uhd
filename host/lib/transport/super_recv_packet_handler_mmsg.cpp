@@ -180,6 +180,7 @@ public:
 
     ~recv_packet_handler_mmsg(void)
     {
+        printf("tmp_any_packets_received: %x\n", tmp_any_packets_received);
         if(_NUM_CHANNELS != 1) {
             // recv_manager must be deleted before closing sockets
             // Destructor must be manually called when using placement new
@@ -428,6 +429,7 @@ public:
             // Fewest branches loop to wait for packets to be ready
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
+                tmp_any_packets_received = tmp_any_packets_received | (1 << ch);
                 // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
@@ -794,6 +796,8 @@ private:
     uint_fast8_t _overflow_occured = false;
     // An spb was requested that was not a multiple of packet length
     uint_fast8_t _suboptimal_spb = false;
+
+    uint8_t tmp_any_packets_received = false;
 
     /*!
      * Prepares the converter.
