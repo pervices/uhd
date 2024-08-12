@@ -189,7 +189,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
     uhd::rx_metadata_t md;
 
     // Configure and send stream command
-    uhd::stream_cmd_t stream_cmd(1 /*(group_info->common_nsamps_requested == 0*/ ? uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS : uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
+    uhd::stream_cmd_t stream_cmd((group_info->common_nsamps_requested == 0) ? uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS : uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
     stream_cmd.num_samps  = size_t(group_info->common_nsamps_requested);
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(group_info->common_start_time_delay);
