@@ -75,7 +75,7 @@ public:
             // MSG_CONFIRM to avoid uneccessary control packets being sent to verify the destination is where it already is
             ssize_t data_sent = ::send(socket_fd, buff, count, MSG_CONFIRM & route_good);
             if(data_sent == -1) {
-                fprintf(stderr, "send failed for control packet. errno: %s\n", strerror(errno));
+                UHD_LOG_ERROR("UDP", "Attempt to send UDP control packet failed with: " + std::string(strerror(errno)));
                 return 0;
             } else {
                 return data_sent;
@@ -94,7 +94,7 @@ public:
         if(ret > 0) {
             return ret;
         } else {
-            fprintf(stderr, "sendto failed for control packet. errno: %s\n", strerror(errno));
+            UHD_LOG_ERROR("UDP", "Attempt to sendto UDP control packet failed with: " + std::string(strerror(errno)));
             // Return 0 to keep behaviour from asio
             return 0;
         }
@@ -118,6 +118,7 @@ public:
             // MSG_DONTWAIT since wait_for_recv_ready will already wait for data to be ready. If this would block something has gone wrong and return to avoid blocking
             data_received = ::recv(socket_fd, buff, size, MSG_DONTWAIT);
             if(data_received == -1) {
+                UHD_LOG_ERROR("UDP", "Attempt to recv UDP control packet failed with: " + std::string(strerror(errno)));
                 data_received = 0;
             }
         } else {
@@ -127,6 +128,7 @@ public:
 
             data_received = ::recvfrom(socket_fd, buff, size, MSG_DONTWAIT, (struct sockaddr*)&src_address, &addr_len);
             if(data_received == -1) {
+                UHD_LOG_ERROR("UDP", "Attempt to recvfrom UDP control packet failed with: " + std::string(strerror(errno)));
                 data_received = 0;
             }
 
