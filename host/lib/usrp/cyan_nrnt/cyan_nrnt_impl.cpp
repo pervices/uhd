@@ -1147,7 +1147,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 
         // Begin FPGA reset at tx chain
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fpga" / "reset",  "fpga/reset", int, int);
-    _tree->access<int>(CYAN_NRNT_MB_PATH / "fpga/reset").set(27);
+    _tree->access<int>(CYAN_NRNT_MB_PATH / "fpga/reset").set(29);
 
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
