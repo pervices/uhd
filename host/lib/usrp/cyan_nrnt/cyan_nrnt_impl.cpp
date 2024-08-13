@@ -326,7 +326,7 @@ stream_cmd_t cyan_nrnt_impl::get_stream_cmd(std::string req) {
 //creates the stream cmd packet to be send over the sfp ports
 void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
     // DEBUG delay for race condition
-    usleep(500000);
+    usleep(1000000);
     // The number of samples requested must be a multiple of a certain number, depending on the variant
     uint64_t original_nsamps_req = stream_cmd.num_samps;
     stream_cmd.num_samps = (original_nsamps_req / nsamps_multiple_rx) * nsamps_multiple_rx;

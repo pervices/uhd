@@ -99,15 +99,15 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         ch_offset+=ch_per_thread;
     }
 
-    // uhd::time_spec_t start = uhd::get_system_time();
-    // for(size_t n = 0; n < _num_ch; n++) {
-    //     while(! *access_flush_complete(n, 0)) {
-    //         if(start + 30.0 < uhd::get_system_time()) {
-    //             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-    //             throw std::runtime_error("Timeout while flushing buffers");
-    //         }
-    //     }
-    // }
+    uhd::time_spec_t start = uhd::get_system_time();
+    for(size_t n = 0; n < _num_ch; n++) {
+        while(! *access_flush_complete(n, 0)) {
+            if(start + 30.0 < uhd::get_system_time()) {
+                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+                throw std::runtime_error("Timeout while flushing buffers");
+            }
+        }
+    }
 }
 
 async_recv_manager::~async_recv_manager()
@@ -201,8 +201,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
     uint_fast8_t main_thread_slow = 0;
-
-    sleep(5);
 
     while(!self->stop_flag) [[likely]] {
         main_thread_slow = main_thread_slow || !packets_to_recv;
