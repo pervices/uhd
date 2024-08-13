@@ -644,8 +644,8 @@ void cyan_nrnt_impl::update_tx_subdev_spec(const std::string &which_mb, const su
 }
 
 static void rx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path ) {
-	// tree.lock()->access<std::string>( path + "/stream" ).set( "0" );
-	// tree.lock()->access<std::string>( path + "/pwr" ).set( "0" );
+	tree.lock()->access<std::string>( path + "/stream" ).set( "0" );
+	tree.lock()->access<std::string>( path + "/pwr" ).set( "0" );
 }
 
 static void tx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path ) {
@@ -785,7 +785,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
                 const fs_path rx_dsp_path   = CYAN_NRNT_MB_PATH / "rx_dsps" / chan;
 
                 // stop streaming
-                // _tree->access<std::string>(rx_path / chan / "stream").set("0");
+                _tree->access<std::string>(rx_path / chan / "stream").set("0");
                 if(little_endian_supported) {
                     // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
                     _tree->access<int>(rx_link_path / "endian_swap").set(1);
@@ -842,7 +842,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
                 const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / chan;
                 const fs_path rx_dsp_path   = CYAN_NRNT_MB_PATH / "rx_dsps" / chan;
 
-                // _tree->access<std::string>(rx_path / chan / "stream").set("0");
+                _tree->access<std::string>(rx_path / chan / "stream").set("0");
                 // vita enable
                 _tree->access<std::string>(rx_link_path / "vita_en").set("1");
 
