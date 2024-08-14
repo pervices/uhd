@@ -11,6 +11,7 @@
 #include <uhdlib/utils/system_time.hpp>
 #include <algorithm>
 #include <sys/mman.h>
+#include <sys/syscall.h>
 
 namespace uhd { namespace transport {
 
@@ -153,7 +154,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Skip setting if setting priority (which also sets affinity failed)
     if(priority_set) {
         unsigned int cpu;
-        int r = getcpu(&cpu, nullptr);
+        // Syscall used because getcpu is does not exist on Oracle
+        int r = syscall(SYS_getcpu, &cpu, nullptr);
         if(!r) {
             for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
                 r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
