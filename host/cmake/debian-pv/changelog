@@ -1,3 +1,12 @@
+uhdpv (4.4.0.23-0ubuntu1) ubuntu_release; urgency=low
+
+  * Greatly improve rx performance with multiple channels (at the cost of much higher CPU utilization, using 1 core per thread (capped at 1/3 of the total cores on the system)
+  * Improving reliability of commands sent over the SFP ports
+  * Disabling spuious warning about PPS not detected
+  * Removing redundant part of warning message for unsufficient permission for realtime threading
+
+ -- Per Vices <packages@pervices.com>  Aug, 15 Jul 2024 16:26:23 -0400
+
 uhdpv (4.4.0.22-0ubuntu1) ubuntu_release; urgency=low
 
   * Improving CPU governor warning message
