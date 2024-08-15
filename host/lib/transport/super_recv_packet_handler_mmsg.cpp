@@ -194,7 +194,7 @@ public:
         }
 
         if(_overflow_occured && _suboptimal_spb) {
-            UHD_LOGGER_ERROR("RECV_PACKET_HANDLER_MMSG") << "An overflow occured during a run where a subopitmal number of samples were requested from recv. To reduce the chance of an overflow in the future ensure nsamps_per_buff is multiple of " << _MAX_SAMPLE_BYTES_PER_PACKET / _BYTES_PER_SAMPLE;
+            UHD_LOGGER_WARNING("RECV_PACKET_HANDLER_MMSG") << "An overflow occured during a run where a subopitmal number of samples were requested from recv. To reduce the chance of an overflow in the future ensure nsamps_per_buff is multiple of " << _MAX_SAMPLE_BYTES_PER_PACKET / _BYTES_PER_SAMPLE;
         }
     }
 
@@ -471,7 +471,6 @@ public:
                 // Used for realignment, normally they will be the same for all packets
                 if(latest_packet < vita_md[ch].tsf) {
                     latest_packet = vita_md[ch].tsf;
-                    latest_sequence_number = vita_md[ch].packet_count;
                 }
 
                 // Set the flag for realignment required if there is a mismatch in timestamps between packets
@@ -483,8 +482,9 @@ public:
                     _overflow_occured = true;
                     underflow_detected = true;
                 }
-
             }
+
+
 
             // Advance (skip) packets that are behind the latest packet so that they catch up after a few iterations of this
             if(underflow_detected) [[unlikely]] {
@@ -529,7 +529,7 @@ public:
             }
 
             // Update the sequence number
-            previous_sequence_number = latest_sequence_number;
+            previous_sequence_number = vita_md[0].packet_count;
 
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
