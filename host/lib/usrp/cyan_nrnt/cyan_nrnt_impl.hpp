@@ -90,7 +90,7 @@ public:
     typedef std::shared_ptr<cyan_nrnt_impl> sptr;
 
     // This is the core constructor to be called when a cyan_nrnt device is found
-    cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk);
+    cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk, double freq_range_stop = CYAN_NRNT_FREQ_RANGE_STOP);
     ~cyan_nrnt_impl(void);
 
     static device_addrs_t cyan_nrnt_find_with_addr(const device_addr_t &hint);
@@ -263,6 +263,9 @@ private:
     std::atomic<bool> _pps_thread_should_exit;
 
     time_spec_t _command_time;
+
+    // Maximum frequency of the highest band
+    double _freq_range_stop;
 
 	static void bm_thread_fn( cyan_nrnt_impl *dev );
 

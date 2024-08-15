@@ -112,7 +112,7 @@
 //sample rate will between 0 and CYAN_NRNT_LO_DIFF_RANGE_START[0] will result in the lo being a close to CYAN_NRNT_LO_DIFF[0] away from target frequency, while not excedding CYAN_NRNT_LO_DIFF[0]
 //ranges go from previous number (inclusive to the maximum of the range -1)
 #define CYAN_NRNT_MIN_LO CYAN_NRNT_LO_STEPSIZE
-#define CYAN_NRNT_MAX_LO CYAN_NRNT_FREQ_RANGE_STOP
+#define CYAN_NRNT_MAX_LO _freq_range_stop
 
 //Cyan NrNt VITA settings
 

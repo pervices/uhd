@@ -1097,7 +1097,7 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
 
-cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
+cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk, double freq_range_stop)
 :
 	device_addr( _device_addr ),
 	_time_diff( 0 ),
@@ -1106,7 +1106,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
     _command_time(),
-    _use_dpdk(use_dpdk)
+    _use_dpdk(use_dpdk),
+    _freq_range_stop(freq_range_stop)
 {
     if(_use_dpdk) {
         std::cout << "DPDK implementation in progress" << std::endl;
@@ -1420,7 +1421,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
 
 		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) CYAN_NRNT_FREQ_RANGE_STOP, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
 		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1431,7 +1432,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) CYAN_NRNT_FREQ_RANGE_STOP, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
 			meta_range_t((double) CYAN_NRNT_RF_RX_GAIN_RANGE_START, (double) CYAN_NRNT_RF_RX_GAIN_RANGE_STOP, (double) CYAN_NRNT_RF_RX_GAIN_RANGE_STEP));
 
@@ -1545,7 +1546,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
 
 		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) CYAN_NRNT_FREQ_RANGE_STOP, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 
 		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
@@ -1555,7 +1556,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk)
 		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) CYAN_NRNT_FREQ_RANGE_STOP, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
 			meta_range_t((double) CYAN_NRNT_RF_TX_GAIN_RANGE_START, (double) CYAN_NRNT_RF_TX_GAIN_RANGE_STOP, (double) CYAN_NRNT_RF_TX_GAIN_RANGE_STEP));
 
@@ -1839,7 +1840,7 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
         band_min_lo = CYAN_NRNT_LOW_MID_BARRIER;
     } else if (band == HIGH_BAND) {
         band_min_lo = CYAN_NRNT_MID_HIGH_BARRIER;
-        band_max_lo = CYAN_NRNT_FREQ_RANGE_STOP;
+        band_max_lo = _freq_range_stop;
     } else {
         throw uhd::runtime_error("invalid band");
     }

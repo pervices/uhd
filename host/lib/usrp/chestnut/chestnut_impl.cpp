@@ -263,7 +263,7 @@ UHD_STATIC_BLOCK(register_chestnut_device)
 
 chestnut_impl::chestnut_impl(const device_addr_t &_device_addr, bool use_dpdk)
 :
-    cyan_nrnt_impl(_device_addr, use_dpdk)
+    cyan_nrnt_impl(_device_addr, use_dpdk, CHESTNUT_FREQ_RANGE_STOP)
 {
 
     _type = device::CHESTNUT;
