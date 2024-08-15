@@ -17,8 +17,7 @@ bool uhd::set_thread_priority_safe(float priority, bool realtime)
         set_thread_priority(priority, realtime);
         return true;
     } catch (const uhd::access_error &e) {
-        UHD_LOGGER_WARNING("UHD") << "Unable to set thread priority due to insufficient permission, performance will be negatively affected. Run the program with sudo or add the required permissions to this user\n"
-            << e.what();
+        UHD_LOGGER_WARNING("UHD") << "Unable to set thread priority due to insufficient permission, performance will be negatively affected. Run the program with sudo or add the required permissions to this user";
         return false;
     } catch (const uhd::os_error& e) {
         UHD_LOGGER_WARNING("UHD")
