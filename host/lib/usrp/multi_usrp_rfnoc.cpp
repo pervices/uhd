@@ -2351,7 +2351,6 @@ public:
     /*******************************************************************
      * Filter API methods
      ******************************************************************/
-    [[deprecated("Use get_tx_filter_names  or get_rx_filter_names instead")]]
     std::vector<std::string> get_filter_names(const std::string &search_mask)
     {
         std::vector<std::string> names;
@@ -2375,13 +2374,16 @@ public:
         return names;
     }
 
-    [[deprecated("Use get_tx_filter  or get_rx_filter instead")]]
     filter_info_base::sptr get_filter(const std::string &path)
     {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
+        // Okay to ignore deprecated warning here since this function is itself deprecated
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         std::vector<std::string> possible_names = get_filter_names("");
+        #pragma GCC diagnostic pop
         std::vector<std::string>::iterator it;
         it = find(possible_names.begin(), possible_names.end(), path);
         if (it == possible_names.end()) {
@@ -2391,13 +2393,16 @@ public:
         return _tree->access<filter_info_base::sptr>(path / "value").get();
     }
 
-    [[deprecated("Use set_tx_filter  or set_rx_filter instead")]]
     void set_filter(const std::string &path, filter_info_base::sptr filter)
     {
 #ifdef MULTI_F_DEBUG
         std::cout << "Start of: " << __func__ << std::endl;
 #endif
+        // Okay to ignore deprecated warning here since this function is itself deprecated
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         std::vector<std::string> possible_names = get_filter_names("");
+        #pragma GCC diagnostic pop
         std::vector<std::string>::iterator it;
         it = find(possible_names.begin(), possible_names.end(), path);
         if (it == possible_names.end()) {

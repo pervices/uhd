@@ -32,6 +32,10 @@ struct convert_uc16_item32_1_to_uc16_item32_be_1 : public converter
     {
         // NOTE: If you need to copy, uncomment the following 
 
+        (void) inputs;
+        (void) outputs;
+        (void) nsamps;
+
         // const item32_t *input  = reinterpret_cast<const item32_t *>(inputs[0]);
         // item32_t *output = reinterpret_cast<item32_t *>(outputs[0]);
         // std::memcpy(output, input, nsamps*sizeof(item32_t));
