@@ -164,7 +164,7 @@ public:
         }
 
         // Create manager for receive threads and access to buffer recv data
-        size_t cache_line_size = std::hardware_destructive_interference_size;
+        size_t cache_line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
         if(cache_line_size == 0) {
             UHD_LOGGER_ERROR("RECV_PACKET_HANDLER_MMSG") << "Unable to get cache line size, assuming it is 64";
             cache_line_size = 64;
