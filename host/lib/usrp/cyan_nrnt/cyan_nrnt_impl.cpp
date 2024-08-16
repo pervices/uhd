@@ -1106,8 +1106,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
     _command_time(),
-    _use_dpdk(use_dpdk),
-    _freq_range_stop(freq_range_stop)
+    _freq_range_stop(freq_range_stop),
+    _use_dpdk(use_dpdk)
 {
     if(_use_dpdk) {
         std::cout << "DPDK implementation in progress" << std::endl;

@@ -376,9 +376,7 @@ public:
         // Not included in packet_info becuase packet_info's memory are accessed togther within a channel, vita_md is better to have it be adjacent for different channels
         std::vector<vrt::if_packet_info_t> vita_md(_NUM_CHANNELS);
 
-        // Sequence number and timestamp on the latest packet
-        // Should be equal for all packets, used during realignment
-        size_t latest_sequence_number = 0;
+        // The channel with the latest packet
         uint64_t latest_packet = 0;
 
         bool align_message_printed = false;
