@@ -251,7 +251,7 @@ public:
 
     virtual void set_time_now(const time_spec_t& time_spec, size_t mboard) {
         // _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
-        time_offset = time_spec;
+        time_offset = get_time_now() + time_spec;
     }
 
     // Request to resync time diffs
