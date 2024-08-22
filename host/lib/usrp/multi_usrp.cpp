@@ -393,6 +393,7 @@ public:
 
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override
     {
+        std::cout << __func__ << std::endl;
         if (mboard != ALL_MBOARDS) {
             this->get_device()->set_time_now(time_spec, mboard);
             this->get_device()->request_resync_time_diff();
@@ -405,6 +406,7 @@ public:
 
     void set_time_next_pps(const time_spec_t& time_spec, size_t mboard) override
     {
+        std::cout << __func__ << std::endl;
         if (mboard != ALL_MBOARDS) {
             _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").set(time_spec);
             this->get_device()->request_resync_time_diff();
@@ -417,6 +419,7 @@ public:
 
     void set_time_unknown_pps(const time_spec_t& time_spec) override
     {
+        std::cout << __func__ << std::endl;
         // Gets the time of the last pps
         time_spec_t time_start_last_pps = get_time_last_pps();
         auto end_time = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
