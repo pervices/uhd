@@ -1161,6 +1161,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (max_buffer_level * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CYAN_NRNT_MAX_MTU-CYAN_NRNT_UDP_OVERHEAD))) );
     }
 
+    // This line will get time spec, the time diff port must be initialized first
+    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
+    _tree->access<time_spec_t>(CYAN_NRNT_TIME_PATH / "now").set(time_spec_t(0.0));
+
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/num_rx", "system/num_rx", int, int);
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/num_tx", "system/num_tx", int, int);
     num_rx_channels = (size_t) (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/num_rx").get());
@@ -1320,8 +1324,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
 
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
-    // This line will get time spec, the time diff port must be initialized first
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
     // Set to true once PPS detect is reliably implemented in the FPGA
