@@ -250,7 +250,8 @@ public:
     }
 
     virtual void set_time_now(const time_spec_t& time_spec, size_t mboard) {
-        _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
+        // _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
+        time_offset = time_spec;
     }
 
     // Request to resync time diffs
@@ -268,6 +269,7 @@ public:
 protected:
     uhd::property_tree::sptr _tree;
     device_filter_t _type;
+    time_spec_t time_offset = time_spec_t(0.0);
 };
 
 } // namespace uhd

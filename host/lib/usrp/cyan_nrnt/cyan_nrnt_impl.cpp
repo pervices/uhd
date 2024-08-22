@@ -361,6 +361,8 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
+    stream_cmd.time_spec += time_offset;
+
     if (stream_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
         stream_cmd.stream_now = true;
