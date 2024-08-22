@@ -168,6 +168,8 @@ static void shutdown_lingering_rx_streamers() {
 class cyan_nrnt_send_packet_streamer : public sph::send_packet_streamer_mmsg {
 public:
 
+    time_spec_t* time_offset;
+
 	typedef std::function<void(void)> onfini_type;
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
@@ -250,6 +252,8 @@ public:
         size_t r = 0;
 
         uhd::tx_metadata_t metadata = metadata_;
+
+        metadata.time_spec += *time_offset;
 
         if ( _first_call_to_send || metadata.start_of_burst ) {
             metadata.start_of_burst = true;
@@ -1065,6 +1069,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
     std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use);
+
+    my_streamer->time_offset = &time_offset;
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
