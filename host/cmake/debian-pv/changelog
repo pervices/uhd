@@ -1,3 +1,10 @@
+uhdpv (4.4.0.24-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Improve reliability of tx at high sample rates
+  * Enable/fix compilation warnings
+
+ -- Per Vices <packages@pervices.com>  Mon, 26 Aug 2024 16:18:18 -0400
+
 uhdpv (4.4.0.23-0ubuntu1) ubuntu_release; urgency=low
 
   * Greatly improve rx performance with multiple channels (at the cost of much higher CPU utilization, using 1 core per thread (capped at 1/3 of the total cores on the system)
