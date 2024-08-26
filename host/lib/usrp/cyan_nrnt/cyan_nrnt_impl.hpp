@@ -234,6 +234,7 @@ private:
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
+    // Time difference between host and device, a pointer is used to
     std::atomic<double> _time_diff;
 	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;

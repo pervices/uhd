@@ -885,7 +885,10 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
     }
 
 	// For SoB, record the instantaneous time difference + compensation
-	if ( _time_diff_converged ) {
+	// Only udpdate if outside tolerance range to minimize how often the other thread needs to be notified
+	// Acceptable tolerance is ~1 packet at 1Gsps
+	// TODO: dynamically set tolerance
+	if ( _time_diff_converged && std::abs(_time_diff - cv) > 2e-6 ) {
 		time_diff_set( cv );
 	}
 }
