@@ -23,6 +23,7 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <immintrin.h>
 
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
@@ -113,11 +114,14 @@ public:
     // Note: this must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
     std::atomic<bool> time_resync_requested = false;
 
-    inline double time_diff_get() {
+    inline int64_t time_diff_us_get() {
         return _time_diff;
     }
-    inline void time_diff_set( double time_diff ) {
+    inline void time_diff_us_set( int64_t time_diff ) {
         _time_diff = time_diff;
+        // sfence is all that is required on x86 to ensure all other threads can see the new time diff
+        // TODO: create a sync mechanism so that the setting thread will not adjust this to close to when it is needed by other threads
+        _mm_sfence();
     }
 
     void start_bm();
@@ -235,7 +239,7 @@ private:
 	 */
 	uhd::pidc _time_diff_pidc;
     // Time difference between host and device, a pointer is used to
-    std::atomic<double> _time_diff;
+    int64_t _time_diff;
 	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );

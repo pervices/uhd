@@ -39,6 +39,8 @@
 #    include <uhdlib/transport/dpdk_simple.hpp>
 #endif
 
+#include <immintrin.h>
+
 namespace link_cyan_nrnt {
     const char *mtu_ref = "9000";
 }
@@ -194,8 +196,8 @@ uhd::time_spec_t cyan_nrnt_impl::get_time_now() {
     // Waits for clock to be stable before getting time
     if(_bm_thread_running) {
         wait_for_time_diff_converged();
-        double diff = time_diff_get();
-        return uhd::get_system_time() + diff;
+
+        return uhd::get_system_time() + time_spec_t::from_ticks(time_diff_us_get(), 1e6);
     // If clock sync thread is not running reset the time diff pid and use the initial offset
     // Will get the time but without taking into account network latency (which would require the clock sync thread)
     } else {
@@ -867,10 +869,6 @@ void cyan_nrnt_impl::reset_time_diff_pid() {
     _time_diff_pidc.reset(reset_now, new_offset);
 }
 
-static size_t diff_updates = 0;
-static size_t diff_skip_updates = 0;
-static size_t stablize_counter = 5;
-
 /// SoB Time Diff: feed the time diff error back into out control system
 void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
@@ -891,17 +889,8 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
     // For SoB, record the instantaneous time difference + compensation
     // Only udpdate if outside tolerance range to minimize how often the other thread needs to be notified
     // Acceptable tolerance is ~1 packet at 1Gsps
-    // TODO: dynamically set tolerance
-    if(stablize_counter) {
-        stablize_counter--;
-        time_diff_set( cv );
-    } else if ( _time_diff_converged && std::abs(_time_diff - cv) > 1e-6) {
-        diff_updates++;
-        printf("diff_updates: %lu, diff_skip_updates: %lu\n", diff_updates, diff_skip_updates);
-		time_diff_set( cv );
-        stablize_counter = 10;
-	} else {
-        diff_skip_updates++;
+    if ( _time_diff_converged ) {
+        time_diff_us_set( (int64_t) (cv * 1e6) );
     }
 }
 
