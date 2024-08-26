@@ -121,8 +121,7 @@ public:
         *_time_diff = time_diff;
         // sfence is all that is required on x86 to ensure all other threads can see the new time diff
         // TODO: create a sync mechanism so that the setting thread will not adjust this to close to when it is needed by other threads
-        // TODO: fix false sharing caused by _time_diff
-        _mm_sfence();
+        _mm_clflush(_time_diff);
     }
 
     void start_bm();
