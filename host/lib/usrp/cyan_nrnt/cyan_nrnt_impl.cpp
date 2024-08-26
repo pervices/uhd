@@ -889,6 +889,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 	// Acceptable tolerance is ~1 packet at 1Gsps
 	// TODO: dynamically set tolerance
 	if ( _time_diff_converged && std::abs(_time_diff - cv) > 2e-6 ) {
+        std::cout << "updating time diff\n";
 		time_diff_set( cv );
 	}
 }
