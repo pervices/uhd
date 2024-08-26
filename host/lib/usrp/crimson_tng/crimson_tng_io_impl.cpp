@@ -386,9 +386,9 @@ private:
 
     /***********************************************************************
      * buffer_monitor_loop
-     * - update buffer levels
+     * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode
      * - update over / underflow counters
-     * - put async message packets into queue
+     * - put async message packets (for overflows/underflows) into queue
      **********************************************************************/
 	static void buffer_monitor_loop( crimson_tng_send_packet_streamer *self ) {
         // This is not time sensitive, remove thread priority
@@ -425,14 +425,12 @@ private:
 				}
 
 				size_t level;
-                //gets buffer level
+                // gets buffer level, we only care about the uflow and oflow counters
 				try {
 					get_fifo_level( level, uflow, oflow, then );
 				} catch( ... ) {
                     continue;
                 }
-
-                self->update_buffer_level(i, level, then);
 
 				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
 					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp

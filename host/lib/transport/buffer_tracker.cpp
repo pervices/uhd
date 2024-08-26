@@ -6,7 +6,7 @@
 namespace uhd { namespace transport {
 
 // Used to track the buffer level
-// update_buffer_level_bias can be called from any thread, everything else should only be called from the same thread
+// Everything else should only be called from the same thread
 
 void buffer_tracker::set_sample_rate( const double rate ) {
     nominal_sample_rate = rate;
@@ -84,53 +84,7 @@ int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
         return 0;
     } else {
         int64_t predicted_buffer_level = int64_t(total_samples_sent - samples_consumed);
-        return std::max(predicted_buffer_level + buffer_level_bias, (int64_t) 0);
-    }
-}
-
-// Adjusts the bias in buffer level prediction
-// level: measured buffer level
-// Now: the time the buffer was read at
-// Updating buffer level bias shouldn't be time sensitive so its fine to not implement thread synchronization mechanisms
-void buffer_tracker::update_buffer_level_bias( const int64_t level, const uhd::time_spec_t & now ) {
-    // If the buffer level is 0 then the predicted level is definely wrong (since it can be negative)
-    // Therefore skip updating bias
-    if(level == 0) {
-        return;
-    }
-
-#ifdef DEBUG_PRIMING
-    else {
-        if(level != 0 || buffer_samples_confirmed) {
-            buffer_samples_confirmed = true;
-            return;
-        }
-        else if(total_samples_sent > 0) {
-            if(failure_to_prime_antirace) {
-                priming_message_printed = true;
-                std::cerr << "Buffer failed to prime" << std::endl;
-            } else {
-                failure_to_prime_antirace = true;
-            }
-        }
-    }
-#endif
-
-    int64_t predicted_buffer_level = get_buffer_level(now);
-    // Only update bias if most of the required samples to fill the buffer have been sent
-    if(!start_of_burst_pending(now)) {
-        // If buffer level is above the target, adjust the bias upwards
-        if(level > nominal_buffer_level) {
-            buffer_level_bias += (int64_t)((level - nominal_buffer_level) * 0.01);
-            return;
-        // If the buffer level is below expected adjust bias downwards
-        } else if(level < predicted_buffer_level) {
-            buffer_level_bias += (int64_t)((level - predicted_buffer_level) * 0.01);
-            return;
-        // Otherwise do nothing
-        } else {
-            return;
-        }
+        return std::max(predicted_buffer_level, (int64_t) 0);
     }
 }
 

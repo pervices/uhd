@@ -251,10 +251,6 @@ public:
         }
     }
 
-    void update_buffer_level(const uint64_t ch, const uint64_t level, const uhd::time_spec_t & now) {
-        ch_send_buffer_info_group[ch].buffer_level_manager.update_buffer_level_bias(level, now);
-    }
-
     void enable_blocking_fc(int64_t blocking_setpoint) {
         use_blocking_fc = true;
         if(blocking_setpoint > 0.9 * _DEVICE_BUFFER_SIZE) {
