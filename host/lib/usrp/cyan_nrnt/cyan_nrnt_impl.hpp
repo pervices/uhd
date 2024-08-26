@@ -115,10 +115,10 @@ public:
     std::atomic<bool> time_resync_requested = false;
 
     inline int64_t time_diff_us_get() {
-        return _time_diff;
+        return *_time_diff;
     }
     inline void time_diff_us_set( int64_t time_diff ) {
-        _time_diff = time_diff;
+        *_time_diff = time_diff;
         // sfence is all that is required on x86 to ensure all other threads can see the new time diff
         // TODO: create a sync mechanism so that the setting thread will not adjust this to close to when it is needed by other threads
         // TODO: fix false sharing caused by _time_diff
@@ -240,7 +240,7 @@ private:
 	 */
 	uhd::pidc _time_diff_pidc;
     // Time difference between host and device, a pointer is used to
-    int64_t _time_diff;
+    int64_t* const _time_diff;
 	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );

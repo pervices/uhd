@@ -1104,7 +1104,7 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk, double freq_range_stop)
 :
 	device_addr( _device_addr ),
-	_time_diff( 0 ),
+	_time_diff((int64_t*) aligned_alloc(sysconf(_SC_LEVEL1_DCACHE_LINESIZE), (size_t) ( std::ceil(sizeof(int64_t)/ (double)sysconf(_SC_LEVEL1_DCACHE_LINESIZE) ) * sysconf(_SC_LEVEL1_DCACHE_LINESIZE) ) ) ),
 	_time_diff_converged( false ),
 	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
@@ -1705,6 +1705,9 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
 {
     stop_bm();
     stop_pps_dtc();
+
+    // Must free after bm thread finishes
+    free(_time_diff);
 }
 
 //gets the jesd number to be used in creating stream command packets
