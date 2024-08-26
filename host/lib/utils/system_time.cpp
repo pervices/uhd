@@ -10,7 +10,7 @@
 uhd::time_spec_t uhd::get_system_time(void)
 {
     struct ::timespec time;
-    clock_gettime(CLOCK_MONOTONIC, &time);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &time);
     const auto seconds = time.tv_sec;
     const auto nanoseconds = time.tv_nsec;
     return uhd::time_spec_t(seconds, nanoseconds, 1e9);
