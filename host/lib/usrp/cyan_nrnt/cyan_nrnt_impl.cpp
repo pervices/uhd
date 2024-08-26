@@ -867,6 +867,9 @@ void cyan_nrnt_impl::reset_time_diff_pid() {
     _time_diff_pidc.reset(reset_now, new_offset);
 }
 
+static size_t diff_updates = 0;
+static size_t diff_skip_updates = 0;
+
 /// SoB Time Diff: feed the time diff error back into out control system
 void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
@@ -888,10 +891,13 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 	// Only udpdate if outside tolerance range to minimize how often the other thread needs to be notified
 	// Acceptable tolerance is ~1 packet at 1Gsps
 	// TODO: dynamically set tolerance
-	if ( _time_diff_converged && std::abs(_time_diff - cv) > 2e-6 ) {
-        std::cout << "updating time diff\n";
+	if ( _time_diff_converged && std::abs(_time_diff - cv) > 5e-6 ) {
+        diff_updates++;
+        printf("diff_updates: %lu, diff_skip_updates: %lu\n", diff_updates, diff_skip_updates);
 		time_diff_set( cv );
-	}
+	} else {
+        diff_skip_updates++;
+    }
 }
 
 //performs clock synchronization
