@@ -112,7 +112,7 @@ public:
     bool time_diff_converged();
     void wait_for_time_diff_converged();
     // Note: this must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
-    std::atomic<bool> time_resync_requested = false;
+    bool time_resync_requested = false;
 
     inline int64_t time_diff_us_get() {
         return *_time_diff;
@@ -252,7 +252,7 @@ private:
     int64_t* const _time_diff;
     // Soft lock flag used so bm thread doesn't update _time_diff while it's being used
     std::atomic<bool> _time_diff_soft_lock;
-	std::atomic<bool> _time_diff_converged;
+	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
