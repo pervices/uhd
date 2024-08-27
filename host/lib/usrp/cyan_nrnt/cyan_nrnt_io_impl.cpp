@@ -174,9 +174,9 @@ public:
     typedef std::function<void(void)> time_unlock_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
-	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
+	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, int64_t* const time_diff_ptr)
 	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
+		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, time_diff_ptr ),
 		_first_call_to_send( true ),
 		_buffer_monitor_running( false ),
 		_stop_buffer_monitor( false )
@@ -248,7 +248,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
-        prefetch_time();
+        _mm_prefetch(_time_diff_ptr, _MM_HINT_T0);
         
         size_t r = 0;
 
@@ -278,7 +278,7 @@ public:
 
         r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
-        time_unlock();
+        // time_unlock();
         
         return r;
     }
@@ -291,10 +291,6 @@ public:
     // Sets the function from the device to be used to get the expected time on the device
     void set_time_now_function( timenow_type time_now ) {
         _time_now = time_now;
-    }
-    // Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
-    uhd::time_spec_t get_time_now() {
-        return _time_now ? _time_now() : get_system_time();
     }
 
     // TODO comment
@@ -1033,9 +1029,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     const size_t spp = CYAN_NRNT_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
 
-    //make the new streamer given the samples per packet
-    cyan_nrnt_send_packet_streamer::timenow_type timenow_ = std::bind( & cyan_nrnt_impl::get_time_now, this );
-
     std::vector<std::string> dst_ips(args.channels.size());
     std::vector<int> dst_ports(args.channels.size());
     for(size_t n = 0; n < args.channels.size(); n++) {
@@ -1087,7 +1080,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use);
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _time_diff);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
