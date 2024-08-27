@@ -1682,7 +1682,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
 
 		// Tyreus-Luyben tuned PID controller
-		_time_diff_pidc = uhd::pidc_tl(
+		_time_diff_pidc = uhd::pidc(
 			0.0, // desired set point is 0.0s error
 			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate

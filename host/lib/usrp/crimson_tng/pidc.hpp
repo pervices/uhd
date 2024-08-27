@@ -67,6 +67,23 @@ namespace uhd {
 			}
 		}
 
+        #define TL_TI( Ku, Pu ) ( 2.2 * Pu )
+        #define TL_TD( Ku, Pu ) ( Pu / 6.3 )
+
+        #define TL_KP( Ku, Pu ) ( Ku / 2.2 )
+        #define TL_KI( Ku, Pu ) ( TL_KP( Ku, Pu ) / TL_TI( Ku, Pu ) )
+        #define TL_KD( Ku, Pu ) ( TL_KP( Ku, Pu ) * TL_TD( Ku, Pu ) )
+        /**
+        * Constructor for a Tyreus-Luyben Tuned PID Controller
+        *
+        * An alternative, more stable tuning than Ziegler-Nichols.
+        */
+		pidc( double sp, double Ku, double Pu )
+		:
+			pidc( sp, TL_KP( Ku, Pu ), TL_KI( Ku, Pu ), TL_KD( Ku, Pu ), 2/Pu )
+		{
+		}
+
 		virtual ~pidc() {}
 
 		double update_control_variable( const double sp, const double pv, const uhd::time_spec_t &now ) {
@@ -259,7 +276,5 @@ namespace uhd {
 	};
 
 } // namespace uhd
-
-#include "pidc_tl.hpp"
 
 #endif /* PIDC_HPP_ */
