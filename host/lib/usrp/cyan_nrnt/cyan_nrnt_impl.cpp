@@ -1105,6 +1105,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 :
 	device_addr( _device_addr ),
 	_time_diff((int64_t*) aligned_alloc(sysconf(_SC_LEVEL1_DCACHE_LINESIZE), (size_t) ( std::ceil(sizeof(int64_t)/ (double)sysconf(_SC_LEVEL1_DCACHE_LINESIZE) ) * sysconf(_SC_LEVEL1_DCACHE_LINESIZE) ) ) ),
+	_time_diff_soft_lock( false ),
 	_time_diff_converged( false ),
 	_bm_thread_needed( true ),
 	_bm_thread_running( false ),

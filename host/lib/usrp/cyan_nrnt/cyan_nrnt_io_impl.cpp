@@ -170,6 +170,8 @@ public:
 
 	typedef std::function<void(void)> onfini_type;
 	typedef std::function<uhd::time_spec_t(void)> timenow_type;
+    typedef std::function<void(void)> time_prefetch_type;
+    typedef std::function<void(void)> time_unlock_type;
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
 	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
@@ -246,6 +248,7 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     ){
+        prefetch_time();
         
         size_t r = 0;
 
@@ -274,6 +277,8 @@ public:
         }
 
         r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
+
+        time_unlock();
         
         return r;
     }
@@ -291,6 +296,23 @@ public:
     uhd::time_spec_t get_time_now() {
         return _time_now ? _time_now() : get_system_time();
     }
+
+    // TODO comment
+    void set_time_prefetch_function( time_prefetch_type time_prefetch ) {
+        _time_prefetch = time_prefetch;
+    }
+    void prefetch_time() {
+        _time_prefetch();
+    }
+
+    // TODO comment
+    void set_time_unlock_function( time_unlock_type time_unlock ) {
+        _time_unlock = time_unlock;
+    }
+    void time_unlock() {
+        _time_unlock();
+    }
+
     void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
 		_eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
     }
@@ -343,6 +365,9 @@ private:
     bool _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
     timenow_type _time_now;
+    // TODO comment
+    time_prefetch_type _time_prefetch;
+    time_unlock_type _time_unlock;
 
     // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
     struct eprops_type{
@@ -1068,6 +1093,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     my_streamer->resize(args.channels.size());
 
     my_streamer->set_time_now_function(std::bind(&cyan_nrnt_impl::get_time_now,this));
+    my_streamer->set_time_prefetch_function(std::bind(&cyan_nrnt_impl::time_diff_us_prefetch,this));
+    my_streamer->set_time_unlock_function(std::bind(&cyan_nrnt_impl::time_diff_us_unlock,this));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){

@@ -117,12 +117,21 @@ public:
     inline int64_t time_diff_us_get() {
         return *_time_diff;
     }
+    inline void time_diff_us_prefetch() {
+        _time_diff_soft_lock = true;
+        _mm_prefetch(_time_diff, _MM_HINT_T0);
+    }
+    inline void time_diff_us_unlock() {
+        _time_diff_soft_lock = false;
+    }
     inline void time_diff_us_set( int64_t time_diff ) {
-        *_time_diff = time_diff;
-        // sfence is all that is required on x86 to ensure all other threads can see the new time diff
-        // TODO: create a sync mechanism so that the setting thread will not adjust this to close to when it is needed by other threads
-        _mm_clflush(_time_diff);
-        _mm_prefetch(_time_diff, _MM_HINT_T2);
+        // Update time diff if not currently in use, skip if in use due latency spike from inter-process communication
+        if(!_time_diff_soft_lock) {
+            *_time_diff = time_diff;
+            // sfence is all that is required on x86 to ensure all other threads can see the new time diff
+            // TODO: create a sync mechanism so that the setting thread will not adjust this to close to when it is needed by other threads
+            _mm_sfence();
+        }
     }
 
     void start_bm();
@@ -241,6 +250,8 @@ private:
 	uhd::pidc _time_diff_pidc;
     // Time difference between host and device, a pointer is used to
     int64_t* const _time_diff;
+    // Soft lock flag used so bm thread doesn't update _time_diff while it's being used
+    std::atomic<bool> _time_diff_soft_lock;
 	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
