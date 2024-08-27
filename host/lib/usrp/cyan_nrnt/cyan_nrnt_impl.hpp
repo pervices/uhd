@@ -126,12 +126,12 @@ public:
     }
     inline void time_diff_us_set( int64_t time_diff ) {
         // Update time diff if not currently in use, skip if in use due latency spike from inter-process communication
-        if(!_time_diff_soft_lock) {
+        // if(!_time_diff_soft_lock) {
             *_time_diff = time_diff;
             // sfence is all that is required on x86 to ensure all other threads can see the new time diff
             // TODO: create a sync mechanism so that the setting thread will not adjust this to close to when it is needed by other threads
             _mm_sfence();
-        }
+        // }
     }
 
     void start_bm();
