@@ -46,6 +46,7 @@
 #include <boost/endian/conversion.hpp>
 
 #include <uhdlib/utils/system_time.hpp>
+#include <uhd/utils/log.hpp>
 
 #if 0
   #ifndef UHD_TXRX_DEBUG_PRINTS
@@ -431,7 +432,7 @@ private:
                             }
                         }
                         if(!using_performance_governor) {
-                            UHD_LOG_FASTPATH("\nSend underflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "\nSend underflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
                         }
                         self->_performance_warning_printed = true;
                     }
@@ -460,7 +461,7 @@ private:
                             }
                         }
                         if(!using_performance_governor) {
-                            UHD_LOG_FASTPATH("\nSend overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "\nSend overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
                         }
                         self->_performance_warning_printed = true;
                     }
