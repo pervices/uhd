@@ -118,11 +118,11 @@ public:
         return *_time_diff;
     }
     inline void time_diff_us_prefetch() {
-        _time_diff_soft_lock = true;
+        // _time_diff_soft_lock = true;
         _mm_prefetch(_time_diff, _MM_HINT_T0);
     }
     inline void time_diff_us_unlock() {
-        _time_diff_soft_lock = false;
+        // _time_diff_soft_lock = false;
     }
     inline void time_diff_us_set( int64_t time_diff ) {
         // Update time diff if not currently in use, skip if in use due latency spike from inter-process communication
