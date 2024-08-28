@@ -1,3 +1,10 @@
+uhdpv (4.4.0.24-0ubuntu1) ubuntu_release; urgency=high
+
+  * Fixed a bug that would cause recv to report getting more samples than requested/actually obtained
+  * Upgrade message about not using the performance CPU governor to warnings
+
+ -- Per Vices <packages@pervices.com>  Wed, 28 Aug 2024 15:23:13 -0400
+
 uhdpv (4.4.0.24-0ubuntu1) ubuntu_release; urgency=medium
 
   * Improve reliability of tx at high sample rates
