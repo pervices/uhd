@@ -541,6 +541,7 @@ public:
             }
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
+            size_t samples_to_consume = 0;
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
@@ -555,7 +556,7 @@ public:
 
                 size_t samples_in_packet = vita_md[ch].num_payload_bytes / _BYTES_PER_SAMPLE;
                 // Number of samples in the packet that fit in the user's buffer
-                size_t samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
+                samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
                 // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
@@ -576,7 +577,8 @@ public:
 
             }
 
-            samples_received += packet_sample_bytes / _BYTES_PER_SAMPLE;
+            // Record how many samples have been copied to the buffer, will be the same for all channels
+            samples_received += samples_to_consume;
 
             // Exit loop if user only wants one packet
             // Not actually unlikely, but performance matters more when false
