@@ -327,6 +327,7 @@ stream_cmd_t cyan_nrnt_impl::get_stream_cmd(std::string req) {
 
 //creates the stream cmd packet to be send over the sfp ports
 void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
+
     // The number of samples requested must be a multiple of a certain number, depending on the variant
     uint64_t original_nsamps_req = stream_cmd.num_samps;
     stream_cmd.num_samps = (original_nsamps_req / nsamps_multiple_rx) * nsamps_multiple_rx;
@@ -1332,8 +1333,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
-    // Set to true once PPS detect is reliably implemented in the FPGA
-    _pps_thread_needed = false;
+    _pps_thread_needed = true;
     try {
         // Attempt to read pps_detected
         // If success the the pps monitoring loop should be run
