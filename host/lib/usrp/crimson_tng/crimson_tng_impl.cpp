@@ -337,6 +337,9 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t strea
         << stream_cmd.time_spec.get_real_secs() << std::endl;
 #endif
 
+    // TMP: 1ms delay so that rx command packets are sent on different clock cycles
+    usleep(1000);
+
     if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
         UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
         stream_cmd.stream_now = true;
