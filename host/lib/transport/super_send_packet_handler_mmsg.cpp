@@ -471,8 +471,9 @@ private:
             if(first_packet) {
                 timestamp = packet_header_infos[n].tsf;
                 first_packet = false;
+            } else {
+                packet_header_infos[n].tsf = 0;
             }
-            packet_header_infos[n].tsf = timestamp;
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
