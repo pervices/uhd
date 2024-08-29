@@ -422,6 +422,9 @@ private:
         }
     }
 
+    bool first_packet = true;
+    uint64_t timestamp = 0;
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -464,6 +467,12 @@ private:
                 // Sets the timestamp to follow from the previous send
                 packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
             }
+
+            if(first_packet) {
+                timestamp = packet_header_infos[n].tsf;
+                first_packet = false;
+            }
+            packet_header_infos[n].tsf = timestamp;
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
