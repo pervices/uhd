@@ -126,7 +126,7 @@
 				( CYAN_NRNT_VITA_TLR_PCKCNT << 0) )
 
 // Constants to determine which frequency band to use
-#define CYAN_NRNT_LOW_MID_BARRIER 400000000
+#define CYAN_NRNT_LOW_MID_BARRIER 250000000
 #define CYAN_NRNT_MID_HIGH_BARRIER 5800000000
 #define CYAN_NRNT_MID_MAX_LO 5600000000
 
