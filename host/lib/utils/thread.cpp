@@ -11,6 +11,10 @@
 #include <uhd/utils/thread.hpp>
 #include <vector>
 
+#include <sched.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 bool uhd::set_thread_priority_safe(float priority, bool realtime)
 {
     try {
@@ -48,6 +52,7 @@ static void check_priority_range(float priority)
 #include <errno.h>
 
 namespace uhd {
+    // From: https://man7.org/linux/man-pages/man2/sched_setattr.2.html
     struct sched_attr {
         uint32_t size;              /* Size of this structure */
         uint32_t sched_policy;      /* Policy (SCHED_*) */
@@ -60,6 +65,10 @@ namespace uhd {
         uint64_t sched_runtime;
         uint64_t sched_deadline;
         uint64_t sched_period;
+
+        /* Utilization hints */
+        uint32_t sched_util_min;
+        uint32_t sched_util_max;
     };
 }
 
@@ -67,9 +76,18 @@ void uhd::set_thread_priority(float priority, bool realtime)
 {
     check_priority_range(priority);
 
+    // Set thread affinity because it would normally be a side effect of setting realtime priority and realtime priority was requested
+    uint32_t current_core = 0;
+    // getcpu wrapper is implemented in libc 2.29
+    // Oracle 8 uses libc 2.28, so a direct syscall is required
+    int r = syscall(SYS_getcpu, &current_core, NULL);
+    if(r == 0) {
+        std::vector<size_t> current_core_v(1, (size_t) current_core);
+        set_thread_affinity(current_core_v);
+    } else {
+        UHD_LOG_WARNING("UHD", "Unable to get current cpu num while setting thread affinity. errno: " + std::string(strerror(errno)));
+    }
 
-    // TODO fix realtime priority
-    // Old SCHED_RR results in random slowdowns in the 10s of ms, SCHED_DEADLINE will randomly lock up non headless systems
 
     if(realtime) {
         set_thread_priority_realtime(priority);
@@ -84,16 +102,20 @@ void uhd::set_thread_priority_realtime(float priority) {
 
     struct sched_attr attr;
     attr.size = sizeof(attr);
-    attr.sched_policy = SCHED_DEADLINE;
-    attr.sched_flags = 0x01/*SCHED_FLAG_RESET_ON_FORK*/; // Documentation says to use SCHED_FLAG_RESET_ON_FORK, but it doesn't seem to be declared. Required to allow this thread to create child thread in deadline mode
+    // SCHED_DEADLINE is used since SCHED_RR and SCHED_FIFO have limits on what % of the time they can run
+    attr.sched_policy = SCHED_FIFO;
+    attr.sched_flags = 0x01/*SCHED_FLAG_RESET_ON_FORK*/ | 0x40 /*SCHED_FLAG_UTIL_CLAMP_MAX*/; // Documentation says to use SCHED_FLAG_RESET_ON_FORK, but it doesn't seem to be declared. Required to allow this thread to create child thread in deadline mode
     // Nice is not used when using realtime threads
     attr.sched_nice = 0;
     // Priority is not used in deadline mode
-    attr.sched_priority = 0;
+    attr.sched_priority = 1;
     // Runtime, deadline, and priority should be equal so it uses 100% of time
-    attr.sched_runtime = 1000000;
-    attr.sched_deadline = 1000000;
-    attr.sched_period = 1000000;
+    attr.sched_runtime = 0;
+    attr.sched_deadline = 0;
+    attr.sched_period = 0;
+    attr.sched_util_min = 0;
+    // Allows for 100% usage of the core
+    attr.sched_util_max = 1024;
 
     int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
 
