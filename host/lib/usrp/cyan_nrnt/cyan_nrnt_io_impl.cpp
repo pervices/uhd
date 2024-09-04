@@ -377,6 +377,7 @@ private:
         // Sets a lower thread priority sine this isn't time sensitive
         uhd::set_thread_priority_safe(0, false);
         uhd::set_thread_affinity(std::vector<size_t>(0));
+        std::cout << "buffer_monitor_loop\n";
 
 		for( ; ! self->_stop_buffer_monitor; ) {
 

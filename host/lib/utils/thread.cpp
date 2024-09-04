@@ -104,7 +104,7 @@ void uhd::set_thread_priority_realtime(float priority) {
     attr.size = sizeof(attr);
     // SCHED_DEADLINE is used since SCHED_RR and SCHED_FIFO have limits on what % of the time they can run
     attr.sched_policy = SCHED_FIFO;
-    attr.sched_flags = 0x01/*SCHED_FLAG_RESET_ON_FORK*/ | 0x40 /*SCHED_FLAG_UTIL_CLAMP_MAX*/; // Documentation says to use SCHED_FLAG_RESET_ON_FORK, but it doesn't seem to be declared. Required to allow this thread to create child thread in deadline mode
+    attr.sched_flags = 0x01/*SCHED_FLAG_RESET_ON_FORK*/ | 0x20 /*SCHED_FLAG_UTIL_CLAMP_MIN*/ | 0x40 /*SCHED_FLAG_UTIL_CLAMP_MAX*/; // Documentation says to use SCHED_FLAG_RESET_ON_FORK, but it doesn't seem to be declared. Required to allow this thread to create child thread in deadline mode
     // Nice is not used when using realtime threads
     attr.sched_nice = 0;
     // Priority is not used in deadline mode
@@ -113,7 +113,7 @@ void uhd::set_thread_priority_realtime(float priority) {
     attr.sched_runtime = 0;
     attr.sched_deadline = 0;
     attr.sched_period = 0;
-    attr.sched_util_min = 0;
+    attr.sched_util_min = 1024;
     // Allows for 100% usage of the core
     attr.sched_util_max = 1024;
 
