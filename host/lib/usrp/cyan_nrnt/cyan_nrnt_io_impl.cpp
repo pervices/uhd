@@ -310,6 +310,7 @@ public:
         //spawn a thread to monitor the buffer level
         _buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
         _buffer_monitor_running = true;
+        usleep(500000);
 	}
 
 	void stop_buffer_monitor_thread() {

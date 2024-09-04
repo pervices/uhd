@@ -907,6 +907,7 @@ void cyan_nrnt_impl::start_bm() {
         request_resync_time_diff();
         _bm_thread_running = true;
 		_bm_thread = std::thread( bm_thread_fn, this );
+        usleep(500000);
 
         //Note: anything relying on this will require waiting time_diff_converged()
 	}
