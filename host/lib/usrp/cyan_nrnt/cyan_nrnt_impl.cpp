@@ -33,6 +33,7 @@
 #include "uhd/transport/udp_simple.hpp"
 #include "uhd/types/stream_cmd.hpp"
 #include "uhd/utils/static.hpp"
+#include <uhd/utils/thread.hpp>
 
 #include <uhdlib/transport/udp_common.hpp>
 #ifdef HAVE_DPDK
@@ -975,6 +976,7 @@ void cyan_nrnt_impl::wait_for_time_diff_converged() {
 // This function should be run in its own thread
 // When calling it verify that it is not already running (_bm_thread_running)
 void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
+    uhd::set_thread_affinity(std::vector<size_t>(0));
 
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;
