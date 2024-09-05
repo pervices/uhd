@@ -43,6 +43,7 @@ void sig_int_handler(int){
  **********************************************************************/
 int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
+    uhd::set_thread_affinity(std::vector<size_t>(1, 2));
 
     //variables to be set by po
     std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
