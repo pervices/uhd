@@ -412,7 +412,7 @@ void cyan_nrnt_impl::set_time_spec( const std::string key, time_spec_t value ) {
 
 // Loop that polls Crimson to verify the PPS is working
 void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
-    uhd::set_thread_affinity(std::vector<size_t>(1, 4));
+    uhd::set_thread_affinity(std::vector<size_t>(1, 6));
 
     dev->_pps_thread_running = true;
     int pps_detected;
@@ -979,7 +979,7 @@ void cyan_nrnt_impl::wait_for_time_diff_converged() {
 // This function should be run in its own thread
 // When calling it verify that it is not already running (_bm_thread_running)
 void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
-    uhd::set_thread_affinity(std::vector<size_t>(1, 3));
+    uhd::set_thread_affinity(std::vector<size_t>(1, 4));
 
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;

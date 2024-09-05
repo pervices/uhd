@@ -378,7 +378,7 @@ private:
 	static void buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self ) {
         // Sets a lower thread priority sine this isn't time sensitive
         printf("T0\n");
-        uhd::set_thread_affinity(std::vector<size_t>(1, 5));
+        uhd::set_thread_affinity(std::vector<size_t>(1, 8));
         uhd::set_thread_priority_safe(0, false);
         printf("T1\n");
 
