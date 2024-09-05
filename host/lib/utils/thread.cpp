@@ -106,7 +106,7 @@ void uhd::set_thread_priority_realtime(float priority) {
     // Nice is not used when using realtime threads
     attr.sched_nice = 0;
     // Priority is not used in deadline mode
-    attr.sched_priority = 1;
+    attr.sched_priority = ((priority / (1.0/-0.98)) + 1) * 100;
     // Runtime, deadline, and priority should be equal so it uses 100% of time
     attr.sched_runtime = 0;
     attr.sched_deadline = 0;
