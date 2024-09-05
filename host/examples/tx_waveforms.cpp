@@ -22,6 +22,8 @@
 #include <chrono>
 #include <thread>
 
+#include <boost/thread/thread.hpp>
+
 //wait for user to press cntrl c before closing
 //#define DELAYED_EXIT
 
@@ -287,6 +289,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     bool ignore_last = !vm.count("last");
     bool first_loop = true;
+
+    boost::this_thread::disable_interruption di;
 
     for(double time = first; ((ignore_last && first_loop ) || time <= last) && !stop_signal_called ; time += increment)
     {
