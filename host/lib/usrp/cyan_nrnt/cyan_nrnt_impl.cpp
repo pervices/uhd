@@ -980,7 +980,6 @@ void cyan_nrnt_impl::wait_for_time_diff_converged() {
 // When calling it verify that it is not already running (_bm_thread_running)
 void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
     uhd::set_thread_affinity(std::vector<size_t>(1, 4));
-    uhd::set_thread_priority_safe(0, false);
 
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;
