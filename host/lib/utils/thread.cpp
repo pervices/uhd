@@ -76,6 +76,11 @@ void uhd::set_thread_priority(float priority, bool realtime)
 {
     check_priority_range(priority);
 
+    if(realtime) {
+        set_thread_priority_realtime(priority);
+    } else {
+        set_thread_priority_non_realtime(priority);
+    }
     // Set thread affinity because it would normally be a side effect of setting realtime priority and realtime priority was requested
     uint32_t current_core = 0;
     // getcpu wrapper is implemented in libc 2.29
@@ -86,13 +91,6 @@ void uhd::set_thread_priority(float priority, bool realtime)
         set_thread_affinity(current_core_v);
     } else {
         UHD_LOG_WARNING("UHD", "Unable to get current cpu num while setting thread affinity. errno: " + std::string(strerror(errno)));
-    }
-
-
-    if(realtime) {
-        set_thread_priority_realtime(priority);
-    } else {
-        set_thread_priority_non_realtime(priority);
     }
 }
 
@@ -105,7 +103,7 @@ void uhd::set_thread_priority_realtime(float priority) {
     // SCHED_DEADLINE is used since SCHED_RR and SCHED_FIFO have limits on what % of the time they can run
     attr.sched_policy = SCHED_FIFO;
     //attr.sched_flags = 0 /*0x01*//*SCHED_FLAG_RESET_ON_FORK*/ | 0x20 /*SCHED_FLAG_UTIL_CLAMP_MIN*/ | 0x40 /*SCHED_FLAG_UTIL_CLAMP_MAX*/; // Documentation says to use SCHED_FLAG_RESET_ON_FORK, but it doesn't seem to be declared. Required to allow this thread to create child thread in deadline mode
-    attr.sched_flags = 0
+    attr.sched_flags = 0;
     // Nice is not used when using realtime threads
     attr.sched_nice = 0;
     // Priority is not used in deadline mode
