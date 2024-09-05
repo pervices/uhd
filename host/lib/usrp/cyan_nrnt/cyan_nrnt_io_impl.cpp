@@ -311,6 +311,7 @@ public:
         _buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
         _buffer_monitor_running = true;
         sched_yield();
+        printf("T2\n");
 	}
 
 	void stop_buffer_monitor_thread() {
@@ -376,8 +377,9 @@ private:
      **********************************************************************/
 	static void buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self ) {
         // Sets a lower thread priority sine this isn't time sensitive
-        uhd::set_thread_priority_safe(0, false);
+        printf("T0\n");
         uhd::set_thread_affinity(std::vector<size_t>(1, 5));
+        uhd::set_thread_priority_safe(0, false);
         printf("T1\n");
 
 		for( ; ! self->_stop_buffer_monitor; ) {
