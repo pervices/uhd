@@ -1,3 +1,10 @@
+uhdpv (4.4.0.26-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Temporarily disabled realtime threading due to random latency spikes making it worse than non-realtime threading
+  * Fixed race conditions affecting clock sync and streamer cleanup
+
+ -- Per Vices <packages@pervices.com>  Fri, 6 Aug 2024 17:11:27 -0400
+
 uhdpv (4.4.0.25-0ubuntu1) ubuntu_release; urgency=high
 
   * Fixed a bug that would cause recv to report getting more samples than requested/actually obtained
