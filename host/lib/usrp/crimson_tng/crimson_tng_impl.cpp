@@ -62,6 +62,19 @@ namespace asio = boost::asio;
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
+static void do_samp_rate_warning_message(
+    double target_rate, double actual_rate, const std::string& xx, const size_t chan)
+{
+    static const double max_allowed_error = 1.0; // Sps
+    if (std::abs(target_rate - actual_rate) > max_allowed_error) {
+        UHD_LOGGER_WARNING("MULTI_USRP")
+            << boost::format(
+                   "The hardware does not support the requested %s sample rate on ch %li:\n"
+                   "Target sample rate: %f MSps\n"
+                   "Actual sample rate: %f MSps\n")
+                   % xx % chan % (target_rate / 1e6) % (actual_rate / 1e6);
+    }
+}
 
 static std::string mb_root(const size_t mboard = 0) {
     return "/mboards/" + std::to_string(mboard);
@@ -95,209 +108,6 @@ static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) 
     return mb_root(mboard) + "/dboards/" + letter + "/tx_frontends/Channel_" + letter;
 }
 
-// Gets a property on the device
-std::string crimson_tng_impl::get_string(std::string req) {
-
-	std::lock_guard<std::mutex> _lock( _iface_lock );
-
-	// Send the get request
-    _mbc[ "0" ].iface -> poke_str("get," + req);
-
-	// peek (read) back the data
-	std::string ret = _mbc[ "0" ].iface -> peek_str();
-
-    if(ret == "GET_ERROR") {
-        throw uhd::lookup_error("crimson_tng_impl::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
-    }
-    else if (ret == "TIMEOUT") {
-        throw uhd::runtime_error("crimson_tng_impl::get_string - UDP resp. timed out: get: " + req);
-    }
-    else  if(ret == "ERROR") {
-        throw uhd::runtime_error("crimson_tng_impl::get_string - UDP unpecified error: " + req);
-    }
-    else {
-        return ret;
-    }
-}
-// Sets a property on the device
-void crimson_tng_impl::set_string(const std::string pre, std::string data) {
-
-	std::lock_guard<std::mutex> _lock( _iface_lock );
-
-	// Send the set request
-	_mbc[ "0" ].iface -> poke_str("set," + pre + "," + data);
-
-	// peek (read) anyways for error check, since Crimson will reply back
-	std::string ret = _mbc[ "0" ].iface -> peek_str();
-
-    if(ret == "GET_ERROR") {
-        throw uhd::lookup_error("crimson_tng_impl::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
-    }
-    else if (ret == "TIMEOUT") {
-        throw uhd::runtime_error("crimson_tng_impl::set_string - UDP resp. timed out: set: " + pre + " = " + data);
-    }
-    else  if(ret == "ERROR") {
-        throw uhd::runtime_error("crimson_tng_impl::set_string - UDP unpecified error: " + pre);
-    }
-    else {
-        return;
-    }
-}
-
-// wrapper for type <double> through the ASCII Crimson interface
-double crimson_tng_impl::get_double(std::string req) {
-    try { return boost::lexical_cast<double>( get_string(req) );
-    } catch(boost::bad_lexical_cast &e) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get double property: " << e.what();
-    }
-    return 0;
-}
-void crimson_tng_impl::set_double(const std::string pre, double data){
-    set_string(pre, boost::lexical_cast<std::string>(data));
-}
-
-// wrapper for type <bool> through the ASCII Crimson interface
-bool crimson_tng_impl::get_bool(std::string req) {
-    try { return boost::lexical_cast<bool>( get_string(req) );
-    } catch(boost::bad_lexical_cast &e) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get bool property: " << e.what();
-    }
-    return 0;
-}
-void crimson_tng_impl::set_bool(const std::string pre, bool data){
-    set_string(pre, boost::lexical_cast<std::string>(data));
-}
-
-// wrapper for type <int> through the ASCII Crimson interface
-int crimson_tng_impl::get_int(std::string req) {
-    try { return boost::lexical_cast<int>( get_string(req) );
-    } catch(boost::bad_lexical_cast &e) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to get int property: " << e.what();
-    }
-    return 0;
-}
-void crimson_tng_impl::set_int(const std::string pre, int data){
-    set_string(pre, boost::lexical_cast<std::string>(data));
-}
-
-uhd::time_spec_t crimson_tng_impl::get_time_now() {
-    // Waits for clock to be stable before getting time
-    if(_bm_thread_running) {
-        wait_for_time_diff_converged();
-        double diff = time_diff_get();
-        return uhd::get_system_time() + diff;
-    // If clock sync thread is not running reset the time diff pid and use the initial offset
-    // Will get the time but without taking into account network latency (which would require the clock sync thread)
-    } else {
-        reset_time_diff_pid();
-        return uhd::get_system_time() - _time_diff_pidc.get_offset();
-    }
-}
-
-// wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-mboard_eeprom_t crimson_tng_impl::get_mboard_eeprom(std::string req) {
-	(void)req;
-	mboard_eeprom_t temp;
-	temp["name"]     = get_string("fpga/about/name");
-	temp["vendor"]   = "Per Vices";
-	temp["serial"]   = get_string("fpga/about/serial");
-	return temp;
-}
-void crimson_tng_impl::set_mboard_eeprom(const std::string pre, mboard_eeprom_t data) {
-	(void)pre;
-	(void)data;
-	// no eeprom settings on Crimson
-	return;
-}
-
-// wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
-dboard_eeprom_t crimson_tng_impl::get_dboard_eeprom(std::string req) {
-	(void)req;
-	dboard_eeprom_t temp;
-	//temp.id       = dboard_id_t( boost::lexical_cast<boost::uint16_t>(get_string("product,get,serial")) );
-	temp.serial   = "";//get_string("product,get,serial");
-	//temp.revision = get_string("product,get,hw_version");
-	return temp;
-}
-void crimson_tng_impl::set_dboard_eeprom(const std::string pre, dboard_eeprom_t data) {
-	(void)pre;
-	(void)data;
-	// no eeprom settings on Crimson
-	return;
-}
-
-// wrapper for type <sensor_value_t> through the ASCII Crimson interface
-sensor_value_t crimson_tng_impl::get_sensor_value(std::string req) {
-    // Property values are only updated when written to
-    // Set sensor to it's current value in order to update it
-    try {
-        std::string original_value = get_string(req);
-        set_string(req, original_value);
-    } catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to update sensor property: " << req << "\nThe value returned may be stale";
-    }
-
-
-    std::string reply;
-    try {
-        reply = get_string(req);
-    } catch (...) {
-        reply = "bad";
-    }
-
-    // Shifts reply to lower case
-    for(size_t i = 0; i < reply.size(); i++) {
-        if(reply[i] >= 'A' && reply[i] <= 'Z') {
-            reply[i] = reply[i] - 'A' + 'a';
-        }
-    }
-
-    // Result good if reply does not contain unlocked or bad
-    bool sensor_good = (reply.find("unlocked") == std::string::npos) && (reply.find("bad") == std::string::npos);
-
-    // Determines the sensor name based on the path
-    if(req.find("lmk_lockdetect") != std::string::npos) {
-        return sensor_value_t( "Reference", sensor_good, "locked", "unlocked" );
-    } else if(req.find("rfpll_lock") != std::string::npos) {
-        return sensor_value_t( "rfpll", sensor_good, "locked", "unlocked" );
-    } else {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
-        return sensor_value_t( req, sensor_good, "good", "bad" );
-    }
-}
-
-void crimson_tng_impl::set_sensor_value(const std::string pre, sensor_value_t data) {
-    try { set_string(pre, data.to_pp_string());
-    } catch (...) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to set property: " << pre;
-    }
-
-    return;
-}
-
-// wrapper for type <meta_range_t> through the ASCII Crimson interface
-meta_range_t crimson_tng_impl::get_meta_range(std::string req) {
-	(void)req;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
-}
-void crimson_tng_impl::set_meta_range(const std::string pre, meta_range_t data) {
-	(void)pre;
-	(void)data;
-	throw uhd::not_implemented_error("set_meta_range not implemented, Crimson does not support range settings");
-}
-
-// wrapper for type <complex<double>> through the ASCII Crimson interface
-std::complex<double>  crimson_tng_impl::get_complex_double(std::string req) {
-	(void)req;
-	std::complex<double> temp;
-	return temp;
-}
-void crimson_tng_impl::set_complex_double(const std::string pre, std::complex<double> data) {
-	(void)pre;
-	(void)data;
-	return;
-}
-
 static size_t pre_to_ch( const std::string & pre ) {
 	char x = -1;
 	if ( 1 != sscanf( pre.c_str(), "rx_%c/stream", & x) ) {
@@ -308,13 +118,8 @@ static size_t pre_to_ch( const std::string & pre ) {
 	return ch;
 }
 
-stream_cmd_t crimson_tng_impl::get_stream_cmd(std::string req) {
-	(void)req;
-	// XXX: @CF: 20180214: stream_cmd is basically a write-only property, but we have to return a dummy variable of some kind
-	stream_cmd_t::stream_mode_t mode = stream_cmd_t::STREAM_MODE_START_CONTINUOUS;
-	stream_cmd_t temp = stream_cmd_t(mode);
-	return temp;
-}
+// TODO: refactor so this function can be called even if this has been destructed
+// NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
 void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
 
 	const size_t ch = pre_to_ch( pre );
@@ -346,35 +151,6 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t strea
 	send_rx_stream_cmd_req( rx_stream_cmd );
 }
 
-// wrapper for type <time_spec_t> through the ASCII Crimson interface
-// we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup.
-time_spec_t crimson_tng_impl::get_time_spec(std::string req) {
-	if ( false ) {
-	} else if ( "time/clk/set_time" == req ) {
-		return get_time_now();
-	} else if ( "time/clk/pps" == req ) {
-		return uhd::time_spec_t( get_time_now().get_full_secs() );
-	} else {
-		double fracpart, intpart;
-		fracpart = modf(get_double(req), &intpart);
-		time_spec_t temp = time_spec_t((time_t)intpart, fracpart);
-		return temp;
-	}
-}
-void crimson_tng_impl::set_time_spec( const std::string key, time_spec_t value ) {
-	set_double(key, (double)value.get_full_secs() + value.get_frac_secs());
-	if ( "time/clk/set_time" == key ) {
-        request_resync_time_diff();
-	}
-
-	if ( "time/clk/cmd" == key ) {
-        _command_time = value; // Handles set_command_time() and clear_command_time()
-        #ifdef DEBUG_COUT
-        std::cout << "updating command time to: " << _command_time.get_real_secs() << std::endl;
-        #endif
-    }
-}
-
 // Loop that polls Crimson to verify the PPS is working
 void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
 
@@ -399,21 +175,19 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
     dev->_pps_thread_running = false;
 }
 
+void crimson_tng_impl::set_command_time( const std::string key, time_spec_t value ) {
+    (void) key;
 
-user_reg_t crimson_tng_impl::get_user_reg(std::string req) {
-
-    (void) req;
-
-    // Returns nothing.
-    return user_reg_t(0, 0);
+    _command_time = value;
 }
 
 void crimson_tng_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-	_time_diff_iface->send(boost::asio::const_buffer(&req, sizeof(req)));
+    _time_diff_iface->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
+//TODO: validate if this works
+// It is okay to leave set/get user reg here because it requires use of the SFP ports (which iface doesn't have) and will never be accessed by a streamer
 void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
-
     (void) key;
 
     const uint8_t  address = value.first;
@@ -442,7 +216,8 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     if(address == 3)
     {
         gpio_burst_req pkt;
-	    pkt.header = ((uint64_t) 0x3) << 32;
+        pkt.header = ((uint64_t) 0x3) << 32;
+        // TODO: replace with the time set by time/clk/cmd
         pkt.tv_sec = _command_time.get_full_secs();
         pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
         pkt.pins = pins;
@@ -469,6 +244,25 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
     }
 }
 
+void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
+    _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
+    request_resync_time_diff();
+}
+
+uhd::time_spec_t crimson_tng_impl::get_time_now() {
+    // Waits for clock to be stable before getting time
+    if(_bm_thread_running) {
+        wait_for_time_diff_converged();
+        double diff = time_diff_get();
+        return uhd::get_system_time() + diff;
+    // If clock sync thread is not running reset the time diff pid and use the initial offset
+    // Will get the time but without taking into account network latency (which would require the clock sync thread)
+    } else {
+        reset_time_diff_pid();
+        return uhd::get_system_time() - _time_diff_pidc.get_offset();
+    }
+}
+
 void crimson_tng_impl::set_properties_from_addr() {
 
 	static const std::string crimson_prop_prefix( "crimson:" );
@@ -490,9 +284,9 @@ void crimson_tng_impl::set_properties_from_addr() {
 			std::string key = prop.substr( crimson_prop_prefix.length() );
 			std::string expected_string = device_addr[ prop ];
 
-			set_string( key, expected_string );
+            _mbc[ "0" ].iface->set_string( key, expected_string );
 
-			std::string actual_string = get_string( key );
+            std::string actual_string = _mbc[ "0" ].iface->get_string( key );
 			if ( actual_string != expected_string ) {
 				UHD_LOGGER_ERROR("CRIMSON_IMPL")
 					<< __func__ << "(): "
@@ -976,23 +770,23 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // .set in TREE_CREATE_ sets the value of the property retrieved by calling get without having a publisher assigned
 // The value for set is irrelevant for RW and RO since a publisher is always assigned, and irrlevant for WO
 // Macro to create the tree, all properties created with this are R/W properties
-#define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)						\
-	do { _tree->create<TYPE> (PATH)								\
-		.add_desired_subscriber(std::bind(&crimson_tng_impl::set_ ## HANDLER, this, (PROP), ph::_1))	\
-		.set_publisher(std::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
-	} while(0)
+#define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)\
+    do { _tree->create<TYPE> (PATH)\
+        .add_desired_subscriber(std::bind(&crimson_tng_iface::set_ ## HANDLER, _mbc[ "0" ].iface, (PROP), ph::_1))\
+        .set_publisher(std::bind(&crimson_tng_iface::get_ ## HANDLER, _mbc[ "0" ].iface, (PROP) ));\
+    } while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
-#define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)						\
-	do { _tree->create<TYPE> (PATH)								\
-		.publish  (std::bind(&crimson_tng_impl::get_ ## HANDLER, this, (PROP)    ));	\
-	} while(0)
+#define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)\
+    do { _tree->create<TYPE> (PATH)\
+        .set_publisher(std::bind(&crimson_tng_iface::get_ ## HANDLER, _mbc[ "0" ].iface, (PROP) ));\
+    } while(0)
 
 // Macro to create the tree, all properties created with this are WO properties
-#define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)						\
-	do { _tree->create<TYPE> (PATH)								\
-		.add_desired_subscriber(std::bind(&crimson_tng_impl::set_ ## HANDLER, this, (PROP), ph::_1));	\
-	} while(0)
+#define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)\
+    do { _tree->create<TYPE> (PATH)\
+        .add_desired_subscriber(std::bind(&crimson_tng_iface::set_ ## HANDLER, _mbc[ "0" ].iface, (PROP), ph::_1));\
+    } while(0)
 
 // Macro to create the tree, all properties created with this are static
 #define TREE_CREATE_ST(PATH, TYPE, VAL) 	( _tree->create<TYPE>(PATH).set(VAL) )
@@ -1008,7 +802,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_pps_thread_needed( true ),
 	_pps_thread_running( false ),
 	_pps_thread_should_exit( false ),
-    _command_time()
+	_command_time( 0.0 )
 {
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
@@ -1036,6 +830,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     static const size_t mbi = 0;
     static const std::string mb = std::to_string( mbi );
     // Makes the UDP comm connection
+    // TODO: figure out where _mbc is init since it doesn't have an obvious place where it's length ends up non 0
     _mbc[mb].iface = crimson_tng_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
@@ -1069,6 +864,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         num_tx_channels = CRIMSON_TNG_FALLBACK_TX_CHANNELS;
     }
     is_num_tx_channels_set = true;
+
+    _mbc[ "0" ].rx_streamers.resize( num_rx_channels );
+    _mbc[ "0" ].tx_streamers.resize( num_tx_channels );
 
     rx_gain_is_set.resize(num_rx_channels, false);
     last_set_rx_band.resize(num_rx_channels, -1);
@@ -1149,8 +947,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
     TREE_CREATE_WO(CRIMSON_TNG_MB_PATH / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "temp", "fpga/board/temp", std::string, string);
-
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "user/regs", "fpga/user/regs", user_reg_t, user_reg);
+    // TODO: investigate/add comments to explain what user/regs does
+    // Unlike the other properties, this access functions belong to this class
+    // NOTE: ensure this property is not accessed after this is destructed
+    // WO property
+    _tree->create<user_reg_t> (CRIMSON_TNG_MB_PATH / "user/regs")
+        .add_desired_subscriber(std::bind(&crimson_tng_impl::set_user_reg, this, ("fpga/user/regs"), ph::_1));
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpa/ip_addr",  "fpga/link/sfpa/ip_addr",  std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sfpa/mac_addr", "fpga/link/sfpa/mac_addr", std::string, string);
@@ -1213,7 +1015,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // This is the master clock rate
     TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "tick_rate", double, _master_tick_rate);
 
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "cmd",              "time/clk/cmd",                 time_spec_t, time_spec);
+    // Used to set the timespec on commands issued by set_user_reg
+    // WO property
+    _tree->create<uhd::time_spec_t> ( CRIMSON_TNG_TIME_PATH / "cmd" )
+        .add_desired_subscriber(std::bind(&crimson_tng_impl::set_command_time, this, (""), ph::_1));
+
     // This line will get time spec, the time diff port must be initialized first
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
@@ -1338,11 +1144,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
 
 		// DSPs
+        // DSPs are all at the same rate for RX (so these ranges are the same, unlike tx)
 		switch( dspno + 'A' ) {
-		case 'A':
-		case 'B':
-                case 'C':
-		case 'D':
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
 			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
 				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
 			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
@@ -1352,16 +1159,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 			break;
 		}
 
-		_tree->create<double> (rx_dsp_path / "rate" / "value")
-			.set( get_double ("rx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(std::bind(&crimson_tng_impl::update_rx_samp_rate, this, mb, (size_t) dspno, ph::_1))
-			.set_publisher(std::bind(&crimson_tng_impl::get_double, this, ("rx_"+lc_num+"/dsp/rate")    ));
+        TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate", double, double);
 
 		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
 
-		typedef stream_cmd_t stream_cmd;
-		TREE_CREATE_RW(rx_dsp_path / "stream_cmd",  "rx_"+lc_num+"/stream_cmd", stream_cmd, stream_cmd);
+        // Used to issue an rx stream command
+        // WO property
+        _tree->create<uhd::stream_cmd_t> ( rx_dsp_path / "stream_cmd" )
+            .add_desired_subscriber(std::bind(&crimson_tng_impl::set_stream_cmd, this, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
 
 		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
@@ -1462,6 +1268,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 
 		// DSPs
+        // Ch B and D operate at a quarter rate
 		switch( dspno + 'A' ) {
 		case 'A':
 		case 'B':
@@ -1483,10 +1290,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 			break;
 		}
 
-		_tree->create<double> (tx_dsp_path / "rate" / "value")
-			.set( get_double ("tx_"+lc_num+"/dsp/rate"))
-			.add_desired_subscriber(std::bind(&crimson_tng_impl::update_tx_samp_rate, this, mb, (size_t) dspno, ph::_1))
-			.set_publisher(std::bind(&crimson_tng_impl::get_double, this, ("tx_"+lc_num+"/dsp/rate")    ));
+        TREE_CREATE_RW(tx_dsp_path / "rate" / "value", "tx_"+lc_num+"/dsp/rate", double, double);
 
 		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
@@ -1529,8 +1333,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(cm_path / "tx/force_stream", "cm/tx/force_stream", int, int);
 	TREE_CREATE_WO(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
 	TREE_CREATE_WO(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
-
-	this->io_init();
 
     //do some post-init tasks
     for(const std::string &mb:  _mbc.keys()){
@@ -2062,6 +1864,50 @@ double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
     }
 
     return r;
+}
+
+void crimson_tng_impl::set_rx_rate(double rate, size_t chan) {
+    if (chan != multi_usrp::ALL_CHANS) {
+        _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
+
+        double actual_rate = get_rx_rate(chan);
+        do_samp_rate_warning_message(rate, actual_rate, "RX", chan);
+
+        rx_rate_check(chan, rate);
+
+        update_rx_samp_rate(chan, actual_rate);
+
+        return;
+    }
+    for (size_t c = 0; c < num_rx_channels; c++) {
+        set_rx_rate(rate, c);
+    }
+}
+
+double crimson_tng_impl::get_rx_rate(size_t chan) {
+    return _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").get();
+}
+
+void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
+    if (chan != multi_usrp::ALL_CHANS) {
+        _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
+
+        double actual_rate = get_tx_rate(chan);
+        do_samp_rate_warning_message(rate, actual_rate, "TX", chan);
+
+        tx_rate_check(chan, rate);
+
+        update_tx_samp_rate(chan, actual_rate);
+
+        return;
+    }
+    for (size_t c = 0; c < num_tx_channels; c++) {
+        set_tx_rate(rate, c);
+    }
+}
+
+double crimson_tng_impl::get_tx_rate(size_t chan) {
+    return _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 }
 
 inline void crimson_tng_impl::request_resync_time_diff() {

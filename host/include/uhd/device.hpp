@@ -249,8 +249,32 @@ public:
 
     }
 
+    virtual void set_rx_rate(double rate, size_t chan){
+        (void) rate;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    virtual double get_rx_rate(size_t chan){
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    virtual void set_tx_rate(double rate, size_t chan){
+        (void) rate;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    virtual double get_tx_rate(size_t chan){
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
     virtual void set_time_now(const time_spec_t& time_spec, size_t mboard) {
-        _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
+        (void) time_spec;
+        (void) mboard;
+        throw std::runtime_error("concrete classes are expected to override this method");
     }
 
     // Request to resync time diffs

@@ -1,5 +1,6 @@
 //
-// Copyright 2014 Per Vices Corporation
+// Copyright 2014-2015 Per Vices Corporation
+// Copyright 2022, 2024 Per Vices Corporation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,19 +20,22 @@
 #define INCLUDED_CRIMSON_TNG_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
-#include <uhd/types/serial.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/utility.hpp>
-#include <boost/function.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <string>
 #include "crimson_tng_fw_common.h"
+#include <mutex>
+
+// Include types that can be accessed
+#include "uhd/usrp/mboard_eeprom.hpp"
+#include "uhd/usrp/dboard_eeprom.hpp"
+#include <uhd/types/sensors.hpp>
+#include <uhd/types/time_spec.hpp>
 
 namespace uhd {
 
 /*!
  * The crimson_tng interface class:
- * Provides a set of functions to UDP implementation layer.
+ * Provides a set of functions access the state tree
  */
 class crimson_tng_iface : public uhd::wb_iface
 {
@@ -46,6 +50,46 @@ public:
 
     static crimson_tng_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
+    // Helper functions to wrap peek_str and poke_str as get and set
+    //
+    //
+    //
+
+    std::string get_string(std::string req);
+    void set_string(const std::string pre, std::string data);
+
+    // wrapper for type <double> through the ASCII Crimson interface
+    double get_double(std::string req);
+    void set_double(const std::string pre, double data);
+
+    // wrapper for type <bool> through the ASCII Crimson interface
+    bool get_bool(std::string req);
+    void set_bool(const std::string pre, bool data);
+
+    // wrapper for type <int> through the ASCII Crimson interface
+    int get_int(std::string req);
+    void set_int(const std::string pre, int data);
+
+    // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
+    uhd::usrp::mboard_eeprom_t get_mboard_eeprom(std::string req);
+    void set_mboard_eeprom(const std::string pre, uhd::usrp::mboard_eeprom_t data);
+
+    // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
+    uhd::usrp::dboard_eeprom_t get_dboard_eeprom(std::string req);
+    void set_dboard_eeprom(const std::string pre, uhd::usrp::dboard_eeprom_t data);
+
+    // wrapper for type <sensor_value_t> through the ASCII Crimson interface
+    uhd::sensor_value_t get_sensor_value(std::string req);
+    void set_sensor_value(const std::string pre, uhd::sensor_value_t data);
+
+    // wrapper for type <time_spec_t> through the ASCII Crimson interface
+    uhd::time_spec_t get_time_spec(std::string req);
+    void set_time_spec(const std::string pre, uhd::time_spec_t data);
+
+private:
+    // Mutex for controlling access to the management port
+    std::mutex _iface_lock;
+
     // Send/write a data packet (string), null terminated
     virtual void poke_str(std::string data);
 
@@ -55,7 +99,6 @@ public:
     // Recieve/read a data packet (string), null terminated
     virtual std::string peek_str( float timeout_s );
 
-private:
     //this lovely lady makes it all possible
     uhd::transport::udp_simple::sptr _ctrl_transport;
 
@@ -65,8 +108,8 @@ private:
     void parse(std::vector<std::string> &tokens, char* data, const char delim);
 
     //used in send/recv
-    boost::uint32_t _ctrl_seq_num;
-    boost::uint32_t _protocol_compat;
+    uint32_t _ctrl_seq_num;
+    uint32_t _protocol_compat;
 
     // buffer for in and out
     char _buff[ CRIMSON_TNG_MAX_MTU ];

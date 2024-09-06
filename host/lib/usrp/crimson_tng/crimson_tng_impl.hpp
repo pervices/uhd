@@ -31,6 +31,7 @@
 #include "uhd/transport/udp_zero_copy.hpp"
 
 #include "crimson_tng_iface.hpp"
+#include "crimson_tng_io_impl.hpp"
 #include "../../transport/flow_control.hpp"
 #include "pidc.hpp"
 
@@ -87,9 +88,6 @@ class crimson_tng_impl : public uhd::device
 public:
     static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 2;
 
-    // shared pointer to the Crimson device
-    typedef std::shared_ptr<crimson_tng_impl> sptr;
-
     // This is the core constructor to be called when a crimson_tng device is found
     crimson_tng_impl(const uhd::device_addr_t &);
     ~crimson_tng_impl(void);
@@ -142,62 +140,18 @@ private:
     std::vector<int> tx_gain_is_set;
     std::vector<int> last_set_tx_band;
 
-    // helper functions to wrap send and recv as get and set
-    std::string get_string(std::string req);
-    void set_string(const std::string pre, std::string data);
-
-    // wrapper for type <double> through the ASCII Crimson interface
-    double get_double(std::string req);
-    void set_double(const std::string pre, double data);
-
-    // wrapper for type <bool> through the ASCII Crimson interface
-    bool get_bool(std::string req);
-    void set_bool(const std::string pre, bool data);
-
-    // wrapper for type <int> through the ASCII Crimson interface
-    int get_int(std::string req);
-    void set_int(const std::string pre, int data);
-
-    // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-    uhd::usrp::mboard_eeprom_t get_mboard_eeprom(std::string req);
-    void set_mboard_eeprom(const std::string pre, uhd::usrp::mboard_eeprom_t data);
-
-    // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
-    uhd::usrp::dboard_eeprom_t get_dboard_eeprom(std::string req);
-    void set_dboard_eeprom(const std::string pre, uhd::usrp::dboard_eeprom_t data);
-
-    // wrapper for type <sensor_value_t> through the ASCII Crimson interface
-    uhd::sensor_value_t get_sensor_value(std::string req);
-    void set_sensor_value(const std::string pre, uhd::sensor_value_t data);
-
-    // wrapper for type <meta_range_t> through the ASCII Crimson interface
-    uhd::meta_range_t get_meta_range(std::string req);
-    void set_meta_range(const std::string pre, uhd::meta_range_t data);
-
-    // wrapper for type <complex<double>> through the ASCII Crimson interface
-    std::complex<double>  get_complex_double(std::string req);
-    void set_complex_double(const std::string pre, std::complex<double> data);
-
-    // wrapper for type <stream_cmd_t> through the ASCII Crimson interface
-    uhd::stream_cmd_t get_stream_cmd(std::string req);
+    // wrapper for type <stream_cmd_t> through the SFP ports
     void set_stream_cmd(const std::string pre, uhd::stream_cmd_t data);
 
-    // wrapper for type <time_spec_t> through the ASCII Crimson interface
-    uhd::time_spec_t get_time_spec(std::string req);
-    void set_time_spec(const std::string pre, uhd::time_spec_t data);
-    
     static void detect_pps(crimson_tng_impl *dev);
 
-    user_reg_t get_user_reg(std::string req);
+    void set_command_time(const std::string key, uhd::time_spec_t value);
     void send_gpio_burst_req(const gpio_burst_req& req);
-
     void set_user_reg(const std::string key, user_reg_t value);
 
     // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
     void set_properties_from_addr();
 
-    // Mutex for controlling access to the management port
-    std::mutex _iface_lock;
     // Mutexes for controlling control (not data) send/receives each SFP port
     std::mutex _sfp_control_mutex[NUMBER_OF_XG_CONTROL_INTF];
 
@@ -260,8 +214,9 @@ private:
 
     struct mb_container_type{
         crimson_tng_iface::sptr iface;
-        std::vector<std::weak_ptr<uhd::rx_streamer> > rx_streamers;
-        std::vector<std::weak_ptr<uhd::tx_streamer> > tx_streamers;
+        // TODO: see if removing rx_streamers and tx_streamers is viable
+        std::vector<std::weak_ptr<uhd::usrp::crimson_tng_recv_packet_streamer>> rx_streamers;
+        std::vector<std::weak_ptr<uhd::usrp::crimson_tng_send_packet_streamer>> tx_streamers;
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
         std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
@@ -269,15 +224,14 @@ private:
         size_t rx_chan_occ, tx_chan_occ;
         mb_container_type(void): rx_chan_occ(0), tx_chan_occ(0){}
     };
+    // TODO: replace dict with a single instance, we only ever have 1 _mbc so no need for a dict
     uhd::dict<std::string, mb_container_type> _mbc;
 
-    void io_init(void);
-    // Lets the streamers know the sample rate
-    void update_rx_samp_rate(const std::string & mb, const size_t chan, const double rate);
-    void update_tx_samp_rate(const std::string & mb, const size_t chan, const double rate);
-    // Updates rates on all active channels
-    void update_all_rx_rates(void);
-    void update_all_tx_rates(void);
+    // Inform the streamer corresponding to a channel what their sample rate is
+    void update_rx_samp_rate(const size_t chan, const double rate);
+    void update_tx_samp_rate(const size_t chan, const double rate);
+    // Inform all streamers what the current sample rate is for their respective channel
+    void update_rates(void);
     //update spec methods are coercers until we only accept db_name == A
     void update_rx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
     void update_tx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
@@ -313,6 +267,14 @@ private:
     void set_rx_gain(double gain, const std::string &name, size_t chan);
     
     double get_rx_gain(const std::string &name, size_t chan);
+
+    // Set/get the sample rates, also updates the streamers to have the new rate
+    void set_rx_rate(double rate, size_t chan) override;
+    double get_rx_rate(size_t chan) override;
+    void set_tx_rate(double rate, size_t chan) override;
+    double get_tx_rate(size_t chan) override;
+
+    void set_time_now(const time_spec_t& time_spec, size_t mboard) override;
     void request_resync_time_diff();
 
     // Checks it an ip address can be pinged

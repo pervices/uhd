@@ -25,6 +25,7 @@
 #include "../../transport/super_recv_packet_handler_mmsg.cpp"
 #include "../../transport/super_send_packet_handler_mmsg.cpp"
 
+#include "cyan_nrnt_io_impl.hpp"
 #include "cyan_nrnt_impl.hpp"
 #include "cyan_nrnt_fw_common.h"
 #include <uhd/utils/log.hpp>
@@ -85,421 +86,305 @@ namespace ph = std::placeholders;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-class cyan_nrnt_recv_packet_streamer : public sph::recv_packet_streamer_mmsg {
-public:
-	typedef std::function<void(void)> onfini_type;
-
-	cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels)
-	: sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels),
-	_channels(channels)
-	{
-        _rx_streamer_channel_in_use = rx_channel_in_use;
-        for(size_t n = 0; n < channels.size(); n++) {
-            _rx_streamer_channel_in_use->at(channels[n]) = true;
-        }
+cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, cyan_nrnt_iface::sptr iface)
+: sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels),
+_channels(channels),
+_iface(iface)
+{
+    _rx_streamer_channel_in_use = rx_channel_in_use;
+    for(size_t n = 0; n < channels.size(); n++) {
+        _rx_streamer_channel_in_use->at(channels[n]) = true;
     }
-
-	virtual ~cyan_nrnt_recv_packet_streamer() {
-		teardown();
-	}
-
-    void issue_stream_cmd(const stream_cmd_t &stream_cmd)
-    {
-        return recv_packet_handler_mmsg::issue_stream_cmd(stream_cmd);
-    }
-
-    void set_on_fini( size_t chan, onfini_type on_fini ) {
-        _eprops.at(chan).on_fini = on_fini;
-    }
-
-    void resize(const size_t size) {
-        _eprops.resize( size );
-        sph::recv_packet_streamer_mmsg::resize( size );
-    }
-
-    void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
-        vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
-    }
-
-    void teardown() {
-        // Mutex to prevent teardown from being run multiple times
-        const std::lock_guard<std::mutex> lock(rx_teardown_mutex);
-        if(teardown_run) {
-            // Prevents this function from being called multiple times
-            // see shutdown_lingering_tx_streamers for why this function is necessary
-            return;
-        }
-		for( auto & ep: _eprops ) {
-			if ( ep.on_fini ) {
-				ep.on_fini();
-			}
-		}
-		_eprops.clear();
-
-        for(size_t n = 0; n < _channels.size(); n++) {
-            _rx_streamer_channel_in_use->at(_channels[n]) = false;
-        }
-	}
-
-private:
-
-    struct eprops_type{
-        onfini_type on_fini;
-    };
-    std::vector<eprops_type> _eprops;
-
-    std::vector<size_t> _channels;
-    std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
-    bool teardown_run = false;
-    std::mutex rx_teardown_mutex;
-};
-
-static std::vector<std::weak_ptr<cyan_nrnt_recv_packet_streamer>> allocated_rx_streamers;
-static void shutdown_lingering_rx_streamers() {
-	// This is required as a workaround, because the relevent destructurs are not called
-	// when you close the top block in gnu radio. Unsolved mystery for the time being.
-	for( auto & rx: allocated_rx_streamers ) {
-		if ( ! rx.expired() ) {
-			std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = rx.lock();
-			if ( my_streamer ) {
-				my_streamer->teardown();
-			}
-		}
-	}
-	allocated_rx_streamers.clear();
 }
 
-class cyan_nrnt_send_packet_streamer : public sph::send_packet_streamer_mmsg {
-public:
+cyan_nrnt_recv_packet_streamer::~cyan_nrnt_recv_packet_streamer() {
+    // TODO: see if having teardown seperate from the destructor is still required
+    teardown();
+}
 
-	typedef std::function<void(void)> onfini_type;
-	typedef std::function<uhd::time_spec_t(void)> timenow_type;
-    typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
+void cyan_nrnt_recv_packet_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd)
+{
+    return recv_packet_handler_mmsg::issue_stream_cmd(stream_cmd);
+}
 
-	cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use)
-	:
-		sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
-		_first_call_to_send( true ),
-		_buffer_monitor_running( false ),
-		_stop_buffer_monitor( false )
+void cyan_nrnt_recv_packet_streamer::resize(const size_t size) {
+    sph::recv_packet_streamer_mmsg::resize( size );
+}
 
-	{
-        _tx_streamer_channel_in_use = tx_channel_in_use;
-        for(size_t n = 0; n < channels.size(); n++) {
-            _tx_streamer_channel_in_use->at(channels[n]) = true;
-        }
-	}
+void cyan_nrnt_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
+    vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
+}
 
-	virtual ~cyan_nrnt_send_packet_streamer() {
-		teardown();
-	}
+void cyan_nrnt_recv_packet_streamer::teardown() {
 
-    void teardown() {
-        // Mutex to prevent teardown from being run multiple times
-        const std::lock_guard<std::mutex> lock(tx_teardown_mutex);
+    for(size_t n = 0; n < _channels.size(); n++) {
+        // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
+        // Does not actually turn off board
+        _iface->set_string("rx/" + std::string(1, (char) (_channels[n] + 'a')) + "/stream", "0");
+        _iface->set_string("rx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
 
-        if(teardown_run) {
-            // Prevents this function from being called multiple times
-            // see shutdown_lingering_tx_streamers for why this function is necessary
-            return;
-        }
-        teardown_run = true;
-        // Waits for all samples sent to be consumed before destructing, times out after 30s
-        uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
-        while(timeout_time > uhd::get_system_time()) {
-            int64_t buffer_with_samples_i = -1;
-            // Checks if any buffers still have samples
-            for(size_t n = 0; n < _channels.size(); n++) {
-                if(get_buffer_level_from_device(n) != 0) {
-                    buffer_with_samples_i = n;
-                    break;
-                }
-            }
-            // If none have samples exit loop
-            if(buffer_with_samples_i == -1) {
-                break;
-            // If it is taking to long for the buffer to empty, continue anyway with an error message
-            } else if(timeout_time < uhd::get_system_time()) {
-                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples_i]) + " to finish");
-                break;
-            }
-            usleep(10);
-        }
+        // Marks this channel as not in use for the purposes of the check if the SFP can handle the combined rates on it
+        _rx_streamer_channel_in_use->at(_channels[n]) = false;
+    }
+}
 
-		stop_buffer_monitor_thread();
-		for( auto & ep: _eprops ) {
-			if ( ep.on_fini ) {
-				ep.on_fini();
-			}
-            // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
-            // TODO: query the uflow/oflow count from the FPGA once it supports that
-            if(ep.oflow != (uint64_t)-1 || ep.uflow != (uint64_t)-1) {
-                std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
-            } else {
-                std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
-            }
-		}
-		_eprops.clear();
+cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, cyan_nrnt_iface::sptr iface)
+:
+sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CYAN_NRNT_PACKET_NSAMP_MULTIPLE, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
+_first_call_to_send( true ),
+_buffer_monitor_running( false ),
+_stop_buffer_monitor( false ),
+_iface(iface)
+{
+    _tx_streamer_channel_in_use = tx_channel_in_use;
+    for(size_t n = 0; n < channels.size(); n++) {
+        _tx_streamer_channel_in_use->at(channels[n]) = true;
+    }
+}
 
+cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
+    // TODO: see if having teardown seperate from the destructor is still required
+    teardown();
+}
+
+void cyan_nrnt_send_packet_streamer::teardown() {
+    // Waits for all samples sent to be consumed before destructing, times out after 30s
+    uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
+    while(timeout_time > uhd::get_system_time()) {
+        int64_t buffer_with_samples_i = -1;
+        // Checks if any buffers still have samples
         for(size_t n = 0; n < _channels.size(); n++) {
-            _tx_streamer_channel_in_use->at(_channels[n]) = false;
-        }
-	}
-
-    size_t send(
-        const tx_streamer::buffs_type &buffs,
-        const size_t nsamps_per_buff,
-        const uhd::tx_metadata_t &metadata_,
-        const double timeout
-    ){
-        
-        size_t r = 0;
-
-        uhd::tx_metadata_t metadata = metadata_;
-
-        if ( _first_call_to_send || metadata.start_of_burst ) {
-            metadata.start_of_burst = true;
-
-            if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
-                uhd::time_spec_t now = get_time_now();
-                metadata.has_time_spec = true;
-                metadata.time_spec = now + CYAN_NRNT_MIN_TX_DELAY;
-            } else {
-                double current_time = get_time_now().get_real_secs();
-                if (metadata.time_spec.get_real_secs() < current_time + CYAN_NRNT_MIN_TX_DELAY && _first_call_to_send) {
-                    UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CYAN_NRNT_MIN_TX_DELAY);
-                    metadata.time_spec = uhd::time_spec_t(current_time + CYAN_NRNT_MIN_TX_DELAY);
-                }
+            if(get_buffer_level_from_device(n) != 0) {
+                buffer_with_samples_i = n;
+                break;
             }
         }
-        
-        _first_call_to_send = false;
+        // If none have samples exit loop
+        if(buffer_with_samples_i == -1) {
+            break;
+        // If it is taking to long for the buffer to empty, continue anyway with an error message
+        } else if(timeout_time < uhd::get_system_time()) {
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples_i]) + " to finish");
+            break;
+        }
+        usleep(10);
+    }
 
-        if( ! _buffer_monitor_running && !use_blocking_fc ) {
-            start_buffer_monitor_thread();
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+        // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
+        // Does not actually turn off board
+        _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
+    }
+
+    stop_buffer_monitor_thread();
+    for( auto & ep: _eprops ) {
+
+        // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
+        // TODO: query the uflow/oflow count from the FPGA once it supports that
+        if(ep.oflow != (uint64_t)-1 || ep.uflow != (uint64_t)-1) {
+            std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
+        } else {
+            std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
+        }
+    }
+    _eprops.clear();
+
+    for(size_t n = 0; n < _channels.size(); n++) {
+        _tx_streamer_channel_in_use->at(_channels[n]) = false;
+    }
+}
+
+size_t cyan_nrnt_send_packet_streamer::send(
+    const tx_streamer::buffs_type &buffs,
+    const size_t nsamps_per_buff,
+    const uhd::tx_metadata_t &metadata_,
+    const double timeout
+){
+
+    size_t r = 0;
+
+    uhd::tx_metadata_t metadata = metadata_;
+
+    if ( _first_call_to_send || metadata.start_of_burst ) {
+        metadata.start_of_burst = true;
+
+        if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
+            uhd::time_spec_t now = get_time_now();
+            metadata.has_time_spec = true;
+            metadata.time_spec = now + CYAN_NRNT_MIN_TX_DELAY;
+        } else {
+            double current_time = get_time_now().get_real_secs();
+            if (metadata.time_spec.get_real_secs() < current_time + CYAN_NRNT_MIN_TX_DELAY && _first_call_to_send) {
+                UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CYAN_NRNT_MIN_TX_DELAY);
+                metadata.time_spec = uhd::time_spec_t(current_time + CYAN_NRNT_MIN_TX_DELAY);
+            }
+        }
+    }
+
+    _first_call_to_send = false;
+
+    if( ! _buffer_monitor_running && !use_blocking_fc ) {
+        start_buffer_monitor_thread();
+    }
+
+    r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
+
+    return r;
+}
+
+// Sets the function from the device to be used to get the expected time on the device
+void cyan_nrnt_send_packet_streamer::set_time_now_function( timenow_type time_now ) {
+    _time_now = time_now;
+}
+// Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
+uhd::time_spec_t cyan_nrnt_send_packet_streamer::get_time_now() {
+    return _time_now ? _time_now() : get_system_time();
+}
+void cyan_nrnt_send_packet_streamer::set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
+    _eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
+}
+void cyan_nrnt_send_packet_streamer::set_channel_name( size_t chan, std::string name ) {
+    _eprops.at(chan).name = name;
+}
+
+void cyan_nrnt_send_packet_streamer::resize(const size_t size){
+    _eprops.resize( size );
+}
+
+void cyan_nrnt_send_packet_streamer::stop_buffer_monitor_thread() {
+    if ( _buffer_monitor_running ) {
+        _stop_buffer_monitor = true;
+        if ( _buffer_monitor_thread.joinable() ) {
+            _buffer_monitor_thread.join();
+            _buffer_monitor_running = false;
+        }
+    }
+}
+
+void cyan_nrnt_send_packet_streamer::if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
+    vrt::if_hdr_pack_be(packet_buff, if_packet_info);
+}
+
+// TODO: refactor this so that it does not rely on binding to a function in the device
+int64_t cyan_nrnt_send_packet_streamer::get_buffer_level_from_device(const size_t ch_i) {
+
+    uint64_t level;
+    uint64_t uflow;
+    uint64_t oflow;
+    uhd::time_spec_t then;
+    _eprops[ch_i].xport_chan_fifo_lvl_abs(level, uflow, oflow, then);
+    return level;
+}
+
+/***********************************************************************
+    * buffer_monitor_loop
+    * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode
+    * - update over / underflow counters
+    * - put async message packets into queue
+    **********************************************************************/
+void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self ) {
+    // Sets a lower thread priority sine this isn't time sensitive
+    uhd::set_thread_priority_safe(0, false);
+
+    for( ; ! self->_stop_buffer_monitor; ) {
+
+        const auto t0 = std::chrono::high_resolution_clock::now();
+
+        for( size_t i = 0; i < self->_eprops.size(); i++ ) {
+
+            eprops_type & ep = self->_eprops[ i ];
+
+            xport_chan_fifo_lvl_abs_type get_fifo_level;
+
+            get_fifo_level = ep.xport_chan_fifo_lvl_abs;
+
+            if ( !( get_fifo_level) ) {
+                continue;
+            }
+
+            uhd::time_spec_t then;
+            uint64_t uflow;
+            uint64_t oflow;
+            async_metadata_t metadata;
+
+            if ( self->_stop_buffer_monitor ) {
+                return;
+            }
+
+            size_t level;
+            // gets buffer level, we only care about the uflow and oflow counters
+            try {
+                get_fifo_level( level, uflow, oflow, then );
+            } catch( ... ) {
+                continue;
+            }
+
+            if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
+                // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+                // async_metadata_t metadata;
+                // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+                metadata.channel = i;
+                metadata.has_time_spec = true;
+                metadata.time_spec = then;
+                metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
+                // assumes that underflow counter is monotonically increasing
+                self->push_async_msg( metadata );
+
+                if(!self->_performance_warning_printed) {
+                    // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
+                    bool using_performance_governor = true;
+                    std::vector<std::string> governors = uhd::get_performance_governors();
+                    for(auto& g : governors) {
+                        if(g.find("performance") == std::string::npos) {
+                            using_performance_governor = false;
+                            break;
+                        }
+                    }
+                    if(!using_performance_governor) {
+                        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "\nSend underflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                    }
+                    self->_performance_warning_printed = true;
+                }
+            }
+            ep.uflow = uflow;
+
+            if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
+                // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
+                // async_metadata_t metadata;
+                // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
+                metadata.channel = i;
+                metadata.has_time_spec = true;
+                metadata.time_spec = then;
+                metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
+                // assumes that overflow counter is monotonically increasing
+                self->push_async_msg( metadata );
+
+                if(!self->_performance_warning_printed) {
+                    // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
+                    bool using_performance_governor = true;
+                    std::vector<std::string> governors = uhd::get_performance_governors();
+                    for(auto& g : governors) {
+                        if(g.find("performance") == std::string::npos) {
+                            using_performance_governor = false;
+                            break;
+                        }
+                    }
+                    if(!using_performance_governor) {
+                        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "\nSend overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                    }
+                    self->_performance_warning_printed = true;
+                }
+            }
+            ep.oflow = oflow;
         }
 
-        r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
-        
-        return r;
+        const auto t1 = std::chrono::high_resolution_clock::now();
+        const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+        const long long usloop = 1.0 / (double)CYAN_NRNT_UPDATE_PER_SEC * 1e6;
+        const long long usdelay = usloop - us;
+
+        ::usleep( usdelay < 0 ? 0 : usdelay );
     }
-
-    // Sets function to be run on close
-    void set_on_fini( size_t chan, onfini_type on_fini ) {
-		_eprops.at(chan).on_fini = on_fini;
-    }
-
-    // Sets the function from the device to be used to get the expected time on the device
-    void set_time_now_function( timenow_type time_now ) {
-        _time_now = time_now;
-    }
-    // Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
-    uhd::time_spec_t get_time_now() {
-        return _time_now ? _time_now() : get_system_time();
-    }
-    void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
-		_eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
-    }
-    void set_channel_name( size_t chan, std::string name ) {
-        _eprops.at(chan).name = name;
-    }
-
-    void resize(const size_t size){
-		_eprops.resize( size );
-    }
-
-    // Starts buffer monitor thread if it is not already running
-	inline void start_buffer_monitor_thread() {
-        _stop_buffer_monitor = false;
-
-        //spawn a thread to monitor the buffer level
-        _buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
-        _buffer_monitor_running = true;
-	}
-
-	void stop_buffer_monitor_thread() {
-		if ( _buffer_monitor_running ) {
-			_stop_buffer_monitor = true;
-			if ( _buffer_monitor_thread.joinable() ) {
-				_buffer_monitor_thread.join();
-				_buffer_monitor_running = false;
-			}
-		}
-	}
-
-protected:
-    void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
-        vrt::if_hdr_pack_be(packet_buff, if_packet_info);
-    }
-
-    // TODO: refactor this so that it does not rely on binding to a function in the device
-    int64_t get_buffer_level_from_device(const size_t ch_i) {
-
-        uint64_t level;
-        uint64_t uflow;
-        uint64_t oflow;
-        uhd::time_spec_t then;
-        _eprops[ch_i].xport_chan_fifo_lvl_abs(level, uflow, oflow, then);
-        return level;
-    }
-
-private:
-	bool _first_call_to_send;
-    bool _buffer_monitor_running;
-    bool _stop_buffer_monitor;
-    std::thread _buffer_monitor_thread;
-    timenow_type _time_now;
-
-    // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
-    struct eprops_type{
-		onfini_type on_fini;
-		uhd::transport::zero_copy_if::sptr xport_chan;
-        xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
-		uint64_t oflow;
-		uint64_t uflow;
-        std::string name;
-        eprops_type() : oflow( -1 ), uflow( -1 ) {}
-        eprops_type( const eprops_type & other )
-        :
-            xport_chan( other.xport_chan ),
-            oflow( other.oflow ),
-            uflow( other.uflow )
-        {}
-    };
-    std::vector<eprops_type> _eprops;
-
-    std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
-
-    bool _performance_warning_printed = false;
-
-    bool teardown_run = false;
-    std::mutex tx_teardown_mutex;
-
-    /***********************************************************************
-     * buffer_monitor_loop
-     * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode
-     * - update over / underflow counters
-     * - put async message packets into queue
-     **********************************************************************/
-	static void buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self ) {
-        // Sets a lower thread priority sine this isn't time sensitive
-        uhd::set_thread_priority_safe(0, false);
-
-		for( ; ! self->_stop_buffer_monitor; ) {
-
-			const auto t0 = std::chrono::high_resolution_clock::now();
-
-			for( size_t i = 0; i < self->_eprops.size(); i++ ) {
-
-				eprops_type & ep = self->_eprops[ i ];
-
-				xport_chan_fifo_lvl_abs_type get_fifo_level;
-
-				get_fifo_level = ep.xport_chan_fifo_lvl_abs;
-
-				if ( !( get_fifo_level) ) {
-					continue;
-				}
-
-				uhd::time_spec_t then;
-				uint64_t uflow;
-				uint64_t oflow;
-				async_metadata_t metadata;
-
-                if ( self->_stop_buffer_monitor ) {
-					return;
-				}
-
-				size_t level;
-                // gets buffer level, we only care about the uflow and oflow counters
-				try {
-					get_fifo_level( level, uflow, oflow, then );
-				} catch( ... ) {
-                    continue;
-                }
-
-				if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
-					// async_metadata_t metadata;
-					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
-					metadata.channel = i;
-					metadata.has_time_spec = true;
-					metadata.time_spec = then;
-					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
-					// assumes that underflow counter is monotonically increasing
-					self->push_async_msg( metadata );
-
-                    if(!self->_performance_warning_printed) {
-                        // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
-                        bool using_performance_governor = true;
-                        std::vector<std::string> governors = uhd::get_performance_governors();
-                        for(auto& g : governors) {
-                            if(g.find("performance") == std::string::npos) {
-                                using_performance_governor = false;
-                                break;
-                            }
-                        }
-                        if(!using_performance_governor) {
-                            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "\nSend underflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                        }
-                        self->_performance_warning_printed = true;
-                    }
-				}
-				ep.uflow = uflow;
-
-				if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
-					// XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
-					// async_metadata_t metadata;
-					// load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
-					metadata.channel = i;
-					metadata.has_time_spec = true;
-					metadata.time_spec = then;
-					metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
-					// assumes that overflow counter is monotonically increasing
-					self->push_async_msg( metadata );
-
-                    if(!self->_performance_warning_printed) {
-                        // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
-                        bool using_performance_governor = true;
-                        std::vector<std::string> governors = uhd::get_performance_governors();
-                        for(auto& g : governors) {
-                            if(g.find("performance") == std::string::npos) {
-                                using_performance_governor = false;
-                                break;
-                            }
-                        }
-                        if(!using_performance_governor) {
-                            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "\nSend overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                        }
-                        self->_performance_warning_printed = true;
-                    }
-				}
-				ep.oflow = oflow;
-			}
-
-			const auto t1 = std::chrono::high_resolution_clock::now();
-			const long long us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-			const long long usloop = 1.0 / (double)CYAN_NRNT_UPDATE_PER_SEC * 1e6;
-			const long long usdelay = usloop - us;
-
-			::usleep( usdelay < 0 ? 0 : usdelay );
-		}
-	}
-};
-
-static std::vector<std::weak_ptr<cyan_nrnt_send_packet_streamer>> allocated_tx_streamers;
-static void shutdown_lingering_tx_streamers() {
-	// This is required as a workaround, because the relevent destructurs are not called
-	// when you close the top block in gnu radio. Unsolved mystery for the time being.
-	for( auto & tx: allocated_tx_streamers ) {
-		if ( ! tx.expired() ) {
-			std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = tx.lock();
-			if ( my_streamer ) {
-				my_streamer->teardown();
-			}
-		}
-	}
-	allocated_tx_streamers.clear();
 }
 
 /***********************************************************************
@@ -510,15 +395,6 @@ static const size_t vrt_send_header_offset_words32 = 0;
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-void cyan_nrnt_impl::io_init(void){
-
-    //allocate streamer weak ptrs containers
-    for (const std::string &mb : _mbc.keys()) {
-        _mbc[mb].rx_streamers.resize( num_rx_channels );
-        _mbc[mb].tx_streamers.resize( num_tx_channels );
-    }
-}
-
 void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
     rx_sfp_throughput_used[ch] = rate_samples;
     // Only print the warning once
@@ -544,17 +420,14 @@ void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
     }
 }
 
-void cyan_nrnt_impl::update_rx_samp_rate(const std::string &mb, const size_t dsp, const double rate_){
+void cyan_nrnt_impl::update_rx_samp_rate(const size_t chan, const double rate ){
 
-    set_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
-    double rate = get_double( "rx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
-
-    rx_rate_check(dsp, rate);
-
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer =
-        std::dynamic_pointer_cast<cyan_nrnt_recv_packet_streamer>(_mbc[mb].rx_streamers[dsp].lock());
+    // Get the streamer corresponding to the channel
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = _mbc[ "0" ].rx_streamers[chan].lock();
+    // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
+    // Inform the streamer of the sample rate change
     my_streamer->set_sample_rate(rate);
 }
 
@@ -580,36 +453,27 @@ void cyan_nrnt_impl::tx_rate_check(size_t ch, double rate_samples) {
     }
 }
 
-void cyan_nrnt_impl::update_tx_samp_rate(const std::string &mb, const size_t dsp, const double rate_ ){
+void cyan_nrnt_impl::update_tx_samp_rate(const size_t chan, const double rate ){
 
-    set_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate", rate_ );
-    double rate = get_double( "tx_" + std::string( 1, 'a' + dsp ) + "/dsp/rate" );
-
-    tx_rate_check(dsp, rate);
-
-	std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer =
-        std::dynamic_pointer_cast<cyan_nrnt_send_packet_streamer>(_mbc[mb].tx_streamers[dsp].lock());
+    // Get the streamer corresponding to the channel
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = _mbc[ "0" ].tx_streamers[chan].lock();
+    // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
+    // Inform the streamer of the sample rate change
     my_streamer->set_samp_rate(rate);
 }
 
 void cyan_nrnt_impl::update_rates(void){
-    for (const std::string &mb : _mbc.keys()) {
-        fs_path root = "/mboards/" + mb;
-        _tree->access<double>(root / "tick_rate").update();
-        if(num_rx_channels > 0) {
-            //and now that the tick rate is set, init the host rates to something
-            for(const std::string &name : _tree->list(root / "rx_dsps")) {
-            _tree->access<double>(root / "rx_dsps" / name / "rate" / "value").update();
-            }
-        }
 
-        if(num_tx_channels > 0) {
-            for(const std::string &name : _tree->list(root / "tx_dsps")) {
-                _tree->access<double>(root / "tx_dsps" / name / "rate" / "value").update();
-            }
-        }
+    for(size_t ch = 0; ch < num_tx_channels; ch++) {
+        double rate = _mbc[ "0" ].iface->get_double( "tx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
+        update_tx_samp_rate(ch, rate);
+    }
+
+    for(size_t ch = 0; ch < num_rx_channels; ch++) {
+        double rate = _mbc[ "0" ].iface->get_double( "rx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
+        update_rx_samp_rate(ch, rate);
     }
 }
 
@@ -648,16 +512,6 @@ void cyan_nrnt_impl::update_tx_subdev_spec(const std::string &which_mb, const su
     _mbc[which_mb].tx_chan_occ = spec.size();
     size_t nchan = 0;
     for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].tx_chan_occ;
-}
-
-// TODO: refactor to avoid having these bound functions, the weak pointer to the tree might cause things to break
-static void rx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path ) {
-	tree.lock()->access<std::string>( path + "/stream" ).set( "0" );
-	tree.lock()->access<std::string>( path + "/pwr" ).set( "0" );
-}
-
-static void tx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path ) {
-	tree.lock()->access<std::string>( path + "/pwr" ).set( "0" );
 }
 
 /***********************************************************************
@@ -814,7 +668,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc[ "0" ].iface);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -826,10 +680,10 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         for (const std::string &mb : _mbc.keys()) {
             num_chan_so_far += _mbc[mb].rx_chan_occ;
             if (chan < num_chan_so_far){
+                // TODO: replace bind to avoid potential issues with the order cyan_nrnt_impl and the streamer are destructed in
                 std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
                 my_streamer->set_issue_stream_cmd(chan_i, std::bind(
                     &cyan_nrnt_impl::set_stream_cmd, this, scmd_pre, ph::_1));
-                my_streamer->set_on_fini(chan_i, std::bind( & rx_pwr_off, _tree, std::string( "/mboards/" + mb + "/rx/" + std::to_string( chan ) ) ) );
                 _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
                 break;
             }
@@ -859,6 +713,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
                 _tree->access<std::string>(rx_path / chan / "stream").set("1");
 
 // FIXME: @CF: 20180316: our TREE macros do not populate update(), unfortunately
+// TODO: see if this is still required, it probably sets the band since pwr(0) mutes it
 #define _update( t, p ) \
     _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
 
@@ -868,6 +723,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     }
 
     //sets all tick and samp rates on this streamer
+    // TODO: only update relevant channels
     this->update_rates();
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -888,9 +744,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
             }
         }
     }
-
-    allocated_rx_streamers.push_back( my_streamer );
-    ::atexit( shutdown_lingering_rx_streamers );
 
     return my_streamer;
 }
@@ -1021,15 +874,15 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     const size_t spp = CYAN_NRNT_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
 
-    //make the new streamer given the samples per packet
+    // TODO: replace bind to avoid potential issues with the order cyan_nrnt_impl and the streamer are destructed in
     cyan_nrnt_send_packet_streamer::timenow_type timenow_ = std::bind( & cyan_nrnt_impl::get_time_now, this );
 
     std::vector<std::string> dst_ips(args.channels.size());
     std::vector<int> dst_ports(args.channels.size());
+    std::vector<std::string> sfps(args.channels.size());
     for(size_t n = 0; n < args.channels.size(); n++) {
         uint16_t dst_port = 0;
-        std::string sfp = "";
-        get_tx_endpoint( args.channels[n], dst_ips[n], dst_port, sfp );
+        get_tx_endpoint( args.channels[n], dst_ips[n], dst_port, sfps[n] );
         dst_ports[n] = dst_port;
     }
 
@@ -1075,11 +928,12 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use);
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc[ "0" ].iface);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
 
+    // TODO: replace bind to avoid potential issues with the order cyan_nrnt_impl and the streamer are destructed in
     my_streamer->set_time_now_function(std::bind(&cyan_nrnt_impl::get_time_now,this));
 
     //bind callbacks for the handler
@@ -1092,10 +946,9 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
                 const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
                 my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
-                my_streamer->set_on_fini(chan_i, std::bind( & tx_pwr_off, _tree, std::string( "/mboards/" + mb + "/tx/" + std::to_string( chan ) ) ) );
-
+                // TODO: replace bind to avoid potential issues with the order cyan_nrnt_impl and the streamer are destructed in
                 my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                    &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], &_sfp_control_mutex[chan], ph::_1, ph::_2, ph::_3, ph::_4
+                    &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[mb].fifo_ctrl_xports[dsp], &_sfp_control_mutex[sfps[chan].back() - 'a'], ph::_1, ph::_2, ph::_3, ph::_4
                 ));
 
                 _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
@@ -1105,6 +958,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     }
 
     //sets all tick and samp rates on this streamer
+    // TODO: only update relevant channels
     this->update_rates();
     
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -1129,8 +983,5 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // Wait for time diff to converge
     wait_for_time_diff_converged();
 
-    allocated_tx_streamers.push_back( my_streamer );
-    ::atexit( shutdown_lingering_tx_streamers );
-    
     return my_streamer;
 }
