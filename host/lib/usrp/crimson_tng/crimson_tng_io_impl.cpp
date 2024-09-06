@@ -128,13 +128,16 @@ public:
         vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
     }
 
-    bool teardown_run = false;
 	void teardown() {
+        // Mutex to prevent teardown from being run multiple times
+        const std::lock_guard<std::mutex> lock(rx_teardown_mutex);
         if(teardown_run) {
             // Prevents this function from being called multiple times
             // see shutdown_lingering_tx_streamers for why this function is necessary
             return;
         }
+        teardown_run = true;
+
 		for( auto & ep: _eprops ) {
 			if ( ep.on_fini ) {
 				ep.on_fini();
@@ -157,6 +160,8 @@ private:
 
     std::vector<size_t> _channels;
     std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
+    bool teardown_run = false;
+    std::mutex rx_teardown_mutex;
 };
 
 static std::vector<std::weak_ptr<crimson_tng_recv_packet_streamer>> allocated_rx_streamers;
@@ -199,8 +204,10 @@ public:
 		teardown();
 	}
 
-	bool teardown_run = false;
-	void teardown() {
+    void teardown() {
+        // Mutex to prevent teardown from being run multiple times
+        const std::lock_guard<std::mutex> lock(tx_teardown_mutex);
+
         if(teardown_run) {
             // Prevents this function from being called multiple times
             // see shutdown_lingering_tx_streamers for why this function is necessary
@@ -384,6 +391,9 @@ private:
     std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
 
     bool _performance_warning_printed = false;
+
+    bool teardown_run = false;
+    std::mutex tx_teardown_mutex;
 
     /***********************************************************************
      * buffer_monitor_loop
@@ -675,6 +685,7 @@ void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const 
     for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].tx_chan_occ;
 }
 
+// TODO: refactor to avoid having these bound functions, the weak pointer to the tree might cause things to break
 static void rx_pwr_off( std::weak_ptr<uhd::property_tree> tree, std::string path ) {
 	tree.lock()->access<std::string>( path + "/stream" ).set( "0" );
 	tree.lock()->access<std::string>( path + "/pwr" ).set( "0" );
