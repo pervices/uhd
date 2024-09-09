@@ -793,21 +793,6 @@ void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
-/// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
-
-	time_diff_req pkt;
-
-	// Input to Process (includes feedback from PID Controller)
-	make_time_diff_packet(
-		pkt,
-		crimson_now
-	);
-
-    // By default send over SFPA
-	_time_diff_iface[0]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
-}
-
 void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
 
 	time_diff_req pkt;
@@ -822,22 +807,6 @@ void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int x
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
-}
-
-bool cyan_nrnt_impl::time_diff_recv( time_diff_resp & tdr ) {
-
-	size_t r;
-
-	r = _time_diff_iface[0]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
-
-	if ( 0 == r ) {
-		return false;
-	}
-
-	boost::endian::big_to_native_inplace( tdr.tv_sec );
-	boost::endian::big_to_native_inplace( tdr.tv_tick );
-
-	return true;
 }
 
 bool cyan_nrnt_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
@@ -860,10 +829,16 @@ bool cyan_nrnt_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 }
 
 void cyan_nrnt_impl::reset_time_diff_pid() {
+    // Get mutex before getting time incase it needs to wait for the mutex
+    _sfp_control_mutex[0].lock();
+
     auto reset_now = uhd::get_system_time();
     struct time_diff_resp reset_tdr;
+
     time_diff_send( reset_now );
     time_diff_recv( reset_tdr );
+    _sfp_control_mutex[0].unlock();
+
     double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
     _time_diff_pidc.reset(reset_now, new_offset);
 }
@@ -991,9 +966,11 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 	struct time_diff_resp tdr;
 
 	//Get offset
+    dev->_sfp_control_mutex[xg_intf].lock();
 	now = uhd::get_system_time();
 	dev->time_diff_send( now, xg_intf );
 	dev->time_diff_recv( tdr, xg_intf );
+    dev->_sfp_control_mutex[xg_intf].unlock();
     dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -1025,15 +1002,17 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             continue;
         }
 
-		time_diff = dev->_time_diff_pidc.get_control_variable();
-		now = uhd::get_system_time();
-		crimson_now = now + time_diff;
+        time_diff = dev->_time_diff_pidc.get_control_variable();
+        dev->_sfp_control_mutex[xg_intf].lock();
+        now = uhd::get_system_time();
+        crimson_now = now + time_diff;
 
-		dev->time_diff_send( crimson_now, xg_intf );
- 		if ( ! dev->time_diff_recv( tdr, xg_intf ) ) {
- 			continue;
+        dev->time_diff_send( crimson_now, xg_intf );
+        if ( dev->time_diff_recv( tdr, xg_intf ) ) [[likely]] {
+            // Skip updating time diff if time_diff_recv returned nothing
+            dev->time_diff_process( tdr, now );
          }
-		dev->time_diff_process( tdr, now );
+        dev->_sfp_control_mutex[xg_intf].unlock();
 	}
 	dev->_bm_thread_running = false;
 }
