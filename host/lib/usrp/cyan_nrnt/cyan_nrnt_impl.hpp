@@ -36,6 +36,8 @@
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 
+#define NUMBER_OF_XG_CONTROL_INTF 4
+
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
 namespace uhd {
@@ -84,8 +86,6 @@ namespace usrp {
 class cyan_nrnt_impl : public uhd::device
 {
 public:
-    static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 2;
-
     // shared pointer to the Crimson device
     typedef std::shared_ptr<cyan_nrnt_impl> sptr;
 
@@ -216,10 +216,9 @@ private:
     // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
     void set_properties_from_addr();
 
-    // Mutex for controlling access to the management port
+    // private pointer to the UDP interface, this is the path to send commands to Crimson
+    //uhd::cyan_nrnt_iface::sptr _iface;
     std::mutex _iface_lock;
-    // Mutexes for controlling control (not data) send/receives each SFP port
-    std::mutex _sfp_control_mutex[NUMBER_OF_XG_CONTROL_INTF];
 
 	/**
 	 * Clock Domain Synchronization Objects
@@ -235,12 +234,13 @@ private:
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
-    // TODO: make _time_diff and _time_diff_converged false-sharing proof
     std::atomic<double> _time_diff;
 	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
-    void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
-    bool time_diff_recv( time_diff_resp & tdr, int xg_intf = 0);
+    void time_diff_send( const uhd::time_spec_t & crimson_now );
+    void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf);
+    bool time_diff_recv( time_diff_resp & tdr );
+    bool time_diff_recv( time_diff_resp & tdr, int xg_intf );
     // Resets the PID controller managing time diffs
     void reset_time_diff_pid();
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );

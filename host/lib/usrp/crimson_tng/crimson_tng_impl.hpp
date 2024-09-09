@@ -85,8 +85,6 @@ namespace usrp {
 class crimson_tng_impl : public uhd::device
 {
 public:
-    static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 2;
-
     // shared pointer to the Crimson device
     typedef std::shared_ptr<crimson_tng_impl> sptr;
 
@@ -196,10 +194,9 @@ private:
     // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
     void set_properties_from_addr();
 
-    // Mutex for controlling access to the management port
+    // private pointer to the UDP interface, this is the path to send commands to Crimson
+    //uhd::crimson_tng_iface::sptr _iface;
     std::mutex _iface_lock;
-    // Mutexes for controlling control (not data) send/receives each SFP port
-    std::mutex _sfp_control_mutex[NUMBER_OF_XG_CONTROL_INTF];
 
 	/**
 	 * Clock Domain Synchronization Objects
@@ -215,7 +212,6 @@ private:
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
 	uhd::pidc _time_diff_pidc;
-    // TODO: make _time_diff and _time_diff_converged false-sharing proof
     std::atomic<double> _time_diff;
     std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
