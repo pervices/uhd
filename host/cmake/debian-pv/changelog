@@ -1,3 +1,9 @@
+uhdpv (4.4.0.27-0ubuntu1) ubuntu_release; urgency=high
+
+  * Revert fix to race condition affecting clock sync and buffer monitoring due to clock sync issues on Crimson
+
+ -- Per Vices <packages@pervices.com>  Mon, 9 Aug 2024 12:34:43 -0400
+
 uhdpv (4.4.0.26-0ubuntu1) ubuntu_release; urgency=medium
 
   * Temporarily disabled realtime threading due to random latency spikes making it worse than non-realtime threading
