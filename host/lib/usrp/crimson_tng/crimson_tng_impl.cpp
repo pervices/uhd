@@ -934,6 +934,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     _tree->create<std::vector<size_t> >(CRIMSON_TNG_MB_PATH / "rx_chan_dsp_mapping").set(default_map);
     _tree->create<std::vector<size_t> >(CRIMSON_TNG_MB_PATH / "tx_chan_dsp_mapping").set(default_map);
+    // TODO: make rx_subdev_spec and tx_subdev_spec read only and remove their respective update functions
     _tree->create<subdev_spec_t>(CRIMSON_TNG_MB_PATH / "rx_subdev_spec").add_coerced_subscriber(std::bind(&crimson_tng_impl::update_rx_subdev_spec, this, mb, ph::_1));
     _tree->create<subdev_spec_t>(CRIMSON_TNG_MB_PATH / "tx_subdev_spec").add_coerced_subscriber(std::bind(&crimson_tng_impl::update_tx_subdev_spec, this, mb, ph::_1));
 

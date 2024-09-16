@@ -1010,6 +1010,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     _tree->create<std::vector<size_t> >(CYAN_NRNT_MB_PATH / "rx_chan_dsp_mapping").set(default_rx_map);
     _tree->create<std::vector<size_t> >(CYAN_NRNT_MB_PATH / "tx_chan_dsp_mapping").set(default_tx_map);
+    // TODO: make rx_subdev_spec and tx_subdev_spec read only and remove their respective update functions
     _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "rx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_rx_subdev_spec, this, mb, ph::_1));
     _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "tx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_tx_subdev_spec, this, mb, ph::_1));
 

@@ -491,7 +491,10 @@ void crimson_tng_impl::update_rates(void){
 }
 
 void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    fs_path root = "/mboards/" + which_mb + "/dboards";
+    (void) which_mb;
+    (void) spec;
+
+    //fs_path root = "/mboards/" + which_mb + "/dboards";
 
     //sanity checking
     //validate_subdev_spec(_tree, spec, "rx", which_mb);
@@ -504,15 +507,13 @@ void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const 
     //    _mbc[which_mb].rx_dsps[i]->set_mux(conn, fe_swapped);
     //}
     //_mbc[which_mb].rx_fe->set_mux(fe_swapped);
-
-    //compute the new occupancy and resize
-    _mbc[which_mb].rx_chan_occ = spec.size();
-    size_t nchan = 0;
-    for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].rx_chan_occ;
 }
 
 void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    fs_path root = "/mboards/" + which_mb + "/dboards";
+    (void) which_mb;
+    (void) spec;
+
+    //fs_path root = "/mboards/" + which_mb + "/dboards";
 
     //sanity checking
     //validate_subdev_spec(_tree, spec, "tx", which_mb);
@@ -520,11 +521,6 @@ void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const 
     //set the mux for this spec
     //const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
     //_mbc[which_mb].tx_fe->set_mux(conn);
-
-    //compute the new occupancy and resize
-    _mbc[which_mb].tx_chan_occ = spec.size();
-    size_t nchan = 0;
-    for(const std::string &mb:  _mbc.keys()) nchan += _mbc[mb].tx_chan_occ;
 }
 
 /***********************************************************************
@@ -556,6 +552,13 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     //setup defaults for unspecified values
     args.otw_format = args.otw_format.empty()? "sc16" : args.otw_format;
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
+
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+        if(chan > num_rx_channels) {
+            throw uhd::index_error("Request rx streamer with channel " + std::to_string(chan) + " but only " + std::to_string(num_rx_channels) + " channels exist");
+        }
+    }
 
     if (args.otw_format != "sc16"){
         throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
@@ -637,36 +640,30 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
-        size_t num_chan_so_far = 0;
-        for (const std::string &mb : _mbc.keys()) {
-            num_chan_so_far += _mbc[mb].rx_chan_occ;
-            if (chan < num_chan_so_far){
 
-                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
-                const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
-                const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
-                const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
-                const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
+        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+        std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+        const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
+        const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
+        const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
+        const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
 
-                // stop streaming
-                _tree->access<std::string>(rx_path / chan / "stream").set("0");
-                if(little_endian_supported) {
-                    // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
-                    _tree->access<int>(rx_link_path / "endian_swap").set(1);
-                    // Checks if the server accepted the endian swap request
-                    // If 0 then the device does not support endian swap
-                    int endian_status = _tree->access<int>(rx_link_path / "endian_swap").get();
-                    if(endian_status == 0) {
-                        little_endian_supported = false;
-                    }
-                } else {
-                    // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
-                }
-                // vita enable
-                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+        // stop streaming
+        _tree->access<std::string>(rx_path / chan / "stream").set("0");
+        if(little_endian_supported) {
+            // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
+            _tree->access<int>(rx_link_path / "endian_swap").set(1);
+            // Checks if the server accepted the endian swap request
+            // If 0 then the device does not support endian swap
+            int endian_status = _tree->access<int>(rx_link_path / "endian_swap").get();
+            if(endian_status == 0) {
+                little_endian_supported = false;
             }
+        } else {
+            // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
         }
+        // vita enable
+        _tree->access<std::string>(rx_link_path / "vita_en").set("1");
     }
 
     // Creates streamer
@@ -679,49 +676,37 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
-        size_t num_chan_so_far = 0;
-        for (const std::string &mb : _mbc.keys()) {
-            num_chan_so_far += _mbc[mb].rx_chan_occ;
-            if (chan < num_chan_so_far){
-                // TODO: replace bind to avoid potential issues with the order crimson_tng_impl and the streamer are destructed in
-                std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
-                my_streamer->set_issue_stream_cmd(chan_i, std::bind(
-                    &crimson_tng_impl::set_stream_cmd, this, scmd_pre, ph::_1));
-                _mbc[mb].rx_streamers[chan] = my_streamer; //store weak pointer
-                break;
-            }
-        }
+
+        // TODO: replace bind to avoid potential issues with the order crimson_tng_impl and the streamer are destructed in
+        std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
+        my_streamer->set_issue_stream_cmd(chan_i, std::bind(
+            &crimson_tng_impl::set_stream_cmd, this, scmd_pre, ph::_1));
+        _mbc[ "0" ].rx_streamers[chan] = my_streamer; //store weak pointer
     }
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
-        size_t num_chan_so_far = 0;
-        for (const std::string &mb : _mbc.keys()) {
-            num_chan_so_far += _mbc[mb].rx_chan_occ;
-            if (chan < num_chan_so_far){
 
-                const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-                std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
-                const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
-                const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
-                const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
-                const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
+        const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
+        std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+        const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
+        const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
+        const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
+        const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
 
-                _tree->access<std::string>(rx_path / chan / "stream").set("0");
-                // vita enable
-                _tree->access<std::string>(rx_link_path / "vita_en").set("1");
+        _tree->access<std::string>(rx_path / chan / "stream").set("0");
+        // vita enable
+        _tree->access<std::string>(rx_link_path / "vita_en").set("1");
 
-                // power on the channel
-                _tree->access<std::string>(rx_path / chan / "pwr").set("1");
-                _tree->access<std::string>(rx_path / chan / "stream").set("1");
+        // power on the channel
+        _tree->access<std::string>(rx_path / chan / "pwr").set("1");
+        _tree->access<std::string>(rx_path / chan / "stream").set("1");
 
 // TODO: see if this is still required, it probably sets the band since pwr(0) mutes it
 #define _update( t, p ) \
-    _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
+_tree->access<t>( p ).set( _tree->access<t>( p ).get() )
 
-                _update( int, rx_fe_path / "freq" / "band" );
-            }
-        }
+        _update( int, rx_fe_path / "freq" / "band" );
     }
 
     //sets all tick and samp rates on this streamer
@@ -916,22 +901,16 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
-        size_t num_chan_so_far = 0;
-        for (const std::string &mb : _mbc.keys()) {
-            num_chan_so_far += _mbc[mb].tx_chan_occ;
-            if (chan < num_chan_so_far){
-                const size_t dsp = chan + _mbc[mb].tx_chan_occ - num_chan_so_far;
-                my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
-                // TODO: replace bind to avoid potential issues with the order crimson_tng_impl and the streamer are destructed in
-                my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                    &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc[mb].fifo_ctrl_xports[dsp], &_sfp_control_mutex[sfps[chan].back() - 'a'], _master_tick_rate, ph::_1, ph::_2, ph::_3, ph::_4
-                ));
+        my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
-                _mbc[mb].tx_streamers[chan] = my_streamer; //store weak pointer
-                break;
-            }
-        }
+        // TODO: replace bind to avoid potential issues with the order crimson_tng_impl and the streamer are destructed in
+        // TODO change _sfp_control_mutex to a smart pointer
+        my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
+            &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc[ "0" ].fifo_ctrl_xports[chan], &_sfp_control_mutex[sfps[chan_i].back() - 'a'], _master_tick_rate, ph::_1, ph::_2, ph::_3, ph::_4
+        ));
+
+        _mbc[ "0" ].tx_streamers[chan] = my_streamer; //store weak pointer
     }
 
     //sets all tick and samp rates on this streamer
