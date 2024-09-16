@@ -9,6 +9,7 @@
 #include <uhd/transport/udp_simple.hpp>
 #include <boost/endian/conversion.hpp>
 #include <boost/algorithm/string.hpp>
+#include <uhd/utils/log.hpp>
 
 #include <fstream>
 #include <thread>
@@ -213,7 +214,8 @@ private:
                 usrp->get_tree_value(set.path, actual_value);
                 std::cout << set.path << "=" << actual_value << std::endl;
 
-                if(set.verify) {
+                if(set.verify && set.double_value != actual_value) {
+                    UHD_LOG_ERROR("TEST_TX_TRIGGER", "Desired value " + std::to_string(set.double_value) + " does not equal the actual value " + std::to_string(actual_value) + " for path: " + set.path);
                     assert(set.double_value == actual_value);
                 }
 
@@ -222,7 +224,8 @@ private:
                 std::string actual_value;
                 usrp->get_tree_value(set.path, actual_value);
 
-                if (set.verify) {
+                if (set.verify && set.string_value != actual_value) {
+                    UHD_LOG_ERROR("TEST_TX_TRIGGER", "Desired value " + set.string_value + " does not equal the actual value " + actual_value + " for path: " + set.path);
                     assert(set.string_value == actual_value);
                 }
             }
