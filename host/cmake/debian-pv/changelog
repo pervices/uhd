@@ -1,3 +1,9 @@
+uhdpv (4.4.0.28-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Fixing race condition in rx and tx destructor
+
+ -- Per Vices <packages@pervices.com>  Wed, 18 Sept 2024 15:02:15 -0400
+
 uhdpv (4.4.0.27-0ubuntu1) ubuntu_release; urgency=high
 
   * Revert fix to race condition affecting clock sync and buffer monitoring due to clock sync issues on Crimson
