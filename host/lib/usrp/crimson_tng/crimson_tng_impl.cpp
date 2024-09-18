@@ -569,13 +569,13 @@ bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 void crimson_tng_impl::reset_time_diff_pid() {
     // Get mutex before getting time incase it needs to wait for the mutex
-    _sfp_control_mutex[0].lock();
+    _sfp_control_mutex[0]->lock();
     auto reset_now = uhd::get_system_time();
     struct time_diff_resp reset_tdr;
 
     time_diff_send( reset_now );
     time_diff_recv( reset_tdr );
-    _sfp_control_mutex[0].unlock();
+    _sfp_control_mutex[0]->unlock();
 
     double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
     _time_diff_pidc.reset(reset_now, new_offset);
@@ -697,11 +697,11 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 	struct time_diff_resp tdr;
 
 	//Gett offset
-    dev->_sfp_control_mutex[0].lock();
+    dev->_sfp_control_mutex[0]->lock();
     now = uhd::get_system_time();
     dev->time_diff_send( now );
     dev->time_diff_recv( tdr );
-    dev->_sfp_control_mutex[0].unlock();
+    dev->_sfp_control_mutex[0]->unlock();
     dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -734,7 +734,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         }
 
         time_diff = dev->_time_diff_pidc.get_control_variable();
-        dev->_sfp_control_mutex[0].lock();
+        dev->_sfp_control_mutex[0]->lock();
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
@@ -742,7 +742,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         if ( dev->time_diff_recv( tdr ) ) {
             dev->time_diff_process( tdr, now );
         }
-        dev->_sfp_control_mutex[0].unlock();
+        dev->_sfp_control_mutex[0]->unlock();
 	}
 	dev->_bm_thread_running = false;
 }
@@ -806,6 +806,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 {
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
+
+    // Initialize the mutexes to control access to the SFP ports
+    for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
+        _sfp_control_mutex[n] = std::make_shared<std::mutex>();
+    }
 
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){

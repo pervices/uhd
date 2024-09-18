@@ -153,7 +153,7 @@ private:
     void set_properties_from_addr();
 
     // Mutexes for controlling control (not data) send/receives each SFP port
-    std::mutex _sfp_control_mutex[NUMBER_OF_XG_CONTROL_INTF];
+    std::shared_ptr<std::mutex> _sfp_control_mutex[NUMBER_OF_XG_CONTROL_INTF];
 
 	/**
 	 * Clock Domain Synchronization Objects

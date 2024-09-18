@@ -720,7 +720,7 @@ _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
  * Transmit streamer
  **********************************************************************/
 
-static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, std::mutex* sfp_control_mutex, double tick_rate, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, std::shared_ptr<std::mutex> sfp_control_mutex, double tick_rate, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
 	double tick_period_ps = 1.0 / tick_rate;
 
@@ -904,10 +904,10 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 
         my_streamer->set_channel_name(chan_i,std::string( 1, 'A' + chan ));
 
-        // TODO: replace bind to avoid potential issues with the order crimson_tng_impl and the streamer are destructed in
-        // TODO change _sfp_control_mutex to a smart pointer
+        // Sets the function used to get the buffer level, overflow, and underflow counts
+        // NOTE: when passing pointer to this function make sure they are smark pointers
         my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-            &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc[ "0" ].fifo_ctrl_xports[chan], &_sfp_control_mutex[sfps[chan_i].back() - 'a'], _master_tick_rate, ph::_1, ph::_2, ph::_3, ph::_4
+            &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc[ "0" ].fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], _master_tick_rate, ph::_1, ph::_2, ph::_3, ph::_4
         ));
 
         _mbc[ "0" ].tx_streamers[chan] = my_streamer; //store weak pointer
