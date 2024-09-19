@@ -1,6 +1,7 @@
 #
 # Copyright 2010-2014 Ettus Research LLC
 # Copyright 2018 Ettus Research, a National Instruments Company
+# Copyright 2023-2024 Per Vices Corporation
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -12,6 +13,7 @@ UHD_INSTALL(FILES
     bounded_buffer.ipp
     buffer_pool.hpp
     buffer_tracker.hpp
+    clock_sync_manager.hpp
     frame_buff.hpp
     if_addrs.hpp
     udp_constants.hpp

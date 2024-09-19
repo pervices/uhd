@@ -36,6 +36,7 @@
 #include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
+#include <uhd/transport/clock_sync_manager.hpp>
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
@@ -52,6 +53,7 @@ struct gpio_burst_req {
 };
 #pragma pack(pop)
 
+// TODO: remove after after clock sync moved to clock_sync_manager
 #pragma pack(push,1)
 struct time_diff_req {
 	uint64_t header;
@@ -60,6 +62,7 @@ struct time_diff_req {
 };
 #pragma pack(pop)
 
+// TODO: remove after after clock sync moved to clock_sync_manager
 #pragma pack(push,1)
 struct time_diff_resp {
 	int64_t tv_sec;
