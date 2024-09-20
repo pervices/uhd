@@ -233,8 +233,7 @@ private:
         std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
     };
-    // TODO: replace dict with a single instance, we only ever have 1 _mbc so no need for a dict. Redundancy for using multiple management ports (if/when implemented) should be handled within cyan_nrnt_iface
-    uhd::dict<std::string, mb_container_type> _mbc;
+    mb_container_type _mbc;
 
     // Inform the streamer corresponding to a channel what their sample rate is
     void update_rx_samp_rate(const size_t chan, const double rate);
@@ -242,8 +241,8 @@ private:
     // Inform all streamers what the current sample rate is for their respective channel
     void update_rates(void);
     //update spec methods are coercers until we only accept db_name == A
-    void update_rx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
-    void update_tx_subdev_spec(const std::string &, const uhd::usrp::subdev_spec_t &);
+    void update_rx_subdev_spec(const uhd::usrp::subdev_spec_t &);
+    void update_tx_subdev_spec(const uhd::usrp::subdev_spec_t &);
     double set_tx_dsp_freq(const std::string &, const double);
     uhd::meta_range_t get_tx_dsp_freq_range(const std::string &);
     void update_clock_source(const std::string &, const std::string &);

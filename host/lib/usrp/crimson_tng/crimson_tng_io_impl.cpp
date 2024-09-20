@@ -436,7 +436,7 @@ void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
 void crimson_tng_impl::update_rx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = _mbc[ "0" ].rx_streamers[chan].lock();
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan].lock();
     // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
@@ -469,7 +469,7 @@ void crimson_tng_impl::tx_rate_check(size_t ch, double rate_samples) {
 void crimson_tng_impl::update_tx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = _mbc[ "0" ].tx_streamers[chan].lock();
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
     // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
@@ -480,47 +480,45 @@ void crimson_tng_impl::update_tx_samp_rate(const size_t chan, const double rate 
 void crimson_tng_impl::update_rates(void){
 
     for(size_t ch = 0; ch < num_tx_channels; ch++) {
-        double rate = _mbc[ "0" ].iface->get_double( "tx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
+        double rate = _mbc.iface->get_double( "tx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
         update_tx_samp_rate(ch, rate);
     }
 
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
-        double rate = _mbc[ "0" ].iface->get_double( "rx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
+        double rate = _mbc.iface->get_double( "rx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
         update_rx_samp_rate(ch, rate);
     }
 }
 
-void crimson_tng_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    (void) which_mb;
+void crimson_tng_impl::update_rx_subdev_spec(const subdev_spec_t &spec){
     (void) spec;
 
-    //fs_path root = "/mboards/" + which_mb + "/dboards";
+    //fs_path root = "/mboards/0/dboards";
 
     //sanity checking
-    //validate_subdev_spec(_tree, spec, "rx", which_mb);
+    //validate_subdev_spec(_tree, spec, "rx", "0");
 
     //setup mux for this spec
     //bool fe_swapped = false;
     //for (size_t i = 0; i < spec.size(); i++){
     //    const std::string conn = _tree->access<std::string>(root / spec[i].db_name / "rx_frontends" / spec[i].sd_name / "connection").get();
     //    if (i == 0 and (conn == "QI" or conn == "Q")) fe_swapped = true;
-    //    _mbc[which_mb].rx_dsps[i]->set_mux(conn, fe_swapped);
+    //    _mbc.rx_dsps[i]->set_mux(conn, fe_swapped);
     //}
-    //_mbc[which_mb].rx_fe->set_mux(fe_swapped);
+    //_mbc.rx_fe->set_mux(fe_swapped);
 }
 
-void crimson_tng_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    (void) which_mb;
+void crimson_tng_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
     (void) spec;
 
-    //fs_path root = "/mboards/" + which_mb + "/dboards";
+    //fs_path root = "/mboards/0/dboards";
 
     //sanity checking
-    //validate_subdev_spec(_tree, spec, "tx", which_mb);
+    //validate_subdev_spec(_tree, spec, "tx", "0");
 
     //set the mux for this spec
     //const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
-    //_mbc[which_mb].tx_fe->set_mux(conn);
+    //_mbc.tx_fe->set_mux(conn);
 }
 
 /***********************************************************************
@@ -668,7 +666,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc[ "0" ].iface);
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -681,7 +679,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
         my_streamer->set_issue_stream_cmd(chan_i, std::bind(
             &crimson_tng_impl::set_stream_cmd, this, scmd_pre, ph::_1));
-        _mbc[ "0" ].rx_streamers[chan] = my_streamer; //store weak pointer
+        _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -890,7 +888,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc[ "0" ].iface );
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -907,10 +905,10 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         // Sets the function used to get the buffer level, overflow, and underflow counts
         // NOTE: when passing pointer to this function make sure they are smark pointers
         my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-            &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc[ "0" ].fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], _master_tick_rate, ph::_1, ph::_2, ph::_3, ph::_4
+            &get_fifo_lvl_udp_abs, chan, CRIMSON_TNG_BUFF_SCALE, _mbc.fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], _master_tick_rate, ph::_1, ph::_2, ph::_3, ph::_4
         ));
 
-        _mbc[ "0" ].tx_streamers[chan] = my_streamer; //store weak pointer
+        _mbc.tx_streamers[chan] = my_streamer; //store weak pointer
     }
 
     //sets all tick and samp rates on this streamer

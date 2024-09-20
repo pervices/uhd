@@ -323,9 +323,9 @@ void cyan_nrnt_impl::set_properties_from_addr() {
 			std::string key = prop.substr( crimson_prop_prefix.length() );
 			std::string expected_string = device_addr[ prop ];
 
-            _mbc[ "0" ].iface->set_string( key, expected_string );
+            _mbc.iface->set_string( key, expected_string );
 
-            std::string actual_string = _mbc[ "0" ].iface->get_string( key );
+            std::string actual_string = _mbc.iface->get_string( key );
 			if ( actual_string != expected_string ) {
 				UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C "_IMPL")
 					<< __func__ << "(): "
@@ -854,20 +854,20 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 // Macro to create the tree, all properties created with this are R/W properties
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .add_desired_subscriber(std::bind(&cyan_nrnt_iface::set_ ## HANDLER, _mbc[ "0" ].iface, (PROP), ph::_1))\
-        .set_publisher(std::bind(&cyan_nrnt_iface::get_ ## HANDLER, _mbc[ "0" ].iface, (PROP) ));\
+        .add_desired_subscriber(std::bind(&cyan_nrnt_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1))\
+        .set_publisher(std::bind(&cyan_nrnt_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .set_publisher(std::bind(&cyan_nrnt_iface::get_ ## HANDLER, _mbc[ "0" ].iface, (PROP) ));\
+        .set_publisher(std::bind(&cyan_nrnt_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are WO properties
 #define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .add_desired_subscriber(std::bind(&cyan_nrnt_iface::set_ ## HANDLER, _mbc[ "0" ].iface, (PROP), ph::_1));\
+        .add_desired_subscriber(std::bind(&cyan_nrnt_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are static
@@ -910,11 +910,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         #endif
     }
 
-    static const size_t mbi = 0;
-    static const std::string mb = std::to_string( mbi );
     // Makes the UDP comm connection
-    // TODO: figure out where _mbc is init since it doesn't have an obvious place where it's length ends up non 0
-    _mbc[mb].iface = cyan_nrnt_iface::make(
+    _mbc.iface = cyan_nrnt_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
 			BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
@@ -953,8 +950,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     num_tx_channels = (size_t) (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/num_tx").get());
     is_num_tx_channels_set = true;
 
-    _mbc[ "0" ].rx_streamers.resize( num_rx_channels );
-    _mbc[ "0" ].tx_streamers.resize( num_tx_channels );
+    _mbc.rx_streamers.resize( num_rx_channels );
+    _mbc.tx_streamers.resize( num_tx_channels );
 
     rx_gain_is_set.resize(num_rx_channels, false);
     last_set_rx_band.resize(num_rx_channels, -1);
@@ -1016,8 +1013,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _tree->create<std::vector<size_t> >(CYAN_NRNT_MB_PATH / "rx_chan_dsp_mapping").set(default_rx_map);
     _tree->create<std::vector<size_t> >(CYAN_NRNT_MB_PATH / "tx_chan_dsp_mapping").set(default_tx_map);
     // TODO: make rx_subdev_spec and tx_subdev_spec read only and remove their respective update functions
-    _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "rx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_rx_subdev_spec, this, mb, ph::_1));
-    _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "tx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_tx_subdev_spec, this, mb, ph::_1));
+    _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "rx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_rx_subdev_spec, this, ph::_1));
+    _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "tx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_tx_subdev_spec, this, ph::_1));
 
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "vendor", std::string, "Per Vices");
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "name",   std::string, "FPGA Board");
@@ -1403,7 +1400,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		get_tx_endpoint( dspno, ip_addr, udp_port, sfp );
 
         // Creates socket for getting buffer level
-		_mbc[mb].fifo_ctrl_xports.push_back(
+		_mbc.fifo_ctrl_xports.push_back(
 			udp_simple::make_connected(
 				_tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr" ).get(),
 				std::to_string( _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
@@ -1426,30 +1423,29 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     //do some post-init tasks
     this->update_rates();
-    for(const std::string &mb:  _mbc.keys()){
-        fs_path root = "/mboards/" + mb;
 
-        std::string sub_spec_rx;
-        for(size_t n =0; n < num_rx_channels; n++) {
-            sub_spec_rx.push_back(n+'A');
-            sub_spec_rx+= ":Channel_";
-            sub_spec_rx.push_back(n+'A');
-            if(n+1 !=num_rx_channels) {
-                sub_spec_rx+=" ";
-            }
+    fs_path root = "/mboards/0";
+
+    std::string sub_spec_rx;
+    for(size_t n =0; n < num_rx_channels; n++) {
+        sub_spec_rx.push_back(n+'A');
+        sub_spec_rx+= ":Channel_";
+        sub_spec_rx.push_back(n+'A');
+        if(n+1 !=num_rx_channels) {
+            sub_spec_rx+=" ";
         }
-		_tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( sub_spec_rx ));
-        std::string sub_spec_tx;
-        for(size_t n = 0; n < num_tx_channels; n++) {
-            sub_spec_tx.push_back(n+'A');
-            sub_spec_tx+= ":Channel_";
-            sub_spec_tx.push_back(n+'A');
-            if(n+1 !=num_tx_channels) {
-                sub_spec_tx+=" ";
-            }
-        }
-        _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
     }
+    _tree->access<subdev_spec_t>(root / "rx_subdev_spec").set(subdev_spec_t( sub_spec_rx ));
+    std::string sub_spec_tx;
+    for(size_t n = 0; n < num_tx_channels; n++) {
+        sub_spec_tx.push_back(n+'A');
+        sub_spec_tx+= ":Channel_";
+        sub_spec_tx.push_back(n+'A');
+        if(n+1 !=num_tx_channels) {
+            sub_spec_tx+=" ";
+        }
+    }
+    _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
 	if ( _pps_thread_needed ) {
 		start_pps_dtc();

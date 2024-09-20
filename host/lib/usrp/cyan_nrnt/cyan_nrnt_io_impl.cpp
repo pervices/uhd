@@ -423,7 +423,7 @@ void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
 void cyan_nrnt_impl::update_rx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = _mbc[ "0" ].rx_streamers[chan].lock();
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan].lock();
     // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
@@ -456,7 +456,7 @@ void cyan_nrnt_impl::tx_rate_check(size_t ch, double rate_samples) {
 void cyan_nrnt_impl::update_tx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = _mbc[ "0" ].tx_streamers[chan].lock();
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
     // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
@@ -467,18 +467,17 @@ void cyan_nrnt_impl::update_tx_samp_rate(const size_t chan, const double rate ){
 void cyan_nrnt_impl::update_rates(void){
 
     for(size_t ch = 0; ch < num_tx_channels; ch++) {
-        double rate = _mbc[ "0" ].iface->get_double( "tx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
+        double rate = _mbc.iface->get_double( "tx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
         update_tx_samp_rate(ch, rate);
     }
 
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
-        double rate = _mbc[ "0" ].iface->get_double( "rx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
+        double rate = _mbc.iface->get_double( "rx_" + std::string( 1, 'a' + ch ) + "/dsp/rate" );
         update_rx_samp_rate(ch, rate);
     }
 }
 
-void cyan_nrnt_impl::update_rx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    (void) which_mb;
+void cyan_nrnt_impl::update_rx_subdev_spec(const subdev_spec_t &spec){
     (void) spec;
 
     //fs_path root = "/mboards/" + which_mb + "/dboards";
@@ -496,18 +495,17 @@ void cyan_nrnt_impl::update_rx_subdev_spec(const std::string &which_mb, const su
     //_mbc[which_mb].rx_fe->set_mux(fe_swapped);
 }
 
-void cyan_nrnt_impl::update_tx_subdev_spec(const std::string &which_mb, const subdev_spec_t &spec){
-    (void) which_mb;
+void cyan_nrnt_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
     (void) spec;
 
-    //fs_path root = "/mboards/" + which_mb + "/dboards";
+    //fs_path root = "/mboards/0/dboards";
 
     //sanity checking
-    //validate_subdev_spec(_tree, spec, "tx", which_mb);
+    //validate_subdev_spec(_tree, spec, "tx", "0");
 
     //set the mux for this spec
     //const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
-    //_mbc[which_mb].tx_fe->set_mux(conn);
+    //_mbc.tx_fe->set_mux(conn);
 }
 
 /***********************************************************************
@@ -665,7 +663,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc[ "0" ].iface);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -678,7 +676,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
         my_streamer->set_issue_stream_cmd(chan_i, std::bind(
             &cyan_nrnt_impl::set_stream_cmd, this, scmd_pre, ph::_1));
-        _mbc[ "0" ].rx_streamers[chan] = my_streamer; //store weak pointer
+        _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -914,7 +912,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc[ "0" ].iface);
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_send_packet_streamer>( args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -932,10 +930,10 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
             // Sets the function used to get the buffer level, overflow, and underflow counts
             // NOTE: when passing pointer to this function make sure they are smark pointers
             my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc[ "0" ].fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], ph::_1, ph::_2, ph::_3, ph::_4
+                &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc.fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], ph::_1, ph::_2, ph::_3, ph::_4
             ));
 
-            _mbc[ "0" ].tx_streamers[chan] = my_streamer; //store weak pointer
+            _mbc.tx_streamers[chan] = my_streamer; //store weak pointer
         }
     }
 
