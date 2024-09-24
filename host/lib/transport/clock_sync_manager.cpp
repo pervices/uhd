@@ -137,7 +137,7 @@ void clock_sync_manager::pid::reset(const uhd::time_spec_t* const host_time, con
 }
 
 void clock_sync_manager::pid::get_predicted_time(const uhd::time_spec_t* const host_time) {
-
+    return host_time + difference;
 }
 
 void clock_sync_manager::pid::update(const uhd::time_spec_t* const host_time, const uhd::time_spec_t* const predicted_time, const uhd::time_spec_t* const time_error) {
@@ -169,10 +169,9 @@ void clock_sync_manager::pid::update(const uhd::time_spec_t* const host_time, co
     // proportional
     double P = Kp * error;
 
-    integral_memory += error * dt;
     // integral
-    i += e * dt;
-    double I = Ki * i;
+    integral_memory += error * dt;
+    double I = Ki * integral_memory;
 
     // Calculate the derivative
     // Noise can cause the derivative component to go haywire, to mitigate this an exponential low pass filter is apllied
@@ -181,7 +180,7 @@ void clock_sync_manager::pid::update(const uhd::time_spec_t* const host_time, co
     // f(n) = (1-a) * f(n-1) + a * f(n)
     double filtered_derivated = (( 1 - alpha ) * filtered_derivated) + (alpha * derivative);
 
-    double filtered_error = abs(error_filter.get_average());
+    double abs_filtered_error = std::abs(error_filter.get_average());
 
     // derivative component
     double D = Kd * filtered_derivative;
@@ -189,14 +188,14 @@ void clock_sync_manager::pid::update(const uhd::time_spec_t* const host_time, co
     // Update predicted difference between the host and device
     difference = P + I + D;
 
-    // if ( filtered_error >= RESET_THRESHOLD ) {
-        // TODO: add way of indicates a reset is advised
-    // }
-
     previous_error = error;
 
     // Update the flag to detect if clock sync is complete
-    converged = std::abs(filtered_error) < FILTERED_MAX_ERROR;
+    converged = abs_filtered_error < FILTERED_MAX_ERROR;
+
+    if(abs_filtered_error > RESET_THRESHOLD) {
+        // TODO: reset PID
+    }
 }
 
 }}

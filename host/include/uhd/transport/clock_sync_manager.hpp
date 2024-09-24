@@ -115,7 +115,7 @@ private:
          * Gets the predicted time on the device.
          * @param host_time The time on the host system
          */
-        uhd::time_spec_t get_predicted_time(const uhd::time_spec_t* host_time);
+        uhd::time_spec_t get_predicted_time(const uhd::time_spec_t* const host_time);
 
     private:
         /**
@@ -127,6 +127,10 @@ private:
          */
         // TODO: fine tune this value, it can probably be reduced
         static constexpr double FILTERED_MAX_ERROR = 10e-6;
+        /**
+         * Threshold for error when it is better to restart clock sync than to try to continue
+         */
+        static constexpr uint64_t RESET_THRESHOLD = 1000000;
 
         /**
          * The target value
