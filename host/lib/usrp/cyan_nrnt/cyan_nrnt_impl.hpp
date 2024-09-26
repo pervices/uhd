@@ -124,11 +124,6 @@ public:
     void start_pps_dtc();
     void stop_pps_dtc();
 
-    void send_rx_stream_cmd_req( const rx_stream_cmd & req );
-
-    void send_rx_stream_cmd_req( const rx_stream_cmd & req, int xg_intf );
-    static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
-
 private:
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);
@@ -161,8 +156,10 @@ private:
     std::vector<int> tx_gain_is_set;
     std::vector<int> last_set_tx_band;
 
+    static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
+
     // wrapper for type <stream_cmd_t> through the SFP ports
-    static void set_stream_cmd(const std::string pre, int nsamps_multiple_rx, int otw_rx, size_t jesd_num, uhd::stream_cmd_t data);
+    static void set_stream_cmd(int nsamps_multiple_rx, int otw_rx, size_t jesd_num, uhd::transport::udp_simple::sptr command_port, uhd::stream_cmd_t stream_cmd);
 
     static void detect_pps(cyan_nrnt_impl *dev);
 

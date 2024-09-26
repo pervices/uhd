@@ -132,7 +132,7 @@ static size_t pre_to_ch( const std::string & pre ) {
 
 // TODO: refactor so this function can be called even if this has been destructed
 // NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
-void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_rx, int otw_rx, size_t jesd_num, stream_cmd_t stream_cmd ) {
+void cyan_nrnt_impl::set_stream_cmd( int nsamps_multiple_rx, int otw_rx, size_t jesd_num, uhd::transport::udp_simple::sptr command_port, stream_cmd_t stream_cmd ) {
 
     // The number of samples requested must be a multiple of a certain number, depending on the variant
     uint64_t original_nsamps_req = stream_cmd.num_samps;
@@ -150,8 +150,6 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_
     // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
     stream_cmd.num_samps = stream_cmd.num_samps * otw_rx / 16;
 
-	const size_t ch = pre_to_ch( pre );
-
     double current_time = 0;//get_time_now().get_real_secs();
 
 #ifdef DEBUG_COUT
@@ -168,18 +166,17 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_
         << stream_cmd.time_spec.get_real_secs() << std::endl;
 #endif
 
-	uhd::usrp::rx_stream_cmd rx_stream_cmd;
+	uhd::usrp::rx_stream_cmd stream_packet;
 
     if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
         stream_cmd.stream_now = true;
     }
 
-	make_rx_stream_cmd_packet( stream_cmd, jesd_num, rx_stream_cmd );
+    make_rx_stream_cmd_packet( stream_cmd, jesd_num, stream_packet );
 
-    int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
-
-	send_rx_stream_cmd_req( rx_stream_cmd, xg_intf );
+    // Sends stream command packet
+    command_port->send( (void*) &stream_packet, sizeof( stream_packet ) );
 }
 
 // Loop that polls Crimson to verify the PPS is working
@@ -565,21 +562,6 @@ void cyan_nrnt_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, c
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_psec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
-}
-
-//sends a stream command over sfp port 0
-void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
-}
-
-//sends a stream command over the specified sfp port (xg_intf = 0 means sfpa, =1 means spfb)
-void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_intf) {
-
-    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
-        throw runtime_error( "XG Control interface offset out of bound!" );
-    }
-
-	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
@@ -1255,7 +1237,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Used to issue an rx stream command
         // WO property
         _tree->create<uhd::stream_cmd_t> ( rx_dsp_path / "stream_cmd" )
-            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, nsamps_multiple_rx, otw_rx, get_rx_jesd_num(dspno), ("rx_"+lc_num+"/stream_cmd"), ph::_1));
+            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, nsamps_multiple_rx, otw_rx, get_rx_jesd_num(dspno), _time_diff_iface[get_rx_xg_intf(dspno)], ph::_1));
 
 		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
