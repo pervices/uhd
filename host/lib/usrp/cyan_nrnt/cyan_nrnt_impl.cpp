@@ -132,7 +132,7 @@ static size_t pre_to_ch( const std::string & pre ) {
 
 // TODO: refactor so this function can be called even if this has been destructed
 // NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
-void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
+void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_rx, int otw_rx, stream_cmd_t stream_cmd ) {
 
     // The number of samples requested must be a multiple of a certain number, depending on the variant
     uint64_t original_nsamps_req = stream_cmd.num_samps;
@@ -1262,7 +1262,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Used to issue an rx stream command
         // WO property
         _tree->create<uhd::stream_cmd_t> ( rx_dsp_path / "stream_cmd" )
-            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
+            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, nsamps_multiple_rx, otw_rx, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
 
 		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 

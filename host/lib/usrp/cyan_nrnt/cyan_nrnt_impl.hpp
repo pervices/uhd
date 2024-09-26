@@ -145,6 +145,7 @@ private:
     double max_sample_rate;
 
     // Over the wire format, int bits per half of the iq pair. i.e. 16 = sc16
+    // NOTE: if it becomes possible to change this ensure set_stream_cmd is updated
     int otw_rx;
     std::string otw_rx_s;
     int otw_tx;
@@ -161,7 +162,7 @@ private:
     std::vector<int> last_set_tx_band;
 
     // wrapper for type <stream_cmd_t> through the SFP ports
-    static void set_stream_cmd(const std::string pre, uhd::stream_cmd_t data);
+    static void set_stream_cmd(const std::string pre, int nsamps_multiple_rx, int otw_rx, uhd::stream_cmd_t data);
 
     static void detect_pps(cyan_nrnt_impl *dev);
 
