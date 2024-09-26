@@ -152,7 +152,7 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_
 
 	const size_t ch = pre_to_ch( pre );
 
-    double current_time = get_time_now().get_real_secs();
+    double current_time = 0;//get_time_now().get_real_secs();
 
 #ifdef DEBUG_COUT
     std::cout
