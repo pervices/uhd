@@ -1262,7 +1262,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Used to issue an rx stream command
         // WO property
         _tree->create<uhd::stream_cmd_t> ( rx_dsp_path / "stream_cmd" )
-            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, this, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
+            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
 
 		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 

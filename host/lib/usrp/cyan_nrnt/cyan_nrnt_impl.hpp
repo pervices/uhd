@@ -161,7 +161,7 @@ private:
     std::vector<int> last_set_tx_band;
 
     // wrapper for type <stream_cmd_t> through the SFP ports
-    void set_stream_cmd(const std::string pre, uhd::stream_cmd_t data);
+    static void set_stream_cmd(const std::string pre, uhd::stream_cmd_t data);
 
     static void detect_pps(cyan_nrnt_impl *dev);
 
