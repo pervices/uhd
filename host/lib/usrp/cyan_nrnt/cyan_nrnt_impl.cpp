@@ -132,7 +132,7 @@ static size_t pre_to_ch( const std::string & pre ) {
 
 // TODO: refactor so this function can be called even if this has been destructed
 // NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
-void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_rx, int otw_rx, stream_cmd_t stream_cmd ) {
+void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_rx, int otw_rx, size_t jesd_num, stream_cmd_t stream_cmd ) {
 
     // The number of samples requested must be a multiple of a certain number, depending on the variant
     uint64_t original_nsamps_req = stream_cmd.num_samps;
@@ -170,17 +170,10 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, int nsamps_multiple_
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
-    if (stream_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
+    if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
         stream_cmd.stream_now = true;
     }
-
-    //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
-    //Inside the stream packet there is an argument for channel
-    //The channel argument is actually the jesd number relative to the sfp port
-    //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
-    //9r7t only has one channel per port so it
-    size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
 
 	make_rx_stream_cmd_packet( stream_cmd, jesd_num, rx_stream_cmd );
 
@@ -1262,7 +1255,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Used to issue an rx stream command
         // WO property
         _tree->create<uhd::stream_cmd_t> ( rx_dsp_path / "stream_cmd" )
-            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, nsamps_multiple_rx, otw_rx, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
+            .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, nsamps_multiple_rx, otw_rx, get_rx_jesd_num(dspno), ("rx_"+lc_num+"/stream_cmd"), ph::_1));
 
 		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
@@ -1488,7 +1481,7 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
 
 //gets the jesd number to be used in creating stream command packets
 //Note: these are relative to the sfp port
-//i.e. 0 for all channels in 9r7t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
+//i.e. 0 for all channels in 4r4t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
 int cyan_nrnt_impl::get_rx_jesd_num(int channel) {
     const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();

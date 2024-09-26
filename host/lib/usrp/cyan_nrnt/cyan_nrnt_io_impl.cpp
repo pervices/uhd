@@ -675,7 +675,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         // TODO: replace bind to avoid potential issues with the order cyan_nrnt_impl and the streamer are destructed in
         std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
         my_streamer->set_issue_stream_cmd(chan_i, std::bind(
-            &cyan_nrnt_impl::set_stream_cmd, scmd_pre, nsamps_multiple_rx, otw_rx, ph::_1));
+            &cyan_nrnt_impl::set_stream_cmd, scmd_pre, nsamps_multiple_rx, otw_rx, get_rx_jesd_num(chan), ph::_1));
         _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
 
