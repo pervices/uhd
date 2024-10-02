@@ -1,3 +1,9 @@
+uhdpv (4.4.0.40-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding error message to identify a clock sync failure mode
+
+ -- Per Vices <packages@pervices.com>  Wed, 2 Oct 2024 16:01:28 -0400
+
 uhdpv (4.4.0.29-0ubuntu1) ubuntu_release; urgency=high
 
   * Fixing another race condition in rx and tx destructor
