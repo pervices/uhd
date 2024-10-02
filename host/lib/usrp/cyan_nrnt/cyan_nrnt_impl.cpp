@@ -750,6 +750,9 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 
     //the sfp port clock synchronization will be conducted on
     int xg_intf = 0;
+
+    // Flag so that we only print the error message for failed recv once
+    bool dropped_recv_message_printed = false;
     
 	const uhd::time_spec_t T( 1.0 / (double) CYAN_NRNT_UPDATE_PER_SEC );
 	uhd::time_spec_t now, then, dt;
@@ -807,6 +810,9 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
         if ( dev->time_diff_recv( tdr, xg_intf ) ) [[likely]] {
             // Skip updating time diff if time_diff_recv returned nothing
             dev->time_diff_process( tdr, now );
+         } else if (!dropped_recv_message_printed) {
+             UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
+             dropped_recv_message_printed = true;
          }
         dev->_sfp_control_mutex[xg_intf]->unlock();
 	}

@@ -687,6 +687,9 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
 	dev->_bm_thread_running = true;
 
+    // Flag so that we only print the error message for failed recv once
+    bool dropped_recv_message_printed = false;
+
 	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
 	uhd::time_spec_t now, then, dt;
 	uhd::time_spec_t crimson_now;
@@ -741,7 +744,10 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         dev->time_diff_send( crimson_now );
         if ( dev->time_diff_recv( tdr ) ) {
             dev->time_diff_process( tdr, now );
-        }
+        } else if (!dropped_recv_message_printed) {
+             UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
+             dropped_recv_message_printed = true;
+         }
         dev->_sfp_control_mutex[0]->unlock();
 	}
 	dev->_bm_thread_running = false;
