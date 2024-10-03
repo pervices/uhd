@@ -1,3 +1,9 @@
+uhdpv (4.4.0.41-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding error message to sample rate configuration errors
+
+ -- Per Vices <packages@pervices.com>  Thu, 3 Oct 2024 11:56:44 -0400
+
 uhdpv (4.4.0.40-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding error message to identify a clock sync failure mode
