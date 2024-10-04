@@ -156,9 +156,6 @@ void crimson_tng_iface::set_string(const std::string pre, std::string data) {
 	// peek (read) anyways for error check, since Crimson will reply back
 	ret = peek_str();
 
-    std::cout << "T1\n";
-    PyEval_SaveThread();
-
     // Obtain Python GIL
     std::cout << "Gain lock1\n";
     Py_END_ALLOW_THREADS
