@@ -63,6 +63,7 @@ static size_t wrap_recv(uhd::rx_streamer* rx_stream,
 
     // Release the GIL only for the recv() call
     const size_t result = [&]() {
+        std::cout << "S1\n";
         py::gil_scoped_release release;
         // Call the real recv()
         return rx_stream->recv(channel_storage, nsamps_per_buff, metadata, timeout);
@@ -120,6 +121,7 @@ static size_t wrap_send(uhd::tx_streamer* tx_stream,
 
     // Release the GIL only for the send() call
     const size_t result = [&]() {
+        std::cout << "S2\n";
         py::gil_scoped_release release;
         // Call the real send()
         return tx_stream->send(channel_storage, nsamps_per_buff, metadata, timeout);
@@ -136,6 +138,7 @@ static bool wrap_recv_async_msg(uhd::tx_streamer* tx_stream,
     double timeout = 0.1)
 {
     // Release the GIL
+    std::cout << "S3\n";
     py::gil_scoped_release release;
     return tx_stream->recv_async_msg(async_metadata, timeout);
 }
