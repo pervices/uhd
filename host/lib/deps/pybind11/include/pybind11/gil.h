@@ -11,6 +11,8 @@
 #include "detail/common.h"
 #include "detail/internals.h"
 
+#include <iostream>
+
 PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
 
 PYBIND11_NAMESPACE_BEGIN(detail)
@@ -92,6 +94,7 @@ public:
     PYBIND11_NOINLINE ~gil_scoped_acquire() {
         dec_ref();
         if (release) {
+            std::cout << "T1\n;
             PyEval_SaveThread();
         }
     }
