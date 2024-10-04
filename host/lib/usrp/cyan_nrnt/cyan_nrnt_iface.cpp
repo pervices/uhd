@@ -24,6 +24,9 @@
 #include "cyan_nrnt_fw_common.h"
 #include "cyan_nrnt_iface.hpp"
 
+// Used for manipulating the Python GIL
+#include <Python.h>
+
 using namespace uhd;
 using namespace uhd::transport;
 
@@ -101,6 +104,12 @@ std::string cyan_nrnt_iface::peek_str() {
 
 // Gets a property on the device
 std::string cyan_nrnt_iface::get_string(std::string req) {
+    std::string ret;
+
+    // Release Python GIL. Prevents blocking io from making Python hang
+    // Does nothing if not using the Python UHD API
+    // NOTE: Py_BEGIN_ALLOW_THREADS to Py_END_ALLOW_THREADS is it's own scope
+    Py_BEGIN_ALLOW_THREADS
 
     std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -108,7 +117,10 @@ std::string cyan_nrnt_iface::get_string(std::string req) {
     poke_str("get," + req);
 
     // peek (read) back the data
-    std::string ret = peek_str();
+    ret = peek_str();
+
+    // Obtain Python GIL
+    Py_END_ALLOW_THREADS
 
     if(ret == "GET_ERROR") {
         throw uhd::lookup_error("cyan_nrnt_iface::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
@@ -125,6 +137,12 @@ std::string cyan_nrnt_iface::get_string(std::string req) {
 }
 // Sets a property on the device
 void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
+    std::string ret;
+
+    // Release Python GIL. Prevents blocking io from making Python hang
+    // Does nothing if not using the Python UHD API
+    // NOTE: Py_BEGIN_ALLOW_THREADS to Py_END_ALLOW_THREADS is it's own scope
+    Py_BEGIN_ALLOW_THREADS
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -132,7 +150,10 @@ void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
 	poke_str("set," + pre + "," + data);
 
 	// peek (read) anyways for error check, since Crimson will reply back
-	std::string ret = peek_str();
+	ret = peek_str();
+
+    // Obtain Python GIL
+    Py_END_ALLOW_THREADS
 
     if(ret == "GET_ERROR") {
         throw uhd::lookup_error("cyan_nrnt_iface::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
