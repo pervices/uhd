@@ -94,7 +94,8 @@ public:
     PYBIND11_NOINLINE ~gil_scoped_acquire() {
         dec_ref();
         if (release) {
-            std::cout << "A50\n";
+            UHD_LOG_ERROR("GIL", "released 2");
+            throw uhd::runtime_error("released 2");
             PyEval_SaveThread();
         }
     }
@@ -113,7 +114,8 @@ public:
 
         auto &internals = detail::get_internals();
 
-        std::cout << "B50\n";
+        UHD_LOG_ERROR("GIL", "released 3");
+        throw uhd::runtime_error("released 3");
         tstate = PyEval_SaveThread();
         if (disassoc) {
 
@@ -166,7 +168,8 @@ class gil_scoped_release {
 
 public:
     gil_scoped_release() {
-        std::cout << "C50\n";
+        UHD_LOG_ERROR("GIL", "released 1");
+        throw uhd::runtime_error("released 1");
         state = PyEval_SaveThread();
     }
     ~gil_scoped_release() { PyEval_RestoreThread(state); }
