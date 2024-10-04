@@ -139,8 +139,7 @@ std::string cyan_nrnt_iface::get_string(std::string req) {
 void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
     std::string ret;
 
-    std::cout << "T1\n";
-    PyEval_SaveThread();
+    std::cout << "PyEval_ThreadsInitialized(): " << PyEval_ThreadsInitialized() << std::endl;
 
     // Release Python GIL. Prevents blocking io from making Python hang
     // Does nothing if not using the Python UHD API
