@@ -94,7 +94,7 @@ public:
     PYBIND11_NOINLINE ~gil_scoped_acquire() {
         dec_ref();
         if (release) {
-            std::cout << "T1\n";
+            std::cout << "A50\n";
             PyEval_SaveThread();
         }
     }
@@ -113,6 +113,7 @@ public:
 
         auto &internals = detail::get_internals();
 
+        std::cout << "B50\n";
         tstate = PyEval_SaveThread();
         if (disassoc) {
 
