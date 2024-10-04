@@ -11,7 +11,8 @@
 #include "detail/common.h"
 #include "detail/internals.h"
 
-#include <iostream>
+#include <uhd/exception.hpp>
+#include <uhd/utils/log.hpp>
 
 PYBIND11_NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
 
