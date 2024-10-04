@@ -94,7 +94,7 @@ public:
     PYBIND11_NOINLINE ~gil_scoped_acquire() {
         dec_ref();
         if (release) {
-            std::cout << "T1\n;
+            std::cout << "T1\n";
             PyEval_SaveThread();
         }
     }
