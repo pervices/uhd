@@ -142,7 +142,9 @@ void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
     // Release Python GIL. Prevents blocking io from making Python hang
     // Does nothing if not using the Python UHD API
     // NOTE: Py_BEGIN_ALLOW_THREADS to Py_END_ALLOW_THREADS is it's own scope
+    std::cout << "Release lock1\n";
     Py_BEGIN_ALLOW_THREADS
+    std::cout << "Release lock2\n";
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -153,7 +155,9 @@ void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
 	ret = peek_str();
 
     // Obtain Python GIL
+    std::cout << "Gain lock1\n";
     Py_END_ALLOW_THREADS
+    std::cout << "Gain lock2\n";
 
     if(ret == "GET_ERROR") {
         throw uhd::lookup_error("cyan_nrnt_iface::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
