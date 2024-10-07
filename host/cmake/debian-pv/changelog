@@ -1,3 +1,9 @@
+uhdpv (4.4.0.42-0ubuntu1) ubuntu_release; urgency=low
+
+  * Changing packet size restrictions for Cyan from must be a multiple of 4 to a multiple of 12 to prevent possible issues
+
+ -- Per Vices <packages@pervices.com>  Mon, 7 Oct 2024 18:45:35 -0400
+
 uhdpv (4.4.0.41-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding error message to sample rate configuration errors
