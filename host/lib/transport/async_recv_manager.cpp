@@ -203,6 +203,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast8_t main_thread_slow = 0;
 
+    uhd::time_spec_t previous_loop_time = uhd::get_system_time();
+
+    bool stall_msg_printed = false;
+
     while(!self->stop_flag) [[likely]] {
         main_thread_slow = main_thread_slow || !packets_to_recv;
 
@@ -239,10 +243,16 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
+
+        if(previous_loop_time + 0.1 < uhd::get_system_time() && !stall_msg_printed) {
+            UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << ">100ms stall in recv loop";
+            stall_msg_printed = true;
+        }
     }
 
     if(main_thread_slow) {
-        UHD_LOGGER_DEBUG("ASYNC_RECV_MANAGER") << "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows";
+        // TODO change to error message, but only print if overflows occured
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows";
     }
 
     if(error_code) {
