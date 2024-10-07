@@ -242,8 +242,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
 
-        if(previous_loop_time + 1 < uhd::get_system_time()) {
+        if(previous_loop_time + 0.1 < uhd::get_system_time()) {
             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << ">100ms stall in recv loop";
+            previous_loop_time = uhd::get_system_time();
         }
     }
 
