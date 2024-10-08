@@ -285,6 +285,13 @@ private:
     double link_rate_cache = 0;
     double get_link_rate();
 
+    // Cache to store result of set_tx_freq and set_rx_freq to speed up future gets
+    // This is done instead of querrying the unit because after every rx overflow GNU Radio requests the frequency
+    std::vector<bool> rx_freq_is_cached;
+    std::vector<double> rx_freq_cache;
+    std::vector<bool> tx_freq_is_cached;
+    std::vector<double> tx_freq_cache;
+
     bool tx_rate_warning_printed = false;
     void tx_rate_check(size_t ch, double rate_samples);
 

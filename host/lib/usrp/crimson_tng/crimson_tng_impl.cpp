@@ -882,6 +882,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
 
+    rx_freq_is_cached.resize(num_rx_channels, false);
+    rx_freq_cache.resize(num_rx_channels, 0);
+    tx_freq_is_cached.resize(num_tx_channels, false);
+    tx_freq_cache.resize(num_tx_channels, 0);
+
     std::string lc_num;
 
     // Begin FPGA reset at tx chain
@@ -1668,6 +1673,11 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	tune_result.actual_rf_freq = actual_rf_freq;
 	tune_result.target_dsp_freq = target_dsp_freq;
 	tune_result.actual_dsp_freq = actual_dsp_freq;
+    if(xx_sign == RX_SIGN) {
+
+    } else if(xx_sign == TX_SIGN) {
+
+    }
 	return tune_result;
 }
 
@@ -1681,18 +1691,26 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 			tune_request,
             &rx_gain_is_set[chan],
             &last_set_rx_band[chan]);
+
+    rx_freq_cache[chan] = result.actual_rf_freq + result.actual_dsp_freq;
+    rx_freq_is_cached[chan] = true;
 	return result;
 
 }
 
 double crimson_tng_impl::get_rx_freq(size_t chan) {
 
+    if(rx_freq_is_cached[chan]) {
+        return rx_freq_cache[chan];
+    }
+    else {
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double cur_lo_freq = 0;
         if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
             cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
         }
         return cur_lo_freq - cur_dsp_nco;
+    }
 }
 
 uhd::tune_result_t crimson_tng_impl::set_tx_freq(
@@ -1705,12 +1723,19 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 			tune_request,
             &tx_gain_is_set[chan],
             &last_set_tx_band[chan]);
+
+    tx_freq_cache[chan] = result.actual_rf_freq + result.actual_dsp_freq;
+    tx_freq_is_cached[chan] = true;
+
 	return result;
 
 }
 
 double crimson_tng_impl::get_tx_freq(size_t chan) {
 
+    if(tx_freq_is_cached[chan]) {
+        return tx_freq_cache[chan];
+    } else {
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
         double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
         double cur_lo_freq = 0;
@@ -1718,6 +1743,7 @@ double crimson_tng_impl::get_tx_freq(size_t chan) {
                 cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
         }
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
+    }
 }
 
 void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
