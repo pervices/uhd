@@ -108,13 +108,15 @@ std::string crimson_tng_iface::peek_str() {
 // Gets a property on the device
 std::string crimson_tng_iface::get_string(std::string req) {
 
-    std::lock_guard<std::mutex> _lock( _iface_lock );
+    _iface_lock.lock();
 
     // Send the get request
     poke_str("get," + req);
 
     // peek (read) back the data
     std::string ret = peek_str();
+
+    _iface_lock.unlock();
 
     if(ret == "GET_ERROR") {
         std::cout << "T1\n";
@@ -135,13 +137,15 @@ std::string crimson_tng_iface::get_string(std::string req) {
 // Sets a property on the device
 void crimson_tng_iface::set_string(const std::string pre, std::string data) {
 
-	std::lock_guard<std::mutex> _lock( _iface_lock );
+    _iface_lock.lock();
 
 	// Send the set request
 	poke_str("set," + pre + "," + data);
 
 	// peek (read) anyways for error check, since Crimson will reply back
 	std::string ret = peek_str();
+
+    _iface_lock.unlock();
 
     if(ret == "GET_ERROR") {
         std::cout << "T4\n";
