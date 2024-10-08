@@ -639,9 +639,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
 
-        // Clear cache so that it isn't stale from previous runs
-        rx_freq_is_cached[chan] = false;
-
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
         std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
         const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
@@ -859,10 +856,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
-
-        // Clear cache so that it isn't stale from previous runs
-        tx_freq_is_cached[chan] = false;
-
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
         const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
         const fs_path tx_link_path  = CRIMSON_TNG_MB_PATH / "tx_link" / chan;
