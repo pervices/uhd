@@ -965,6 +965,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
 
+    rx_freq_is_cached.resize(num_rx_channels, false);
+    rx_freq_cache.resize(num_rx_channels, 0);
+    tx_freq_is_cached.resize(num_tx_channels, false);
+    tx_freq_cache.resize(num_tx_channels, 0);
+
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
 
@@ -1835,18 +1840,26 @@ uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
 			tune_request,
             &rx_gain_is_set[chan], &last_set_rx_band[chan],
             chan);
+
+    rx_freq_cache[chan] = result.actual_rf_freq + result.actual_dsp_freq;
+    rx_freq_is_cached[chan] = true;
 	return result;
 
 }
 
 double cyan_nrnt_impl::get_rx_freq(size_t chan) {
 
+    if(rx_freq_is_cached[chan]) {
+        return rx_freq_cache[chan];
+    }
+    else {
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double cur_lo_freq = 0;
         if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() > 0) {
             cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
         }
         return cur_lo_freq - cur_dsp_nco;
+    }
 }
 
 uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
@@ -1859,12 +1872,19 @@ uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
 			tune_request,
             &tx_gain_is_set[chan], &last_set_tx_band[chan],
             chan);
+
+    tx_freq_cache[chan] = result.actual_rf_freq + result.actual_dsp_freq;
+    tx_freq_is_cached[chan] = true;
+
 	return result;
 
 }
 
 double cyan_nrnt_impl::get_tx_freq(size_t chan) {
 
+    if(tx_freq_is_cached[chan]) {
+        return tx_freq_cache[chan];
+    } else {
         //gets FPGA nco
         double cur_nco = _tree->access<double>(tx_dsp_root(chan) / "freq" / "value").get();
         //The system does not currently use then channelizer nco are DAC, but if a future version begins using this it will need to be added
@@ -1873,6 +1893,7 @@ double cyan_nrnt_impl::get_tx_freq(size_t chan) {
                 cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
         }
         return cur_lo_freq + cur_nco;
+    }
 }
 void cyan_nrnt_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
 
