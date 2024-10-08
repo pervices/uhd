@@ -85,6 +85,10 @@ std::string crimson_tng_iface::peek_str( float timeout_s ) {
 
     } while(iseq != seq - 1 && tries++ < num_tries);
 
+    if(tries > 0) {
+        std::cout << "tries: " << tries << std::endl;
+    }
+
     // exits with an error if can't find a matching sequence
     if (tries == num_tries) return "INVLD_SEQ";
 
