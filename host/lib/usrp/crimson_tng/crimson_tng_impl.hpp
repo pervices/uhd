@@ -298,6 +298,8 @@ private:
     int64_t ticks_to_nsecs( int64_t tv_tick );
     int64_t nsecs_to_ticks( int64_t tv_nsec );
     void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts );
+
+    std::mutex freq_test_mutex;
 };
 
 }
