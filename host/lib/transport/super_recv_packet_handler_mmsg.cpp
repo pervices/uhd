@@ -484,7 +484,6 @@ public:
 
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
-                    UHD_LOG_FASTPATH("vita_md[ch].packet_count: " + std::to_string(vita_md[ch].packet_count));
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     _overflow_occured = true;
                     overflow_detected = true;
