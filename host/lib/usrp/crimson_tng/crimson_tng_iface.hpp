@@ -20,7 +20,6 @@
 #define INCLUDED_CRIMSON_TNG_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
-#include <uhd/types/wb_iface.hpp>
 #include <string>
 #include "crimson_tng_fw_common.h"
 #include <mutex>
@@ -37,7 +36,7 @@ namespace uhd {
  * The crimson_tng interface class:
  * Provides a set of functions access the state tree
  */
-class crimson_tng_iface : public uhd::wb_iface
+class crimson_tng_iface
 {
 public:
     typedef std::shared_ptr<crimson_tng_iface> sptr;
@@ -91,13 +90,13 @@ private:
     std::mutex _iface_lock;
 
     // Send/write a data packet (string), null terminated
-    virtual void poke_str(std::string data);
+    void poke_str(std::string data);
 
     // Recieve/read a data packet (string), null terminated
-    virtual std::string peek_str(void);
+    std::string peek_str(void);
 
     // Recieve/read a data packet (string), null terminated
-    virtual std::string peek_str( float timeout_s );
+    std::string peek_str( float timeout_s );
 
     //this lovely lady makes it all possible
     uhd::transport::udp_simple::sptr _ctrl_transport;

@@ -19,7 +19,6 @@
 #define INCLUDED_CYAN_NRNT_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
-#include <uhd/types/wb_iface.hpp>
 #include <string>
 #include "cyan_nrnt_fw_common.h"
 #include <mutex>
@@ -36,7 +35,7 @@ namespace uhd {
  * The cyan_nrnt interface class:
  * Provides a set of functions access the state tree
  */
-class cyan_nrnt_iface : public uhd::wb_iface
+class cyan_nrnt_iface
 {
 public:
     typedef std::shared_ptr<cyan_nrnt_iface> sptr;
@@ -90,13 +89,13 @@ private:
     std::mutex _iface_lock;
 
     // Send/write a data packet (string), null terminated
-    virtual void poke_str(std::string data);
+    void poke_str(std::string data);
 
     // Recieve/read a data packet (string), null terminated
-    virtual std::string peek_str(void);
+    std::string peek_str(void);
 
     // Recieve/read a data packet (string), null terminated
-    virtual std::string peek_str( float timeout_s );
+    std::string peek_str( float timeout_s );
 
     //this lovely lady makes it all possible
     uhd::transport::udp_simple::sptr _ctrl_transport;
