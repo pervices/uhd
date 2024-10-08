@@ -238,6 +238,9 @@ public:
 
         // TODO: copy data from cache
 
+        // Only print these messages once per recv call
+        bool oflow_message_printed = false;
+
         time_spec_t recv_start_time = get_system_time();
         size_t samples_received = 0;
         // Prevents the timeout heck on the first iteration of the loop
@@ -285,7 +288,10 @@ public:
             metadata.error_code = (uhd::rx_metadata_t::error_code_t) ((overflow_detected * rx_metadata_t::ERROR_CODE_OVERFLOW) | (!overflow_detected * metadata.error_code));
 
             // Warning message to user that overflows occured
-            if(overflow_detected) [[unlikely]] {
+            if(overflow_detected && !oflow_message_printed) [[unlikely]] {
+                // Only print the message once per recv call
+                oflow_message_printed = true;
+
                 // Warn user that an overflow occured
                 UHD_LOG_FASTPATH("D");
                 if(!_using_performance_governor && !_performance_warning_printed) {
@@ -379,7 +385,9 @@ public:
         // The channel with the latest packet
         uint64_t latest_packet = 0;
 
+        // Only print these messages once per recv call
         bool align_message_printed = false;
+        bool oflow_message_printed = false;
 
         size_t samples_received = 0;
 
@@ -419,7 +427,7 @@ public:
 
         // Main receive loop
         while(samples_received < nsamps_per_buff) [[likely]] {
-            bool underflow_detected = false;
+            bool overflow_detected = false;
             bool realignment_required = false;
 
             size_t ch = 0;
@@ -479,14 +487,14 @@ public:
                     UHD_LOG_FASTPATH("vita_md[ch].packet_count: " + std::to_string(vita_md[ch].packet_count));
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     _overflow_occured = true;
-                    underflow_detected = true;
+                    overflow_detected = true;
                 }
             }
 
+            if(overflow_detected && !oflow_message_printed) [[unlikely]] {
+                // Only print the message once per recv call
+                oflow_message_printed = true;
 
-
-            // Advance (skip) packets that are behind the latest packet so that they catch up after a few iterations of this
-            if(underflow_detected) [[unlikely]] {
                 // Warn user that an overflow occured
                 UHD_LOG_FASTPATH("D");
                 if(!_using_performance_governor && !_performance_warning_printed) {
@@ -515,6 +523,7 @@ public:
                 } else {
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                         if(vita_md[ch].tsf != latest_packet) {
+                            // Drop this packet to allow the channel to catch up
                             recv_manager->advance_packet(ch);
                         }
                     }
@@ -1171,6 +1180,9 @@ private:
 
         uint64_t aligned_bytes = 0;
 
+        // Only print these messages once per recv call
+        bool oflow_message_printed = false;
+
         // Checks for overflows
         // Each channel should end up with the same number of aligned bytes so its fine to reset the counter each channel which will end up using the last one
         for(size_t header_i = 0; header_i < ch_recv_buffer_info_i.num_headers_used; header_i++) {
@@ -1178,15 +1190,21 @@ private:
             // Checks if sequence number is correct, ignore check if timestamp is 0
             if((ch_recv_buffer_info_i.vrt_metadata[header_i].packet_count != (sequence_number_mask & (ch_recv_buffer_info_i.previous_sequence_number + 1)))  && (ch_recv_buffer_info_i.vrt_metadata[header_i].tsf != 0)) {
                 oflow_error = true;
-                //UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
-                UHD_LOG_FASTPATH("D");
-                if(!_performance_warning_printed) {
-                    _performance_warning_printed = true;
-                    if(!_governor_known) {
-                        UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                    }
-                    else if(!_using_performance_governor) {
-                        UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                if(!oflow_message_printed) {
+                    // Only print the message once per recv call
+                    oflow_message_printed = true;
+
+                    //UHD_LOG_FASTPATH("D" + std::to_string(ch_recv_buffer_info_i.vrt_metadata[header_i].tsf) + "\n");
+                    UHD_LOG_FASTPATH("D");
+
+                    if(!_performance_warning_printed) {
+                        _performance_warning_printed = true;
+                        if(!_governor_known) {
+                            UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        }
+                        else if(!_using_performance_governor) {
+                            UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        }
                     }
                 }
             }
