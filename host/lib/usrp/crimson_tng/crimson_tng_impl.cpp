@@ -1674,7 +1674,6 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {
-    std::lock_guard<std::mutex> _lock( freq_test_mutex );
 
 	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
 			_tree->subtree(rx_dsp_root(chan)),
@@ -1687,7 +1686,6 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 }
 
 double crimson_tng_impl::get_rx_freq(size_t chan) {
-    std::lock_guard<std::mutex> _lock( freq_test_mutex );
 
         double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
         double cur_lo_freq = 0;
@@ -1700,7 +1698,6 @@ double crimson_tng_impl::get_rx_freq(size_t chan) {
 uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 	const uhd::tune_request_t &tune_request, size_t chan
 ) {
-    std::lock_guard<std::mutex> _lock( freq_test_mutex );
 
 	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
 			_tree->subtree(tx_dsp_root(chan)),
@@ -1713,7 +1710,6 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 }
 
 double crimson_tng_impl::get_tx_freq(size_t chan) {
-    std::lock_guard<std::mutex> _lock( freq_test_mutex );
 
         double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
         double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
