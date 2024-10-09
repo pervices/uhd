@@ -139,7 +139,7 @@ public:
      * \return a tune result object
      */
     virtual uhd::tune_result_t set_rx_freq(
-        const uhd::tune_request_t &tune_request, size_t chan = 0
+        const uhd::tune_request_t tune_request, size_t chan = 0
     ) {
         (void) tune_request;
         (void) chan;
@@ -195,7 +195,7 @@ public:
      * \param chan the channel index 0 to N-1
      */
     virtual uhd::tune_result_t set_tx_freq(
-        const uhd::tune_request_t &tune_request, size_t chan = 0
+        const uhd::tune_request_t tune_request, size_t chan = 0
     ) {
         (void) tune_request;
         (void) chan;

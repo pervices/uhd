@@ -242,9 +242,9 @@ private:
     double choose_lo_shift( double target_freq, double dsp_bw, double user_bw  );
     tune_result_t tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band);
 
-    uhd::tune_result_t set_rx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
+    uhd::tune_result_t set_rx_freq(const uhd::tune_request_t tune_request, size_t chan = 0);
     double get_rx_freq(size_t chan = 0);
-    uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
+    uhd::tune_result_t set_tx_freq(const uhd::tune_request_t tune_request, size_t chan = 0);
     double get_tx_freq(size_t chan = 0);
 
     std::string get_tx_sfp( size_t chan );

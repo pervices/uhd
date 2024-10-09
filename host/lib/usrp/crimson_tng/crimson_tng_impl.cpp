@@ -1672,7 +1672,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 }
 
 uhd::tune_result_t crimson_tng_impl::set_rx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
+	const uhd::tune_request_t tune_request, size_t chan
 ) {
 
 	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
@@ -1696,7 +1696,7 @@ double crimson_tng_impl::get_rx_freq(size_t chan) {
 }
 
 uhd::tune_result_t crimson_tng_impl::set_tx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
+	const uhd::tune_request_t tune_request, size_t chan
 ) {
 
 	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
