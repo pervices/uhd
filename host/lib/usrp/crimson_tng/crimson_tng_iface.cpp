@@ -113,13 +113,19 @@ std::string crimson_tng_iface::get_string(std::string req) {
     std::string ret = peek_str();
 
     if(ret == "GET_ERROR") {
-        throw uhd::lookup_error("crimson_tng_iface::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
+        std::string error_message = "crimson_tng_iface::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date";
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+        throw uhd::lookup_error(error_message);
     }
     else if (ret == "TIMEOUT") {
-        throw uhd::runtime_error("crimson_tng_iface::get_string - UDP resp. timed out: get: " + req);
+        std::string error_message = "crimson_tng_iface::get_string - UDP resp. timed out: get: " + req;
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+        throw uhd::runtime_error(error_message);
     }
     else  if(ret == "ERROR") {
-        throw uhd::runtime_error("crimson_tng_iface::get_string - UDP unpecified error: " + req);
+        std::string error_message = "crimson_tng_iface::get_string - UDP unpecified error: " + req;
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+        throw uhd::runtime_error(error_message);
     }
     else {
         return ret;
@@ -137,13 +143,19 @@ void crimson_tng_iface::set_string(const std::string pre, std::string data) {
 	std::string ret = peek_str();
 
     if(ret == "GET_ERROR") {
-        throw uhd::lookup_error("crimson_tng_iface::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
+        std::string error_message = "crimson_tng_iface::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date";
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+        throw uhd::lookup_error(error_message);
     }
     else if (ret == "TIMEOUT") {
-        throw uhd::runtime_error("crimson_tng_iface::set_string - UDP resp. timed out: set: " + pre + " = " + data);
+        std::string error_message = "crimson_tng_iface::set_string - UDP resp. timed out: set: " + pre + " = " + data;
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+        throw uhd::runtime_error(error_message);
     }
     else  if(ret == "ERROR") {
-        throw uhd::runtime_error("crimson_tng_iface::set_string - UDP unpecified error: " + pre);
+        std::string error_message = "crimson_tng_iface::set_string - UDP unpecified error: " + pre;
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+        throw uhd::runtime_error(error_message);
     }
     else {
         return;
