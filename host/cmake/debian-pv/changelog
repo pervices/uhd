@@ -1,3 +1,10 @@
+uhdpv (4.4.0.43-0ubuntu1) ubuntu_release; urgency=medium
+
+  * SEND: fixing math error in send that could result in a mismatch between packet size field and actual number of samples
+  * RECV: only print D to indicate overflows once per recv call
+
+ -- Per Vices <packages@pervices.com>  Wed, 9 Oct 2024 18:04:41 -0400
+
 uhdpv (4.4.0.42-0ubuntu1) ubuntu_release; urgency=low
 
   * Changing packet size restrictions for Cyan from must be a multiple of 4 to a multiple of 12 to prevent possible issues
