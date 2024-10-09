@@ -206,7 +206,11 @@ public:
     {
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
         _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
-        return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
+        size_t tmp = (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
+        if(tmp > nsamps_per_buff) {
+            UHD_LOG_ERROR("RECV_PACKET_HANDLER_MMSG", std::to_string(tmp) + " samples returned with" + std::to_string(nsamps_per_buff) + " requested");
+        }
+        return tmp;
     }
 
     // Function used to receive data optimized for a single channel using async_recv_manager
