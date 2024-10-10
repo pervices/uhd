@@ -1695,15 +1695,16 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 
 double crimson_tng_impl::get_rx_freq(size_t chan) {
 
+    double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
+    double cur_lo_freq = 0;
+    if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+        cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
+    }
+
     if(rx_freq_is_cached[chan]) {
         return rx_freq_cache[chan];
     }
     else {
-        double cur_dsp_nco = _tree->access<double>(rx_dsp_root(chan) / "nco").get();
-        double cur_lo_freq = 0;
-        if (_tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-            cur_lo_freq = _tree->access<double>(rx_rf_fe_root(chan) / "freq" / "value").get();
-        }
         return cur_lo_freq - cur_dsp_nco;
     }
 }
@@ -1728,15 +1729,16 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 
 double crimson_tng_impl::get_tx_freq(size_t chan) {
 
+    double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
+    double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
+    double cur_lo_freq = 0;
+    if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
+            cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
+    }
+
     if(tx_freq_is_cached[chan]) {
         return tx_freq_cache[chan];
     } else {
-        double cur_dac_nco = _tree->access<double>(tx_rf_fe_root(chan) / "nco").get();
-        double cur_dsp_nco = _tree->access<double>(tx_dsp_root(chan) / "nco").get();
-        double cur_lo_freq = 0;
-        if (_tree->access<int>(tx_rf_fe_root(chan) / "freq" / "band").get() == 1) {
-                cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
-        }
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
     }
 }
