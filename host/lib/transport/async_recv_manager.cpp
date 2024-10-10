@@ -222,6 +222,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
+        if(b[ch] >= self->NUM_BUFFERS) [[unlikely]] {
+            UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Invalid channel";
+        }
+
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
@@ -231,9 +235,17 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         ch++;
         ch = ch * !(ch >= num_ch);
 
+        if(ch > 3) [[unlikely]] {
+            UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Invalid channel";
+        }
+
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
+        if(*self->access_num_packets_stored(ch, ch_offset, b[ch]) != 0) {
+            packets_to_recv = 0;
+        } else {
+            packets_to_recv = self->packets_per_buffer;
+        }
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
