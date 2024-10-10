@@ -206,7 +206,9 @@ public:
     {
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
         _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
-        return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
+        size_t samples_received = (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
+        _mm_sfence();
+        return samples_received;
     }
 
     // Function used to receive data optimized for a single channel using async_recv_manager
