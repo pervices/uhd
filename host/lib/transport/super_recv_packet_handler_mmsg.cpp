@@ -1330,8 +1330,12 @@ public:
         const double timeout,
         const bool one_packet) override
     {
-        return recv_packet_handler_mmsg::recv(
+        size_t tmp = recv_packet_handler_mmsg::recv(
             buffs, nsamps_per_buff, metadata, timeout, one_packet);
+        if(metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) {
+            UHD_LOG_ERROR("TMP", metadata.strerror());
+        }
+        return tmp;
     }
 
     UHD_INLINE size_t get_num_channels(void) const{
