@@ -445,6 +445,7 @@ public:
             if(ch < _NUM_CHANNELS) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
+                    UHD_LOG_ERROR("TMP", "Returning purely samples from cache");
                     return samples_received;
                 } else {
                     // Set timeout if no other error occured and no samples received
