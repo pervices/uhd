@@ -225,7 +225,7 @@ public:
             bool realignment_required = false;
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                packets[ch] = recv_manager->get_next_packet(ch);
+                packets[ch] = recv_manager->get_next_packet_vita_header(ch);
 
                 // The case where this is true is more important, even though this is very likely
                 if(packets[ch] == nullptr) [[unlikely]] {
@@ -347,11 +347,11 @@ public:
                 // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
                 size_t samples_to_cache = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                convert_samples(buffs[ch], packets[ch] + _HEADER_SIZE, samples_to_consume);
+                // convert_samples(buffs[ch], packets[ch] + _HEADER_SIZE, samples_to_consume);
 
                 if(samples_to_cache) {
                     // Copy extra samples from the packet to the cache
-                    memcpy(_sample_cache[ch].data(), packets[ch] + _HEADER_SIZE + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
+                    // memcpy(_sample_cache[ch].data(), packets[ch] + _HEADER_SIZE + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
                     eob_cached = metadata.end_of_burst;
                     metadata.end_of_burst = false;
                 }
