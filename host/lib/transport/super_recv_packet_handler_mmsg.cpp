@@ -423,7 +423,7 @@ public:
 
             size_t ch = 0;
             // Fewest branches loop to wait for packets to be ready
-            while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
+            while(ch < _NUM_CHANNELS /*&& recv_start_time + timeout > get_system_time()*/) {
                 packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
                 if(packet_infos[ch].packet_hdr != nullptr) {
                     // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
