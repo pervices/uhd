@@ -197,7 +197,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     uint_fast32_t ch = 0;
 
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
-    uint_fast32_t packets_to_recv = (self->packets_per_buffer/2);
+    uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
     uint_fast8_t main_thread_slow = 0;
 
@@ -233,7 +233,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * (self->packets_per_buffer / 2);
+        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
