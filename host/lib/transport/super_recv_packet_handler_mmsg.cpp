@@ -506,9 +506,9 @@ public:
 
             if(realignment_required) [[unlikely]] {
                 if(realignment_attempts >= max_realignment_attempts) {
-                    if(!align_message_printed) {
+                    // if(!align_message_printed) {
                         UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
-                    }
+                    // }
                     align_message_printed = true;
                     // Override overflow error with alignment error to indicate that UHD was unable to fully recover from the overflow
                     metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
@@ -525,6 +525,9 @@ public:
                     continue;
                 }
             } else {
+                if(realignment_attempts > 0) {
+                    UHD_LOGGER_ERROR("STREAMER") << "Re-align success";
+                }
                 // Reset realignment attempt counter
                 realignment_attempts = 0;
             }
