@@ -520,6 +520,8 @@ public:
                         }
                     }
                     realignment_attempts++;
+
+                    previous_sequence_number = (latest_sequence_number - 1) & sequence_number_mask;
                     // Start a new iteration of the check to see if the packets are aligned now
                     continue;
                 }
