@@ -440,7 +440,7 @@ public:
                 }
             }
 
-            UHD_LOG_ERROR("TMP", "Got packets");
+            // UHD_LOG_ERROR("TMP", "Got packets");
 
             // Check if timeout occured
             // TODO: refactor to be branchless
