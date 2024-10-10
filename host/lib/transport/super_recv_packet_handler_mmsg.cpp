@@ -426,6 +426,7 @@ public:
             while(ch < _NUM_CHANNELS /*&& recv_start_time + timeout > get_system_time()*/) {
                 packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
                 if(packet_infos[ch].packet_hdr != nullptr) {
+                    UHD_LOG_ERROR("TMP", "Received ch:" + std::to_string(ch));
                     // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
                     packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                     packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
