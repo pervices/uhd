@@ -432,7 +432,7 @@ public:
                     // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
                     vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
                     // Increment the channel count when packet_infos[ch].packet_hdr is not null (!! turns any non 0 value into 1);
-                    ch += !!packet_infos[ch].packet_hdr;
+                    ch += 1;
                     // Lets CPU know this is in a spin loop
                     // Helps performance so the branch predictor doesn't get killed by the loop
                     // _mm_pause();
