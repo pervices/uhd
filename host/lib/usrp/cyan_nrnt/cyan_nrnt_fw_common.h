@@ -40,12 +40,8 @@
 // Maximum number of bytes used to store samples in a tx packet
 #define CYAN_NRNT_MAX_SEND_SAMPLE_BYTES 8912
 
-// Target number of sample bytes per packets for recv
-// WIP: must follow certain constraints, likely to be either a multiple of page size of multiple of 512
-#define CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES 8192
-
-// Maximum number of bytes used to store sample data when receiving when unable to get it from the server
-#define CYAN_NRNT_FALLBACK_MAX_NBYTES 8880
+// Maximum number of bytes used to store sample data when receiving
+#define CYAN_NRNT_MAX_NBYTES 8880
 
 // Size of the vrt header in bytes
 #define CYAN_NRNT_HEADER_SIZE 16
