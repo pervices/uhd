@@ -205,7 +205,7 @@ public:
      */
     inline __attribute__((always_inline)) uint_fast32_t get_next_packet_length(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
-        return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
+        return _packet_data_size + _header_size; //access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
     }
 
     /**
