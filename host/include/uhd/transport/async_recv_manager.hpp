@@ -234,6 +234,9 @@ public:
 
             // Resets count for number of samples consumed in the active buffer
             num_packets_consumed[ch] = 0;
+
+            // Fence to ensure num_packets_consumed is updated
+            _mm_sfence();
         }
     }
 
