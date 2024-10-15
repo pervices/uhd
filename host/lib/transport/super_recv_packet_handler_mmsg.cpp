@@ -427,9 +427,6 @@ public:
                 packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
                 // Increment the channel count when packet_infos[ch].packet_hdr is not null (!! turns any non 0 value into 1);
                 ch += !!packet_infos[ch].packet_hdr;
-                // Lets CPU know this is in a spin loop
-                // Helps performance so the branch predictor doesn't get killed by the loop
-                _mm_pause();
             }
 
             // Check if timeout occured
