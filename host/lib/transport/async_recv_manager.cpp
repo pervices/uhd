@@ -241,12 +241,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     // TODO:downgrade to debug one stable
     if(main_thread_slow) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows";
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows");
     }
 
     if(error_code) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(error_code));
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Unhandled error during recvmmsg: " + std::string(strerror(error_code)));
     }
+
+    UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "recv thread closed");
 }
 
 }}
