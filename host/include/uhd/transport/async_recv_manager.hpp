@@ -221,7 +221,7 @@ public:
         if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
 
             // Fence to ensure all actions related to the buffer are complete before marking it as clear
-            _mm_sfence();
+            asm volatile("": : :"memory");
 
             // Marks this buffer as clear
             *num_packets_stored_addr = 0;
