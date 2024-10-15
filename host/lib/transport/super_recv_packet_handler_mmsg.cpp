@@ -597,7 +597,7 @@ public:
 
         }
 
-        _mm_sfence();
+        asm volatile("": : :"memory");
 
         return samples_received;
     }
