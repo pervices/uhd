@@ -56,8 +56,8 @@ private:
     // Size of the buffer used to store packets
     const uint_fast32_t packets_per_buffer;
 
-    // Size of the buffer to contain: packets in the buffer, all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
-    const uint_fast32_t _num_packets_stored_mmmsghdr_iovec_subbuffer_size;
+    // Size of the buffer to contain: packets in the buffer (padded to cache line), number of times a buffer was written to (padded to cache line), all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
+    const uint_fast32_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
 
     // Size of the buffer to contain: all vita headers padded to a whole number of pages
     const uint_fast32_t _vitahdr_subbuffer_size;
@@ -69,7 +69,7 @@ private:
     // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
     const size_t _combined_buffer_size;
 
-    // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
+    // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, number of times this part of the ring buffer has beeing written to, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
     uint8_t* const _combined_buffer;
 
     // Get's a specific channel's combined buffers
@@ -88,7 +88,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
+        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
     }
 
     // Pointer to buffers where a specific packet's samples are stored
@@ -102,7 +102,7 @@ private:
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) uint8_t* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size;
+        return access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size;
     }
 
     // Gets a pointer to specific mmsghdr
@@ -120,11 +120,11 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
+        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
+        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
     }
 
     // Buffer to store flags to indicate sockets have been flushed
@@ -143,6 +143,11 @@ private:
     // Practically/experimentally it does not optimize the writes out
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) access_ch_combined_buffer(ch, ch_offset, b);
+    }
+
+    // Gets a pointer to a int_fast64_t that stores the number of times a buffer has been written to
+    inline __attribute__((always_inline)) int_fast64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
+        return (int_fast64_t*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size);
     }
 
     // The buffer currently being used by the consumer thread
@@ -180,13 +185,7 @@ public:
      */
     inline __attribute__((always_inline)) uint8_t* get_next_packet_vita_header(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
-        uint8_t* addr = access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
-        if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
-            return addr;
-        }
-        else {
-            return nullptr;
-        }
+        return access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
     }
 
     /**
@@ -211,6 +210,40 @@ public:
     }
 
     /**
+     * Checks if the next packet is the first one of the buffer.
+     * @param ch
+     * @return True when it is the first packet of the buffer, false otherwise. Will return true even if the packet isn't ready ready
+     */
+    inline __attribute__((always_inline)) uint_fast8_t is_first_packet_of_buffer(const size_t ch) {
+        return !num_packets_consumed[ch];
+    }
+
+    /**
+     * Gets a number used to track the number of writes to the buffer and whether a write is currently in progress.
+     * This function is responsible for adding the fences to ensure correct access
+     * @param ch
+     * @return Returns the number of complete times the currently active consumer buffer has been written to times 2. Also adds +1 if a write is currently in progress.
+     */
+    inline __attribute__((always_inline)) int_fast64_t get_buffer_write_count(const size_t ch) {
+        // Fence to ensure that any loads from the provider thread are complete before buffer_write_count is obtained
+        _mm_lfence();
+        size_t b = active_consumer_buffer[ch];
+        int_fast64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
+        // Fence to ensure buffer_write_count is obtained before any future loads from the provider thread occur
+        _mm_lfence();
+        return buffer_write_count;
+    }
+
+    /**
+     * Reset the location of the consume head to the start of the buffer.
+     * It is used to go to the start of a buffer when the buffer gets overwritten mid read
+     * @param ch
+     */
+    inline __attribute__((always_inline)) void reset_buffer_read_head(const size_t ch) {
+        num_packets_consumed[ch] = 0;
+    }
+
+    /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
      */
@@ -218,15 +251,8 @@ public:
         size_t b = active_consumer_buffer[ch];
         num_packets_consumed[ch]++;
         // Move to the next buffer once all packets in this buffer are consumed
-        // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
         int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
-        if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
-
-            // Fence to ensure all actions related to the buffer are complete before marking it as clear
-            _mm_sfence();
-
-            // Marks this buffer as clear
-            *num_packets_stored_addr = 0;
+        if(num_packets_consumed[ch] >= *num_packets_stored_addr) {
 
             // Moves to the next buffer
             // & is to roll over the the first buffer once the limit is reached

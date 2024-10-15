@@ -27,13 +27,13 @@ _padded_header_size(std::ceil( header_size / (double)cache_line_size ) * cache_l
 _packet_data_size(max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-packets_per_buffer(page_size / (padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
-_num_packets_stored_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((padded_int_fast64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
+packets_per_buffer(page_size / (padded_int_fast64_t_size + padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
+_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((/* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
 _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * packets_per_buffer / (double)page_size) * page_size),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((packets_per_buffer * _packet_data_size) / (double)page_size) * page_size),
 // padded_int_fast64_t_size is for the count for number of packets stored
-_combined_buffer_size(_num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
+_combined_buffer_size(_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
@@ -65,7 +65,7 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
             // Hint to keep the mmsghdrs/iovecs, vita headers in cache
             // Probably doesn't actually do anything
-            madvise(access_mmsghdr_buffer(ch, 0, b), _num_packets_stored_mmmsghdr_iovec_subbuffer_size, MADV_WILLNEED);
+            madvise(access_mmsghdr_buffer(ch, 0, b), _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size, MADV_WILLNEED);
             madvise(access_vita_hdr(ch, 0, b, 0), _vitahdr_subbuffer_size, MADV_WILLNEED);
         }
     }
@@ -203,23 +203,45 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast8_t main_thread_slow = 0;
 
+    // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
         main_thread_slow = main_thread_slow || !packets_to_recv;
 
-        // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
+        /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
+        int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
+
+        // Increment the count to an odd number to indicate at writting to the buffer has begun
+        // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
+        if(!(*buffer_write_count & 1)) {
+            (*buffer_write_count)++;
+        }
+
+        // Fence to ensure buffer_write_count is set to an off number before recvmmsg
+        _mm_sfence();
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
+        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
 
-        // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
+        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        bool update_counts = packets_received & local_flush_complete[ch];
+
+        // TMP fence to ensure recvmmsg writes are complete before updating access_num_packets_stored
+        // TODO: Remove once buffer_write_count is used by the consumer thread
         _mm_sfence();
 
-        // Increment the counter for number of packets stored
-        // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        // Set num_packets_stored to the number of packets recieved if any were received or the current value if no packets were requested
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received * local_flush_complete[ch]) | (*self->access_num_packets_stored(ch, ch_offset, b[ch]) * !packets_to_recv) ;
+        // Set counter for number of packets stored
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
+
+        // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
+        _mm_sfence();
+
+        // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
+        (*buffer_write_count)+= update_counts;
+
+        // TODO: consider fence here to ensure buffer_write_count is done in a timely manor
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
@@ -233,6 +255,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         ch++;
         ch = ch * !(ch >= num_ch);
 
+        // TODO: remove this once the provider thread checks it
         // Get packets_to_recv to give as much distance between when it is requested and needed
         // Essentially a prefetch but unlike _mm_prefetch, this helps performance
         packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
