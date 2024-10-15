@@ -56,8 +56,8 @@ private:
     // Size of the buffer used to store packets
     const uint_fast32_t packets_per_buffer;
 
-    // Size of the buffer to contain: packets in the buffer, all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
-    const uint_fast32_t _num_packets_stored_mmmsghdr_iovec_subbuffer_size;
+    // Size of the buffer to contain: packets in the buffer (padded to cache line), number of times a buffer was written to (padded to cache line), all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
+    const uint_fast32_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
 
     // Size of the buffer to contain: all vita headers padded to a whole number of pages
     const uint_fast32_t _vitahdr_subbuffer_size;
@@ -69,7 +69,7 @@ private:
     // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
     const size_t _combined_buffer_size;
 
-    // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
+    // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, number of times this part of the ring buffer has beeing written to, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
     uint8_t* const _combined_buffer;
 
     // Get's a specific channel's combined buffers
@@ -88,7 +88,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
+        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
     }
 
     // Pointer to buffers where a specific packet's samples are stored
@@ -102,7 +102,7 @@ private:
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) uint8_t* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size;
+        return access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size;
     }
 
     // Gets a pointer to specific mmsghdr
@@ -120,11 +120,11 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
+        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
+        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
     }
 
     // Buffer to store flags to indicate sockets have been flushed
@@ -143,6 +143,11 @@ private:
     // Practically/experimentally it does not optimize the writes out
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) access_ch_combined_buffer(ch, ch_offset, b);
+    }
+
+    // Gets a pointer to a int_fast64_t that stores the number of times a buffer has been written to
+    inline __attribute__((always_inline)) int_fast64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
+        return (int_fast64_t*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size);
     }
 
     // The buffer currently being used by the consumer thread
