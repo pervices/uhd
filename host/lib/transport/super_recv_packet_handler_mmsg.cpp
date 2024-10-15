@@ -597,6 +597,8 @@ public:
 
         }
 
+        _mm_sfence();
+
         return samples_received;
     }
 
