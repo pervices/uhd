@@ -198,7 +198,7 @@ public:
         }
     }
 
-    UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
+    size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
@@ -814,7 +814,7 @@ private:
      * \param wire_format datatype of samples in the packets (only sc16 or sc12)
      * \param wire_little_endian data format in packets is little endian
      */
-    UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
+    void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
         converter_required = !(cpu_format == wire_format && wire_little_endian);
 
         //set the converter
