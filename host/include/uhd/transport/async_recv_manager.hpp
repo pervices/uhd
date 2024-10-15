@@ -26,7 +26,7 @@ private:
 
     // Number of buffers per ch
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_BUFFERS = 16;
+    static constexpr size_t NUM_BUFFERS = 1024;
 
     const uint_fast32_t _num_ch;
 
