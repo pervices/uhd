@@ -434,11 +434,17 @@ public:
             // Fewest branches loop to wait for packets to be ready
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
+                // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
+                packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
+                packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
+                // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
+                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
                 // Increment the channel count when packet_infos[ch].packet_hdr is not null (!! turns any non 0 value into 1);
                 ch += !!packet_infos[ch].packet_hdr;
+                // Lets CPU know this is in a spin loop
+                // Helps performance so the branch predictor doesn't get killed by the loop
+                _mm_pause();
             }
-
-            _mm_lfence();
 
             // Check if timeout occured
             // TODO: refactor to be branchless
@@ -456,12 +462,6 @@ public:
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
-                packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
-                packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
-                // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
-
                 if(packet_infos[ch].packet_length < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
