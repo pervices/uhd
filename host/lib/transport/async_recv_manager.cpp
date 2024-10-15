@@ -201,8 +201,15 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast8_t main_thread_slow = 0;
 
+    bool slow_message_printed = false;
+
     while(!self->stop_flag) [[likely]] {
         main_thread_slow = main_thread_slow || !packets_to_recv;
+
+        if(main_thread_slow && !slow_message_printed) {
+            slow_message_printed = true;
+            UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "consumer thread to slow");
+        }
 
         // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
 
