@@ -475,8 +475,14 @@ public:
 
                 // Finds and records the sequence number and timestamp of whichever channel's next packet is last
                 // Used for realignment, normally they will be the same for all packets
+                // TODO: refactor to reduce branching
                 if(latest_packet < vita_md[ch].tsf) {
                     latest_packet = vita_md[ch].tsf;
+                    if(ch != 0) {
+                        metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                        _overflow_occured = true;
+                        overflow_detected = true;
+                    }
                 }
 
                 // Set the flag for realignment required if there is a mismatch in timestamps between packets
