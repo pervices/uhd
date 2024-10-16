@@ -334,7 +334,7 @@ public:
                 // Gets info for this packet
                 memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
                 for(size_t n = 0; n < _HEADER_SIZE; n++) {
-                    UHD_LOGGER_ERROR("DEBUG D") << "packet_infos[ch].packet_hdr[" << n << "]" << packet_infos[ch].packet_hdr[n];
+                    UHD_LOGGER_ERROR("DEBUG D") << "packet_infos[ch].packet_hdr[" << n << "]" << (int) packet_infos[ch].packet_hdr[n];
                 }
 
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
