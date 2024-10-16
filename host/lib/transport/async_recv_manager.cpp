@@ -203,23 +203,43 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint_fast8_t main_thread_slow = 0;
 
+    // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
         main_thread_slow = main_thread_slow || !packets_to_recv;
 
-        // Several times this loop uses ! to ensure something is a bool (range 0 or 1)
+        /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
+        int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
+
+        // Increment the count to an odd number to indicate at writting to the buffer has begun
+        // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
+        if(!(*buffer_write_count & 1)) {
+            (*buffer_write_count)++;
+        }
+
+        // Fence to ensure buffer_write_count is set to an off number before recvmmsg
+        _mm_sfence();
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
+        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
+
+        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        bool update_counts = packets_received & local_flush_complete[ch];
+
+        // TMP fence to ensure recvmmsg writes are complete before updating access_num_packets_stored
+        // Remove once buffer_write_count is used by the consumer thread
+        _mm_sfence();
+
+        // Set counter for number of packets stored
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
         // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
         _mm_sfence();
 
-        // Increment the counter for number of packets stored
-        // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        // Set num_packets_stored to the number of packets recieved if any were received or the current value if no packets were requested
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received * local_flush_complete[ch]) | (*self->access_num_packets_stored(ch, ch_offset, b[ch]) * !packets_to_recv) ;
+        // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
+        (*buffer_write_count)+= update_counts;
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
