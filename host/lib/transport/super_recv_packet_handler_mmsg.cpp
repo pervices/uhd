@@ -333,7 +333,9 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
                 memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
-                packet_infos[ch].packet_hdr[0] = packet_infos[ch].packet_hdr[0] & 0xfb;
+                for(size_t n = 0; n < _HEADER_SIZE; n++) {
+                    UHD_LOGGER_ERROR("DEBUG D") << "packet_infos[ch].packet_hdr[" << n << "]" << (int) packet_infos[ch].packet_hdr[n];
+                }
 
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
