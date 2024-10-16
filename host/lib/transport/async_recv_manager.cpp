@@ -219,7 +219,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Increment the counter for number of packets stored
         // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
         // Set num_packets_stored to the number of packets recieved if any were received or the current value if no packets were requested
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received * local_flush_complete[ch]) | (*self->access_num_packets_stored(ch, ch_offset, b[ch]) * !packets_to_recv) ;
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received * local_flush_complete[ch]) | (*self->access_num_packets_stored(ch, ch_offset, b[ch]) * !packets_to_recv);
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
@@ -227,6 +227,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
+
+        // Fence to ensure num_packets_stored and flush_complete are updated in a timely manor and the next num_packets_stored is loaded
+        _mm_mfence();
 
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
