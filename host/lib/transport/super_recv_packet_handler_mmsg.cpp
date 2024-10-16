@@ -374,9 +374,8 @@ public:
                 UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
                 UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
                 if(vita_md[ch].num_payload_bytes != 1384) {
-                    printf("recv_manager->get_next_packet_vita_header(ch): %lx %lx\n", *((uint64_t*)recv_manager->get_next_packet_vita_header(ch)), *((uint64_t*)(recv_manager->get_next_packet_vita_header(ch) + 4)));
-                    printf("packet_infos[ch].packet_hdr.data(): %lx %lx\n", *((uint64_t*)packet_infos[ch].packet_hdr.data()), *((uint64_t*)(packet_infos[ch].packet_hdr.data() + 4)));
-                    UHD_LOGGER_ERROR("DEBUG C") << "C";
+                    printf("B recv_manager->get_next_packet_vita_header(ch): %lx %lx\n", *((uint64_t*)recv_manager->get_next_packet_vita_header(ch)), *((uint64_t*)(recv_manager->get_next_packet_vita_header(ch) + 4)));
+                    printf("B packet_infos[ch].packet_hdr.data(): %lx %lx\n", *((uint64_t*)packet_infos[ch].packet_hdr.data()), *((uint64_t*)(packet_infos[ch].packet_hdr.data() + 4)));
                     throw std::runtime_error("tmp");
                 }
 
