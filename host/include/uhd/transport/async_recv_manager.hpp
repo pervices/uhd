@@ -185,13 +185,7 @@ public:
      */
     inline __attribute__((always_inline)) uint8_t* get_next_packet_vita_header(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
-        uint8_t* addr = access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
-        if(*access_num_packets_stored(ch, 0, b) > num_packets_consumed[ch]) {
-            return addr;
-        }
-        else {
-            return nullptr;
-        }
+        return access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
     }
 
     /**
@@ -216,6 +210,40 @@ public:
     }
 
     /**
+     * Checks if the next packet is the first one of the buffer.
+     * @param ch
+     * @return True when it is the first packet of the buffer, false otherwise. Will return true even if the packet isn't ready ready
+     */
+    inline __attribute__((always_inline)) uint_fast8_t is_first_packet_of_buffer(const size_t ch) {
+        return !num_packets_consumed[ch];
+    }
+
+    /**
+     * Gets a number used to track the number of writes to the buffer and whether a write is currently in progress.
+     * This function is responsible for adding the fences to ensure correct access
+     * @param ch
+     * @return Returns the number of complete times the currently active consumer buffer has been written to times 2. Also adds +1 if a write is currently in progress.
+     */
+    inline __attribute__((always_inline)) int_fast64_t get_buffer_write_count(const size_t ch) {
+        // Fence to ensure that any loads from the provider thread are complete before buffer_write_count is obtained
+        _mm_lfence();
+        size_t b = active_consumer_buffer[ch];
+        int_fast64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
+        // Fence to ensure buffer_write_count is obtained before any future loads from the provider thread occur
+        _mm_lfence();
+        return buffer_write_count;
+    }
+
+    /**
+     * Reset the location of the consume head to the start of the buffer.
+     * It is used to go to the start of a buffer when the buffer gets overwritten mid read
+     * @param ch
+     */
+    inline __attribute__((always_inline)) void reset_buffer_read_head(const size_t ch) {
+        num_packets_consumed[ch] = 0;
+    }
+
+    /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
      */
@@ -223,15 +251,11 @@ public:
         size_t b = active_consumer_buffer[ch];
         num_packets_consumed[ch]++;
         // Move to the next buffer once all packets in this buffer are consumed
-        // Not actually unlikely enough to justify hint, the hint is to reduce the odds of the branch predictor updating access_num_packets_stored and interfering with the provider thread
         int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
-        if(num_packets_consumed[ch] >= *num_packets_stored_addr) [[unlikely]] {
+        if(num_packets_consumed[ch] >= *num_packets_stored_addr) {
 
             // Fence to ensure all actions related to the buffer are complete before marking it as clear
             _mm_sfence();
-
-            // Marks this buffer as clear
-            *num_packets_stored_addr = 0;
 
             // Moves to the next buffer
             // & is to roll over the the first buffer once the limit is reached

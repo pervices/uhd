@@ -79,6 +79,7 @@ public:
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _recv_sockets(recv_sockets),
+    _previous_buffer_write_count(_NUM_CHANNELS, 0),
     _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
     _intermediate_recv_buffer_wrapper(_intermediate_recv_buffer_pointers.data(), _NUM_CHANNELS),
     _num_cached_samples(_NUM_CHANNELS, 0),
@@ -209,152 +210,6 @@ public:
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
-    // Function used to receive data optimized for a single channel using async_recv_manager
-    // TODO: swap to this for single channel once it is as fast or faster than single_ch_recv_sequential
-    size_t single_ch_recv_threaded(const uhd::rx_streamer::buffs_type& buffs,
-        const size_t nsamps_per_buff,
-        uhd::rx_metadata_t& metadata,
-        const double timeout,
-        // TODO: implement one_packet
-        const bool one_packet)
-    {
-        (void) one_packet;
-        // Clears the metadata struct
-        // Reponsible for setting error_code to none, has_time_spec to false and eob to false
-        metadata.reset();
-
-        // TMP: verify buffers are properly aligned
-        // TODO: remove once support for variable alignment is returned
-       for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-            if((size_t)buffs[ch] % page_size != 0) {
-                throw uhd::runtime_error( "Buffers not aligned to page");
-            }
-            if((nsamps_per_buff * 4) % (page_size * 2) != 0) {
-                std::cout << "nsamps_per_buff: " << nsamps_per_buff << std::endl;
-                std::cout << "page_size: " << page_size << std::endl;
-                throw uhd::runtime_error( "Samples request not a whole number of packets");
-            }
-        }
-
-        // TODO: copy data from cache
-
-        // Only print these messages once per recv call
-        bool oflow_message_printed = false;
-
-        time_spec_t recv_start_time = get_system_time();
-        size_t samples_received = 0;
-        // Prevents the timeout heck on the first iteration of the loop
-        bool first_loop = true;
-
-        // This variant of recv is meant for a single channel only
-        constexpr size_t ch = 0;
-
-        while((recv_start_time + timeout > get_system_time() || first_loop) && samples_received < nsamps_per_buff) {
-            first_loop = false;
-
-            // Pointer to Vita header of a packet, will be nullptr if the next packet isn't ready yet
-            uint8_t* packet_hdr = recv_manager->get_next_packet_vita_header(ch);
-            // Pointer to the start of samples in the packet
-            uint8_t* packet_samples = recv_manager->get_next_packet_samples(ch);
-            // Length of the packet received (usually does not include the trailers)
-            uint_fast32_t packet_length = recv_manager->get_next_packet_length(ch);
-
-            vrt::if_packet_info_t vita_md;
-            vita_md.num_packet_words32 = (packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
-
-            // Check if next packet is ready
-            // NOTE: the variable set above will be garbage if the packet is not ready
-            if(packet_hdr == nullptr) [[unlikely]] {
-                // Helps performance so the branch predictor doesn't get killed by the loop
-                _mm_pause();
-                // Packet not ready yet, check again
-                continue;
-            }
-
-            if(packet_length < _HEADER_SIZE) [[unlikely]] {
-                throw std::runtime_error("Received sample packet smaller than header size");
-            }
-
-            // Extract Vita metadata
-            if_hdr_unpack((uint32_t*) packet_hdr, vita_md);
-
-            // Detect and warn user of overflow error
-            // packet_count is a 4 bit number that increments every packet, if the sequence number did not increment by 1 then there is a discontinuity that is either from an overflow or from the start of a new burst. tsf != check if it the start of a new burst
-            bool overflow_detected = vita_md.packet_count != (sequence_number_mask & (previous_sequence_number + 1)) && vita_md.tsf != 0;
-            _overflow_occured|= overflow_detected;
-            // Update sequence number
-            previous_sequence_number = vita_md.packet_count;
-            // Branchless set flag for overflow
-            metadata.error_code = (uhd::rx_metadata_t::error_code_t) ((overflow_detected * rx_metadata_t::ERROR_CODE_OVERFLOW) | (!overflow_detected * metadata.error_code));
-
-            // Warning message to user that overflows occured
-            if(overflow_detected && !oflow_message_printed) [[unlikely]] {
-                // Only print the message once per recv call
-                oflow_message_printed = true;
-
-                // Warn user that an overflow occured
-                UHD_LOG_FASTPATH("D");
-                if(!_using_performance_governor && !_performance_warning_printed) {
-                    UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                    _performance_warning_printed = true;
-                }
-                if(!_performance_warning_printed) {
-                    _performance_warning_printed = true;
-                    if(!_governor_known) {
-                        UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                    }
-                    else if(!_using_performance_governor) {
-                        UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                    }
-                }
-            }
-
-            // Update tsf cache to most recent (this packet)
-            tsf_cache = vita_md.tsf;
-
-            // Set time_spec to that of this packet if not set already (may be set by previous packets or simulated by the cache)
-            metadata.time_spec = (metadata.has_time_spec) ? metadata.time_spec : time_spec_t::from_ticks(vita_md.tsf, _sample_rate);
-            metadata.has_time_spec = true;
-
-            size_t samples_in_packet = vita_md.num_payload_bytes / _BYTES_PER_SAMPLE;
-
-            // Number of samples to copy to the user buffer
-            size_t samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
-
-            // Number of samples to cache between recvs
-            size_t samples_to_cache = samples_in_packet - samples_to_consume;
-
-            // TODO: reimplement caching
-            if(samples_to_cache != 0) [[unlikely]] {
-                throw std::runtime_error("Sample caching not implement yet");
-            }
-
-            // TMP until new fast copy is more complete
-            if(samples_to_consume % 256 != 0) [[unlikely]] {
-                throw std::runtime_error("Incorrect samples per packet");
-            }
-
-            // Stream required sfence after which is called during advance packet
-            // TODO: look into performance benefit from copying multiple packets at once && implement avx (make sure to add -mavx2 to flags)
-            // size_t sample_bytes_copied = 0;
-            // for(; sample_bytes_copied < samples_to_consume * _BYTES_PER_SAMPLE; sample_bytes_copied+=256) {
-            //     __m256i from = _mm256_stream_load_si256((const __m256i*) (packet_samples + (sample_bytes_copied)));
-            //     _mm256_stream_si256((__m256i*) (((uint8_t*) buffs[ch]) + (sample_bytes_copied)), from);
-            // }
-
-            convert_samples(buffs[ch], packet_samples, samples_to_consume);
-
-            recv_manager->advance_packet(ch);
-
-            samples_received += samples_to_consume;
-        }
-
-        // If no samples received and no other error present report a timeout
-        metadata.error_code = (samples_received == 0 && metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) ? rx_metadata_t::ERROR_CODE_TIMEOUT : metadata.error_code;
-
-        return samples_received;
-    }
-
     // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
@@ -368,15 +223,24 @@ public:
 
         // Vector of variables used to improve cache locality
         struct packet_info{
-            // Pointer to Vita header of a packet
-            uint8_t* packet_hdr;
+            // Buffer to store copy of Vita header of a packet
+            // A copy is created instead of using a pointer to avoid issues with the header being overwriten while being unpacked
+            std::vector<uint8_t> packet_hdr;
             // Pointer to the start of samples in the packet
             uint8_t* packet_samples;
             // Length of the packet received (usually does not include the trailers)
             uint_fast32_t packet_length;
+
+            packet_info(const size_t header_size) :
+            packet_hdr(std::vector<uint8_t>(header_size)),
+            packet_samples(nullptr),
+            packet_length(0)
+            {
+
+            };
         };
 
-        std::vector<packet_info> packet_infos(_NUM_CHANNELS);
+        std::vector<packet_info> packet_infos(_NUM_CHANNELS, packet_info(_HEADER_SIZE));
 
         // Place to store metadata of Vita packets
         // Not included in packet_info becuase packet_info's memory are accessed togther within a channel, vita_md is better to have it be adjacent for different channels
@@ -430,30 +294,32 @@ public:
             bool overflow_detected = false;
             bool realignment_required = false;
 
+            // Stores buffer_write_count from when the packet was obtained
+            std::vector<int_fast64_t> initial_buffer_write_count(_NUM_CHANNELS);
+
             size_t ch = 0;
-            // Fewest branches loop to wait for packets to be ready
+            // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
-                packet_infos[ch].packet_hdr = recv_manager->get_next_packet_vita_header(ch);
-                // samples and length will be garbage unless packet_hdrs is not null, gotten anyway to improve memory access
-                packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
-                packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
-                // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
-                // Increment the channel count when packet_infos[ch].packet_hdr is not null (!! turns any non 0 value into 1);
-                ch += !!packet_infos[ch].packet_hdr;
-                // Lets CPU know this is in a spin loop
-                // Helps performance so the branch predictor doesn't get killed by the loop
-                _mm_pause();
+                initial_buffer_write_count[ch] = recv_manager->get_buffer_write_count(ch);
+                // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
+                if((initial_buffer_write_count[ch] > _previous_buffer_write_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_write_count[ch] & 1)) {
+                    // Move onto the next channel since this one is ready
+                    ch++;
+                } else {
+                    // Lets CPU know this is in a spin loop
+                    // Helps performance so the branch predictor doesn't get killed by the loop
+                    _mm_pause();
+                }
             }
 
             // Check if timeout occured
-            // TODO: refactor to be branchless
+            // TODO: refactor to reduce branching
             if(ch < _NUM_CHANNELS) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
                     return samples_received;
                 } else {
-                    // Set timeout if no other error occured and no samples received
+                    // Set timeout if no other error occured and no samples received and no other error code present
                     if(metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
                         metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
                     }
@@ -461,13 +327,40 @@ public:
                 }
             }
 
+            // Flag that indicates if the packet was overwritten mid read
+            bool mid_header_read_packet_overwrite = false;
+
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                // Gets info for this packet
+                memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
+                packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
+                packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
+                // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
+                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
+
+                // Check for incorrect packet
                 if(packet_infos[ch].packet_length < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
 
+                int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
+                // If buffer_write_count changed while getting header info
+                if(post_header_copied_buffer_write_count != initial_buffer_write_count[ch]) {
+                    mid_header_read_packet_overwrite = true;
+                    // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
+                    // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
+                    recv_manager->reset_buffer_read_head(ch);
+                }
+            }
+
+            // Restart loop since buffers may have been modified when headers were being processed
+            if(mid_header_read_packet_overwrite) {
+                continue;
+            }
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
-                if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr, vita_md[ch]);
+                if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr.data(), vita_md[ch]);
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
@@ -491,24 +384,10 @@ public:
             }
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
-                // Only print the message once per recv call
-                oflow_message_printed = true;
+                print_overflow_message();
 
-                // Warn user that an overflow occured
-                UHD_LOG_FASTPATH("D");
-                if(!_using_performance_governor && !_performance_warning_printed) {
-                    UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                    _performance_warning_printed = true;
-                }
-                if(!_performance_warning_printed) {
-                    _performance_warning_printed = true;
-                    if(!_governor_known) {
-                        UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                    }
-                    else if(!_using_performance_governor) {
-                        UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
-                    }
-                }
+                // Flag to prevent printing the message once per recv call
+                oflow_message_printed = true;
             }
 
             if(realignment_required) [[unlikely]] {
@@ -727,6 +606,9 @@ private:
     size_t previous_num_samples = 0;
 
     size_t previous_sequence_number = 0;
+
+    // Value of buffer_write_count  during the last recv call
+    std::vector<int_fast64_t> _previous_buffer_write_count;
 
     // TODO: remove once recv_single_ch_sequential is removed
     // Stores information about packets received for each channel
@@ -1218,6 +1100,24 @@ private:
         }
 
         return aligned_bytes;
+    }
+
+    void print_overflow_message() {
+        // Warn user that an overflow occured
+        UHD_LOG_FASTPATH("D");
+        if(!_using_performance_governor && !_performance_warning_printed) {
+            UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+            _performance_warning_printed = true;
+        }
+        if(!_performance_warning_printed) {
+            _performance_warning_printed = true;
+            if(!_governor_known) {
+                UHD_LOG_FASTPATH("\nRecv overflow detected, ensure the CPU governor is set to performance. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+            }
+            else if(!_using_performance_governor) {
+                UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+            }
+        }
     }
 
 };
