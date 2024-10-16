@@ -232,7 +232,7 @@ public:
             uint_fast32_t packet_length;
 
             packet_info(const size_t header_size) :
-            packet_hdr(std::vector<uint8_t>(header_size * 100, 0)),
+            packet_hdr(std::vector<uint8_t>(header_size, 0)),
             packet_samples(nullptr),
             packet_length(0)
             {
@@ -333,6 +333,10 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
                 memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
+                for(size_t n = 0; n < _HEADER_SIZE; n++) {
+                    UHD_LOGGER_ERROR("DEBUG D") << "packet_infos[ch].packet_hdr[" << n "]" << packet_infos[ch].packet_hdr[n];
+                }
+
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
@@ -361,13 +365,6 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
-                uint8_t* vita_hdr_ptr = recv_manager->get_next_packet_vita_header(ch);
-                if_hdr_unpack((uint32_t*) vita_hdr_ptr, vita_md[ch]);
-                UHD_LOGGER_ERROR("DEBUG A") << "ch: " << ch;
-                UHD_LOGGER_ERROR("DEBUG A") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
-                UHD_LOGGER_ERROR("DEBUG A") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
-
-
                 if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr.data(), vita_md[ch]);
 
                 UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
