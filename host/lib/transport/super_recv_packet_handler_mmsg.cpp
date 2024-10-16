@@ -334,7 +334,7 @@ public:
                 // Gets info for this packet
                 memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
                 for(size_t n = 0; n < _HEADER_SIZE; n++) {
-                    UHD_LOGGER_ERROR("DEBUG D") << "packet_infos[ch].packet_hdr[" << n "]" << packet_infos[ch].packet_hdr[n];
+                    UHD_LOGGER_ERROR("DEBUG D") << "packet_infos[ch].packet_hdr[" << n << "]" << packet_infos[ch].packet_hdr[n];
                 }
 
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
@@ -370,13 +370,6 @@ public:
                 UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
                 UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
                 if(vita_md[ch].num_payload_bytes != 1384) {
-                    bool all_match = true;
-                    for(size_t n = 0; n < _HEADER_SIZE; n++) {
-                        if(packet_infos[ch].packet_hdr[n] != vita_hdr_ptr[n]) {
-                            all_match = false;
-                        }
-                    }
-                    UHD_LOGGER_ERROR("DEBUG C") << "all_match: " << all_match;
                     throw std::runtime_error("tmp");
                 }
 
