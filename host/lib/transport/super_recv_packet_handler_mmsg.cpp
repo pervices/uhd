@@ -337,8 +337,8 @@ public:
 
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
-                // Maximum size the packet length field in Vita packet could be
-                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length) / sizeof(uint32_t);
+                // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
+                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
 
                 // Check for incorrect packet
                 if(packet_infos[ch].packet_length < _HEADER_SIZE) [[unlikely]] {
