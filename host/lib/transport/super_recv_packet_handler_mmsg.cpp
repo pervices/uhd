@@ -244,7 +244,7 @@ public:
 
         // Place to store metadata of Vita packets
         // Not included in packet_info becuase packet_info's memory are accessed togther within a channel, vita_md is better to have it be adjacent for different channels
-        std::vector<vrt::if_packet_info_t> vita_md(_NUM_CHANNELS);
+        std::vector<vrt::if_packet_info_t> vita_md(_NUM_CHANNELS, vrt::if_packet_info_t());
 
         // The channel with the latest packet
         uint64_t latest_packet = 0;
