@@ -254,9 +254,6 @@ public:
         int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
         if(num_packets_consumed[ch] >= *num_packets_stored_addr) {
 
-            // Fence to ensure all actions related to the buffer are complete before marking it as clear
-            _mm_sfence();
-
             // Moves to the next buffer
             // & is to roll over the the first buffer once the limit is reached
             active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & (NUM_BUFFERS -1);
