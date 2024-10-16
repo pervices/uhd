@@ -239,8 +239,9 @@ UHD_INLINE void __if_hdr_unpack_${suffix}(
                 const int indicators = (if_packet_info.tlr >> 20) & (if_packet_info.tlr >> 8);
                 if ((indicators & (1 << 0)) != 0) if_packet_info.eob = true;
                 if ((indicators & (1 << 1)) != 0) if_packet_info.sob = true;
-                empty_bytes = occ_table[(indicators >> 2) & 0x3];
-                printf(\"empty_bytes %lu\\n\", empty_bytes);
+                // TODO: fix this. It seems to be detecting spurious empty bytes or our packets are wrong
+                //empty_bytes = occ_table[(indicators >> 2) & 0x3];
+                //printf(\"empty_bytes %lu\\n\", empty_bytes);
             }
         % else:
             if_packet_info.has_tlr = false;<% num_trailer_words = 0 %>
