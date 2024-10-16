@@ -361,12 +361,16 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
+                if_hdr_unpack((uint32_t*) recv_manager->get_next_packet_vita_header(ch), vita_md[ch]);
+                UHD_LOGGER_ERROR("DEBUG A") << "ch: " << ch;
+                UHD_LOGGER_ERROR("DEBUG A") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
+                UHD_LOGGER_ERROR("DEBUG A") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
+
+
                 if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr.data(), vita_md[ch]);
 
-                UHD_LOGGER_ERROR("DEBUG") << "Inccorrect number of samples in packet";
-                UHD_LOGGER_ERROR("DEBUG") << "ch: " << ch;
-                UHD_LOGGER_ERROR("DEBUG") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
-                UHD_LOGGER_ERROR("DEBUG") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
+                UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
+                UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
                 if(vita_md[ch].num_payload_bytes != 1384) {
                     throw std::runtime_error("tmp");
                 }
