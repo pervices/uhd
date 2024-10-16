@@ -216,10 +216,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
         _mm_sfence();
 
-        // Increment the counter for number of packets stored
-        // * flush_complete = 0 while flush in progress, 1 once flusing is done, skips recording that packets were received until the sockets have been flushed
-        // Set num_packets_stored to the number of packets recieved if any were received or the current value if no packets were requested
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received * local_flush_complete[ch]) | (*self->access_num_packets_stored(ch, ch_offset, b[ch]) * !packets_to_recv);
+        // Set the counter for number of packets stored
+        if(packets_received) {
+            *self->access_num_packets_stored(ch, ch_offset, b[ch]) = r * packets_received * local_flush_complete[ch];
+        }
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
