@@ -229,17 +229,19 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         bool update_counts = packets_received & local_flush_complete[ch];
 
         // TMP fence to ensure recvmmsg writes are complete before updating access_num_packets_stored
-        // Remove once buffer_write_count is used by the consumer thread
+        // TODO: Remove once buffer_write_count is used by the consumer thread
         _mm_sfence();
 
         // Set counter for number of packets stored
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
-        // Fence to ensure writes from recvmmsg are complete before updating the number of packets stored, and so that the number of packets stored from the previous iteration are written before setting the number of packets stored for this recvmmsg
+        // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         (*buffer_write_count)+= update_counts;
+
+        // TODO: consider fence here to ensure buffer_write_count is done in a timely manor
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
