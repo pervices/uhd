@@ -351,7 +351,6 @@ public:
                     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
                     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
                     recv_manager->reset_buffer_read_head(ch);
-                    UHD_LOGGER_ERROR("STREAMER") << "Unable to keep up";
                 }
             }
 
@@ -363,12 +362,6 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr.data(), vita_md[ch]);
-
-                UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
-                UHD_LOGGER_ERROR("DEBUG B") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
-                if(vita_md[ch].num_payload_bytes != 1384) {
-                    throw std::runtime_error("tmp");
-                }
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
@@ -443,8 +436,6 @@ public:
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
                     UHD_LOGGER_ERROR("STREAMER") << "Mismatch in sample count between packets";
-                    UHD_LOGGER_ERROR("STREAMER") << "packet_sample_bytes: " << packet_sample_bytes;
-                    UHD_LOGGER_ERROR("STREAMER") << "vita_md[" << ch << "].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
 
                     // Something is wrong with the packets if there is a mismatch in size and no other error has occured
                     if(metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
