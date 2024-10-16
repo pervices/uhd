@@ -333,8 +333,6 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
                 memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
-                printf("recv_manager->get_next_packet_vita_header(ch): %lx %lx\n", *((uint64_t*)recv_manager->get_next_packet_vita_header(ch)), *((uint64_t*)(recv_manager->get_next_packet_vita_header(ch) + 4)));
-                printf("packet_infos[ch].packet_hdr.data(): %lx %lx\n", *((uint64_t*)packet_infos[ch].packet_hdr.data()), *((uint64_t*)(packet_infos[ch].packet_hdr.data() + 4)));
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
@@ -363,7 +361,8 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
-                if_hdr_unpack((uint32_t*) recv_manager->get_next_packet_vita_header(ch), vita_md[ch]);
+                uint8_t* vita_hdr_ptr = recv_manager->get_next_packet_vita_header(ch);
+                if_hdr_unpack((uint32_t*) vita_hdr_ptr, vita_md[ch]);
                 UHD_LOGGER_ERROR("DEBUG A") << "ch: " << ch;
                 UHD_LOGGER_ERROR("DEBUG A") << "vita_md[ch].num_packet_words32: " << vita_md[ch].num_packet_words32;
                 UHD_LOGGER_ERROR("DEBUG A") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
@@ -376,7 +375,7 @@ public:
                 if(vita_md[ch].num_payload_bytes != 1384) {
                     bool all_match = true;
                     for(size_t n = 0; n < _HEADER_SIZE; n++) {
-                        if(packet_infos[ch].packet_hdr[n] != recv_manager->get_next_packet_vita_header(ch)[n]) {
+                        if(packet_infos[ch].packet_hdr[n] != vita_hdr_ptr[n]) {
                             all_match = false;
                         }
                     }
