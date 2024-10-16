@@ -363,6 +363,11 @@ public:
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr.data(), vita_md[ch]);
 
+                if(vita_md[ch].num_payload_bytes != 1384) {
+                    UHD_LOGGER_ERROR("DEBUG") << "Inccorrect number of samples in packet";
+                    throw std::runtime_error("tmp");
+                }
+
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
                 // metadata.end_of_burst |= vita_md[ch].eob
