@@ -365,6 +365,7 @@ public:
 
                 if(vita_md[ch].num_payload_bytes != 1384) {
                     UHD_LOGGER_ERROR("DEBUG") << "Inccorrect number of samples in packet";
+                    UHD_LOGGER_ERROR("DEBUG") << "ch: " << ch;
                     throw std::runtime_error("tmp");
                 }
 
