@@ -232,7 +232,7 @@ public:
             uint_fast32_t packet_length;
 
             packet_info(const size_t header_size) :
-            packet_hdr(std::vector<uint8_t>(header_size)),
+            packet_hdr(std::vector<uint8_t>(header_size * 100, 0)),
             packet_samples(nullptr),
             packet_length(0)
             {
