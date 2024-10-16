@@ -437,7 +437,7 @@ public:
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
                     UHD_LOGGER_ERROR("STREAMER") << "Mismatch in sample count between packets";
                     UHD_LOGGER_ERROR("STREAMER") << "packet_sample_bytes: " << packet_sample_bytes;
-                    UHD_LOGGER_ERROR("STREAMER") << "vita_md[ch].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
+                    UHD_LOGGER_ERROR("STREAMER") << "vita_md[" << ch << "].num_payload_bytes: " << vita_md[ch].num_payload_bytes;
 
                     // Something is wrong with the packets if there is a mismatch in size and no other error has occured
                     if(metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
