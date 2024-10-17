@@ -416,6 +416,7 @@ public:
             }
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
+            printf("packet_sample_bytes: %lu\n", packet_sample_bytes);
             size_t samples_to_consume = 0;
             bool mid_header_read_data_overwrite = false;
             // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
