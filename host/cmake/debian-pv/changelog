@@ -1,3 +1,9 @@
+uhdpv (4.4.0.44-0ubuntu1) ubuntu_release; urgency=medium
+
+  * RECV: improve performance reliability. Rx overflows should be less likely and be recovered from better
+
+ -- Per Vices <packages@pervices.com>  Thu, 17 Oct 2024 12:18:59 -0400
+
 uhdpv (4.4.0.43-0ubuntu1) ubuntu_release; urgency=medium
 
   * SEND: fixing math error in send that could result in a mismatch between packet size field and actual number of samples
