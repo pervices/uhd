@@ -21,6 +21,7 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <random>
 
 //wait for user to press cntrl c before closing
 //#define DELAYED_EXIT
@@ -79,6 +80,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("last", po::value<double>(&last), "Time for last stacked command")
         ("increment", po::value<double>(&increment)->default_value(1), "Increment for stack commands between <first> and <last> times")
         ("constant_time", "When set, device time gets set to 0, and first and last's exact values are used. Otherwise first and last are relative to the time when initialization finished. In both cases the device time is set to 0 during init unless pps is bypassed")
+        ("random-spb", "Intended for internal debuging only. Randomize the number of samples sent per buffer to be 0:spb")
     ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -91,6 +93,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     bool use_constant_time = vm.count("constant_time");
+
+    bool random_spb = vm.count("random-spb");
 
     //create a usrp device
     std::cout << std::endl;
@@ -177,9 +181,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     stream_args.channels = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
-    //allocate a buffer which we re-use for each channel
-    if (spb == 0) {
+    // Normally default spb to 10 packets worth
+    if (spb == 0 && !random_spb) {
         spb = tx_stream->get_max_num_samps()*10;
+    // If using randomized spb default the spb to be up to 1 packet by default
+    } else if(spb == 0) {
+        spb = tx_stream->get_max_num_samps();
     }
 
     double period;
@@ -298,6 +305,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         md.has_time_spec  = true;
         md.time_spec = uhd::time_spec_t(time);
 
+        // Initialize rng
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> uniform_distribution(0, spb);
+
         //send data until the signal handler gets called
         //or if we accumulate the number of samples specified (unless it's 0)
         uint64_t num_acc_samps = 0;
@@ -318,11 +330,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 }
             }
 
+            size_t max_samples_to_send;
+            if(random_spb) [[unlikely]] {
+                // Send up to a random number of samples
+                max_samples_to_send = uniform_distribution(gen);
+            } else {
+                // Send up to spb
+                max_samples_to_send = spb;
+            }
+            // Determine how many samples to send
             size_t nsamps_this_send;
             if(total_num_samps != 0) {
-                nsamps_this_send = std::min(spb, total_num_samps - num_acc_samps);
+                nsamps_this_send = std::min(max_samples_to_send, total_num_samps - num_acc_samps);
             } else {
-                nsamps_this_send = spb;
+                nsamps_this_send = max_samples_to_send;
             }
 
 #ifdef DEBUG_TX_WAVE
