@@ -64,8 +64,9 @@ public:
      * \param buffer_size size of the buffer on the unit
      */
     send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
-        : _max_samples_per_packet(max_samples_per_packet),
-        _MAX_SAMPLE_BYTES_PER_PACKET(max_samples_per_packet * _bytes_per_sample),
+        // Ensure max_samples_per_packet is a multiple of the number of samples allowed per packet
+        : _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
+        _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
         _NUM_CHANNELS(channels.size()),
         _async_msg_fifo(async_msg_fifo),
         _channels(channels),
