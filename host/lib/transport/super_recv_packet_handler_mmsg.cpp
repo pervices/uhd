@@ -328,7 +328,7 @@ public:
             }
 
             // Flag that indicates if the packet was overwritten mid read
-            bool mid_header_read_packet_overwrite = false;
+            bool mid_header_read_header_overwrite = false;
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
@@ -347,7 +347,7 @@ public:
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
                 // If buffer_write_count changed while getting header info
                 if(post_header_copied_buffer_write_count != initial_buffer_write_count[ch]) {
-                    mid_header_read_packet_overwrite = true;
+                    mid_header_read_header_overwrite = true;
                     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
                     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
                     recv_manager->reset_buffer_read_head(ch);
@@ -355,7 +355,7 @@ public:
             }
 
             // Restart loop since buffers may have been modified when headers were being processed
-            if(mid_header_read_packet_overwrite) {
+            if(mid_header_read_header_overwrite) {
                 continue;
             }
 
@@ -415,22 +415,14 @@ public:
                 realignment_attempts = 0;
             }
 
-            // Update the sequence number
-            previous_sequence_number = vita_md[0].packet_count;
-
-            // Update tsf cache to most recent (this packet)
-            tsf_cache = vita_md[0].tsf;
-
-            // Set the timepec to that of the first packet received if not already set from the cache
-            // They should be equal to the only the first channel's is used
-            if(!metadata.has_time_spec) {
-                metadata.has_time_spec = true;
-                // No need to check for has_tsf since our FPGAs always include tsf
-                metadata.time_spec = time_spec_t::from_ticks(vita_md[0].tsf, _sample_rate);
-            }
-
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
             size_t samples_to_consume = 0;
+            bool mid_header_read_data_overwrite = false;
+            // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
+            std::vector<size_t> samples_to_cache(_NUM_CHANNELS, 0);
+
+            // Copies sample data from the provider buffer to the user buffer
+            // NOTE: do not update variables stored between runs in this loop, since the results will need to be discarded if data was overwritten
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
@@ -446,25 +438,57 @@ public:
                 size_t samples_in_packet = vita_md[ch].num_payload_bytes / _BYTES_PER_SAMPLE;
                 // Number of samples in the packet that fit in the user's buffer
                 samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
-                // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
-                size_t samples_to_cache = samples_in_packet - samples_to_consume;
+                samples_to_cache[ch] = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                 convert_samples(buffs[ch], packet_infos[ch].packet_samples, samples_to_consume);
+                convert_samples(buffs[ch], packet_infos[ch].packet_samples, samples_to_consume);
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
-                if(samples_to_cache) [[unlikely]] {
+                if(samples_to_cache[ch]) [[unlikely]] {
                     // Copy extra samples from the packet to the cache
-                    memcpy(_sample_cache[ch].data(), packet_infos[ch].packet_samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache * _BYTES_PER_SAMPLE);
+                    memcpy(_sample_cache[ch].data(), packet_infos[ch].packet_samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
+                }
+
+                int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
+                // If buffer_write_count changed while copying data
+                if(post_data_copied_buffer_write_count != initial_buffer_write_count[ch]) {
+                    mid_header_read_data_overwrite = true;
+                    // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
+                    // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
+                    recv_manager->reset_buffer_read_head(ch);
+                }
+            }
+
+            // Restart recv loop since the packets was overwritten while copying data from the provider buffer
+            if(mid_header_read_data_overwrite) {
+                continue;
+            }
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                // Update number of cached samples
+                _num_cached_samples[ch] = samples_to_cache[ch];
+                if(samples_to_cache[ch]) {
                     // Remove eob flag and record it in the cache to apply to cached samples
                     eob_cached = metadata.end_of_burst;
                     metadata.end_of_burst = false;
                 }
-                _num_cached_samples[ch] = samples_to_cache;
 
                 // Moves to the next packet
                 recv_manager->advance_packet(ch);
-
             }
+
+            // Set the timepec to that of the first packet received if not already set from the cache
+            // They should be equal to the only the first channel's is used
+            if(!metadata.has_time_spec) {
+                metadata.has_time_spec = true;
+                // No need to check for has_tsf since our FPGAs always include tsf
+                metadata.time_spec = time_spec_t::from_ticks(vita_md[0].tsf, _sample_rate);
+            }
+
+            // Update the sequence number
+            previous_sequence_number = vita_md[0].packet_count;
+
+            // Update tsf cache to most recent (this packet)
+            tsf_cache = vita_md[0].tsf;
 
             // Record how many samples have been copied to the buffer, will be the same for all channels
             samples_received += samples_to_consume;
