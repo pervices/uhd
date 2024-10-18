@@ -363,7 +363,7 @@ private:
         */
         ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate)
         : _vrt_header_size(vrt_header_size),
-        sample_cache(std::vector<int8_t>(cache_size)),
+        sample_cache(std::vector<int8_t>(cache_size, 0xaa)),
         buffer_level_manager(device_target_nsamps, rate)
         {
             resize_and_clear(size);
