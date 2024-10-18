@@ -229,7 +229,7 @@ public:
             // Since send was fully successful, copy samples that couldn't be sent this send due to limitations on packet sizing to the cache
             if(nsamps_to_cache > 0) {
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                    memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + (actual_samples_sent * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+                    memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + ((actual_samples_sent - cached_nsamps) * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
                 }
             }
             cached_samples_sent = previous_cached_nsamps;
@@ -242,7 +242,7 @@ public:
         }
 
         // DEBUG: never cache samples
-        cached_nsamps = 0;
+        // cached_nsamps = 0;
 
         // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
         return actual_samples_sent + cached_nsamps - cached_samples_sent;
