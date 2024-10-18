@@ -241,6 +241,9 @@ public:
             cached_nsamps = 0;
         }
 
+        // DEBUG: never cache samples
+        cached_nsamps = 0;
+
         // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
         return actual_samples_sent + cached_nsamps - cached_samples_sent;
     }
