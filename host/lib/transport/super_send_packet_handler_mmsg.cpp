@@ -232,6 +232,7 @@ public:
                 memmove(ch_send_buffer_info_group[ch_i].sample_cache.data(), ch_send_buffer_info_group[ch_i].sample_cache.data() + actual_samples_sent, cached_samples_to_retain * _bytes_per_sample);
             }
         } else if(actual_samples_sent < actual_nsamps_to_send) {
+            printf("T1\n");
             // If not the samples meant to actually be sent were sent, clear the cache and do not cache any samples
             // The sample cache is meant to handle the case where the send was successful, but the number of samples the user requested isn't a multiple of the required amount
             // Since in this case the send didn't send all the intended samples anyway, we don't need to bother with the cache
@@ -240,6 +241,7 @@ public:
             cached_samples_to_retain = 0;
         }
         else if(actual_samples_sent == actual_nsamps_to_send) {
+            printf("T2\n");
             actual_nsamples_to_cache = desired_nsamps_to_cache;
             cached_samples_sent = previous_nsamps_in_cache;
             cached_samples_to_retain = 0;
