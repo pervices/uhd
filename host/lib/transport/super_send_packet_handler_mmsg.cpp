@@ -261,7 +261,11 @@ public:
         nsamps_in_cache = previous_nsamps_in_cache - cached_samples_sent + actual_nsamples_to_cache;
 
         if(actual_samples_sent != 0) {
-            printf("nsamps_to_send: %lu\n", nsamps_to_send);
+            printf("nsamps_in_cache: %lu\n", nsamps_in_cache);
+            printf("actual_samples_sent: %lu\n", actual_samples_sent);
+            printf("cached_samples_sent: %lu\n", cached_samples_sent);
+            printf("actual_nsamples_to_cache: %lu\n", actual_nsamples_to_cache);
+            printf("nsamps_to_send: %lu\n\n", nsamps_to_send);
         }
 
         // Return number of samples actually sent
