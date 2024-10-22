@@ -260,6 +260,10 @@ public:
         // Update number of samples in cache count
         nsamps_in_cache = previous_nsamps_in_cache - cached_samples_sent + actual_nsamples_to_cache;
 
+        if(actual_samples_sent != 0) {
+            printf("nsamps_to_send: %lu\n", nsamps_to_send);
+        }
+
         // Return number of samples actually sent
         return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
     }
