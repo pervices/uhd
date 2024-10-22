@@ -582,8 +582,6 @@ private:
         std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
         std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
 
-        bool timed_out = false;
-
         while(channels_serviced < _NUM_CHANNELS) {
 
             // Sends packets for each channel
@@ -646,7 +644,6 @@ private:
             int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
             if(current_time_ns > send_timeout_time_ns) {
                 next_sequence_number = (next_sequence_number - num_packets + packets_sent_per_ch[0]);
-                timed_out = true;
                 break;
             }
         }
@@ -683,10 +680,6 @@ private:
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
             }
-        }
-
-        if(timed_out) {
-            printf("samples_sent: %lu\n", samples_sent);
         }
 
         if(is_eob_send) {
