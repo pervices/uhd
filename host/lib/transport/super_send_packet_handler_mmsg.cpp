@@ -198,7 +198,7 @@ public:
         }
 
         // Create and sends packets
-        size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, 60);
+        size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
 
         // Sends the eob if requested
         if(eob_requested) {
@@ -219,6 +219,8 @@ public:
             cached_samples_sent = actual_samples_sent;
             cached_nsamps = previous_cached_nsamps - actual_samples_sent;
         } else if(actual_samples_sent < actual_nsamps_to_send) {
+            printf("actual_samples_sent: %lu\n", actual_samples_sent);
+            printf("actual_nsamps_to_send: %lu\n", actual_nsamps_to_send);
             // If not the samples meant to actually be sent were sent, clear the cache and do not cache any samples
             // The sample cache is meant to handle the case where the send was successful, but the number of samples the user requested isn't a multiple of the required amount
             // Since in this case the send didn't send all the intended samples anyway, we don't need to bother with the cache
