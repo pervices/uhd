@@ -265,11 +265,14 @@ public:
             printf("actual_samples_sent: %lu\n", actual_samples_sent);
             printf("cached_samples_sent: %lu\n", cached_samples_sent);
             printf("actual_nsamples_to_cache: %lu\n", actual_nsamples_to_cache);
-            printf("nsamps_to_send: %lu\n\n", nsamps_to_send);
+            printf("nsamps_to_send: %lu\n", nsamps_to_send);
         }
 
+        auto tmp = actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
+        printf("tmp: %lu\n\n", tmp);
+
         // Return number of samples actually sent
-        return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
+        return tmp;
     }
 
     void set_samp_rate(const double rate) {
