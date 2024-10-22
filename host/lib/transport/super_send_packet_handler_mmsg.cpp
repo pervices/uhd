@@ -198,7 +198,7 @@ public:
         }
 
         // Create and sends packets
-        size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
+        size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, 60);
 
         // Sends the eob if requested
         if(eob_requested) {
