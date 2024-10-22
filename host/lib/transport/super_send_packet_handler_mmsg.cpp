@@ -157,11 +157,11 @@ public:
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
 
-        size_t previous_cached_nsamps = cached_nsamps;
+        size_t previous_nsamps_in_cache = nsamps_in_cache;
 
         // FPGAs can sometimes only receive multiples of a set number of samples
-        size_t actual_nsamps_to_send = (((cached_nsamps + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
-        size_t nsamps_to_cache = nsamps_to_send + cached_nsamps - actual_nsamps_to_send;
+        size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
+        size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
         if(actual_nsamps_to_send == 0) {
             // If a start of burst command has no packets, cache timestamp and keep until next call
@@ -178,9 +178,9 @@ public:
         }
 
         // Lets the user know if the last burst dropped samples due to packet length multiple requirements
-        if(dropped_cached_nsamps) {
-            UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << dropped_cached_nsamps << " samples to comply";
-            dropped_cached_nsamps = 0;
+        if(dropped_nsamps_in_cache) {
+            UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << dropped_nsamps_in_cache << " samples to comply";
+            dropped_nsamps_in_cache = 0;
         }
 
         uhd::tx_metadata_t modified_metadata = metadata;
@@ -206,43 +206,62 @@ public:
             send_eob_packet(metadata, timeout);
         }
 
+        // Actual number of samples to cache
+        size_t actual_nsamples_to_cache;
+        // Number of samples from the cache that were sent
         size_t cached_samples_sent;
+        // NUmber of samples from that cache that are to be kept for the next run that were present from the previous run
+        size_t cached_samples_to_retain;
+
         // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
         if(actual_samples_sent == 0) {
-            // Do not update the cache if no samples were actually sent
+            // No samples sent, therefore none should be added to the buffer
+            actual_nsamples_to_cache = 0;
+            // No samples sent, therefore no cached samples were consumed
             cached_samples_sent = 0;
-        } else if(actual_samples_sent < previous_cached_nsamps) {
+            // No samples sent, therefore all samples in cache kept
+            cached_samples_to_retain = previous_nsamps_in_cache;
+
+        } else if(actual_samples_sent < previous_nsamps_in_cache) {
+            actual_nsamples_to_cache = 0;
+            cached_samples_sent = actual_samples_sent;
+            cached_samples_to_retain = previous_nsamps_in_cache - cached_samples_sent;
+
             // If fewer samples were sent than were in the cache move the remaining samples to front of the cache
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                memmove(ch_send_buffer_info_group[ch_i].sample_cache.data(), ch_send_buffer_info_group[ch_i].sample_cache.data() + actual_samples_sent, (previous_cached_nsamps - actual_samples_sent) * _bytes_per_sample);
+                memmove(ch_send_buffer_info_group[ch_i].sample_cache.data(), ch_send_buffer_info_group[ch_i].sample_cache.data() + actual_samples_sent, cached_samples_to_retain * _bytes_per_sample);
             }
-            cached_samples_sent = actual_samples_sent;
-            cached_nsamps = previous_cached_nsamps - actual_samples_sent;
         } else if(actual_samples_sent < actual_nsamps_to_send) {
             // If not the samples meant to actually be sent were sent, clear the cache and do not cache any samples
             // The sample cache is meant to handle the case where the send was successful, but the number of samples the user requested isn't a multiple of the required amount
             // Since in this case the send didn't send all the intended samples anyway, we don't need to bother with the cache
-            cached_nsamps = 0;
-            cached_samples_sent = 0;
+            actual_nsamples_to_cache = 0;
+            cached_samples_sent = previous_nsamps_in_cache;
+            cached_samples_to_retain = 0;
         }
         else if(actual_samples_sent == actual_nsamps_to_send) {
+            actual_nsamples_to_cache = desired_nsamps_to_cache;
+            cached_samples_sent = previous_nsamps_in_cache;
+            cached_samples_to_retain = 0;
             // Since send was fully successful, copy samples that couldn't be sent this send due to limitations on packet sizing to the cache
-            if(nsamps_to_cache > 0) {
+            if(desired_nsamps_to_cache > 0) {
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                    memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + ((actual_samples_sent - cached_nsamps) * _bytes_per_sample), nsamps_to_cache * _bytes_per_sample);
+                    memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + ((actual_samples_sent - cached_samples_sent) * _bytes_per_sample), actual_nsamples_to_cache * _bytes_per_sample);
                 }
             }
-            cached_samples_sent = previous_cached_nsamps;
-            cached_nsamps = nsamps_to_cache;
         } else {
             fprintf(stderr, "ERROR, more samples sent than intended. This should be impossible, contact support\n");
             // Reaching here should be impossible, these values don't matter
+            actual_nsamples_to_cache = 0;
             cached_samples_sent = 0;
-            cached_nsamps = 0;
+            cached_samples_to_retain = 0;
         }
 
-        // Returns number of samples sent + any samples added to the cache this send - samples from the cache in the previous send
-        return actual_samples_sent + cached_nsamps - cached_samples_sent;
+        // Update number of samples in cache count
+        nsamps_in_cache = previous_nsamps_in_cache - cached_samples_sent + actual_nsamples_to_cache;
+
+        // Return number of samples actually sent
+        return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
     }
 
     void set_samp_rate(const double rate) {
@@ -312,9 +331,9 @@ private:
 
     const double _TICK_RATE;
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
-    size_t cached_nsamps = 0;
+    size_t nsamps_in_cache = 0;
     // Number of cached_samples dropped during the last EOB, resets after printing warning to user
-    size_t dropped_cached_nsamps = 0;
+    size_t dropped_nsamps_in_cache = 0;
 
     double _sample_rate = 0;
 
@@ -496,14 +515,14 @@ private:
             ch_send_buffer_info_group[ch_i].iovecs[0].iov_len = HEADER_SIZE;
             // Cached samples
             ch_send_buffer_info_group[ch_i].iovecs[1].iov_base = ch_send_buffer_info_group[ch_i].sample_cache.data();
-            ch_send_buffer_info_group[ch_i].iovecs[1].iov_len = cached_nsamps * _bytes_per_sample;
+            ch_send_buffer_info_group[ch_i].iovecs[1].iov_len = nsamps_in_cache * _bytes_per_sample;
             // Samples
             // iovecs.iov_base is const for all practical purposes, const_cast is used to allow it to use data from the buffer which is const
             ch_send_buffer_info_group[ch_i].iovecs[2].iov_base = const_cast<void*>(ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[0]);
             if(num_packets > 1) {
-                ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET - (cached_nsamps * _bytes_per_sample);
+                ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = _MAX_SAMPLE_BYTES_PER_PACKET - (nsamps_in_cache * _bytes_per_sample);
             } else {
-                ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = (samples_in_last_packet - cached_nsamps) * _bytes_per_sample;
+                ch_send_buffer_info_group[ch_i].iovecs[2].iov_len = (samples_in_last_packet - nsamps_in_cache) * _bytes_per_sample;
             }
 
             ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_iov = &ch_send_buffer_info_group[ch_i].iovecs[0];
@@ -694,10 +713,10 @@ private:
 
         // Record amount of samples dropped so that user may be informed of it if they start a new stream
         // Don't print warning about dropped samples here because it often results in umimportant warnings
-        dropped_cached_nsamps = cached_nsamps;
+        dropped_nsamps_in_cache = nsamps_in_cache;
 
         // Drop any samples in the cache, since otherwise they would be added to the next burst
-        cached_nsamps = 0;
+        nsamps_in_cache = 0;
 
         // Sends the eob packet
         send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, eob_md, timeout, true);
