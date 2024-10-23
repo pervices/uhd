@@ -349,6 +349,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 #ifdef DEBUG_TX_WAVE
             std::cout << "Sending samples" << std::endl;
 #endif
+            std::cout << "std::to_string(*buffs[0]): " << std::to_string(buffs[0]->real()) << std::endl;
             //this statement will block until the data is sent
             //send the entire contents of the buffer
             num_acc_samps += tx_stream->send(buffs, nsamps_this_send, md);
