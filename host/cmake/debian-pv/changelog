@@ -1,3 +1,10 @@
+uhdpv (4.4.0.45-0ubuntu1) ubuntu_release; urgency=medium
+
+  * SEND: fixing discontinuties caused by irregular samples per buffer
+  * TX_WAVEFORMS: added option to randomize samples per buffer for debugging purposes
+
+ -- Per Vices <packages@pervices.com>  Wed, 23 Oct 2024 14:13:55 -0400
+
 uhdpv (4.4.0.44-0ubuntu1) ubuntu_release; urgency=medium
 
   * RECV: improve performance reliability. Rx overflows should be less likely and be recovered from better
