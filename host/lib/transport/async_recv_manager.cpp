@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <immintrin.h>
 
 namespace uhd { namespace transport {
 
@@ -216,7 +217,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
             (*buffer_write_count)++;
         }
 
-        // Fence to ensure buffer_write_count is set to an off number before recvmmsg
+        // Write fence to ensure buffer_write_count is set to an odd number before recvmmsg
+        // _mm_sfence is faster than atomic_thread_fence
         _mm_sfence();
 
         // Receives any packets already in the buffer
@@ -228,20 +230,15 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool update_counts = packets_received & local_flush_complete[ch];
 
-        // TMP fence to ensure recvmmsg writes are complete before updating access_num_packets_stored
-        // TODO: Remove once buffer_write_count is used by the consumer thread
-        _mm_sfence();
-
         // Set counter for number of packets stored
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
-        // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
+        // Write fence to ensure recvmmsg writes and setting access_num_packets_stored are updated before buffer_write_count
+        // _mm_sfence is faster than atomic_thread_fence
         _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         (*buffer_write_count)+= update_counts;
-
-        // TODO: consider fence here to ensure buffer_write_count is done in a timely manor
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
