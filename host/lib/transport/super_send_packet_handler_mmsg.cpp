@@ -549,7 +549,7 @@ private:
             ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_controllen = 0;
 
             // Sets up iovecs and msg for packets 1 to n -1
-            for(int n = 0; n < num_packets - 1; n++) {
+            for(int n = 1; n < num_packets - 1; n++) {
                 // VRT Header
                 ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n].data();
                 ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)].iov_len = HEADER_SIZE;
