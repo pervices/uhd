@@ -502,9 +502,14 @@ private:
             }
         }
 
+        // Figures out where in the user provided buffer each packet should get data from
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-            for(int n = 0; n < num_packets; n++) {
-                ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n] = (uint8_t*)(sample_buffs[ch_i]) + (n * _MAX_SAMPLE_BYTES_PER_PACKET);
+            // Get data from the start of the buffer for the first packet
+            // Impact of the cached samples is handled later by making adding cache to the iovec before the buffer
+            ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[0] = (uint8_t*)(sample_buffs[ch_i]);
+            // For every other packet get data from (buffer start) + (packet_number * packet data length), the subtract samples
+            for(int n = 1; n < num_packets; n++) {
+                ch_send_buffer_info_group[ch_i].sample_data_start_for_packet[n] = (uint8_t*)(sample_buffs[ch_i]) + (n * _MAX_SAMPLE_BYTES_PER_PACKET) - (nsamps_in_cache * _bytes_per_sample);
             }
         }
 
@@ -535,7 +540,7 @@ private:
             ch_send_buffer_info_group[ch_i].msgs[0].msg_hdr.msg_controllen = 0;
 
             // Sets up iovecs and msg for packets 1 to n -1
-            for(int n = 0; n < num_packets - 1; n++) {
+            for(int n = 1; n < num_packets - 1; n++) {
                 // VRT Header
                 ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)].iov_base = ch_send_buffer_info_group[ch_i].vrt_headers[n].data();
                 ch_send_buffer_info_group[ch_i].iovecs[1+(2*n)].iov_len = HEADER_SIZE;
