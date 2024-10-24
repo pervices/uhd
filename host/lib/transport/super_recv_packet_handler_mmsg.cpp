@@ -320,8 +320,7 @@ public:
                 }
             }
 
-             metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
-             return 0;
+            // Issue after here
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
@@ -355,13 +354,16 @@ public:
 
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
                 // If buffer_write_count changed while getting header info
-                // if(post_header_copied_buffer_write_count != initial_buffer_write_count[ch]) {
-                //     mid_header_read_header_overwrite = true;
-                //     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
-                //     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
-                //     recv_manager->reset_buffer_read_head(ch);
-                // }
+                if(post_header_copied_buffer_write_count != initial_buffer_write_count[ch]) {
+                    mid_header_read_header_overwrite = true;
+                    // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
+                    // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
+                    recv_manager->reset_buffer_read_head(ch);
+                }
             }
+
+            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+            return 0;
 
             // Restart loop since buffers may have been modified when headers were being processed
             // if(mid_header_read_header_overwrite) {
