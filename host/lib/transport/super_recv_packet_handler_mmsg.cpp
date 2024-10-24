@@ -362,14 +362,13 @@ public:
                 }
             }
 
+            // Restart loop since buffers may have been modified when headers were being processed
+            if(mid_header_read_header_overwrite) {
+                continue;
+            }
+
             metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
             return 0;
-
-            // Restart loop since buffers may have been modified when headers were being processed
-            // if(mid_header_read_header_overwrite) {
-            //     printf("T1\n");
-            //     continue;
-            // }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
