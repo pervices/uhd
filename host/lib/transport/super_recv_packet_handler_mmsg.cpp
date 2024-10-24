@@ -392,8 +392,7 @@ public:
                 }
             }
 
-            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
-            return 0;
+            // AFTER HERE
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
                 print_overflow_message();
@@ -425,6 +424,9 @@ public:
                 // Reset realignment attempt counter
                 realignment_attempts = 0;
             }
+
+            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+            return 0;
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
             size_t samples_to_consume = 0;
