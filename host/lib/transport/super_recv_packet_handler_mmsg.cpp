@@ -205,8 +205,14 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        size_t tmp = ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET)
+        if(tmp) {
+            printf("nsamps_per_buff: %lu\n", nsamps_per_buff);
+            printf("_BYTES_PER_SAMPLE: %lu\n", _BYTES_PER_SAMPLE);
+            printf("_MAX_SAMPLE_BYTES_PER_PACKET: %lu\n", _MAX_SAMPLE_BYTES_PER_PACKET);
+        }
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
-        _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
+        _suboptimal_spb |= tmp;
         return multi_ch_recv(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
