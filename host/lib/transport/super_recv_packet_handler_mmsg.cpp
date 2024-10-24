@@ -217,6 +217,7 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        printf("T1\n");
         // Clears the metadata struct
         // Reponsible for setting error_code to none, has_time_spec to false and eob to false
         metadata.reset();
@@ -254,6 +255,8 @@ public:
 
         size_t samples_received = 0;
 
+        printf("T2\n");
+
         // Withdraw samples from the cache
         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
             if(_num_cached_samples[ch]) {
@@ -288,6 +291,8 @@ public:
         const size_t max_realignment_attempts = 100;
         size_t realignment_attempts = 0;
 
+        printf("T3\n");
+
         // Main receive loop
         while(samples_received < nsamps_per_buff) [[likely]] {
             bool overflow_detected = false;
@@ -312,6 +317,7 @@ public:
                     // _mm_pause();
                 }
             }
+            printf("T4\n");
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
