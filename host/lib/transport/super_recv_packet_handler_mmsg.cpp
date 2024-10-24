@@ -367,9 +367,6 @@ public:
                 continue;
             }
 
-            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
-            return 0;
-
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr, vita_md[ch]);
@@ -394,6 +391,9 @@ public:
                     overflow_detected = true;
                 }
             }
+
+            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+            return 0;
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
                 print_overflow_message();
