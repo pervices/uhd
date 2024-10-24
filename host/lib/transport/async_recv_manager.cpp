@@ -239,6 +239,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         (*buffer_write_count)+= update_counts;
 
+        // Write fence to ensure buffer_write_count is updated in a timely manor
+        // atomic_thread_fence is faster _mm_lfence, assuming it is also faster than sfence
+        std::atomic_thread_fence(std::memory_order_release);
+
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
