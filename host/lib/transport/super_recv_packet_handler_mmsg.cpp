@@ -1173,7 +1173,7 @@ public:
     {
         // Set flag for if the user ever requested a subopitmal number of samples per buffer
         return recv_packet_handler_mmsg::recv(
-            buffs, nsamps_per_buff, metadata, timeout, one_packet);
+            buffs, nsamps_per_buff, metadata, 1000, one_packet);
     }
 
     UHD_INLINE size_t get_num_channels(void) const{
