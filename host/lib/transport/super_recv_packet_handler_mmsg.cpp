@@ -225,14 +225,13 @@ public:
         struct packet_info{
             // Buffer to store copy of Vita header of a packet
             // A copy is created instead of using a pointer to avoid issues with the header being overwriten while being unpacked
-            std::vector<uint8_t> packet_hdr;
+            uint8_t packet_hdr[16];
             // Pointer to the start of samples in the packet
             uint8_t* packet_samples;
             // Length of the packet received (usually does not include the trailers)
             uint_fast32_t packet_length;
 
             packet_info(const size_t header_size) :
-            packet_hdr(std::vector<uint8_t>(header_size, 0)),
             packet_samples(nullptr),
             packet_length(0)
             {
@@ -332,7 +331,7 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
-                memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
+                memcpy(packet_infos[ch].packet_hdr, recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
 
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
@@ -361,7 +360,7 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
-                if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr.data(), vita_md[ch]);
+                if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr, vita_md[ch]);
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
