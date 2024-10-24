@@ -237,8 +237,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        // local_buffer_write_count[b[ch]][ch] += update_counts;
-        // *buffer_write_count = local_buffer_write_count[b[ch]][ch];
+        local_buffer_write_count[b[ch]][ch] += update_counts;
+        *buffer_write_count = local_buffer_write_count[b[ch]][ch];
 
         _mm_sfence();
 

@@ -320,6 +320,9 @@ public:
                 }
             }
 
+             metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+             return 0;
+
             // Check if timeout occured
             // TODO: refactor to reduce branching
             if(ch < _NUM_CHANNELS) [[unlikely]] {
