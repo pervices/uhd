@@ -244,7 +244,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         local_buffer_write_count[b[ch]][ch] += update_counts;
         *buffer_write_count = local_buffer_write_count[b[ch]][ch];
 
-        // _mm_sfence();
+        _mm_sfence();
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
