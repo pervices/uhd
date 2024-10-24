@@ -425,8 +425,7 @@ public:
                 realignment_attempts = 0;
             }
 
-            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
-            return 0;
+            // AFTER HERE
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
             size_t samples_to_consume = 0;
@@ -470,6 +469,9 @@ public:
                 //     recv_manager->reset_buffer_read_head(ch);
                 // }
             }
+
+            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+            return 0;
 
             // Restart recv loop since the packets was overwritten while copying data from the provider buffer
             // if(mid_header_read_data_overwrite) {
