@@ -205,7 +205,7 @@ public:
         const double timeout,
         const bool one_packet)
     {
-        size_t tmp = ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET)
+        size_t tmp = ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
         if(tmp) {
             printf("nsamps_per_buff: %lu\n", nsamps_per_buff);
             printf("_BYTES_PER_SAMPLE: %lu\n", _BYTES_PER_SAMPLE);
