@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <sys/syscall.h>
-#include <immintrin.h>
 
 namespace uhd { namespace transport {
 
