@@ -492,8 +492,7 @@ public:
                 recv_manager->advance_packet(ch);
             }
 
-            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
-            return 0;
+            // AFTER HERE
 
             // Set the timepec to that of the first packet received if not already set from the cache
             // They should be equal to the only the first channel's is used
@@ -508,6 +507,9 @@ public:
 
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
+
+            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+            return 0;
 
             // Record how many samples have been copied to the buffer, will be the same for all channels
             samples_received += samples_to_consume;
