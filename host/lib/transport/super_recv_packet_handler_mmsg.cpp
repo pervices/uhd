@@ -207,7 +207,7 @@ public:
     {
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
         _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
-        return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
+        return multi_ch_recv(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
     // Function used to receive data for multiple channels
