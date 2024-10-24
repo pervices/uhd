@@ -217,7 +217,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Write fence to ensure buffer_write_count is set to an odd number before recvmmsg
         // _mm_sfence is faster than atomic_thread_fence
-        _mm_sfence();
+        // _mm_sfence();
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
@@ -235,12 +235,12 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Write fence to ensure recvmmsg writes and setting access_num_packets_stored are updated before buffer_write_count
         // _mm_sfence is faster than atomic_thread_fence
-        _mm_sfence();
+        // _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         (*buffer_write_count)+= update_counts;
 
-        _mm_sfence();
+        // _mm_sfence();
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
