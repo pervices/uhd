@@ -201,11 +201,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
-    uint_fast8_t main_thread_slow = 0;
-
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
-        main_thread_slow = main_thread_slow || !packets_to_recv;
 
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
         int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
@@ -255,17 +252,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         ch++;
         ch = ch * !(ch >= num_ch);
 
-        // TODO: remove this once the provider thread checks it
-        // Get packets_to_recv to give as much distance between when it is requested and needed
-        // Essentially a prefetch but unlike _mm_prefetch, this helps performance
-        packets_to_recv = (!(*self->access_num_packets_stored(ch, ch_offset, b[ch]))) * self->packets_per_buffer;
-
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
-    }
-
-    if(main_thread_slow) {
-        UHD_LOGGER_DEBUG("ASYNC_RECV_MANAGER") << "Provider thread slowed down by consumer thread. Reduce the time between recv calls if you are experiencing overflows";
     }
 
     if(error_code) {
