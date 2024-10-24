@@ -435,6 +435,7 @@ public:
 
             // Copies sample data from the provider buffer to the user buffer
             // NOTE: do not update variables stored between runs in this loop, since the results will need to be discarded if data was overwritten
+            // TODO: see if commenting this out solves the issue
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
@@ -470,14 +471,13 @@ public:
                 // }
             }
 
-            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
-            return 0;
+            // AFTER HERE
 
             // Restart recv loop since the packets was overwritten while copying data from the provider buffer
-            // if(mid_header_read_data_overwrite) {
-            //     printf("T2\n");
-            //     continue;
-            // }
+            if(mid_header_read_data_overwrite) {
+                printf("T2\n");
+                continue;
+            }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Update number of cached samples
@@ -491,6 +491,9 @@ public:
                 // Moves to the next packet
                 recv_manager->advance_packet(ch);
             }
+
+            metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
+            return 0;
 
             // Set the timepec to that of the first packet received if not already set from the cache
             // They should be equal to the only the first channel's is used
