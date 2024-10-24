@@ -116,6 +116,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout = burst_pkt_time + (rx_delay);
 
+    bool error_message_printed = false;
+
     while (true) {
         if (burst_timer_elapsed) {
             rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
@@ -193,10 +195,13 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
                 // Otherwise, it's an error
             default:
-                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                if(!error_message_printed) {
+                    error_message_printed = true;
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << std::endl;
-                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
                           << std::endl;
+                }
                 break;
         }
     }
