@@ -209,16 +209,16 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     while(!self->stop_flag) [[likely]] {
 
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
-        int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
+        // int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
-        local_buffer_write_count[b[ch]][ch]+= (local_buffer_write_count[b[ch]][ch] + 1) & 1;
-        *buffer_write_count = local_buffer_write_count[b[ch]][ch];
+        // local_buffer_write_count[b[ch]][ch]+= (local_buffer_write_count[b[ch]][ch] + 1) & 1;
+        // *buffer_write_count = local_buffer_write_count[b[ch]][ch];
 
         // Write fence to ensure buffer_write_count is set to an odd number before recvmmsg
         // _mm_sfence is faster than atomic_thread_fence
-        _mm_sfence();
+        // _mm_sfence();
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
@@ -239,10 +239,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        local_buffer_write_count[b[ch]][ch] += update_counts;
-        *buffer_write_count = local_buffer_write_count[b[ch]][ch];
+        // local_buffer_write_count[b[ch]][ch] += update_counts;
+        // *buffer_write_count = local_buffer_write_count[b[ch]][ch];
 
-        _mm_sfence();
+        // _mm_sfence();
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
