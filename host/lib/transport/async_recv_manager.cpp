@@ -201,6 +201,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
+    size_t total_packets_received = 0;
+
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
 
@@ -225,10 +227,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool update_counts = packets_received & local_flush_complete[ch];
 
-        // TMP fence to ensure recvmmsg writes are complete before updating access_num_packets_stored
-        // TODO: Remove once buffer_write_count is used by the consumer thread
-        _mm_sfence();
-
         // Set counter for number of packets stored
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
@@ -238,9 +236,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         (*buffer_write_count)+= update_counts;
 
-        _mm_sfence();
+        total_packets_received+= r * update_counts;
 
-        // TODO: consider fence here to ensure buffer_write_count is done in a timely manor
+        // TODO: verify if this fence is really needed
+        _mm_sfence();
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
@@ -256,7 +255,13 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
+
+        if(total_packets_received * 346 > 2768) {
+            break;
+        }
     }
+
+    printf("total_packets_received: %lu\n", total_packets_received);
 
     if(error_code) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(error_code));
