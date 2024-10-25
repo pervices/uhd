@@ -152,12 +152,12 @@ private:
     }
 
     // The buffer currently being used by the consumer thread
-    size_t* active_consumer_buffer;
+    size_t* const active_consumer_buffer;
 
     // Number of packets consumed in the active consumer buffer
     // Accessed only by the consumer thread
     // channel
-    int_fast64_t* num_packets_consumed;
+    int_fast64_t* const num_packets_consumed;
 
     // Buffer containing the threads the receive data
     size_t num_recv_loops;

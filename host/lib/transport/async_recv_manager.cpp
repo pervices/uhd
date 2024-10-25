@@ -37,7 +37,10 @@ _combined_buffer_size(_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
-flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size))
+flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size)),
+// Create buffers used to store control data for the consumer thread
+active_consumer_buffer((size_t* )aligned_alloc(cache_line_size, (size_t) ceil(_num_ch * sizeof(size_t) / (double)cache_line_size) * cache_line_size)),
+num_packets_consumed((int_fast64_t*) aligned_alloc(cache_line_size, (size_t) ceil(_num_ch * sizeof(int_fast64_t) / (double)cache_line_size) * cache_line_size))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -48,14 +51,6 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
     if(_combined_buffer == nullptr) {
         throw uhd::environment_error( "aligned_alloc failed for internal buffers" );
     }
-
-    // Create buffers used to store control data for the consumer thread
-    size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
-    active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)cache_line_size) * cache_line_size;
-    active_consumer_buffer = (size_t* )aligned_alloc(cache_line_size, active_consumer_buffer_size);
-    size_t num_packets_consumed_size = _num_ch * sizeof(int_fast64_t);
-    num_packets_consumed_size = (size_t) ceil(num_packets_consumed_size / (double)cache_line_size) * cache_line_size;
-    num_packets_consumed = (int_fast64_t*) aligned_alloc(cache_line_size, num_packets_consumed_size);
 
     // Initialize control variables to 0
     for(size_t ch = 0; ch < _num_ch; ch++) {
