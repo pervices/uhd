@@ -78,6 +78,7 @@ num_packets_consumed((int_fast64_t*) aligned_alloc(cache_line_size, (size_t) cei
     }
 
     int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
+    ch_per_thread = 1;
 
     num_recv_loops = (size_t) std::ceil( _num_ch / (double) ch_per_thread );
 
