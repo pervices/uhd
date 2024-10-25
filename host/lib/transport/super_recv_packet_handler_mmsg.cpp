@@ -396,6 +396,8 @@ public:
                         printf("previous_sequence_number: %lu\n", vita_md[ch].packet_count);
                         printf("vita_md[ch].tsf: %lu\n", vita_md[ch].tsf);
                         printf("tsf_cache: %lu\n", tsf_cache);
+                        printf("initial_buffer_write_count[ch]: %li\n", initial_buffer_write_count[ch]);
+                                                printf("_previous_buffer_write_count[ch]: %lu\n", _previous_buffer_write_count[ch]);
                         detailed_overflow_message_printed = true;
                     }
 
