@@ -214,6 +214,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
+        // TODO: make branchless
         if(!(buffer_writes_count[ch] & 1)) {
             buffer_writes_count[ch]++;
             *buffer_write_count = buffer_writes_count[ch];
@@ -240,14 +241,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         buffer_writes_count[ch] += update_counts;
         *buffer_write_count = buffer_writes_count[ch];
-        if(update_counts) {
-            printf("r %i\n", r);
-        }
 
         total_packets_received+= r * update_counts;
-
-        // TODO: verify if this fence is really needed
-        _mm_sfence();
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
@@ -263,10 +258,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
-
-        if(total_packets_received * 346 > 2768) {
-            break;
-        }
     }
 
     printf("total_packets_received: %lu\n", total_packets_received);
