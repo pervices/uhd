@@ -204,6 +204,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
         int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
 
+        if(*buffer_write_count > 1) {
+            printf("*buffer_write_count: %li\n", *buffer_write_count);
+            break;
+        }
+
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
         *buffer_write_count +=(*buffer_write_count + 1) & 1;
