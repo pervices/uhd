@@ -392,8 +392,6 @@ public:
                 }
             }
 
-            // AFTER HERE
-
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
                 print_overflow_message();
 
@@ -425,8 +423,6 @@ public:
                 realignment_attempts = 0;
             }
 
-            // AFTER HERE
-
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
             size_t samples_to_consume = 0;
             bool mid_header_read_data_overwrite = false;
@@ -435,11 +431,12 @@ public:
 
             // Copies sample data from the provider buffer to the user buffer
             // NOTE: do not update variables stored between runs in this loop, since the results will need to be discarded if data was overwritten
-            // TODO: see if commenting this out solves the issue
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
+                    printf("packet_sample_bytes: %lu\n", packet_sample_bytes);
+                    printf("vita_md[ch].num_payload_bytes: %lu\n", vita_md[ch].num_payload_bytes);
                     UHD_LOGGER_ERROR("STREAMER") << "Mismatch in sample count between packets";
 
                     // Something is wrong with the packets if there is a mismatch in size and no other error has occured
@@ -492,8 +489,6 @@ public:
                 recv_manager->advance_packet(ch);
             }
 
-            // AFTER HERE
-
             // Set the timepec to that of the first packet received if not already set from the cache
             // They should be equal to the only the first channel's is used
             if(!metadata.has_time_spec) {
@@ -507,8 +502,6 @@ public:
 
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
-
-            // AFTER HERE
 
             // Record how many samples have been copied to the buffer, will be the same for all channels
             samples_received += samples_to_consume;
