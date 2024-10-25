@@ -309,8 +309,6 @@ public:
                 initial_buffer_write_count[ch] = recv_manager->get_buffer_write_count(ch);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                 if((initial_buffer_write_count[ch] > _previous_buffer_write_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_write_count[ch] & 1)) {
-                    // Create copy of header for this packet
-                    memcpy(packet_infos[ch].packet_hdr, recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
@@ -319,8 +317,6 @@ public:
                     // _mm_pause();
                 }
             }
-
-            // Issue after here
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
@@ -342,6 +338,8 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
+                // Create copy of header and other values for this packet to avoid risk of them being overwritten while processing
+                memcpy(packet_infos[ch].packet_hdr, recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
