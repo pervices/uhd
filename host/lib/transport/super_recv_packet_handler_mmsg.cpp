@@ -383,7 +383,15 @@ public:
                 realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
 
                 // Detect and warn user of overflow error
+                // TODO check if vita_md[ch].tsf != 0 can be removed, that might've been a workaround for an FPGA issue
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
+                    if(!detailed_overflow_message_printed) {
+                        printf("vita_md[ch].packet_count: %lu\n", vita_md[ch].packet_count);
+                        printf("previous_sequence_number: %lu\n", vita_md[ch].packet_count);
+                        printf("vita_md[ch].tsf: %lu\n", vita_md[ch].tsf);
+                        detailed_overflow_message_printed = true;
+                    }
+
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     _overflow_occured = true;
                     overflow_detected = true;
@@ -1137,6 +1145,8 @@ private:
 
         return aligned_bytes;
     }
+
+    bool detailed_overflow_message_printed = false;
 
     void print_overflow_message() {
         // Warn user that an overflow occured
