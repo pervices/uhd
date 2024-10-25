@@ -235,6 +235,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         (*buffer_write_count)+= update_counts;
+        if(update_counts) {
+            printf("r %i\n", r);
+        }
 
         total_packets_received+= r * update_counts;
 
