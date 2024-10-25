@@ -236,6 +236,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
+        // DEBUG: exit after receiving one packet's worth of data
+        if(b[ch] = 0 && total_packets_received > 0) {
+            break;
+        }
+
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
