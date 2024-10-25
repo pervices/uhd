@@ -244,7 +244,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
         // DEBUG: exit after receiving one packet's worth of data
-        if(b[ch] = 0 && total_packets_received > 0) {
+        if(b[ch] == 0 && total_packets_received > 0) {
             break;
         }
 
