@@ -204,7 +204,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
         int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
 
-        if(*buffer_write_count > 1) {
+        if(*buffer_write_count > 3) {
             printf("ch: %lu\n", ch);
             printf("b[ch]: %lu\n", b[ch]);
             printf("*buffer_write_count: %li\n", *buffer_write_count);
@@ -242,11 +242,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
-
-        // DEBUG: exit after receiving one packet's worth of data
-        if(b[ch] == 0 && total_packets_received > 0) {
-            break;
-        }
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
