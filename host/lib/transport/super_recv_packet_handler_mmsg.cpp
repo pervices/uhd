@@ -309,6 +309,9 @@ public:
                 initial_buffer_write_count[ch] = recv_manager->get_buffer_write_count(ch);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                 if((initial_buffer_write_count[ch] > _previous_buffer_write_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_write_count[ch] & 1)) {
+                    if(initial_buffer_write_count[ch] < _previous_buffer_write_count[ch]) {
+                        throw assertion_error("Consumer thread reading ahead of provider thread");
+                    }
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
