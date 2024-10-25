@@ -490,6 +490,10 @@ public:
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
 
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                _previous_buffer_write_count[ch] = initial_buffer_write_count[ch];
+            }
+
             // Record how many samples have been copied to the buffer, will be the same for all channels
             samples_received += samples_to_consume;
 
