@@ -389,6 +389,7 @@ public:
                         printf("vita_md[ch].packet_count: %lu\n", vita_md[ch].packet_count);
                         printf("previous_sequence_number: %lu\n", vita_md[ch].packet_count);
                         printf("vita_md[ch].tsf: %lu\n", vita_md[ch].tsf);
+                        printf("tsf_cache: %lu\n", tsf_cache);
                         detailed_overflow_message_printed = true;
                     }
 
@@ -473,8 +474,6 @@ public:
                     recv_manager->reset_buffer_read_head(ch);
                 }
             }
-
-            // AFTER HERE
 
             // Restart recv loop since the packets was overwritten while copying data from the provider buffer
             if(mid_header_read_data_overwrite) {
