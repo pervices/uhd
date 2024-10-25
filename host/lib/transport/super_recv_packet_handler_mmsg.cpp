@@ -79,7 +79,7 @@ public:
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _recv_sockets(recv_sockets),
-    _previous_buffer_write_count(_NUM_CHANNELS, 0),
+    _previous_buffer_writes_count(_NUM_CHANNELS, 0),
     _intermediate_recv_buffer_pointers(_NUM_CHANNELS),
     _intermediate_recv_buffer_wrapper(_intermediate_recv_buffer_pointers.data(), _NUM_CHANNELS),
     _num_cached_samples(_NUM_CHANNELS, 0),
@@ -295,14 +295,14 @@ public:
             bool realignment_required = false;
 
             // Stores buffer_write_count from when the packet was obtained
-            std::vector<int_fast64_t> initial_buffer_write_count(_NUM_CHANNELS);
+            std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
 
             size_t ch = 0;
             // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
-                initial_buffer_write_count[ch] = recv_manager->get_buffer_write_count(ch);
+                initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
-                if((initial_buffer_write_count[ch] > _previous_buffer_write_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_write_count[ch] & 1)) {
+                if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
@@ -346,7 +346,7 @@ public:
 
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
                 // If buffer_write_count changed while getting header info
-                if(post_header_copied_buffer_write_count != initial_buffer_write_count[ch]) {
+                if(post_header_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_header_overwrite = true;
                     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
                     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
@@ -450,7 +450,7 @@ public:
 
                 int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
                 // If buffer_write_count changed while copying data
-                if(post_data_copied_buffer_write_count != initial_buffer_write_count[ch]) {
+                if(post_data_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_data_overwrite = true;
                     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
                     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
@@ -489,6 +489,10 @@ public:
 
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                _previous_buffer_writes_count[ch] = initial_buffer_writes_count[ch];
+            }
 
             // Record how many samples have been copied to the buffer, will be the same for all channels
             samples_received += samples_to_consume;
@@ -632,8 +636,8 @@ private:
 
     size_t previous_sequence_number = 0;
 
-    // Value of buffer_write_count  during the last recv call
-    std::vector<int_fast64_t> _previous_buffer_write_count;
+    // Value of buffer_write_count during the last recv call
+    std::vector<int_fast64_t> _previous_buffer_writes_count;
 
     // TODO: remove once recv_single_ch_sequential is removed
     // Stores information about packets received for each channel
