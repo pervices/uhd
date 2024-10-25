@@ -205,6 +205,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
 
         if(*buffer_write_count > 1) {
+            printf("ch: %lu\n", ch);
+            printf("b[ch]: %lu\n", b[ch]);
             printf("*buffer_write_count: %li\n", *buffer_write_count);
             break;
         }
