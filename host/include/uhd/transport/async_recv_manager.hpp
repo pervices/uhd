@@ -97,7 +97,7 @@ private:
     // ch: channel
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
-    inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b, size_t p) {
+    inline __attribute__((always_inline)) uint8_t* volatile access_packet_data(size_t ch, size_t ch_offset, size_t b, size_t p) {
         return access_packet_data_buffer(ch, ch_offset, b) + (p * _packet_data_size);
     }
 
@@ -111,7 +111,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     // p: packet number
-    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
+    inline __attribute__((always_inline)) mmsghdr* volatile access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
         return (mmsghdr*) (access_mmsghdr_buffer(ch, ch_offset, b) + (p * sizeof(mmsghdr)));
     }
 
@@ -124,7 +124,7 @@ private:
         return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
     }
 
-    inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
+    inline __attribute__((always_inline)) uint8_t* volatile access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
         return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
     }
 
@@ -142,12 +142,12 @@ private:
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
-    inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
+    inline __attribute__((always_inline)) int_fast64_t* volatile access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) access_ch_combined_buffer(ch, ch_offset, b);
     }
 
     // Gets a pointer to a int_fast64_t that stores the number of times a buffer has been written to
-    inline __attribute__((always_inline)) int_fast64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
+    inline __attribute__((always_inline)) int_fast64_t* volatile access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
         return (int_fast64_t*) ((access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size));
     }
 
