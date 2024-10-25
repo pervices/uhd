@@ -361,6 +361,8 @@ public:
                     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
                     if(!detailed_overflow_message_printed) {
                         printf("R1\n");
+                        printf("initial_buffer_write_count[ch]: %li\n", initial_buffer_write_count[ch]);
+                        printf("post_header_copied_buffer_write_count: %li\n", post_header_copied_buffer_write_count);
                         printf("1 tsf_cache: %lu\n", tsf_cache);
                     }
                     recv_manager->reset_buffer_read_head(ch);
