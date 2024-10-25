@@ -463,12 +463,12 @@ public:
 
                 int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
                 // If buffer_write_count changed while copying data
-                // if(post_data_copied_buffer_write_count != initial_buffer_write_count[ch]) {
-                //     mid_header_read_data_overwrite = true;
-                //     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
-                //     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
-                //     recv_manager->reset_buffer_read_head(ch);
-                // }
+                if(post_data_copied_buffer_write_count != initial_buffer_write_count[ch]) {
+                    mid_header_read_data_overwrite = true;
+                    // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
+                    // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
+                    recv_manager->reset_buffer_read_head(ch);
+                }
             }
 
             // AFTER HERE
