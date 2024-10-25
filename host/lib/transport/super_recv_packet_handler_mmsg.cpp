@@ -397,7 +397,7 @@ public:
                         printf("vita_md[ch].tsf: %lu\n", vita_md[ch].tsf);
                         printf("tsf_cache: %lu\n", tsf_cache);
                         printf("initial_buffer_write_count[ch]: %li\n", initial_buffer_write_count[ch]);
-                                                printf("_previous_buffer_write_count[ch]: %lu\n", _previous_buffer_write_count[ch]);
+                            printf("_previous_buffer_write_count[ch]: %lu\n", _previous_buffer_write_count[ch]);
                         detailed_overflow_message_printed = true;
                     }
 
@@ -515,6 +515,10 @@ public:
 
             // Update the sequence number
             previous_sequence_number = vita_md[0].packet_count;
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                _previous_buffer_write_count[ch] = initial_buffer_write_count[ch];
+            }
 
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
