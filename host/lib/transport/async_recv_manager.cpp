@@ -139,12 +139,10 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     int sockets[MAX_CHANNELS];
     // Local copy of flush complete flag so that we never need to read from the shared flag
     uint_fast8_t local_flush_complete[MAX_CHANNELS];
-    uint_fast8_t local_buffer_write_count[NUM_BUFFERS][MAX_CHANNELS];
     for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
         sockets[ch] = sockets_[ch];
         b[ch] = 0;
         local_flush_complete[ch] = 0;
-        memset(local_buffer_write_count, 0, sizeof(local_buffer_write_count));
     }
 
     // Set the socket's affinity, improves speed and reliability
@@ -208,8 +206,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
-        local_buffer_write_count[b[ch]][ch]+= ((local_buffer_write_count[b[ch]][ch] + 1) & 1);
-        *buffer_write_count = local_buffer_write_count[b[ch]][ch];
+        *buffer_write_count +=(*buffer_write_count + 1) & 1;
 
         // Write fence to ensure buffer_write_count is set to an odd number before recvmmsg
         _mm_sfence();
@@ -232,8 +229,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        local_buffer_write_count[b[ch]][ch] += update_counts;
-        *buffer_write_count = local_buffer_write_count[b[ch]][ch];
+        *buffer_write_count += update_counts;
 
         _mm_sfence();
 
