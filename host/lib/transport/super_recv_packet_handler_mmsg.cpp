@@ -75,7 +75,7 @@ public:
     _NUM_CHANNELS(recv_sockets.size()),
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     // TODO: select based on number of channels
-    _optimized_recv((_NUM_CHANNELS != 1) ? &uhd::transport::sph::recv_packet_handler_mmsg::multi_ch_recv : &uhd::transport::sph::recv_packet_handler_mmsg::recv_single_ch_sequential),
+    _optimized_recv((true /*_NUM_CHANNELS != 1*/) ? &uhd::transport::sph::recv_packet_handler_mmsg::multi_ch_recv : &uhd::transport::sph::recv_packet_handler_mmsg::recv_single_ch_sequential),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _recv_sockets(recv_sockets),
@@ -171,7 +171,7 @@ public:
             cache_line_size = 64;
         }
         // With 1 channel the old method is used which doesn't use the manager
-        if(_NUM_CHANNELS != 1) {
+        if(true /*_NUM_CHANNELS != 1*/) {
             // Create manager for threads that receive data to buffers using placement new to avoid false sharing
             size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)cache_line_size) * cache_line_size;
             recv_manager = (async_recv_manager*) aligned_alloc(cache_line_size, recv_manager_size);
@@ -181,7 +181,7 @@ public:
 
     ~recv_packet_handler_mmsg(void)
     {
-        if(_NUM_CHANNELS != 1) {
+        if(true /*_NUM_CHANNELS != 1*/) {
             // recv_manager must be deleted before closing sockets
             // Destructor must be manually called when using placement new
             recv_manager->~async_recv_manager();
