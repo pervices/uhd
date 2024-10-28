@@ -1,3 +1,10 @@
+uhdpv (4.4.0.46-0ubuntu1) ubuntu_release; urgency=high
+
+  * RECV: fixing regression caused by 4.4.0.44 the degraded performance at high sample rates
+  * RX_MULTI_RATES_TO_FILE: improving default spb
+
+ -- Per Vices <packages@pervices.com>  Mon, 28 Oct 2024 14:13:55 -0400
+
 uhdpv (4.4.0.45-0ubuntu1) ubuntu_release; urgency=medium
 
   * SEND: fixing discontinuties caused by irregular samples per buffer
