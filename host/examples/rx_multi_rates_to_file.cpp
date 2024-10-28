@@ -333,7 +333,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // variables to be set by po
     std::string args, folder, channel_arg, rate_arg, freq_arg, gain_arg, start_delay_arg, nsamp_arg;
-    size_t spb;
+    size_t spb = 0;
 
     // setup the program options
     po::options_description desc("Receives data from device and saves to to file. Supports using different sample rates per channel");
@@ -343,8 +343,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("args", po::value<std::string>(&args)->default_value(""), "uhd device address args")
         ("folder", po::value<std::string>(&folder)->default_value("results"), "name of the file to write binary samples to")
         ("nsamps", po::value<std::string>(&nsamp_arg)->default_value("0"), "total number of samples to receive. Setting this will improve performance. Can be channel specific")
-
-        ("spb", po::value<size_t>(&spb)->default_value(10000), "samples per buffer")
+        ("spb", po::value<size_t>(&spb), "samples per buffer")
         ("rate", po::value<std::string>(&rate_arg)->default_value("1000000"), "rate of incoming samples. Can be channel specific")
         ("freq", po::value<std::string>(&freq_arg)->default_value("0"), "RF center frequency in Hz. Can be channel specific")
         ("gain", po::value<std::string>(&gain_arg)->default_value("0"), "gain for the RF chain. Can be channel specific")
@@ -369,6 +368,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     bool skip_save = vm.count("null");
     bool strict = vm.count("strict");
+
+    bool auto_spb = !vm.count("spb");
 
     // create a usrp device
     std::cout << std::endl;
@@ -481,6 +482,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         rx_stream_args.channels = groups[n].channels;
         uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(rx_stream_args);
         rx_streamers.push_back(rx_stream);
+
+        // Default to 10 packets worth
+        if(auto_spb) {
+            spb = rx_stream->get_max_num_samps()*10;
+        }
 
         receive_threads.emplace_back(std::thread(receive_function, rx_streamers[n].get(), &groups[n], spb, skip_save, strict, continuous_mode, intermediate_fd, current_offset, channels.size(), &num_samples_received[n], &stop_signal_called[n]));
 
