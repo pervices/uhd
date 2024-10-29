@@ -163,7 +163,7 @@ private:
     std::thread* recv_loops;
 
     // Flag used to tell receive threads when to stop
-    uint_fast8_t stop_flag = false;
+    volatile uint_fast8_t stop_flag = false;
 
 public:
 
