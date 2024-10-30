@@ -304,14 +304,9 @@ public:
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
-                if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
-                    // Move onto the next channel since this one is ready
-                    ch++;
-                } else {
-                    // Lets CPU know this is in a spin loop
-                    // Helps performance so the branch predictor doesn't get killed by the loop
-                    // _mm_pause();
-                }
+                bool channel_ready = (initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1);
+                // Move onto the next channel since if this one is ready (bool is always 0 or 1)
+                ch+=channel_ready;
             }
 
             // Check if timeout occured
