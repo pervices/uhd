@@ -386,19 +386,19 @@ public:
                     tmp_msg_printed2 = true;
                 }
 
-                if(!tmp_msg_printed1 && realignment_required) {
-                    for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                        printf("1 vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
-                    }
-                    tmp_msg_printed1 = true;
-                }
-
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     _overflow_occured = true;
                     overflow_detected = true;
                 }
+            }
+
+            if(!tmp_msg_printed1 && realignment_required) {
+                for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                    printf("1 vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
+                }
+                tmp_msg_printed1 = true;
             }
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
