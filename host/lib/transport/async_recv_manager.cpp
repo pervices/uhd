@@ -216,7 +216,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         *buffer_write_count = buffer_writes_count[ch];
 
         // Fence to ensure buffer_write_count is set to an off number before recvmmsg
-        std::atomic_thread_fence(std::memory_order_release);
+        // std::atomic_thread_fence(std::memory_order_release);
 
         // Receives any packets already in the buffer
         const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
@@ -231,7 +231,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
-        std::atomic_thread_fence(std::memory_order_release);
+        // std::atomic_thread_fence(std::memory_order_release);
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         buffer_writes_count[ch] += update_counts;

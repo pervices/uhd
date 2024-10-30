@@ -227,11 +227,11 @@ public:
      */
     inline __attribute__((always_inline)) int_fast64_t get_buffer_write_count(const size_t ch) {
         // Fence to ensure that any loads from the provider thread are complete before buffer_write_count is obtained
-        std::atomic_thread_fence(std::memory_order_acquire);
+        // std::atomic_thread_fence(std::memory_order_acquire);
         size_t b = active_consumer_buffer[ch];
         int_fast64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
         // Fence to ensure buffer_write_count is obtained before any future loads from the provider thread occur
-        std::atomic_thread_fence(std::memory_order_acquire);
+        // std::atomic_thread_fence(std::memory_order_acquire);
         return buffer_write_count;
     }
 
