@@ -446,7 +446,7 @@ public:
                 samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
                 samples_to_cache[ch] = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                convert_samples(buffs[ch], packet_infos[ch].packet_samples, samples_to_consume);
+                // convert_samples(buffs[ch], packet_infos[ch].packet_samples, samples_to_consume);
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache[ch]) [[unlikely]] {
