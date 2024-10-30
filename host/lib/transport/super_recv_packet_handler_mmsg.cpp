@@ -352,7 +352,7 @@ public:
             }
 
             // Restart loop since buffers may have been modified when headers were being processed
-            if(mid_header_read_header_overwrite) {
+            if(mid_header_read_header_overwrite) [[unlikely]] {
                 continue;
             }
 
@@ -465,7 +465,7 @@ public:
             }
 
             // Restart recv loop since the packets was overwritten while copying data from the provider buffer
-            if(mid_header_read_data_overwrite) {
+            if(mid_header_read_data_overwrite) [[unlikely]] {
                 continue;
             }
 
