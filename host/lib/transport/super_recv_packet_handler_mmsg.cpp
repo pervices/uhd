@@ -211,7 +211,6 @@ public:
     }
 
     bool tmp_msg_printed1 = false;
-    bool tmp_msg_printed2 = false;
 
     // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
@@ -378,13 +377,6 @@ public:
 
                 // Set the flag for realignment required if there is a mismatch in timestamps between packets
                 realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
-
-                if(!tmp_msg_printed2) {
-                    for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                        printf("2 vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
-                    }
-                    tmp_msg_printed2 = true;
-                }
 
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
