@@ -210,6 +210,8 @@ public:
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
+    bool tmp_msg_printed = false;
+
     // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
@@ -376,6 +378,13 @@ public:
                 // Set the flag for realignment required if there is a mismatch in timestamps between packets
                 realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
 
+                if(!tmp_msg_printed && realignment_required) {
+                    for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                        printf("vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
+                    }
+                    tmp_msg_printed = true;
+                }
+
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
@@ -390,6 +399,8 @@ public:
                 // Flag to prevent printing the message once per recv call
                 oflow_message_printed = true;
             }
+
+
 
             if(realignment_required) [[unlikely]] {
                 if(realignment_attempts >= max_realignment_attempts) {
