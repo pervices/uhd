@@ -210,7 +210,8 @@ public:
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
-    bool tmp_msg_printed = false;
+    bool tmp_msg_printed1 = false;
+    bool tmp_msg_printed2 = false;
 
     // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
@@ -378,11 +379,18 @@ public:
                 // Set the flag for realignment required if there is a mismatch in timestamps between packets
                 realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
 
-                if(!tmp_msg_printed && realignment_required) {
+                if(!tmp_msg_printed2) {
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                        printf("vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
+                        printf("2 vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
                     }
-                    tmp_msg_printed = true;
+                    tmp_msg_printed2 = true;
+                }
+
+                if(!tmp_msg_printed1 && realignment_required) {
+                    for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                        printf("1 vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
+                    }
+                    tmp_msg_printed1 = true;
                 }
 
                 // Detect and warn user of overflow error
