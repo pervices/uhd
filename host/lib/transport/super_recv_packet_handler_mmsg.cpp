@@ -210,8 +210,6 @@ public:
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
-    bool tmp_msg_printed1 = false;
-
     // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
@@ -379,13 +377,6 @@ public:
                     _overflow_occured = true;
                     overflow_detected = true;
                 }
-            }
-
-            if(!tmp_msg_printed1 && realignment_required) {
-                for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                    printf("1 vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
-                }
-                tmp_msg_printed1 = true;
             }
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
