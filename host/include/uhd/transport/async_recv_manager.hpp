@@ -227,8 +227,6 @@ public:
     inline __attribute__((always_inline)) int_fast64_t get_buffer_write_count(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
         int_fast64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
-        // Fence to ensure buffer_write_count is obtained before any future loads from the provider thread occur
-        _mm_lfence();
         return buffer_write_count;
     }
 
