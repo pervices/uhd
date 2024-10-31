@@ -19,9 +19,6 @@ class async_recv_manager {
 
 private:
 
-    // (1 / this) is the maximum portion of CPU cores that can be used by this program
-    static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
-
     static constexpr size_t MAX_CHANNELS = 16;
 
     // Number of buffers per ch
