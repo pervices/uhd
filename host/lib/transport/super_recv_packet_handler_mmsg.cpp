@@ -297,19 +297,20 @@ public:
             // Stores buffer_write_count from when the packet was obtained
             std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
 
-            size_t ch = 0;
+            size_t channels_ready = 0;
             // While not all channels have been obtained and timeout has not been reached
-            while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
-                initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
-                // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
-                bool channel_ready = (initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1);
-                // Move onto the next channel since if this one is ready (bool is always 0 or 1)
-                ch+=channel_ready;
+            while(channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
+                channels_ready = 0;
+                for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                    initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
+                // (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
+                    channels_ready += (initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1);
+                }
             }
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
-            if(ch < _NUM_CHANNELS) [[unlikely]] {
+            if(channels_ready < _NUM_CHANNELS) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
                     return samples_received;
