@@ -27,37 +27,37 @@ private:
     // TODO: improve single channel performance with a higher number of buffers
     static constexpr size_t NUM_BUFFERS = 16384;
 
-    const uint_fast32_t _num_ch;
+    const uint64_t _num_ch;
 
-    const uint_fast32_t cache_line_size;
+    const uint64_t cache_line_size;
 
-    const uint_fast32_t page_size;
+    const uint64_t page_size;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_uint_fast8_t_size;
+    const uint64_t padded_uint_fast8_t_size;
 
-    // Size of int_fast64_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_int_fast64_t_size;
+    // Size of int64_t + padding so it takes a whole number of cache lines
+    const uint64_t padded_int64_t_size;
 
 
     // Vita header size
-    const uint_fast32_t _header_size;
+    const uint64_t _header_size;
 
     // TODO: see if padding the vita header is actually usefull
     // Size of Vita header + padding to be on it's own cache line
-    const uint_fast32_t _padded_header_size;
+    const uint64_t _padded_header_size;
 
     // Size of the sample portion of Vita packets
-    const uint_fast32_t _packet_data_size;
+    const uint64_t _packet_data_size;
 
     // Size of the buffer used to store packets
-    const uint_fast32_t packets_per_buffer;
+    const uint64_t packets_per_buffer;
 
     // Size of the buffer to contain: packets in the buffer (padded to cache line), number of times a buffer was written to (padded to cache line), all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
-    const uint_fast32_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
+    const uint64_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
 
     // Size of the buffer to contain: all vita headers padded to a whole number of pages
-    const uint_fast32_t _vitahdr_subbuffer_size;
+    const uint64_t _vitahdr_subbuffer_size;
 
     // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
     const size_t _data_subbuffer_size;
@@ -99,7 +99,7 @@ private:
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) uint8_t* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size;
+        return access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int64_t_size + /*  Number of times the buffer has been written to count*/ padded_int64_t_size;
     }
 
     // Gets a pointer to specific mmsghdr
@@ -117,7 +117,7 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
+        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int64_t_size + /*  Number of times the buffer has been written to count*/ padded_int64_t_size + (packets_per_buffer * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
@@ -138,13 +138,13 @@ private:
     // Use _mm_sfence after to ensure data written to this is complete
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
-    inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) access_ch_combined_buffer(ch, ch_offset, b);
+    inline __attribute__((always_inline)) int64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
+        return (int64_t*) access_ch_combined_buffer(ch, ch_offset, b);
     }
 
-    // Gets a pointer to a int_fast64_t that stores the number of times a channel has had buffers been written to
-    inline __attribute__((always_inline)) int_fast64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size);
+    // Gets a pointer to a int64_t that stores the number of times a channel has had buffers been written to
+    inline __attribute__((always_inline)) int64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
+        return (int64_t*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int64_t_size);
     }
 
     // The buffer currently being used by the consumer thread
@@ -153,7 +153,7 @@ private:
     // Number of packets consumed in the active consumer buffer
     // Accessed only by the consumer thread
     // channel
-    int_fast64_t* num_packets_consumed;
+    int64_t* num_packets_consumed;
 
     // Buffer containing the threads the receive data
     size_t num_recv_loops;
@@ -201,7 +201,7 @@ public:
      * @param ch
      * @return returns msg_len of the mmsghdr corresponding to the next packet
      */
-    inline __attribute__((always_inline)) uint_fast32_t get_next_packet_length(const size_t ch) {
+    inline __attribute__((always_inline)) uint64_t get_next_packet_length(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
         return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
     }
@@ -221,9 +221,9 @@ public:
      * @param ch
      * @return Returns the number of complete times the currently active consumer buffer has been written to times 2. Also adds +1 if a write is currently in progress.
      */
-    inline __attribute__((always_inline)) int_fast64_t get_buffer_write_count(const size_t ch) {
+    inline __attribute__((always_inline)) int64_t get_buffer_write_count(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
-        int_fast64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
+        int64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
         return buffer_write_count;
     }
 
@@ -244,7 +244,7 @@ public:
         size_t b = active_consumer_buffer[ch];
         num_packets_consumed[ch]++;
         // Move to the next buffer once all packets in this buffer are consumed
-        int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
+        int64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
         if(num_packets_consumed[ch] >= *num_packets_stored_addr) {
 
             // Moves to the next buffer

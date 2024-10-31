@@ -19,19 +19,19 @@ async_recv_manager::async_recv_manager( const size_t total_rx_channels, const st
 _num_ch(recv_sockets.size()),
 cache_line_size(sysconf(_SC_LEVEL1_DCACHE_LINESIZE)),
 page_size(getpagesize()),
-padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
-padded_int_fast64_t_size(std::ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
+padded_uint_fast8_t_size(std::ceil( (uint64_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
+padded_int64_t_size(std::ceil( (uint64_t)sizeof(int64_t) / (double)cache_line_size ) * cache_line_size),
 _header_size(header_size),
 _padded_header_size(std::ceil( header_size / (double)cache_line_size ) * cache_line_size),
 _packet_data_size(max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-packets_per_buffer((page_size - /* Number of packets in the buffer */ padded_int_fast64_t_size - /* Buffer write count */ padded_int_fast64_t_size) / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
-_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((/* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
-_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * packets_per_buffer / (double)page_size) * page_size),
+packets_per_buffer((page_size - /* Number of packets in the buffer */ padded_int64_t_size - /* Buffer write count */ padded_int64_t_size) / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
+_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size((uint64_t) std::ceil((/* Packets in bufffer count */ padded_int64_t_size + /*  Number of times the buffer has been written to count*/ padded_int64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
+_vitahdr_subbuffer_size((uint64_t) std::ceil(_padded_header_size * packets_per_buffer / (double)page_size) * page_size),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((packets_per_buffer * _packet_data_size) / (double)page_size) * page_size),
-// padded_int_fast64_t_size is for the count for number of packets stored
+// padded_int64_t_size is for the count for number of packets stored
 _combined_buffer_size(_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
@@ -52,9 +52,9 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
     active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)cache_line_size) * cache_line_size;
     active_consumer_buffer = (size_t* )aligned_alloc(cache_line_size, active_consumer_buffer_size);
-    size_t num_packets_consumed_size = _num_ch * sizeof(int_fast64_t);
+    size_t num_packets_consumed_size = _num_ch * sizeof(int64_t);
     num_packets_consumed_size = (size_t) ceil(num_packets_consumed_size / (double)cache_line_size) * cache_line_size;
-    num_packets_consumed = (int_fast64_t*) aligned_alloc(cache_line_size, num_packets_consumed_size);
+    num_packets_consumed = (int64_t*) aligned_alloc(cache_line_size, num_packets_consumed_size);
 
     // Initialize control variables to 0
     for(size_t ch = 0; ch < _num_ch; ch++) {
@@ -125,20 +125,20 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe();
 
-    const uint_fast32_t num_ch = sockets_.size();
+    const uint64_t num_ch = sockets_.size();
 
     // Mask used to roll over the buffers
-    const uint_fast32_t buffer_mask = self->NUM_BUFFERS - 1;
+    const uint64_t buffer_mask = self->NUM_BUFFERS - 1;
 
     // Records the buffer in use by each channel
-    uint_fast32_t b[MAX_CHANNELS];
+    uint64_t b[MAX_CHANNELS];
     // Copy of sockets used by this thread on the stack
     int sockets[MAX_CHANNELS];
     // Local copy of flush complete flag so that we never need to read from the shared flag
     uint_fast8_t local_flush_complete[MAX_CHANNELS];
     // Tracks the number of times a buffer has been written to for each channel * 2
-    int_fast64_t buffer_writes_count[MAX_CHANNELS];
-    for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
+    int64_t buffer_writes_count[MAX_CHANNELS];
+    for(uint64_t ch = 0; ch < num_ch; ch++) {
         sockets[ch] = sockets_[ch];
         b[ch] = 0;
         local_flush_complete[ch] = 0;
@@ -152,7 +152,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Syscall used because getcpu is does not exist on Oracle
         int r = syscall(SYS_getcpu, &cpu, nullptr);
         if(!r) {
-            for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
+            for(uint64_t ch = 0; ch < num_ch; ch++) {
                 r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
                 if(r) {
                     UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
@@ -164,14 +164,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     }
 
     // Configure iovecs
-    for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
-        for(uint_fast32_t b = 0; b < self->NUM_BUFFERS; b++) {
+    for(uint64_t ch = 0; ch < num_ch; ch++) {
+        for(uint64_t b = 0; b < self->NUM_BUFFERS; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
             struct iovec* iovecs = self->access_iovec_buffer(ch, ch_offset, b);
-            for(uint_fast32_t p = 0; p < self->packets_per_buffer; p++) {
+            for(uint64_t p = 0; p < self->packets_per_buffer; p++) {
 
-                uint_fast32_t header_iovec = 2 * p;
-                uint_fast32_t data_iovec = 2 * p + 1;
+                uint64_t header_iovec = 2 * p;
+                uint64_t data_iovec = 2 * p + 1;
 
                 // Point iovecs to the location to store the vita header
                 iovecs[header_iovec].iov_base = (void*) self->access_vita_hdr(ch, ch_offset, b, p);
@@ -191,16 +191,16 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     int error_code = 0;
 
-    uint_fast32_t ch = 0;
+    uint64_t ch = 0;
 
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
-    uint_fast32_t packets_to_recv = self->packets_per_buffer;
+    uint64_t packets_to_recv = self->packets_per_buffer;
 
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
 
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
-        int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
+        int64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
