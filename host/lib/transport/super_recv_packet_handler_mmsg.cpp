@@ -298,6 +298,7 @@ public:
             std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
 
             size_t channels_ready = 0;
+
             // While not all channels have been obtained and timeout has not been reached
             while(channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 channels_ready = 0;
@@ -307,6 +308,9 @@ public:
                     channels_ready += (initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1);
                 }
             }
+
+            // Fence to ensure get_buffer_write_count is loaded before copying the Vita header
+            _mm_lfence();
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
@@ -340,6 +344,8 @@ public:
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
 
+                // Load fence to ensure the packet info is copied before the check for if the buffer was modified
+                _mm_lfence();
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
                 // If buffer_write_count changed while getting header info
                 if(post_header_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
@@ -446,6 +452,8 @@ public:
                     memcpy(_sample_cache[ch].data(), packet_infos[ch].packet_samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
 
+                // Load fence to ensure samples were copied before the check for if the buffer was modified
+                _mm_lfence();
                 int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
                 // If buffer_write_count changed while copying data
                 if(post_data_copied_buffer_write_count != initial_buffer_writes_count[ch]) {

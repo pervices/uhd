@@ -220,13 +220,11 @@ public:
 
     /**
      * Gets a number used to track the number of writes to the buffer and whether a write is currently in progress.
-     * This function is responsible for adding the fences to ensure correct access
+     * Anything calling this function is responsible for adding _mm_lfence() before or after it to ensure the correct load order.
      * @param ch
      * @return Returns the number of complete times the currently active consumer buffer has been written to times 2. Also adds +1 if a write is currently in progress.
      */
     inline __attribute__((always_inline)) int_fast64_t get_buffer_write_count(const size_t ch) {
-        // Fence to ensure that any loads from the provider thread are complete before buffer_write_count is obtained
-        _mm_lfence();
         size_t b = active_consumer_buffer[ch];
         int_fast64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
         // Fence to ensure buffer_write_count is obtained before any future loads from the provider thread occur
