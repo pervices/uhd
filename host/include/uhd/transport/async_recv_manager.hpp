@@ -27,6 +27,9 @@ private:
     // TODO: improve single channel performance with a higher number of buffers
     static constexpr size_t NUM_BUFFERS = 16384;
 
+    // Mask used to roll over the buffers
+    static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
+
     const uint64_t _num_ch;
 
     const uint64_t cache_line_size;
