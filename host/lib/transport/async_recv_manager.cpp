@@ -10,7 +10,6 @@
 #include <uhd/utils/thread.hpp>
 #include <uhdlib/utils/system_time.hpp>
 #include <algorithm>
-#include <sys/mman.h>
 #include <sys/syscall.h>
 
 namespace uhd { namespace transport {
@@ -39,8 +38,6 @@ _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _co
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size))
 {
-    printf("packets_per_buffer: %lu\n", packets_per_buffer);
-    printf("Total buffer size: %li\n", _num_ch * NUM_BUFFERS * _combined_buffer_size);
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
         throw assertion_error("Unsupported number of channels");
@@ -64,16 +61,8 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
-        for(size_t b = 0; b < NUM_BUFFERS; b++) {
-            // Hint to keep the mmsghdrs/iovecs, vita headers in cache
-            // Probably doesn't actually do anything
-            // madvise(access_mmsghdr_buffer(ch, 0, b), _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size, MADV_WILLNEED);
-            // madvise(access_vita_hdr(ch, 0, b, 0), _vitahdr_subbuffer_size, MADV_WILLNEED);
-        }
     }
 
-    // Disbale huge pages, huge pages could help but they are unpredictable would could caused a latency spike
-    // madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
