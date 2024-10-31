@@ -28,7 +28,7 @@ private:
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
     // 16 is optimal for single channel, higher values are optimal for multiple
     // TODO: improve single channel performance with a higher number of buffers
-    static constexpr size_t NUM_BUFFERS = 2048;
+    static constexpr size_t NUM_BUFFERS = 4096;
 
     const uint_fast32_t _num_ch;
 
