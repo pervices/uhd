@@ -193,9 +193,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     uint64_t ch = 0;
 
-    // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
-    uint64_t packets_to_recv = self->packets_per_buffer;
-
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
 
@@ -211,7 +208,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         _mm_sfence();
 
         // Receives any packets already in the buffer
-        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
+        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_per_buffer, MSG_DONTWAIT, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
