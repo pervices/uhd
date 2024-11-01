@@ -18,7 +18,7 @@ async_recv_manager::async_recv_manager( const size_t total_rx_channels, const st
 :
 _num_ch(recv_sockets.size()),
 cache_line_size(sysconf(_SC_LEVEL1_DCACHE_LINESIZE)),
-page_size(1024/*getpagesize()*/),
+page_size(8096/*getpagesize()*/),
 padded_uint_fast8_t_size(std::ceil( (uint64_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
 padded_int64_t_size(std::ceil( (uint64_t)sizeof(int64_t) / (double)cache_line_size ) * cache_line_size),
 _header_size(header_size),
