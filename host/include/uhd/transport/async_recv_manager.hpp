@@ -32,15 +32,15 @@ private:
 
     const uint64_t _num_ch;
 
-    const uint64_t cache_line_size;
+    static constexpr uint64_t cache_line_size = 64;
 
-    const uint64_t page_size;
+    static constexpr uint64_t page_size = 4096;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    const uint64_t padded_uint_fast8_t_size;
+    static constexpr uint64_t padded_uint_fast8_t_size = cache_line_size;
 
     // Size of int64_t + padding so it takes a whole number of cache lines
-    const uint64_t padded_int64_t_size;
+    static constexpr uint64_t padded_int64_t_size = cache_line_size;
 
 
     // Vita header size
@@ -54,10 +54,10 @@ private:
     const uint64_t _packet_data_size;
 
     // Size of the buffer used to store packets
-    const uint64_t packets_per_buffer;
+    static constexpr uint64_t packets_per_buffer = (page_size - /* Number of packets in the buffer */ padded_int64_t_size - /* Buffer write count */ padded_int64_t_size) / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ));
 
     // Size of the buffer to contain: packets in the buffer (padded to cache line), number of times a buffer was written to (padded to cache line), all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
-    const uint64_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
+    static constexpr uint64_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size = ((uint64_t) std::ceil((/* Packets in bufffer count */ padded_int64_t_size + /*  Number of times the buffer has been written to count*/ padded_int64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size);
 
     // Size of the buffer to contain: all vita headers padded to a whole number of pages
     const uint64_t _vitahdr_subbuffer_size;
