@@ -307,10 +307,9 @@ public:
                 // (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                     channels_ready += (initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1);
                 }
+                // Fence to ensure get_buffer_write_count is loaded before copying the Vita header
+                _mm_lfence();
             }
-
-            // Fence to ensure get_buffer_write_count is loaded before copying the Vita header
-            _mm_lfence();
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
