@@ -21,8 +21,8 @@ _num_ch(recv_sockets.size()),
 // page_size(getpagesize()),
 // padded_uint_fast8_t_size(std::ceil( (uint64_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
 // padded_int64_t_size(std::ceil( (uint64_t)sizeof(int64_t) / (double)cache_line_size ) * cache_line_size),
-_header_size(header_size),
-_padded_header_size(std::ceil( header_size / (double)cache_line_size ) * cache_line_size),
+// _header_size(header_size),
+// _padded_header_size(std::ceil( header_size / (double)cache_line_size ) * cache_line_size),
 _packet_data_size(max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
