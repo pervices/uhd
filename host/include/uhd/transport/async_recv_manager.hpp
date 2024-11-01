@@ -48,8 +48,7 @@ private:
 
     // TODO: see if padding the vita header is actually usefull
     // Size of Vita header + padding to be on it's own cache line
-    // DEBUG: removing padding
-    static constexpr uint64_t _padded_header_size = 16;// (uint64_t) std::ceil( _header_size / (double)cache_line_size ) * cache_line_size;
+    static constexpr uint64_t _padded_header_size = (uint64_t) std::ceil( _header_size / (double)cache_line_size ) * cache_line_size;
 
     // Size of the sample portion of Vita packets
     const uint64_t _packet_data_size;
