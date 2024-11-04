@@ -805,7 +805,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
-	_pps_thread_needed( true ),
+	_pps_thread_needed( false ),
 	_pps_thread_running( false ),
 	_pps_thread_should_exit( false ),
 	_command_time( 0.0 )
@@ -1038,7 +1038,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
-    _pps_thread_needed = true;
+    _pps_thread_needed = false;
     try {
         // Attempt to read pps_detected
         // If success the the pps monitoring loop should be run
@@ -1373,6 +1373,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
 	if ( _pps_thread_needed ) {
+        printf("Should not appear\n");
 		start_pps_dtc();
 	}
 
