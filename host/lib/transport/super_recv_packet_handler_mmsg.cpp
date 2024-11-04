@@ -283,7 +283,7 @@ public:
         // Clear eob from cache since it has been applied
         eob_cached = false;
 
-        time_spec_t recv_start_time = get_system_time();
+        // time_spec_t recv_start_time = get_system_time();
 
         // Limit for how many time realignment will be attempted before giving up
         const size_t max_realignment_attempts = 100;
@@ -300,11 +300,11 @@ public:
             size_t channels_ready = 0;
 
             // While not all channels have been obtained and timeout has not been reached
-            while(channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
+            while(channels_ready < _NUM_CHANNELS/* && recv_start_time + timeout > get_system_time()*/) {
                 channels_ready = 0;
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                     initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
-                // (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
+                    // (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                     channels_ready += (initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1);
                 }
                 // Fence to ensure get_buffer_write_count is loaded before copying the Vita header
