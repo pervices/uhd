@@ -393,9 +393,10 @@ public:
 
             if(realignment_required) [[unlikely]] {
                 if(realignment_attempts >= max_realignment_attempts) {
-                    if(!align_message_printed) {
+                    if(!align_message_printed && !alignment_error_message_printed) {
                         UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
                     }
+                    alignment_error_message_printed = true;
                     align_message_printed = true;
                     // Override overflow error with alignment error to indicate that UHD was unable to fully recover from the overflow
                     metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
@@ -714,6 +715,8 @@ private:
     uint_fast8_t _overflow_occured = false;
     // An spb was requested that was not a multiple of packet length
     uint_fast8_t _suboptimal_spb = false;
+
+    uint_fast8_t alignment_error_message_printed = false;
 
     /*!
      * Prepares the converter.
