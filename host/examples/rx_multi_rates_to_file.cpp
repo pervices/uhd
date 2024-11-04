@@ -198,8 +198,13 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
     stream_cmd.time_spec  = uhd::time_spec_t(group_info->common_start_time_delay);
     rx_stream->issue_stream_cmd(stream_cmd);
 
-    bool overflow_occured = false;
     size_t num_pages = getpagesize();
+    std::vector<void*> persistent_buffers(group_info->channels.size());
+    for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
+        persistent_buffers[ch] = aligned_alloc(num_pages, group_info->common_nsamps_requested * sizeof(std::complex<short>));
+    }
+
+    bool overflow_occured = false;
     // Receive loop
     while(!*stop_flag && (*num_samples_received < group_info->common_nsamps_requested || group_info->common_nsamps_requested == 0)) {
         // Initializes the to store rx data in
@@ -220,7 +225,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
         for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
 
             // Creates buffers to store rx data in
-            buffer_ptrs[ch] = aligned_alloc(num_pages, samples_this_recv * sizeof(std::complex<short>));
+            buffer_ptrs[ch] = persistent_buffers[ch];
             if(buffer_ptrs[ch] == NULL) {
                 printf("malloc failed\n");
                 std::exit(~0);
@@ -316,7 +321,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
             for(size_t ch = 0; ch < group_info->channels.size(); ch++) {
                 // Free data buffer and write struct here since aio_write is unused
                 // free is surprisingly slow, often writing will be faster
-                free(buffer_ptrs[ch]);
+                // free(buffer_ptrs[ch]);
                 free(aiocb_info[ch]);
             }
         }
