@@ -72,16 +72,28 @@ void uhd::set_thread_priority(float priority, bool realtime)
         // SCHED_FIFO and SCHED_RR result in worse performance, even after setting /proc/sys/kernel/sched_rt_runtime_us to -1
         set_thread_priority_realtime(priority);
 
+    } else if (realtime) {
         // To achieve the effect desired by realtime threading without actually using realtime threading:
         //     Adjusting priority range:
         //         If realtime threading is requested shift priority from range -1..1 to 0.5..1.
         //         In non realtime mode shift 0..1 to 0..0.5 and don't affect -1..0
         //         This achieves the effect of always having a higher priority than non realtime threads, while not affecting negative priority of realtime threads
-    } else if (realtime) {
         priority = ((priority + 1) * 0.25) + 0.5;
         check_priority_range(priority);
 
         set_thread_priority_non_realtime(priority);
+
+        // Set thread affinity because it would normally be a side effect of setting realtime priority and realtime priority was requested
+        uint32_t current_core = 0;
+        // getcpu wrapper is implemented in libc 2.29
+        // Oracle 8 uses libc 2.28, so a direct syscall is required
+        int r = syscall(SYS_getcpu, &current_core, NULL);
+        if(r == 0) {
+            std::vector<size_t> current_core_v(1, (size_t) current_core);
+            set_thread_affinity(current_core_v);
+        } else {
+            UHD_LOG_WARNING("UHD", "Unable to get current cpu num while setting thread affinity. errno: " + std::string(strerror(errno)));
+        }
     }else {
         // Shift priority range so pseudo realtime threading can always be higher
         if(priority >0) {
