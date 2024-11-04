@@ -179,6 +179,9 @@ bool disk_rate_message_printed = false;
 void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, size_t spb, bool skip_save, bool strict, uint_fast8_t continuous_mode, int output_fd, off_t output_offset, size_t total_num_channels, size_t *num_samples_received, uint_fast8_t **stop_signal) {
     uhd::set_thread_priority_safe();
 
+    std::vector<size_t> cores_to_use(1, 6);
+    uhd::set_thread_affinity(cores_to_use);
+
     // Allocating the stop flag in each thread seems to improve performance
     uint_fast8_t *stop_flag;
     stop_flag = (uint_fast8_t*) malloc(sizeof(uint_fast8_t));
