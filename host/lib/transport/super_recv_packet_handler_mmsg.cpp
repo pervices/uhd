@@ -310,6 +310,7 @@ public:
                 //     // Helps performance so the branch predictor doesn't get killed by the loop
                 //     _mm_pause();
                 // }
+                usleep(1000000);
             }
 
             // Check if timeout occured
