@@ -214,7 +214,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
-        buffer_writes_count[ch]+= !(buffer_writes_count[ch] & 1);
+        // buffer_writes_count[ch]+= !(buffer_writes_count[ch] & 1);
         // *buffer_write_count = buffer_writes_count[ch];
 
         // Fence to ensure buffer_write_count is set to an off number before recvmmsg
@@ -227,7 +227,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         bool packets_received = r > 0;
 
         // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
-        bool update_counts = packets_received & local_flush_complete[ch];
+        bool update_counts = packets_received;// & local_flush_complete[ch];
 
         total_packets_received += r * update_counts;
 
@@ -238,14 +238,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        buffer_writes_count[ch] += update_counts;
+        // buffer_writes_count[ch] += update_counts;
         // *buffer_write_count = buffer_writes_count[ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
         // b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
-        local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+        //local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         // *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
 
         // Move onto the next channel, looping back to the start once reaching the end
@@ -254,7 +254,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         ch = ch * !(ch >= num_ch);
 
         // Set error_code to the first unhandled error encountered
-        error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
+        // error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
     }
 
     printf("total_packets_received: %lu\n", total_packets_received);
