@@ -210,12 +210,12 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     while(!self->stop_flag) [[likely]] {
 
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
-        int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
+        // int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
         buffer_writes_count[ch]+= !(buffer_writes_count[ch] & 1);
-        *buffer_write_count = buffer_writes_count[ch];
+        // *buffer_write_count = buffer_writes_count[ch];
 
         // Fence to ensure buffer_write_count is set to an off number before recvmmsg
         _mm_sfence();
@@ -232,17 +232,17 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         total_packets_received += r * update_counts;
 
         // Set counter for number of packets stored
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
+        // *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         buffer_writes_count[ch] += update_counts;
-        *buffer_write_count = buffer_writes_count[ch];
+        // *buffer_write_count = buffer_writes_count[ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
+        // b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));

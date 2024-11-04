@@ -242,7 +242,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
             aiocb_info[ch]->aio_sigevent.sigev_notify_function = &free_recv_buffers;
         }
 
-        size_t num_samples = rx_stream->recv(buffer_ptrs, samples_this_recv, md, group_info->common_start_time_delay + 3);
+        size_t num_samples = rx_stream->recv(buffer_ptrs, samples_this_recv, md, group_info->common_start_time_delay + 3 + 45);
 
         if(md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
             if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
