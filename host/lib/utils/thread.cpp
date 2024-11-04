@@ -60,6 +60,10 @@ namespace uhd {
         uint64_t sched_runtime;
         uint64_t sched_deadline;
         uint64_t sched_period;
+
+        /* Utilization hints */
+        uint32_t sched_util_min;
+        uint32_t sched_util_max;
     };
 }
 
@@ -129,34 +133,31 @@ void uhd::set_thread_priority_non_realtime(float priority) {
         target_niceness = 19;
     }
 
-    int policy = SCHED_OTHER;
+    struct sched_attr attr;
+    attr.size = sizeof(attr);
+    // Default schedueler
+    attr.sched_policy = SCHED_OTHER;
+    // Required to avoid ignoring sched_util_min and sched_util_max
+    attr.sched_flags = 0x20 /*SCHED_FLAG_UTIL_CLAMP_MIN*/ | 0x40 /*SCHED_FLAG_UTIL_CLAMP_MAX*/;
+    // Nice is not used when using realtime threads
+    attr.sched_nice = target_niceness;
+    // Only relevant in SCHED_FIFO, SCHED_RR
+    attr.sched_priority = 0;
+    // Only relevant in deadline mode
+    attr.sched_runtime = 0;
+    attr.sched_deadline = 0;
+    attr.sched_period = 0;
 
-    // set the new priority and policy
-    sched_param sp;
+    // Hint to the schedueler how much this thread will be utilized
+    // TODO: be more selective about clamping
+    // TODO: check for Kernel >= 5.3
+    attr.sched_util_min = 1024;
+    attr.sched_util_max = 1024;
 
-    // Only realtime scheduling has priority levels
-    sp.sched_priority = 0;
-    int ret = pthread_setschedparam(pthread_self(), policy, &sp);
+    int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
 
     if (ret != 0) {
-        throw uhd::os_error("error in pthread_setschedparam SCHED_OTHER: " + std::string(strerror(errno)));
-    }
-    int current_niceness = nice(0);
-
-    int new_niceness(target_niceness - current_niceness);
-
-    // Nice returns -1 to indicated an errors, however -1 is also a very reasonable return value
-    // Workaround required to verify niceness can be set
-    if(new_niceness == -1 ) {
-        // Attempt to reduce niceness further (verifying it can be done)
-        int test_niceness = nice(-1);
-        // If niceness still -1 an error occured
-        if(test_niceness == -1) {
-            throw uhd::os_error("error in nice (thread priority): " + std::string(strerror(errno)));
-        } else {
-            // return niceness to intended value
-            nice(1);
-        }
+        throw uhd::os_error("error in SYS_sched_setattr SCHED_OTHER: " + std::string(strerror(errno)));
     }
 }
 #endif /* HAVE_PTHREAD_SETSCHEDPARAM */
