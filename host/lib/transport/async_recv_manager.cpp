@@ -221,7 +221,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // _mm_sfence();
 
         // Receives any packets already in the buffer
-        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, /*MSG_DONTWAIT*/0, 0);
+        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
