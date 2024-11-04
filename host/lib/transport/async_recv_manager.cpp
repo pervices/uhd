@@ -100,15 +100,15 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         ch_offset+=ch_per_thread;
     }
 
-    uhd::time_spec_t start = uhd::get_system_time();
-    for(size_t n = 0; n < _num_ch; n++) {
-        while(! *access_flush_complete(n, 0)) {
-            if(start + 30.0 < uhd::get_system_time()) {
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-                throw std::runtime_error("Timeout while flushing buffers");
-            }
-        }
-    }
+    // uhd::time_spec_t start = uhd::get_system_time();
+    // for(size_t n = 0; n < _num_ch; n++) {
+    //     while(! *access_flush_complete(n, 0)) {
+    //         if(start + 30.0 < uhd::get_system_time()) {
+    //             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+    //             throw std::runtime_error("Timeout while flushing buffers");
+    //         }
+    //     }
+    // }
 }
 
 async_recv_manager::~async_recv_manager()
@@ -246,7 +246,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
         local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
-        *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
+        // *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
 
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
