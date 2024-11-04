@@ -65,7 +65,7 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
             // Hint to keep the mmsghdrs/iovecs, vita headers in cache
             // Probably doesn't actually do anything
-            // madvise(access_mmsghdr_buffer(ch, 0, b), _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size, MADV_WILLNEED);
+            madvise(access_mmsghdr_buffer(ch, 0, b), _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size, MADV_WILLNEED);
             // madvise(access_vita_hdr(ch, 0, b, 0), _vitahdr_subbuffer_size, MADV_WILLNEED);
         }
     }
@@ -74,7 +74,7 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
     // madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
-    // memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
+    memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
 
     int64_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
