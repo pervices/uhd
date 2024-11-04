@@ -682,6 +682,7 @@ void crimson_tng_impl::wait_for_time_diff_converged() {
 // This function should be run in its own thread
 // When calling it verify that it is not already running (_bm_thread_running)
 void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
+    printf("2 should not appear\n");
     // Reduce thread priority
     nice(1);
 
@@ -802,7 +803,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	device_addr( _device_addr ),
 	_time_diff( 0 ),
 	_time_diff_converged( false ),
-	_bm_thread_needed( true ),
+	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_pps_thread_needed( false ),
