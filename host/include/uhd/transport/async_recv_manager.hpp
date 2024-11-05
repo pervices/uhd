@@ -30,37 +30,37 @@ private:
     // TODO: improve single channel performance with a higher number of buffers
     static constexpr size_t NUM_BUFFERS = 1024;
 
-    const uint_fast32_t _num_ch;
+    const uint64_t _num_ch;
 
-    const uint_fast32_t cache_line_size;
+    const uint64_t cache_line_size;
 
-    const uint_fast32_t page_size;
+    const uint64_t page_size;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_uint_fast8_t_size;
+    const uint64_t padded_uint_fast8_t_size;
 
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_int_fast64_t_size;
+    const uint64_t padded_int_fast64_t_size;
 
 
     // Vita header size
-    const uint_fast32_t _header_size;
+    const uint64_t _header_size;
 
     // TODO: see if padding the vita header is actually usefull
     // Size of Vita header + padding to be on it's own cache line
-    const uint_fast32_t _padded_header_size;
+    const uint64_t _padded_header_size;
 
     // Size of the sample portion of Vita packets
-    const uint_fast32_t _packet_data_size;
+    const uint64_t _packet_data_size;
 
     // Size of the buffer used to store packets
-    const uint_fast32_t packets_per_buffer;
+    const uint64_t packets_per_buffer;
 
     // Size of the buffer to contain: packets in the buffer (padded to cache line), number of times a buffer was written to (padded to cache line), all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
-    const uint_fast32_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
+    const uint64_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
 
     // Size of the buffer to contain: all vita headers padded to a whole number of pages
-    const uint_fast32_t _vitahdr_subbuffer_size;
+    const uint64_t _vitahdr_subbuffer_size;
 
     // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
     const size_t _data_subbuffer_size;
@@ -204,7 +204,7 @@ public:
      * @param ch
      * @return returns msg_len of the mmsghdr corresponding to the next packet
      */
-    inline __attribute__((always_inline)) uint_fast32_t get_next_packet_length(const size_t ch) {
+    inline __attribute__((always_inline)) uint64_t get_next_packet_length(const size_t ch) {
         size_t b = active_consumer_buffer[ch];
         return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
     }
