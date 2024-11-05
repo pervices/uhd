@@ -138,13 +138,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Records the buffer in use by each channel
     // uint64_t b[MAX_CHANNELS];
     // Copy of sockets used by this thread on the stack
-    int sockets[MAX_CHANNELS];
+    // int sockets[MAX_CHANNELS];
+    int socket = sockets_[0];
     // Local copy of flush complete flag so that we never need to read from the shared flag
     // uint_fast8_t local_flush_complete[MAX_CHANNELS];
     // Tracks the number of times a buffer has been written to for each channel * 2
     // int_fast64_t buffer_writes_count[MAX_CHANNELS];
     for(uint64_t ch = 0; ch < num_ch; ch++) {
-        sockets[ch] = sockets_[ch];
+        // sockets[ch] = sockets_[ch];
         // b[ch] = 0;
         // local_flush_complete[ch] = 0;
         // buffer_writes_count[ch] = 0;
@@ -221,7 +222,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // _mm_sfence();
 
         // Receives any packets already in the buffer
-        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
+        const int r = recvmmsg(socket, (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
