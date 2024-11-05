@@ -96,20 +96,20 @@ public:
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            // // Sets the recv buffer size
-            // setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
-            //
-            // // Checks the recv buffer size
-            // // Actual recv buffer size, the Kernel will set the real size to be double the requested
-            // // TODO: change _ACTUAL_RECV_BUFFER_SIZE to local variable once recv_single_ch_sequential is removed
-            // socklen_t opt_len = sizeof(_ACTUAL_RECV_BUFFER_SIZE);
-            // getsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_ACTUAL_RECV_BUFFER_SIZE, &opt_len);
-            //
-            // // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
-            // if(_ACTUAL_RECV_BUFFER_SIZE < 2*_DEFAULT_RECV_BUFFER_SIZE) {
-            //     fprintf(stderr, "Unable to set recv buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.rmem_max=%i\"\n", _DEFAULT_RECV_BUFFER_SIZE, _ACTUAL_RECV_BUFFER_SIZE/2, _DEFAULT_RECV_BUFFER_SIZE);
-            //     throw uhd::system_error("Unable to set recv socket size");
-            // }
+            // Sets the recv buffer size
+            setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
+
+            // Checks the recv buffer size
+            // Actual recv buffer size, the Kernel will set the real size to be double the requested
+            // TODO: change _ACTUAL_RECV_BUFFER_SIZE to local variable once recv_single_ch_sequential is removed
+            socklen_t opt_len = sizeof(_ACTUAL_RECV_BUFFER_SIZE);
+            getsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_ACTUAL_RECV_BUFFER_SIZE, &opt_len);
+
+            // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
+            if(_ACTUAL_RECV_BUFFER_SIZE < 2*_DEFAULT_RECV_BUFFER_SIZE) {
+                fprintf(stderr, "Unable to set recv buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.rmem_max=%i\"\n", _DEFAULT_RECV_BUFFER_SIZE, _ACTUAL_RECV_BUFFER_SIZE/2, _DEFAULT_RECV_BUFFER_SIZE);
+                throw uhd::system_error("Unable to set recv socket size");
+            }
 
             int mtu = get_mtu(_recv_sockets[n], dst_ip[n].c_str());
             if(mtu < MIN_MTU) {
