@@ -204,12 +204,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     size_t total_packets_received = 0;
 
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
-    while(true) [[likely]] {
-        if(total_packets_received >= 21134390) [[unlikely]] {
-            if(self->stop_flag) [[unlikely]] {
-                break;
-            }
-        }
+    while(!self->stop_flag) [[likely]] {
 
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
         // int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
