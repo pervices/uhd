@@ -452,7 +452,7 @@ private:
     optimized_recv_type _optimized_recv;
 
     // Desired recv buffer size
-    const int _DEFAULT_RECV_BUFFER_SIZE = 500000000 / 5;
+    const int _DEFAULT_RECV_BUFFER_SIZE = 500000000;
     // TODO: remove once recv_single_ch_sequential is removed
     // Actual recv buffer size, not the Kernel will set the real size to be double the requested
     int _ACTUAL_RECV_BUFFER_SIZE;
