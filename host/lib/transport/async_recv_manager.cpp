@@ -221,13 +221,63 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // _mm_sfence();
 
         // Receives any packets already in the buffer
-        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
+        int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
 
         // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool update_counts = packets_received;// & local_flush_complete[ch];
+
+        total_packets_received += r * update_counts;
+
+        r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
+
+        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        packets_received = r > 0;
+
+        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        update_counts = packets_received;// & local_flush_complete[ch];
+
+        total_packets_received += r * update_counts;
+
+        r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
+
+        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        packets_received = r > 0;
+
+        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        update_counts = packets_received;// & local_flush_complete[ch];
+
+        total_packets_received += r * update_counts;
+
+        r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
+
+        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        packets_received = r > 0;
+
+        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        update_counts = packets_received;// & local_flush_complete[ch];
+
+        total_packets_received += r * update_counts;
+
+        r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
+
+        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        packets_received = r > 0;
+
+        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        update_counts = packets_received;// & local_flush_complete[ch];
+
+        total_packets_received += r * update_counts;
+
+        r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(0/*ch*/, ch_offset, 0/*b[ch]*/), packets_to_recv, MSG_DONTWAIT, 0);
+
+        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        packets_received = r > 0;
+
+        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
+        update_counts = packets_received;// & local_flush_complete[ch];
 
         total_packets_received += r * update_counts;
 
