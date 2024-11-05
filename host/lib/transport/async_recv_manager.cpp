@@ -135,22 +135,19 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     const uint64_t num_ch = sockets_.size();
 
-    // Mask used to roll over the buffers
-    const uint64_t buffer_mask = self->NUM_BUFFERS - 1;
-
     // Records the buffer in use by each channel
     uint64_t b[MAX_CHANNELS];
     // Copy of sockets used by this thread on the stack
     int sockets[MAX_CHANNELS];
     // Local copy of flush complete flag so that we never need to read from the shared flag
-    uint_fast8_t local_flush_complete[MAX_CHANNELS];
+    // uint_fast8_t local_flush_complete[MAX_CHANNELS];
     // Tracks the number of times a buffer has been written to for each channel * 2
-    int_fast64_t buffer_writes_count[MAX_CHANNELS];
+    // int_fast64_t buffer_writes_count[MAX_CHANNELS];
     for(uint64_t ch = 0; ch < num_ch; ch++) {
         sockets[ch] = sockets_[ch];
         b[ch] = 0;
-        local_flush_complete[ch] = 0;
-        buffer_writes_count[ch] = 0;
+        // local_flush_complete[ch] = 0;
+        // buffer_writes_count[ch] = 0;
     }
 
     // Set the socket's affinity, improves speed and reliability
@@ -247,7 +244,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // *buffer_write_count = buffer_writes_count[ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        // b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
+        // b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & BUFFER_MASK;
 
         // Set flush complete (already complete || recvmmsg returned with no packets)
         //local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
