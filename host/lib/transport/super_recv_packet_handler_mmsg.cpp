@@ -328,6 +328,8 @@ public:
                 }
             // }
         }
+        // TMP
+        return 0;
     }
 
     // TODO: replace with single_ch_recv_threaded once it is fast enough
