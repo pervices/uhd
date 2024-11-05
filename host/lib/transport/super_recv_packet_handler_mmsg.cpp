@@ -111,6 +111,22 @@ public:
                 throw uhd::system_error("Unable to set recv socket size");
             }
 
+            // Sets the recv buffer size
+            setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVLOWAT, &_HEADER_SIZE, sizeof(_HEADER_SIZE));
+
+            // Checks the recv buffer size
+            // Actual recv buffer size, the Kernel will set the real size to be double the requested
+            // TODO: change _ACTUAL_RECV_BUFFER_SIZE to local variable once recv_single_ch_sequential is removed
+            socklen_t opt_len_header_size = sizeof(_HEADER_SIZE);
+            size_t actual_rcvlowat = 0;
+            getsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVLOWAT, &actual_rcvlowat, &opt_len_header_size);
+
+            // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
+            if(actual_rcvlowat != _HEADER_SIZE) {
+                fprintf(stderr, "Unable to set SO_RCVLOWAT. Performance may be affected\nTarget size %lu\nActual size %lu\n", _HEADER_SIZE, actual_rcvlowat);
+                throw uhd::system_error("Unable to set recv socket size");
+            }
+
             int mtu = get_mtu(_recv_sockets[n], dst_ip[n].c_str());
             if(mtu < MIN_MTU) {
                 fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ip[n].c_str(), MIN_MTU, mtu);
