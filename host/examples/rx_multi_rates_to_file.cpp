@@ -37,6 +37,8 @@
 
 #include <mutex>
 
+#include <malloc.h>
+
 namespace po = boost::program_options;
 
 // Size of blocks of data for channel in continuous mode
@@ -330,6 +332,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
+    mallopt(M_TRIM_THRESHOLD, -1);
 
     // variables to be set by po
     std::string args, folder, channel_arg, rate_arg, freq_arg, gain_arg, start_delay_arg, nsamp_arg;
