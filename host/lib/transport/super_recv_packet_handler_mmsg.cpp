@@ -93,6 +93,9 @@ public:
             throw uhd::runtime_error( "Unsupported wire format:" + wire_format);
         }
 
+        // Performs a check (and if applicable warning message) for potential source of performance issues
+        check_high_order_alloc_disable();
+
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -1146,6 +1149,31 @@ private:
             else if(!_using_performance_governor) {
                 UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
             }
+        }
+    }
+
+    /*
+     * Check if higher order allocation is enabled.
+     * I have experimentally verified that this can cause issues and should be disabled on: Linux wave 6.6.7-arch1-1 #1 SMP PREEMPT_DYNAMIC Thu, 14 Dec 2023 03:45:42 +0000 x86_64 GNU/Linux. The issue is likely due to frequent de and re allocation since the socket's receive buffers (controlled by SO_RCVBUF) are dynamically sized. If a feature is introduced to make those buffers a fixed size then that should be tested.
+     * Documentation: https://docs.kernel.org/admin-guide/sysctl/net.html#high-order-alloc-disable
+     */
+    void check_high_order_alloc_disable() {
+        std::string path = "/proc/sys/net/core/high_order_alloc_disable";
+
+        FILE *file;
+
+        file = fopen(path.c_str(), "r");
+
+        if(file == NULL) {
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Open " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if high order allocation enabled. Having it enabled may cause performance issues. Run \"sudo sysctl -w net.core.high_order_alloc_disable=1\" to disable it.");
+        }
+
+        int value = fgetc(file);
+
+        if(value == -1) {
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Read " + path + " failed with error code:" + std::string(strerror(errno)) + ".Unable to check if high order allocation enabled. Having it enabled may cause performance issues. Run \"sudo sysctl -w net.core.high_order_alloc_disable=1\" to disable it.");
+        } else if(value != '1') {
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "High order allocation enabled, this may cause performance issues. Run \"sudo sysctl -w net.core.high_order_alloc_disable=1\" to disable it.");
         }
     }
 
