@@ -252,8 +252,6 @@ public:
         // The channel with the latest packet
         uint64_t latest_packet = 0;
 
-        // Only print these messages once per recv call
-        bool align_message_printed = false;
         bool oflow_message_printed = false;
 
         size_t samples_received = 0;
@@ -717,6 +715,9 @@ private:
     uint_fast8_t _overflow_occured = false;
     // An spb was requested that was not a multiple of packet length
     uint_fast8_t _suboptimal_spb = false;
+
+    // Only print these messages once per recv call
+    bool align_message_printed = false;
 
     /*!
      * Prepares the converter.
