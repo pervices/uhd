@@ -129,9 +129,6 @@ async_recv_manager::~async_recv_manager()
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
-    if(ch_offset > 0) {
-        return;
-    }
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe(1, true);
