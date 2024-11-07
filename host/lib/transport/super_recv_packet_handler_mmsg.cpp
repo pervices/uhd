@@ -302,6 +302,7 @@ public:
             // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
+                std::atomic_thread_fence(std::memory_order_consume);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                 if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
                     // Move onto the next channel since this one is ready
@@ -347,6 +348,7 @@ public:
                 }
 
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
+                std::atomic_thread_fence(std::memory_order_consume);
                 // If buffer_write_count changed while getting header info
                 if(post_header_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_header_overwrite = true;
@@ -451,6 +453,7 @@ public:
                 }
 
                 int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
+                std::atomic_thread_fence(std::memory_order_consume);
                 // If buffer_write_count changed while copying data
                 if(post_data_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_data_overwrite = true;
