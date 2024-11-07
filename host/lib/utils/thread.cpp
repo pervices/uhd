@@ -16,7 +16,10 @@ bool uhd::set_thread_priority_safe(float priority, bool realtime)
     try {
         set_thread_priority(priority, realtime);
         return true;
-    } catch (const std::exception& e) {
+    } catch (const uhd::access_error &e) {
+        UHD_LOGGER_WARNING("UHD") << "Unable to set thread priority due to insufficient permission, performance will be negatively affected. Run the program with sudo or add the required permissions to this user";
+        return false;
+    } catch (const uhd::os_error& e) {
         UHD_LOGGER_WARNING("UHD")
             << "Unable to set the thread priority. Performance may be "
                "negatively affected.\n"
@@ -62,30 +65,30 @@ namespace uhd {
 
 void uhd::set_thread_priority(float priority, bool realtime)
 {
-    check_priority_range(priority);
 
-    // TODO fix realtime priority
-    // Old SCHED_RR results in random slowdowns in the 10s of ms, SCHED_DEADLINE will randomly lock up non headless systems
-
-    (void) realtime;
     if(0/*realtime*/) {
-        // Sets thread priority and enables realtime schedueler (disabled due to aformentioned issues with realtime schedueler)
+        // Realtime threading has been disabled
+        // SCHED_DEADLINE prevents setting thread affinity, which is more important
+        // SCHED_FIFO and SCHED_RR result in worse performance, even after setting /proc/sys/kernel/sched_rt_runtime_us to -1
         set_thread_priority_realtime(priority);
-    } else if (realtime) {
-        set_thread_priority_non_realtime(priority);
 
-        // Set thread affinity because it would normally be a side effect of setting realtime priority and realtime priority was requested
-        uint32_t current_core = 0;
-        // getcpu wrapper is implemented in libc 2.29
-        // Oracle 8 uses libc 2.28, so a direct syscall is required
-        int r = syscall(SYS_getcpu, &current_core, NULL);
-        if(r == 0) {
-            std::vector<size_t> current_core_v(1, (size_t) current_core);
-            set_thread_affinity(current_core_v);
-        } else {
-            UHD_LOG_WARNING("UHD", "Unable to get current cpu num while setting thread affinity. errno: " + std::string(strerror(errno)));
-        }
+        // To achieve the effect desired by realtime threading without actually using realtime threading:
+        //     Adjusting priority range:
+        //         If realtime threading is requested shift priority from range -1..1 to 0.5..1.
+        //         In non realtime mode shift 0..1 to 0..0.5 and don't affect -1..0
+        //         This achieves the effect of always having a higher priority than non realtime threads, while not affecting negative priority of realtime threads
+    } else if (realtime) {
+        priority = ((priority + 1) * 0.25) + 0.5;
+        check_priority_range(priority);
+
+        set_thread_priority_non_realtime(priority);
     }else {
+        // Shift priority range so pseudo realtime threading can always be higher
+        if(priority >0) {
+            priority = (priority * 0.5);
+        }
+        check_priority_range(priority);
+
         set_thread_priority_non_realtime(priority);
     }
 }
@@ -110,8 +113,11 @@ void uhd::set_thread_priority_realtime(float priority) {
     int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
 
     if (ret != 0) {
-        printf("errno: %s", strerror(errno));
-        throw uhd::os_error("error in pthread_setschedparam");
+        if(errno == EPERM) {
+            throw uhd::access_error("error in pthread_setschedparam SCHED_DEADLINE: " + std::string(strerror(errno)));
+        } else {
+            throw uhd::os_error("error in pthread_setschedparam SCHED_DEADLINE: " + std::string(strerror(errno)));
+        }
     }
 }
 
@@ -133,7 +139,7 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     int ret = pthread_setschedparam(pthread_self(), policy, &sp);
 
     if (ret != 0) {
-        throw uhd::os_error("error in pthread_setschedparam: " + std::string(strerror(errno)));
+        throw uhd::os_error("error in pthread_setschedparam SCHED_OTHER: " + std::string(strerror(errno)));
     }
     int current_niceness = nice(0);
 
