@@ -133,6 +133,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe(1, true);
 
+    std::vector<size_t> target_cpu(1, 2 + ch_offset);
+    set_thread_affinity(target_cpu);
+
     const uint_fast32_t num_ch = sockets_.size();
 
     // Mask used to roll over the buffers
