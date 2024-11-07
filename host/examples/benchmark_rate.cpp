@@ -216,7 +216,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     bool random_nsamps = false)
 {
     if (elevate_priority) {
-        uhd::set_thread_priority_safe();
+        uhd::set_thread_priority_safe(1, false);
     }
 
     // print pre-test summary
