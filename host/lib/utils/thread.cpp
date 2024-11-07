@@ -78,7 +78,9 @@ void uhd::set_thread_priority(float priority, bool realtime)
         //         In non realtime mode shift 0..1 to 0..0.5 and don't affect -1..0
         //         This achieves the effect of always having a higher priority than non realtime threads, while not affecting negative priority of realtime threads
     } else if (realtime) {
+        printf("1 priority: %f\n", priority);
         priority = ((priority + 1) * 0.25) + 0.5;
+        printf("1 priority: %f\n", priority);
         check_priority_range(priority);
 
         set_thread_priority_non_realtime(priority);
