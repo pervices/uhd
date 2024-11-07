@@ -307,9 +307,10 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
+                    usleep(1);
                     // Lets CPU know this is in a spin loop
                     // Helps performance so the branch predictor doesn't get killed by the loop
-                    _mm_pause();
+                    // _mm_pause();
                 }
             }
 
