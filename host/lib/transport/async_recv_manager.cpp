@@ -155,21 +155,21 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     // Set the socket's affinity, improves speed and reliability
     // Skip setting if setting priority (which also sets affinity failed)
-    // if(priority_set) {
-    //     unsigned int cpu;
-    //     // Syscall used because getcpu is does not exist on Oracle
-    //     int r = syscall(SYS_getcpu, &cpu, nullptr);
-    //     if(!r) {
-    //         for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
-    //             r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
-    //             if(r) {
-    //                 UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
-    //             }
-    //         }
-    //     } else {
-    //         UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno));
-    //     }
-    // }
+    if(priority_set) {
+        unsigned int cpu;
+        // Syscall used because getcpu is does not exist on Oracle
+        int r = syscall(SYS_getcpu, &cpu, nullptr);
+        if(!r) {
+            for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
+                r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+                if(r) {
+                    UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
+                }
+            }
+        } else {
+            UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno));
+        }
+    }
 
     // Configure iovecs
     for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
