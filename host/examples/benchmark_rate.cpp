@@ -401,10 +401,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
-    if (priority == "high") {
-        // uhd::set_thread_priority_safe();
-        elevate_priority = true;
-    }
+    elevate_priority = priority == "high";
 
     // Random number of samples?
     if (vm.count("random")) {
