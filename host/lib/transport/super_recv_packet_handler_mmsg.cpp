@@ -202,12 +202,24 @@ public:
         }
     }
 
+    bool first_run;
+
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
         const bool one_packet)
     {
+        if(first_run) {
+            std::vector<int> random(1000000, 1);
+            time_spec_t bust_end_time = uhd::get_system_time() + 100;
+            while(bust_end_time > uhd::get_system_time()) {
+                for(size_t n = 0; n < 1000000; n++) {
+                    random[n] = random[n] * rand();
+                }
+            }
+            first_run = false;
+        }
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
         _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
