@@ -243,7 +243,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         total_packet_received+= r * update_counts;
 
         // Set counter for number of packets stored
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
+        // *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         std::atomic_thread_fence(std::memory_order_release);
