@@ -149,7 +149,7 @@ private:
 
     // Gets a pointer to a int_fast64_t that stores the number of times a channel has had buffers been written to
     inline __attribute__((always_inline)) int_fast64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (padded_int_fast64_t_size * b));
+        return (int_fast64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (page_size * b));
     }
 
     // The buffer currently being used by the consumer thread
