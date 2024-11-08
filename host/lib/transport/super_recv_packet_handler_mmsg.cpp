@@ -300,6 +300,17 @@ public:
             // Stores buffer_write_count from when the packet was obtained
             std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
 
+            if(first_run) {
+                std::vector<int> random(1000000, 1);
+                time_spec_t bust_end_time = uhd::get_system_time() + 100;
+                while(bust_end_time > uhd::get_system_time()) {
+                    for(size_t n = 0; n < 1000000; n++) {
+                        random[n] = random[n] * rand();
+                    }
+                }
+                first_run = false;
+            }
+
             size_t ch = 0;
             // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
@@ -315,17 +326,6 @@ public:
                     // usleep(1);
                     // _mm_pause();
                 }
-            }
-
-            if(first_run) {
-                std::vector<int> random(1000000, 1);
-                time_spec_t bust_end_time = uhd::get_system_time() + 100;
-                while(bust_end_time > uhd::get_system_time()) {
-                    for(size_t n = 0; n < 1000000; n++) {
-                        random[n] = random[n] * rand();
-                    }
-                }
-                first_run = false;
             }
 
             // Check if timeout occured
@@ -397,11 +397,6 @@ public:
 
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
-                    if(!tmp) {
-                        printf("vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
-                        printf("vita_md[%lu].packet_count: %lu\n", ch, vita_md[ch].packet_count);
-                        tmp = true;
-                    }
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     _overflow_occured = true;
                     overflow_detected = true;
