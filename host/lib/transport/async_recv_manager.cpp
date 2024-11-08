@@ -37,8 +37,8 @@ _combined_buffer_size(_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 // TODO if this works see if reducing it to cache line size works
-_buffer_write_count_buffer_size(page_size * NUM_BUFFERS),
-_buffer_write_count_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _buffer_write_count_buffer_size)),
+_buffer_write_count_buffer_size(padded_int_fast64_t_size * NUM_BUFFERS),
+_buffer_write_count_buffer((uint8_t*) aligned_alloc(padded_int_fast64_t_size, _num_ch * _buffer_write_count_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size))
 {
