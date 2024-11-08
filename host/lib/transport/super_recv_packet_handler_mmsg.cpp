@@ -390,6 +390,7 @@ public:
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     if(!tmp) {
+                        printf("vita_md[%lu].tsf: %lu\n", ch, vita_md[ch].tsf);
                         printf("vita_md[%lu].packet_count: %lu\n", ch, vita_md[ch].packet_count);
                         tmp = true;
                     }
