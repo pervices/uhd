@@ -38,6 +38,7 @@
 #include <net/if.h>
 
 #include <immintrin.h>
+#include <sys/mman.h>
 
 #define MIN_MTU 9000
 
@@ -179,6 +180,8 @@ public:
             size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
             recv_manager = (async_recv_manager*) aligned_alloc(getpagesize(), recv_manager_size);
             new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
+
+            madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
         }
     }
 
