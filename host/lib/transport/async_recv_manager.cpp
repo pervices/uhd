@@ -209,6 +209,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
+    size_t total_packet_received = 0;
+
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
 
@@ -231,6 +233,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool update_counts = packets_received & local_flush_complete[ch];
+
+        total_packet_received+= total_packet_received * update_counts;
 
         // Set counter for number of packets stored
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
@@ -257,6 +261,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
     }
+    printf("total_packet_received: %lu\n", total_packet_received);
 
     if(error_code) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(error_code));
