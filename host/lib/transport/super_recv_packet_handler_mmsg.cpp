@@ -324,7 +324,7 @@ public:
                     // Lets CPU know this is in a spin loop
                     // Helps performance so the branch predictor doesn't get killed by the loop
                     // usleep(1);
-                    // _mm_pause();
+                    _mm_pause();
                 }
             }
 
