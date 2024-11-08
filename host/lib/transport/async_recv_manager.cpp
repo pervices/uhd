@@ -71,7 +71,7 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
     }
 
     // Disbale huge pages, huge pages could help but they are unpredictable would could caused a latency spike
-    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
+    // madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
