@@ -300,16 +300,16 @@ public:
             // Stores buffer_write_count from when the packet was obtained
             std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
 
-            if(first_run) {
-                std::vector<int> random(1000000, 1);
-                time_spec_t bust_end_time = uhd::get_system_time() + 100;
-                while(bust_end_time > uhd::get_system_time()) {
-                    for(size_t n = 0; n < 1000000; n++) {
-                        random[n] = random[n] * rand();
-                    }
-                }
-                first_run = false;
-            }
+            // if(first_run) {
+            //     std::vector<int> random(1000000, 1);
+            //     time_spec_t bust_end_time = uhd::get_system_time() + 100;
+            //     while(bust_end_time > uhd::get_system_time()) {
+            //         for(size_t n = 0; n < 1000000; n++) {
+            //             random[n] = random[n] * rand();
+            //         }
+            //     }
+            //     first_run = false;
+            // }
 
             size_t ch = 0;
             // While not all channels have been obtained and timeout has not been reached

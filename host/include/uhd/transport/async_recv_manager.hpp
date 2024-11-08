@@ -70,6 +70,10 @@ private:
     // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, number of times this part of the ring buffer has beeing written to, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
     uint8_t* const _combined_buffer;
 
+    // DEBUG: put buffer write counts in their own buffer
+    const size_t _buffer_write_count_buffer_size;
+    uint8_t* const _buffer_write_count_buffer;
+
     // Get's a specific channel's combined buffers
     inline __attribute__((always_inline)) uint8_t* access_ch_combined_buffers(size_t ch, size_t ch_offset) {
         return _combined_buffer + ((ch + ch_offset) * NUM_BUFFERS * _combined_buffer_size);
@@ -145,7 +149,7 @@ private:
 
     // Gets a pointer to a int_fast64_t that stores the number of times a channel has had buffers been written to
     inline __attribute__((always_inline)) int_fast64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ padded_int_fast64_t_size);
+        return (int_fast64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (page_size * b));
     }
 
     // The buffer currently being used by the consumer thread
