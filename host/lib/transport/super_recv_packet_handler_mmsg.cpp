@@ -345,6 +345,10 @@ public:
                 }
             }
 
+            if(true) {
+                continue;
+            }
+
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
 
@@ -1209,8 +1213,6 @@ public:
     {
     }
 
-    bool first_recv = 1;
-
     //Consider merging recv_packet_streamer_mmsg and recv_packet_handler_mmsg
     //This is here to implement a virtual function from rx_streamer
     UHD_INLINE size_t recv(const rx_streamer::buffs_type& buffs,
@@ -1219,7 +1221,6 @@ public:
         const double timeout,
         const bool one_packet) override
     {
-        sleep(100);
         // Set flag for if the user ever requested a subopitmal number of samples per buffer
         return recv_packet_handler_mmsg::recv(
             buffs, nsamps_per_buff, metadata, timeout, one_packet);
