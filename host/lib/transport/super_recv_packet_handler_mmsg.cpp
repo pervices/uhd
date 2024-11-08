@@ -213,6 +213,8 @@ public:
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
+    bool tmp = false;
+
     // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
@@ -387,6 +389,10 @@ public:
 
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (sequence_number_mask & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
+                    if(!tmp) {
+                        printf("vita_md[%lu].packet_count: %lu\n", ch, vita_md[ch].packet_count);
+                        tmp = true;
+                    }
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     _overflow_occured = true;
                     overflow_detected = true;
