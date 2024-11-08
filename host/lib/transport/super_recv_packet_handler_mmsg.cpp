@@ -202,7 +202,7 @@ public:
         }
     }
 
-    bool first_run;
+    bool first_run = true;
 
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
