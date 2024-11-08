@@ -202,12 +202,17 @@ public:
         }
     }
 
+    bool first_recv = true;
+
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
         const bool one_packet)
     {
+        if(first_recv) {
+            sleep(100);
+        }
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
         _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
@@ -307,7 +312,7 @@ public:
                 std::atomic_thread_fence(std::memory_order_consume);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                 if(initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] + 2) {
-                    throw std::runtime_error("Consumer to slow");
+                    // throw std::runtime_error("Consumer to slow");
                 }
                 if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
                     // Move onto the next channel since this one is ready

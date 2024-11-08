@@ -234,7 +234,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool update_counts = packets_received & local_flush_complete[ch];
 
-        total_packet_received+= total_packet_received * update_counts;
+        total_packet_received+= r * update_counts;
 
         // Set counter for number of packets stored
         *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
