@@ -210,22 +210,10 @@ public:
         const double timeout,
         const bool one_packet)
     {
-        if(first_run) {
-            std::vector<int> random(1000000, 1);
-            time_spec_t bust_end_time = uhd::get_system_time() + 100;
-            while(bust_end_time > uhd::get_system_time()) {
-                for(size_t n = 0; n < 1000000; n++) {
-                    random[n] = random[n] * rand();
-                }
-            }
-            first_run = false;
-        }
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
         _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
         return (this->*_optimized_recv)(buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
-
-    bool tmp = false;
 
     // Function used to receive data for multiple channels
     size_t multi_ch_recv(const uhd::rx_streamer::buffs_type& buffs,
@@ -318,9 +306,6 @@ public:
                 initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
                 std::atomic_thread_fence(std::memory_order_consume);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
-                // if(initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] + 2) {
-                //     throw std::runtime_error("Consumer to slow");
-                // }
                 if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
                     // Move onto the next channel since this one is ready
                     ch++;
@@ -330,6 +315,17 @@ public:
                     // usleep(1);
                     // _mm_pause();
                 }
+            }
+
+            if(first_run) {
+                std::vector<int> random(1000000, 1);
+                time_spec_t bust_end_time = uhd::get_system_time() + 100;
+                while(bust_end_time > uhd::get_system_time()) {
+                    for(size_t n = 0; n < 1000000; n++) {
+                        random[n] = random[n] * rand();
+                    }
+                }
+                first_run = false;
             }
 
             // Check if timeout occured
