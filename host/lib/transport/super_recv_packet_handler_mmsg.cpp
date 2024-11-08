@@ -315,7 +315,6 @@ public:
             // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
-                std::atomic_thread_fence(std::memory_order_consume);
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                 if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
                     // Move onto the next channel since this one is ready
@@ -345,6 +344,8 @@ public:
 
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
+
+            std::atomic_thread_fence(std::memory_order_consume);
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
