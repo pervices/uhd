@@ -128,79 +128,79 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             cmd.num_samps = (rand() % spb) + 1;
             rx_stream->issue_stream_cmd(cmd);
         }
-        // try {
+        try {
             num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout)
                             * rx_stream->get_num_channels();
             recv_timeout = burst_pkt_time;
-        // } catch (uhd::io_error& e) {
-            // UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Caught an IO exception. " << std::endl;
-            // UHD_LOGGER_ERROR("BENCHMARK_RATE") << e.what() << std::endl;
-            // return;
-        // }
+        } catch (uhd::io_error& e) {
+            UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Caught an IO exception. " << std::endl;
+            UHD_LOGGER_ERROR("BENCHMARK_RATE") << e.what() << std::endl;
+            return;
+        }
 
-        // // handle the error codes
-        // switch (md.error_code) {
-        //     case uhd::rx_metadata_t::ERROR_CODE_NONE:
-        //         if (had_an_overflow) {
-        //             had_an_overflow          = false;
-        //             const long dropped_samps = (md.time_spec - last_time).to_ticks(rate);
-        //             if (dropped_samps < 0) {
-        //                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW()
-        //                           << "] Timestamp after overrun recovery "
-        //                              "ahead of error timestamp! Unable to calculate "
-        //                              "number of dropped samples."
-        //                              "(Delta: "
-        //                           << dropped_samps << " ticks)\n";
-        //             }
-        //             num_dropped_samps += std::max<long>(1, dropped_samps);
-        //         }
-        //         // Normally if eob then rx has completed
-        //         // however in random nsamps mode there are repeated bursts and each burst with have eob
-        //         if (md.end_of_burst && !random_nsamps) {
-        //             return;
-        //         }
-        //         break;
-        //
-        //     // ERROR_CODE_OVERFLOW can indicate overflow or sequence error
-        //     case uhd::rx_metadata_t::ERROR_CODE_OVERFLOW:
-        //         last_time       = md.time_spec;
-        //         had_an_overflow = true;
-        //         // check out_of_sequence flag to see if it was a sequence error or
-        //         // overflow
-        //         if (!md.out_of_sequence) {
-        //             num_overruns++;
-        //         } else {
-        //             num_seqrx_errors++;
-        //             UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Detected Rx sequence error."
-        //                       << std::endl;
-        //         }
-        //         break;
-        //
-        //     case uhd::rx_metadata_t::ERROR_CODE_LATE_COMMAND:
-        //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
-        //                   << ", restart streaming..." << std::endl;
-        //         num_late_commands++;
-        //         // Radio core will be in the idle state. Issue stream command to restart
-        //         // streaming.
-        //         cmd.time_spec  = usrp->get_time_now() + uhd::time_spec_t(0.05);
-        //         cmd.stream_now = (buffs.size() == 1);
-        //         rx_stream->issue_stream_cmd(cmd);
-        //         break;
-        //
-        //     case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
-        //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
-        //                   << ", continuing..." << std::endl;
-        //         num_timeouts_rx++;
-        //         break;
-        //
-        //         // Otherwise, it's an error
-        //     default:
-        //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
-        //                   << std::endl;
-        //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
-        //                   << std::endl;
-        //         break;
-        // }
+        // handle the error codes
+        switch (md.error_code) {
+            case uhd::rx_metadata_t::ERROR_CODE_NONE:
+                if (had_an_overflow) {
+                    had_an_overflow          = false;
+                    const long dropped_samps = (md.time_spec - last_time).to_ticks(rate);
+                    if (dropped_samps < 0) {
+                        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW()
+                                  << "] Timestamp after overrun recovery "
+                                     "ahead of error timestamp! Unable to calculate "
+                                     "number of dropped samples."
+                                     "(Delta: "
+                                  << dropped_samps << " ticks)\n";
+                    }
+                    num_dropped_samps += std::max<long>(1, dropped_samps);
+                }
+                // Normally if eob then rx has completed
+                // however in random nsamps mode there are repeated bursts and each burst with have eob
+                if (md.end_of_burst && !random_nsamps) {
+                    return;
+                }
+                break;
+
+            // ERROR_CODE_OVERFLOW can indicate overflow or sequence error
+            case uhd::rx_metadata_t::ERROR_CODE_OVERFLOW:
+                last_time       = md.time_spec;
+                had_an_overflow = true;
+                // check out_of_sequence flag to see if it was a sequence error or
+                // overflow
+                if (!md.out_of_sequence) {
+                    num_overruns++;
+                } else {
+                    num_seqrx_errors++;
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Detected Rx sequence error."
+                              << std::endl;
+                }
+                break;
+
+            case uhd::rx_metadata_t::ERROR_CODE_LATE_COMMAND:
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                          << ", restart streaming..." << std::endl;
+                num_late_commands++;
+                // Radio core will be in the idle state. Issue stream command to restart
+                // streaming.
+                cmd.time_spec  = usrp->get_time_now() + uhd::time_spec_t(0.05);
+                cmd.stream_now = (buffs.size() == 1);
+                rx_stream->issue_stream_cmd(cmd);
+                break;
+
+            case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                          << ", continuing..." << std::endl;
+                num_timeouts_rx++;
+                break;
+
+                // Otherwise, it's an error
+            default:
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                          << std::endl;
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
+                          << std::endl;
+                break;
+        }
     }
 }
 
