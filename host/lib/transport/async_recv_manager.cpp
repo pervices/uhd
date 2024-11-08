@@ -39,6 +39,8 @@ _combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _co
 // TODO if this works see if reducing it to cache line size works
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(page_size * NUM_BUFFERS / (double) page_size) * page_size),
 _buffer_write_count_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _buffer_write_count_buffer_size)),
+_packets_stored_buffer_size((uint_fast32_t) std::ceil(page_size * NUM_BUFFERS / (double) page_size) * page_size),
+_packets_stored_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _packets_stored_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size))
 {
@@ -83,6 +85,9 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
 
     madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
     memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
+
+    madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
+    memset(_packets_stored_buffer, 0, _num_ch * _packets_stored_buffer_size);
 
     int64_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -243,7 +248,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         total_packet_received+= r * update_counts;
 
         // Set counter for number of packets stored
-        // *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         std::atomic_thread_fence(std::memory_order_release);

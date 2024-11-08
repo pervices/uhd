@@ -345,10 +345,6 @@ public:
                 }
             }
 
-            if(true) {
-                continue;
-            }
-
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
 

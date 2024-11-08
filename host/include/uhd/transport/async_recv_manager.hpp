@@ -74,6 +74,10 @@ private:
     const size_t _buffer_write_count_buffer_size;
     uint8_t* const _buffer_write_count_buffer;
 
+    // DEBUG: put buffers stored in it's own page
+    const size_t _packets_stored_buffer_size;
+    uint8_t* const _packets_stored_buffer;
+
     // Get's a specific channel's combined buffers
     inline __attribute__((always_inline)) uint8_t* access_ch_combined_buffers(size_t ch, size_t ch_offset) {
         return _combined_buffer + ((ch + ch_offset) * NUM_BUFFERS * _combined_buffer_size);
@@ -144,7 +148,7 @@ private:
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) access_ch_combined_buffer(ch, ch_offset, b);
+       return (int_fast64_t*) (_packets_stored_buffer + ((ch + ch_offset) * _packets_stored_buffer_size) + (page_size * b));
     }
 
     // Gets a pointer to a int_fast64_t that stores the number of times a channel has had buffers been written to
