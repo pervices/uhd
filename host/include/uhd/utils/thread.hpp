@@ -68,4 +68,14 @@ UHD_API void set_thread_name(std::thread* thread, const std::string& name);
  */
 UHD_API void set_thread_affinity(const std::vector<size_t>& cpu_affinity_list);
 
+/*!
+ * Set the affinity of the current thread to the core it is currently running on
+ */
+UHD_API void set_thread_affinity_active_core();
+
+/*!
+ * Get the core the thread is currently running on
+ */
+UHD_API int get_cpu();
+
 } // namespace uhd
