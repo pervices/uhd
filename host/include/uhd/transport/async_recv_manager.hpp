@@ -50,8 +50,10 @@ private:
     // Size of the sample portion of Vita packets
     const uint_fast32_t _packet_data_size;
 
-    // Size of the buffer used to store packets
-    const uint_fast32_t packets_per_buffer;
+    // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
+    // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
+    // TODO: update size now that everything but mmsghdr and iovec have been removed from the page
+    static constexpr size_t PACKETS_PER_BUFFER = PAGE_SIZE / (PADDED_INT64_T_SIZE + PADDED_INT64_T_SIZE + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ));
 
     // Size of the buffer to contain: packets in the buffer (padded to cache line), number of times a buffer was written to (padded to cache line), all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
     const uint_fast32_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
@@ -125,7 +127,7 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ /*PADDED_INT64_T_SIZE +*/ /*  Number of times the buffer has been written to count*/ /*PADDED_INT64_T_SIZE +*/ (packets_per_buffer * sizeof(mmsghdr)));
+        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ /*PADDED_INT64_T_SIZE +*/ /*  Number of times the buffer has been written to count*/ /*PADDED_INT64_T_SIZE +*/ (PACKETS_PER_BUFFER * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {

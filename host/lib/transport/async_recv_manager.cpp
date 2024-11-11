@@ -22,13 +22,10 @@ padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (doubl
 _header_size(header_size),
 _padded_header_size(std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _packet_data_size(max_sample_bytes_per_packet),
-// Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
-// NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-packets_per_buffer(PAGE_SIZE / (PADDED_INT64_T_SIZE + PADDED_INT64_T_SIZE + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
-_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((/* Packets in bufffer count */ PADDED_INT64_T_SIZE + /*  Number of times the buffer has been written to count*/ PADDED_INT64_T_SIZE + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)PAGE_SIZE) * PAGE_SIZE),
-_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * packets_per_buffer / (double)PAGE_SIZE) * PAGE_SIZE),
+_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((/* Packets in bufffer count */ PADDED_INT64_T_SIZE + /*  Number of times the buffer has been written to count*/ PADDED_INT64_T_SIZE + sizeof(mmsghdr) + (2 * sizeof(iovec))) * PACKETS_PER_BUFFER / (double)PAGE_SIZE) * PAGE_SIZE),
+_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * PACKETS_PER_BUFFER / (double)PAGE_SIZE) * PAGE_SIZE),
 // Size of each packet buffer + padding to be a whole number of pages
-_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
+_data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
 // PADDED_INT64_T_SIZE is for the count for number of packets stored
 _combined_buffer_size(_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
@@ -148,7 +145,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // buffer_write_count
     // buffer_writes_count
     // sockets
-    // packets_to_recv (consider making constexpr)
+    // packets_to_recv - replaced with PACKETS_PER_BUFFER const expr
     // packets_received
 
     struct local_variables_s {
@@ -159,6 +156,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         int64_t* buffer_write_count;
         int64_t buffer_writes_count[MAX_CHANNELS];
         int sockets[MAX_CHANNELS];
+        bool are_packets_received;
     };
 
     typedef union {
@@ -216,7 +214,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         for(uint_fast32_t b = 0; b < self->NUM_BUFFERS; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
             struct iovec* iovecs = self->access_iovec_buffer(ch, ch_offset, b);
-            for(uint_fast32_t p = 0; p < self->packets_per_buffer; p++) {
+            for(uint_fast32_t p = 0; p < PACKETS_PER_BUFFER; p++) {
 
                 uint_fast32_t header_iovec = 2 * p;
                 uint_fast32_t data_iovec = 2 * p + 1;
@@ -239,15 +237,12 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     int error_code = 0;
 
-    // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
-    uint_fast32_t packets_to_recv = self->packets_per_buffer;
-
     // Flush packets
     for(size_t flush_ch = 0; flush_ch < num_ch; flush_ch++) {
         int r = -1;
         // Receive packets until none are received
         while(!self->stop_flag) {
-            r = recvmmsg(sockets[flush_ch], (mmsghdr*) self->access_mmsghdr_buffer(flush_ch, ch_offset, b[flush_ch]), packets_to_recv, MSG_DONTWAIT, 0);
+            r = recvmmsg(sockets[flush_ch], (mmsghdr*) self->access_mmsghdr_buffer(flush_ch, ch_offset, b[flush_ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
             // If no packets and received the error code for no packets and using MSG_DONTWAIT, continue to next channel
             if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                 *self->access_flush_complete(flush_ch, ch_offset) = 1;
@@ -273,7 +268,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         std::atomic_thread_fence(std::memory_order_release);
 
         // Receives any packets already in the buffer
-        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), packets_to_recv, MSG_DONTWAIT, 0);
+        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
