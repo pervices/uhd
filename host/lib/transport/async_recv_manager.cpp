@@ -162,7 +162,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     };
 
 
-    union local_variables_u local_variables;// __attribute__ ((aligned (PAGE_SIZE)));
+    union local_variables_u local_variables __attribute__ ((aligned (PAGE_SIZE)));
     assert(sizeof(local_variables) == PAGE_SIZE);
 
     local_variables.lv.self = self_;
