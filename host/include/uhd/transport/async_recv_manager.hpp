@@ -28,6 +28,8 @@ private:
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
     static constexpr size_t NUM_BUFFERS = 16384;
 
+    static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
+
     static constexpr size_t PAGE_SIZE = 4096;
 
     const uint_fast32_t _num_ch;

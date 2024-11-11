@@ -136,7 +136,7 @@ async_recv_manager::~async_recv_manager()
     free(recv_loops);
 }
 
-void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
+void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
     // Variables that need to be on their own page:
     // self
     // ch
@@ -148,48 +148,52 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // packets_to_recv - replaced with PACKETS_PER_BUFFER const expr
     // packets_received
 
+    // TODO: add comments for each element
+    // Struct contianing all local variables used by the main receive loop
     struct local_variables_s {
         async_recv_manager* self;
         uint64_t ch;
         uint64_t ch_offset;
+        uint64_t num_ch;
+        // Mask used to roll over the buffers
+        // Buffer currently being written to for each channel
         uint64_t b[MAX_CHANNELS];
         int64_t* buffer_write_count;
         int64_t buffer_writes_count[MAX_CHANNELS];
         int sockets[MAX_CHANNELS];
+        int r;
         bool are_packets_received;
+        int error_code;
     };
 
-    typedef union {
-        struct local_variables_s ie;
+    // Union to pad local_variables_s to a full page
+    union local_variables_u {
+        struct local_variables_s lv;
         uint8_t padding[PAGE_SIZE];
-    } local_variables_u;
+    };
 
-    local_variables_u local_variables __attribute__ ((aligned (PAGE_SIZE)));
+
+    union local_variables_u local_variables;// __attribute__ ((aligned (PAGE_SIZE)));
     assert(sizeof(local_variables) == PAGE_SIZE);
+
+    local_variables.lv.self = self_;
+    local_variables.lv.ch = 0;
+    local_variables.lv.ch_offset = ch_offset_;
+    local_variables.lv.num_ch = sockets_.size();
+    for(size_t init_ch = 0; init_ch < local_variables.lv.num_ch; init_ch++) {
+        local_variables.lv.sockets[init_ch] = sockets_[init_ch];
+        local_variables.lv.b[init_ch] = 0;
+        local_variables.lv.buffer_writes_count[init_ch] = 0;
+    }
+    local_variables.lv.error_code = 0;
+
 
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe(1, true);
 
-    std::vector<size_t> target_cpu(1, 2 + ch_offset);
+    std::vector<size_t> target_cpu(1, 2 + local_variables.lv.ch_offset);
     set_thread_affinity(target_cpu);
-
-    const uint_fast32_t num_ch = sockets_.size();
-
-    // Mask used to roll over the buffers
-    const uint_fast32_t buffer_mask = self->NUM_BUFFERS - 1;
-
-    // Records the buffer in use by each channel
-    uint_fast32_t b[MAX_CHANNELS];
-    // Copy of sockets used by this thread on the stack
-    int sockets[MAX_CHANNELS];
-    // Tracks the number of times a buffer has been written to for each channel * 2
-    int_fast64_t buffer_writes_count[MAX_CHANNELS];
-    for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
-        sockets[ch] = sockets_[ch];
-        b[ch] = 0;
-        buffer_writes_count[ch] = 0;
-    }
 
     // Set the socket's affinity, improves speed and reliability
     // Skip setting if setting priority (which also sets affinity failed)
@@ -198,8 +202,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Syscall used because getcpu is does not exist on Oracle
         int r = syscall(SYS_getcpu, &cpu, nullptr);
         if(!r) {
-            for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
-                r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+            for(uint_fast32_t ch = 0; ch < local_variables.lv.num_ch; ch++) {
+                r = setsockopt(local_variables.lv.sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
                 if(r) {
                     UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
                 }
@@ -210,93 +214,90 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     }
 
     // Configure iovecs
-    for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
-        for(uint_fast32_t b = 0; b < self->NUM_BUFFERS; b++) {
+    for(uint_fast32_t ch = 0; ch < local_variables.lv.num_ch; ch++) {
+        for(uint_fast32_t b = 0; b < NUM_BUFFERS; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
-            struct iovec* iovecs = self->access_iovec_buffer(ch, ch_offset, b);
+            struct iovec* iovecs = local_variables.lv.self->access_iovec_buffer(ch, local_variables.lv.ch_offset, b);
             for(uint_fast32_t p = 0; p < PACKETS_PER_BUFFER; p++) {
 
                 uint_fast32_t header_iovec = 2 * p;
                 uint_fast32_t data_iovec = 2 * p + 1;
 
                 // Point iovecs to the location to store the vita header
-                iovecs[header_iovec].iov_base = (void*) self->access_vita_hdr(ch, ch_offset, b, p);
-                iovecs[header_iovec].iov_len = self->_header_size;
+                iovecs[header_iovec].iov_base = (void*) local_variables.lv.self->access_vita_hdr(ch, local_variables.lv.ch_offset, b, p);
+                iovecs[header_iovec].iov_len = local_variables.lv.self->_header_size;
 
                 // Points iovecs to the corresponding point in the buffers
-                iovecs[data_iovec].iov_base = (void*) self->access_packet_data(ch, ch_offset, b, p);
-                iovecs[data_iovec].iov_len = self->_packet_data_size;
+                iovecs[data_iovec].iov_base = (void*) local_variables.lv.self->access_packet_data(ch, local_variables.lv.ch_offset, b, p);
+                iovecs[data_iovec].iov_len = local_variables.lv.self->_packet_data_size;
 
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
-                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
-                self->access_mmsghdr(ch, ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
+                local_variables.lv.self->access_mmsghdr(ch, local_variables.lv.ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
+                local_variables.lv.self->access_mmsghdr(ch, local_variables.lv.ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
             }
         }
     }
 
-    int error_code = 0;
-
     // Flush packets
-    for(size_t flush_ch = 0; flush_ch < num_ch; flush_ch++) {
+    for(size_t flush_ch = 0; flush_ch < local_variables.lv.num_ch; flush_ch++) {
         int r = -1;
         // Receive packets until none are received
-        while(!self->stop_flag) {
-            r = recvmmsg(sockets[flush_ch], (mmsghdr*) self->access_mmsghdr_buffer(flush_ch, ch_offset, b[flush_ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
+        while(!local_variables.lv.self->stop_flag) {
+            r = recvmmsg(local_variables.lv.sockets[flush_ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(flush_ch, local_variables.lv.ch_offset, 0), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
             // If no packets and received the error code for no packets and using MSG_DONTWAIT, continue to next channel
             if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                *self->access_flush_complete(flush_ch, ch_offset) = 1;
+                *local_variables.lv.self->access_flush_complete(flush_ch, local_variables.lv.ch_offset) = 1;
                 break;
             }
         }
     }
 
-    uint_fast32_t ch = 0;
-    uint8_t padding2[4096];
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
-    while(!self->stop_flag) [[likely]] {
+    while(!local_variables.lv.self->stop_flag) [[likely]] {
 
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
-        int_fast64_t* buffer_write_count = self->access_buffer_writes_count(ch, ch_offset, b[ch]);
+        local_variables.lv.buffer_write_count = local_variables.lv.self->access_buffer_writes_count(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]);
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
-        buffer_writes_count[ch]+= !(buffer_writes_count[ch] & 1);
-        *buffer_write_count = buffer_writes_count[ch];
+        local_variables.lv.buffer_writes_count[local_variables.lv.ch]+= !(local_variables.lv.buffer_writes_count[local_variables.lv.ch] & 1);
+        *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
 
         // Fence to ensure buffer_write_count is set to an off number before recvmmsg
         std::atomic_thread_fence(std::memory_order_release);
 
         // Receives any packets already in the buffer
-        const int r = recvmmsg(sockets[ch], (mmsghdr*) self->access_mmsghdr_buffer(ch, ch_offset, b[ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
+        local_variables.lv.r = recvmmsg(local_variables.lv.sockets[local_variables.lv.ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
-        bool packets_received = r > 0;
+        local_variables.lv.are_packets_received = local_variables.lv.r > 0;
 
         // Set counter for number of packets stored
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received);
+        *local_variables.lv.self->access_num_packets_stored(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]) = (local_variables.lv.r * local_variables.lv.are_packets_received);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         std::atomic_thread_fence(std::memory_order_release);
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        buffer_writes_count[ch] += packets_received;
-        *buffer_write_count = buffer_writes_count[ch];
+        local_variables.lv.buffer_writes_count[local_variables.lv.ch] += local_variables.lv.are_packets_received;
+        *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        b[ch] = (b[ch] + packets_received) & buffer_mask;
+        local_variables.lv.b[local_variables.lv.ch] = (local_variables.lv.b[local_variables.lv.ch] + local_variables.lv.are_packets_received) & BUFFER_MASK;
 
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
-        ch++;
-        ch = ch * !(ch >= num_ch);
+        local_variables.lv.ch++;
+        local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
 
         // Set error_code to the first unhandled error encountered
-        error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
+        // TODO: check if false charring with errno is the issue
+        local_variables.lv.error_code = local_variables.lv.error_code | ((local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno);
     }
 
-    if(error_code) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(error_code));
+    if(local_variables.lv.error_code) {
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(local_variables.lv.error_code));
     }
 }
 
