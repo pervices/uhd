@@ -179,27 +179,24 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
-    bool priority_set = uhd::set_thread_priority_safe(1, true);
+    uhd::set_thread_priority_safe(1, true);
 
-    std::vector<size_t> target_cpu(1, 2 + local_variables.lv.ch_offset);
-    set_thread_affinity(target_cpu);
+    // Set the thread and socket's affinity to the current core, improves speed and reliability
+    unsigned int cpu;
+    // Syscall used because getcpu is does not exist on Oracle
+    int r = syscall(SYS_getcpu, &cpu, nullptr);
+    if(!r) {
+        for(uint_fast32_t ch = 0; ch < local_variables.lv.num_ch; ch++) {
+            std::vector<size_t> target_cpu(1, 2 + local_variables.lv.ch_offset);
+            set_thread_affinity(target_cpu);
 
-    // Set the socket's affinity, improves speed and reliability
-    // Skip setting if setting priority (which also sets affinity failed)
-    if(priority_set) {
-        unsigned int cpu;
-        // Syscall used because getcpu is does not exist on Oracle
-        int r = syscall(SYS_getcpu, &cpu, nullptr);
-        if(!r) {
-            for(uint_fast32_t ch = 0; ch < local_variables.lv.num_ch; ch++) {
-                r = setsockopt(local_variables.lv.sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
-                if(r) {
-                    UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
-                }
+            r = setsockopt(local_variables.lv.sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+            if(r) {
+                UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
             }
-        } else {
-            UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno));
         }
+    } else {
+        UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno));
     }
 
     // Configure iovecs
