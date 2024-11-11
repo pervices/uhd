@@ -37,7 +37,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-#include <immintrin.h>
+#include <sys/mman.h>
 
 #define MIN_MTU 9000
 
@@ -176,9 +176,11 @@ public:
         // With 1 channel the old method is used which doesn't use the manager
         if(_NUM_CHANNELS != 1) {
             // Create manager for threads that receive data to buffers using placement new to avoid false sharing
-            size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)cache_line_size) * cache_line_size;
-            recv_manager = (async_recv_manager*) aligned_alloc(cache_line_size, recv_manager_size);
+            size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
+            recv_manager = (async_recv_manager*) aligned_alloc(getpagesize(), recv_manager_size);
             new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
+
+            madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
         }
     }
 
@@ -307,9 +309,8 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    // Lets CPU know this is in a spin loop
-                    // Helps performance so the branch predictor doesn't get killed by the loop
-                    _mm_pause();
+                    // NO-OP
+                    // A pure busy wait is okay as long as the page get_buffer_write_count access is not used by recvmmsg
                 }
             }
 
@@ -331,6 +332,8 @@ public:
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
 
+            std::atomic_thread_fence(std::memory_order_consume);
+
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
                 memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
@@ -346,6 +349,7 @@ public:
                 }
 
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
+                std::atomic_thread_fence(std::memory_order_consume);
                 // If buffer_write_count changed while getting header info
                 if(post_header_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_header_overwrite = true;
@@ -450,6 +454,7 @@ public:
                 }
 
                 int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
+                std::atomic_thread_fence(std::memory_order_consume);
                 // If buffer_write_count changed while copying data
                 if(post_data_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_data_overwrite = true;
