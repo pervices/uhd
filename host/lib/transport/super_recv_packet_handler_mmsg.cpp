@@ -310,10 +310,8 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    // Lets CPU know this is in a spin loop
-                    // Helps performance so the branch predictor doesn't get killed by the loop
-                    // TODO: confirm this actually helps
-                    // _mm_pause();
+                    // NO-OP
+                    // A pure busy wait is okay as long as the page get_buffer_write_count access is not used by recvmmsg
                 }
             }
 
