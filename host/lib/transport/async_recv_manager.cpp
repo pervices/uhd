@@ -137,17 +137,6 @@ async_recv_manager::~async_recv_manager()
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
-    // Variables that need to be on their own page:
-    // self
-    // ch
-    // ch_offset
-    // b
-    // buffer_write_count
-    // buffer_writes_count
-    // sockets
-    // packets_to_recv - replaced with PACKETS_PER_BUFFER const expr
-    // packets_received
-
     // TODO: add comments for each element
     // Struct contianing all local variables used by the main receive loop
     struct local_variables_s {
