@@ -275,9 +275,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
         // Set error_code to the first unhandled error encountered
         error_code = error_code | ((r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !error_code) * errno);
-        if(total_packet_received == 20000002) [[unlikely]] {
-            break;
-        }
     }
     printf("total_packet_received: %lu\n", total_packet_received);
 
