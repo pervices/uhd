@@ -149,12 +149,12 @@ private:
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-       return (int_fast64_t*) (_packets_stored_buffer + ((ch + ch_offset) * _packets_stored_buffer_size) + (PADDED_INT64_T_SIZE * b));
+       return (int_fast64_t*) (_packets_stored_buffer + ((ch + ch_offset) * _packets_stored_buffer_size) + (PAGE_SIZE * b));
     }
 
     // Gets a pointer to a int_fast64_t that stores the number of times a channel has had buffers been written to
     inline __attribute__((always_inline)) int64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
-        return (int64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (PADDED_INT64_T_SIZE * b));
+        return (int64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (PAGE_SIZE * b));
     }
 
     // The buffer currently being used by the consumer thread

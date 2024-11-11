@@ -31,10 +31,10 @@ _combined_buffer_size(_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _combined_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 // TODO if this works see if reducing it to cache line size works
-_buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PADDED_INT64_T_SIZE * NUM_BUFFERS / (double) PADDED_INT64_T_SIZE) * PADDED_INT64_T_SIZE),
-_buffer_write_count_buffer((uint8_t*) aligned_alloc(PADDED_INT64_T_SIZE, _num_ch * _buffer_write_count_buffer_size)),
-_packets_stored_buffer_size((uint_fast32_t) std::ceil(PADDED_INT64_T_SIZE * NUM_BUFFERS / (double) PADDED_INT64_T_SIZE) * PADDED_INT64_T_SIZE),
-_packets_stored_buffer((uint8_t*) aligned_alloc(PADDED_INT64_T_SIZE, _num_ch * _packets_stored_buffer_size)),
+_buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
+_buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
+_packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
+_packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_stored_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
