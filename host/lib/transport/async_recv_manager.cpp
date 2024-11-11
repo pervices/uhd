@@ -189,9 +189,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
 
 
-    // Enables use of a realtime schedueler which will prevent this program from being interrupted
-    // TODO: also bind to a core
+    // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe(1, true);
+
+    std::vector<size_t> target_cpu(1, 2 + local_variables.lv.ch_offset);
+    set_thread_affinity(target_cpu);
 
     // Set the socket's affinity, improves speed and reliability
     // Skip setting if setting priority (which also sets affinity failed)
@@ -290,7 +292,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
 
         // Set error_code to the first unhandled error encountered
-        // This is commented out to avoid rare latency spikes whick are likely caused
+        // TODO: check if false charring with errno is the issue
         // local_variables.lv.error_code = local_variables.lv.error_code | ((local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno);
     }
 
