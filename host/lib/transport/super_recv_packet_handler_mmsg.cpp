@@ -37,7 +37,6 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-#include <immintrin.h>
 #include <sys/mman.h>
 
 #define MIN_MTU 9000

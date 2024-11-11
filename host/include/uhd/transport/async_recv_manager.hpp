@@ -7,7 +7,6 @@
 #include <thread>
 #include <cmath>
 #include <iostream>
-#include <immintrin.h>
 
 namespace uhd { namespace transport {
 
