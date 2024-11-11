@@ -198,6 +198,7 @@ void receive_function(uhd::rx_streamer *rx_stream, channel_group *group_info, si
     bool overflow_occured = false;
     size_t num_pages = getpagesize();
     // Receive loop
+    printf("group_info->common_nsamps_requested: %lu\n", group_info->common_nsamps_requested);
     while(!*stop_flag && (*num_samples_received < group_info->common_nsamps_requested || group_info->common_nsamps_requested == 0)) {
         // Initializes the to store rx data in
         std::vector<void*>buffer_ptrs(group_info->channels.size());

@@ -144,6 +144,8 @@ async_recv_manager::~async_recv_manager()
 
 void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
 
+    uint8_t padding1[4096];
+
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe(1, true);
 
@@ -233,6 +235,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     }
 
     uint_fast32_t ch = 0;
+    uint8_t padding2[4096];
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
 
