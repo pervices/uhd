@@ -28,18 +28,17 @@ private:
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
     static constexpr size_t NUM_BUFFERS = 16384;
 
+    static constexpr size_t PAGE_SIZE = 4096;
+
     const uint_fast32_t _num_ch;
 
-    const uint_fast32_t cache_line_size;
-
-    const uint_fast32_t page_size;
+    static constexpr size_t CACHE_LINE_SIZE = 64;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
     const uint_fast32_t padded_uint_fast8_t_size;
 
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_int_fast64_t_size;
-
+    static constexpr size_t PADDED_INT64_T_SIZE = CACHE_LINE_SIZE;
 
     // Vita header size
     const uint_fast32_t _header_size;
@@ -108,7 +107,7 @@ private:
 
     // Gets a pointer to specific mmsghdr buffer
     inline __attribute__((always_inline)) uint8_t* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_combined_buffer(ch, ch_offset, b); //+ /* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size;
+        return access_ch_combined_buffer(ch, ch_offset, b); //+ /* Packets in bufffer count */ PADDED_INT64_T_SIZE + /*  Number of times the buffer has been written to count*/ PADDED_INT64_T_SIZE;
     }
 
     // Gets a pointer to specific mmsghdr
@@ -126,7 +125,7 @@ private:
     // b: buffer
     // p: packet number
     inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ /*padded_int_fast64_t_size +*/ /*  Number of times the buffer has been written to count*/ /*padded_int_fast64_t_size +*/ (packets_per_buffer * sizeof(mmsghdr)));
+        return (iovec*) (access_ch_combined_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ /*PADDED_INT64_T_SIZE +*/ /*  Number of times the buffer has been written to count*/ /*PADDED_INT64_T_SIZE +*/ (packets_per_buffer * sizeof(mmsghdr)));
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
@@ -148,12 +147,12 @@ private:
     // Theoretically the compiler could optimize out writes to this without atomic or valatile
     // Practically/experimentally it does not optimize the writes out
     inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-       return (int_fast64_t*) (_packets_stored_buffer + ((ch + ch_offset) * _packets_stored_buffer_size) + (page_size * b));
+       return (int_fast64_t*) (_packets_stored_buffer + ((ch + ch_offset) * _packets_stored_buffer_size) + (PAGE_SIZE * b));
     }
 
     // Gets a pointer to a int_fast64_t that stores the number of times a channel has had buffers been written to
-    inline __attribute__((always_inline)) int_fast64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
-        return (int_fast64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (page_size * b));
+    inline __attribute__((always_inline)) int64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
+        return (int64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (PAGE_SIZE * b));
     }
 
     // The buffer currently being used by the consumer thread

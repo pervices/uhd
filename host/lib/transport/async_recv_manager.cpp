@@ -18,31 +18,28 @@ namespace uhd { namespace transport {
 async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
 :
 _num_ch(recv_sockets.size()),
-cache_line_size(sysconf(_SC_LEVEL1_DCACHE_LINESIZE)),
-page_size(getpagesize()),
-padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)cache_line_size ) * cache_line_size),
-padded_int_fast64_t_size(std::ceil( (uint_fast32_t)sizeof(int_fast64_t) / (double)cache_line_size ) * cache_line_size),
+padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _header_size(header_size),
-_padded_header_size(std::ceil( header_size / (double)cache_line_size ) * cache_line_size),
+_padded_header_size(std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _packet_data_size(max_sample_bytes_per_packet),
 // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
 // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-packets_per_buffer(page_size / (padded_int_fast64_t_size + padded_int_fast64_t_size + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
-_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((/* Packets in bufffer count */ padded_int_fast64_t_size + /*  Number of times the buffer has been written to count*/ padded_int_fast64_t_size + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)page_size) * page_size),
-_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * packets_per_buffer / (double)page_size) * page_size),
+packets_per_buffer(PAGE_SIZE / (PADDED_INT64_T_SIZE + PADDED_INT64_T_SIZE + sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))),
+_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((/* Packets in bufffer count */ PADDED_INT64_T_SIZE + /*  Number of times the buffer has been written to count*/ PADDED_INT64_T_SIZE + sizeof(mmsghdr) + (2 * sizeof(iovec))) * packets_per_buffer / (double)PAGE_SIZE) * PAGE_SIZE),
+_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * packets_per_buffer / (double)PAGE_SIZE) * PAGE_SIZE),
 // Size of each packet buffer + padding to be a whole number of pages
-_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * _packet_data_size) / (double)page_size) * page_size),
-// padded_int_fast64_t_size is for the count for number of packets stored
+_data_subbuffer_size((size_t) std::ceil((packets_per_buffer * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
+// PADDED_INT64_T_SIZE is for the count for number of packets stored
 _combined_buffer_size(_num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-_combined_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
+_combined_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 // TODO if this works see if reducing it to cache line size works
-_buffer_write_count_buffer_size((uint_fast32_t) std::ceil(page_size * NUM_BUFFERS / (double) page_size) * page_size),
-_buffer_write_count_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _buffer_write_count_buffer_size)),
-_packets_stored_buffer_size((uint_fast32_t) std::ceil(page_size * NUM_BUFFERS / (double) page_size) * page_size),
-_packets_stored_buffer((uint8_t*) aligned_alloc(page_size, _num_ch * _packets_stored_buffer_size)),
+_buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
+_buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
+_packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
+_packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_stored_buffer_size)),
 // Create buffer for flush complete flag in seperate cache lines
-flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_fast8_t_size))
+flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -56,11 +53,11 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
 
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
-    active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)cache_line_size) * cache_line_size;
-    active_consumer_buffer = (size_t* )aligned_alloc(cache_line_size, active_consumer_buffer_size);
+    active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    active_consumer_buffer = (size_t* )aligned_alloc(CACHE_LINE_SIZE, active_consumer_buffer_size);
     size_t num_packets_consumed_size = _num_ch * sizeof(int_fast64_t);
-    num_packets_consumed_size = (size_t) ceil(num_packets_consumed_size / (double)cache_line_size) * cache_line_size;
-    num_packets_consumed = (int_fast64_t*) aligned_alloc(cache_line_size, num_packets_consumed_size);
+    num_packets_consumed_size = (size_t) ceil(num_packets_consumed_size / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    num_packets_consumed = (int_fast64_t*) aligned_alloc(CACHE_LINE_SIZE, num_packets_consumed_size);
 
     // Initialize control variables to 0
     for(size_t ch = 0; ch < _num_ch; ch++) {
@@ -99,8 +96,8 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
 
     num_recv_loops = (size_t) std::ceil( _num_ch / (double) ch_per_thread );
 
-    size_t recv_loops_size = (size_t) std::ceil((sizeof(std::thread) * num_recv_loops) / (double)cache_line_size) * cache_line_size;
-    recv_loops = (std::thread*) aligned_alloc(cache_line_size, recv_loops_size);
+    size_t recv_loops_size = (size_t) std::ceil((sizeof(std::thread) * num_recv_loops) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    recv_loops = (std::thread*) aligned_alloc(CACHE_LINE_SIZE, recv_loops_size);
 
     // Creates thread to receive data
     size_t ch_offset = 0;
@@ -155,8 +152,13 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     // packets_received
 
     struct local_variables_s {
-        int example_a;
-        int example_b;
+        async_recv_manager* self;
+        uint64_t ch;
+        uint64_t ch_offset;
+        uint64_t b[MAX_CHANNELS];
+        int64_t* buffer_write_count;
+        int64_t buffer_writes_count[MAX_CHANNELS];
+        int sockets[MAX_CHANNELS];
     };
 
     typedef union {
@@ -164,7 +166,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         uint8_t padding[PAGE_SIZE];
     } local_variables_u;
 
-    local_variables_u local_variables __attribute__ ((aligned (16)));
+    local_variables_u local_variables __attribute__ ((aligned (PAGE_SIZE)));
     assert(sizeof(local_variables) == PAGE_SIZE);
 
 
