@@ -80,6 +80,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
     }
+    std::vector<size_t> target_cpu(1, 6);
+    uhd::set_thread_affinity(target_cpu);
 
     // print pre-test summary
     auto time_stamp   = NOW();
