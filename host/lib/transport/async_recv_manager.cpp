@@ -62,25 +62,19 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
-            // Hint to keep the mmsghdrs/iovecs, vita headers in cache
-            // Probably doesn't actually do anything
-            // madvise(access_mmsghdr_buffer(ch, 0, b), _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size, MADV_WILLNEED);
-            // madvise(access_vita_hdr(ch, 0, b, 0), _vitahdr_subbuffer_size, MADV_WILLNEED);
-
-            // madvise(access_ch_combined_buffer(ch, 0, b), _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size, MADV_NOHUGEPAGE);
+            madvise(access_ch_combined_buffer(ch, 0, b), _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size, MADV_NOHUGEPAGE);
         }
     }
 
-    // Disbale huge pages, huge pages could help but they are unpredictable would could caused a latency spike
-    // madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
+    // MADV_NOHUGEPAGE is used to prevent pages from being merged into a huge page
+    // Having certain stuff share pages causes rare latency spikes
+    // mmsghdr and iovec buffer, write count buffer, and packet stored buffer are all important to have on their own page
+    madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
+    madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
-
-    // madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
     memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
-
-    // madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
     memset(_packets_stored_buffer, 0, _num_ch * _packets_stored_buffer_size);
 
     int64_t num_cores = std::thread::hardware_concurrency();
