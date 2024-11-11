@@ -313,7 +313,7 @@ public:
                     // Lets CPU know this is in a spin loop
                     // Helps performance so the branch predictor doesn't get killed by the loop
                     // TODO: confirm this actually helps
-                    _mm_pause();
+                    // _mm_pause();
                 }
             }
 
