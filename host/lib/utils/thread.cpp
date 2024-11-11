@@ -187,6 +187,29 @@ void uhd::set_thread_affinity(const std::vector<size_t>& cpu_affinity_list)
         UHD_LOG_WARNING("UHD", "Failed to set desired affinity for thread");
     }
 }
+
+
+void uhd::set_thread_affinity_active_core() {
+    int cpu = get_cpu();
+    if(cpu < 0) {
+        UHD_LOG_ERROR("UHD", "Unable to set affinity to current core due to being unable to check the current core");
+    }
+    std::vector<size_t> target_cpu(1, (size_t) cpu);
+    uhd::set_thread_affinity(target_cpu);
+}
+
+
+int uhd::get_cpu() {
+    unsigned int cpu;
+    // Syscall used because getcpu is does not exist on Oracle
+    int r = syscall(SYS_getcpu, &cpu, nullptr);
+    if(r) {
+        UHD_LOG_ERROR("UHD", "Failed to get current core");
+        return -1;
+    } else {
+        return (int) cpu;
+    }
+}
 #endif /* HAVE_PTHREAD_SETAFFINITYNP */
 
 /***********************************************************************
