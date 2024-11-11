@@ -113,15 +113,16 @@ flush_complete((uint8_t*) aligned_alloc(cache_line_size, _num_ch * padded_uint_f
         ch_offset+=ch_per_thread;
     }
 
-    // uhd::time_spec_t start = uhd::get_system_time();
-    // for(size_t n = 0; n < _num_ch; n++) {
-    //     while(! *access_flush_complete(n, 0)) {
-    //         if(start + 30.0 < uhd::get_system_time()) {
-    //             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-    //             throw std::runtime_error("Timeout while flushing buffers");
-    //         }
-    //     }
-    // }
+    uhd::time_spec_t start = uhd::get_system_time();
+    for(size_t n = 0; n < _num_ch; n++) {
+        while(! *access_flush_complete(n, 0)) {
+            if(start + 30.0 < uhd::get_system_time()) {
+                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+                stop_flag = true;
+                throw std::runtime_error("Timeout while flushing buffers");
+            }
+        }
+    }
 }
 
 async_recv_manager::~async_recv_manager()
@@ -158,14 +159,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
     uint_fast32_t b[MAX_CHANNELS];
     // Copy of sockets used by this thread on the stack
     int sockets[MAX_CHANNELS];
-    // Local copy of flush complete flag so that we never need to read from the shared flag
-    uint_fast8_t local_flush_complete[MAX_CHANNELS];
     // Tracks the number of times a buffer has been written to for each channel * 2
     int_fast64_t buffer_writes_count[MAX_CHANNELS];
     for(uint_fast32_t ch = 0; ch < num_ch; ch++) {
         sockets[ch] = sockets_[ch];
         b[ch] = 0;
-        local_flush_complete[ch] = 0;
         buffer_writes_count[ch] = 0;
     }
 
@@ -215,13 +213,26 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
 
     int error_code = 0;
 
-    uint_fast32_t ch = 0;
-
     // Number of packets to receive on next recvmmsg (will be 0 if the buffer isn't ready yet)
     uint_fast32_t packets_to_recv = self->packets_per_buffer;
 
     size_t total_packet_received = 0;
 
+    // Flush packets
+    for(size_t flush_ch = 0; flush_ch < num_ch; flush_ch++) {
+        int r = -1;
+        // Receive packets until none are received
+        while(!self->stop_flag) {
+            r = recvmmsg(sockets[flush_ch], (mmsghdr*) self->access_mmsghdr_buffer(flush_ch, ch_offset, b[flush_ch]), packets_to_recv, MSG_DONTWAIT, 0);
+            // If no packets and received the error code for no packets and using MSG_DONTWAIT, continue to next channel
+            if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                *self->access_flush_complete(flush_ch, ch_offset) = 1;
+                break;
+            }
+        }
+    }
+
+    uint_fast32_t ch = 0;
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!self->stop_flag) [[likely]] {
 
@@ -242,27 +253,20 @@ void async_recv_manager::recv_loop(async_recv_manager* const self, const std::ve
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         bool packets_received = r > 0;
 
-        // Record if the count for number of buffers. Use bool since it will always be 0 or 1 which is useful for later branchless code
-        bool update_counts = packets_received & local_flush_complete[ch];
-
-        total_packet_received+= r * update_counts;
+        total_packet_received+= r * packets_received;
 
         // Set counter for number of packets stored
-        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * update_counts);
+        *self->access_num_packets_stored(ch, ch_offset, b[ch]) = (r * packets_received);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         std::atomic_thread_fence(std::memory_order_release);
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        buffer_writes_count[ch] += update_counts;
+        buffer_writes_count[ch] += packets_received;
         *buffer_write_count = buffer_writes_count[ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        b[ch] = (b[ch] + (packets_received & local_flush_complete[ch])) & buffer_mask;
-
-        // Set flush complete (already complete || recvmmsg returned with no packets)
-        local_flush_complete[ch] = local_flush_complete[ch] || (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
-        // *self->access_flush_complete(ch, ch_offset) = local_flush_complete[ch];
+        b[ch] = (b[ch] + packets_received) & buffer_mask;
 
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
