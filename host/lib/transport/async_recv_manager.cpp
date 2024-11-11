@@ -143,8 +143,30 @@ async_recv_manager::~async_recv_manager()
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self, const std::vector<int> sockets_, const size_t ch_offset) {
+    // Variables that need to be on their own page:
+    // self
+    // ch
+    // ch_offset
+    // b
+    // buffer_write_count
+    // buffer_writes_count
+    // sockets
+    // packets_to_recv (consider making constexpr)
+    // packets_received
 
-    uint8_t padding1[4096];
+    struct local_variables_s {
+        int example_a;
+        int example_b;
+    };
+
+    typedef union {
+        struct local_variables_s ie;
+        uint8_t padding[PAGE_SIZE];
+    } local_variables_u;
+
+    local_variables_u local_variables __attribute__ ((aligned (16)));
+    assert(sizeof(local_variables) == PAGE_SIZE);
+
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     bool priority_set = uhd::set_thread_priority_safe(1, true);
