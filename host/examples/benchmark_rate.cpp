@@ -79,6 +79,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
+        uhd::set_thread_affinity_active_core();
     }
 
     // print pre-test summary
@@ -217,6 +218,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
+        uhd::set_thread_affinity_active_core();
     }
 
     // print pre-test summary
@@ -399,10 +401,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
-    if (priority == "high") {
-        uhd::set_thread_priority_safe();
-        elevate_priority = true;
-    }
+    elevate_priority = priority == "high";
 
     // Random number of samples?
     if (vm.count("random")) {
