@@ -180,7 +180,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     int r = syscall(SYS_getcpu, &cpu, nullptr);
     if(!r) {
         for(uint_fast32_t ch = 0; ch < local_variables.lv.num_ch; ch++) {
-            std::vector<size_t> target_cpu(1, 2 + local_variables.lv.ch_offset);
+            std::vector<size_t> target_cpu(1, cpu);
             set_thread_affinity(target_cpu);
 
             r = setsockopt(local_variables.lv.sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
