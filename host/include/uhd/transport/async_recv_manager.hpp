@@ -55,8 +55,8 @@ private:
     // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
     static constexpr size_t PACKETS_PER_BUFFER = PAGE_SIZE / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ));
 
-    // Size of the buffer to contain: packets in the buffer (padded to cache line), number of times a buffer was written to (padded to cache line), all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
-    const uint_fast32_t _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size;
+    // Size of the buffer to contain: all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
+    const uint_fast32_t _mmmsghdr_iovec_subbuffer_size;
 
     // Size of the buffer to contain: all vita headers padded to a whole number of pages
     const uint_fast32_t _vitahdr_subbuffer_size;
@@ -68,7 +68,7 @@ private:
     // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
     const size_t _combined_buffer_size;
 
-    // Format: NUM_BUFFERS * (number of packets stored counter, padding to next cache line, number of times this part of the ring buffer has beeing written to, padding to next cache line, mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
+    // Format: NUM_BUFFERS * (mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
     uint8_t* const _combined_buffer;
 
     // DEBUG: put buffer write counts in their own buffer
@@ -95,7 +95,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: buffer
     inline __attribute__((always_inline)) uint8_t* access_packet_data_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
+        return access_ch_combined_buffer(ch, ch_offset, b) + _mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
     }
 
     // Pointer to buffers where a specific packet's samples are stored
@@ -131,7 +131,7 @@ private:
     }
 
     inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return access_ch_combined_buffer(ch, ch_offset, b) + _num_packets_stored_times_written_mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
+        return access_ch_combined_buffer(ch, ch_offset, b) + _mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
     }
 
     // Buffer to store flags to indicate sockets have been flushed
