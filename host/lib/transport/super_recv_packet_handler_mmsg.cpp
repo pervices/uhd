@@ -311,9 +311,8 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    // TODO: update comment if re-adding _mm_pause works
-                    // NO-OP
-                    // A pure busy wait is okay as long as the page get_buffer_write_count access is not used by recvmmsg
+                    // Indicates this is a busy loop
+                    // Failing to include this can result in get_buffer_write_count checks getting optimized out after the first pass
                     _mm_pause();
                 }
             }
