@@ -25,7 +25,7 @@ private:
 
     // Number of buffers per ch
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_BUFFERS = 1024;
+    static constexpr size_t NUM_BUFFERS = 16384;
 
     static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
 
@@ -53,7 +53,7 @@ private:
 
     // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
     // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-    static constexpr size_t PACKETS_PER_BUFFER = PAGE_SIZE / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) )) / 2;
+    static constexpr size_t PACKETS_PER_BUFFER = PAGE_SIZE / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ));
 
     // Size of the buffer to contain: all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
     const uint_fast32_t _mmmsghdr_iovec_subbuffer_size;
