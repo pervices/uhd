@@ -314,9 +314,8 @@ public:
                     // TODO: update comment if re-adding _mm_pause works
                     // NO-OP
                     // A pure busy wait is okay as long as the page get_buffer_write_count access is not used by recvmmsg
-
+                    _mm_pause();
                 }
-                _mm_pause();
             }
 
             // Check if timeout occured
