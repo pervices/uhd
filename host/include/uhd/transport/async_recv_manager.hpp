@@ -21,7 +21,7 @@ private:
     // (1 / this) is the maximum portion of CPU cores that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
-    static constexpr size_t MAX_CHANNELS = 16;
+    static constexpr size_t MAX_CHANNELS = 4;
 
     // Number of buffers per ch
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
