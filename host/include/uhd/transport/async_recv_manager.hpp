@@ -25,7 +25,7 @@ private:
 
     // Number of buffers per ch
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_BUFFERS = 16384;
+    static constexpr size_t NUM_BUFFERS = 1024;
 
     static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
 
@@ -71,7 +71,8 @@ private:
     // Format: NUM_BUFFERS * (mmsghdrs for the buffer, iovecs for the buffer, padding to next memory page, vita headers for the buffer, padding to next memory page, samples for the buffer)
     uint8_t* const _combined_buffer;
 
-    // DEBUG: put buffer write counts in their own buffer
+    // Stores a counter used to track the the number of times a buffer has been written to
+    // It is used to detect if the buffer was overwritten while being processed
     const size_t _buffer_write_count_buffer_size;
     uint8_t* const _buffer_write_count_buffer;
 
