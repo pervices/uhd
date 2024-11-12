@@ -30,7 +30,6 @@ _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size)
 _combined_buffer_size(_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _combined_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
-// Must be page aligned, cache line aligned not enough for some reason
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),

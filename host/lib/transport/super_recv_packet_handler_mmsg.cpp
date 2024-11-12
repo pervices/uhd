@@ -39,6 +39,8 @@
 
 #include <sys/mman.h>
 
+#include <immintrin.h>
+
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
@@ -309,9 +311,12 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
+                    // TODO: update comment if re-adding _mm_pause works
                     // NO-OP
                     // A pure busy wait is okay as long as the page get_buffer_write_count access is not used by recvmmsg
+
                 }
+                _mm_pause();
             }
 
             // Check if timeout occured
