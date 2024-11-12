@@ -39,7 +39,8 @@ _packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_st
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
     printf("_num_ch * NUM_BUFFERS * _combined_buffer_size: %lu\n", _num_ch * NUM_BUFFERS * _combined_buffer_size);
-    // madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_HUGEPAGE);
+
+    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_SEQUENTIAL);
 
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -137,11 +138,15 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     // TODO: add comments for each element
     // Struct contianing all local variables used by the main receive loop
     struct local_variables_s {
+        // The manager this receives data for
         async_recv_manager* self;
+        // Control variable to cycle through channels
         uint64_t ch;
+        // Where in the original list of channels this loop starts from
         uint64_t ch_offset;
+        // The number of channels this loop receives for
         uint64_t num_ch;
-        // Mask used to roll over the buffers
+        // TODO: improve cache locality of these arrays
         // Buffer currently being written to for each channel
         uint64_t b[MAX_CHANNELS];
         int64_t* buffer_write_count;
@@ -163,6 +168,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     assert(sizeof(local_variables) == PAGE_SIZE);
 
     madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE);
+
+    madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
 
     local_variables.lv.self = self_;
     local_variables.lv.ch = 0;
