@@ -260,7 +260,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         std::atomic_thread_fence(std::memory_order_release);
 
         // Receives any packets already in the buffer
-        local_variables.lv.r = recvmmsg(local_variables.lv.sockets[local_variables.lv.ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
+        local_variables.lv.r = recvmmsg(local_variables.lv.sockets[local_variables.lv.ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]), PACKETS_PER_BUFFER, 0 /*MSG_DONTWAIT*/, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         local_variables.lv.are_packets_received = local_variables.lv.r > 0;
