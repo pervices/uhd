@@ -358,6 +358,7 @@ public:
                     mid_header_read_header_overwrite = true;
                     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
                     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
+                    printf("T1\n");
                     recv_manager->reset_buffer_read_head(ch);
                 }
             }
@@ -463,6 +464,7 @@ public:
                     mid_header_read_data_overwrite = true;
                     // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
                     // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
+                    printf("T2\n");
                     recv_manager->reset_buffer_read_head(ch);
                 }
             }
