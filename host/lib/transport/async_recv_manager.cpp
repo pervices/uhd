@@ -86,7 +86,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
         num_cores = 4;
     }
 
-    int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
+    int64_t ch_per_thread = 1;// (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
 
     num_recv_loops = (size_t) std::ceil( _num_ch / (double) ch_per_thread );
 
