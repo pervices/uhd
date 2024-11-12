@@ -26,10 +26,11 @@ _mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 *
 _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * PACKETS_PER_BUFFER / (double)PAGE_SIZE) * PAGE_SIZE),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
-// PADDED_INT64_T_SIZE is for the count for number of packets stored
-_combined_buffer_size(_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
+
+_combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) HUGE_PAGE_SIZE) * HUGE_PAGE_SIZE ),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-_combined_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
+_combined_buffer((uint8_t*) aligned_alloc(HUGE_PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
+
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
@@ -37,6 +38,9 @@ _packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_st
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
+    printf("_num_ch * NUM_BUFFERS * _combined_buffer_size: %lu\n", _num_ch * NUM_BUFFERS * _combined_buffer_size);
+    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_HUGEPAGE);
+
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
         throw assertion_error("Unsupported number of channels");
@@ -60,9 +64,9 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
-        for(size_t b = 0; b < NUM_BUFFERS; b++) {
-            madvise(access_ch_combined_buffer(ch, 0, b), _mmmsghdr_iovec_subbuffer_size, MADV_NOHUGEPAGE);
-        }
+        // for(size_t b = 0; b < NUM_BUFFERS; b++) {
+        //     madvise(access_ch_combined_buffer(ch, 0, b), _mmmsghdr_iovec_subbuffer_size, MADV_NOHUGEPAGE);
+        // }
     }
 
     // MADV_NOHUGEPAGE is used to prevent pages from being merged into a huge page

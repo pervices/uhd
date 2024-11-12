@@ -31,6 +31,8 @@ private:
 
     static constexpr size_t PAGE_SIZE = 4096;
 
+    static constexpr size_t HUGE_PAGE_SIZE = 2048*1024;
+
     const uint_fast32_t _num_ch;
 
     static constexpr size_t CACHE_LINE_SIZE = 64;
