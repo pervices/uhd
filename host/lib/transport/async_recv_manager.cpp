@@ -27,9 +27,9 @@ _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * PACKETS_
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
 
-_combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) HUGE_PAGE_SIZE) * HUGE_PAGE_SIZE ),
+_combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) PAGE_SIZE) * PAGE_SIZE ),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-_combined_buffer((uint8_t*) aligned_alloc(HUGE_PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
+_combined_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
 
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
@@ -39,7 +39,7 @@ _packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_st
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
     printf("_num_ch * NUM_BUFFERS * _combined_buffer_size: %lu\n", _num_ch * NUM_BUFFERS * _combined_buffer_size);
-    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_HUGEPAGE);
+    // madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_HUGEPAGE);
 
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -72,8 +72,8 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // MADV_NOHUGEPAGE is used to prevent pages from being merged into a huge page
     // Having certain stuff share pages causes rare latency spikes
     // mmsghdr and iovec buffer, write count buffer, and packet stored buffer are all important to have on their own page
-    madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
-    madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
+    // madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
+    // madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
