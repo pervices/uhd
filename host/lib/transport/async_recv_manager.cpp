@@ -37,6 +37,7 @@ _packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_st
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
+    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
         throw assertion_error("Unsupported number of channels");
@@ -61,7 +62,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
         for(size_t b = 0; b < NUM_BUFFERS; b++) {
-            madvise(access_ch_combined_buffer(ch, 0, b), _mmmsghdr_iovec_subbuffer_size, MADV_NOHUGEPAGE);
+            // madvise(access_ch_combined_buffer(ch, 0, b), _mmmsghdr_iovec_subbuffer_size, MADV_NOHUGEPAGE);
         }
     }
 
