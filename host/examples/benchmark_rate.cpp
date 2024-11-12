@@ -67,6 +67,8 @@ inline std::string time_delta_str(const start_time_type& ref_time)
 /***********************************************************************
  * Benchmark RX Rate
  **********************************************************************/
+bool unexpected_error_printed = false;
+
 void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const std::string& rx_cpu,
     uhd::rx_streamer::sptr rx_stream,
@@ -194,10 +196,13 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
                 // Otherwise, it's an error
             default:
-                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                if(!unexpected_error_printed) {
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << std::endl;
-                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
                           << std::endl;
+                    unexpected_error_printed = true;
+                }
                 break;
         }
     }

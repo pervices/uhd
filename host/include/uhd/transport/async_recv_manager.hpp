@@ -73,10 +73,11 @@ private:
 
     // Stores a counter used to track the the number of times a buffer has been written to
     // It is used to detect if the buffer was overwritten while being processed
+    // Each element of the buffer should be on it's own page, it seems to help with
     const size_t _buffer_write_count_buffer_size;
     uint8_t* const _buffer_write_count_buffer;
 
-    // DEBUG: put buffers stored in it's own page
+    // Number of packets stored in a buffer
     const size_t _packets_stored_buffer_size;
     uint8_t* const _packets_stored_buffer;
 
