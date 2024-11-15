@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <immintrin.h>
 
 namespace uhd { namespace transport {
 
@@ -258,7 +259,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
 
         // Fence to ensure buffer_write_count is set to an off number before recvmmsg
-        std::atomic_thread_fence(std::memory_order_release);
+        _mm_sfence();
 
         // Receives any packets already in the buffer
         local_variables.lv.r = recvmmsg(local_variables.lv.sockets[local_variables.lv.ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
@@ -270,7 +271,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         *local_variables.lv.self->access_num_packets_stored(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]) = (local_variables.lv.r * local_variables.lv.are_packets_received);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
-        std::atomic_thread_fence(std::memory_order_release);
+        _mm_sfence();
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         local_variables.lv.buffer_writes_count[local_variables.lv.ch] += local_variables.lv.are_packets_received;

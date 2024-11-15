@@ -328,8 +328,7 @@ public:
                 } else {
                     // Indicates this is a busy loop
                     // Failing to include this can result in get_buffer_write_count checks getting optimized out after the first pass
-                    // _mm_pause();
-                    usleep(1);
+                    _mm_pause();
                 }
             }
 
