@@ -285,6 +285,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         local_variables.lv.ch++;
         local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
 
+        // DEBUG
+        _mm_sfence();
+
         // Set error_code to the first unhandled error encountered
         // TODO: check if false charring with errno is the issue
         // local_variables.lv.error_code = local_variables.lv.error_code | ((local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno);
