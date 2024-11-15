@@ -38,6 +38,7 @@
 #include <net/if.h>
 
 #include <sys/mman.h>
+#include <fcntl.h>
 
 #include <immintrin.h>
 
@@ -101,6 +102,14 @@ public:
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            int flags = fcntl(_recv_sockets[n],F_GETFL);
+            printf("old flags: %i\n", flags);
+            flags = (flags | O_NONBLOCK);
+            if(fcntl(_recv_sockets[n], F_SETFL, flags) < 0)
+            {
+                throw uhd::runtime_error( "Failed to set flags" );
+            }
+
             // Sets the recv buffer size
             setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
 
