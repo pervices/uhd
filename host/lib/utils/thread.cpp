@@ -66,7 +66,7 @@ namespace uhd {
 void uhd::set_thread_priority(float priority, bool realtime)
 {
 
-    if(0/*realtime*/) {
+    if(realtime) {
         // Realtime threading has been disabled
         // SCHED_DEADLINE prevents setting thread affinity, which is more important
         // SCHED_FIFO and SCHED_RR result in worse performance, even after setting /proc/sys/kernel/sched_rt_runtime_us to -1
@@ -77,11 +77,11 @@ void uhd::set_thread_priority(float priority, bool realtime)
         //         If realtime threading is requested shift priority from range -1..1 to 0.5..1.
         //         In non realtime mode shift 0..1 to 0..0.5 and don't affect -1..0
         //         This achieves the effect of always having a higher priority than non realtime threads, while not affecting negative priority of realtime threads
-    } else if (realtime) {
-        priority = ((priority + 1) * 0.25) + 0.5;
-        check_priority_range(priority);
-
-        set_thread_priority_non_realtime(priority);
+    // } else if (realtime) {
+    //     priority = ((priority + 1) * 0.25) + 0.5;
+    //     check_priority_range(priority);
+    //
+    //     set_thread_priority_non_realtime(priority);
     }else {
         // Shift priority range so pseudo realtime threading can always be higher
         if(priority >0) {
