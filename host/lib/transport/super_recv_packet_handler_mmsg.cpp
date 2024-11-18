@@ -817,7 +817,7 @@ private:
      */
     UHD_INLINE void convert_samples(const ref_vector<void*> dst, void* src, size_t num_samples) {
         // TODO: investigate if this be optimized to reduce branching
-        _converter->conv(src, dst, num_samples);
+        // _converter->conv(src, dst, num_samples);
     }
 
     // TODO: remove once recv_single_ch_sequential is removed
