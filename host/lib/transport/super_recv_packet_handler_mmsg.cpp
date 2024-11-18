@@ -197,7 +197,7 @@ public:
             recv_manager = (async_recv_manager*) aligned_alloc(getpagesize(), recv_manager_size);
             new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
 
-            madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
+            // madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
         }
     }
 
