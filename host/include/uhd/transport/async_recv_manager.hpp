@@ -249,6 +249,7 @@ public:
      * @param ch
      */
     inline __attribute__((always_inline)) void reset_buffer_read_head(const size_t ch) {
+        printf("Consumer to slow\n");
         num_packets_consumed[ch] = 0;
     }
 
