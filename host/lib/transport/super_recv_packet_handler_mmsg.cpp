@@ -816,9 +816,11 @@ private:
      * @param src the source to copy to. Must be at least src sample size * num_samples
      * @param num_samples the number of samples to copy
      */
-    UHD_INLINE void convert_samples(const ref_vector<void*> dst, void* src, size_t num_samples) {
+    UHD_INLINE void convert_samples(void* dst, void* src, size_t num_samples) {
         // TODO: investigate if this be optimized to reduce branching
-        _converter->conv(src, dst, num_samples);
+        // _converter->conv(src, dst, num_samples);
+        // DEBUG: copy instead of convert
+        memcpy(dst, src, num_samples *_BYTES_PER_SAMPLE);
     }
 
     // TODO: remove once recv_single_ch_sequential is removed
