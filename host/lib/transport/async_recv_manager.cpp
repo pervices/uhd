@@ -51,6 +51,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
     // Check if memory allocation failed
     if(_combined_buffer == MAP_FAILED) {
+        printf("errno: %s\n", strerror(errno));
         throw uhd::environment_error( "A1 aligned_alloc failed for internal buffers" );
     }
 
