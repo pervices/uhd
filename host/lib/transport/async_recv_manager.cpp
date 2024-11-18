@@ -78,7 +78,11 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
-    memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
+    // memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
+    // DEBUG: set to random values in case consolidation is a problem
+    for(size_t n = 0; n < _num_ch * NUM_BUFFERS * _combined_buffer_size; n++) {
+        _combined_buffer[n] = (uint8_t) rand();
+    }
     memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
     memset(_packets_stored_buffer, 0, _num_ch * _packets_stored_buffer_size);
 
