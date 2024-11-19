@@ -818,9 +818,7 @@ private:
      */
     UHD_INLINE void convert_samples(void* dst, void* src, size_t num_samples) {
         // TODO: investigate if this be optimized to reduce branching
-        // _converter->conv(src, dst, num_samples);
-        // DEBUG: copy instead of convert
-        memcpy(dst, src, num_samples *_BYTES_PER_SAMPLE);
+        _converter->conv(src, dst, num_samples);
     }
 
     // TODO: remove once recv_single_ch_sequential is removed
