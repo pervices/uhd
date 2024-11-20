@@ -153,6 +153,8 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t strea
 
 // Loop that polls Crimson to verify the PPS is working
 void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
+    std::vector<size_t> tmp_all_cpus = {0, 1, 2, 3, 4, 5, 6, 7};
+    set_thread_affinity(tmp_all_cpus);
 
     dev->_pps_thread_running = true;
     int pps_detected;
