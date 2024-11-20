@@ -31,7 +31,8 @@ _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size)
 // Size of each receive buffer
 _combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) PAGE_SIZE) * PAGE_SIZE ),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-// NOTE: avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
+// NOTE: avoid aligned_alloc and use mmap instead for large buffers
+// aligned_alloc causes random latency spikes when said memory is being used. (Experimentally verified, no idea why)
 _combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
 // TODO: test if these need to be padded to full pages, or cache line will do
