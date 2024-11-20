@@ -12,8 +12,6 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <sys/syscall.h>
-#include <immintrin.h>
-
 namespace uhd { namespace transport {
 
 async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
@@ -148,6 +146,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // TODO: improve cache locality of these arrays
         // Buffer currently being written to for each channel
         uint64_t b[MAX_CHANNELS];
+        // Pointer to the relevant buffer write count
         int64_t* buffer_write_count;
         int64_t buffer_writes_count[MAX_CHANNELS];
         int sockets[MAX_CHANNELS];
@@ -156,7 +155,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         int error_code;
     };
 
-    // Union to pad local_variables_s to a full page
+    // Union to pad local_variables_s to a full page to prevent interference from other threads
     union local_variables_u {
         struct local_variables_s lv;
         uint8_t padding[PAGE_SIZE];
@@ -166,8 +165,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     union local_variables_u local_variables __attribute__ ((aligned (PAGE_SIZE)));
     assert(sizeof(local_variables) == PAGE_SIZE);
 
-    // madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE);
-
+    // MADV_WILLNEED since this will be accessed often
     madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
 
     local_variables.lv.self = self_;
@@ -256,7 +254,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
 
         // Fence to ensure buffer_write_count is set to an off number before recvmmsg
-        _mm_sfence();
+        std::atomic_thread_fence(std::memory_order_release);
 
         // Receives any packets already in the buffer
         local_variables.lv.r = recvmmsg(local_variables.lv.sockets[local_variables.lv.ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
@@ -268,7 +266,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         *local_variables.lv.self->access_num_packets_stored(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]) = (local_variables.lv.r * local_variables.lv.are_packets_received);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
-        _mm_sfence();
+        std::atomic_thread_fence(std::memory_order_release);
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         local_variables.lv.buffer_writes_count[local_variables.lv.ch] += local_variables.lv.are_packets_received;
