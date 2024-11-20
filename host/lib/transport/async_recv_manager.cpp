@@ -175,6 +175,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     // MADV_WILLNEED since this will be accessed often
     madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
 
+    madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE);
+
     local_variables.lv.self = self_;
     local_variables.lv.ch = 0;
     local_variables.lv.ch_offset = ch_offset_;
