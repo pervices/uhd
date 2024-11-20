@@ -36,9 +36,9 @@ _combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buff
 
 // TODO: test if these need to be padded to full pages, or cache line will do
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
-_buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
+_buffer_write_count_buffer((uint8_t*) mmap(nullptr, _num_ch * _buffer_write_count_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
-_packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_stored_buffer_size)),
+_packets_stored_buffer((uint8_t*) mmap(nullptr, _num_ch * _packets_stored_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
@@ -126,6 +126,8 @@ async_recv_manager::~async_recv_manager()
 
     // Frees packets and mmsghdr buffers
     munmap(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size);
+    munmap(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size);
+    munmap(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size);
     free(flush_complete);
     free(active_consumer_buffer);
     free(num_packets_consumed);
