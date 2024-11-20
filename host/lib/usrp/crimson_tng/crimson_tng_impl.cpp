@@ -805,6 +805,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_bm_thread_needed( false ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
+	_pps_thread_needed( false ),
 	_pps_thread_running( false ),
 	_pps_thread_should_exit( false ),
 	_command_time( 0.0 )
