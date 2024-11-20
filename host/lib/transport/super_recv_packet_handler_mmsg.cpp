@@ -105,6 +105,14 @@ public:
         // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
 
+            int flags = fcntl(_recv_sockets[n],F_GETFL);
+            flags = (flags | O_NONBLOCK);
+            if(fcntl(_recv_sockets[n], F_SETFL, flags) < 0)
+            {
+                throw uhd::runtime_error( "Failed to set socket to non-blocking. Performance may be affected" );
+            }
+
+
             // Sets the recv buffer size
             setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
 
