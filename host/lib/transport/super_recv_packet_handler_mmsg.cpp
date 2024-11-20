@@ -47,10 +47,8 @@
 namespace uhd { namespace transport { namespace sph {
 
     // Socket priority for rx sockets
-    // Experimentally verified that the priority must be 6
-    // Using 5 can cause random rare slowdowns
-    // TODO: verify increasing priority to 6 did not negatively impact tx performance
-    const int RX_SO_PRIORITY = 6;
+    // Set to be 1 lower tx
+    const int RX_SO_PRIORITY = 5;
 
 /***********************************************************************
  * Super receive packet handler
@@ -141,14 +139,6 @@ public:
             int set_priority_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_PRIORITY, &RX_SO_PRIORITY, sizeof(RX_SO_PRIORITY));
             if(set_priority_ret) {
                 fprintf(stderr, "Attempting to set rx socket priority failed with error code: %s", strerror(errno));
-            }
-
-            // Sets the duration to busy poll/read (in us) after a recv call
-            // Documentation says this only applies to blocking requests, experimentally this still helps with recvmmsg MSG_DONTWAIT
-            const int busy_poll_time = 1000;
-            int set_busy_poll_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_BUSY_POLL, &busy_poll_time, sizeof(set_busy_poll_ret));
-            if(set_priority_ret) {
-                fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
             }
 
             // TODO: remove this when the old recv system is removed. _MAX_PACKETS_TO_RECV is only relevant when recvmmsg is being used
