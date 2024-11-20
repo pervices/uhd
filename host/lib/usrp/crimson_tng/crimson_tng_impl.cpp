@@ -153,15 +153,9 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t strea
 
 // Loop that polls Crimson to verify the PPS is working
 void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
-    std::vector<size_t> tmp_all_cpus = {0, 1, 2, 3, 4, 5, 6, 7};
-    set_thread_affinity(tmp_all_cpus);
 
     dev->_pps_thread_running = true;
     int pps_detected;
-
-    struct sched_param params;
-    memset(&params, 0, sizeof(sched_param));
-    sched_setscheduler(0, SCHED_IDLE, &params);
 
     while (! dev->_pps_thread_should_exit) {
         dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").set(1);
@@ -1043,7 +1037,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
-    _pps_thread_needed = true;
+    // Thread disabled due to performance issues it causes
+    // TODO: find the root cause of the performance issues, then re-enable
+    _pps_thread_needed = false;
     try {
         // Attempt to read pps_detected
         // If success the the pps monitoring loop should be run
