@@ -47,8 +47,10 @@
 namespace uhd { namespace transport { namespace sph {
 
     // Socket priority for rx sockets
-    // One less than the socket priority of tx
-    const int RX_SO_PRIORITY = 5;
+    // Experimentally verified that the priority must be 6
+    // Using 5 can cause random rare slowdowns
+    // TODO: verify increasing priority to 6 did not negatively impact tx performance
+    const int RX_SO_PRIORITY = 6;
 
 /***********************************************************************
  * Super receive packet handler
@@ -127,12 +129,6 @@ public:
             int set_priority_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_PRIORITY, &RX_SO_PRIORITY, sizeof(RX_SO_PRIORITY));
             if(set_priority_ret) {
                 fprintf(stderr, "Attempting to set rx socket priority failed with error code: %s", strerror(errno));
-            }
-
-            const int busy_poll_time = 1000;
-            int set_busy_poll_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_BUSY_POLL, &busy_poll_time, sizeof(set_busy_poll_ret));
-            if(set_priority_ret) {
-                fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
             }
 
             // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
