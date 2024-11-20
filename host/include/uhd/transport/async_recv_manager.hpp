@@ -21,7 +21,7 @@ private:
     // (1 / this) is the maximum portion of CPU cores that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
 
-    static constexpr size_t MAX_CHANNELS = 4;
+    static constexpr size_t MAX_CHANNELS = 16;
 
     // Number of buffers per ch
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
@@ -30,8 +30,6 @@ private:
     static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
 
     static constexpr size_t PAGE_SIZE = 4096;
-
-    static constexpr size_t HUGE_PAGE_SIZE = 2048*1024;
 
     const uint_fast32_t _num_ch;
 
@@ -249,7 +247,6 @@ public:
      * @param ch
      */
     inline __attribute__((always_inline)) void reset_buffer_read_head(const size_t ch) {
-        printf("Consumer to slow\n");
         num_packets_consumed[ch] = 0;
     }
 

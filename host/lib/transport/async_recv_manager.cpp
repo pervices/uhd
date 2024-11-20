@@ -125,7 +125,6 @@ async_recv_manager::~async_recv_manager()
     }
 
     // Frees packets and mmsghdr buffers
-    // free(_combined_buffer);
     munmap(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size);
     free(flush_complete);
     free(active_consumer_buffer);
@@ -134,8 +133,8 @@ async_recv_manager::~async_recv_manager()
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
-    // TODO: add comments for each element
     // Struct contianing all local variables used by the main receive loop
+    // TODO: look into  improving cache locality
     struct local_variables_s {
         // The manager this receives data for
         async_recv_manager* self;
@@ -145,15 +144,19 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         uint64_t ch_offset;
         // The number of channels this loop receives for
         uint64_t num_ch;
-        // TODO: improve cache locality of these arrays
         // Buffer currently being written to for each channel
         uint64_t b[MAX_CHANNELS];
-        // Pointer to the relevant buffer write count
+        // Cache of buffer write count to update this loop
         int64_t* buffer_write_count;
+        // Number of buffer writes so far for each channel
         int64_t buffer_writes_count[MAX_CHANNELS];
+        // Sockets to receive on
         int sockets[MAX_CHANNELS];
+        // Return value of recvmmsg
         int r;
+        // Number to multiply by for branchless operations (bool will always be 1 or 0)
         bool are_packets_received;
+        // Error code of recvmmsg
         int error_code;
     };
 
@@ -281,9 +284,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Achieves results like a for loop while reducing branches
         local_variables.lv.ch++;
         local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
-
-        // DEBUG
-        // _mm_sfence();
 
         // Set error_code to the first unhandled error encountered
         // TODO: check if false charring with errno is the issue
