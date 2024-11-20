@@ -120,17 +120,28 @@ public:
                 throw uhd::system_error("Unable to set recv socket size");
             }
 
+            // Verify the interface can handle large packets
             int mtu = get_mtu(_recv_sockets[n], dst_ip[n].c_str());
             if(mtu < MIN_MTU) {
                 fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ip[n].c_str(), MIN_MTU, mtu);
                 throw uhd::system_error("MTU size to small");
             }
 
+            // Set socket priority
             int set_priority_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_PRIORITY, &RX_SO_PRIORITY, sizeof(RX_SO_PRIORITY));
             if(set_priority_ret) {
                 fprintf(stderr, "Attempting to set rx socket priority failed with error code: %s", strerror(errno));
             }
 
+            // Sets the duration to busy poll/read (in us) after a recv call
+            // Documentation says this only applies to blocking requests, experimentally this still helps with recvmmsg MSG_DONTWAIT
+            const int busy_poll_time = 1000;
+            int set_busy_poll_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_BUSY_POLL, &busy_poll_time, sizeof(set_busy_poll_ret));
+            if(set_priority_ret) {
+                fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
+            }
+
+            // TODO: remove this when the old recv system is removed. _MAX_PACKETS_TO_RECV is only relevant when recvmmsg is being used
             // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
             _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/(_NUM_CHANNELS + 1))/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET + 42));
         }
