@@ -203,6 +203,10 @@ public:
             // Create manager for threads that receive data to buffers using placement new to avoid false sharing
             size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
             recv_manager = (async_recv_manager*) aligned_alloc(getpagesize(), recv_manager_size);
+
+            // Prevent the class from being moved to a huge page, causes latency spikes
+            madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
+
             new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
         }
     }
