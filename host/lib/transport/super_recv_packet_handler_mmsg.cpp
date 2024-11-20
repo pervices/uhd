@@ -141,13 +141,13 @@ public:
                 fprintf(stderr, "Attempting to set rx socket priority failed with error code: %s", strerror(errno));
             }
 
-            // // Sets the duration to busy poll/read (in us) after a recv call
-            // // Documentation says this only applies to blocking requests, experimentally this still helps with recvmmsg MSG_DONTWAIT
-            // const int busy_poll_time = 1000;
-            // int set_busy_poll_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_BUSY_POLL, &busy_poll_time, sizeof(set_busy_poll_ret));
-            // if(set_priority_ret) {
-            //     fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
-            // }
+            // Sets the duration to busy poll/read (in us) after a recv call
+            // Documentation says this only applies to blocking requests, experimentally this still helps with recvmmsg MSG_DONTWAIT
+            const int busy_poll_time = 1000;
+            int set_busy_poll_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_BUSY_POLL, &busy_poll_time, sizeof(set_busy_poll_ret));
+            if(set_priority_ret) {
+                fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
+            }
 
             // TODO: remove this when the old recv system is removed. _MAX_PACKETS_TO_RECV is only relevant when recvmmsg is being used
             // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
