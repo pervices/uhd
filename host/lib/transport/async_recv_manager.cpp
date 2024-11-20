@@ -31,9 +31,10 @@ _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size)
 // Size of each receive buffer
 _combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) PAGE_SIZE) * PAGE_SIZE ),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-// MAP_HUGETLB is meant to tell it to use huge pages, but it causing it to fail, so madvise MADV_HUGEPAGE is used instead
-_combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | /*MAP_HUGETLB |*/ MAP_ANONYMOUS, -1, 0)),
+// For unkown reasons replacing aligned_alloc with mmap for this fixes random slowdowns. mmap aligns to pages by default
+_combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
+// TODO: test if these need to be padded to full pages, or cache line will do
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
@@ -51,9 +52,9 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
         throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
 
-    // Flag the buffer to use huge pages
-    // This causes huge pages to be implemented now instead of randomly at a later point, which causes a drop in performance
-    // Alternatively disabling huge pages via /sys/kernel/mm/transparent_hugepage/enabled (but not MADV_NOHUGEPAGE) also prevents the drop in performance
+    // Flag to prevent huge pages for the large buffers
+    // Not disabling huge pages can cause latency spikes
+    // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
     madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
     madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
     madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
