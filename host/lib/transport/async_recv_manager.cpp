@@ -34,7 +34,7 @@ _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size)
 _combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) PAGE_SIZE) * PAGE_SIZE ),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 // MAP_HUGETLB is meant to tell it to use huge pages, but it causing it to fail
-_combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | /*MAP_HUGETLB |*/ MAP_ANONYMOUS, -1, 0)),
+_combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_HUGETLB | MAP_ANONYMOUS, -1, 0)),
 
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
@@ -52,8 +52,6 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     if(_combined_buffer == MAP_FAILED) {
         throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
-
-    madvise(_combined_buffer, _num_ch * NUM_BUFFERS * _combined_buffer_size, MADV_NOHUGEPAGE);
 
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
