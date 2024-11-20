@@ -28,9 +28,13 @@ _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * PACKETS_
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
 
-_combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) PAGE_SIZE) * PAGE_SIZE ),
+// Size of the buffer for each channel
+// Padded so that each buffer is on their own huge page. This prevents rare stalls
+// TODO: optimize this to avoid padding ~20kB to 2MB. Maybe using madvise no huge page fixes it
+_combined_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) HUGE_PAGE_SIZE) * HUGE_PAGE_SIZE ),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-_combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+// MAP_HUGETLB is meant to tell it to use huge pages, but it causing it to fail
+_combined_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _combined_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | /*MAP_HUGETLB |*/ MAP_ANONYMOUS, -1, 0)),
 
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
