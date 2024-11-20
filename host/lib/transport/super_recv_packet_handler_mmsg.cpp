@@ -203,11 +203,15 @@ public:
         // With 1 channel the old method is used which doesn't use the manager
         if(true /*_NUM_CHANNELS != 1*/) {
             // Create manager for threads that receive data to buffers using placement new to avoid false sharing
+            // TODO verify if a full page is required, or only cache line padding is required
             size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
-            recv_manager = (async_recv_manager*) aligned_alloc(getpagesize(), recv_manager_size);
+            // Allocate page aligned memory. mmap is used instead of aligned_alloc because aligned_alloc was causing weird slowdowns elsewhere
+            recv_manager = (async_recv_manager*) mmap(nullptr, recv_manager_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            // Pacement new
             new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
 
-            // madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
+            // Disable huge pages since it may cause random latency spikes
+            madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
         }
     }
 
