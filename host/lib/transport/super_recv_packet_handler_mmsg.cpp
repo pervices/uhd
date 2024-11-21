@@ -282,7 +282,7 @@ public:
 
             size_t channels_ready = 0;
             // While not all channels have been obtained and timeout has not been reached
-            do {
+            do [[unlikely]] {
                 channels_ready = 0;
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                     initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
@@ -295,9 +295,9 @@ public:
                         // We do not sleep since we want to poll as fast as possible
                         // Theoretically _mm_pause() might be useful here, but experimentally it worsens performance
                         // Prevents random slowdowns, not entirely sure why
-                        // std::atomic_thread_fence(std::memory_order_consume);
                     }
                 }
+                std::atomic_thread_fence(std::memory_order_consume);
                 // TODO: try unlikely tag
             } while(channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time());
 
@@ -318,8 +318,6 @@ public:
 
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
-
-            std::atomic_thread_fence(std::memory_order_consume);
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
