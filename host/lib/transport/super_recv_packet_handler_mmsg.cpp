@@ -40,6 +40,8 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
+#include <immintrin.h>
+
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
@@ -280,34 +282,25 @@ public:
             // Stores buffer_write_count from when the packet was obtained
             std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
 
-            int64_t channels_ready = -1;
-
+            size_t ch = 0;
             // While not all channels have been obtained and timeout has not been reached
-            do /*[[unlikely]]*/ {
-
-                if(channels_ready != -1) {
+            while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
+                initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
+                // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
+                if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
+                    // Move onto the next channel since this one is ready
+                    ch++;
+                } else {
+                    // Indicates this is a busy loop
+                    // Failing to include this can result in get_buffer_write_count checks getting optimized out after the first pass
+                    // _mm_pause();
                     usleep(1);
                 }
-
-                channels_ready = 0;
-                for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                    initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
-                    // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
-                    if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
-                        // Move onto the next channel since this one is ready
-                        channels_ready++;
-                    } else {
-                        // NO-OP
-                        // We do not sleep since we want to poll as fast as possible
-                        // Theoretically _mm_pause() might be useful here, but experimentally it worsens performance
-                        // Prevents random slowdowns, not entirely sure why
-                    }
-                }
-            } while((size_t) channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time());
+            }
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
-            if((size_t) channels_ready < _NUM_CHANNELS) [[unlikely]] {
+            if(ch < _NUM_CHANNELS) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
                     return samples_received;
