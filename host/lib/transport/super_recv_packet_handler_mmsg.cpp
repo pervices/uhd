@@ -280,10 +280,15 @@ public:
             // Stores buffer_write_count from when the packet was obtained
             std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
 
-            int64_t channels_ready = 0;
+            int64_t channels_ready = -1;
 
             // While not all channels have been obtained and timeout has not been reached
-            do [[unlikely]] {
+            do /*[[unlikely]]*/ {
+
+                if(channels_ready != -1) {
+                    usleep(1);
+                }
+
                 channels_ready = 0;
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                     initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
@@ -298,7 +303,8 @@ public:
                         // Prevents random slowdowns, not entirely sure why
                     }
                 }
-            } while(channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time());
+                std::atomic_thread_fence(std::memory_order_consume);
+            } while(channels_ready < (int64_t) _NUM_CHANNELS && recv_start_time + timeout > get_system_time());
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
@@ -314,8 +320,6 @@ public:
                     return 0;
                 }
             }
-
-            std::atomic_thread_fence(std::memory_order_consume);
 
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
