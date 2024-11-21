@@ -277,6 +277,12 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         _mm_sfence();
 
+        // Set error_code to the first unhandled error encountered
+        // Place inside if statement to avoid memory acces delays from reading errno instead of doing it branchless
+        if(local_variables.lv.r == -1) {
+            local_variables.lv.error_code = (local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno;
+        }
+
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         local_variables.lv.buffer_writes_count[local_variables.lv.ch] += local_variables.lv.are_packets_received;
         *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
@@ -288,9 +294,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Achieves results like a for loop while reducing branches
         local_variables.lv.ch++;
         local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
-
-        // Set error_code to the first unhandled error encountered
-        local_variables.lv.error_code = local_variables.lv.error_code | ((local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno);
     }
 
     if(local_variables.lv.error_code) {
