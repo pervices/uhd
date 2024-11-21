@@ -282,7 +282,7 @@ public:
 
             size_t channels_ready = 0;
             // While not all channels have been obtained and timeout has not been reached
-            while(channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
+            do {
                 channels_ready = 0;
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                     initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
@@ -298,7 +298,8 @@ public:
                         // std::atomic_thread_fence(std::memory_order_consume);
                     }
                 }
-            }
+                // TODO: try unlikely tag
+            } while(channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time());
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
