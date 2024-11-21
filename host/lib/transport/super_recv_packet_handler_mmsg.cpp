@@ -291,11 +291,12 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    // Indicates this is a busy loop
-                    // Failing to include this can result in get_buffer_write_count checks getting optimized out after the first pass
-                    _mm_pause();
+                    // Do nothing
+                    // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                 }
             }
+
+            _mm_mfence();
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
