@@ -22,19 +22,24 @@ padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (doubl
 _header_size(header_size),
 _padded_header_size(std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _packet_data_size(max_sample_bytes_per_packet),
+
+// NOTE: Theoretically padding to the cache line is required to prevent interference between threads, experimentally padding to full pages are required
+
 _mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec))) * PACKETS_PER_BUFFER / (double)PAGE_SIZE) * PAGE_SIZE),
 _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * PACKETS_PER_BUFFER / (double)PAGE_SIZE) * PAGE_SIZE),
 // Size of each packet buffer + padding to be a whole number of pages
 _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
-// PADDED_INT64_T_SIZE is for the count for number of packets stored
-_combined_buffer_size(_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size),
+
+// NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
+
+// Size of each receive buffer
+_individual_network_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) PAGE_SIZE) * PAGE_SIZE ),
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-_combined_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * NUM_BUFFERS * _combined_buffer_size)),
-// Must be page aligned, cache line aligned not enough for some reason
+_network_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
-_buffer_write_count_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _buffer_write_count_buffer_size)),
+_buffer_write_count_buffer((uint8_t*) mmap(nullptr, _num_ch * _buffer_write_count_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
-_packets_stored_buffer((uint8_t*) aligned_alloc(PAGE_SIZE, _num_ch * _packets_stored_buffer_size)),
+_packets_stored_buffer((uint8_t*) mmap(nullptr, _num_ch * _packets_stored_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
@@ -44,9 +49,16 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     }
 
     // Check if memory allocation failed
-    if(_combined_buffer == nullptr) {
-        throw uhd::environment_error( "aligned_alloc failed for internal buffers" );
+    if(_network_buffer == MAP_FAILED) {
+        throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
+
+    // Flag to prevent huge pages for the large buffers
+    // Not disabling huge pages can cause latency spikes
+    // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
+    madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE);
+    madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
+    madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
 
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
@@ -61,19 +73,10 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
         *access_flush_complete(ch, 0) = 0;
-        for(size_t b = 0; b < NUM_BUFFERS; b++) {
-            madvise(access_ch_combined_buffer(ch, 0, b), _mmmsghdr_iovec_subbuffer_size, MADV_NOHUGEPAGE);
-        }
     }
 
-    // MADV_NOHUGEPAGE is used to prevent pages from being merged into a huge page
-    // Having certain stuff share pages causes rare latency spikes
-    // mmsghdr and iovec buffer, write count buffer, and packet stored buffer are all important to have on their own page
-    madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
-    madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
-
     // Set entire buffer to 0 to avoid issues with lazy allocation
-    memset(_combined_buffer, 0, _num_ch * NUM_BUFFERS * _combined_buffer_size);
+    memset(_network_buffer, 0, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
     memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
     memset(_packets_stored_buffer, 0, _num_ch * _packets_stored_buffer_size);
 
@@ -123,7 +126,9 @@ async_recv_manager::~async_recv_manager()
     }
 
     // Frees packets and mmsghdr buffers
-    free(_combined_buffer);
+    munmap(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
+    munmap(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size);
+    munmap(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size);
     free(flush_complete);
     free(active_consumer_buffer);
     free(num_packets_consumed);
@@ -131,25 +136,36 @@ async_recv_manager::~async_recv_manager()
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
-    // TODO: add comments for each element
     // Struct contianing all local variables used by the main receive loop
+    // TODO: look into  improving cache locality
+    // Use of this struct improves worst case performance, at the cost of preventing compiler optimizations to help average performance
     struct local_variables_s {
+        // The manager this receives data for
         async_recv_manager* self;
+        // Control variable to cycle through channels
         uint64_t ch;
+        // Where in the original list of channels this loop starts from
         uint64_t ch_offset;
+        // The number of channels this loop receives for
         uint64_t num_ch;
-        // Mask used to roll over the buffers
         // Buffer currently being written to for each channel
         uint64_t b[MAX_CHANNELS];
+        // Cache of buffer write count to update this loop
         int64_t* buffer_write_count;
+        // Number of buffer writes so far for each channel
         int64_t buffer_writes_count[MAX_CHANNELS];
+        // Sockets to receive on
         int sockets[MAX_CHANNELS];
+        // Return value of recvmmsg
         int r;
+        // Number to multiply by for branchless operations (bool will always be 1 or 0)
         bool are_packets_received;
+        // Error code of recvmmsg
         int error_code;
     };
 
-    // Union to pad local_variables_s to a full page
+    // Union to pad local_variables_s to a full page to prevent interference from other threads
+    // Theoretically only padding/aligning to cache line is required, experimentally padding to a full page is required
     union local_variables_u {
         struct local_variables_s lv;
         uint8_t padding[PAGE_SIZE];
@@ -158,6 +174,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
     union local_variables_u local_variables __attribute__ ((aligned (PAGE_SIZE)));
     assert(sizeof(local_variables) == PAGE_SIZE);
+
+    // MADV_WILLNEED since this will be accessed often
+    madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
+
+    madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE);
 
     local_variables.lv.self = self_;
     local_variables.lv.ch = 0;
@@ -222,6 +243,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     // Flush packets
     for(size_t flush_ch = 0; flush_ch < local_variables.lv.num_ch; flush_ch++) {
         int r = -1;
+        bool error_already_occured = false;
         // Receive packets until none are received
         while(!local_variables.lv.self->stop_flag) {
             r = recvmmsg(local_variables.lv.sockets[flush_ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(flush_ch, local_variables.lv.ch_offset, 0), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
@@ -229,6 +251,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                 *local_variables.lv.self->access_flush_complete(flush_ch, local_variables.lv.ch_offset) = 1;
                 break;
+            } else if(r == -1) {
+                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error while flushing recvmmsg during initialization: " + std::string(strerror(errno));
+                // If this is the second time seeing an unplanned error while flushing this socket, throw and error
+                if(error_already_occured) {
+                    local_variables.lv.self->stop_flag = true;
+                    throw std::runtime_error("Unable to recover from recvmmsg error during initialization: " + std::string(strerror(errno)));
+                }
+                error_already_occured = true;
             }
         }
     }
@@ -259,6 +289,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         std::atomic_thread_fence(std::memory_order_release);
 
+        // Accessing errno can cause latency spikes, enable check only when needed for debugging
+#ifdef ASYNC_RECV_MANAGER_DEBUG
+        // Set error_code to the first unhandled error encountered
+        if(local_variables.lv.r == -1) {
+            local_variables.lv.error_code = (local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno;
+        }
+#endif
+
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         local_variables.lv.buffer_writes_count[local_variables.lv.ch] += local_variables.lv.are_packets_received;
         *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
@@ -270,12 +308,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Achieves results like a for loop while reducing branches
         local_variables.lv.ch++;
         local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
-
-        // Set error_code to the first unhandled error encountered
-        // TODO: check if false charring with errno is the issue
-        // local_variables.lv.error_code = local_variables.lv.error_code | ((local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno);
     }
 
+    // NOTE: local_variables.lv.error_code is only set if ASYNC_RECV_MANAGER_DEBUG is defiend
     if(local_variables.lv.error_code) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(local_variables.lv.error_code));
     }
