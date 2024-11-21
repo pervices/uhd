@@ -303,12 +303,11 @@ public:
                         // Prevents random slowdowns, not entirely sure why
                     }
                 }
-                std::atomic_thread_fence(std::memory_order_consume);
-            } while(channels_ready < (int64_t) _NUM_CHANNELS && recv_start_time + timeout > get_system_time());
+            } while((size_t) channels_ready < _NUM_CHANNELS && recv_start_time + timeout > get_system_time());
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
-            if(channels_ready < _NUM_CHANNELS) [[unlikely]] {
+            if((size_t) channels_ready < _NUM_CHANNELS) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
                     return samples_received;
@@ -323,6 +322,8 @@ public:
 
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
+
+            std::atomic_thread_fence(std::memory_order_consume);
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
