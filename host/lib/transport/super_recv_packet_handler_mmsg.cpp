@@ -40,8 +40,6 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include <immintrin.h>
-
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
@@ -291,9 +289,11 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    // Indicates this is a busy loop
-                    // Failing to include this can result in get_buffer_write_count checks getting optimized out after the first pass
-                    _mm_pause();
+                    // NO-OP
+                    // We do not sleep since we want to poll as fast as possible
+                    // Theoretically _mm_pause() might be useful here, but experimentally it worsens performance
+                    // Prevents random slowdowns, not entirely sure why
+                    std::atomic_thread_fence(std::memory_order_consume);
                 }
             }
 
