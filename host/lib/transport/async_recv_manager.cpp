@@ -277,11 +277,13 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         _mm_sfence();
 
+        // Accessing errno can cause latency spikes, enable check only when needed for debugging
+#ifdef ASYNC_RECV_MANAGER_DEBUG
         // Set error_code to the first unhandled error encountered
-        // Place inside if statement to avoid memory acces delays from reading errno instead of doing it branchless
         if(local_variables.lv.r == -1) {
             local_variables.lv.error_code = (local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno;
         }
+#endif
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
         local_variables.lv.buffer_writes_count[local_variables.lv.ch] += local_variables.lv.are_packets_received;
@@ -296,6 +298,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
     }
 
+    // NOTE: local_variables.lv.error_code is only set if ASYNC_RECV_MANAGER_DEBUG is defiend
     if(local_variables.lv.error_code) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(local_variables.lv.error_code));
     }
