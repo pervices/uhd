@@ -38,14 +38,17 @@
 #include <net/if.h>
 
 #include <sys/mman.h>
+#include <fcntl.h>
+
+#include <immintrin.h>
 
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
 
     // Socket priority for rx sockets
-    // One less than the socket priority of tx
-    const int RX_SO_PRIORITY = 5;
+    // Experimentally verified that this needs to be at least 6
+    const int RX_SO_PRIORITY = 6;
 
 /***********************************************************************
  * Super receive packet handler
@@ -99,6 +102,17 @@ public:
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+
+            // Set socket to non-blocking
+            // For unknown reasons having this set helps performance, even though it shouldn't make a difference if recvmmsg is called with MSG_DONTWAIT
+            int flags = fcntl(_recv_sockets[n],F_GETFL);
+            flags = (flags | O_NONBLOCK);
+            if(fcntl(_recv_sockets[n], F_SETFL, flags) < 0)
+            {
+                throw uhd::runtime_error( "Failed to set socket to non-blocking. Performance may be affected" );
+            }
+
+
             // Sets the recv buffer size
             setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &_DEFAULT_RECV_BUFFER_SIZE, sizeof(_DEFAULT_RECV_BUFFER_SIZE));
 
@@ -114,17 +128,28 @@ public:
                 throw uhd::system_error("Unable to set recv socket size");
             }
 
+            // Verify the interface can handle large packets
             int mtu = get_mtu(_recv_sockets[n], dst_ip[n].c_str());
             if(mtu < MIN_MTU) {
                 fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ip[n].c_str(), MIN_MTU, mtu);
                 throw uhd::system_error("MTU size to small");
             }
 
+            // Set socket priority
             int set_priority_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_PRIORITY, &RX_SO_PRIORITY, sizeof(RX_SO_PRIORITY));
             if(set_priority_ret) {
                 fprintf(stderr, "Attempting to set rx socket priority failed with error code: %s", strerror(errno));
             }
 
+            // Sets the duration to busy poll/read (in us) after a recv call
+            // Documentation says this only applies to blocking requests, experimentally this still helps with recvmmsg MSG_DONTWAIT
+            const int busy_poll_time = 1000;
+            int set_busy_poll_ret = setsockopt(_recv_sockets[n], SOL_SOCKET, SO_BUSY_POLL, &busy_poll_time, sizeof(set_busy_poll_ret));
+            if(set_priority_ret) {
+                fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
+            }
+
+            // TODO: remove this when the old recv system is removed. _MAX_PACKETS_TO_RECV is only relevant when recvmmsg is being used
             // recvmmsg should attempt to recv at most the amount to fill 1/_NUM_CHANNELS of the socket buffer
             _MAX_PACKETS_TO_RECV = (int)((_ACTUAL_RECV_BUFFER_SIZE/(_NUM_CHANNELS + 1))/(_HEADER_SIZE + _MAX_SAMPLE_BYTES_PER_PACKET + 42));
         }
@@ -178,9 +203,11 @@ public:
             // Create manager for threads that receive data to buffers using placement new to avoid false sharing
             size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)getpagesize()) * getpagesize();
             recv_manager = (async_recv_manager*) aligned_alloc(getpagesize(), recv_manager_size);
-            new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
 
+            // Prevent the class from being moved to a huge page, causes latency spikes
             madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
+
+            new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
         }
     }
 
@@ -309,8 +336,9 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    // NO-OP
-                    // A pure busy wait is okay as long as the page get_buffer_write_count access is not used by recvmmsg
+                    // Indicates this is a busy loop
+                    // Failing to include this can result in get_buffer_write_count checks getting optimized out after the first pass
+                    _mm_pause();
                 }
             }
 
@@ -795,7 +823,7 @@ private:
      * @param src the source to copy to. Must be at least src sample size * num_samples
      * @param num_samples the number of samples to copy
      */
-    UHD_INLINE void convert_samples(const ref_vector<void*> dst, void* src, size_t num_samples) {
+    UHD_INLINE void convert_samples(void* dst, void* src, size_t num_samples) {
         // TODO: investigate if this be optimized to reduce branching
         _converter->conv(src, dst, num_samples);
     }
