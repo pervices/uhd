@@ -282,7 +282,7 @@ public:
 
             size_t channels_ready = 0;
             // While not all channels have been obtained and timeout has not been reached
-            do [[unlikely]] {
+            do {
                 channels_ready = 0;
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                     initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
