@@ -292,6 +292,8 @@ public:
                     // NO-OP
                     // We do not sleep since we want to poll as fast as possible
                     // Theoretically _mm_pause() might be useful here, but experimentally it worsens performance
+                    // WIP: sleeping might help here
+                    std::atomic_thread_fence(std::memory_order_consume);
                 }
             }
 
