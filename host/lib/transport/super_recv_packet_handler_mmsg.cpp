@@ -48,7 +48,7 @@ namespace uhd { namespace transport { namespace sph {
 
     // Socket priority for rx sockets
     // Experimentally verified that this needs to be at least 6
-    const int RX_SO_PRIORITY = 5;
+    const int RX_SO_PRIORITY = 6;
 
 /***********************************************************************
  * Super receive packet handler
