@@ -1,3 +1,9 @@
+uhdpv (4.4.0.47-0ubuntu1) ubuntu_release; urgency=medium
+
+  * RECV: improving rx reliability
+
+ -- Per Vices <packages@pervices.com>  Mon, 25 Nov 2024 15:50:06 -0500
+
 uhdpv (4.4.0.46-0ubuntu1) ubuntu_release; urgency=high
 
   * RECV: fixing regression caused by 4.4.0.44 the degraded performance at high sample rates
