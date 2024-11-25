@@ -1774,7 +1774,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
     if(actual_rf_freq == 0 && target_rf_freq != 0) {
-        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Error when attempting to set lo. The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Error when attempting to set lo on channel " + std::string(1, chan + 'A') + ". If this error persists contact support");
     }
 
 	//------------------------------------------------------------------

@@ -1561,7 +1561,7 @@ double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, dou
 
 // xx_sign: flag to indicate whether this is tx or rx
 //dsp_bw: bandwidth of the dsp. Processing (most relevantly the NCO) occur at this bandwidth, later the signal gets downsampled to the user's requested rate
-tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band) {
+tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band, size_t chan ) {
 
 	enum {
 		LOW_BAND,
@@ -1628,7 +1628,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
     if(actual_rf_freq == 0 && target_rf_freq != 0) {
-        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Error when attempting to set lo. The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Error when attempting to set lo on channel " + std::string(1, chan + 'A') + ". The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
     }
 
 	//------------------------------------------------------------------
@@ -1679,7 +1679,8 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 			_tree->subtree(rx_rf_fe_root(chan)),
 			tune_request,
             &rx_gain_is_set[chan],
-            &last_set_rx_band[chan]);
+            &last_set_rx_band[chan],
+            chan);
 	return result;
 
 }
@@ -1695,15 +1696,16 @@ double crimson_tng_impl::get_rx_freq(size_t chan) {
 }
 
 uhd::tune_result_t crimson_tng_impl::set_tx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
+    const uhd::tune_request_t &tune_request, size_t chan
 ) {
 
-	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
-			_tree->subtree(tx_dsp_root(chan)),
-			_tree->subtree(tx_rf_fe_root(chan)),
-			tune_request,
+    tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
+            _tree->subtree(tx_dsp_root(chan)),
+            _tree->subtree(tx_rf_fe_root(chan)),
+            tune_request,
             &tx_gain_is_set[chan],
-            &last_set_tx_band[chan]);
+            &last_set_tx_band[chan],
+            chan);
 	return result;
 
 }
