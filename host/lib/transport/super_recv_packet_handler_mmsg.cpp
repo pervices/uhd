@@ -621,7 +621,7 @@ private:
      */
     UHD_INLINE void convert_samples(void* dst, void* src, size_t num_samples) {
         // TODO: investigate if this be optimized to reduce branching
-        _converter->conv(src, dst, num_samples);
+        // _converter->conv(src, dst, num_samples);
     }
 
     int get_mtu(int socket_fd, std::string ip) {
