@@ -293,8 +293,7 @@ public:
                     ch++;
                 } else {
                     // Do nothing
-                    // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
-                    usleep(1);
+                    _mm_pause(); // (which marks this as a polling loop) might help, but it appears to make performance worse
                 }
             }
 
