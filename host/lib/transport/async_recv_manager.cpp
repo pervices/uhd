@@ -176,7 +176,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     assert(sizeof(local_variables) == PAGE_SIZE);
 
     // MADV_WILLNEED since this will be accessed often
-    madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
+    // madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
 
     madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE);
 
