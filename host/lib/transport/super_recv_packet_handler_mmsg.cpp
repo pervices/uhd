@@ -286,7 +286,7 @@ public:
             // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
-                _mm_lfence();
+                // _mm_lfence();
                 // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
                 if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
                     // Move onto the next channel since this one is ready
@@ -318,11 +318,12 @@ public:
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
 
-            _mm_lfence();
-
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
                 memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
+                for(size_t n = 0; n < _HEADER_SIZE; n++) {
+                    *((uint8_t*) packet_infos[ch].packet_hdr.data() + n) = *((uint8_t*) recv_manager->get_next_packet_vita_header(ch) + n);
+                }
 
                 packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
                 packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
@@ -335,7 +336,7 @@ public:
                 }
 
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
-                _mm_lfence();
+                // _mm_lfence();
                 // If buffer_write_count changed while getting header info
                 if(post_header_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_header_overwrite = true;
@@ -440,7 +441,7 @@ public:
                 }
 
                 int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
-                _mm_lfence();
+                // _mm_lfence();
                 // If buffer_write_count changed while copying data
                 if(post_data_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_data_overwrite = true;
