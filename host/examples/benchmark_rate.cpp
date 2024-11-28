@@ -329,8 +329,11 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
 /***********************************************************************
  * Main code + dispatcher
  **********************************************************************/
+#include <malloc.h>
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
+    mallopt(M_TOP_PAD, 128*1024*1024);
+    mallopt(M_TRIM_THRESHOLD, -1);
     // variables to be set by po
     std::string args;
     std::string rx_subdev, tx_subdev;
