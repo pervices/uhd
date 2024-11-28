@@ -162,6 +162,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         bool are_packets_received;
         // Error code of recvmmsg
         int error_code;
+        size_t total_packets_received;
     };
 
     // Union to pad local_variables_s to a full page to prevent interference from other threads
@@ -190,6 +191,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         local_variables.lv.buffer_writes_count[init_ch] = 0;
     }
     local_variables.lv.error_code = 0;
+    local_variables.lv.total_packets_received = 0;
 
 
 
@@ -283,6 +285,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
         local_variables.lv.are_packets_received = local_variables.lv.r > 0;
 
+        local_variables.lv.total_packets_received += local_variables.lv.r && local_variables.lv.are_packets_received;
+
         // Set counter for number of packets stored
         *local_variables.lv.self->access_num_packets_stored(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]) = (local_variables.lv.r * local_variables.lv.are_packets_received);
 
@@ -314,6 +318,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     if(local_variables.lv.error_code) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(local_variables.lv.error_code));
     }
+    printf("local_variables.lv.total_packets_received: %lu\n", local_variables.lv.total_packets_received);
 }
 
 }}
