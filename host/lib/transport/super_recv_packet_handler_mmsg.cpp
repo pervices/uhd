@@ -318,7 +318,7 @@ public:
             // Flag that indicates if the packet was overwritten mid read
             bool mid_header_read_header_overwrite = false;
 
-            std::atomic_thread_fence(std::memory_order_consume);
+            _mm_lfence();
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Gets info for this packet
@@ -335,7 +335,7 @@ public:
                 }
 
                 int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
-                std::atomic_thread_fence(std::memory_order_consume);
+                _mm_lfence();
                 // If buffer_write_count changed while getting header info
                 if(post_header_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_header_overwrite = true;
@@ -440,7 +440,7 @@ public:
                 }
 
                 int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
-                std::atomic_thread_fence(std::memory_order_consume);
+                _mm_lfence();
                 // If buffer_write_count changed while copying data
                 if(post_data_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
                     mid_header_read_data_overwrite = true;
