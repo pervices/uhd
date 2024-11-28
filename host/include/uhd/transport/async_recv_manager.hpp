@@ -36,10 +36,10 @@ private:
     static constexpr size_t CACHE_LINE_SIZE = 64;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_uint_fast8_t_size;
+    static constexpr size_t padded_uint_fast8_t_size = PAGE_SIZE;//CACHE_LINE_SIZE;
 
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
-    static constexpr size_t PADDED_INT64_T_SIZE = CACHE_LINE_SIZE;
+    static constexpr size_t PADDED_INT64_T_SIZE = PAGE_SIZE;//CACHE_LINE_SIZE;
 
     // Vita header size
     const uint_fast32_t _header_size;

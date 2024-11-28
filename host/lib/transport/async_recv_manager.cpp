@@ -18,7 +18,6 @@ namespace uhd { namespace transport {
 async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
 :
 _num_ch(recv_sockets.size()),
-padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _header_size(header_size),
 _padded_header_size(std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _packet_data_size(max_sample_bytes_per_packet),
