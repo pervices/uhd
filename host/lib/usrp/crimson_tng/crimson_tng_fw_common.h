@@ -93,7 +93,7 @@
 // Crimson Buffer Size
 #define CRIMSON_TNG_BUFF_SIZE	65536
 //Target buffer level percentage
-#define CRIMSON_TNG_BUFF_PERCENT 0.8
+#define CRIMSON_TNG_BUFF_PERCENT 0.5
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
 #define CRIMSON_TNG_BUFF_SCALE 1
 
