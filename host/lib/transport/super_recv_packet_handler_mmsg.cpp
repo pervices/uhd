@@ -107,7 +107,6 @@ public:
                 throw uhd::runtime_error( "Failed to set socket to non-blocking. Performance may be affected" );
             }
 
-
             // Sets the recv buffer size
             setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &DEFAULT_RECV_BUFFER_SIZE, sizeof(DEFAULT_RECV_BUFFER_SIZE));
 

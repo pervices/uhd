@@ -57,7 +57,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // Flag to prevent huge pages for the large buffers
     // Not disabling huge pages can cause latency spikes
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
-    madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE);
+    madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_HUGEPAGE);
     madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
     madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
 
