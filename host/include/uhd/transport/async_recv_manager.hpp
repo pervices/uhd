@@ -25,7 +25,7 @@ private:
 
     // Number of buffers per ch
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_BUFFERS = 65536;
+    static constexpr size_t NUM_BUFFERS = 4096;
 
     static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
 
