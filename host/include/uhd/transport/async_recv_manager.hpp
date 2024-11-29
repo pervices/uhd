@@ -53,7 +53,7 @@ private:
 
     // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
     // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-    static constexpr size_t PACKETS_PER_BUFFER = 2 * PAGE_SIZE / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ));
+    static constexpr size_t PACKETS_PER_BUFFER = (PAGE_SIZE / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ))) / 2;
 
     // Size of the buffer to contain: all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
     const uint_fast32_t _mmmsghdr_iovec_subbuffer_size;
