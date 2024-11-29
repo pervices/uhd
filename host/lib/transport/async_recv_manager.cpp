@@ -20,7 +20,8 @@ async_recv_manager::async_recv_manager( const size_t total_rx_channels, const st
 _num_ch(recv_sockets.size()),
 padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _header_size(header_size),
-_padded_header_size(std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
+// DEBUG: don't pad header
+_padded_header_size(_header_size), //std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _packet_data_size(max_sample_bytes_per_packet),
 
 // NOTE: Theoretically padding to the cache line is required to prevent interference between threads, experimentally padding to full pages are required
