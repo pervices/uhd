@@ -143,6 +143,10 @@ async_recv_manager::~async_recv_manager()
         recv_loops[n].~thread();
     }
 
+    for(size_t ch = 0; ch < _num_ch; ch++) {
+        io_uring_queue_exit(access_io_urings(ch, 0));
+    }
+
     // Frees packets and mmsghdr buffers
     munmap(_io_urings, _num_ch * _padded_io_uring_size);
     munmap(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * _padded_individual_packet_size);
