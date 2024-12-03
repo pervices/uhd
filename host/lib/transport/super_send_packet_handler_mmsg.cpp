@@ -476,7 +476,7 @@ private:
             packet_header_infos[n].has_cid = false;
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
-            packet_header_infos[n].has_tsf = !metadata_.end_of_burst; // Every packet except the end of burst must have a timestamp. End of burst must have no timestamp
+            packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
                 packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
@@ -697,9 +697,11 @@ private:
 
     void send_eob_packet(const uhd::tx_metadata_t &metadata, double timeout) {
 
+        // How many dummy samples to send in the eob
+        constexpr size_t dummy_samples_in_eob = 1;
 
         // Create vector of dummy samples, since the FPGA cannot handle 0 sample packets
-        std::vector<std::vector<int8_t>> dummy_buffs(_NUM_CHANNELS, std::vector<int8_t>(_BYTES_PER_SAMPLE * _DEVICE_PACKET_NSAMP_MULTIPLE, 0));
+        std::vector<std::vector<int8_t>> dummy_buffs(_NUM_CHANNELS, std::vector<int8_t>(_BYTES_PER_SAMPLE * dummy_samples_in_eob, 0));
         std::vector<const void *> dummy_buff_ptrs;
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             dummy_buff_ptrs.push_back(dummy_buffs[n].data());
@@ -724,7 +726,7 @@ private:
         nsamps_in_cache = 0;
 
         // Sends the eob packet
-        send_multiple_packets(dummy_buff_ptrs, _DEVICE_PACKET_NSAMP_MULTIPLE, eob_md, timeout, true);
+        send_multiple_packets(dummy_buff_ptrs, dummy_samples_in_eob, eob_md, timeout, true);
     }
 
     /*!
