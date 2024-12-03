@@ -52,9 +52,14 @@ private:
     // Size of the sample portion of Vita packets
     const uint_fast32_t _packet_data_size;
 
-    // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
-    // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-    static constexpr size_t PACKETS_PER_BUFFER = PAGE_SIZE / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ));
+    // Number of packets per buffer
+
+    static constexpr size_t PACKETS_PER_BUFFER = 32;
+
+    // Number of entries in each uring
+    // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
+    static constexpr size_t NUM_URING_ENTRIES = PACKETS_PER_BUFFER * NUM_BUFFERS;
+    // TODO: add assert is a power of 2
 
     // Size of the buffer to contain: all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
     const uint_fast32_t _mmmsghdr_iovec_subbuffer_size;
@@ -92,6 +97,16 @@ private:
     // Number of packets stored in a buffer
     const size_t _packets_stored_buffer_size;
     uint8_t* const _packets_stored_buffer;
+
+    // TODO: reduce padding
+    static constexpr size_t _padded_io_uring_size = PAGE_SIZE;
+    static_assert(_padded_io_uring_size > sizeof(struct io_uring), "Padded io_uring size smaller than normal io_uring size");
+    uint8_t* const _io_urings;
+
+    // Access the uring for a given channel
+    inline __attribute__((always_inline)) io_uring* access_io_urings(size_t ch, size_t ch_offset) {
+        return (io_uring*) (_io_urings + ((ch + ch_offset) * _padded_io_uring_size));
+    }
 
     // Get's a specific channel's combined buffers
     inline __attribute__((always_inline)) uint8_t* access_ch_network_buffers(size_t ch, size_t ch_offset) {
@@ -284,6 +299,14 @@ public:
 
 
 private:
+
+    /**
+     * Helper function to initialize the uring for a channel.
+     * It is called during the constructor to make undertanding liburing initialization easier
+     * @param ch The channel who's uring to initialize
+     */
+    void uring_init(size_t ch);
+
 
     /**
      * Function that continuously receives data and stores it in the buffer

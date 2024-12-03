@@ -46,6 +46,8 @@ _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFER
 _buffer_write_count_buffer((uint8_t*) mmap(nullptr, _num_ch * _buffer_write_count_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _packets_stored_buffer((uint8_t*) mmap(nullptr, _num_ch * _packets_stored_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+// TODO: replace with aligned alloc if padding is reduced
+_io_urings((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
@@ -63,6 +65,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // Not disabling huge pages can cause latency spikes
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
     // TODO: try optimizing for huge pages
+    madvise(_io_urings, _num_ch * _padded_io_uring_size, MADV_NOHUGEPAGE);
     madvise(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * _padded_individual_packet_size, MADV_NOHUGEPAGE);
     madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE);
     madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
@@ -84,6 +87,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
+    memset(_io_urings, 0, _num_ch * _padded_io_uring_size);
     memset(_all_ch_packet_buffers, 0, _num_ch * NUM_BUFFERS * _padded_individual_packet_size);
     memset(_network_buffer, 0, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
     memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
@@ -93,6 +97,11 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // If unable to get number of cores assume the system is 4 core
     if(num_cores == 0) {
         num_cores = 4;
+    }
+
+    // Initialize the uring for each channel
+    for(size_t ch = 0; ch < _num_ch; ch++) {
+        uring_init(ch);
     }
 
     int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
@@ -135,6 +144,7 @@ async_recv_manager::~async_recv_manager()
     }
 
     // Frees packets and mmsghdr buffers
+    munmap(_io_urings, _num_ch * _padded_io_uring_size);
     munmap(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * _padded_individual_packet_size);
     munmap(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
     munmap(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size);
@@ -143,6 +153,45 @@ async_recv_manager::~async_recv_manager()
     free(active_consumer_buffer);
     free(num_packets_consumed);
     free(recv_loops);
+}
+
+void async_recv_manager::uring_init(size_t ch) {
+    struct io_uring_params uring_params;
+    memset(&uring_params, 0, sizeof(io_uring_params));
+
+    // Number of entries that can fit in the submission queue
+    uring_params.sq_entries = NUM_URING_ENTRIES;
+    // Number of entries that can fit in the completion queue
+    uring_params.cq_entries = NUM_URING_ENTRIES;
+    // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
+    // TODO: figure out how to get IORING_SETUP_IOPOLL working
+    // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
+    // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
+    // IORING_SETUP_CQSIZE: pay attention to cq_entries
+    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE;
+    // Does nothing unless flag IORING_SETUP_SQ_AFF is set
+    // uring_params.sq_thread_cpu;
+    // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
+    uring_params.sq_thread_idle = 100000;
+    // Kernel sets this according to features supported
+    // uring_params.features;
+    // Does nothing unless flag IORING_SETUP_ATTACH_WQ is set
+    // uring_params.wq_fd;
+    // Must be all 0
+    // uring_params.resv[3];
+    // Filled by Kernel with info needed to access submission queue
+    // uring_params.sq_off;
+    // Filled by Kernel with info needed to access submission queue
+    // uring_params.cq_off;
+
+    struct io_uring* ring = access_io_urings(ch, 0);
+    // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
+    int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
+    if(error) {
+        fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
+        throw uhd::system_error("io_uring error");
+    }
+
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
