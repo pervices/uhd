@@ -29,7 +29,7 @@ struct client::impl {
     impl(client *parent, std::string const &addr, uint16_t port)
         : parent_(parent),
           io_(),
-          strand_(io_),
+          strand_(io_.get_executor()),
           call_idx_(0),
           addr_(addr),
           port_(port),
@@ -41,11 +41,11 @@ struct client::impl {
         pac_.reserve_buffer(default_buffer_size);
     }
 
-    void do_connect(tcp::resolver::iterator endpoint_iterator) {
+    void do_connect(const tcp::resolver::results_type& endpoints) {
         LOG_INFO("Initiating connection.");
         boost::asio::async_connect(
-            writer_->socket_, endpoint_iterator,
-            [this](boost::system::error_code ec, tcp::resolver::iterator) {
+            writer_->socket_, endpoints,
+            [this](boost::system::error_code ec, tcp::endpoint) {
                 std::unique_lock<std::mutex> lock(mut_connection_finished_);
                 if (!ec) {
                     LOG_INFO("Client connected to {}:{}", addr_, port_);
@@ -92,7 +92,7 @@ struct client::impl {
                             std::get<1>(current_call)
                                 .set_exception(std::current_exception());
                         }
-                        strand_.post(
+                        boost::asio::post(strand_,
                             [this, id]() { ongoing_calls_.erase(id); });
                     }
 
@@ -135,8 +135,8 @@ struct client::impl {
         std::pair<std::string, std::promise<RPCLIB_MSGPACK::object_handle>>;
 
     client *parent_;
-    boost::asio::io_service io_;
-    boost::asio::io_service::strand strand_;
+    boost::asio::io_context io_;
+    boost::asio::strand<boost::asio::io_context::executor_type> strand_;
     std::atomic<int> call_idx_; /// The index of the last call made
     std::unordered_map<uint32_t, call_t> ongoing_calls_;
     std::string addr_;
@@ -155,9 +155,9 @@ struct client::impl {
 client::client(std::string const &addr, uint16_t port)
     : pimpl(new client::impl(this, addr, port)) {
     tcp::resolver resolver(pimpl->io_);
-    auto endpoint_it =
-        resolver.resolve({pimpl->addr_, std::to_string(pimpl->port_)});
-    pimpl->do_connect(endpoint_it);
+    auto endpoints =
+        resolver.resolve(pimpl->addr_, std::to_string(pimpl->port_));
+    pimpl->do_connect(endpoints);
     std::thread io_thread([this]() {
         RPCLIB_CREATE_LOG_CHANNEL(client)
         name_thread("client");
@@ -181,7 +181,7 @@ int client::get_next_call_idx() {
 void client::post(std::shared_ptr<RPCLIB_MSGPACK::sbuffer> buffer, int idx,
                   std::string const &func_name,
                   std::shared_ptr<rsp_promise> p) {
-    pimpl->strand_.post([=]() {
+    boost::asio::post(pimpl->strand_, [buffer, idx, func_name, p, this]() {
         pimpl->ongoing_calls_.insert(
             std::make_pair(idx, std::make_pair(func_name, std::move(*p))));
         pimpl->write(std::move(*buffer));
@@ -189,7 +189,7 @@ void client::post(std::shared_ptr<RPCLIB_MSGPACK::sbuffer> buffer, int idx,
 }
 
 void client::post(RPCLIB_MSGPACK::sbuffer *buffer) {
-    pimpl->strand_.post([=]() {
+    boost::asio::post(pimpl->strand_, [buffer, this]() {
         pimpl->write(std::move(*buffer));
         delete buffer;
     });
