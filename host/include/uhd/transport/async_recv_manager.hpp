@@ -7,6 +7,7 @@
 #include <thread>
 #include <cmath>
 #include <iostream>
+#include <liburing.h>
 
 namespace uhd { namespace transport {
 
@@ -64,6 +65,14 @@ private:
     // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
     const size_t _data_subbuffer_size;
 
+    // Amount of padding before the start of the packet
+    // Padding should be such that the data portion starts aligned
+    // TODO: optimize target alignment. Currently it is page aligned, it can probably be adjusted to be
+    const size_t _packet_pre_pad;
+
+    // Size of the buffer containing a single packet
+    const size_t _padded_individual_packet_size;
+
     // Size of a buffer containing all mmsghdrs, iovecs, and location to store packets for a recvmmsg
     // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
     const size_t _individual_network_buffer_size;
@@ -71,6 +80,8 @@ private:
     // Contains all network buffers for every channel
     // Format: (_mmmsghdr_iovec_subbuffer + _vitahdr_subbuffer_size + _data_subbuffer)[channel][buffer]
     uint8_t* const _network_buffer;
+
+    uint8_t* const _all_ch_packet_buffers;
 
     // Stores a counter used to track the the number of times a buffer has been written to
     // It is used to detect if the buffer was overwritten while being processed
