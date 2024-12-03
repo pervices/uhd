@@ -1,3 +1,10 @@
+uhdpv (4.4.0.48-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding channel to warning when setting frequency
+  * Fixes to eob packets
+
+ -- Per Vices <packages@pervices.com>  Tue, 03 Dec 2024 12:11:13 -0500
+
 uhdpv (4.4.0.47-0ubuntu1) ubuntu_release; urgency=medium
 
   * RECV: improving rx reliability
