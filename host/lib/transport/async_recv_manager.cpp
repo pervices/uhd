@@ -15,6 +15,10 @@
 
 namespace uhd { namespace transport {
 
+// TODO: check if this must be unique per program or globally
+// TODO: move this to common include
+static std::atomic<int> bgid(1);
+
 async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
 :
 _num_ch(recv_sockets.size()),
@@ -190,12 +194,25 @@ void async_recv_manager::uring_init(size_t ch) {
 
     struct io_uring* ring = access_io_urings(ch, 0);
     // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
+    // Initializes the ring to service requests
+    // NUM_URING_ENTRIES: number elements in the ring
+    // ring: Information used to access the ring
     int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
         throw uhd::system_error("io_uring error");
     }
 
+    // Initializes the ring buffer containing the location to write to
+    struct io_uring_buf_ring* buffer_ring;
+    int ret = 0;
+    buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, bgid++, 0, &ret);
+
+    if(error) {
+        fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-ret));
+        throw uhd::system_error("io_uring_setup_buf_ring");
+    }
+    printf("IO_URING init passed\n");
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {

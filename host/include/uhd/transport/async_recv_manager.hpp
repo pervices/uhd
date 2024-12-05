@@ -58,7 +58,7 @@ private:
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
-    static constexpr size_t NUM_URING_ENTRIES = PACKETS_PER_BUFFER * NUM_BUFFERS;
+    static constexpr uint32_t NUM_URING_ENTRIES = PACKETS_PER_BUFFER * NUM_BUFFERS;
     // TODO: add assert is a power of 2
 
     // Size of the buffer to contain: all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
@@ -306,7 +306,6 @@ private:
      * @param ch The channel who's uring to initialize
      */
     void uring_init(size_t ch);
-
 
     /**
      * Function that continuously receives data and stores it in the buffer
