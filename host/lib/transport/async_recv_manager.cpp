@@ -251,7 +251,7 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     // Prepare multishot recv
     // Multishot calls recv repeatedly
     // buf is nullptr and len 0 since the buffer is provided by buffer_ring instead of this function
-    io_uring_prep_recv_multishot(sqe, fd, nullptr, 0, MSG_DONTWAIT);
+    io_uring_prep_recv_multishot(sqe, fd, nullptr, 0, 0);
 
     // TODO: replace with system that can handle multile channels, currently bgid of 1 is always used
     sqe->buf_group = bgid;
