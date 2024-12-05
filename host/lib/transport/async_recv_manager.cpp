@@ -438,12 +438,13 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         } else {
             // TODO: handle timeouts (or use io_uring_peek_cqe that doesn't have them)
             printf("Completion failed: %s\n", strerror(-r));
+            printf("E1 completions_received: %lu\n", completions_received);
+            printf("E1 completions_successful: %lu\n", completions_successful);
         }
 
         if(cqe_ptr->res > 0) {
             completions_successful++;
             // TODO: optimize this so entire buffers are advanced at once
-            // io_uring_cq_advance(ring, 1);
             io_uring_buf_ring_cq_advance(ring, tmp_io_uring_buf_ring, 1);
 
             // TODO: notify other thread the event completed
@@ -451,7 +452,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             printf("completions_received before failure: %lu\n", completions_received);
             printf("completions_successful before failure: %lu\n", completions_successful);
             throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
-            printf("recv failed with: %s\n", strerror(-cqe_ptr->res));
 
         }
     }
