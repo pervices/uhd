@@ -88,6 +88,10 @@ private:
 
     uint8_t* const _all_ch_packet_buffers;
 
+    inline __attribute__((always_inline)) uint8_t* access_packet(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size) + _packet_pre_pad;
+    }
+
     // Stores a counter used to track the the number of times a buffer has been written to
     // It is used to detect if the buffer was overwritten while being processed
     // Each element of the buffer should be on it's own page, it seems to help with

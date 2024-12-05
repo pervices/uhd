@@ -198,6 +198,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // NUM_URING_ENTRIES: number elements in the ring
     // ring: Information used to access the ring
     int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
+    // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
         throw uhd::system_error("io_uring error");
@@ -206,12 +207,30 @@ void async_recv_manager::uring_init(size_t ch) {
     // Initializes the ring buffer containing the location to write to
     struct io_uring_buf_ring* buffer_ring;
     int ret = 0;
-    buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, bgid++, 0, &ret);
+    // Determine the current buffer group id, then increment the counter to avoid duplicate
+    uint32_t active_bgid = bgid++;
 
+    buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, active_bgid, 0, &ret);
+
+    // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-ret));
         throw uhd::system_error("io_uring_setup_buf_ring");
     }
+
+    int buffers_added = 0;
+    for(uint32_t b = 0; b < NUM_BUFFERS; b++) {
+        for(uint32_t p = 0; p < PACKETS_PER_BUFFER; p++) {
+            uint8_t* packet_buffer_to_add = access_packet(ch, 0, b, p);
+
+            // Adds the packet to the list for registration (added to the ring buffer)
+            io_uring_buf_ring_add(buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, active_bgid, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
+        }
+    }
+    // Registers the packet buffers in the ring buffer
+    io_uring_buf_ring_advance(buffer_ring, NUM_URING_ENTRIES);
+
+
     printf("IO_URING init passed\n");
 }
 
