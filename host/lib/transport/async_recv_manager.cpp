@@ -216,7 +216,7 @@ void async_recv_manager::uring_init(size_t ch) {
     buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, active_bgid, 0, &ret);
 
     // TODO: improve error message
-    if(error) {
+    if(ret) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-ret));
         throw uhd::system_error("io_uring_setup_buf_ring");
     }
@@ -232,7 +232,7 @@ void async_recv_manager::uring_init(size_t ch) {
             io_uring_buf_ring_add(buffer_ring, packet_buffer_to_add, /*_header_size +*/ _packet_data_size, buffers_added, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
 
             // Registers the packet buffers in the ring buffer
-            io_uring_buf_ring_advance(buffer_ring, NUM_URING_ENTRIES);
+            io_uring_buf_ring_advance(buffer_ring, 1);
         }
     }
     // // Registers the packet buffers in the ring buffer
