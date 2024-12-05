@@ -164,6 +164,10 @@ async_recv_manager::~async_recv_manager()
     free(recv_loops);
 }
 
+// Temporary storage of io_uring_buf_ring for proof of concept
+// TODO: make this a class member and channel specific
+static struct io_uring_buf_ring* tmp_io_uring_buf_ring;
+
 void async_recv_manager::uring_init(size_t ch) {
     struct io_uring_params uring_params;
     memset(&uring_params, 0, sizeof(io_uring_params));
@@ -214,6 +218,7 @@ void async_recv_manager::uring_init(size_t ch) {
 
     // TODO: see if buffer_ring need to be accessed after this function is over
     buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, active_bgid, 0, &ret);
+    tmp_io_uring_buf_ring = buffer_ring;
 
     // TODO: improve error message
     if(ret) {
@@ -438,7 +443,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         if(cqe_ptr->res > 0) {
             completions_successful++;
             // TODO: optimize this so entire buffers are advanced at once
-            io_uring_cq_advance(ring, 1);
+            // io_uring_cq_advance(ring, 1);
+            io_uring_buf_ring_cq_advance(ring, tmp_io_uring_buf_ring, 1);
 
             // TODO: notify other thread the event completed
         } else {
