@@ -403,8 +403,45 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     }
 
     for(size_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
-        lv_i.lv.self->arm_recv_multishot(ch + lv_i.lv.ch_offset, lv_i.lv.sockets[lv_i.lv.ch]);
+        lv_i.lv.self->arm_recv_multishot(ch + lv_i.lv.ch_offset, lv_i.lv.sockets[ch]);
     }
+
+    size_t completions_received = 0;
+    size_t completions_successful = 0;
+    while(!lv_i.lv.self->stop_flag) [[likely]] {
+
+        struct io_uring* ring = lv_i.lv.self->access_io_urings(lv_i.lv.ch, lv_i.lv.ch_offset);
+        // Receives all requests
+        // TODO move these to lv_i.lv
+        io_uring_cqe *cqe_ptr;
+        struct __kernel_timespec io_timeout;
+        io_timeout.tv_sec = 30;
+        io_timeout.tv_nsec = 0;
+        sigset_t sigmask;
+        sigemptyset(&sigmask);
+        // TODO: consider using io_uring_wait_cqes to see if it helps
+        // TODO: try io_uring_peek_cqe
+        int r = io_uring_wait_cqe_timeout(ring, &cqe_ptr, &io_timeout);
+        if(r == 0) {
+            completions_received++;
+        } else {
+            // TODO: handle timeouts (or use io_uring_peek_cqe that doesn't have them)
+            printf("Completion failed: %s\n", strerror(-r));
+        }
+
+        if(cqe_ptr->res > 0) {
+            completions_successful++;
+            // TODO: optimize this so entire buffers are advanced at once
+            io_uring_cq_advance(ring, 1);
+
+            // TODO: notify other thread the event completed
+        } else {
+            printf("recv failed with: %s\n", strerror(-cqe_ptr->res));
+        }
+    }
+
+    printf("completions_received: %lu\n", completions_received);
+    printf("completions_successful: %lu\n", completions_successful);
 
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
     while(!lv_i.lv.self->stop_flag) [[likely]] {
