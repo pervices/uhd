@@ -169,9 +169,9 @@ void async_recv_manager::uring_init(size_t ch) {
     memset(&uring_params, 0, sizeof(io_uring_params));
 
     // Number of entries that can fit in the submission queue
-    uring_params.sq_entries = NUM_URING_ENTRIES;
+    uring_params.sq_entries = NUM_URING_ENTRIES/2;
     // Number of entries that can fit in the completion queue
-    uring_params.cq_entries = NUM_URING_ENTRIES;
+    uring_params.cq_entries = NUM_URING_ENTRIES/2;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
     // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
@@ -198,7 +198,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // Initializes the ring to service requests
     // NUM_URING_ENTRIES: number elements in the ring
     // ring: Information used to access the ring
-    int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
+    int error = io_uring_queue_init_params(NUM_URING_ENTRIES/2, ring, &uring_params);
     // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
@@ -231,6 +231,7 @@ void async_recv_manager::uring_init(size_t ch) {
             // Use whichever number the buffer is (buffers_added) as it's bid
             io_uring_buf_ring_add(buffer_ring, packet_buffer_to_add, /*_header_size +*/ _packet_data_size, buffers_added, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
 
+            // TODO: figure out why ring_advance works when done 1 at a time but not all at once
             // Registers the packet buffers in the ring buffer
             io_uring_buf_ring_advance(buffer_ring, 1);
         }
