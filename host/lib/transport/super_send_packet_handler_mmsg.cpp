@@ -72,7 +72,7 @@ public:
         _channels(channels),
         _DEVICE_BUFFER_SIZE(device_buffer_size),
         _DEVICE_TARGET_NSAMPS(device_target_nsamps),
-        _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
+        _DEVICE_PACKET_NSAMP_MULTIPLE(max_samples_per_packet),
         _TICK_RATE(tick_rate),
         _intermediate_send_buffer_pointers(_NUM_CHANNELS),
         _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS)
