@@ -312,6 +312,12 @@ private:
     void uring_init(size_t ch);
 
     /**
+     * Arms recv_multishot
+     * Must be called after flushing the sockets and after any time the completion queue gets full
+     */
+    void arm_recv_multishot(size_t ch, int fd);
+
+    /**
      * Function that continuously receives data and stores it in the buffer
      * @param sockets the sockets that this thread receives on. Must be a continuous subset corresponding to the storage buffers
      * @param ch_offset offset in the storages buffers that corresponds to the start of the channel

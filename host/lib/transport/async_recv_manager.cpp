@@ -208,8 +208,10 @@ void async_recv_manager::uring_init(size_t ch) {
     struct io_uring_buf_ring* buffer_ring;
     int ret = 0;
     // Determine the current buffer group id, then increment the counter to avoid duplicate
-    uint32_t active_bgid = bgid++;
+    // TODO: set bgid to be seperate for each channel, currently implementing 1 channel as a proof of concept
+    uint32_t active_bgid = bgid;//bgid++;
 
+    // TODO: see if buffer_ring need to be accessed after this function is over
     buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, active_bgid, 0, &ret);
 
     // TODO: improve error message
@@ -224,21 +226,59 @@ void async_recv_manager::uring_init(size_t ch) {
             uint8_t* packet_buffer_to_add = access_packet(ch, 0, b, p);
 
             // Adds the packet to the list for registration (added to the ring buffer)
-            io_uring_buf_ring_add(buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, active_bgid, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
+            // Use whichever number the buffer is (buffers_added) as it's bid
+            io_uring_buf_ring_add(buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, buffers_added, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
         }
     }
     // Registers the packet buffers in the ring buffer
     io_uring_buf_ring_advance(buffer_ring, NUM_URING_ENTRIES);
 
-
     printf("IO_URING init passed\n");
+}
+
+void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
+    struct io_uring* ring = access_io_urings(ch, 0);
+
+    // Get submission queue
+    struct io_uring_sqe *sqe;
+    sqe = io_uring_get_sqe(ring);
+
+    // Clear user data field for determinism, since it is not cleared by the library's functions
+    // User data is a way of sending data with a request that will be provided when completed
+    // It is useful for debugging but no during normal operation with our setup
+    io_uring_sqe_set_data64(sqe, 0);
+
+    // Prepare multishot recv
+    // Multishot calls recv repeatedly
+    // buf is nullptr and len 0 since the buffer is provided by buffer_ring instead of this function
+    io_uring_prep_recv_multishot(sqe, fd, nullptr, 0, 0);
+
+    // TODO: replace with system that can handle multile channels, currently bgid of 1 is always used
+    sqe->buf_group = bgid;
+
+    // IOSQE_BUFFER_SELECT: indicates to use a registered buffer from io_uring_buf_ring_add
+    // IOSQE_FIXED_FILE: has something to do with registering the file earlier
+    // TODO: implement IOSQE_FIXED_FILE to see if it helps performance
+    // IOSQE_IO_LINK/IOSQE_IO_HARDLINK: forces ordering within a submission. Probably not useful for multishot
+    io_uring_sqe_set_flags(sqe, IOSQE_BUFFER_SELECT);
+
+    int ret = io_uring_submit(ring);
+    if(ret > 1) {
+        printf("To many submissions: %i\n", ret);
+    } else if(ret == 0) {
+        printf("No submissions: %i\n", ret);
+    } else if (ret < 0) {
+        printf("Submit failed with error code: %i\n", -ret);
+    } else {
+        printf("Multishot setup completed\n");
+    }
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
     // Struct contianing all local variables used by the main receive loop
     // TODO: look into  improving cache locality
     // Use of this struct improves worst case performance, at the cost of preventing compiler optimizations to help average performance
-    struct local_variables_s {
+    struct lv_i_s {
         // The manager this receives data for
         async_recv_manager* self;
         // Control variable to cycle through channels
@@ -263,32 +303,32 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         int error_code;
     };
 
-    // Union to pad local_variables_s to a full page to prevent interference from other threads
+    // Union to pad lv_i_s to a full page to prevent interference from other threads
     // Theoretically only padding/aligning to cache line is required, experimentally padding to a full page is required
-    union local_variables_u {
-        struct local_variables_s lv;
+    union lv_i_u {
+        struct lv_i_s lv;
         uint8_t padding[PAGE_SIZE];
     };
 
 
-    union local_variables_u local_variables __attribute__ ((aligned (PAGE_SIZE)));
-    assert(sizeof(local_variables) == PAGE_SIZE);
+    union lv_i_u lv_i __attribute__ ((aligned (PAGE_SIZE)));
+    assert(sizeof(lv_i) == PAGE_SIZE);
 
     // MADV_WILLNEED since this will be accessed often
-    madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
+    madvise(&lv_i, sizeof(lv_i), MADV_WILLNEED);
 
-    madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE);
+    madvise(&lv_i, sizeof(lv_i), MADV_NOHUGEPAGE);
 
-    local_variables.lv.self = self_;
-    local_variables.lv.ch = 0;
-    local_variables.lv.ch_offset = ch_offset_;
-    local_variables.lv.num_ch = sockets_.size();
-    for(size_t init_ch = 0; init_ch < local_variables.lv.num_ch; init_ch++) {
-        local_variables.lv.sockets[init_ch] = sockets_[init_ch];
-        local_variables.lv.b[init_ch] = 0;
-        local_variables.lv.buffer_writes_count[init_ch] = 0;
+    lv_i.lv.self = self_;
+    lv_i.lv.ch = 0;
+    lv_i.lv.ch_offset = ch_offset_;
+    lv_i.lv.num_ch = sockets_.size();
+    for(size_t init_ch = 0; init_ch < lv_i.lv.num_ch; init_ch++) {
+        lv_i.lv.sockets[init_ch] = sockets_[init_ch];
+        lv_i.lv.b[init_ch] = 0;
+        lv_i.lv.buffer_writes_count[init_ch] = 0;
     }
-    local_variables.lv.error_code = 0;
+    lv_i.lv.error_code = 0;
 
 
 
@@ -300,11 +340,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     // Syscall used because getcpu is does not exist on Oracle
     int r = syscall(SYS_getcpu, &cpu, nullptr);
     if(!r) {
-        for(uint_fast32_t ch = 0; ch < local_variables.lv.num_ch; ch++) {
+        for(uint_fast32_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
             std::vector<size_t> target_cpu(1, cpu);
             set_thread_affinity(target_cpu);
 
-            r = setsockopt(local_variables.lv.sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+            r = setsockopt(lv_i.lv.sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
             if(r) {
                 UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
             }
@@ -314,47 +354,47 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     }
 
     // Configure iovecs
-    for(uint_fast32_t ch = 0; ch < local_variables.lv.num_ch; ch++) {
+    for(uint_fast32_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
         for(uint_fast32_t b = 0; b < NUM_BUFFERS; b++) {
             // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
-            struct iovec* iovecs = local_variables.lv.self->access_iovec_buffer(ch, local_variables.lv.ch_offset, b);
+            struct iovec* iovecs = lv_i.lv.self->access_iovec_buffer(ch, lv_i.lv.ch_offset, b);
             for(uint_fast32_t p = 0; p < PACKETS_PER_BUFFER; p++) {
 
                 uint_fast32_t header_iovec = 2 * p;
                 uint_fast32_t data_iovec = 2 * p + 1;
 
                 // Point iovecs to the location to store the vita header
-                iovecs[header_iovec].iov_base = (void*) local_variables.lv.self->access_vita_hdr(ch, local_variables.lv.ch_offset, b, p);
-                iovecs[header_iovec].iov_len = local_variables.lv.self->_header_size;
+                iovecs[header_iovec].iov_base = (void*) lv_i.lv.self->access_vita_hdr(ch, lv_i.lv.ch_offset, b, p);
+                iovecs[header_iovec].iov_len = lv_i.lv.self->_header_size;
 
                 // Points iovecs to the corresponding point in the buffers
-                iovecs[data_iovec].iov_base = (void*) local_variables.lv.self->access_packet_data(ch, local_variables.lv.ch_offset, b, p);
-                iovecs[data_iovec].iov_len = local_variables.lv.self->_packet_data_size;
+                iovecs[data_iovec].iov_base = (void*) lv_i.lv.self->access_packet_data(ch, lv_i.lv.ch_offset, b, p);
+                iovecs[data_iovec].iov_len = lv_i.lv.self->_packet_data_size;
 
                 // Points mmsghdrs to the corresponding io_vec
                 // Since there is only one location data should be written to per packet just take the address of the location to write to
-                local_variables.lv.self->access_mmsghdr(ch, local_variables.lv.ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
-                local_variables.lv.self->access_mmsghdr(ch, local_variables.lv.ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
+                lv_i.lv.self->access_mmsghdr(ch, lv_i.lv.ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
+                lv_i.lv.self->access_mmsghdr(ch, lv_i.lv.ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
             }
         }
     }
 
     // Flush packets
-    for(size_t flush_ch = 0; flush_ch < local_variables.lv.num_ch; flush_ch++) {
+    for(size_t flush_ch = 0; flush_ch < lv_i.lv.num_ch; flush_ch++) {
         int r = -1;
         bool error_already_occured = false;
         // Receive packets until none are received
-        while(!local_variables.lv.self->stop_flag) {
-            r = recvmmsg(local_variables.lv.sockets[flush_ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(flush_ch, local_variables.lv.ch_offset, 0), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
+        while(!lv_i.lv.self->stop_flag) {
+            r = recvmmsg(lv_i.lv.sockets[flush_ch], (mmsghdr*) lv_i.lv.self->access_mmsghdr_buffer(flush_ch, lv_i.lv.ch_offset, 0), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
             // If no packets and received the error code for no packets and using MSG_DONTWAIT, continue to next channel
             if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                *local_variables.lv.self->access_flush_complete(flush_ch, local_variables.lv.ch_offset) = 1;
+                *lv_i.lv.self->access_flush_complete(flush_ch, lv_i.lv.ch_offset) = 1;
                 break;
             } else if(r == -1) {
                 UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error while flushing recvmmsg during initialization: " + std::string(strerror(errno));
                 // If this is the second time seeing an unplanned error while flushing this socket, throw and error
                 if(error_already_occured) {
-                    local_variables.lv.self->stop_flag = true;
+                    lv_i.lv.self->stop_flag = true;
                     throw std::runtime_error("Unable to recover from recvmmsg error during initialization: " + std::string(strerror(errno)));
                 }
                 error_already_occured = true;
@@ -362,28 +402,32 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         }
     }
 
+    for(size_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
+        lv_i.lv.self->arm_recv_multishot(ch + lv_i.lv.ch_offset, lv_i.lv.sockets[lv_i.lv.ch]);
+    }
+
     // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
-    while(!local_variables.lv.self->stop_flag) [[likely]] {
+    while(!lv_i.lv.self->stop_flag) [[likely]] {
 
         /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
-        local_variables.lv.buffer_write_count = local_variables.lv.self->access_buffer_writes_count(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]);
+        lv_i.lv.buffer_write_count = lv_i.lv.self->access_buffer_writes_count(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
 
         // Increment the count to an odd number to indicate at writting to the buffer has begun
         // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
-        local_variables.lv.buffer_writes_count[local_variables.lv.ch]+= !(local_variables.lv.buffer_writes_count[local_variables.lv.ch] & 1);
-        *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
+        lv_i.lv.buffer_writes_count[lv_i.lv.ch]+= !(lv_i.lv.buffer_writes_count[lv_i.lv.ch] & 1);
+        *lv_i.lv.buffer_write_count = lv_i.lv.buffer_writes_count[lv_i.lv.ch];
 
         // Fence to ensure buffer_write_count is set to an off number before recvmmsg
         std::atomic_thread_fence(std::memory_order_release);
 
         // Receives any packets already in the buffer
-        local_variables.lv.r = recvmmsg(local_variables.lv.sockets[local_variables.lv.ch], (mmsghdr*) local_variables.lv.self->access_mmsghdr_buffer(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
+        lv_i.lv.r = recvmmsg(lv_i.lv.sockets[lv_i.lv.ch], (mmsghdr*) lv_i.lv.self->access_mmsghdr_buffer(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
 
         // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
-        local_variables.lv.are_packets_received = local_variables.lv.r > 0;
+        lv_i.lv.are_packets_received = lv_i.lv.r > 0;
 
         // Set counter for number of packets stored
-        *local_variables.lv.self->access_num_packets_stored(local_variables.lv.ch, local_variables.lv.ch_offset, local_variables.lv.b[local_variables.lv.ch]) = (local_variables.lv.r * local_variables.lv.are_packets_received);
+        *lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]) = (lv_i.lv.r * lv_i.lv.are_packets_received);
 
         // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
         std::atomic_thread_fence(std::memory_order_release);
@@ -391,27 +435,27 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // Accessing errno can cause latency spikes, enable check only when needed for debugging
 #ifdef ASYNC_RECV_MANAGER_DEBUG
         // Set error_code to the first unhandled error encountered
-        if(local_variables.lv.r == -1) {
-            local_variables.lv.error_code = (local_variables.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !local_variables.lv.error_code) * errno;
+        if(lv_i.lv.r == -1) {
+            lv_i.lv.error_code = (lv_i.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !lv_i.lv.error_code) * errno;
         }
 #endif
 
         // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        local_variables.lv.buffer_writes_count[local_variables.lv.ch] += local_variables.lv.are_packets_received;
-        *local_variables.lv.buffer_write_count = local_variables.lv.buffer_writes_count[local_variables.lv.ch];
+        lv_i.lv.buffer_writes_count[lv_i.lv.ch] += lv_i.lv.are_packets_received;
+        *lv_i.lv.buffer_write_count = lv_i.lv.buffer_writes_count[lv_i.lv.ch];
 
         // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        local_variables.lv.b[local_variables.lv.ch] = (local_variables.lv.b[local_variables.lv.ch] + local_variables.lv.are_packets_received) & BUFFER_MASK;
+        lv_i.lv.b[lv_i.lv.ch] = (lv_i.lv.b[lv_i.lv.ch] + lv_i.lv.are_packets_received) & BUFFER_MASK;
 
         // Move onto the next channel, looping back to the start once reaching the end
         // Achieves results like a for loop while reducing branches
-        local_variables.lv.ch++;
-        local_variables.lv.ch = local_variables.lv.ch * !(local_variables.lv.ch >= local_variables.lv.num_ch);
+        lv_i.lv.ch++;
+        lv_i.lv.ch = lv_i.lv.ch * !(lv_i.lv.ch >= lv_i.lv.num_ch);
     }
 
-    // NOTE: local_variables.lv.error_code is only set if ASYNC_RECV_MANAGER_DEBUG is defiend
-    if(local_variables.lv.error_code) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(local_variables.lv.error_code));
+    // NOTE: lv_i.lv.error_code is only set if ASYNC_RECV_MANAGER_DEBUG is defiend
+    if(lv_i.lv.error_code) {
+        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(lv_i.lv.error_code));
     }
 }
 
