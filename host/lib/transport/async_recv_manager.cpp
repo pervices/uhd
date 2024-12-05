@@ -25,7 +25,8 @@ _num_ch(recv_sockets.size()),
 padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _header_size(header_size),
 _padded_header_size(std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
-_packet_data_size(max_sample_bytes_per_packet),
+// + _header_size for tmp debugging
+_packet_data_size(max_sample_bytes_per_packet + _header_size),
 
 // NOTE: Theoretically padding to the cache line is required to prevent interference between threads, experimentally padding to full pages are required
 
