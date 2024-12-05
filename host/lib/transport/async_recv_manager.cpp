@@ -52,7 +52,7 @@ _buffer_write_count_buffer((uint8_t*) mmap(nullptr, _num_ch * _buffer_write_coun
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _packets_stored_buffer((uint8_t*) mmap(nullptr, _num_ch * _packets_stored_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // TODO: replace with aligned alloc if padding is reduced
-_io_urings((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+_io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_control_struct_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
@@ -70,7 +70,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // Not disabling huge pages can cause latency spikes
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
     // TODO: try optimizing for huge pages
-    madvise(_io_urings, _num_ch * _padded_io_uring_size, MADV_NOHUGEPAGE);
+    madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
     madvise(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * _padded_individual_packet_size, MADV_NOHUGEPAGE);
     madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE);
     madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
@@ -92,7 +92,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
-    memset(_io_urings, 0, _num_ch * _padded_io_uring_size);
+    memset(_io_uring_control_structs, 0, _num_ch * _padded_io_uring_control_struct_size);
     memset(_all_ch_packet_buffers, 0, _num_ch * NUM_BUFFERS * _padded_individual_packet_size);
     memset(_network_buffer, 0, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
     memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
@@ -153,7 +153,7 @@ async_recv_manager::~async_recv_manager()
     }
 
     // Frees packets and mmsghdr buffers
-    munmap(_io_urings, _num_ch * _padded_io_uring_size);
+    munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
     munmap(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * _padded_individual_packet_size);
     munmap(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
     munmap(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size);
@@ -210,15 +210,14 @@ void async_recv_manager::uring_init(size_t ch) {
     }
 
     // Initializes the ring buffer containing the location to write to
-    struct io_uring_buf_ring* buffer_ring;
+    struct io_uring_buf_ring** buffer_ring = access_io_uring_buf_rings(ch, 0);
     int ret = 0;
     // Determine the current buffer group id, then increment the counter to avoid duplicate
     // TODO: set bgid to be seperate for each channel, currently implementing 1 channel as a proof of concept
     uint32_t active_bgid = bgid;//bgid++;
 
     // TODO: see if buffer_ring need to be accessed after this function is over
-    buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, active_bgid, 0, &ret);
-    tmp_io_uring_buf_ring = buffer_ring;
+    *buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, active_bgid, 0, &ret);
 
     // TODO: improve error message
     if(ret) {
@@ -234,15 +233,15 @@ void async_recv_manager::uring_init(size_t ch) {
 
             // Adds the packet to the list for registration (added to the ring buffer)
             // Use whichever number the buffer is (buffers_added) as it's bid
-            io_uring_buf_ring_add(buffer_ring, packet_buffer_to_add, /*_header_size +*/ _packet_data_size, buffers_added, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
+            io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, /*_header_size +*/ _packet_data_size, buffers_added, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
 
-            // TODO: figure out why ring_advance works when done 1 at a time but not all at once
             // Registers the packet buffers in the ring buffer
-            io_uring_buf_ring_advance(buffer_ring, 1);
+            io_uring_buf_ring_advance(*buffer_ring, 1);
         }
     }
+    // TODO: figure out why ring_advance works when done 1 at a time but not all at once
     // // Registers the packet buffers in the ring buffer
-    // io_uring_buf_ring_advance(buffer_ring, NUM_URING_ENTRIES);
+    // io_uring_buf_ring_advance(*buffer_ring, NUM_URING_ENTRIES);
 
     printf("IO_URING init passed\n");
 }
@@ -444,8 +443,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
         if(cqe_ptr->res > 0) {
             completions_successful++;
-            // TODO: optimize this so entire buffers are advanced at once
-            io_uring_buf_ring_cq_advance(ring, tmp_io_uring_buf_ring, 1);
+            // TODO: see if reducing the number or io_uring_buf_ring_cq_advance calls by grouping helps
+            // TODO: cache access_io_uring_buf_rings result in lv_i.lv.
+            io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), 1);
 
             // TODO: notify other thread the event completed
         } else {

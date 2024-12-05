@@ -103,13 +103,22 @@ private:
     uint8_t* const _packets_stored_buffer;
 
     // TODO: reduce padding
-    static constexpr size_t _padded_io_uring_size = PAGE_SIZE;
-    static_assert(_padded_io_uring_size > sizeof(struct io_uring), "Padded io_uring size smaller than normal io_uring size");
-    uint8_t* const _io_urings;
+    static constexpr size_t _padded_io_uring_control_struct_size = PAGE_SIZE;
+    static_assert(_padded_io_uring_control_struct_size > sizeof(struct io_uring), "Padded io_uring size smaller than normal io_uring size");
+    // Buffer used for control structs used by io_uring
+    // Format: io_uring, io_uring_buf_ring, padding to _padded__uring_size, repeat for each channel
+    // TODO: see if adding cache line or page size padding between io_uring and io_uring_buf_ring helps
+    uint8_t* const _io_uring_control_structs;
 
-    // Access the uring for a given channel
+    // Access the uring for a given channel. (The ring buffer containing submission and completion queues)
     inline __attribute__((always_inline)) io_uring* access_io_urings(size_t ch, size_t ch_offset) {
-        return (io_uring*) (_io_urings + ((ch + ch_offset) * _padded_io_uring_size));
+        return (io_uring*) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size));
+    }
+
+    // Access buf ring for a given channel. (The ring buffer contain the buffers to store received data in)
+    //
+    inline __attribute__((always_inline)) io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
+        return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + sizeof(io_uring));
     }
 
     // Get's a specific channel's combined buffers
