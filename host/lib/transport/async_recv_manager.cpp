@@ -436,7 +436,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
             // TODO: notify other thread the event completed
         } else {
+            printf("completions_received before failure: %lu\n", completions_received);
+            printf("completions_successful before failure: %lu\n", completions_successful);
+            throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
             printf("recv failed with: %s\n", strerror(-cqe_ptr->res));
+
         }
     }
 
