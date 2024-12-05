@@ -173,9 +173,9 @@ void async_recv_manager::uring_init(size_t ch) {
     memset(&uring_params, 0, sizeof(io_uring_params));
 
     // Number of entries that can fit in the submission queue
-    uring_params.sq_entries = NUM_URING_ENTRIES/2;
+    uring_params.sq_entries = NUM_URING_ENTRIES;
     // Number of entries that can fit in the completion queue
-    uring_params.cq_entries = NUM_URING_ENTRIES/2;
+    uring_params.cq_entries = NUM_URING_ENTRIES;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
     // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
@@ -202,7 +202,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // Initializes the ring to service requests
     // NUM_URING_ENTRIES: number elements in the ring
     // ring: Information used to access the ring
-    int error = io_uring_queue_init_params(NUM_URING_ENTRIES/2, ring, &uring_params);
+    int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
     // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
