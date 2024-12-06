@@ -278,8 +278,6 @@ public:
                 }
                 _mm_mfence();
             }
-            printf("T1\n");
-
             // This mmfence helped prevent wierd performance drops with the old system
             // _mm_mfence();
 
@@ -297,7 +295,6 @@ public:
                     return 0;
                 }
             }
-            printf("T2\n");
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
@@ -308,7 +305,6 @@ public:
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
             }
-            printf("T3\n");
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
