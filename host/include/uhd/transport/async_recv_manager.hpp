@@ -315,21 +315,17 @@ public:
      * @param ch
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
-    inline __attribute__((always_inline)) async_packet_info get_next_async_packet_info(const size_t ch) {
+    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
         size_t b = active_consumer_buffer[ch];
         if(num_packets_consumed[ch] < *access_num_packets_stored(ch, 0, b)) {
-            return async_packet_info {
-                .length = *access_packet_length(ch, 0, b, num_packets_consumed[ch]),
-                .vita_header = access_packet(ch, 0, b, num_packets_consumed[ch]),
-                .samples = access_packet_samples(ch, 0, b, num_packets_consumed[ch])
-            };
+            info->length = *access_packet_length(ch, 0, b, num_packets_consumed[ch]);
+            info->vita_header = access_packet(ch, 0, b, num_packets_consumed[ch]);
+            info->samples = access_packet_samples(ch, 0, b, num_packets_consumed[ch]);
         // Next packet isn't ready
         } else {
-            return async_packet_info {
-                .length = 0,
-                .vita_header = nullptr,
-                .samples = nullptr
-            };
+            info->length = 0;
+            info->vita_header = nullptr;
+            info->samples = nullptr;
         }
     }
 
@@ -341,6 +337,9 @@ public:
         num_packets_consumed[ch]++;
         // Move to the next buffer once the buffer is consumed
         if(num_packets_consumed[ch] >= PACKETS_PER_BUFFER) {
+            // Clears the number of packets in the buffer
+            // TODO: change to system that doesn't require communication from this thread back to the previous one
+            *access_num_packets_stored(ch, 0, active_consumer_buffer[ch]) = 0;
 
             // Moves to the next buffer
             // & is to roll over the the first buffer once the limit is reached

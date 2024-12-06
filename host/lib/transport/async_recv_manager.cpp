@@ -440,8 +440,13 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
         if(cqe_ptr->res > 0) {
             completions_successful++;
+            int_fast64_t* num_packets_stored = lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
+            *num_packets_stored += 1;
+            if( *num_packets_stored >= PACKETS_PER_BUFFER) {
+                lv_i.lv.b[lv_i.lv.ch] = (lv_i.lv.b[lv_i.lv.ch] + 1) & BUFFER_MASK;
+            }
             // TODO: see if reducing the number or io_uring_buf_ring_cq_advance calls by grouping helps
-            // TODO: cache access_io_uring_buf_rings result in lv_i.lv.
+            // TODO: free completion events in this thread, free buffers consumer thread to avoid race conditions
             io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), 1);
 
             // TODO: notify other thread the event completed

@@ -79,7 +79,6 @@ public:
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _recv_sockets(recv_sockets),
-    _previous_buffer_writes_count(_NUM_CHANNELS, 0),
     _num_cached_samples(_NUM_CHANNELS, 0),
     _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
     {
@@ -208,29 +207,7 @@ public:
         // Reponsible for setting error_code to none, has_time_spec to false and eob to false
         metadata.reset();
 
-        // Vector of variables used to improve cache locality
-        struct packet_info{
-            // Buffer to store copy of Vita header of a packet
-            // A copy is created instead of using a pointer to avoid issues with the header being overwriten while being unpacked
-            std::vector<uint8_t> packet_hdr;
-            // Pointer to the start of samples in the packet
-            uint8_t* packet_samples;
-            // Length of the packet received (usually does not include the trailers)
-            uint_fast32_t packet_length;
-
-            packet_info(const size_t header_size) :
-            packet_hdr(std::vector<uint8_t>(header_size, 0)),
-            packet_samples(nullptr),
-            packet_length(0)
-            {
-
-            };
-        };
-
-        std::vector<packet_info> packet_infos(_NUM_CHANNELS, packet_info(_HEADER_SIZE));
-
         // Place to store metadata of Vita packets
-        // Not included in packet_info becuase packet_info's memory are accessed togther within a channel, vita_md is better to have it be adjacent for different channels
         std::vector<vrt::if_packet_info_t> vita_md(_NUM_CHANNELS);
 
         // The channel with the latest packet
@@ -279,24 +256,31 @@ public:
             bool overflow_detected = false;
             bool realignment_required = false;
 
-            // Stores buffer_write_count from when the packet was obtained
-            std::vector<int_fast64_t> initial_buffer_writes_count(_NUM_CHANNELS);
+            // Contains the location and length of the next packet for each channel
+            std::vector<async_packet_info> next_packet(_NUM_CHANNELS);
 
             size_t ch = 0;
             // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
-                initial_buffer_writes_count[ch] = recv_manager->get_buffer_write_count(ch);
-                // if (buffer_write_count has increased since the last recv || the next packet is not the first packet of the buffer) && buffer_write_count is even
-                if((initial_buffer_writes_count[ch] > _previous_buffer_writes_count[ch] || !recv_manager->is_first_packet_of_buffer(ch)) && !(initial_buffer_writes_count[ch] & 1)) {
+                recv_manager->get_next_async_packet_info(ch, &next_packet[ch]);
+
+                // Adding excesive amount of mfences to avoid wierd errors
+                // TODO: optimize fencing
+                _mm_mfence();
+
+                // Length is 0 if the packet is not ready yet
+                if(next_packet[ch].length != 0) {
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
                     // Do nothing
                     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                 }
+                _mm_mfence();
             }
 
-            _mm_mfence();
+            // This mmfence helped prevent wierd performance drops with the old system
+            // _mm_mfence();
 
             // Check if timeout occured
             // TODO: refactor to reduce branching
@@ -313,44 +297,19 @@ public:
                 }
             }
 
-            // Flag that indicates if the packet was overwritten mid read
-            bool mid_header_read_header_overwrite = false;
-
-            std::atomic_thread_fence(std::memory_order_consume);
-
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                // Gets info for this packet
-                memcpy(packet_infos[ch].packet_hdr.data(), recv_manager->get_next_packet_vita_header(ch), _HEADER_SIZE);
-
-                packet_infos[ch].packet_samples = recv_manager->get_next_packet_samples(ch);
-                packet_infos[ch].packet_length = recv_manager->get_next_packet_length(ch);
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (packet_infos[ch].packet_length + _TRAILER_SIZE) / sizeof(uint32_t);
+                vita_md[ch].num_packet_words32 = (next_packet[ch].length + _TRAILER_SIZE) / sizeof(uint32_t);
 
                 // Check for incorrect packet
-                if(packet_infos[ch].packet_length < _HEADER_SIZE) [[unlikely]] {
+                if(next_packet[ch].length < _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
-
-                int_fast64_t post_header_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
-                std::atomic_thread_fence(std::memory_order_consume);
-                // If buffer_write_count changed while getting header info
-                if(post_header_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
-                    mid_header_read_header_overwrite = true;
-                    // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
-                    // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
-                    recv_manager->reset_buffer_read_head(ch);
-                }
-            }
-
-            // Restart loop since buffers may have been modified when headers were being processed
-            if(mid_header_read_header_overwrite) {
-                continue;
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
-                if_hdr_unpack((uint32_t*) packet_infos[ch].packet_hdr.data(), vita_md[ch]);
+                if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
@@ -406,7 +365,6 @@ public:
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
             size_t samples_to_consume = 0;
-            bool mid_header_read_data_overwrite = false;
             // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
             std::vector<size_t> samples_to_cache(_NUM_CHANNELS, 0);
 
@@ -429,28 +387,13 @@ public:
                 samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
                 samples_to_cache[ch] = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                convert_samples(buffs[ch], packet_infos[ch].packet_samples, samples_to_consume);
+                convert_samples(buffs[ch], next_packet[ch].samples, samples_to_consume);
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache[ch]) [[unlikely]] {
                     // Copy extra samples from the packet to the cache
-                    memcpy(_sample_cache[ch].data(), packet_infos[ch].packet_samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
+                    memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
-
-                int_fast64_t post_data_copied_buffer_write_count = recv_manager->get_buffer_write_count(ch);
-                std::atomic_thread_fence(std::memory_order_consume);
-                // If buffer_write_count changed while copying data
-                if(post_data_copied_buffer_write_count != initial_buffer_writes_count[ch]) {
-                    mid_header_read_data_overwrite = true;
-                    // Change the location to get the next packet to the start of the buffer, since this buffer is newly modified
-                    // Droped everything in all buffers between the packet originally meant to be read the start of this buffer, which also helps catch up after overflows
-                    recv_manager->reset_buffer_read_head(ch);
-                }
-            }
-
-            // Restart recv loop since the packets was overwritten while copying data from the provider buffer
-            if(mid_header_read_data_overwrite) {
-                continue;
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
@@ -479,10 +422,6 @@ public:
 
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
-
-            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                _previous_buffer_writes_count[ch] = initial_buffer_writes_count[ch];
-            }
 
             // Record how many samples have been copied to the buffer, will be the same for all channels
             samples_received += samples_to_consume;
@@ -524,9 +463,6 @@ private:
     static constexpr size_t SEQUENCE_NUMBER_MASK = 0xf;
 
     size_t previous_sequence_number = 0;
-
-    // Value of buffer_write_count during the last recv call
-    std::vector<int_fast64_t> _previous_buffer_writes_count;
 
     // Converts samples between wire and cpu formats
     uhd::convert::converter::sptr _converter;
