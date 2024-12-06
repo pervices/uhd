@@ -11,6 +11,12 @@
 
 namespace uhd { namespace transport {
 
+struct async_packet_info {
+    int64_t length;
+    uint8_t* vita_header;
+    uint8_t* samples;
+};
+
 // Creates and manages receive threads
 // Threads continuously receive data and store it in a buffer for latter use
 // provider thread(s) refers to the thread(s) receiving data and storing it in the buffer
@@ -54,7 +60,7 @@ private:
 
     // Number of packets per buffer
 
-    static constexpr size_t PACKETS_PER_BUFFER = 32;
+    static constexpr uint32_t PACKETS_PER_BUFFER = 32;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
@@ -78,6 +84,26 @@ private:
     // Size of the buffer containing a single packet
     const size_t _padded_individual_packet_size;
 
+    // Buffer containing packets + packet length
+    // TODO: figure out if page alignment is necessary, or only 512 bytes (for potential future AVX512 use)
+    // Format: (length, padding, vita header | page boundary |, samples, padding to next page) * PACKETS_PER_BUFFER * _num_ch
+    uint8_t* const _all_ch_packet_buffers;
+
+    // Gets a pointer to the start of a packet (which is also the location of the Vita header)
+    inline __attribute__((always_inline)) uint8_t* access_packet(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size) + _packet_pre_pad;
+    }
+
+    // Gets a pointer to the length of a packet
+    inline __attribute__((always_inline)) int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return (int64_t*) (_all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size));
+    }
+
+    // Gets a pointer to the start of a packet's samples
+    inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
+    }
+
     // Size of a buffer containing all mmsghdrs, iovecs, and location to store packets for a recvmmsg
     // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
     const size_t _individual_network_buffer_size;
@@ -85,12 +111,6 @@ private:
     // Contains all network buffers for every channel
     // Format: (_mmmsghdr_iovec_subbuffer + _vitahdr_subbuffer_size + _data_subbuffer)[channel][buffer]
     uint8_t* const _network_buffer;
-
-    uint8_t* const _all_ch_packet_buffers;
-
-    inline __attribute__((always_inline)) uint8_t* access_packet(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size) + _packet_pre_pad;
-    }
 
     // Stores a counter used to track the the number of times a buffer has been written to
     // It is used to detect if the buffer was overwritten while being processed
@@ -291,19 +311,40 @@ public:
     }
 
     /**
+     * Gets information needed to process the next packet
+     * @param ch
+     * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
+     */
+    inline __attribute__((always_inline)) async_packet_info get_next_async_packet_info(const size_t ch) {
+        size_t b = active_consumer_buffer[ch];
+        if(num_packets_consumed[ch] < *access_num_packets_stored(ch, 0, b)) {
+            return async_packet_info {
+                .length = *access_packet_length(ch, 0, b, num_packets_consumed[ch]),
+                .vita_header = access_packet(ch, 0, b, num_packets_consumed[ch]),
+                .samples = access_packet_samples(ch, 0, b, num_packets_consumed[ch])
+            };
+        // Next packet isn't ready
+        } else {
+            return async_packet_info {
+                .length = 0,
+                .vita_header = nullptr,
+                .samples = nullptr
+            };
+        }
+    }
+
+    /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
-        size_t b = active_consumer_buffer[ch];
         num_packets_consumed[ch]++;
-        // Move to the next buffer once all packets in this buffer are consumed
-        int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
-        if(num_packets_consumed[ch] >= *num_packets_stored_addr) {
+        // Move to the next buffer once the buffer is consumed
+        if(num_packets_consumed[ch] >= PACKETS_PER_BUFFER) {
 
             // Moves to the next buffer
             // & is to roll over the the first buffer once the limit is reached
-            active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & (NUM_BUFFERS -1);
+            active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & BUFFER_MASK;
 
             // Resets count for number of samples consumed in the active buffer
             num_packets_consumed[ch] = 0;

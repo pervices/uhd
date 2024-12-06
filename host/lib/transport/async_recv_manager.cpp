@@ -148,6 +148,8 @@ async_recv_manager::~async_recv_manager()
         recv_loops[n].~thread();
     }
 
+
+    // TODO: fix seg fault on exit (probably requires use of io_uring_prep_cancel IORING_ASYNC_CANCEL_ANY)
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));
     }
