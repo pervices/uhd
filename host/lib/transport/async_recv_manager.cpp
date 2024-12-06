@@ -441,6 +441,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             printf("E1 completions_successful: %lu\n", completions_successful);
         }
 
+        printf("completions_received: %lu\n", completions_received);
+
         if(cqe_ptr->res > 0) {
             completions_successful++;
             int_fast64_t* num_packets_stored = lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
@@ -462,62 +464,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
 
         }
+        printf("completions_successful: %lu\n", completions_successful);
     }
 
     printf("completions_received: %lu\n", completions_received);
     printf("completions_successful: %lu\n", completions_successful);
-
-    // Several times this loop uses !! to ensure something is a bool (range 0 or 1)
-    while(!lv_i.lv.self->stop_flag) [[likely]] {
-
-        /// Get pointer to count used to detect if provider thread overwrote the packet while the consumer thread was accessing it
-        lv_i.lv.buffer_write_count = lv_i.lv.self->access_buffer_writes_count(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
-
-        // Increment the count to an odd number to indicate at writting to the buffer has begun
-        // If the count is already odd skip incrementing since that indicates that the write process started but the previous recvmmsg didn't return any packets
-        lv_i.lv.buffer_writes_count[lv_i.lv.ch]+= !(lv_i.lv.buffer_writes_count[lv_i.lv.ch] & 1);
-        *lv_i.lv.buffer_write_count = lv_i.lv.buffer_writes_count[lv_i.lv.ch];
-
-        // Fence to ensure buffer_write_count is set to an off number before recvmmsg
-        std::atomic_thread_fence(std::memory_order_release);
-
-        // Receives any packets already in the buffer
-        lv_i.lv.r = recvmmsg(lv_i.lv.sockets[lv_i.lv.ch], (mmsghdr*) lv_i.lv.self->access_mmsghdr_buffer(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
-
-        // Record if packets are received. Use bool since it will always be 0 or 1 which is useful for later branchless code
-        lv_i.lv.are_packets_received = lv_i.lv.r > 0;
-
-        // Set counter for number of packets stored
-        *lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]) = (lv_i.lv.r * lv_i.lv.are_packets_received);
-
-        // Fence to ensure writes to recvmmsg and num_packets_stored are completed before buffer_write_count is complete
-        std::atomic_thread_fence(std::memory_order_release);
-
-        // Accessing errno can cause latency spikes, enable check only when needed for debugging
-#ifdef ASYNC_RECV_MANAGER_DEBUG
-        // Set error_code to the first unhandled error encountered
-        if(lv_i.lv.r == -1) {
-            lv_i.lv.error_code = (lv_i.lv.r == -1 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR && !lv_i.lv.error_code) * errno;
-        }
-#endif
-
-        // Increment the count from an odd number to an even number to indicate recvmmsg and updating the number of packets has been completed
-        lv_i.lv.buffer_writes_count[lv_i.lv.ch] += lv_i.lv.are_packets_received;
-        *lv_i.lv.buffer_write_count = lv_i.lv.buffer_writes_count[lv_i.lv.ch];
-
-        // Shift to the next buffer is any packets received, the & loops back to the first buffer
-        lv_i.lv.b[lv_i.lv.ch] = (lv_i.lv.b[lv_i.lv.ch] + lv_i.lv.are_packets_received) & BUFFER_MASK;
-
-        // Move onto the next channel, looping back to the start once reaching the end
-        // Achieves results like a for loop while reducing branches
-        lv_i.lv.ch++;
-        lv_i.lv.ch = lv_i.lv.ch * !(lv_i.lv.ch >= lv_i.lv.num_ch);
-    }
-
-    // NOTE: lv_i.lv.error_code is only set if ASYNC_RECV_MANAGER_DEBUG is defiend
-    if(lv_i.lv.error_code) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error during recvmmsg: " + std::string(strerror(lv_i.lv.error_code));
-    }
 }
 
 }}
