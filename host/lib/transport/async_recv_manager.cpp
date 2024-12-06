@@ -441,6 +441,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         if(cqe_ptr->res > 0) {
             completions_successful++;
             int_fast64_t* num_packets_stored = lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
+            *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch], *num_packets_stored) = cqe_ptr->res;
+            // Must set packet length before updating num_packets_stored
+            std::atomic_thread_fence(std::memory_order_release);
             *num_packets_stored += 1;
             if( *num_packets_stored >= PACKETS_PER_BUFFER) {
                 lv_i.lv.b[lv_i.lv.ch] = (lv_i.lv.b[lv_i.lv.ch] + 1) & BUFFER_MASK;
