@@ -30,14 +30,15 @@ private:
 
     static constexpr size_t MAX_CHANNELS = 16;
 
-    // Number of buffers per ch
-    // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_BUFFERS = 1024;
+    // Number of packets that can be stored in the buffer
+    static constexpr size_t PACKET_BUFFER_SIZE = 32768;
 
-    static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
+    // Mask used to roll over number of packets
+    static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
 
     static constexpr size_t PAGE_SIZE = 4096;
 
+    // Number of channls managed by this streamer
     const uint_fast32_t _num_ch;
 
     static constexpr size_t CACHE_LINE_SIZE = 64;
@@ -54,13 +55,13 @@ private:
     // Size of the sample portion of Vita packets
     const uint_fast32_t _packet_data_size;
 
-    // Number of packets per buffer
-
-    static constexpr uint32_t PACKETS_PER_BUFFER = 32;
+    // Number of packets to receive before updating counts used by other threads
+    // TODO: implement batching io_uring_buf_ring_cq_advance calls
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 32;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
-    static constexpr uint32_t NUM_URING_ENTRIES = PACKETS_PER_BUFFER * NUM_BUFFERS;
+    static constexpr uint32_t NUM_URING_ENTRIES = PACKET_BUFFER_SIZE;
     // TODO: add assert is a power of 2
 
     // Amount of padding before the start of the packet
@@ -76,24 +77,36 @@ private:
     // Format: (length, padding, vita header | page boundary |, samples, padding to next page) * PACKETS_PER_BUFFER * _num_ch
     uint8_t* const _all_ch_packet_buffers;
 
-    // Gets a pointer to the start of a packet (which is also the location of the Vita header)
-    inline __attribute__((always_inline)) uint8_t* access_packet(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS * PACKETS_PER_BUFFER) + p ) * _padded_individual_packet_size) + _packet_pre_pad;
+    // Gets a pointer to the start of the buffer containing info for the packet (not the start of the packet
+    inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t p) {
+        return _all_ch_packet_buffers + ((((ch + ch_offset) * PACKET_BUFFER_SIZE) + p ) * _padded_individual_packet_size);
+    }
+
+    // Gets a pointer to the Vita header for a packet (which is also the start of the packet
+    inline __attribute__((always_inline)) uint8_t* access_packet_vita_header(size_t ch, size_t ch_offset, size_t p) {
+        return access_packet_buffer(ch, ch_offset, p) + _packet_pre_pad;
     }
 
     // Gets a pointer to the length of a packet
-    inline __attribute__((always_inline)) int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return (int64_t*) (_all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS * PACKETS_PER_BUFFER) + p ) * _padded_individual_packet_size));
+    inline __attribute__((always_inline)) int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t p) {
+        return (int64_t*) (access_packet_buffer(ch, ch_offset, p));
     }
 
     // Gets a pointer to the start of a packet's samples
-    inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS * PACKETS_PER_BUFFER) + p ) * _padded_individual_packet_size) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
+    inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t p) {
+        return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
     }
 
-    // Number of packets stored in a buffer
-    const size_t _packets_stored_buffer_size;
-    uint8_t* const _packets_stored_buffer;
+    // Stores the number of packets received on each channel
+    // TODO: figure out if it can be padded to a cache line (or possibly removing padding entirely depending on future architecture decisions)
+    static constexpr uint64_t PACKETS_RECEIVED_COUNTER_SIZE = PAGE_SIZE;
+    uint8_t* const _packets_received_counters;
+
+    // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer.
+    // The caller is resonsible for using fencing to ensure correct ordering.
+    inline __attribute__((always_inline)) int64_t* access_packets_received_counter(size_t ch, size_t ch_offset) {
+       return (int64_t*) (_packets_received_counters + ((ch + ch_offset) * PACKETS_RECEIVED_COUNTER_SIZE));
+    }
 
     // TODO: reduce padding
     static constexpr size_t _padded_io_uring_control_struct_size = PAGE_SIZE;
@@ -122,14 +135,6 @@ private:
     // channel
     inline __attribute__((always_inline)) uint_fast8_t* access_flush_complete(size_t ch, size_t ch_offset) {
         return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
-    }
-
-    // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
-    // Use _mm_sfence after to ensure data written to this is complete
-    // Theoretically the compiler could optimize out writes to this without atomic or valatile
-    // Practically/experimentally it does not optimize the writes out
-    inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-       return (int_fast64_t*) (_packets_stored_buffer + ((ch + ch_offset) * _packets_stored_buffer_size) + (PAGE_SIZE * b));
     }
 
     // The buffer currently being used by the consumer thread
@@ -161,16 +166,16 @@ public:
     ~async_recv_manager();
 
     /**
-     * Gets information needed to process the next packet
+     * Gets information needed to process the next packet.
+     * The caller is responsible for ensuring correct fencing
      * @param ch
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
     inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
-        size_t b = active_consumer_buffer[ch];
-        if(num_packets_consumed[ch] < *access_num_packets_stored(ch, 0, b)) {
-            info->length = *access_packet_length(ch, 0, b, num_packets_consumed[ch]);
-            info->vita_header = access_packet(ch, 0, b, num_packets_consumed[ch]);
-            info->samples = access_packet_samples(ch, 0, b, num_packets_consumed[ch]);
+        if(num_packets_consumed[ch] < *access_packets_received_counter(ch, 0)) {
+            info->length = *access_packet_length(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_SIZE);
+            info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_SIZE);
+            info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_SIZE);
         // Next packet isn't ready
         } else {
             info->length = 0;
@@ -185,19 +190,6 @@ public:
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
         num_packets_consumed[ch]++;
-        // Move to the next buffer once the buffer is consumed
-        if(num_packets_consumed[ch] >= PACKETS_PER_BUFFER) {
-            // Clears the number of packets in the buffer
-            // TODO: change to system that doesn't require communication from this thread back to the previous one
-            *access_num_packets_stored(ch, 0, active_consumer_buffer[ch]) = 0;
-
-            // Moves to the next buffer
-            // & is to roll over the the first buffer once the limit is reached
-            active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & BUFFER_MASK;
-
-            // Resets count for number of samples consumed in the active buffer
-            num_packets_consumed[ch] = 0;
-        }
     }
 
 

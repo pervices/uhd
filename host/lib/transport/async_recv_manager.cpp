@@ -33,11 +33,10 @@ _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_
 
 // NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
 
-_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
+_packets_received_counters((uint8_t*) mmap(nullptr, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
-_packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
-_packets_stored_buffer((uint8_t*) mmap(nullptr, _num_ch * _packets_stored_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // TODO: replace with aligned alloc if padding is reduced
 _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_control_struct_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // Create buffer for flush complete flag in seperate cache lines
@@ -50,7 +49,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
     // Check if memory allocation failed
     // TODO: verify all mallocs and mmaps succeeded
-    if(_all_ch_packet_buffers == MAP_FAILED || _packets_stored_buffer == MAP_FAILED || _io_uring_control_structs == MAP_FAILED) {
+    if(_all_ch_packet_buffers == MAP_FAILED || _packets_received_counters == MAP_FAILED || _io_uring_control_structs == MAP_FAILED) {
         throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
 
@@ -59,8 +58,8 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
     // TODO: try optimizing for huge pages
     madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
-    madvise(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size, MADV_NOHUGEPAGE);
-    madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
+    madvise(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, MADV_NOHUGEPAGE);
+    madvise(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, MADV_NOHUGEPAGE);
 
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
@@ -79,8 +78,8 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_io_uring_control_structs, 0, _num_ch * _padded_io_uring_control_struct_size);
-    memset(_all_ch_packet_buffers, 0, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size);
-    memset(_packets_stored_buffer, 0, _num_ch * _packets_stored_buffer_size);
+    memset(_all_ch_packet_buffers, 0, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
+    memset(_packets_received_counters, 0, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE);
 
     int64_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -143,8 +142,8 @@ async_recv_manager::~async_recv_manager()
 
     // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
-    munmap(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size);
-    munmap(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size);
+    munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
+    munmap(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE);
     free(flush_complete);
     free(active_consumer_buffer);
     free(num_packets_consumed);
@@ -209,17 +208,16 @@ void async_recv_manager::uring_init(size_t ch) {
     }
 
     int buffers_added = 0;
-    for(uint32_t b = 0; b < NUM_BUFFERS; b++) {
-        for(uint32_t p = 0; p < PACKETS_PER_BUFFER; p++) {
-            uint8_t* packet_buffer_to_add = access_packet(ch, 0, b, p);
+    for(uint32_t p = 0; p < PACKET_BUFFER_SIZE; p++) {
+        uint8_t* packet_buffer_to_add = access_packet_vita_header(ch, 0, p);
 
-            // Adds the packet to the list for registration (added to the ring buffer)
-            // Use whichever number the buffer is (buffers_added) as it's bid
-            io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, /*_header_size +*/ _packet_data_size, buffers_added, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
+        // Adds the packet to the list for registration (added to the ring buffer)
+        // Use whichever number the buffer is (buffers_added) as it's bid
+        // TODO: uncomment _header_size
+        io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, /*_header_size +*/ _packet_data_size, buffers_added, io_uring_buf_ring_mask(NUM_URING_ENTRIES), buffers_added);
 
-            // Registers the packet buffers in the ring buffer
-            io_uring_buf_ring_advance(*buffer_ring, 1);
-        }
+        // Registers the packet buffers in the ring buffer
+        io_uring_buf_ring_advance(*buffer_ring, 1);
     }
     // TODO: figure out why ring_advance works when done 1 at a time but not all at once
     // // Registers the packet buffers in the ring buffer
@@ -280,7 +278,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         // The number of channels this loop receives for
         uint64_t num_ch;
         // Buffer currently being written to for each channel
-        uint64_t b[MAX_CHANNELS];
         // Sockets to receive on
         int sockets[MAX_CHANNELS];
         // Return value of recvmmsg
@@ -313,7 +310,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     lv_i.lv.num_ch = sockets_.size();
     for(size_t init_ch = 0; init_ch < lv_i.lv.num_ch; init_ch++) {
         lv_i.lv.sockets[init_ch] = sockets_[init_ch];
-        lv_i.lv.b[init_ch] = 0;
     }
     lv_i.lv.error_code = 0;
 
@@ -395,26 +391,19 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
         if(cqe_ptr->res > 0) {
             completions_successful++;
-            int_fast64_t* num_packets_stored = lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
-            *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch], *num_packets_stored) = cqe_ptr->res;
-            // // Must set packet length before updating num_packets_stored
+            int64_t* num_packets_stored = lv_i.lv.self->access_packets_received_counter(lv_i.lv.ch, lv_i.lv.ch_offset);
+            *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_SIZE) = cqe_ptr->res;
+            // Must set packet length before updating num_packets_stored
             std::atomic_thread_fence(std::memory_order_release);
-            *num_packets_stored += 1;
-            if( *num_packets_stored >= PACKETS_PER_BUFFER) {
-                lv_i.lv.b[lv_i.lv.ch] = (lv_i.lv.b[lv_i.lv.ch] + 1) & BUFFER_MASK;
+            *num_packets_stored = *num_packets_stored + 1;
 
-                // Clear number of packets stored counter
-                // TODO: fix race condition related to updating this while being processed
-                *lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]) = 0;
-                std::atomic_thread_fence(std::memory_order_release);
-            }
-            // TODO: see if reducing the number or io_uring_buf_ring_cq_advance calls by grouping helps
+            // TODO: batch
+
             // TODO: free completion events in this thread, free buffers consumer thread to avoid race conditions
+            // Tells io_uring and io_uring_buf_ring that the event has been consumed
             io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), 1);
 
             // TODO: cycle through channels
-
-            // TODO: notify other thread the event completed
         } else {
             printf("completions_received before failure: %lu\n", completions_received);
             printf("completions_successful before failure: %lu\n", completions_successful);
