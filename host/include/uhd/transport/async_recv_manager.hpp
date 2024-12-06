@@ -318,6 +318,7 @@ public:
     inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
         size_t b = active_consumer_buffer[ch];
         if(num_packets_consumed[ch] < *access_num_packets_stored(ch, 0, b)) {
+            printf("Packet ready\n");
             info->length = *access_packet_length(ch, 0, b, num_packets_consumed[ch]);
             info->vita_header = access_packet(ch, 0, b, num_packets_consumed[ch]);
             info->samples = access_packet_samples(ch, 0, b, num_packets_consumed[ch]);

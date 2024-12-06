@@ -302,7 +302,7 @@ public:
                 vita_md[ch].num_packet_words32 = (next_packet[ch].length + _TRAILER_SIZE) / sizeof(uint32_t);
 
                 // Check for incorrect packet
-                if(next_packet[ch].length < _HEADER_SIZE) [[unlikely]] {
+                if(next_packet[ch].length < (int64_t) _HEADER_SIZE) [[unlikely]] {
                     throw std::runtime_error("Received sample packet smaller than header size");
                 }
             }
