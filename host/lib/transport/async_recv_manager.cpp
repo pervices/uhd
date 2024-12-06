@@ -36,7 +36,7 @@ _vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * PACKETS_
 _data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
 
 _packet_pre_pad(PAGE_SIZE - _header_size),
-_padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE) + /* Vita header + padding */ PAGE_SIZE),
+_padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE) + /* Vita header + padding */ _header_size + _packet_pre_pad),
 
 // NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
 
@@ -45,7 +45,7 @@ _individual_network_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vit
 // Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
 _network_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
-_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
 _buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _buffer_write_count_buffer((uint8_t*) mmap(nullptr, _num_ch * _buffer_write_count_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
@@ -71,7 +71,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
     // TODO: try optimizing for huge pages
     madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
-    madvise(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * _padded_individual_packet_size, MADV_NOHUGEPAGE);
+    madvise(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size, MADV_NOHUGEPAGE);
     madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE);
     madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
     madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
@@ -93,7 +93,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_io_uring_control_structs, 0, _num_ch * _padded_io_uring_control_struct_size);
-    memset(_all_ch_packet_buffers, 0, _num_ch * NUM_BUFFERS * _padded_individual_packet_size);
+    memset(_all_ch_packet_buffers, 0, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size);
     memset(_network_buffer, 0, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
     memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
     memset(_packets_stored_buffer, 0, _num_ch * _packets_stored_buffer_size);
@@ -154,7 +154,7 @@ async_recv_manager::~async_recv_manager()
 
     // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
-    munmap(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * _padded_individual_packet_size);
+    munmap(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size);
     munmap(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
     munmap(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size);
     munmap(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size);
@@ -163,10 +163,6 @@ async_recv_manager::~async_recv_manager()
     free(num_packets_consumed);
     free(recv_loops);
 }
-
-// Temporary storage of io_uring_buf_ring for proof of concept
-// TODO: make this a class member and channel specific
-static struct io_uring_buf_ring* tmp_io_uring_buf_ring;
 
 void async_recv_manager::uring_init(size_t ch) {
     struct io_uring_params uring_params;
@@ -228,8 +224,7 @@ void async_recv_manager::uring_init(size_t ch) {
     int buffers_added = 0;
     for(uint32_t b = 0; b < NUM_BUFFERS; b++) {
         for(uint32_t p = 0; p < PACKETS_PER_BUFFER; p++) {
-            // uint8_t* packet_buffer_to_add = access_packet(ch, 0, b, p);
-            uint8_t* packet_buffer_to_add = access_packet_data(ch, 0, b, p);
+            uint8_t* packet_buffer_to_add = access_packet(ch, 0, b, p);
 
             // Adds the packet to the list for registration (added to the ring buffer)
             // Use whichever number the buffer is (buffers_added) as it's bid
