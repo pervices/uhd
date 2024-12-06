@@ -271,7 +271,8 @@ public:
                 // Length is 0 if the packet is not ready yet
                 if(next_packet[ch].length != 0) {
                     // Move onto the next channel since this one is ready
-                    ch++;
+                    // DEBUG: isolating seg fault
+                    // ch++;
                 } else {
                     // Do nothing
                     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
