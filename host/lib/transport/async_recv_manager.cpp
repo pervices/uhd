@@ -444,16 +444,23 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         if(cqe_ptr->res > 0) {
             completions_successful++;
             int_fast64_t* num_packets_stored = lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
-            // *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch], *num_packets_stored) = cqe_ptr->res;
+            *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch], *num_packets_stored) = cqe_ptr->res;
             // // Must set packet length before updating num_packets_stored
-            // std::atomic_thread_fence(std::memory_order_release);
+            std::atomic_thread_fence(std::memory_order_release);
             *num_packets_stored += 1;
             if( *num_packets_stored >= PACKETS_PER_BUFFER) {
                 lv_i.lv.b[lv_i.lv.ch] = (lv_i.lv.b[lv_i.lv.ch] + 1) & BUFFER_MASK;
+
+                // Clear number of packets stored counter
+                // TODO: fix race condition related to updating this while being processed
+                *lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]) = 0;
+                std::atomic_thread_fence(std::memory_order_release);
             }
             // TODO: see if reducing the number or io_uring_buf_ring_cq_advance calls by grouping helps
             // TODO: free completion events in this thread, free buffers consumer thread to avoid race conditions
             io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), 1);
+
+            // TODO: cycle through channels
 
             // TODO: notify other thread the event completed
         } else {

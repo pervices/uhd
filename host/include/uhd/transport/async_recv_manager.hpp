@@ -91,17 +91,17 @@ private:
 
     // Gets a pointer to the start of a packet (which is also the location of the Vita header)
     inline __attribute__((always_inline)) uint8_t* access_packet(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size) + _packet_pre_pad;
+        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS * PACKETS_PER_BUFFER) + p ) * _padded_individual_packet_size) + _packet_pre_pad;
     }
 
     // Gets a pointer to the length of a packet
     inline __attribute__((always_inline)) int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return (int64_t*) (_all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size));
+        return (int64_t*) (_all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS * PACKETS_PER_BUFFER) + p ) * _padded_individual_packet_size));
     }
 
     // Gets a pointer to the start of a packet's samples
     inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS) + p ) * _padded_individual_packet_size) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
+        return _all_ch_packet_buffers + (((b * PACKETS_PER_BUFFER) + ((ch + ch_offset) * NUM_BUFFERS * PACKETS_PER_BUFFER) + p ) * _padded_individual_packet_size) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
     }
 
     // Size of a buffer containing all mmsghdrs, iovecs, and location to store packets for a recvmmsg
