@@ -366,6 +366,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
     size_t completions_received = 0;
     size_t completions_successful = 0;
+    // TODO: make this channel specific, move to lv
+    int64_t completions_advanced = 0;
     while(!lv_i.lv.self->stop_flag) [[likely]] {
 
         struct io_uring* ring = lv_i.lv.self->access_io_urings(lv_i.lv.ch, lv_i.lv.ch_offset);
@@ -398,10 +400,12 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             *num_packets_stored = *num_packets_stored + 1;
 
             // TODO: batch
-
-            // TODO: free completion events in this thread, free buffers consumer thread to avoid race conditions
-            // Tells io_uring and io_uring_buf_ring that the event has been consumed
-            io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), 1);
+            int64_t packets_ready_for_advance = *num_packets_stored - completions_advanced;
+            if(packets_ready_for_advance >= PACKETS_UPDATE_INCREMENT) {
+                // TODO: free completion events in this thread, free buffers consumer thread to avoid race conditions
+                // Tells io_uring and io_uring_buf_ring that the event has been consumed
+                io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), packets_ready_for_advance);
+            }
 
             // TODO: cycle through channels
         } else {
