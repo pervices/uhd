@@ -441,8 +441,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             printf("E1 completions_successful: %lu\n", completions_successful);
         }
 
-        printf("completions_received: %lu\n", completions_received);
-
         if(cqe_ptr->res > 0) {
             completions_successful++;
             int_fast64_t* num_packets_stored = lv_i.lv.self->access_num_packets_stored(lv_i.lv.ch, lv_i.lv.ch_offset, lv_i.lv.b[lv_i.lv.ch]);
@@ -464,7 +462,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
 
         }
-        printf("completions_successful: %lu\n", completions_successful);
     }
 
     printf("completions_received: %lu\n", completions_received);
