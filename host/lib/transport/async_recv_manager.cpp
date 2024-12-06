@@ -24,31 +24,18 @@ async_recv_manager::async_recv_manager( const size_t total_rx_channels, const st
 _num_ch(recv_sockets.size()),
 padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _header_size(header_size),
-_padded_header_size(std::ceil( header_size / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
-// + _header_size for tmp debugging
-_packet_data_size(max_sample_bytes_per_packet + _header_size),
+_packet_data_size(max_sample_bytes_per_packet),
 
 // NOTE: Theoretically padding to the cache line is required to prevent interference between threads, experimentally padding to full pages are required
-
-_mmmsghdr_iovec_subbuffer_size((uint_fast32_t) std::ceil((sizeof(mmsghdr) + (2 * sizeof(iovec))) * PACKETS_PER_BUFFER / (double)PAGE_SIZE) * PAGE_SIZE),
-_vitahdr_subbuffer_size((uint_fast32_t) std::ceil(_padded_header_size * PACKETS_PER_BUFFER / (double)PAGE_SIZE) * PAGE_SIZE),
-// Size of each packet buffer + padding to be a whole number of pages
-_data_subbuffer_size((size_t) std::ceil((PACKETS_PER_BUFFER * _packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE),
 
 _packet_pre_pad(PAGE_SIZE - _header_size),
 _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE) + /* Vita header + padding */ _header_size + _packet_pre_pad),
 
 // NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
 
-// Size of each receive buffer
-_individual_network_buffer_size(std::ceil((_mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size + _data_subbuffer_size) / (double) PAGE_SIZE) * PAGE_SIZE ),
-// Allocates buffer to store all mmsghdrs, iovecs, Vita headers, Vita payload
-_network_buffer((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
-
 _all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
-_buffer_write_count_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
-_buffer_write_count_buffer((uint8_t*) mmap(nullptr, _num_ch * _buffer_write_count_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+
 _packets_stored_buffer_size((uint_fast32_t) std::ceil(PAGE_SIZE * NUM_BUFFERS / (double) PAGE_SIZE) * PAGE_SIZE),
 _packets_stored_buffer((uint8_t*) mmap(nullptr, _num_ch * _packets_stored_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // TODO: replace with aligned alloc if padding is reduced
@@ -62,7 +49,8 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     }
 
     // Check if memory allocation failed
-    if(_network_buffer == MAP_FAILED) {
+    // TODO: verify all mallocs and mmaps succeeded
+    if(_all_ch_packet_buffers == MAP_FAILED || _packets_stored_buffer == MAP_FAILED || _io_uring_control_structs == MAP_FAILED) {
         throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
 
@@ -72,8 +60,6 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // TODO: try optimizing for huge pages
     madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
     madvise(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size, MADV_NOHUGEPAGE);
-    madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE);
-    madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
     madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
 
     // Create buffers used to store control data for the consumer thread
@@ -94,8 +80,6 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_io_uring_control_structs, 0, _num_ch * _padded_io_uring_control_struct_size);
     memset(_all_ch_packet_buffers, 0, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size);
-    memset(_network_buffer, 0, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
-    memset(_buffer_write_count_buffer, 0, _num_ch * _buffer_write_count_buffer_size);
     memset(_packets_stored_buffer, 0, _num_ch * _packets_stored_buffer_size);
 
     int64_t num_cores = std::thread::hardware_concurrency();
@@ -160,8 +144,6 @@ async_recv_manager::~async_recv_manager()
     // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
     munmap(_all_ch_packet_buffers, _num_ch * NUM_BUFFERS * PACKETS_PER_BUFFER * _padded_individual_packet_size);
-    munmap(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size);
-    munmap(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size);
     munmap(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size);
     free(flush_complete);
     free(active_consumer_buffer);
@@ -299,10 +281,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         uint64_t num_ch;
         // Buffer currently being written to for each channel
         uint64_t b[MAX_CHANNELS];
-        // Cache of buffer write count to update this loop
-        int64_t* buffer_write_count;
-        // Number of buffer writes so far for each channel
-        int64_t buffer_writes_count[MAX_CHANNELS];
         // Sockets to receive on
         int sockets[MAX_CHANNELS];
         // Return value of recvmmsg
@@ -336,7 +314,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     for(size_t init_ch = 0; init_ch < lv_i.lv.num_ch; init_ch++) {
         lv_i.lv.sockets[init_ch] = sockets_[init_ch];
         lv_i.lv.b[init_ch] = 0;
-        lv_i.lv.buffer_writes_count[init_ch] = 0;
     }
     lv_i.lv.error_code = 0;
 
@@ -363,53 +340,28 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno));
     }
 
-    // Configure iovecs
-    for(uint_fast32_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
-        for(uint_fast32_t b = 0; b < NUM_BUFFERS; b++) {
-            // iovecs are stored in the same buffer as mmsghdrs, after all the msghdrs
-            struct iovec* iovecs = lv_i.lv.self->access_iovec_buffer(ch, lv_i.lv.ch_offset, b);
-            for(uint_fast32_t p = 0; p < PACKETS_PER_BUFFER; p++) {
-
-                uint_fast32_t header_iovec = 2 * p;
-                uint_fast32_t data_iovec = 2 * p + 1;
-
-                // Point iovecs to the location to store the vita header
-                iovecs[header_iovec].iov_base = (void*) lv_i.lv.self->access_vita_hdr(ch, lv_i.lv.ch_offset, b, p);
-                iovecs[header_iovec].iov_len = lv_i.lv.self->_header_size;
-
-                // Points iovecs to the corresponding point in the buffers
-                iovecs[data_iovec].iov_base = (void*) lv_i.lv.self->access_packet_data(ch, lv_i.lv.ch_offset, b, p);
-                iovecs[data_iovec].iov_len = lv_i.lv.self->_packet_data_size;
-
-                // Points mmsghdrs to the corresponding io_vec
-                // Since there is only one location data should be written to per packet just take the address of the location to write to
-                lv_i.lv.self->access_mmsghdr(ch, lv_i.lv.ch_offset, b, p)->msg_hdr.msg_iov = &iovecs[header_iovec];
-                lv_i.lv.self->access_mmsghdr(ch, lv_i.lv.ch_offset, b, p)->msg_hdr.msg_iovlen = 2;
-            }
-        }
-    }
-
     // Flush packets
+    // TODO: re-implement flushing packets
     for(size_t flush_ch = 0; flush_ch < lv_i.lv.num_ch; flush_ch++) {
-        int r = -1;
-        bool error_already_occured = false;
-        // Receive packets until none are received
-        while(!lv_i.lv.self->stop_flag) {
-            r = recvmmsg(lv_i.lv.sockets[flush_ch], (mmsghdr*) lv_i.lv.self->access_mmsghdr_buffer(flush_ch, lv_i.lv.ch_offset, 0), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
-            // If no packets and received the error code for no packets and using MSG_DONTWAIT, continue to next channel
-            if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+    //     int r = -1;
+    //     bool error_already_occured = false;
+    //     // Receive packets until none are received
+    //     while(!lv_i.lv.self->stop_flag) {
+    //         r = recvmmsg(lv_i.lv.sockets[flush_ch], (mmsghdr*) lv_i.lv.self->access_mmsghdr_buffer(flush_ch, lv_i.lv.ch_offset, 0), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
+    //         // If no packets and received the error code for no packets and using MSG_DONTWAIT, continue to next channel
+    //         if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                 *lv_i.lv.self->access_flush_complete(flush_ch, lv_i.lv.ch_offset) = 1;
-                break;
-            } else if(r == -1) {
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error while flushing recvmmsg during initialization: " + std::string(strerror(errno));
-                // If this is the second time seeing an unplanned error while flushing this socket, throw and error
-                if(error_already_occured) {
-                    lv_i.lv.self->stop_flag = true;
-                    throw std::runtime_error("Unable to recover from recvmmsg error during initialization: " + std::string(strerror(errno)));
-                }
-                error_already_occured = true;
-            }
-        }
+    //             break;
+    //         } else if(r == -1) {
+    //             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error while flushing recvmmsg during initialization: " + std::string(strerror(errno));
+    //             // If this is the second time seeing an unplanned error while flushing this socket, throw and error
+    //             if(error_already_occured) {
+    //                 lv_i.lv.self->stop_flag = true;
+    //                 throw std::runtime_error("Unable to recover from recvmmsg error during initialization: " + std::string(strerror(errno)));
+    //             }
+    //             error_already_occured = true;
+    //         }
+    //     }
     }
 
     for(size_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
