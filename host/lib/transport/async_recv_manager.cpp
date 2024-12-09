@@ -98,6 +98,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
     size_t recv_loops_size = (size_t) std::ceil((sizeof(std::thread) * num_recv_loops) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     recv_loops = (std::thread*) aligned_alloc(CACHE_LINE_SIZE, recv_loops_size);
+    memset(recv_loops, 0, recv_loops_size);
 
     // Creates thread to receive data
     size_t ch_offset = 0;
