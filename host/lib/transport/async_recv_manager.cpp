@@ -391,9 +391,12 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             io_uring_cq_advance(ring, 1);
 
             // TODO: cycle through channels
+        // } else if (cqe_ptr->res == ) {
+//
         } else {
             printf("completions_received before failure: %lu\n", completions_received);
             printf("completions_successful before failure: %lu\n", completions_successful);
+            printf("-cqe_ptr->res: %li\n", -cqe_ptr->res);
             throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
 
         }
