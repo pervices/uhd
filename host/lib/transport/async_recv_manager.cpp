@@ -387,7 +387,8 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
             // TODO: consider batching io_uring_buf_ring advanced
             // Tells io_uring and io_uring_buf_ring that the event has been consumed
-            io_uring_cqe_seen(ring, cqe_ptr);
+            // io_uring_cqe_seen(ring, cqe_ptr);
+            io_uring_cq_advance(ring, 1);
 
             // TODO: cycle through channels
         } else {

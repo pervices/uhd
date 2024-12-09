@@ -268,17 +268,17 @@ public:
                 // TODO: optimize fencing
                 _mm_mfence();
 
-                // Length is 0 if the packet is not ready yet
-                if(next_packet[ch].length != 0) {
-                    if(next_packet[ch].vita_header == nullptr || next_packet[ch].samples == nullptr) {
-                        printf("Unreachable\n");
-                    }
-                    // Move onto the next channel since this one is ready
-                    ch++;
-                } else {
-                    // Do nothing
-                    // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
-                }
+                // // Length is 0 if the packet is not ready yet
+                // if(next_packet[ch].length != 0) {
+                //     if(next_packet[ch].vita_header == nullptr || next_packet[ch].samples == nullptr) {
+                //         printf("Unreachable\n");
+                //     }
+                //     // Move onto the next channel since this one is ready
+                //     ch++;
+                // } else {
+                //     // Do nothing
+                //     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
+                // }
             }
             // This mmfence helped prevent wierd performance drops with the old system
             _mm_mfence();
