@@ -387,13 +387,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
             *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_MASK) = cqe_ptr->res;
 
-            uint32_t* tmp = (uint32_t*) lv_i.lv.self->access_packet_vita_header(lv_i.lv.ch, 0, *num_packets_stored & PACKET_BUFFER_MASK);
-            // Exit if packet show no data
-            if(*tmp == 0) {
-                lv_i.lv.self->stop_flag = true;
-                printf("*num_packets_stored: %li\n", *num_packets_stored);
-            }
-
             // Must set packet length before updating num_packets_stored
             std::atomic_thread_fence(std::memory_order_release);
             *num_packets_stored = *num_packets_stored + 1;
