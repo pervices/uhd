@@ -175,7 +175,8 @@ UHD_INLINE void __if_hdr_unpack_${suffix}(
 ){
     const size_t packet_words32 = vrt_hdr_word32 & 0xffff;
     if(packet_words32 == 0) {
-        printf(\"packet_words32: %lu\\n\", packet_words32);
+        printf(\"1 vrt_hdr_word32: %u\\n\", vrt_hdr_word32);
+        printf(\"1 packet_words32: %lu\\n\", packet_words32);
         throw uhd::value_error("E1");
     }
 
