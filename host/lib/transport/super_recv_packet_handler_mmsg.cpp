@@ -343,6 +343,7 @@ public:
             }
 
             if(realignment_required) [[unlikely]] {
+                printf("Realignment attempted\n");
                 if(realignment_attempts >= max_realignment_attempts) {
                     if(!align_message_printed) {
                         UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
