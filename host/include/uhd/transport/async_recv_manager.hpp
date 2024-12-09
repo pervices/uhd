@@ -122,9 +122,10 @@ private:
     }
 
     // Access buf ring for a given channel. (The ring buffer contain the buffers to store received data in)
-    //
+    // Might prevent seg faults
+    static_assert(PAGE_SIZE/2 + sizeof(io_uring_buf_ring**) > sizeof(struct io_uring), "io_uring_buf_ring** starts to early");
     inline __attribute__((always_inline)) io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
-        return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + sizeof(io_uring));
+        return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + PAGE_SIZE/2);
     }
 
     // Buffer to store flags to indicate sockets have been flushed
