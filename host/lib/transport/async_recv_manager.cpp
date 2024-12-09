@@ -255,6 +255,8 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     }
 }
 
+static bool slow_consumer_warning_printed = false;
+
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
     // Struct contianing all local variables used by the main receive loop
     // TODO: look into  improving cache locality
@@ -377,7 +379,7 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             continue;
         }
 
-        if(cqe_ptr->res > 0) {
+        if(cqe_ptr->res > 0) [[likely]] {
             completions_successful++;
             int64_t* num_packets_stored = lv_i.lv.self->access_packets_received_counter(lv_i.lv.ch, lv_i.lv.ch_offset);
             *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_SIZE) = cqe_ptr->res;
@@ -391,8 +393,11 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             io_uring_cq_advance(ring, 1);
 
             // TODO: cycle through channels
-        // } else if (cqe_ptr->res == ) {
-//
+        } else if (-cqe_ptr->res == ENOBUFS) {
+            if(!slow_consumer_warning_printed) {
+                UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+                slow_consumer_warning_printed = true;
+            }
         } else {
             printf("completions_received before failure: %lu\n", completions_received);
             printf("completions_successful before failure: %lu\n", completions_successful);
