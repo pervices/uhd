@@ -270,6 +270,9 @@ public:
 
                 // Length is 0 if the packet is not ready yet
                 if(next_packet[ch].length != 0) {
+                    if(next_packet[ch].vita_header == nullptr || next_packet[ch].samples == nullptr) {
+                        printf("Unreachable\n");
+                    }
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
@@ -306,7 +309,11 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
-                if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
+                try {
+                    if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
+                } catch (...) {
+                    printf("next_packet[ch].length: %li\n", next_packet[ch].length);
+                }
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
