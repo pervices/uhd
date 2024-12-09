@@ -404,7 +404,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
             // TODO: cycle through channels
         } else if (-cqe_ptr->res == ENOBUFS) {
-            printf("ENOBUFS\n");
             if(!slow_consumer_warning_printed) {
                 UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
                 slow_consumer_warning_printed = true;
