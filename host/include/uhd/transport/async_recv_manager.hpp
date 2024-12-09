@@ -8,6 +8,7 @@
 #include <cmath>
 #include <iostream>
 #include <liburing.h>
+#include <uhd/utils/log.hpp>
 
 namespace uhd { namespace transport {
 
@@ -165,6 +166,8 @@ public:
 
     ~async_recv_manager();
 
+    bool slow_consumer_warning_printed = false;
+
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
@@ -172,15 +175,37 @@ public:
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
     inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
-        if(num_packets_consumed[ch] < *access_packets_received_counter(ch, 0)) {
-            info->length = *access_packet_length(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-            info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-            info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-        // Next packet isn't ready
-        } else {
+        struct io_uring* ring = access_io_urings(ch, 0);
+        struct io_uring_cqe *cqe_ptr;
+
+        // Checks if a packet is ready
+        int r = io_uring_peek_cqe(ring, &cqe_ptr);
+
+        // The next packet is not ready
+        if(r == -EAGAIN) {
             info->length = 0;
             info->vita_header = nullptr;
             info->samples = nullptr;
+            return;
+        }
+
+        if(cqe_ptr->res > 0) [[likely]] {
+            info->length = cqe_ptr->res;
+            info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+            info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+
+        // All buffers are used (should be unreachable)
+        } else if (-cqe_ptr->res == ENOBUFS) {
+            if(!slow_consumer_warning_printed) {
+                UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+                slow_consumer_warning_printed = true;
+            }
+            info->length = 0;
+            info->vita_header = nullptr;
+            info->samples = nullptr;
+            return;
+        } else {
+            throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
         }
     }
 
@@ -192,6 +217,10 @@ public:
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
         num_packets_consumed[ch]++;
+
+        struct io_uring* ring = access_io_urings(ch, 0);
+        io_uring_cq_advance(ring, 1);
+
         int64_t packets_advancable = num_packets_consumed[ch] - packets_advanced;
         // TODO: see if batching helps performance
         // Batching hurt performance

@@ -257,8 +257,6 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     }
 }
 
-static bool slow_consumer_warning_printed = false;
-
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
     // Struct contianing all local variables used by the main receive loop
     // TODO: look into  improving cache locality
@@ -359,59 +357,59 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         lv_i.lv.self->arm_recv_multishot(ch + lv_i.lv.ch_offset, lv_i.lv.sockets[ch]);
     }
 
-    size_t completions_received = 0;
-    size_t completions_successful = 0;
-    while(!lv_i.lv.self->stop_flag) [[likely]] {
-
-        struct io_uring* ring = lv_i.lv.self->access_io_urings(lv_i.lv.ch, lv_i.lv.ch_offset);
-        // Receives all requests
-        // TODO move these to lv_i.lv
-        io_uring_cqe *cqe_ptr;
-        // TODO: consider using io_uring_wait_cqes to see if it helps
-        int r = io_uring_peek_cqe(ring, &cqe_ptr);
-        if(r == 0) {
-            completions_received++;
-        } else if (r != -EAGAIN) {
-            // TODO: handle timeouts (or use io_uring_peek_cqe that doesn't have them)
-            printf("Completion failed: %s\n", strerror(-r));
-            printf("E1 completions_received: %lu\n", completions_received);
-            printf("E1 completions_successful: %lu\n", completions_successful);
-        } else {
-            // TODO: make this cycle through channels
-            continue;
-        }
-
-        if(cqe_ptr->res > 0) [[likely]] {
-            completions_successful++;
-            int64_t* num_packets_stored = lv_i.lv.self->access_packets_received_counter(lv_i.lv.ch, lv_i.lv.ch_offset);
-
-            *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_MASK) = cqe_ptr->res;
-
-            // Must set packet length before updating num_packets_stored
-            std::atomic_thread_fence(std::memory_order_release);
-            *num_packets_stored = *num_packets_stored + 1;
-
-            // TODO: consider batching io_uring_buf_ring advanced
-            // Tells io_uring and io_uring_buf_ring that the event has been consumed
-            io_uring_cqe_seen(ring, cqe_ptr);
-
-            // TODO: cycle through channels
-        } else if (-cqe_ptr->res == ENOBUFS) {
-            if(!slow_consumer_warning_printed) {
-                UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
-                slow_consumer_warning_printed = true;
-            }
-        } else {
-            printf("completions_received before failure: %lu\n", completions_received);
-            printf("completions_successful before failure: %lu\n", completions_successful);
-            printf("-cqe_ptr->res: %i\n", -cqe_ptr->res);
-            throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
-
-        }
-    }
-
-    printf("completions_received: %lu\n", completions_received);
-    printf("completions_successful: %lu\n", completions_successful);
+    // size_t completions_received = 0;
+    // size_t completions_successful = 0;
+    // while(!lv_i.lv.self->stop_flag) [[likely]] {
+    //
+    //     struct io_uring* ring = lv_i.lv.self->access_io_urings(lv_i.lv.ch, lv_i.lv.ch_offset);
+    //     // Receives all requests
+    //     // TODO move these to lv_i.lv
+    //     io_uring_cqe *cqe_ptr;
+    //     // TODO: consider using io_uring_wait_cqes to see if it helps
+    //     int r = io_uring_peek_cqe(ring, &cqe_ptr);
+    //     if(r == 0) {
+    //         completions_received++;
+    //     } else if (r != -EAGAIN) {
+    //         // TODO: handle timeouts (or use io_uring_peek_cqe that doesn't have them)
+    //         printf("Completion failed: %s\n", strerror(-r));
+    //         printf("E1 completions_received: %lu\n", completions_received);
+    //         printf("E1 completions_successful: %lu\n", completions_successful);
+    //     } else {
+    //         // TODO: make this cycle through channels
+    //         continue;
+    //     }
+    //
+    //     if(cqe_ptr->res > 0) [[likely]] {
+    //         completions_successful++;
+    //         int64_t* num_packets_stored = lv_i.lv.self->access_packets_received_counter(lv_i.lv.ch, lv_i.lv.ch_offset);
+    //
+    //         *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_MASK) = cqe_ptr->res;
+    //
+    //         // Must set packet length before updating num_packets_stored
+    //         std::atomic_thread_fence(std::memory_order_release);
+    //         *num_packets_stored = *num_packets_stored + 1;
+    //
+    //         // TODO: consider batching io_uring_buf_ring advanced
+    //         // Tells io_uring and io_uring_buf_ring that the event has been consumed
+    //         io_uring_cqe_seen(ring, cqe_ptr);
+    //
+    //         // TODO: cycle through channels
+    //     } else if (-cqe_ptr->res == ENOBUFS) {
+    //         if(!slow_consumer_warning_printed) {
+    //             UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+    //             slow_consumer_warning_printed = true;
+    //         }
+    //     } else {
+    //         printf("completions_received before failure: %lu\n", completions_received);
+    //         printf("completions_successful before failure: %lu\n", completions_successful);
+    //         printf("-cqe_ptr->res: %i\n", -cqe_ptr->res);
+    //         throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
+    //
+    //     }
+    // }
+    //
+    // printf("completions_received: %lu\n", completions_received);
+    // printf("completions_successful: %lu\n", completions_successful);
 }
 
 }}
