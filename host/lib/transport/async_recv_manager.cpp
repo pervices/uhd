@@ -382,16 +382,18 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             continue;
         }
 
+        // DEBUG: mfence between checking event and looking at results
+        _mm_mfence();
+
         if(cqe_ptr->res > 0) [[likely]] {
             completions_successful++;
             int64_t* num_packets_stored = lv_i.lv.self->access_packets_received_counter(lv_i.lv.ch, lv_i.lv.ch_offset);
 
             *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_SIZE) = cqe_ptr->res;
             // Must set packet length before updating num_packets_stored
-
+            _mm_sfence();
             // std::atomic_thread_fence(std::memory_order_release);
             // DEBUG in case atomic fence doesn't work
-            _mm_mfence();
             *num_packets_stored = *num_packets_stored + 1;
 
             // TODO: consider batching io_uring_buf_ring advanced
