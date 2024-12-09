@@ -191,7 +191,7 @@ public:
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
         num_packets_consumed[ch]++;
         // TODO: see if batching helps performance
-        // io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), 1);
+        io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), 1);
     }
 
 
