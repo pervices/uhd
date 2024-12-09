@@ -389,9 +389,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             completions_successful++;
             int64_t* num_packets_stored = lv_i.lv.self->access_packets_received_counter(lv_i.lv.ch, lv_i.lv.ch_offset);
 
-            *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_SIZE) = cqe_ptr->res;
+            *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_MASK) = cqe_ptr->res;
 
-            uint32_t* tmp = (uint32_t*) lv_i.lv.self->access_packet_vita_header(lv_i.lv.ch, 0, *num_packets_stored & PACKET_BUFFER_SIZE);
+            uint32_t* tmp = (uint32_t*) lv_i.lv.self->access_packet_vita_header(lv_i.lv.ch, 0, *num_packets_stored & PACKET_BUFFER_MASK);
             // Exit if packet show no data
             if(*tmp == 0) {
                 lv_i.lv.self->stop_flag = true;

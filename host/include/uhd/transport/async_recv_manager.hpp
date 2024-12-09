@@ -173,9 +173,9 @@ public:
      */
     inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
         if(num_packets_consumed[ch] < *access_packets_received_counter(ch, 0)) {
-            info->length = *access_packet_length(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_SIZE);
-            info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_SIZE);
-            info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_SIZE);
+            info->length = *access_packet_length(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+            info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+            info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
         // Next packet isn't ready
         } else {
             info->length = 0;
@@ -191,7 +191,7 @@ public:
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
         num_packets_consumed[ch]++;
         // TODO: see if batching helps performance
-        io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), 1);
+        // io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), 1);
     }
 
 
