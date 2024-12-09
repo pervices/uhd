@@ -128,11 +128,14 @@ async_recv_manager::~async_recv_manager()
     stop_flag = true;
     printf("A0\n");
     for(size_t n = 0; n < num_recv_loops; n++) {
+        printf("S1\n");
         while(!recv_loops[n].joinable()) {
 
         }
+        printf("S2\n");
         recv_loops[n].join();
         printf("A1\n");
+        sleep(1);
         recv_loops[n].~thread();
     }
 
