@@ -257,7 +257,7 @@ UHD_INLINE void __if_hdr_unpack_${suffix}(
             //another failure case
             if (packet_words32 < ${num_header_words + num_trailer_words}) {
                 printf(\"packet_words32: %lu\\n", packet_words32);
-                printf(\"second thing: %lu\\n", ${num_header_words + num_trailer_words});
+                printf(\"second thing: %i\\n", ${num_header_words + num_trailer_words});
                 throw uhd::value_error("bad vrt header or invalid packet length");
             }
             if_packet_info.num_header_words32 = ${num_header_words};
