@@ -266,7 +266,7 @@ public:
 
                 // Adding excesive amount of mfences to avoid wierd errors
                 // TODO: optimize fencing
-                _mm_mfence();
+                _mm_lfence();
 
                 // Length is 0 if the packet is not ready yet
                 if(next_packet[ch].length != 0) {
@@ -393,12 +393,12 @@ public:
                 samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
                 samples_to_cache[ch] = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                convert_samples(buffs[ch], next_packet[ch].samples, samples_to_consume);
+                // convert_samples(buffs[ch], next_packet[ch].samples, samples_to_consume);
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache[ch]) [[unlikely]] {
                     // Copy extra samples from the packet to the cache
-                    memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
+                    // memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
             }
 

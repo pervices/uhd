@@ -194,8 +194,9 @@ public:
         num_packets_consumed[ch]++;
         int64_t packets_advancable = num_packets_consumed[ch] - packets_advanced;
         // TODO: see if batching helps performance
+        // Batching hurt performance
         if(packets_advancable >= PACKETS_UPDATE_INCREMENT) {
-            io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), PACKETS_UPDATE_INCREMENT);
+            io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
         }
     }
 
