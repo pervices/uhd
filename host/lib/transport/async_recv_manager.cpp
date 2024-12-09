@@ -92,6 +92,8 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     for(size_t ch = 0; ch < _num_ch; ch++) {
         uring_init(ch);
     }
+    // DEBUG: wait in case this is causing problems
+    sleep(1);
 
     int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
 
