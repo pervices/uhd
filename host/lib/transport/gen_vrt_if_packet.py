@@ -318,7 +318,6 @@ void vrt::if_hdr_unpack_${suffix}(
     switch (if_packet_info.link_type)
     {
     case if_packet_info_t::LINK_TYPE_NONE:
-        printf(\"T1\\n\");
         vrt_hdr_word32 = ${XE_MACRO}(packet_buff[0]);
         __if_hdr_unpack_${suffix}(packet_buff, if_packet_info, vrt_hdr_word32);
         break;
