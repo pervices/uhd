@@ -122,41 +122,23 @@ async_recv_manager::~async_recv_manager()
 {
     // Manual destructor calls are required when using placement new
     stop_flag = true;
-    printf("A0\n");
     for(size_t n = 0; n < recv_loops.size(); n++) {
         recv_loops[n].join();
-        printf("A1\n");
         recv_loops[n].~thread();
     }
 
-    printf("A2\n");
     // TODO: fix seg fault on exit (probably requires use of io_uring_prep_cancel IORING_ASYNC_CANCEL_ANY)
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));
     }
-    printf("A3\n");
-    sleep(1);
 
     // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
-    printf("A4\n");
-    sleep(1);
     munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
-    printf("A5\n");
-    sleep(1);
     munmap(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE);
-    printf("A6\n");
-    sleep(1);
     free(flush_complete);
-    printf("A7\n");
-    sleep(1);
     free(active_consumer_buffer);
-    printf("A8\n");
-    sleep(1);
     free(num_packets_consumed);
-    printf("A9\n");
-    sleep(1);
-    printf("A10\n");
 }
 
 void async_recv_manager::uring_init(size_t ch) {
