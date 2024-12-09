@@ -326,15 +326,15 @@ public:
                     latest_packet = vita_md[ch].tsf;
                 }
 
-                // Set the flag for realignment required if there is a mismatch in timestamps between packets
-                realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
-
-                // Detect and warn user of overflow error
-                if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
-                    metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-                    _overflow_occured = true;
-                    overflow_detected = true;
-                }
+                // // Set the flag for realignment required if there is a mismatch in timestamps between packets
+                // realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
+                //
+                // // Detect and warn user of overflow error
+                // if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
+                //     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                //     _overflow_occured = true;
+                //     overflow_detected = true;
+                // }
             }
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
