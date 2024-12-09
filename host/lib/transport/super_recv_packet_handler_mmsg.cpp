@@ -262,28 +262,25 @@ public:
             size_t ch = 0;
             // While not all channels have been obtained and timeout has not been reached
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
-                // recv_manager->get_next_async_packet_info(ch, &next_packet[ch]);
+                recv_manager->get_next_async_packet_info(ch, &next_packet[ch]);
 
                 // Adding excesive amount of mfences to avoid wierd errors
                 // TODO: optimize fencing
                 _mm_mfence();
 
                 // Length is 0 if the packet is not ready yet
-                // if(next_packet[ch].length != 0) {
+                if(next_packet[ch].length != 0) {
                     // Move onto the next channel since this one is ready
-                    // DEBUG: isolating seg fault
-                    // ch++;
-                // } else {
+                    ch++;
+                } else {
                     // Do nothing
                     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
-                // }
-                _mm_mfence();
+                }
             }
             // This mmfence helped prevent wierd performance drops with the old system
-            // _mm_mfence();
+            _mm_mfence();
 
             // Check if timeout occured
-            // TODO: refactor to reduce branching
             if(ch < _NUM_CHANNELS) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
