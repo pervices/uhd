@@ -392,7 +392,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_SIZE) = cqe_ptr->res;
 
             uint32_t* tmp = (uint32_t*) lv_i.lv.self->access_packet_vita_header(lv_i.lv.ch, 0, *num_packets_stored & PACKET_BUFFER_SIZE);
-            printf("*tmp: %u\n", *tmp);
+            if(*tmp == 0) {
+                printf("*num_packets_stored: %li\n", *num_packets_stored);
+            }
 
             // Must set packet length before updating num_packets_stored
             _mm_sfence();
