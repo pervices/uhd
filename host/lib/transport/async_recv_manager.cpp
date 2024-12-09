@@ -98,6 +98,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
     size_t recv_loops_size = (size_t) std::ceil((sizeof(std::thread) * num_recv_loops) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     recv_loops = (std::thread*) aligned_alloc(CACHE_LINE_SIZE, recv_loops_size);
+    // For some reason this fixes a seg fault when calling join
     memset(recv_loops, 0, recv_loops_size);
 
     // Creates thread to receive data
@@ -129,14 +130,8 @@ async_recv_manager::~async_recv_manager()
     stop_flag = true;
     printf("A0\n");
     for(size_t n = 0; n < num_recv_loops; n++) {
-        printf("S1\n");
-        while(!recv_loops[n].joinable()) {
-
-        }
-        printf("S2\n");
         recv_loops[n].join();
         printf("A1\n");
-        sleep(1);
         recv_loops[n].~thread();
     }
 
@@ -159,9 +154,18 @@ async_recv_manager::~async_recv_manager()
     printf("A6\n");
     sleep(1);
     free(flush_complete);
+    printf("A7\n");
+    sleep(1);
     free(active_consumer_buffer);
+    printf("A8\n");
+    sleep(1);
     free(num_packets_consumed);
+    printf("A9\n");
+    sleep(1);
     free(recv_loops);
+    printf("A10\n");
+    sleep(1);
+    printf("A11\n");
 }
 
 void async_recv_manager::uring_init(size_t ch) {
