@@ -57,7 +57,7 @@ private:
 
     // Number of packets to receive before updating counts used by other threads
     // TODO: implement batching io_uring_buf_ring_cq_advance calls
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 32;
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 1024;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
@@ -184,15 +184,19 @@ public:
         }
     }
 
+    // TODO: make this channel specific and put it next to num_packets_consumed
+    int64_t packets_advanced = 0;
     /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
         num_packets_consumed[ch]++;
+        int64_t packets_advancable = num_packets_consumed[ch] - packets_advanced;
         // TODO: see if batching helps performance
-        io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), 1);
-        std::atomic_thread_fence(std::memory_order_release);
+        if(packets_advancable >= PACKETS_UPDATE_INCREMENT) {
+            io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), PACKETS_UPDATE_INCREMENT);
+        }
     }
 
 
