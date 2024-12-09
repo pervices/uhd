@@ -94,20 +94,14 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
     int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
 
-    num_recv_loops = (size_t) std::ceil( _num_ch / (double) ch_per_thread );
-
-    size_t recv_loops_size = (size_t) std::ceil((sizeof(std::thread) * num_recv_loops) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    recv_loops = (std::thread*) aligned_alloc(CACHE_LINE_SIZE, recv_loops_size);
-    // For some reason this fixes a seg fault when calling join
-    memset(recv_loops, 0, recv_loops_size);
+    size_t num_recv_loops = (size_t) std::ceil( _num_ch / (double) ch_per_thread );
 
     // Creates thread to receive data
     size_t ch_offset = 0;
     for(size_t n = 0; n < num_recv_loops; n++) {
         std::vector<int> thread_sockets(recv_sockets.begin() + ch_offset, recv_sockets.begin() + std::min(ch_offset + ch_per_thread, recv_sockets.size()));
 
-        // Placement new
-        new(&recv_loops[n]) std::thread(recv_loop, this, thread_sockets, ch_offset);
+        recv_loops.emplace_back(recv_loop, this, thread_sockets, ch_offset);
 
         ch_offset+=ch_per_thread;
     }
@@ -129,7 +123,7 @@ async_recv_manager::~async_recv_manager()
     // Manual destructor calls are required when using placement new
     stop_flag = true;
     printf("A0\n");
-    for(size_t n = 0; n < num_recv_loops; n++) {
+    for(size_t n = 0; n < recv_loops.size(); n++) {
         recv_loops[n].join();
         printf("A1\n");
         recv_loops[n].~thread();
@@ -162,10 +156,7 @@ async_recv_manager::~async_recv_manager()
     free(num_packets_consumed);
     printf("A9\n");
     sleep(1);
-    free(recv_loops);
     printf("A10\n");
-    sleep(1);
-    printf("A11\n");
 }
 
 void async_recv_manager::uring_init(size_t ch) {
@@ -384,8 +375,6 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
 
     size_t completions_received = 0;
     size_t completions_successful = 0;
-    // TODO: make this channel specific, move to lv
-    int64_t completions_advanced = 0;
     while(!lv_i.lv.self->stop_flag) [[likely]] {
 
         struct io_uring* ring = lv_i.lv.self->access_io_urings(lv_i.lv.ch, lv_i.lv.ch_offset);

@@ -147,8 +147,7 @@ private:
     int_fast64_t* num_packets_consumed;
 
     // Buffer containing the threads the receive data
-    size_t num_recv_loops;
-    std::thread* recv_loops;
+    std::vector<std::thread> recv_loops;
 
     // Flag used to tell receive threads when to stop
     uint_fast8_t stop_flag = false;
