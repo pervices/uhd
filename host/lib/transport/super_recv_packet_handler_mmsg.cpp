@@ -309,12 +309,7 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Extract Vita metadata
-                try {
-                    if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
-                } catch (...) {
-                    printf("next_packet[ch].length: %li\n", next_packet[ch].length);
-                    throw std::runtime_error("Packet error");
-                }
+                if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
