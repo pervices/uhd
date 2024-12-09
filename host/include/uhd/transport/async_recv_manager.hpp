@@ -192,6 +192,7 @@ public:
         num_packets_consumed[ch]++;
         // TODO: see if batching helps performance
         io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), 1);
+        std::atomic_thread_fence(std::memory_order_release);
     }
 
 
