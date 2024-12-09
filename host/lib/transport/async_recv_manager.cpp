@@ -381,14 +381,17 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
         sigemptyset(&sigmask);
         // TODO: consider using io_uring_wait_cqes to see if it helps
         // TODO: try io_uring_peek_cqe
-        int r = io_uring_wait_cqe_timeout(ring, &cqe_ptr, &io_timeout);
+        int r = io_uring_peek_cqe(ring, &cqe_ptr);
         if(r == 0) {
             completions_received++;
-        } else {
+        } else if (r != -EAGAIN) {
             // TODO: handle timeouts (or use io_uring_peek_cqe that doesn't have them)
             printf("Completion failed: %s\n", strerror(-r));
             printf("E1 completions_received: %lu\n", completions_received);
             printf("E1 completions_successful: %lu\n", completions_successful);
+        } else {
+            // TODO: make this cycle through channels
+            continue;
         }
 
         if(cqe_ptr->res > 0) {
@@ -400,12 +403,14 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
             *num_packets_stored = *num_packets_stored + 1;
 
             // TODO: batch
-            int64_t packets_ready_for_advance = *num_packets_stored - completions_advanced;
-            if(packets_ready_for_advance >= PACKETS_UPDATE_INCREMENT) {
+            // int64_t packets_ready_for_advance = *num_packets_stored - completions_advanced;
+            // if(packets_ready_for_advance >= PACKETS_UPDATE_INCREMENT) {
                 // TODO: free completion events in this thread, free buffers consumer thread to avoid race conditions
                 // Tells io_uring and io_uring_buf_ring that the event has been consumed
-                io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), packets_ready_for_advance);
-            }
+                io_uring_buf_ring_cq_advance(ring, *lv_i.lv.self->access_io_uring_buf_rings(lv_i.lv.ch, lv_i.lv.ch_offset), 1 /*packets_ready_for_advance*/);
+
+                // TODO: finish advancing (figure out how to avoid io_uring_wait_cqe_timeout getting a packet we processed but didn't advance or seeing if peek gives the performance required
+            // }
 
             // TODO: cycle through channels
         } else {
