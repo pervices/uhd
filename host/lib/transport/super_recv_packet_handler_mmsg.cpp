@@ -310,6 +310,8 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 if(vita_md[ch].num_packet_words32 < 100) {
                     throw std::runtime_error("Packet size error");
+                }if(*next_packet[ch].vita_header == 0) {
+                    printf("Packet not set\n");
                 }
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
