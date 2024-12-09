@@ -313,6 +313,7 @@ public:
                     if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
                 } catch (...) {
                     printf("next_packet[ch].length: %li\n", next_packet[ch].length);
+                    throw std::runtime_error("Packet error");
                 }
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
