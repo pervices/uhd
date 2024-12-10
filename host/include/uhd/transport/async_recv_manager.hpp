@@ -175,6 +175,8 @@ public:
     // TODO: make this channel specific
     bool multishot_armed = false;
 
+    int64_t num_packets_received = 0;
+
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
@@ -203,6 +205,7 @@ public:
         }
 
         if(cqe_ptr->res > 0) [[likely]] {
+            num_packets_received++;
             info->length = cqe_ptr->res;
             info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
             info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
@@ -215,6 +218,7 @@ public:
 
             if(!slow_consumer_warning_printed) {
                 printf("num_packets_consumed[ch]: %li\n", num_packets_consumed[ch]);
+                printf("num_packets_received: %li\n", num_packets_received);
                 UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
                 slow_consumer_warning_printed = true;
             }
