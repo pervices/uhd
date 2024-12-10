@@ -67,7 +67,7 @@ private:
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
     // Hard limit: 2 ^ 15
-    static constexpr uint32_t NUM_URING_ENTRIES = 32768;
+    static constexpr uint32_t NUM_URING_ENTRIES = 32768/8;
     // TODO: add assert is a power of 2
 
     // Amount of padding before the start of the packet
@@ -185,6 +185,7 @@ public:
      */
     inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
 
+        // TODO: see if re-arming required after ENOBUFS
         if(!multishot_armed) {
             arm_recv_multishot(ch, _recv_sockets[ch]);
             multishot_armed = true;
