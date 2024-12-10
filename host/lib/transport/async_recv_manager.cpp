@@ -149,9 +149,9 @@ void async_recv_manager::uring_init(size_t ch) {
     // Number of entries that can fit in the submission queue
     // Only 1 submission entry is needed since we are using multishot
     // TODO: see if submission queue can be set to length 1
-    uring_params.sq_entries = NUM_URING_ENTRIES;
+    uring_params.sq_entries = NUM_SQ_URING_ENTRIES;
     // Number of entries that can fit in the completion queue
-    uring_params.cq_entries = NUM_URING_ENTRIES;
+    uring_params.cq_entries = NUM_CQ_URING_ENTRIES;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
     // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
@@ -176,9 +176,9 @@ void async_recv_manager::uring_init(size_t ch) {
     struct io_uring* ring = access_io_urings(ch, 0);
     // NOTE: allow for more entires in ring buffer than needed in case it takes a while to acknowledge that we are finished with an entry
     // Initializes the ring to service requests
-    // NUM_URING_ENTRIES: number elements in the ring
+    // NUM_SQ_URING_ENTRIES: number elements in the submission ring (TODO: figure out difference between it and sq_entries)
     // ring: Information used to access the ring
-    int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
+    int error = io_uring_queue_init_params(NUM_SQ_URING_ENTRIES, ring, &uring_params);
     // Ideas to try:
     // IORING_SETUP_DEFER_TASKRUN
     // IORING_SETUP_NO_MMAP
