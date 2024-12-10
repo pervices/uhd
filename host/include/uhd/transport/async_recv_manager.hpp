@@ -206,7 +206,12 @@ public:
 
         // All buffers are used (should be unreachable)
         } else if (-cqe_ptr->res == ENOBUFS) {
+            // Clear this request
+            // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
+            io_uring_cq_advance(ring, 1);
+
             if(!slow_consumer_warning_printed) {
+                printf("num_packets_consumed[ch]: %li\n", num_packets_consumed[ch]);
                 UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
                 slow_consumer_warning_printed = true;
             }
