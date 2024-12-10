@@ -229,6 +229,7 @@ public:
             info->samples = nullptr;
             return;
         } else {
+            printf("E500\n");
             throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
         }
     }
