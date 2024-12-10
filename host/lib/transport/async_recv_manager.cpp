@@ -22,7 +22,6 @@ async_recv_manager::async_recv_manager( const size_t total_rx_channels, const st
 :
 _num_ch(recv_sockets.size()),
 _recv_sockets(recv_sockets),
-padded_uint_fast8_t_size(std::ceil( (uint_fast32_t)sizeof(uint_fast8_t) / (double)CACHE_LINE_SIZE ) * CACHE_LINE_SIZE),
 _header_size(header_size),
 _packet_data_size(max_sample_bytes_per_packet),
 
@@ -40,7 +39,7 @@ _packets_received_counters((uint8_t*) mmap(nullptr, _num_ch * PACKETS_RECEIVED_C
 // TODO: replace with aligned alloc if padding is reduced
 _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_control_struct_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 // Create buffer for flush complete flag in seperate cache lines
-flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
+flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * PADDED_UINT8_T_SIZE))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";

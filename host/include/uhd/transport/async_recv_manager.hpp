@@ -45,7 +45,7 @@ private:
     static constexpr size_t CACHE_LINE_SIZE = 64;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_uint_fast8_t_size;
+    static constexpr size_t PADDED_UINT8_T_SIZE = CACHE_LINE_SIZE;
 
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
     static constexpr size_t PADDED_INT64_T_SIZE = CACHE_LINE_SIZE;
@@ -138,7 +138,7 @@ private:
     // Access flags to indicate that the sockets have been purged of old data
     // channel
     inline __attribute__((always_inline)) uint_fast8_t* access_flush_complete(size_t ch, size_t ch_offset) {
-        return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
+        return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * PADDED_UINT8_T_SIZE));
     }
 
     // The buffer currently being used by the consumer thread
