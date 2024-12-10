@@ -67,7 +67,7 @@ private:
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
     // Hard limit: 2 ^ 15
-    static constexpr uint32_t NUM_URING_ENTRIES = 32768/8;
+    static constexpr uint32_t NUM_URING_ENTRIES = 32768/32;
     // TODO: add assert is a power of 2
 
     // Amount of padding before the start of the packet
