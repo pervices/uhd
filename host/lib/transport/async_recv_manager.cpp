@@ -32,7 +32,7 @@ _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_
 
 // NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
 
-_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0)),
 
 _packets_received_counters((uint8_t*) mmap(nullptr, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
@@ -57,7 +57,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * PADDED_UINT8_
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
     // TODO: try optimizing for huge pages
     madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
-    madvise(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, MADV_NOHUGEPAGE);
+    // madvise(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, MADV_NOHUGEPAGE);
     madvise(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, MADV_NOHUGEPAGE);
 
     // Create buffers used to store control data for the consumer thread
@@ -178,6 +178,11 @@ void async_recv_manager::uring_init(size_t ch) {
     // NUM_URING_ENTRIES: number elements in the ring
     // ring: Information used to access the ring
     int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
+    // Ideas to try:
+    // IORING_SETUP_DEFER_TASKRUN
+    // IORING_SETUP_NO_MMAP
+    // IORING_SETUP_REGISTERED_FD_ONLY
+    // IORING_SETUP_NO_SQARRAY
     // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
