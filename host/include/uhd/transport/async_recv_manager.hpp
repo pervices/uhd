@@ -206,7 +206,10 @@ public:
             return;
         }
 
-        printf("cqe_ptr->flags & IORING_CQE_F_MORE: %lu\n", cqe_ptr->flags & IORING_CQE_F_MORE);
+        // If IORING_CQE_F_MORE multishot will continue sending messages
+        if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
+            printf("Multishot stopping after this\n");
+        }
 
         if(cqe_ptr->res > 0) [[likely]] {
             num_packets_received++;
