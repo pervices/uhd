@@ -177,7 +177,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // Initializes the ring to service requests
     // NUM_URING_ENTRIES: number elements in the ring
     // ring: Information used to access the ring
-    int error = io_uring_queue_init_params(NUM_URING_ENTRIES, ring, &uring_params);
+    int error = io_uring_queue_init_params(1, ring, &uring_params);
     // Ideas to try:
     // IORING_SETUP_DEFER_TASKRUN
     // IORING_SETUP_NO_MMAP
