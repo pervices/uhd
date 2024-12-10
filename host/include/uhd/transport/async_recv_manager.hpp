@@ -208,7 +208,8 @@ public:
 
         // If IORING_CQE_F_MORE multishot will continue sending messages
         if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
-            printf("Multishot stopping after this\n");
+            printf("Multishot stopping after this, rearming\n");
+            multishot_armed = false;
         }
 
         if(cqe_ptr->res > 0) [[likely]] {
