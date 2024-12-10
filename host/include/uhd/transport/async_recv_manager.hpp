@@ -32,7 +32,7 @@ private:
     static constexpr size_t MAX_CHANNELS = 16;
 
     // Number of packets that can be stored in the buffer
-    static constexpr size_t PACKET_BUFFER_SIZE = 32768;
+    static constexpr size_t PACKET_BUFFER_SIZE = 65536;
 
     // Mask used to roll over number of packets
     static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
@@ -64,7 +64,8 @@ private:
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
-    static constexpr uint32_t NUM_URING_ENTRIES = PACKET_BUFFER_SIZE;
+    // 32768 appears to be a hard max, although I can't find documentation saying so
+    static constexpr uint32_t NUM_URING_ENTRIES = 32768;
     // TODO: add assert is a power of 2
 
     // Amount of padding before the start of the packet

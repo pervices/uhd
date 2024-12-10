@@ -192,7 +192,7 @@ void async_recv_manager::uring_init(size_t ch) {
     uint32_t active_bgid = bgid;//bgid++;
 
     // TODO: see if buffer_ring need to be accessed after this function is over
-    *buffer_ring = io_uring_setup_buf_ring(ring, NUM_URING_ENTRIES, active_bgid, 0, &ret);
+    *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, active_bgid, 0, &ret);
 
     // TODO: improve error message
     if(ret) {
