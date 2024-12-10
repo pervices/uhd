@@ -32,7 +32,7 @@ private:
     static constexpr size_t MAX_CHANNELS = 16;
 
     // Number of packets that can be stored in the buffer
-    static constexpr size_t PACKET_BUFFER_SIZE = 32768;
+    static constexpr size_t PACKET_BUFFER_SIZE = 65536;
 
     // Mask used to roll over number of packets
     static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
