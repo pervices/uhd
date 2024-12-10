@@ -32,7 +32,7 @@ _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_
 
 // NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
 
-_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0)),
+_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
 _packets_received_counters((uint8_t*) mmap(nullptr, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
@@ -56,9 +56,9 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * PADDED_UINT8_
     // Not disabling huge pages can cause latency spikes
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
     // TODO: try optimizing for huge pages
-    madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
+    // madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
     // madvise(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, MADV_NOHUGEPAGE);
-    madvise(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, MADV_NOHUGEPAGE);
+    // madvise(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, MADV_NOHUGEPAGE);
 
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
