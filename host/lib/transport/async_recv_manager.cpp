@@ -255,7 +255,7 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
         printf("Submit failed with error code: %i\n", -ret);
         printf("Submit failed with error code: %s\n", strerror(-ret));
     } else {
-        printf("Multishot setup completed\n");
+        // printf("Multishot setup completed\n");
     }
 }
 
