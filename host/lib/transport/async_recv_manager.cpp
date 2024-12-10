@@ -153,11 +153,10 @@ void async_recv_manager::uring_init(size_t ch) {
     // Number of entries that can fit in the completion queue
     uring_params.cq_entries = NUM_CQ_URING_ENTRIES;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
-    // TODO: figure out how to get IORING_SETUP_IOPOLL working
     // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
     // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
     // IORING_SETUP_CQSIZE: pay attention to cq_entries
-    uring_params.flags = /*IORING_SETUP_IOPOLL |*/ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE;
+    uring_params.flags = IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // uring_params.sq_thread_cpu;
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
