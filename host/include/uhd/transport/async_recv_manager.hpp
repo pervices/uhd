@@ -9,6 +9,7 @@
 #include <iostream>
 #include <liburing.h>
 #include <uhd/utils/log.hpp>
+#include <immintrin.h>
 
 namespace uhd { namespace transport {
 
@@ -229,6 +230,9 @@ public:
         //     packets_advancable = 0;
         // }
         io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
+
+        // Maybe helps push updates to the ring faster
+        _mm_mfence();
     }
 
 
