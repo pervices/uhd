@@ -117,6 +117,10 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
             }
         }
     }
+
+    for(size_t ch = 0; ch < _num_ch; ch++) {
+        arm_recv_multishot(ch, recv_sockets[ch]);
+    }
 }
 
 async_recv_manager::~async_recv_manager()
@@ -348,9 +352,9 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     //     }
     }
 
-    for(size_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
-        lv_i.lv.self->arm_recv_multishot(ch + lv_i.lv.ch_offset, lv_i.lv.sockets[ch]);
-    }
+    // for(size_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
+    //     lv_i.lv.self->arm_recv_multishot(ch + lv_i.lv.ch_offset, lv_i.lv.sockets[ch]);
+    // }
 
     // size_t completions_received = 0;
     // size_t completions_successful = 0;
