@@ -206,6 +206,8 @@ public:
             return;
         }
 
+        printf("cqe_ptr->flags & IORING_CQE_F_MORE: %lu\n", cqe_ptr->flags & IORING_CQE_F_MORE);
+
         if(cqe_ptr->res > 0) [[likely]] {
             num_packets_received++;
             info->length = cqe_ptr->res;
