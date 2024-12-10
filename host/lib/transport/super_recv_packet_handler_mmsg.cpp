@@ -266,7 +266,7 @@ public:
 
                 // Adding excesive amount of mfences to avoid wierd errors
                 // TODO: optimize fencing
-                _mm_lfence();
+                // _mm_lfence();
 
                 // Length is 0 if the packet is not ready yet
                 if(next_packet[ch].length != 0) {
@@ -276,13 +276,13 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    usleep(10);
+                    // usleep(10);
                     // Do nothing
                     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                 }
             }
             // This mmfence helped prevent wierd performance drops with the old system
-            _mm_mfence();
+            // _mm_mfence();
 
             // Check if timeout occured
             if(ch < _NUM_CHANNELS) [[unlikely]] {
