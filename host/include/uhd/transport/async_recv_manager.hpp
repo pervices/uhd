@@ -219,14 +219,16 @@ public:
         num_packets_consumed[ch]++;
 
         struct io_uring* ring = access_io_urings(ch, 0);
-        io_uring_cq_advance(ring, 1);
+        // io_uring_cq_advance(ring, 1);
 
         int64_t packets_advancable = num_packets_consumed[ch] - packets_advanced;
         // TODO: see if batching helps performance
         // Batching hurt performance
-        if(packets_advancable >= PACKETS_UPDATE_INCREMENT) {
-            io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
+        if(packets_advancable < PACKETS_UPDATE_INCREMENT) {
+            // io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
+            packets_advancable = 0;
         }
+        __io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1, packets_advancable);
     }
 
 
