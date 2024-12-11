@@ -358,7 +358,7 @@ public:
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                         if(vita_md[ch].tsf != latest_packet) {
                             // Drop this packet to allow the channel to catch up
-                            // recv_manager->advance_packet(ch);
+                            recv_manager->advance_packet(ch);
                         }
                     }
                     realignment_attempts++;
@@ -413,7 +413,7 @@ public:
                 }
 
                 // Moves to the next packet
-                // recv_manager->advance_packet(ch);
+                recv_manager->advance_packet(ch);
             }
 
             // Set the timepec to that of the first packet received if not already set from the cache

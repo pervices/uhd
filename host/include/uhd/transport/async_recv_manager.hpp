@@ -219,9 +219,7 @@ public:
             info->length = cqe_ptr->res;
             info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
             info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-
-            // DEBUG: advance packet immediately
-            advance_packet(ch);
+            io_uring_cq_advance(ring, 1);
 
         // All buffers are used (should be unreachable)
         } else if (-cqe_ptr->res == ENOBUFS) {
@@ -238,7 +236,6 @@ public:
             info->length = 0;
             info->vita_header = nullptr;
             info->samples = nullptr;
-            return;
         } else {
             printf("E500\n");
             throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
@@ -264,7 +261,8 @@ public:
         //     // io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
         //     packets_advancable = 0;
         // }
-        io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
+        // io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
+        io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), 1);
     }
 
 
