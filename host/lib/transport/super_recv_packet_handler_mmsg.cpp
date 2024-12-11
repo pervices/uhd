@@ -413,7 +413,7 @@ public:
                 }
 
                 // Moves to the next packet
-                recv_manager->advance_packet(ch);
+                // recv_manager->advance_packet(ch);
             }
 
             // Set the timepec to that of the first packet received if not already set from the cache

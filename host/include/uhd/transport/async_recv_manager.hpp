@@ -216,7 +216,7 @@ public:
 
         if(cqe_ptr->res > 0) [[likely]] {
             num_packets_received++;
-            info->length = 0;//cqe_ptr->res;
+            info->length = cqe_ptr->res;
             info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
             info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
 
