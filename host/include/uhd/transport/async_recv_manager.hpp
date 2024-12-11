@@ -219,8 +219,7 @@ public:
             info->length = cqe_ptr->res;
             info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
             info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-            // io_uring_cq_advance(ring, 1);
-            io_uring_cqe_seen(ring, cqe_ptr);
+            io_uring_cq_advance(ring, 1);
 
         // All buffers are used (should be unreachable)
         } else if (-cqe_ptr->res == ENOBUFS) {
