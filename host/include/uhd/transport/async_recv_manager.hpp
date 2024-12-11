@@ -206,15 +206,15 @@ public:
             return;
         }
 
-        // If IORING_CQE_F_MORE multishot will continue sending messages
-        if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
-            printf("Multishot stopped\n");
-            printf("cqe_ptr->user_data: %llu\n", cqe_ptr->user_data);
-            printf("cqe_ptr->res: %u\n", cqe_ptr->res);
-            printf("cqe_ptr->flags: %u\n", cqe_ptr->flags);
-        }
-
         if(cqe_ptr->res > 0) [[likely]] {
+            // If IORING_CQE_F_MORE multishot will continue sending messages
+            if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
+                printf("Multishot stopped\n");
+                printf("cqe_ptr->user_data: %llu\n", cqe_ptr->user_data);
+                printf("cqe_ptr->res: %u\n", cqe_ptr->res);
+                printf("cqe_ptr->flags: %u\n", cqe_ptr->flags);
+            }
+
             num_packets_received++;
             info->length = cqe_ptr->res;
             info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
