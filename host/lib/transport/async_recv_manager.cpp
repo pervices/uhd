@@ -18,7 +18,7 @@ namespace uhd { namespace transport {
 // TODO: move this to common include
 static std::atomic<int> bgid(1);
 
-async_recv_manager::async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels)
+async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 :
 _num_ch(recv_sockets.size()),
 _recv_sockets(recv_sockets),
@@ -37,9 +37,8 @@ _all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _
 _packets_received_counters((uint8_t*) mmap(nullptr, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
 // TODO: replace with aligned alloc if padding is reduced
-_io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_control_struct_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
+_io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_control_struct_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))
 // Create buffer for flush complete flag in seperate cache lines
-flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * PADDED_UINT8_T_SIZE))
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
@@ -72,7 +71,6 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * PADDED_UINT8_
     for(size_t ch = 0; ch < _num_ch; ch++) {
         active_consumer_buffer[ch] = 0;
         num_packets_consumed[ch] = 0;
-        *access_flush_complete(ch, 0) = 0;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
@@ -93,42 +91,25 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * PADDED_UINT8_
     // DEBUG: wait in case this is causing problems
     sleep(1);
 
-    int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * total_rx_channels) / (double)num_cores );
+    // TODO: see if/how to handle low core count systems
+    // int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * device_total_rx_channels) / (double)num_cores );
 
-    size_t num_recv_loops = (size_t) std::ceil( _num_ch / (double) ch_per_thread );
-
-    // Creates thread to receive data
-    size_t ch_offset = 0;
-    for(size_t n = 0; n < num_recv_loops; n++) {
-        std::vector<int> thread_sockets(recv_sockets.begin() + ch_offset, recv_sockets.begin() + std::min(ch_offset + ch_per_thread, recv_sockets.size()));
-
-        recv_loops.emplace_back(recv_loop, this, thread_sockets, ch_offset);
-
-        ch_offset+=ch_per_thread;
-    }
-
-    uhd::time_spec_t start = uhd::get_system_time();
     for(size_t n = 0; n < _num_ch; n++) {
-        while(! *access_flush_complete(n, 0)) {
-            if(start + 30.0 < uhd::get_system_time()) {
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-                stop_flag = true;
-                throw std::runtime_error("Timeout while flushing buffers");
-            }
-        }
+        uhd::time_spec_t start = uhd::get_system_time();
+
+        // TODO: flush buffers
+        // while() {
+        //     if(start + 30.0 < uhd::get_system_time()) {
+        //         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+        //         throw std::runtime_error("Timeout while flushing buffers");
+        //     }
+        // }
     }
 }
 
 async_recv_manager::~async_recv_manager()
 {
-    // Manual destructor calls are required when using placement new
-    stop_flag = true;
-    for(size_t n = 0; n < recv_loops.size(); n++) {
-        recv_loops[n].join();
-        recv_loops[n].~thread();
-    }
-
-    // TODO: fix seg fault on exit (probably requires use of io_uring_prep_cancel IORING_ASYNC_CANCEL_ANY)
+    // Stop liburing's other threads
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));
     }
@@ -137,7 +118,6 @@ async_recv_manager::~async_recv_manager()
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
     munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
     munmap(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE);
-    free(flush_complete);
     free(active_consumer_buffer);
     free(num_packets_consumed);
 }
@@ -257,161 +237,6 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     } else {
         // printf("Multishot setup completed\n");
     }
-}
-
-void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
-    // Struct contianing all local variables used by the main receive loop
-    // TODO: look into  improving cache locality
-    // Use of this struct improves worst case performance, at the cost of preventing compiler optimizations to help average performance
-    struct lv_i_s {
-        // The manager this receives data for
-        async_recv_manager* self;
-        // Control variable to cycle through channels
-        uint64_t ch;
-        // Where in the original list of channels this loop starts from
-        uint64_t ch_offset;
-        // The number of channels this loop receives for
-        uint64_t num_ch;
-        // Buffer currently being written to for each channel
-        // Sockets to receive on
-        int sockets[MAX_CHANNELS];
-        // Return value of recvmmsg
-        int r;
-        // Number to multiply by for branchless operations (bool will always be 1 or 0)
-        bool are_packets_received;
-        // Error code of recvmmsg
-        int error_code;
-    };
-
-    // Union to pad lv_i_s to a full page to prevent interference from other threads
-    // Theoretically only padding/aligning to cache line is required, experimentally padding to a full page is required
-    union lv_i_u {
-        struct lv_i_s lv;
-        uint8_t padding[PAGE_SIZE];
-    };
-
-
-    union lv_i_u lv_i __attribute__ ((aligned (PAGE_SIZE)));
-    assert(sizeof(lv_i) == PAGE_SIZE);
-
-    // MADV_WILLNEED since this will be accessed often
-    madvise(&lv_i, sizeof(lv_i), MADV_WILLNEED);
-
-    madvise(&lv_i, sizeof(lv_i), MADV_NOHUGEPAGE);
-
-    lv_i.lv.self = self_;
-    lv_i.lv.ch = 0;
-    lv_i.lv.ch_offset = ch_offset_;
-    lv_i.lv.num_ch = sockets_.size();
-    for(size_t init_ch = 0; init_ch < lv_i.lv.num_ch; init_ch++) {
-        lv_i.lv.sockets[init_ch] = sockets_[init_ch];
-    }
-    lv_i.lv.error_code = 0;
-
-
-
-    // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
-    uhd::set_thread_priority_safe(1, true);
-
-    // Set the thread and socket's affinity to the current core, improves speed and reliability
-    unsigned int cpu;
-    // Syscall used because getcpu is does not exist on Oracle
-    int r = syscall(SYS_getcpu, &cpu, nullptr);
-    if(!r) {
-        for(uint_fast32_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
-            std::vector<size_t> target_cpu(1, cpu);
-            set_thread_affinity(target_cpu);
-
-            r = setsockopt(lv_i.lv.sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
-            if(r) {
-                UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "Unable to set socket affinity. Error code: " + std::string(strerror(errno));
-            }
-        }
-    } else {
-        UHD_LOGGER_WARNING("ASYNC_RECV_MANAGER") << "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno));
-    }
-
-    // Flush packets
-    // TODO: re-implement flushing packets
-    for(size_t flush_ch = 0; flush_ch < lv_i.lv.num_ch; flush_ch++) {
-    //     int r = -1;
-    //     bool error_already_occured = false;
-    //     // Receive packets until none are received
-    //     while(!lv_i.lv.self->stop_flag) {
-    //         r = recvmmsg(lv_i.lv.sockets[flush_ch], (mmsghdr*) lv_i.lv.self->access_mmsghdr_buffer(flush_ch, lv_i.lv.ch_offset, 0), PACKETS_PER_BUFFER, MSG_DONTWAIT, 0);
-    //         // If no packets and received the error code for no packets and using MSG_DONTWAIT, continue to next channel
-    //         if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                *lv_i.lv.self->access_flush_complete(flush_ch, lv_i.lv.ch_offset) = 1;
-    //             break;
-    //         } else if(r == -1) {
-    //             UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unhandled error while flushing recvmmsg during initialization: " + std::string(strerror(errno));
-    //             // If this is the second time seeing an unplanned error while flushing this socket, throw and error
-    //             if(error_already_occured) {
-    //                 lv_i.lv.self->stop_flag = true;
-    //                 throw std::runtime_error("Unable to recover from recvmmsg error during initialization: " + std::string(strerror(errno)));
-    //             }
-    //             error_already_occured = true;
-    //         }
-    //     }
-    }
-
-    // for(size_t ch = 0; ch < lv_i.lv.num_ch; ch++) {
-    //     lv_i.lv.self->arm_recv_multishot(ch + lv_i.lv.ch_offset, lv_i.lv.sockets[ch]);
-    // }
-
-    // size_t completions_received = 0;
-    // size_t completions_successful = 0;
-    // while(!lv_i.lv.self->stop_flag) [[likely]] {
-    //
-    //     struct io_uring* ring = lv_i.lv.self->access_io_urings(lv_i.lv.ch, lv_i.lv.ch_offset);
-    //     // Receives all requests
-    //     // TODO move these to lv_i.lv
-    //     io_uring_cqe *cqe_ptr;
-    //     // TODO: consider using io_uring_wait_cqes to see if it helps
-    //     int r = io_uring_peek_cqe(ring, &cqe_ptr);
-    //     if(r == 0) {
-    //         completions_received++;
-    //     } else if (r != -EAGAIN) {
-    //         // TODO: handle timeouts (or use io_uring_peek_cqe that doesn't have them)
-    //         printf("Completion failed: %s\n", strerror(-r));
-    //         printf("E1 completions_received: %lu\n", completions_received);
-    //         printf("E1 completions_successful: %lu\n", completions_successful);
-    //     } else {
-    //         // TODO: make this cycle through channels
-    //         continue;
-    //     }
-    //
-    //     if(cqe_ptr->res > 0) [[likely]] {
-    //         completions_successful++;
-    //         int64_t* num_packets_stored = lv_i.lv.self->access_packets_received_counter(lv_i.lv.ch, lv_i.lv.ch_offset);
-    //
-    //         *lv_i.lv.self->access_packet_length(lv_i.lv.ch, lv_i.lv.ch_offset, *num_packets_stored & PACKET_BUFFER_MASK) = cqe_ptr->res;
-    //
-    //         // Must set packet length before updating num_packets_stored
-    //         std::atomic_thread_fence(std::memory_order_release);
-    //         *num_packets_stored = *num_packets_stored + 1;
-    //
-    //         // TODO: consider batching io_uring_buf_ring advanced
-    //         // Tells io_uring and io_uring_buf_ring that the event has been consumed
-    //         io_uring_cqe_seen(ring, cqe_ptr);
-    //
-    //         // TODO: cycle through channels
-    //     } else if (-cqe_ptr->res == ENOBUFS) {
-    //         if(!slow_consumer_warning_printed) {
-    //             UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
-    //             slow_consumer_warning_printed = true;
-    //         }
-    //     } else {
-    //         printf("completions_received before failure: %lu\n", completions_received);
-    //         printf("completions_successful before failure: %lu\n", completions_successful);
-    //         printf("-cqe_ptr->res: %i\n", -cqe_ptr->res);
-    //         throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
-    //
-    //     }
-    // }
-    //
-    // printf("completions_received: %lu\n", completions_received);
-    // printf("completions_successful: %lu\n", completions_successful);
 }
 
 }}

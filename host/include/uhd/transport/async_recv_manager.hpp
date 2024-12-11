@@ -135,16 +135,6 @@ private:
         return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + PAGE_SIZE/2);
     }
 
-    // Buffer to store flags to indicate sockets have been flushed
-    // Not an array of uint8_t, this is done to make manual memory operations easier
-    uint8_t* const flush_complete;
-
-    // Access flags to indicate that the sockets have been purged of old data
-    // channel
-    inline __attribute__((always_inline)) uint_fast8_t* access_flush_complete(size_t ch, size_t ch_offset) {
-        return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * PADDED_UINT8_T_SIZE));
-    }
-
     // The buffer currently being used by the consumer thread
     size_t* active_consumer_buffer;
 
@@ -152,12 +142,6 @@ private:
     // Accessed only by the consumer thread
     // channel
     int_fast64_t* num_packets_consumed;
-
-    // Buffer containing the threads the receive data
-    std::vector<std::thread> recv_loops;
-
-    // Flag used to tell receive threads when to stop
-    uint_fast8_t stop_flag = false;
 
 public:
 
@@ -168,7 +152,7 @@ public:
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
      */
-    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels );
+    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
     ~async_recv_manager();
 

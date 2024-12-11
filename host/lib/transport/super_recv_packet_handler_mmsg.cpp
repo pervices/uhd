@@ -172,7 +172,7 @@ public:
         // Prevent the class from being moved to a huge page, causes latency spikes
         madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
 
-        new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
+        new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
     }
 
     ~recv_packet_handler_mmsg(void)
