@@ -129,7 +129,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // uring_params.sq_thread_cpu;
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
-    uring_params.sq_thread_idle = 100000;
+    uring_params.sq_thread_idle = 0;//100000;
     // Kernel sets this according to features supported
     // uring_params.features;
     // Does nothing unless flag IORING_SETUP_ATTACH_WQ is set
