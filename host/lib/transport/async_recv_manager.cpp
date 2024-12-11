@@ -206,16 +206,16 @@ void async_recv_manager::uring_init(size_t ch) {
     }
 
     int buffers_added = 0;
-    for(uint32_t p = 0; p < PACKET_BUFFER_SIZE/2; p++) {
+    for(uint32_t p = 0; p < PACKET_BUFFER_SIZE; p++) {
         uint8_t* packet_buffer_to_add = access_packet_vita_header(ch, 0, p);
 
         // Adds the packet to the list for registration (added to the ring buffer)
         // Use whichever number the buffer is (buffers_added) as it's bid
-        io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, buffers_added, io_uring_buf_ring_mask(PACKET_BUFFER_SIZE/2), p);
+        io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, buffers_added, io_uring_buf_ring_mask(PACKET_BUFFER_SIZE), p);
 
     }
     // Commits registration of the ring buffers added by io_uring_buf_ring_add
-    io_uring_buf_ring_advance(*buffer_ring, PACKET_BUFFER_SIZE/2);
+    io_uring_buf_ring_advance(*buffer_ring, PACKET_BUFFER_SIZE);
 
     printf("IO_URING init passed\n");
 }
