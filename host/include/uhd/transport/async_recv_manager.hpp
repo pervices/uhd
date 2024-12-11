@@ -68,7 +68,7 @@ private:
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
     // Hard limit: 2 ^ 15
     static constexpr uint32_t NUM_SQ_URING_ENTRIES = 1;
-    static constexpr uint32_t NUM_CQ_URING_ENTRIES = 1;
+    static constexpr uint32_t NUM_CQ_URING_ENTRIES = 32768;
     // TODO: add assert is a power of 2
 
     // Amount of padding before the start of the packet
@@ -216,9 +216,12 @@ public:
 
         if(cqe_ptr->res > 0) [[likely]] {
             num_packets_received++;
-            info->length = cqe_ptr->res;
+            info->length = 0;//cqe_ptr->res;
             info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
             info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+
+            // DEBUG: advance packet immediately
+            advance_packet(ch);
 
         // All buffers are used (should be unreachable)
         } else if (-cqe_ptr->res == ENOBUFS) {
