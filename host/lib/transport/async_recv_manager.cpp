@@ -14,10 +14,6 @@
 
 namespace uhd { namespace transport {
 
-// TODO: check if this must be unique per program or globally
-// TODO: move this to common include
-static std::atomic<int> bgid(1);
-
 async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 :
 _num_ch(recv_sockets.size()),
@@ -34,10 +30,9 @@ _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_
 
 _all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
 
-_packets_received_counters((uint8_t*) mmap(nullptr, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)),
-
 // TODO: replace with aligned alloc if padding is reduced
 _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_control_struct_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))
+
 // Create buffer for flush complete flag in seperate cache lines
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
@@ -47,7 +42,7 @@ _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_co
 
     // Check if memory allocation failed
     // TODO: verify all mallocs and mmaps succeeded
-    if(_all_ch_packet_buffers == MAP_FAILED || _packets_received_counters == MAP_FAILED || _io_uring_control_structs == MAP_FAILED) {
+    if(_all_ch_packet_buffers == MAP_FAILED || _io_uring_control_structs == MAP_FAILED) {
         throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
 
@@ -57,26 +52,19 @@ _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_co
     // TODO: try optimizing for huge pages
     // madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
     // madvise(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, MADV_NOHUGEPAGE);
-    // madvise(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE, MADV_NOHUGEPAGE);
-
-    // Create buffers used to store control data for the consumer thread
-    size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
-    active_consumer_buffer_size = (size_t) ceil(active_consumer_buffer_size / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    active_consumer_buffer = (size_t* )aligned_alloc(CACHE_LINE_SIZE, active_consumer_buffer_size);
-    size_t num_packets_consumed_size = _num_ch * sizeof(int_fast64_t);
-    num_packets_consumed_size = (size_t) ceil(num_packets_consumed_size / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    num_packets_consumed = (int_fast64_t*) aligned_alloc(CACHE_LINE_SIZE, num_packets_consumed_size);
 
     // Initialize control variables to 0
     for(size_t ch = 0; ch < _num_ch; ch++) {
-        active_consumer_buffer[ch] = 0;
-        num_packets_consumed[ch] = 0;
+        _num_packets_consumed[ch] = 0;
+        _packets_advanced[ch] = 0;
+
+        // TODO: create system to ensure a unique bgid for every channel across streamers
+        _bgid_storage[ch] = (int64_t) ch + 1;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_io_uring_control_structs, 0, _num_ch * _padded_io_uring_control_struct_size);
     memset(_all_ch_packet_buffers, 0, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
-    memset(_packets_received_counters, 0, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE);
 
     int64_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -105,6 +93,10 @@ _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_co
         //     }
         // }
     }
+
+    for(size_t ch = 0; ch < _num_ch; ch++) {
+        arm_recv_multishot(ch, _recv_sockets[ch]);
+    }
 }
 
 async_recv_manager::~async_recv_manager()
@@ -117,9 +109,6 @@ async_recv_manager::~async_recv_manager()
     // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
     munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
-    munmap(_packets_received_counters, _num_ch * PACKETS_RECEIVED_COUNTER_SIZE);
-    free(active_consumer_buffer);
-    free(num_packets_consumed);
 }
 
 void async_recv_manager::uring_init(size_t ch) {
@@ -172,12 +161,9 @@ void async_recv_manager::uring_init(size_t ch) {
     // Initializes the ring buffer containing the location to write to
     struct io_uring_buf_ring** buffer_ring = access_io_uring_buf_rings(ch, 0);
     int ret = 0;
-    // Determine the current buffer group id, then increment the counter to avoid duplicate
-    // TODO: set bgid to be seperate for each channel, currently implementing 1 channel as a proof of concept
-    uint32_t active_bgid = bgid;//bgid++;
 
-    // TODO: see if buffer_ring need to be accessed after this function is over
-    *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, active_bgid, 0, &ret);
+    // Create ring buffe to store locations to store packets
+    *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, _bgid_storage[ch], 0, &ret);
 
     // TODO: improve error message
     if(ret) {
@@ -218,7 +204,7 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     io_uring_prep_recv_multishot(sqe, fd, nullptr, 0, 0);
 
     // TODO: replace with system that can handle multile channels, currently bgid of 1 is always used
-    sqe->buf_group = bgid;
+    sqe->buf_group = _bgid_storage[ch];
 
     // IOSQE_BUFFER_SELECT: indicates to use a registered buffer from io_uring_buf_ring_add
     // IOSQE_FIXED_FILE: has something to do with registering the file earlier

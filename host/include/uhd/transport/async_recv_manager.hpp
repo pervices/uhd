@@ -104,17 +104,6 @@ private:
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
     }
 
-    // Stores the number of packets received on each channel
-    // TODO: figure out if it can be padded to a cache line (or possibly removing padding entirely depending on future architecture decisions)
-    static constexpr uint64_t PACKETS_RECEIVED_COUNTER_SIZE = PAGE_SIZE;
-    uint8_t* const _packets_received_counters;
-
-    // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer.
-    // The caller is resonsible for using fencing to ensure correct ordering.
-    inline __attribute__((always_inline)) int64_t* access_packets_received_counter(size_t ch, size_t ch_offset) {
-       return (int64_t*) (_packets_received_counters + ((ch + ch_offset) * PACKETS_RECEIVED_COUNTER_SIZE));
-    }
-
     // TODO: reduce padding
     static constexpr size_t _padded_io_uring_control_struct_size = PAGE_SIZE;
     static_assert(_padded_io_uring_control_struct_size > sizeof(struct io_uring), "Padded io_uring size smaller than normal io_uring size");
@@ -124,7 +113,7 @@ private:
     uint8_t* const _io_uring_control_structs;
 
     // Access the uring for a given channel. (The ring buffer containing submission and completion queues)
-    inline __attribute__((always_inline)) io_uring* access_io_urings(size_t ch, size_t ch_offset) {
+    inline __attribute__((always_inline)) io_uring* access_io_urings(size_t ch, size_t ch_offset = 0) {
         return (io_uring*) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size));
     }
 
@@ -135,13 +124,16 @@ private:
         return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + PAGE_SIZE/2);
     }
 
-    // The buffer currently being used by the consumer thread
-    size_t* active_consumer_buffer;
-
     // Number of packets consumed in the active consumer buffer
     // Accessed only by the consumer thread
-    // channel
-    int_fast64_t* num_packets_consumed;
+    int64_t _num_packets_consumed[MAX_CHANNELS];
+
+    // TODO: make this channel specific and put it next to _num_packets_consumed
+    int64_t _packets_advanced[MAX_CHANNELS];
+
+    // Stores the bgid used by io_uring_setup_buf_ring and io_uring_sqe_set_flags(..., IOSQE_BUFFER_SELECT);
+    // Each channel needs a unique bgid
+    int64_t _bgid_storage[MAX_CHANNELS];
 
 public:
 
@@ -157,10 +149,6 @@ public:
     ~async_recv_manager();
 
     bool slow_consumer_warning_printed = false;
-    // TODO: make this channel specific
-    bool multishot_armed = false;
-
-    int64_t num_packets_received = 0;
 
     /**
      * Gets information needed to process the next packet.
@@ -169,12 +157,6 @@ public:
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
     inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
-
-        // TODO: see if re-arming required after ENOBUFS
-        if(!multishot_armed) {
-            arm_recv_multishot(ch, _recv_sockets[ch]);
-            multishot_armed = true;
-        }
 
         struct io_uring* ring = access_io_urings(ch, 0);
         struct io_uring_cqe *cqe_ptr;
@@ -192,6 +174,7 @@ public:
 
         if(cqe_ptr->res > 0) [[likely]] {
             // If IORING_CQE_F_MORE multishot will continue sending messages
+            // TODO: rearm after packet without IORING_CQE_F_MORE
             if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
                 printf("Multishot stopped\n");
                 printf("cqe_ptr->user_data: %llu\n", cqe_ptr->user_data);
@@ -199,11 +182,9 @@ public:
                 printf("cqe_ptr->flags: %u\n", cqe_ptr->flags);
             }
 
-            num_packets_received++;
             info->length = cqe_ptr->res;
-            info->vita_header = access_packet_vita_header(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-            info->samples = access_packet_samples(ch, 0, num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-            io_uring_cq_advance(ring, 1);
+            info->vita_header = access_packet_vita_header(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+            info->samples = access_packet_samples(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
 
         // All buffers are used (should be unreachable)
         } else if (-cqe_ptr->res == ENOBUFS) {
@@ -212,8 +193,7 @@ public:
             io_uring_cq_advance(ring, 1);
 
             if(!slow_consumer_warning_printed) {
-                printf("num_packets_consumed[ch]: %li\n", num_packets_consumed[ch]);
-                printf("num_packets_received: %li\n", num_packets_received);
+                printf("_num_packets_consumed[ch]: %li\n", _num_packets_consumed[ch]);
                 UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
                 slow_consumer_warning_printed = true;
             }
@@ -226,21 +206,20 @@ public:
         }
     }
 
-    // TODO: make this channel specific and put it next to num_packets_consumed
-    int64_t packets_advanced = 0;
     /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
-        num_packets_consumed[ch]++;
+        io_uring_cq_advance(access_io_urings(ch), 1);
 
-        int64_t packets_advancable = num_packets_consumed[ch] - packets_advanced;
-        // // TODO: see if batching helps performance
-        // // Batching hurt performance
+        _num_packets_consumed[ch]++;
+
+        int64_t packets_advancable = _num_packets_consumed[ch] - _packets_advanced[ch];
+        // Mark packets are clear in batches to improve performance
         if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
             io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
-            packets_advanced++;
+            _packets_advanced[ch] += packets_advancable;
         }
         // io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
     }

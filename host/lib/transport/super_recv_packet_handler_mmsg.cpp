@@ -162,6 +162,8 @@ public:
             _using_performance_governor = false;
         }
 
+        printf("sizeof(recv_manager): %lu\n", sizeof(recv_manager));
+
         // Create manager for receive threads and access to buffer recv data
         size_t page_size = getpagesize();
         // Create manager for threads that receive data to buffers using placement new to avoid false sharing
