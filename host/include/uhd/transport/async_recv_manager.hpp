@@ -171,8 +171,12 @@ public:
             return 0;
         } else {
             *cqe_ptr = nullptr;
+            unsigned advancable = get_packets_advancable(ch);
             // Since we are caught up, take the opportunity to mark packets as clear
-            clear_packets(ch, get_packets_advancable(ch));
+            // Putting it inside if might give better performance what advancing with 0
+            if(advancable) {
+                clear_packets(ch, get_packets_advancable(ch));
+            }
             return -EAGAIN;
         }
     }
