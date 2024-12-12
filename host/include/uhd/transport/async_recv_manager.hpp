@@ -158,10 +158,6 @@ inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_ur
 	int err = 0;
 	unsigned available;
 	unsigned mask = ring->cq.ring_mask;
-	int shift = 0;
-
-	if (ring->flags & IORING_SETUP_CQE32)
-		shift = 1;
 
 	do {
 		unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
@@ -172,17 +168,17 @@ inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_ur
 		if (!available)
 			break;
 
-		cqe = &ring->cq.cqes[(head & mask) << shift];
-		if (!(ring->features & IORING_FEAT_EXT_ARG) &&
-				cqe->user_data == LIBURING_UDATA_TIMEOUT) {
-			if (cqe->res < 0)
-				err = cqe->res;
-            printf("Advancing in peek\n");
-			io_uring_cq_advance(ring, 1);
-			if (!err)
-				continue;
-			cqe = NULL;
-		}
+		cqe = &ring->cq.cqes[head & mask];
+		// if (!(ring->features & IORING_FEAT_EXT_ARG) &&
+		// 		cqe->user_data == LIBURING_UDATA_TIMEOUT) {
+		// 	if (cqe->res < 0)
+		// 		err = cqe->res;
+  //           printf("Advancing in peek\n");
+		// 	io_uring_cq_advance(ring, 1);
+		// 	if (!err)
+		// 		continue;
+		// 	cqe = NULL;
+		// }
 
 		break;
 	} while (1);
