@@ -99,14 +99,12 @@ _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_co
     }
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
-        arm_recv_multishot(ch, _recv_sockets[0 /*ch*/]);
+        arm_recv_multishot(ch, _recv_sockets[ch]);
     }
 }
 
 async_recv_manager::~async_recv_manager()
 {
-    printf("packets_received: %li\n", packets_received);
-
     // Stop liburing's other threads
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));

@@ -150,8 +150,6 @@ public:
 
     bool slow_consumer_warning_printed = false;
 
-    int64_t packets_received = 0;
-
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
@@ -175,7 +173,6 @@ public:
         }
 
         if(cqe_ptr->res > 0) [[likely]] {
-            packets_received++;
             // If IORING_CQE_F_MORE multishot will continue sending messages
             // TODO: rearm after packet without IORING_CQE_F_MORE or error other than EAGAIN
             if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
