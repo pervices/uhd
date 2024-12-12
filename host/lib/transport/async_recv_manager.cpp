@@ -122,10 +122,8 @@ void async_recv_manager::uring_init(size_t ch) {
     size_t sq_buffer_size = std::ceil(NUM_SQ_URING_ENTRIES * sizeof(struct io_uring_sqe) / (double)PAGE_SIZE) * PAGE_SIZE;
     size_t cq_buffer_size = std::ceil(NUM_CQ_URING_ENTRIES * sizeof(struct io_uring_cqe) / (double)PAGE_SIZE) * PAGE_SIZE;
     // TODO figure out the actual size the buffer needs to be
-    // size_t total_passed_buffer_size = (sq_buffer_size + cq_buffer_size);
-    // void* buffer = mmap(nullptr, total_passed_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
-    size_t total_passed_buffer_size = 16384;
-    void* buffer = aligned_alloc(16384, 16384);
+    size_t total_passed_buffer_size = (sq_buffer_size + cq_buffer_size);
+    void* buffer = mmap(nullptr, total_passed_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     memset(buffer, 0, total_passed_buffer_size);
     // TODO: unmap these during close;
 
