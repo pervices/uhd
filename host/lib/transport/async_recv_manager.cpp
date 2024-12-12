@@ -23,8 +23,8 @@ _packet_data_size(max_sample_bytes_per_packet),
 
 // NOTE: Theoretically padding to the cache line is required to prevent interference between threads, experimentally padding to full pages are required
 
-_packet_pre_pad(0 /*PAGE_SIZE - _header_size*/),
-_padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size + _header_size) / (double)PAGE_SIZE) * PAGE_SIZE)),// + /* Vita header + padding */ _header_size + _packet_pre_pad),
+_packet_pre_pad(PAGE_SIZE - _header_size),
+_padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE) + /* Vita header + padding */ _header_size + _packet_pre_pad),
 
 // NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
 
