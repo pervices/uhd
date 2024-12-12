@@ -10,8 +10,6 @@
 #include <liburing.h>
 #include <uhd/utils/log.hpp>
 
-#include <immintrin.h>
-
 namespace uhd { namespace transport {
 
 struct async_packet_info {
@@ -172,14 +170,14 @@ inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uri
 }
 
 inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_uring *ring) {
+    // No sync needed sync this is being issued in only this thread
     *ring->cq.khead = *ring->cq.khead + 1;
-    _mm_sfence();
 }
 
 inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(struct io_uring_buf_ring *br, int count)
 {
+    // TODO: ensure this is updated in other threads
     br->tail+= count;
-    _mm_sfence();
 }
 
     /**
