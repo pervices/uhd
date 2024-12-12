@@ -135,10 +135,11 @@ void async_recv_manager::uring_init(size_t ch) {
 #ifndef IORING_SETUP_NO_SQARRAY
     #define IORING_SETUP_NO_SQARRAY         (1U << 16)
 #endif
-    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY;
+    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // TODO: find permenant means of setting core to bind to
     uring_params.sq_thread_cpu = (ch +1) * 2;
+    // Ignored if IORING_SETUP_SQPOLL not set
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
     uring_params.sq_thread_idle = 0xfffffff;
     // Kernel sets this according to features supported
