@@ -151,48 +151,27 @@ public:
     bool slow_consumer_warning_printed = false;
 
 inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_uring *ring,
-				      struct io_uring_cqe **cqe_ptr,
-				      unsigned *nr_available)
+				      struct io_uring_cqe **cqe_ptr)
 {
-	struct io_uring_cqe *cqe;
-	int err = 0;
-	unsigned available;
+    unsigned available;
 	unsigned mask = ring->cq.ring_mask;
 
-	do {
-		unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
-		unsigned head = *ring->cq.khead;
+    unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
+    unsigned head = *ring->cq.khead;
 
-		cqe = NULL;
-		available = tail - head;
-		if (!available)
-			break;
-
-		cqe = &ring->cq.cqes[head & mask];
-		// if (!(ring->features & IORING_FEAT_EXT_ARG) &&
-		// 		cqe->user_data == LIBURING_UDATA_TIMEOUT) {
-		// 	if (cqe->res < 0)
-		// 		err = cqe->res;
-  //           printf("Advancing in peek\n");
-		// 	io_uring_cq_advance(ring, 1);
-		// 	if (!err)
-		// 		continue;
-		// 	cqe = NULL;
-		// }
-
-		break;
-	} while (1);
-
-	*cqe_ptr = cqe;
-	if (nr_available)
-		*nr_available = available;
-	return err;
+    available = tail - head;
+    if (available) {
+        *cqe_ptr = &ring->cq.cqes[head & mask];
+    } else {
+        *cqe_ptr = nullptr;
+    }
+    return 0;
 }
 
 inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uring *ring,
 				    struct io_uring_cqe **cqe_ptr)
 {
-	if (!custom__io_uring_peek_cqe(ring, cqe_ptr, NULL) && *cqe_ptr) {
+	if (!custom__io_uring_peek_cqe(ring, cqe_ptr) && *cqe_ptr) {
         return 0;
     } else {
         return -EAGAIN;
