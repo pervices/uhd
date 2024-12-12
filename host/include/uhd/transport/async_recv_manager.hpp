@@ -174,7 +174,7 @@ public:
 
         if(cqe_ptr->res > 0) [[likely]] {
             // If IORING_CQE_F_MORE multishot will continue sending messages
-            // TODO: rearm after packet without IORING_CQE_F_MORE
+            // TODO: rearm after packet without IORING_CQE_F_MORE or error other than EAGAIN
             if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
                 printf("Multishot stopped\n");
                 printf("cqe_ptr->user_data: %llu\n", cqe_ptr->user_data);

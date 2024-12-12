@@ -630,7 +630,6 @@ private:
     void print_overflow_message() {
         // Warn user that an overflow occured
         UHD_LOG_FASTPATH("D");
-        printf("Oflow message\n");
         if(!_using_performance_governor && !_performance_warning_printed) {
             UHD_LOG_FASTPATH("\nRecv overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
             _performance_warning_printed = true;
