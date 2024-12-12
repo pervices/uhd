@@ -160,7 +160,7 @@ inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_ur
 	unsigned mask = ring->cq.ring_mask;
 
 	do {
-		unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
+		unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
 		unsigned head = *ring->cq.khead;
 
 		cqe = NULL;
