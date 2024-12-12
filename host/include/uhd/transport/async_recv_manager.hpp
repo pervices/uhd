@@ -150,11 +150,10 @@ public:
 
     bool slow_consumer_warning_printed = false;
 
-inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_uring *ring,
-				      struct io_uring_cqe **cqe_ptr)
+inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
 {
     unsigned available;
-	unsigned mask = ring->cq.ring_mask;
+    constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
 
     unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
     unsigned head = *ring->cq.khead;
@@ -162,22 +161,11 @@ inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_ur
     available = tail - head;
     if (available) {
         *cqe_ptr = &ring->cq.cqes[head & mask];
-    } else {
-        *cqe_ptr = nullptr;
-    }
-    return 0;
-}
-
-inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uring *ring,
-				    struct io_uring_cqe **cqe_ptr)
-{
-	if (!custom__io_uring_peek_cqe(ring, cqe_ptr) && *cqe_ptr) {
         return 0;
     } else {
+        *cqe_ptr = nullptr;
         return -EAGAIN;
     }
-
-	// return io_uring_wait_cqe_nr(ring, cqe_ptr, 0);
 }
 
     /**
