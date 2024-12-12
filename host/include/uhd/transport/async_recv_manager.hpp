@@ -150,6 +150,9 @@ public:
 
     bool slow_consumer_warning_printed = false;
 
+    // TODO: make this clearer, handle multiple channels and comment
+    int64_t pre_advance = 0;
+
 inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
 {
     unsigned available;
@@ -157,7 +160,7 @@ inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uri
 
     // TODO: prevent possible race conditions
     unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
-    unsigned head = *ring->cq.khead;
+    unsigned head = *ring->cq.khead + (unsigned) pre_advance;
 
     available = tail - head;
     if (available) {
@@ -169,9 +172,9 @@ inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uri
     }
 }
 
-inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_uring *ring) {
-    // No sync needed sync this is being issued in only this thread
-    *ring->cq.khead = *ring->cq.khead + 1;
+inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_uring *ring, unsigned nr) {
+    // TODO: see if syncing with other threads is needed
+    *ring->cq.khead = *ring->cq.khead + nr;
 }
 
 inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(struct io_uring_buf_ring *br, int count)
@@ -220,7 +223,7 @@ inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(st
         } else if (-cqe_ptr->res == ENOBUFS) {
             // Clear this request
             // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-            custom_io_uring_cq_advance(ring);
+            custom_io_uring_cq_advance(ring, 1);
 
             if(!slow_consumer_warning_printed) {
                 printf("_num_packets_consumed[ch]: %li\n", _num_packets_consumed[ch]);
@@ -241,14 +244,16 @@ inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(st
      * @param ch
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
-        custom_io_uring_cq_advance(access_io_urings(ch));
 
         _num_packets_consumed[ch]++;
 
         int64_t packets_advancable = _num_packets_consumed[ch] - _packets_advanced[ch];
+        pre_advance++;
         // Mark packets are clear in batches to improve performance
         if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
             custome_io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
+            custom_io_uring_cq_advance(access_io_urings(ch), pre_advance);
+            pre_advance = 0;
             _packets_advanced[ch] += packets_advancable;
         }
         // io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
