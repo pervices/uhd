@@ -126,7 +126,7 @@ void async_recv_manager::uring_init(size_t ch) {
     void* buffer = mmap(nullptr, total_passed_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     // TODO: unmap these during close;
 
-    if(buffer) {
+    if(buffer == MAP_FAILED) {
         throw uhd::environment_error( "Failed to allocate event buffer" );
     }
 
