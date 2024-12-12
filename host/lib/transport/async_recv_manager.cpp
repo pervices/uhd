@@ -119,14 +119,14 @@ void async_recv_manager::uring_init(size_t ch) {
     struct io_uring_params uring_params;
     memset(&uring_params, 0, sizeof(io_uring_params));
 
-    size_t sq_buffer_size = std::ceil(NUM_CQ_URING_ENTRIES * sizeof(struct io_uring_cqe) / (double)PAGE_SIZE) * PAGE_SIZE;
-    void* sq_buffer = mmap(nullptr, sq_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
-
+    size_t sq_buffer_size = std::ceil(NUM_SQ_URING_ENTRIES * sizeof(struct io_uring_sqe) / (double)PAGE_SIZE) * PAGE_SIZE;
     size_t cq_buffer_size = std::ceil(NUM_CQ_URING_ENTRIES * sizeof(struct io_uring_cqe) / (double)PAGE_SIZE) * PAGE_SIZE;
-    void* cq_buffer = mmap(nullptr, cq_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    // TODO figure out the actual size the buffer needs to be
+    size_t total_passed_buffer_size = (sq_buffer_size + cq_buffer_size);
+    void* buffer = mmap(nullptr, total_passed_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     // TODO: unmap these during close;
 
-    if(sq_buffer == MAP_FAILED || cq_buffer == MAP_FAILED) {
+    if(buffer) {
         throw uhd::environment_error( "Failed to allocate event buffer" );
     }
 
@@ -170,7 +170,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // Initializes the ring to service requests
     // NUM_SQ_URING_ENTRIES: number elements in the submission ring (TODO: figure out difference between it and sq_entries)
     // ring: Information used to access the ring
-    int error = io_uring_queue_init_params(NUM_SQ_URING_ENTRIES, ring, &uring_params);
+    int error = io_uring_queue_init_mem(NUM_SQ_URING_ENTRIES, ring, &uring_params, buffer, total_passed_buffer_size);
     // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
