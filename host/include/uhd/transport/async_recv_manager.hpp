@@ -174,6 +174,12 @@ inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_
     *ring->cq.khead = *ring->cq.khead + 1;
 }
 
+inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(struct io_uring_buf_ring *br, int count)
+{
+    // TODO: ensure this is updated in other threads
+    br->tail+= count;
+}
+
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
@@ -242,7 +248,7 @@ inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_
         int64_t packets_advancable = _num_packets_consumed[ch] - _packets_advanced[ch];
         // Mark packets are clear in batches to improve performance
         if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
+            custome_io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
             _packets_advanced[ch] += packets_advancable;
         }
         // io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
