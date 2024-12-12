@@ -195,10 +195,13 @@ inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_ur
 inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uring *ring,
 				    struct io_uring_cqe **cqe_ptr)
 {
-	if (!custom__io_uring_peek_cqe(ring, cqe_ptr, NULL) && *cqe_ptr)
-		return 0;
+	if (!custom__io_uring_peek_cqe(ring, cqe_ptr, NULL) && *cqe_ptr) {
+        return 0;
+    } else {
+        return -EAGAIN;
+    }
 
-	return io_uring_wait_cqe_nr(ring, cqe_ptr, 0);
+	// return io_uring_wait_cqe_nr(ring, cqe_ptr, 0);
 }
 
     /**
