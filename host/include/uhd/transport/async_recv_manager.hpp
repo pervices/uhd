@@ -163,8 +163,6 @@ public:
         shift = 1;
     }
 
-    printf("T20\n");
-
     do {
         unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
         unsigned head = *ring->cq.khead;
@@ -189,8 +187,13 @@ public:
     } while (1);
 
     *cqe_ptr = cqe;
-    printf("T100\n");
-    return err;
+
+    if(cqe == NULL) {
+
+        return 0;
+    } else {
+        return io_uring_wait_cqe_nr(ring, cqe_ptr, 0);
+    }
 }
 
     /**
