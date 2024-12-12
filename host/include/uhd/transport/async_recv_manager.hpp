@@ -150,6 +150,44 @@ public:
 
     bool slow_consumer_warning_printed = false;
 
+    inline __attribute__((always_inline)) int custom_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
+{
+	struct io_uring_cqe *cqe;
+	int err = 0;
+	unsigned available;
+	unsigned mask = ring->cq.ring_mask;
+	int shift = 0;
+
+	if (ring->flags & IORING_SETUP_CQE32)
+		shift = 1;
+
+	do {
+		unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
+		unsigned head = *ring->cq.khead;
+
+		cqe = NULL;
+		available = tail - head;
+		if (!available)
+			break;
+
+		cqe = &ring->cq.cqes[(head & mask) << shift];
+		if (!(ring->features & IORING_FEAT_EXT_ARG) &&
+				cqe->user_data == LIBURING_UDATA_TIMEOUT) {
+			if (cqe->res < 0)
+				err = cqe->res;
+			io_uring_cq_advance(ring, 1);
+			if (!err)
+				continue;
+			cqe = NULL;
+		}
+
+		break;
+	} while (1);
+
+	*cqe_ptr = cqe;
+	return err;
+}
+
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
@@ -162,7 +200,7 @@ public:
         struct io_uring_cqe *cqe_ptr;
 
         // Checks if a packet is ready
-        int r = io_uring_peek_cqe(ring, &cqe_ptr);
+        int r = custom_peek_cqe(ring, &cqe_ptr);
 
         // The next packet is not ready
         if(r == -EAGAIN) {
