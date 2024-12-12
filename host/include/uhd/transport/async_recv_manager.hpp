@@ -150,50 +150,55 @@ public:
 
     bool slow_consumer_warning_printed = false;
 
-    inline __attribute__((always_inline)) int custom_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr) {
-    printf("T1\n");
+inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_uring *ring,
+				      struct io_uring_cqe **cqe_ptr,
+				      unsigned *nr_available)
+{
+	struct io_uring_cqe *cqe;
+	int err = 0;
+	unsigned available;
+	unsigned mask = ring->cq.ring_mask;
+	int shift = 0;
 
-    struct io_uring_cqe *cqe;
-    int err = 0;
-    unsigned available;
-    unsigned mask = ring->cq.ring_mask;
-    int shift = 0;
+	if (ring->flags & IORING_SETUP_CQE32)
+		shift = 1;
 
-    if (ring->flags & IORING_SETUP_CQE32) {
-        shift = 1;
-    }
+	do {
+		unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
+		unsigned head = *ring->cq.khead;
 
-    do {
-        unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
-        unsigned head = *ring->cq.khead;
+		cqe = NULL;
+		available = tail - head;
+		if (!available)
+			break;
 
-        cqe = NULL;
-        available = tail - head;
-        if (!available)
-            break;
+		cqe = &ring->cq.cqes[(head & mask) << shift];
+		if (!(ring->features & IORING_FEAT_EXT_ARG) &&
+				cqe->user_data == LIBURING_UDATA_TIMEOUT) {
+			if (cqe->res < 0)
+				err = cqe->res;
+			io_uring_cq_advance(ring, 1);
+			if (!err)
+				continue;
+			cqe = NULL;
+		}
 
-        cqe = &ring->cq.cqes[(head & mask) << shift];
-        if (!(ring->features & IORING_FEAT_EXT_ARG) &&
-                cqe->user_data == LIBURING_UDATA_TIMEOUT) {
-            if (cqe->res < 0)
-                err = cqe->res;
-            io_uring_cq_advance(ring, 1);
-            if (!err)
-                continue;
-            cqe = NULL;
-        }
+		break;
+	} while (1);
 
-        break;
-    } while (1);
+	*cqe_ptr = cqe;
+	if (nr_available)
+		*nr_available = available;
+	return err;
+}
 
-    *cqe_ptr = cqe;
+inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uring *ring,
+				    struct io_uring_cqe **cqe_ptr)
+{
+	if (!custom__io_uring_peek_cqe(ring, cqe_ptr, NULL) && *cqe_ptr)
+		return 0;
 
-    if(cqe == NULL) {
-
-        return 0;
-    } else {
-        return io_uring_wait_cqe_nr(ring, cqe_ptr, 0);
-    }
+	return io_uring_wait_cqe_nr(ring, cqe_ptr, 0);
 }
 
     /**
@@ -208,7 +213,7 @@ public:
         struct io_uring_cqe *cqe_ptr;
 
         // Checks if a packet is ready
-        int r = custom_peek_cqe(ring, &cqe_ptr);
+        int r = custom_io_uring_peek_cqe(ring, &cqe_ptr);
 
         // The next packet is not ready
         if(r == -EAGAIN) {
