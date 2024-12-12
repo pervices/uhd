@@ -278,7 +278,7 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    // usleep(10);
+                    usleep(10);
                     // Do nothing
                     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                 }

@@ -149,7 +149,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // uring_params.resv[3];
     // Filled by Kernel with info needed to access submission queue
     // uring_params.sq_off;
-    // Filled by Kernel with info needed to access submission queue
+    // Filled by Kernel with info needed to access completion queue
     // uring_params.cq_off;
 
     struct io_uring* ring = access_io_urings(ch, 0);
@@ -158,11 +158,6 @@ void async_recv_manager::uring_init(size_t ch) {
     // NUM_SQ_URING_ENTRIES: number elements in the submission ring (TODO: figure out difference between it and sq_entries)
     // ring: Information used to access the ring
     int error = io_uring_queue_init_params(NUM_SQ_URING_ENTRIES, ring, &uring_params);
-    // Ideas to try:
-    // IORING_SETUP_DEFER_TASKRUN
-    // IORING_SETUP_NO_MMAP
-    // IORING_SETUP_REGISTERED_FD_ONLY
-    // IORING_SETUP_NO_SQARRAY
     // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
