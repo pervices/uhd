@@ -177,7 +177,7 @@ void async_recv_manager::uring_init(size_t ch) {
         fprintf(stderr, "1 Error when creating io_uring: %s\n", strerror(-error));
         throw uhd::system_error("io_uring error");
     } else {
-        printf("Use %lu bytes of %lu\n", error, total_passed_buffer_size);
+        printf("Use %i bytes of %lu\n", error, total_passed_buffer_size);
     }
 
     // Initializes the ring buffer containing the location to write to
