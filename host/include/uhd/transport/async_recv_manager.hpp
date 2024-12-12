@@ -150,8 +150,6 @@ public:
 
     bool slow_consumer_warning_printed = false;
 
-    unsigned previous_tail = 0;
-
 inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_uring *ring,
 				      struct io_uring_cqe **cqe_ptr,
 				      unsigned *nr_available)
@@ -166,15 +164,11 @@ inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_ur
 		shift = 1;
 
 	do {
+		unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
 		unsigned head = *ring->cq.khead;
 
 		cqe = NULL;
-        available = previous_tail - head;
-        if(!available || previous_tail < head) {
-            unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
-            previous_tail = tail;
-            available = tail - head;
-        }
+		available = tail - head;
 		if (!available)
 			break;
 
