@@ -62,7 +62,7 @@ private:
 
     // Number of packets to receive before updating counts used by other threads
     // TODO: implement batching io_uring_buf_ring_cq_advance calls
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 1024;
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 32768/2;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
