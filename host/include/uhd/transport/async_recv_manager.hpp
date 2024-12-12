@@ -183,6 +183,7 @@ inline __attribute__((always_inline)) int custom__io_uring_peek_cqe(struct io_ur
 				cqe->user_data == LIBURING_UDATA_TIMEOUT) {
 			if (cqe->res < 0)
 				err = cqe->res;
+            printf("Advancing in peek\n");
 			io_uring_cq_advance(ring, 1);
 			if (!err)
 				continue;
