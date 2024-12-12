@@ -131,7 +131,7 @@ void async_recv_manager::uring_init(size_t ch) {
 #ifndef IORING_SETUP_NO_SQARRAY
     #define IORING_SETUP_NO_SQARRAY         (1U << 16)
 #endif
-    uring_params.flags = IORING_SETUP_SQ_AFF | IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY;
+    uring_params.flags = IORING_SETUP_SQ_AFF | IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY | IORING_SETUP_SUBMIT_ALL;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // TODO: find permenant means of setting core to bind to
     uring_params.sq_thread_cpu = (ch +1) * 2;
@@ -158,7 +158,6 @@ void async_recv_manager::uring_init(size_t ch) {
     // IORING_SETUP_DEFER_TASKRUN
     // IORING_SETUP_NO_MMAP
     // IORING_SETUP_REGISTERED_FD_ONLY
-    // IORING_SETUP_NO_SQARRAY
     // TODO: improve error message
     if(error) {
         fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
