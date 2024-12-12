@@ -12,6 +12,8 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
+#include <sys/resource.h>
+
 namespace uhd { namespace transport {
 
 async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
@@ -50,6 +52,10 @@ _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_co
             } else {
                 printf("mmap error: %i\n", errno);
                 printf("mmap error: %s\n", strerror(errno));
+                struct rlimit rlim;
+                getrlimit(RLIMIT_DATA, &rlim);
+                printf("rlim.rlim_cur: %lu\n", rlim.rlim_cur);
+                printf("rlim.rlim_max: %lu\n", rlim.rlim_max);
             }
         }
         throw uhd::environment_error( "Failed to allocate internal buffer" );
