@@ -155,6 +155,7 @@ inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uri
     unsigned available;
     constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
 
+    // TODO: prevent possible race conditions
     unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
     unsigned head = *ring->cq.khead;
 
@@ -166,6 +167,11 @@ inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uri
         *cqe_ptr = nullptr;
         return -EAGAIN;
     }
+}
+
+inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_uring *ring) {
+    // No sync needed sync this is being issued in only this thread
+    *ring->cq.khead = *ring->cq.khead + 1;
 }
 
     /**
@@ -208,7 +214,7 @@ inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uri
         } else if (-cqe_ptr->res == ENOBUFS) {
             // Clear this request
             // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-            io_uring_cq_advance(ring, 1);
+            custom_io_uring_cq_advance(ring);
 
             if(!slow_consumer_warning_printed) {
                 printf("_num_packets_consumed[ch]: %li\n", _num_packets_consumed[ch]);
@@ -229,7 +235,7 @@ inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uri
      * @param ch
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
-        io_uring_cq_advance(access_io_urings(ch), 1);
+        custom_io_uring_cq_advance(access_io_urings(ch));
 
         _num_packets_consumed[ch]++;
 
