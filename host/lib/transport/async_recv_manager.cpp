@@ -151,7 +151,7 @@ void async_recv_manager::uring_init(size_t ch) {
 #endif
     // NOTE: IORING_SETUP_NO_MMAP is only available starting kernel 6.5
     // TODO: check and handle features not supported by older kernels
-    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY | IORING_SETUP_NO_MMAP;
+    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | /*IORING_SETUP_NO_SQARRAY | */ IORING_SETUP_NO_MMAP;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // TODO: find permenant means of setting core to bind to
     uring_params.sq_thread_cpu = (ch +1) * 2;
