@@ -157,7 +157,7 @@ void async_recv_manager::uring_init(size_t ch) {
     uring_params.sq_thread_cpu = (ch +1) * 2;
     // Ignored if IORING_SETUP_SQPOLL not set
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
-    uring_params.sq_thread_idle = 0xfffffff;
+    uring_params.sq_thread_idle = 0;
     // Kernel sets this according to features supported
     // uring_params.features;
     // uring_params.wq_fd;
@@ -175,9 +175,11 @@ void async_recv_manager::uring_init(size_t ch) {
     // ring: Information used to access the ring
     int error = io_uring_queue_init_mem(NUM_SQ_URING_ENTRIES, ring, &uring_params, buffer, total_passed_buffer_size);
     // TODO: improve error message
-    if(error) {
+    if(error < 0) {
         fprintf(stderr, "1 Error when creating io_uring: %s\n", strerror(-error));
         throw uhd::system_error("io_uring error");
+    } else {
+        printf("Use %lu bytes of %lu\n", error, total_passed_buffer_size);
     }
 
     // Initializes the ring buffer containing the location to write to
