@@ -34,7 +34,7 @@ private:
     // Number of packets that can be stored in the buffer
     // Hard limit: 2^15
     // Should be a power of 2
-    static constexpr size_t PACKET_BUFFER_SIZE = 1024;//32768;
+    static constexpr size_t PACKET_BUFFER_SIZE = 32768;
 
     // Mask used to roll over number of packets
     static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
@@ -62,7 +62,7 @@ private:
 
     // Number of packets to receive before updating counts used by other threads
     // TODO: implement batching io_uring_buf_ring_cq_advance calls
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 128; //1024
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 1024;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
