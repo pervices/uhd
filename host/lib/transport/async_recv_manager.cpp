@@ -43,6 +43,15 @@ _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_co
     // Check if memory allocation failed
     // TODO: verify all mallocs and mmaps succeeded
     if(_all_ch_packet_buffers == MAP_FAILED || _io_uring_control_structs == MAP_FAILED) {
+        if(_all_ch_packet_buffers == MAP_FAILED) {
+            uint8_t* tmp = ((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0));
+            if(tmp != MAP_FAILED) {
+                printf("Why?\n");
+            } else {
+                printf("mmap error: %i\n", errno);
+                printf("mmap error: %s\n", strerror(errno));
+            }
+        }
         throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
 
