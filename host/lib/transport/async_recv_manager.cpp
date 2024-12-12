@@ -119,6 +119,17 @@ void async_recv_manager::uring_init(size_t ch) {
     struct io_uring_params uring_params;
     memset(&uring_params, 0, sizeof(io_uring_params));
 
+    size_t sq_buffer_size = std::ceil(NUM_CQ_URING_ENTRIES * sizeof(struct io_uring_cqe) / (double)PAGE_SIZE) * PAGE_SIZE;
+    void* sq_buffer = mmap(nullptr, sq_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+
+    size_t cq_buffer_size = std::ceil(NUM_CQ_URING_ENTRIES * sizeof(struct io_uring_cqe) / (double)PAGE_SIZE) * PAGE_SIZE;
+    void* cq_buffer = mmap(nullptr, cq_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    // TODO: unmap these during close;
+
+    if(sq_buffer == MAP_FAILED || cq_buffer == MAP_FAILED) {
+        throw uhd::environment_error( "Failed to allocate event buffer" );
+    }
+
     // Number of entries that can fit in the submission queue
     // Only 1 submission entry is needed since we are using multishot
     // TODO: see if submission queue can be set to length 1
@@ -135,7 +146,9 @@ void async_recv_manager::uring_init(size_t ch) {
 #ifndef IORING_SETUP_NO_SQARRAY
     #define IORING_SETUP_NO_SQARRAY         (1U << 16)
 #endif
-    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY;
+    // NOTE: IORING_SETUP_NO_MMAP is only available starting kernel 6.5
+    // TODO: check and handle features not supported by older kernels
+    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY | IORING_SETUP_NO_MMAP;
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set
     // TODO: find permenant means of setting core to bind to
     uring_params.sq_thread_cpu = (ch +1) * 2;
@@ -144,7 +157,6 @@ void async_recv_manager::uring_init(size_t ch) {
     uring_params.sq_thread_idle = 0xfffffff;
     // Kernel sets this according to features supported
     // uring_params.features;
-    // Does nothing unless flag IORING_SETUP_ATTACH_WQ is set
     // uring_params.wq_fd;
     // Must be all 0
     // uring_params.resv[3];
