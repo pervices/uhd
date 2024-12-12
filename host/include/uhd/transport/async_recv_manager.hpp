@@ -150,38 +150,41 @@ public:
 
     bool slow_consumer_warning_printed = false;
 
-    // TODO: make this clearer, handle multiple channels and comment
-    int64_t pre_advance = 0;
-
-inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
-{
-    unsigned available;
-    constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
-
-    // TODO: prevent possible race conditions
-    unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
-    unsigned head = *ring->cq.khead + (unsigned) pre_advance;
-
-    available = tail - head;
-    if (available) {
-        *cqe_ptr = &ring->cq.cqes[head & mask];
-        return 0;
-    } else {
-        *cqe_ptr = nullptr;
-        return -EAGAIN;
+    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
+        return _num_packets_consumed[ch] - _packets_advanced[ch];
     }
-}
 
-inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_uring *ring, unsigned nr) {
-    // TODO: see if syncing with other threads is needed
-    *ring->cq.khead = *ring->cq.khead + nr;
-}
+    inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
+    {
+        unsigned available;
+        constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
 
-inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(struct io_uring_buf_ring *br, int count)
-{
-    // TODO: ensure this is updated in other threads
-    br->tail+= count;
-}
+        // TODO: prevent possible race conditions
+        unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
+        unsigned head = *ring->cq.khead + get_packets_advancable(ch);
+
+        available = tail - head;
+        if (available) {
+            *cqe_ptr = &ring->cq.cqes[head & mask];
+            return 0;
+        } else {
+            *cqe_ptr = nullptr;
+            // Since we are caught up, take the opportunity to mark packets as clear
+            clear_packets(ch, get_packets_advancable(ch));
+            return -EAGAIN;
+        }
+    }
+
+    inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_uring *ring, unsigned nr) {
+        // TODO: see if syncing with other threads is needed
+        *ring->cq.khead = *ring->cq.khead + nr;
+    }
+
+    inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(struct io_uring_buf_ring *br, int count)
+    {
+        // TODO: ensure this is updated in other threads
+        br->tail+= count;
+    }
 
     /**
      * Gets information needed to process the next packet.
@@ -195,7 +198,7 @@ inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(st
         struct io_uring_cqe *cqe_ptr;
 
         // Checks if a packet is ready
-        int r = custom_io_uring_peek_cqe(ring, &cqe_ptr);
+        int r = custom_io_uring_peek_cqe(ch, ring, &cqe_ptr);
 
         // The next packet is not ready
         if(r == -EAGAIN) {
@@ -247,16 +250,26 @@ inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(st
 
         _num_packets_consumed[ch]++;
 
-        int64_t packets_advancable = _num_packets_consumed[ch] - _packets_advanced[ch];
-        pre_advance++;
+        unsigned packets_advancable = get_packets_advancable(ch);
         // Mark packets are clear in batches to improve performance
         if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            custome_io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), packets_advancable);
-            custom_io_uring_cq_advance(access_io_urings(ch), pre_advance);
-            pre_advance = 0;
+            clear_packets(ch, packets_advancable);
             _packets_advanced[ch] += packets_advancable;
         }
-        // io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
+    }
+
+    /**
+     * Marks packets as clear
+     * TODO: expand description
+     * @param ch
+     * @param n The number of packets to mark as clear
+    */
+    inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
+
+        custome_io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), n);
+        custom_io_uring_cq_advance(access_io_urings(ch), n);
+        _packets_advanced[ch] += n;
+
     }
 
 
