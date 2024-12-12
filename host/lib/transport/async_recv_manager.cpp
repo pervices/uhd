@@ -126,6 +126,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // void* buffer = mmap(nullptr, total_passed_buffer_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     size_t total_passed_buffer_size = 16384;
     void* buffer = aligned_alloc(16384, 16384);
+    memset(buffer, 0, total_passed_buffer_size);
     // TODO: unmap these during close;
 
     if(buffer == MAP_FAILED) {
