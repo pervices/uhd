@@ -258,7 +258,6 @@ public:
         // Mark packets are clear in batches to improve performance
         if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
             clear_packets(ch, packets_advancable);
-            _packets_advanced[ch] += packets_advancable;
         }
     }
 
