@@ -10,8 +10,6 @@
 #include <liburing.h>
 #include <uhd/utils/log.hpp>
 
-#include <immintrin.h>
-
 namespace uhd { namespace transport {
 
 struct async_packet_info {
@@ -272,10 +270,8 @@ public:
     */
     inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
 
-        _mm_mfence();
         custome_io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), n);
         custom_io_uring_cq_advance(access_io_urings(ch), n);
-        _mm_mfence();
         _packets_advanced[ch] += n;
 
     }
