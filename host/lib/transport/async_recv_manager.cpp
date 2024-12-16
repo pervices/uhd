@@ -86,16 +86,27 @@ _io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_co
     // TODO: see if/how to handle low core count systems
     // int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * device_total_rx_channels) / (double)num_cores );
 
-    for(size_t n = 0; n < _num_ch; n++) {
         uhd::time_spec_t start = uhd::get_system_time();
+    for(size_t ch = 0; ch < _num_ch; ch++) {
 
-        // TODO: flush buffers
-        // while() {
-        //     if(start + 30.0 < uhd::get_system_time()) {
-        //         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-        //         throw std::runtime_error("Timeout while flushing buffers");
-        //     }
-        // }
+        int r;
+
+        // Repeatedly receives packets on the socket to flush it
+        while(true) {
+            uint8_t flush_buffer[1];
+            r = recv(_recv_sockets[ch], flush_buffer, 1, MSG_DONTWAIT);
+            // No packets received, flush complete
+            if(r < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                break;
+            // Unexpected errnor occured
+            } else if (r < 0) {
+                throw std::runtime_error("Error while flusing socket: " + std::string(strerror(errno)));
+            }
+            if(start + 30.0 < uhd::get_system_time()) {
+                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+                throw std::runtime_error("Timeout while flushing buffers");
+            }
+        }
     }
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
