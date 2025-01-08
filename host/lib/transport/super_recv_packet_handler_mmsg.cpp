@@ -664,9 +664,9 @@ private:
         int value = fgetc(file);
 
         if(value == -1) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Read " + path + " failed with error code:" + std::string(strerror(errno)) + ".Unable to check if high order allocation enabled. Having it enabled may cause performance issues. Run \"sudo sysctl -w net.core.high_order_alloc_disable=1\" to disable it.");
-        } else if(value != '1') {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "High order allocation enabled, this may cause performance issues. Run \"sudo sysctl -w net.core.high_order_alloc_disable=1\" to disable it.");
+            UHD_LOG_INFO("RECV_PACKET_HANDLER", "Read " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if high order allocation enabled.\nUHD used to benefit from having higher order allocation disabled but that is no longer the case. You may restore default higher order allocation setting (disabled) if you changed it at the requested of UHD.\n");
+        } else if(value != '0') {
+            UHD_LOG_INFO("RECV_PACKET_HANDLER", "High order allocation disabled. UHD no longer benefits from this being disabled. You may renable it. Run \"sudo sysctl -w net.core.high_order_alloc_disable=0\" to enable it.");
         }
     }
 
