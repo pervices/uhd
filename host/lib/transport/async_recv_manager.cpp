@@ -56,9 +56,15 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
     // Flag to prevent huge pages for the large buffers
     // Not disabling huge pages can cause latency spikes
     // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
-    madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE);
-    madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE);
-    madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE);
+    if( madvise(_network_buffer, _num_ch * NUM_BUFFERS * _individual_network_buffer_size, MADV_NOHUGEPAGE) < 0 ) {
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Error while calling madvise MADV_NOHUGEPAGE for interal buffer 1. Error: " + std::string(strerror(errno)));
+    }
+    if( madvise(_buffer_write_count_buffer, _num_ch * _buffer_write_count_buffer_size, MADV_NOHUGEPAGE) < 0 ) {
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Error while calling madvise MADV_NOHUGEPAGE for interal buffer 2. Error: " + std::string(strerror(errno)));
+    }
+    if( madvise(_packets_stored_buffer, _num_ch * _packets_stored_buffer_size, MADV_NOHUGEPAGE) < 0 ) {
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Error while calling madvise MADV_NOHUGEPAGE for interal buffer 3. Error: " + std::string(strerror(errno)));
+    }
 
     // Create buffers used to store control data for the consumer thread
     size_t active_consumer_buffer_size = _num_ch * sizeof(size_t);
@@ -176,9 +182,13 @@ void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::v
     assert(sizeof(local_variables) == PAGE_SIZE);
 
     // MADV_WILLNEED since this will be accessed often
-    madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED);
+    if( madvise(&local_variables, sizeof(local_variables), MADV_WILLNEED) < 0 ) {
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Error while calling madvise MADV_WILLNEED for local variables. Error: " + std::string(strerror(errno)));
+    }
 
-    madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE);
+    if( madvise(&local_variables, sizeof(local_variables), MADV_NOHUGEPAGE) < 0 ) {
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Error while calling madvise MADV_NOHUGEPAGE for local variables. Error: " + std::string(strerror(errno)));
+    }
 
     local_variables.lv.self = self_;
     local_variables.lv.ch = 0;

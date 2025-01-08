@@ -171,7 +171,9 @@ public:
         recv_manager = (async_recv_manager*) aligned_alloc(page_size, recv_manager_size);
 
         // Prevent the class from being moved to a huge page, causes latency spikes
-        madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
+        if( madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE) < 0 ) {
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER_MMSG", "Error while calling madvise MADV_NOHUGEPAGE for interal buffer. Error: " + std::string(strerror(errno)));
+        }
 
         new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
     }
