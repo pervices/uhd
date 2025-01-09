@@ -11,8 +11,8 @@
 #include <algorithm>
 #include <sys/mman.h>
 #include <sys/syscall.h>
-
 #include <sys/resource.h>
+#include <atomic>
 
 namespace uhd { namespace transport {
 
@@ -49,7 +49,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
 
         // Gets a buffer group ID equal to the number of buffer groups IDs already requested
         _bgid_storage[ch] = bgid_counter++;
-        printf("_bgid_storage[ch]: %li\n", _bgid_storage[ch].load());
+        printf("_bgid_storage[ch]: %li\n", _bgid_storage[ch]);
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
