@@ -38,13 +38,6 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         throw assertion_error("Unsupported number of channels");
     }
 
-    // Flag to prevent huge pages for the large buffers
-    // Not disabling huge pages can cause latency spikes
-    // Theoretically huge pages could be used to improve performance, but doing so would require extensive testing and trial and error
-    // TODO: try optimizing for huge pages
-    // madvise(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size, MADV_NOHUGEPAGE);
-    // madvise(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, MADV_NOHUGEPAGE);
-
     // Initialize control variables to 0
     for(size_t ch = 0; ch < _num_ch; ch++) {
         _num_packets_consumed[ch] = 0;
@@ -71,8 +64,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
     // DEBUG: wait in case this is causing problems
     sleep(1);
 
-    // TODO: see if/how to handle low core count systems
-    // int64_t ch_per_thread = (int64_t) std::ceil( ( MAX_RESOURCE_FRACTION * device_total_rx_channels) / (double)num_cores );
+    // TODO: handle multiple channels on low core count systems
 
         uhd::time_spec_t start = uhd::get_system_time();
     for(size_t ch = 0; ch < _num_ch; ch++) {
@@ -135,9 +127,9 @@ void async_recv_manager::uring_init(size_t ch) {
     #define IORING_SETUP_NO_SQARRAY         (1U << 16)
 #endif
     uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY;
-    // Does nothing unless flag IORING_SETUP_SQ_AFF is set
-    // TODO: find permenant means of setting core to bind to
-    uring_params.sq_thread_cpu = (ch +1) * 2;
+    // Select the core to bind the kernel thread to
+    // Does nothing unless flag IORING_SETUP_SQ_AFF is set.
+    //uring_params.sq_thread_cpu;
     // Ignored if IORING_SETUP_SQPOLL not set
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
     uring_params.sq_thread_idle = 0xfffffff;
@@ -209,13 +201,9 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     // buf is nullptr and len 0 since the buffer is provided by buffer_ring instead of this function
     io_uring_prep_recv_multishot(sqe, fd, nullptr, 0, 0);
 
-    // TODO: replace with system that can handle multile channels, currently bgid of 1 is always used
     sqe->buf_group = _bgid_storage[ch];
 
     // IOSQE_BUFFER_SELECT: indicates to use a registered buffer from io_uring_buf_ring_add
-    // IOSQE_FIXED_FILE: has something to do with registering the file earlier
-    // TODO: implement IOSQE_FIXED_FILE to see if it helps performance
-    // IOSQE_IO_LINK/IOSQE_IO_HARDLINK: forces ordering within a submission. Probably not useful for multishot
     io_uring_sqe_set_flags(sqe, IOSQE_BUFFER_SELECT);
 
     int ret = io_uring_submit(ring);
@@ -246,7 +234,7 @@ void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
 
 void* async_recv_manager::allocate_buffer(size_t size) {
     // MMAP is used instead of aligned_alloc since aligned_alloc may have caused inconsistent performance
-    // TODO: verify if mmap is needed or if aligned_alloc is used instead
+    // TODO: verify if mmap is needed or if aligned_alloc can be used instead
     void* buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if(buffer != MAP_FAILED) {
         return buffer;
