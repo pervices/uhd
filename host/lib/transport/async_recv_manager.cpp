@@ -101,6 +101,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
 
 async_recv_manager::~async_recv_manager()
 {
+    printf("Starting destructor\n");
     // Stop liburing's other threads
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));
@@ -109,6 +110,7 @@ async_recv_manager::~async_recv_manager()
     // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
     munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
+    printf("Ending destructor\n");
 }
 
 void async_recv_manager::uring_init(size_t ch) {

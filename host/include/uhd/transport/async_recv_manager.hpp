@@ -9,7 +9,6 @@
 #include <iostream>
 #include <liburing.h>
 #include <uhd/utils/log.hpp>
-#include <atomic>
 
 #include <immintrin.h>
 
