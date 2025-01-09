@@ -28,26 +28,14 @@ _packet_data_size(max_sample_bytes_per_packet),
 _packet_pre_pad(PAGE_SIZE - _header_size),
 _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE) + /* Vita header + padding */ _header_size + _packet_pre_pad),
 
-// NOTE: Avoid aligned_alloc and use mmap instead. aligned_alloc causes random latency spikes when said memory is being used
-
-_all_ch_packet_buffers((uint8_t*) mmap(nullptr, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0)),
-
-// TODO: replace with aligned alloc if padding is reduced
-_io_uring_control_structs((uint8_t*) mmap(nullptr, _num_ch * _padded_io_uring_control_struct_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))
+_all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size)),
+_io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_control_struct_size))
 
 // Create buffer for flush complete flag in seperate cache lines
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
         throw assertion_error("Unsupported number of channels");
-    }
-
-    // Check if memory allocation failed
-    // TODO: verify all mallocs and mmaps succeeded
-    if(_all_ch_packet_buffers == MAP_FAILED || _io_uring_control_structs == MAP_FAILED) {
-        /// TODO: tell user to increase /proc/sys/vm/nr_hugepages + add fallback to work without it
-
-        throw uhd::environment_error( "Failed to allocate internal buffer" );
     }
 
     // Flag to prevent huge pages for the large buffers
@@ -240,6 +228,31 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
         printf("Submit failed with error code: %s\n", strerror(-ret));
     } else {
         // printf("Multishot setup completed\n");
+    }
+}
+
+void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
+    // Allocate buffer using huge pages (MAP_HUGETLB)
+    void* hugeltb_buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    // If it worked return buffer
+    if(hugeltb_buffer != MAP_FAILED) {
+        return hugeltb_buffer;
+    // Fallback to not using huge pages
+    } else {
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + "bytes using huge pages. Try increasing the value of /proc/sys/vm/nr_hugepages. 100000000 should be more than enough. Reattempting without huge pages.");
+        return allocate_buffer(size);
+    }
+}
+
+void* async_recv_manager::allocate_buffer(size_t size) {
+    // MMAP is used instead of aligned_alloc since aligned_alloc may have caused inconsistent performance
+    // TODO: verify if mmap is needed or if aligned_alloc is used instead
+    void* buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if(buffer != MAP_FAILED) {
+        return buffer;
+    } else {
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + "bytes. Error code: " + std::string(strerror(errno)));
+        throw uhd::environment_error(std::string(strerror(errno)));
     }
 }
 
