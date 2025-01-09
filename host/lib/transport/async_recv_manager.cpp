@@ -16,6 +16,10 @@
 
 namespace uhd { namespace transport {
 
+// A counter for the number of buffer group IDs already obtained across all streamers. Used to get a unique bgid
+// NOTE: This system will need to be updated if/when liburing is implemented for anything else
+static std::atomic<int64_t> bgid_counter(0);
+
 async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 :
 _num_ch(recv_sockets.size()),
@@ -43,8 +47,8 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         _num_packets_consumed[ch] = 0;
         _packets_advanced[ch] = 0;
 
-        // TODO: create system to ensure a unique bgid for every channel across streamers
-        _bgid_storage[ch] = (int64_t) ch + 1;
+        // Gets a buffer group ID equal to the number of buffer groups IDs already requested
+        _bgid_storage[ch] = bgid_counter++;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
