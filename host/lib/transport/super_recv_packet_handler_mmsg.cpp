@@ -684,6 +684,7 @@ private:
 
         if(file == NULL) {
             UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Open " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if what preempt is set to. Having it set to values other than none or voluntary will cause performance issues. Run \"voluntary > /sys/kernel/debug/sched/preempt\" as root to set it to voluntary. You must run the command as the root user (such as by running su). sudo will not work.");
+            return;
         }
 
         char buffer[25];
