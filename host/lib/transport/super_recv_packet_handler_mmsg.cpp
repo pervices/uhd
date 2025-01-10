@@ -93,6 +93,8 @@ public:
         // Performs a check (and if applicable warning message) for potential source of performance issues
         check_high_order_alloc_disable();
 
+        check_pre_empt();
+
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -647,8 +649,8 @@ private:
 
     /*
      * Check if higher order allocation is enabled.
-     * I have experimentally verified that this can cause issues and should be disabled on: Linux wave 6.6.7-arch1-1 #1 SMP PREEMPT_DYNAMIC Thu, 14 Dec 2023 03:45:42 +0000 x86_64 GNU/Linux. The issue is likely due to frequent de and re allocation since the socket's receive buffers (controlled by SO_RCVBUF) are dynamically sized. If a feature is introduced to make those buffers a fixed size then that should be tested.
-     * Documentation: https://docs.kernel.org/admin-guide/sysctl/net.html#high-order-alloc-disable
+     * Informs the user if it is disabled. Older UHD versions could benefit on some CPUs but it worsens performance on others.
+     * Let's the user know they can re-enable it since they likely only disabled it due to previous warnings.
      */
     void check_high_order_alloc_disable() {
         std::string path = "/proc/sys/net/core/high_order_alloc_disable";
@@ -667,6 +669,34 @@ private:
             UHD_LOG_INFO("RECV_PACKET_HANDLER", "Read " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if high order allocation enabled.\nUHD used to benefit from having higher order allocation disabled but that is no longer the case. You may restore default higher order allocation setting (disabled) if you changed it at the requested of UHD.\n");
         } else if(value != '0') {
             UHD_LOG_INFO("RECV_PACKET_HANDLER", "High order allocation disabled. UHD no longer benefits from this being disabled. You may renable it. Run \"sudo sysctl -w net.core.high_order_alloc_disable=0\" to enable it.");
+        }
+    }
+
+    void check_pre_empt() {
+        std::string path = "/sys/kernel/debug/sched/preempt";
+
+        FILE *file;
+
+        file = fopen(path.c_str(), "r");
+
+        if(file == NULL) {
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Open " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if what preempt is set to. Having it set to values other than none or voluntary will cause performance issues. Run \"voluntary > /sys/kernel/debug/sched/preempt\" as root to set it to voluntary. You must run the command as the root user (such as by running su). sudo will not work.");
+        }
+
+        char buffer[25];
+        char* r = fgets(buffer, 25, file);
+        std::string value;
+        if(r != nullptr) {
+            value = std::string(buffer);
+        } else {
+            value = "";
+        }
+        std::cout << "value: " << value << std::endl;
+
+        if(value != "none" && value != "voluntary") {
+            std::cout << "Not none of voluntary\n";
+        } else {
+            std::cout << "Is none or voluntary\n";
         }
     }
 
