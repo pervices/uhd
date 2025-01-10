@@ -660,7 +660,10 @@ private:
         file = fopen(path.c_str(), "r");
 
         if(file == NULL) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Open " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if high order allocation enabled. Having it enabled may cause performance issues. Run \"sudo sysctl -w net.core.high_order_alloc_disable=1\" to disable it.");
+            // Unable to open file, skip check
+            // The likely cause is that this is running on a very old kernel (such as RedHat 8's 4.18.0-553.33.1.el8_10.x86_64)
+            // Therefore don't warn the user since there is no action to take
+            return;
         }
 
         int value = fgetc(file);
