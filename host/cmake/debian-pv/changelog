@@ -1,3 +1,9 @@
+uhdpv (4.4.0.51-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fix crash with kernels without "/proc/sys/net/core/high_order_alloc_disable" implemented such as RedHat 8's 4.18.0 kernel
+
+ -- Per Vices <packages@pervices.com>  Fri, 10 Jan 2025 16:23:06 -0500
+
 uhdpv (4.4.0.50-0ubuntu1) ubuntu_release; urgency=low
 
   * Removing spurious warning
