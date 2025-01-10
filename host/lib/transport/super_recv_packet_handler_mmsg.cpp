@@ -683,8 +683,13 @@ private:
         file = fopen(path.c_str(), "r");
 
         if(file == NULL) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Open " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if what preempt is set to. Having it set to values other than none or voluntary will cause performance issues. Run \"voluntary > /sys/kernel/debug/sched/preempt\" as root to set it to voluntary. You must run the command as the root user (such as by running su). sudo will not work.");
-            return;
+            if(errno == EACCES) {
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting. Check " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.\nTo allow this check to work successfully either run this program with sudo or give this user read access to " + path);
+                return;
+            } else  {
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code:" + std::string(strerror(errno)) + "\nCheck " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.");
+                return;
+            }
         }
 
         char buffer[25];
