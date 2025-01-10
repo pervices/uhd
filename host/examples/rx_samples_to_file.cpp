@@ -554,20 +554,20 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
-    const double req_disk_rate = usrp->get_rx_rate(channel_list[0]) * channel_list.size()
-                                 * uhd::convert::get_bytes_per_item(wirefmt);
-    const double disk_rate_meas = disk_rate_check(
-        uhd::convert::get_bytes_per_item(wirefmt), channel_list.size(), spb, file);
-    if (disk_rate_meas > 0 && req_disk_rate >= disk_rate_meas) {
-        std::cerr
-            << boost::format(
-                   "  Disk write test indicates that an overflow is likely to occur.\n"
-                   "  Your write medium must sustain a rate of %0.3fMB/s,\n"
-                   "  but write test returned write speed of %0.3fMB/s.\n"
-                   "  The disk write rate is also affected by system load\n"
-                   "  and OS/disk caching capacity.\n")
-                   % (req_disk_rate / 1e6) % (disk_rate_meas / 1e6);
-    }
+    // const double req_disk_rate = usrp->get_rx_rate(channel_list[0]) * channel_list.size()
+    //                              * uhd::convert::get_bytes_per_item(wirefmt);
+    // const double disk_rate_meas = disk_rate_check(
+    //     uhd::convert::get_bytes_per_item(wirefmt), channel_list.size(), spb, file);
+    // if (disk_rate_meas > 0 && req_disk_rate >= disk_rate_meas) {
+    //     std::cerr
+    //         << boost::format(
+    //                "  Disk write test indicates that an overflow is likely to occur.\n"
+    //                "  Your write medium must sustain a rate of %0.3fMB/s,\n"
+    //                "  but write test returned write speed of %0.3fMB/s.\n"
+    //                "  The disk write rate is also affected by system load\n"
+    //                "  and OS/disk caching capacity.\n")
+    //                % (req_disk_rate / 1e6) % (disk_rate_meas / 1e6);
+    // }
 
     std::signal(SIGINT, &sig_int_handler);
     if (total_num_samps == 0) {
