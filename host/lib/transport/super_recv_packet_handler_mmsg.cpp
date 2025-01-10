@@ -697,7 +697,7 @@ private:
         }
         std::cout << "value: " << value << std::endl;
 
-        if(value != "none" && value != "voluntary") {
+        if(value.find("(none)") != std::string::npos && value.find("(voluntary)") != std::string::npos) {
             std::cout << "Not none of voluntary\n";
         } else {
             std::cout << "Is none or voluntary\n";
