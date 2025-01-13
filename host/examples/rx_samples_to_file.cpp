@@ -72,18 +72,26 @@ double disk_rate_check(const size_t sample_type_size,
         + " bs=" + std::to_string(samps_per_buff * channel_count * sample_type_size)
         + " count=100";
 
+    printf("T30\n");
+
     try {
         boost::process::child c(
             disk_check_proc_str, boost::process::std_err > pipe_stream);
 
+        printf("T40\n");
+
         auto timeout = std::chrono::steady_clock::now() + 1s;
         while(!c.joinable()) {
             if(timeout > std::chrono::steady_clock::now()) {
+                printf("T45\n");
                 kill(c.id(), SIGINT);
             }
         }
+        printf("T50\n");
         c.join();
+        printf("T60\n");
     } catch (std::system_error& err) {
+        printf("E1\n");
         std::cerr << err_msg << std::endl;
         if (boost::filesystem::exists(temp_file)) {
             boost::filesystem::remove(temp_file);
@@ -94,11 +102,14 @@ double disk_rate_check(const size_t sample_type_size,
     // leave a temporary file on program exit.
     boost::filesystem::remove(temp_file);
 
+    printf("T70\n");
+
     std::string line;
     std::string dd_output;
     while (pipe_stream && std::getline(pipe_stream, line) && !line.empty()) {
         dd_output += line;
     }
+    printf("T80\n");
 
     // Parse dd output this format:
     //   1+0 records in
