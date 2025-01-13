@@ -164,8 +164,6 @@ public:
             _using_performance_governor = false;
         }
 
-        printf("sizeof(recv_manager): %lu\n", sizeof(recv_manager));
-
         // Create manager for receive threads and access to buffer recv data
         size_t page_size = getpagesize();
         // Create manager for threads that receive data to buffers using placement new to avoid false sharing
@@ -350,7 +348,6 @@ public:
             }
 
             if(realignment_required) [[unlikely]] {
-                printf("Realignment attempted\n");
                 if(realignment_attempts >= max_realignment_attempts) {
                     if(!align_message_printed) {
                         UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
@@ -700,12 +697,10 @@ private:
         } else {
             value = "";
         }
-        std::cout << "value: " << value << std::endl;
 
         if(value.find("(none)") != std::string::npos && value.find("(voluntary)") != std::string::npos) {
-            std::cout << "Not none of voluntary\n";
         } else {
-            std::cout << "Is none or voluntary\n";
+             UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. It must be run as root user, sudo will not work.");
         }
     }
 
