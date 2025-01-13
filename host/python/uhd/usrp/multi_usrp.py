@@ -26,6 +26,7 @@ class MultiUSRP(lib.usrp.multi_usrp):
     MultiUSRP object for controlling devices
     """
     def __init__(self, args=""):
+        print("MultiUSRP __init__")
         """MultiUSRP constructor"""
         super(MultiUSRP, self).__init__(args)
         # If we're on an MPM device, dynamically add this method to access the
