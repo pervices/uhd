@@ -94,13 +94,13 @@ double disk_rate_check(const size_t sample_type_size,
         return 0;
     }
 
-    if(dd_timeout) {
-        std::cerr << "Disk benchmark tool 'dd' timed out" << std::endl;
-        if (boost::filesystem::exists(temp_file)) {
-            boost::filesystem::remove(temp_file);
-        }
-        return 0;
-    }
+    // if(dd_timeout) {
+    //     std::cerr << "Disk benchmark tool 'dd' timed out" << std::endl;
+    //     if (boost::filesystem::exists(temp_file)) {
+    //         boost::filesystem::remove(temp_file);
+    //     }
+    //     return 0;
+    // }
     // sig_int_handler will absorb SIGINT by this point, but other signals may
     // leave a temporary file on program exit.
     boost::filesystem::remove(temp_file);
@@ -109,6 +109,11 @@ double disk_rate_check(const size_t sample_type_size,
     std::string dd_output;
     while (pipe_stream && std::getline(pipe_stream, line) && !line.empty()) {
         dd_output += line;
+    }
+    if(dd_timeout) {
+        std::cout << "dd_output:\n" << dd_output << std::endl;
+    } else {
+        printf("No timeout\n");
     }
 
     // Parse dd output this format:
