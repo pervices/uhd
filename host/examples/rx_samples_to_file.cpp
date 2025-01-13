@@ -65,6 +65,8 @@ double disk_rate_check(const size_t sample_type_size,
     boost::filesystem::path temp_file =
         boost::filesystem::path(file).parent_path() / boost::filesystem::unique_path();
 
+    printf("T20\n");
+
     std::string disk_check_proc_str =
         "dd if=/dev/random of=" + temp_file.native()
         + " bs=" + std::to_string(samps_per_buff * channel_count * sample_type_size)
@@ -554,10 +556,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
+    printf("T1\n");
     const double req_disk_rate = usrp->get_rx_rate(channel_list[0]) * channel_list.size()
                                  * uhd::convert::get_bytes_per_item(wirefmt);
+    printf("T10\n");
     const double disk_rate_meas = disk_rate_check(
         uhd::convert::get_bytes_per_item(wirefmt), channel_list.size(), spb, file);
+
+    printf("T1000\n");
     if (disk_rate_meas > 0 && req_disk_rate >= disk_rate_meas) {
         std::cerr
             << boost::format(
