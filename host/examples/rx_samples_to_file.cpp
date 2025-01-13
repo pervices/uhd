@@ -88,6 +88,11 @@ double disk_rate_check(const size_t sample_type_size,
                 kill(c.id(), SIGINT);
             }
         }
+        if(c.valid()) {
+            printf("valid\n");
+        } else {
+            printf("not valid\n");
+        }
         printf("T50\n");
         c.join();
         printf("T60\n");
