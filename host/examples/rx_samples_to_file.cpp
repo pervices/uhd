@@ -78,13 +78,9 @@ double disk_rate_check(const size_t sample_type_size,
         boost::process::child c(
             disk_check_proc_str, boost::process::std_err > pipe_stream);
 
-        printf("T40\n");
-        ::sleep(10);
-
-        auto timeout = std::chrono::steady_clock::now() + 1s;
+        auto timeout = std::chrono::steady_clock::now() + 10s;
         while(c.running()) {
             if(timeout > std::chrono::steady_clock::now()) {
-                printf("T45\n");
                 kill(c.id(), SIGINT);
             }
         }
