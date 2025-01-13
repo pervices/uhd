@@ -1399,6 +1399,7 @@ public:
     void set_rx_gain(double gain, const std::string& name, size_t chan) override
     {
         printf("set_rx_gain 1\n");
+        printf("set_rx_gain chan: %lu\n", chan);
         try {
             get_device()->set_rx_gain(gain, name, chan);
         } catch (uhd::key_error&) {
