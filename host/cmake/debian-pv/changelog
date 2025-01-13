@@ -1,3 +1,9 @@
+uhdpv (4.4.0.52-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fix rate check in rx_samples_to_file on RedHat 8
+
+ -- Per Vices <packages@pervices.com>  Mon, 13 Jan 2025 13:40:57 -0500
+
 uhdpv (4.4.0.51-0ubuntu1) ubuntu_release; urgency=low
 
   * Fix crash with kernels without "/proc/sys/net/core/high_order_alloc_disable" implemented such as RedHat 8's 4.18.0 kernel
