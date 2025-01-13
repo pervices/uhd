@@ -81,7 +81,7 @@ double disk_rate_check(const size_t sample_type_size,
         // Waits for child process to start
         auto start_timeout = std::chrono::steady_clock::now() + 1s;
         while(!c.joinable()) {
-            if(timeout > std::chrono::steady_clock::now()) {
+            if(start_timeout > std::chrono::steady_clock::now()) {
                 kill(c.id(), SIGINT);
                 dd_timeout = true;
             }
@@ -90,7 +90,7 @@ double disk_rate_check(const size_t sample_type_size,
         // Waits for child process to finish
         auto end_timeout = std::chrono::steady_clock::now() + 5s;
         while(c.running()) {
-            if(timeout > std::chrono::steady_clock::now()) {
+            if(end_timeout > std::chrono::steady_clock::now()) {
                 kill(c.id(), SIGINT);
                 dd_timeout = true;
             }
