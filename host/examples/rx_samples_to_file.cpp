@@ -82,7 +82,7 @@ double disk_rate_check(const size_t sample_type_size,
         ::sleep(10);
 
         auto timeout = std::chrono::steady_clock::now() + 1s;
-        while(!c.joinable()) {
+        while(!c.running()) {
             if(timeout > std::chrono::steady_clock::now()) {
                 printf("T45\n");
                 kill(c.id(), SIGINT);
