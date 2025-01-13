@@ -2637,6 +2637,12 @@ private:
 
     mboard_chan_pair rx_chan_to_mcp(size_t chan)
     {
+        // Error check for when requesting a channel that does no exist
+        // The part about GNU Radio is there because a common mistake in GNU Radio is to have a mismatch between the length of the channel list and the channel count, which GNU Radio does not detect it
+        if(chan >= get_rx_num_channels()) {
+            throw uhd::index_error("MULTI_USRP: attempted operation involving RX channel " + std::to_string(chan) + " but only " + std::to_string(get_rx_num_channels()) + " channels exist. If you are using GNU Radio Companion ensure that the length of \"Stream channels\" matches \"Num Channels\" in your USRP Source blocks.");
+        }
+
         mboard_chan_pair mcp;
         mcp.chan = chan;
         for (mcp.mboard = 0; mcp.mboard < get_num_mboards(); mcp.mboard++) {
@@ -2656,6 +2662,12 @@ private:
 
     mboard_chan_pair tx_chan_to_mcp(size_t chan)
     {
+        // Error check for when requesting a channel that does no exist
+        // The part about GNU Radio is there because a common mistake in GNU Radio is to have a mismatch between the length of the channel list and the channel count, which GNU Radio does not detect it
+        if(chan >= get_tx_num_channels()) {
+            throw uhd::index_error("MULTI_USRP: attempted operation involving TX channel " + std::to_string(chan) + " but only " + std::to_string(get_tx_num_channels()) + " channels exist. If you are using GNU Radio Companion ensure that the length of \"Stream channels\" matches \"Num Channels\" in your USRP Source blocks.");
+        }
+
         mboard_chan_pair mcp;
         mcp.chan = chan;
         for (mcp.mboard = 0; mcp.mboard < get_num_mboards(); mcp.mboard++) {
