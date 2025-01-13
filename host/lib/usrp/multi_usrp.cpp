@@ -875,6 +875,7 @@ public:
     }
 
     tune_result_t set_rx_freq(const tune_request_t &tune_request, size_t chan){
+        printf("set_rx_freq 1\n");
         // If any mixer is driven by an external LO the daughterboard assumes that no CORDIC correction is
         // necessary. Since the LO might be sourced from another daughterboard which would normally apply a
         // cordic correction a manual DSP tune policy should be used to ensure identical configurations across
@@ -896,6 +897,7 @@ public:
         }
         tune_result_t actual_freq = get_device()->set_rx_freq(tune_request, chan);
         do_freq_warning_message(tune_request.target_freq, actual_freq.actual_rf_freq - actual_freq.actual_dsp_freq, "RX" + std::to_string(chan));
+        printf("set_rx_freq 2\n");
         return actual_freq;
     }
 
@@ -1396,11 +1398,13 @@ public:
      *************************************************************************/
     void set_rx_gain(double gain, const std::string& name, size_t chan) override
     {
+        printf("set_rx_gain 1\n");
         try {
             get_device()->set_rx_gain(gain, name, chan);
         } catch (uhd::key_error&) {
             THROW_GAIN_NAME_ERROR(name, chan, rx);
         }
+        printf("set_rx_gain 2\n");
     }
 
 
