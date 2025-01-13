@@ -2643,6 +2643,7 @@ private:
 
     mboard_chan_pair rx_chan_to_mcp(size_t chan)
     {
+        printf("rx_chan_to_mcp: %lu\n", chan);
         mboard_chan_pair mcp;
         mcp.chan = chan;
         for (mcp.mboard = 0; mcp.mboard < get_num_mboards(); mcp.mboard++) {
