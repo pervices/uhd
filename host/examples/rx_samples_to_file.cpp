@@ -78,7 +78,7 @@ double disk_rate_check(const size_t sample_type_size,
         boost::process::child c(
             disk_check_proc_str, boost::process::std_err > pipe_stream);
 
-        dd_timeout = !wait_for(5s);
+        dd_timeout = !c.wait_for(5s);
 
         if(dd_timeout) {
             kill(c.id(), SIGINT);
