@@ -196,6 +196,7 @@ public:
 
     dict<std::string, std::string> get_usrp_rx_info(size_t chan){
 
+        printf("get_usrp_rx_info: %lu\n", chan);
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
 
         dict<std::string, std::string> usrp_info;
@@ -2696,6 +2697,7 @@ private:
 
     fs_path rx_dsp_root(const size_t chan)
     {
+        printf("rx_dsp_root: %lu\n", chan);
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
 
         if (_tree->exists(mb_root(mcp.mboard) / "rx_chan_dsp_mapping")) {
@@ -2760,6 +2762,7 @@ private:
 
     fs_path rx_fe_root(const size_t chan)
     {
+        printf("rx_fe_root: %lu\n", chan);
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         try {
             const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
@@ -2814,6 +2817,7 @@ private:
 
     fs_path rx_rf_fe_root(const size_t chan)
     {
+        printf("rx_rf_fe_root: %lu\n", chan);
         mboard_chan_pair mcp = rx_chan_to_mcp(chan);
         try {
             const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
@@ -2842,6 +2846,7 @@ private:
 
     gain_group::sptr rx_gain_group(size_t chan)
     {
+        printf("rx_gain_group: %lu\n", chan);
         mboard_chan_pair mcp          = rx_chan_to_mcp(chan);
         const subdev_spec_pair_t spec = get_rx_subdev_spec(mcp.mboard).at(mcp.chan);
         gain_group::sptr gg           = gain_group::make();
