@@ -79,7 +79,7 @@ double disk_rate_check(const size_t sample_type_size,
             disk_check_proc_str, boost::process::std_err > pipe_stream);
 
         printf("T40\n");
-        ::sleep(1);
+        ::sleep(10);
 
         auto timeout = std::chrono::steady_clock::now() + 1s;
         while(!c.joinable()) {
