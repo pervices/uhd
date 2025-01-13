@@ -2644,8 +2644,7 @@ private:
     mboard_chan_pair rx_chan_to_mcp(size_t chan)
     {
         if(chan >= get_rx_num_channels()) {
-            UHD_LOG_ERROR("MULTI_USRP", "Attempted operation involving rx channel " + std::to_string(chan) + " but only " + std::to_string(get_rx_num_channels()) + " channels exist. If you are using GNU Radio Companion ensure that the length of \"Stream channels\" matches \"Num Channels\" in your USRP Source blocks.");
-            throw uhd::index_error("MULTI_USRP: attempted operation involving rx channel " + std::to_string(chan) + " but only " + std::to_string(get_rx_num_channels()) + " channels exist");
+            throw uhd::index_error("MULTI_USRP: attempted operation involving RX channel " + std::to_string(chan) + " but only " + std::to_string(get_rx_num_channels()) + " channels exist. If you are using GNU Radio Companion ensure that the length of \"Stream channels\" matches \"Num Channels\" in your USRP Source blocks.");
         }
         printf("rx_chan_to_mcp: %lu\n", chan);
         mboard_chan_pair mcp;
@@ -2668,8 +2667,7 @@ private:
     mboard_chan_pair tx_chan_to_mcp(size_t chan)
     {
         if(chan >= get_tx_num_channels()) {
-            UHD_LOG_ERROR("MULTI_USRP", "Attempted operation involving tx channel " + std::to_string(chan) + " but only " + std::to_string(get_tx_num_channels()) + " channels exist. If you are using GNU Radio Companion ensure that the length of \"Stream channels\" matches \"Num Channels\" in your USRP Source blocks.");
-            throw uhd::index_error("MULTI_USRP: attempted operation involving tx channel " + std::to_string(chan) + " but only " + std::to_string(get_tx_num_channels()) + " channels exist");
+            throw uhd::index_error("MULTI_USRP: attempted operation involving TX channel " + std::to_string(chan) + " but only " + std::to_string(get_tx_num_channels()) + " channels exist. If you are using GNU Radio Companion ensure that the length of \"Stream channels\" matches \"Num Channels\" in your USRP Source blocks.");
         }
         mboard_chan_pair mcp;
         mcp.chan = chan;
