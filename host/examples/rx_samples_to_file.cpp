@@ -116,6 +116,7 @@ double disk_rate_check(const size_t sample_type_size,
     while (pipe_stream && std::getline(pipe_stream, line) && !line.empty()) {
         dd_output += line;
     }
+    std::cout << "dd_output:\n" << dd_output << std::endl;
     printf("T80\n");
 
     // Parse dd output this format:
