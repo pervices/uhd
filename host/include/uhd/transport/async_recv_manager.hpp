@@ -42,6 +42,7 @@ private:
     static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
 
     static constexpr size_t PAGE_SIZE = 4096;
+    static constexpr size_t HUGE_PAGE_SIZE = 2048 * 1024;
 
     // Number of channls managed by this streamer
     const uint_fast32_t _num_ch;
