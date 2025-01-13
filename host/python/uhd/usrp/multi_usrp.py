@@ -96,6 +96,7 @@ class MultiUSRP(lib.usrp.multi_usrp):
                 pass
         ## And go!
         # Configure USRP
+        print("channels: " + str(channels))
         for chan in channels:
             super(MultiUSRP, self).set_rx_rate(rate, chan)
             super(MultiUSRP, self).set_rx_freq(lib.types.tune_request(freq), chan)
