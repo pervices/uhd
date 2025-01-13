@@ -65,8 +65,10 @@ double disk_rate_check(const size_t sample_type_size,
     boost::filesystem::path temp_file =
         boost::filesystem::path(file).parent_path() / boost::filesystem::unique_path();
 
+    // Use /dev/urandom instead of /dev/random to get data
+    // On RedHat 8 /dev/random will provide a few bytes before hanging
     std::string disk_check_proc_str =
-        "dd if=/dev/random of=" + temp_file.native()
+        "dd if=/dev/urandom of=" + temp_file.native()
         + " bs=" + std::to_string(samps_per_buff * channel_count * sample_type_size)
         + " count=100";
 
