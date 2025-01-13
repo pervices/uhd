@@ -78,24 +78,13 @@ double disk_rate_check(const size_t sample_type_size,
         boost::process::child c(
             disk_check_proc_str, boost::process::std_err > pipe_stream);
 
-        // Waits for child process to start
-        auto start_timeout = std::chrono::steady_clock::now() + 1s;
-        while(!c.joinable()) {
-            if(start_timeout > std::chrono::steady_clock::now()) {
-                kill(c.id(), SIGINT);
-                dd_timeout = true;
-            }
+        dd_timeout = !wait_for(5s);
+
+        if(dd_timeout) {
+            kill(c.id(), SIGINT);
+            c.join();
         }
 
-        // Waits for child process to finish
-        auto end_timeout = std::chrono::steady_clock::now() + 5s;
-        while(c.running()) {
-            if(end_timeout > std::chrono::steady_clock::now()) {
-                kill(c.id(), SIGINT);
-                dd_timeout = true;
-            }
-        }
-        c.join();
     } catch (std::system_error& err) {
         std::cerr << err_msg << std::endl;
         if (boost::filesystem::exists(temp_file)) {
