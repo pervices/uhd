@@ -93,6 +93,11 @@ double disk_rate_check(const size_t sample_type_size,
         } else {
             printf("not valid\n");
         }
+        if(c.running()) {
+            printf("running\n");
+        } else {
+            printf("not running\n");
+        }
         printf("T50\n");
         c.join();
         printf("T60\n");
