@@ -74,13 +74,21 @@ double disk_rate_check(const size_t sample_type_size,
 
     bool dd_timeout = false;
     try {
+        // Create child process to run dd disk check
         boost::process::child c(
             disk_check_proc_str, boost::process::std_err > pipe_stream);
 
-        ::sleep(10);
+        // Waits for child process to start
+        auto start_timeout = std::chrono::steady_clock::now() + 1s;
+        while(c.!joinable) {
+            if(timeout > std::chrono::steady_clock::now()) {
+                kill(c.id(), SIGINT);
+                dd_timeout = true;
+            }
+        }
 
-        auto timeout = std::chrono::steady_clock::now() + 5s;
-        // Waits for dd to finish with a tiemout
+        // Waits for child process to finish
+        auto end_timeout = std::chrono::steady_clock::now() + 5s;
         while(c.running()) {
             if(timeout > std::chrono::steady_clock::now()) {
                 kill(c.id(), SIGINT);
@@ -96,13 +104,14 @@ double disk_rate_check(const size_t sample_type_size,
         return 0;
     }
 
-    // if(dd_timeout) {
-    //     std::cerr << "Disk benchmark tool 'dd' timed out" << std::endl;
-    //     if (boost::filesystem::exists(temp_file)) {
-    //         boost::filesystem::remove(temp_file);
-    //     }
-    //     return 0;
-    // }
+    if(dd_timeout) {
+        std::cerr << "Disk benchmark tool 'dd' timed out" << std::endl;
+        if (boost::filesystem::exists(temp_file)) {
+            boost::filesystem::remove(temp_file);
+        }
+        return 0;
+    }
+
     // sig_int_handler will absorb SIGINT by this point, but other signals may
     // leave a temporary file on program exit.
     boost::filesystem::remove(temp_file);
@@ -111,11 +120,6 @@ double disk_rate_check(const size_t sample_type_size,
     std::string dd_output;
     while (pipe_stream && std::getline(pipe_stream, line) && !line.empty()) {
         dd_output += line;
-    }
-    if(dd_timeout) {
-        std::cout << "dd_output:\n" << dd_output << std::endl;
-    } else {
-        printf("No timeout\n");
     }
 
     // Parse dd output this format:
