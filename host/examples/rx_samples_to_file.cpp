@@ -72,6 +72,8 @@ double disk_rate_check(const size_t sample_type_size,
         + " bs=" + std::to_string(samps_per_buff * channel_count * sample_type_size)
         + " count=100";
 
+    std::cout << "disk_check_proc_str:\n" << disk_check_proc_str << std::endl;
+
     printf("T30\n");
 
     try {
