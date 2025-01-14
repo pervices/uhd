@@ -94,6 +94,9 @@ public:
         // Performs a check (and if applicable warning message) for potential source of performance issues
         check_high_order_alloc_disable();
 
+        // Checks if preemption is disabled/voluntary and warns user if it is not
+        check_pre_empt();
+
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -727,6 +730,41 @@ private:
             UHD_LOG_INFO("RECV_PACKET_HANDLER", "Read " + path + " failed with error code:" + std::string(strerror(errno)) + ". Unable to check if high order allocation enabled.\nUHD used to benefit from having higher order allocation disabled but that is no longer the case. You may restore default higher order allocation setting (disabled) if you changed it at the requested of UHD.\n");
         } else if(value != '0') {
             UHD_LOG_INFO("RECV_PACKET_HANDLER", "High order allocation disabled. UHD no longer benefits from this being disabled. You may renable it. Run \"sudo sysctl -w net.core.high_order_alloc_disable=0\" to enable it.");
+        }
+    }
+
+    /*
+     * Checks if preemption is set to full.
+     * Preemption can cause occasional brief latency spikes that cause overflows at high sample rates
+     */
+    void check_pre_empt() {
+        std::string path = "/sys/kernel/debug/sched/preempt";
+
+        FILE *file;
+
+        file = fopen(path.c_str(), "r");
+
+        if(file == NULL) {
+            if(errno == EACCES) {
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting. Check " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.\nTo allow this check to work successfully either run this program with sudo or give this user read access to " + path);
+                return;
+            } else  {
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code:" + std::string(strerror(errno)) + "\nCheck " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.");
+                return;
+            }
+        }
+
+        char buffer[25];
+        char* r = fgets(buffer, 25, file);
+        std::string value;
+        if(r != nullptr) {
+            value = std::string(buffer);
+        } else {
+            value = "";
+        }
+
+        if(value.find("(none)") == std::string::npos && value.find("(voluntary)") == std::string::npos) {
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. It must be run as root user, sudo will not work.");
         }
     }
 
