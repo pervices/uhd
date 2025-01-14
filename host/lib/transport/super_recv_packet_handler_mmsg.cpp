@@ -99,7 +99,7 @@ public:
         check_pre_empt();
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-            get_dev_from_ipv4(dst_ip[n]);
+            check_rx_ring_buffer_size(dst_ip[n]);
         }
 
         // Performs socket setup
@@ -771,6 +771,13 @@ private:
         if(value.find("(none)") == std::string::npos && value.find("(voluntary)") == std::string::npos) {
             UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. It must be run as root user, sudo will not work.");
         }
+    }
+
+    /**
+     * Checks if the rx ring buffer for the device with the specified ip is set to it's maximum and prints a warning ot the user if it isn't.
+     */
+    void check_rx_ring_buffer_size(std::string ip) {
+        std::string dev = get_dev_from_ipv4(ip);
     }
 
 };

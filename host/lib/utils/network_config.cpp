@@ -45,8 +45,6 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
             }
 
             if(std::string(ip_buff) == ipv4) {
-                printf("ifa_name: %s\n", ifaddr_head->ifa_name);
-                printf("ip_buff: %s\n", ip_buff);
                 freeifaddrs(ifaddr_start);
                 return std::string(ifaddr_head->ifa_name);
             }
@@ -57,6 +55,7 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     }
 
     freeifaddrs(ifaddr_start);
-    // TODO: throw error
-    return "";
+    std::string not_found_error_message = "Unable to find device with ip " + ipv4 + ". Verify said ip is assigned to a network interface";
+    UHD_LOG_ERROR("NETWORK_CONFIG", not_found_error_message);
+    throw uhd::io_error( not_found_error_message );
 }
