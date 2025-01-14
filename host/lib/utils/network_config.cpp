@@ -42,19 +42,25 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
             char ip_buff[INET_ADDRSTRLEN];
             const char* ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_addr, ip_buff, INET_ADDRSTRLEN);
             if(ip_buffer_r != ip_buff) {
-                printf("ip_buffer_r: %p\n", ip_buffer_r);
                 printf("strerror(errno): %s\n", strerror(errno));
             } else {
                 printf("ip_buff: %s\n", ip_buff);
             }
 
             char broadcast_ip_buff[INET_ADDRSTRLEN];
-            const char* broadcast_ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_addr, broadcast_ip_buff, INET_ADDRSTRLEN);
+            const char* broadcast_ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_ifu.ifu_dstaddr, broadcast_ip_buff, INET_ADDRSTRLEN);
             if(broadcast_ip_buffer_r != broadcast_ip_buff) {
-                printf("ip_buffer_r: %p\n", ip_buffer_r);
                 printf("strerror(errno): %s\n", strerror(errno));
             } else {
                 printf("broadcast_ip_buff: %s\n", broadcast_ip_buff);
+            }
+
+            char c_ip_buff[INET_ADDRSTRLEN];
+            const char* c_ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_netmask, c_ip_buff, INET_ADDRSTRLEN);
+            if(c_ip_buffer_r != c_ip_buff) {
+                printf("strerror(errno): %s\n", strerror(errno));
+            } else {
+                printf("c_ip_buff: %s\n", c_ip_buff);
             }
         // }
 
