@@ -93,6 +93,7 @@ public:
         // Performs a check (and if applicable warning message) for potential source of performance issues
         check_high_order_alloc_disable();
 
+        // Checks if preemption is disabled/voluntary and warns user if it is not
         check_pre_empt();
 
         // Performs socket setup
@@ -672,6 +673,10 @@ private:
         }
     }
 
+    /*
+     * Checks if preemption is set to full.
+     * Preemption can cause occasional brief latency spikes that cause overflows at high sample rates
+     */
     void check_pre_empt() {
         std::string path = "/sys/kernel/debug/sched/preempt";
 
@@ -683,8 +688,12 @@ private:
             if(errno == EACCES) {
                 UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting. Check " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.\nTo allow this check to work successfully either run this program with sudo or give this user read access to " + path);
                 return;
-            } else  {
-                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code:" + std::string(strerror(errno)) + "\nCheck " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.");
+            } else if (errno == ENOENT) {
+                // Do nothing
+                // If the file does not exist assume that the kernel is to old to have this feature and therefore skip the warning message
+                return;
+            } else {
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code: " + std::string(strerror(errno)) + "\nCheck " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.");
                 return;
             }
         }
@@ -699,7 +708,7 @@ private:
         }
 
         if(value.find("(none)") == std::string::npos && value.find("(voluntary)") == std::string::npos) {
-             UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. It must be run as root user, sudo will not work.");
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. It must be run as root user, sudo will not work.");
         }
     }
 
