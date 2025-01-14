@@ -26,9 +26,14 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     printf("T1\n");
     // Cycle through every element of the interface list
     while (ifaddr != NULL) {
+        // DEBUG: skip everything but SFP A
+        if(std::string(ifaddr->ifa_name) != "enp67s0f0np0") {
+            ifaddr = ifaddr->ifa_next;
+            continue;
+        }
         printf("ifa_name: %s\n", ifaddr->ifa_name);
         printf("AF_INET: %u\n", AF_INET);
-        printf("AF_INET: %u\n", AF_INET6);
+        printf("AF_INET6: %u\n", AF_INET6);
         printf("ifaddr->ifa_addr->sa_family: %u\n", ifaddr->ifa_addr->sa_family);
 
         // if(ifaddr->ifa_addr->sa_family != AF_INET) {
