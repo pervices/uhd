@@ -11,6 +11,7 @@
 
 #include <sys/types.h>
 #include <ifaddrs.h>
+#include <arpa/inet.h>
 
 std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     struct ifaddrs *ifaddr;
@@ -26,7 +27,16 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     // Cycle through every element of the interface list
     while (ifaddr != NULL) {
         printf("ifa_name: %s\n", ifaddr->ifa_name);
-        printf("ifa_addr.sa_data: %s\n", ifaddr->ifa_addr->sa_data);
+
+        char ip_buff[INET_ADDRSTRLEN];
+        const char* ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_addr, ip_buff, INET_ADDRSTRLEN);
+        if(ip_buffer_r != ip_buff) {
+            printf("ip_buffer_r: %p\n", ip_buffer_r);
+            printf("strerror(errno): %s\n", strerror(errno));
+        } else {
+            printf("ip_buff: %s\n", ip_buff);
+        }
+
 
         // Advance to the next element in the linked list
         ifaddr = ifaddr->ifa_next;
