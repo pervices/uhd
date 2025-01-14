@@ -47,6 +47,15 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
             } else {
                 printf("ip_buff: %s\n", ip_buff);
             }
+
+            char broadcast_ip_buff[INET_ADDRSTRLEN];
+            const char* broadcast_ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_addr, broadcast_ip_buff, INET_ADDRSTRLEN);
+            if(broadcast_ip_buffer_r != broadcast_ip_buff) {
+                printf("ip_buffer_r: %p\n", ip_buffer_r);
+                printf("strerror(errno): %s\n", strerror(errno));
+            } else {
+                printf("broadcast_ip_buff: %s\n", broadcast_ip_buff);
+            }
         // }
 
 
