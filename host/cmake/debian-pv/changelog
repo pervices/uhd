@@ -1,3 +1,9 @@
+uhdpv (4.4.0.53-0ubuntu1) ubuntu_release; urgency=low
+
+  * Improving error message for common mistake when using GNU Radio
+
+ -- Per Vices <packages@pervices.com>  Tue, 14 Jan 2025 11:05:15 -0500
+
 uhdpv (4.4.0.52-0ubuntu1) ubuntu_release; urgency=low
 
   * Fix rate check in rx_samples_to_file on RedHat 8
