@@ -85,10 +85,11 @@ uint32_t uhd::get_rx_ring_buffer_size(std::string interface) {
 
     strcpy(ifr.ifr_name, interface.c_str());
 
+    ifr.ifr_data = &ering;
     ering.cmd = ETHTOOL_GRINGPARAM;
 
     printf("T1\n");
-    int r = ioctl(ioctl_fd, SIOCETHTOOL, &ering);
+    int r = ioctl(ioctl_fd, SIOCETHTOOL, &ifr);
     if(r == -1) {
         printf("ioctl error\n");
     }
