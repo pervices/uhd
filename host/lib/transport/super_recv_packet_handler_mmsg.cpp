@@ -20,6 +20,7 @@
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
+#include <uhdlib/utils/network_config.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
 #include <functional>
 #include <iostream>
@@ -96,6 +97,10 @@ public:
 
         // Checks if preemption is disabled/voluntary and warns user if it is not
         check_pre_empt();
+
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+            get_dev_from_ipv4(dst_ip[n]);
+        }
 
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
