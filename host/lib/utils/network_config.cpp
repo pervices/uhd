@@ -89,6 +89,9 @@ uint32_t uhd::get_rx_ring_buffer_size(std::string interface) {
 
     printf("T1\n");
     int r = ioctl(ioctl_fd, SIOCETHTOOL, &ering);
+    if(r == -1) {
+        printf("ioctl error\n");
+    }
     printf("rx_pending: %u\n", ering.rx_pending);
     printf("rx_max_pending: %u\n", ering.rx_max_pending);
 
