@@ -27,14 +27,17 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     // Cycle through every element of the interface list
     while (ifaddr != NULL) {
         printf("ifa_name: %s\n", ifaddr->ifa_name);
-
-        char ip_buff[INET_ADDRSTRLEN];
-        const char* ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_addr, ip_buff, INET_ADDRSTRLEN);
-        if(ip_buffer_r != ip_buff) {
-            printf("ip_buffer_r: %p\n", ip_buffer_r);
-            printf("strerror(errno): %s\n", strerror(errno));
+        if(ifaddr->ifa_addr->sa_family != AF_INET) {
+            // Skip non IPV4 addresses
         } else {
-            printf("ip_buff: %s\n", ip_buff);
+            char ip_buff[INET_ADDRSTRLEN];
+            const char* ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_addr, ip_buff, INET_ADDRSTRLEN);
+            if(ip_buffer_r != ip_buff) {
+                printf("ip_buffer_r: %p\n", ip_buffer_r);
+                printf("strerror(errno): %s\n", strerror(errno));
+            } else {
+                printf("ip_buff: %s\n", ip_buff);
+            }
         }
 
 
