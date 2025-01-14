@@ -13,6 +13,18 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 
+// TODO: remove whichever of these 5 are not needed
+#include <linux/ethtool.h>
+#include <linux/if.h>
+#include <linux/netlink.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+
+// TODO: find include for this
+#ifndef SIOCETHTOOL
+#define SIOCETHTOOL     0x8946
+#endif
+
 std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     // Start of a linked list containing info for each network interface
     struct ifaddrs *ifaddr_start;
@@ -58,4 +70,30 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     std::string not_found_error_message = "Unable to find device with ip " + ipv4 + ". Verify said ip is assigned to a network interface";
     UHD_LOG_ERROR("NETWORK_CONFIG", not_found_error_message);
     throw uhd::io_error( not_found_error_message );
+}
+
+uint32_t uhd::get_rx_ring_buffer_size(std::string interface) {
+
+    // Create a socket for use by ioctl
+    int ioctl_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    // TODO: add error check for ioctl_fd
+
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    struct ethtool_ringparam ering;
+    memset(&ering, 0, sizeof(ering));
+
+    strcpy(ifr.ifr_name, interface.c_str());
+
+    ering.cmd = ETHTOOL_GRINGPARAM;
+
+    printf("T1\n");
+    int r = ioctl(ioctl_fd, SIOCETHTOOL, &ering);
+    printf("rx_pending: %u\n", ering.rx_pending);
+
+    return 0;
+}
+
+uint32_t uhd::get_rx_ring_buffer_max_size(std::string interface) {
+    return 0;
 }

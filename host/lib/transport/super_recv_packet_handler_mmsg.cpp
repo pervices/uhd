@@ -778,6 +778,9 @@ private:
      */
     void check_rx_ring_buffer_size(std::string ip) {
         std::string dev = get_dev_from_ipv4(ip);
+
+        uint32_t current_size = get_rx_ring_buffer_size(dev);
+        // uint32_t max_size = get_rx_ring_buffer_max_size(dev);
     }
 
 };
