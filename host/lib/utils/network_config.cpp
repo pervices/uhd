@@ -27,9 +27,13 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     // Cycle through every element of the interface list
     while (ifaddr != NULL) {
         printf("ifa_name: %s\n", ifaddr->ifa_name);
-        if(ifaddr->ifa_addr->sa_family != AF_INET) {
+        printf("AF_INET: %u\n", AF_INET);
+        printf("AF_INET: %u\n", AF_INET6);
+        printf("ifaddr->ifa_addr->sa_family: %u\n", ifaddr->ifa_addr->sa_family);
+
+        // if(ifaddr->ifa_addr->sa_family != AF_INET) {
             // Skip non IPV4 addresses
-        } else {
+        // } else {
             char ip_buff[INET_ADDRSTRLEN];
             const char* ip_buffer_r = inet_ntop(AF_INET, ifaddr->ifa_addr, ip_buff, INET_ADDRSTRLEN);
             if(ip_buffer_r != ip_buff) {
@@ -38,7 +42,7 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
             } else {
                 printf("ip_buff: %s\n", ip_buff);
             }
-        }
+        // }
 
 
         // Advance to the next element in the linked list
