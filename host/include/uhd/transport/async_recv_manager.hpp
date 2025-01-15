@@ -177,13 +177,9 @@ public:
             // Return0 to indicate success
             return 0;
         } else {
+            // Set cqe_ptr to nullptr to avoid mistakes from it being stale
             *cqe_ptr = nullptr;
-            unsigned advancable = get_packets_advancable(ch);
-            // Since we are caught up, take the opportunity to mark packets as clear
-            // Putting it inside if might give better performance what advancing with 0
-            if(advancable) {
-                clear_packets(ch, get_packets_advancable(ch));
-            }
+            // Error code to indicate no data ready for a non blocking request
             return -EAGAIN;
         }
     }
