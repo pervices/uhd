@@ -777,18 +777,18 @@ private:
      * Checks if the rx ring buffer for the device with the specified ip is set to it's maximum and prints a warning ot the user if it isn't.
      */
     void check_rx_ring_buffer_size(std::string ip) {
-        // try {
-        //     std::string dev = get_dev_from_ipv4(ip);
-        //
-        //     uint32_t current_size = get_rx_ring_buffer_size(dev);
-        //     uint32_t max_size = get_rx_ring_buffer_max_size(dev);
-        //
-        //     if(current_size < max_size) {
-        //         UHD_LOG_WARNING("RECV_PACKET_HANDLER", "The RX ring buffer size (" + std::to_string(current_size) + ") is not set to the maximum (" + std::to_string(max_size) + ") for interface " + dev + ". This may impact performance. Run \"sudo ethtool -G " + dev + " rx " + std::to_string(max_size) + "\" to fix it.");
-        //     }
-        // } catch(...) {
+        try {
+            std::string dev = get_dev_from_ipv4(ip);
+
+            uint32_t current_size = get_rx_ring_buffer_size(dev);
+            uint32_t max_size = get_rx_ring_buffer_max_size(dev);
+
+            if(current_size < max_size) {
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "The RX ring buffer size (" + std::to_string(current_size) + ") is not set to the maximum (" + std::to_string(max_size) + ") for interface " + dev + ". This may impact performance. Run \"sudo ethtool -G " + dev + " rx " + std::to_string(max_size) + "\" to fix it.");
+            }
+        } catch(...) {
             UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Unable to check ring buffer size for the ethernet device used by " + ip + ". Find the interface used by " + ip + " then run ethtool -g <dev>.\nIf the value of \"RX:\" under \"Current hardware settings:\" is less than the value of \"RX:\" under \"Pre-set maximums:\" run \"sudo ethtool -G <dev> rx <maximum>\". This may impact performance.");
-        // }
+        }
     }
 
 };
