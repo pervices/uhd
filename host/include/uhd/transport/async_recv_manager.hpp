@@ -182,17 +182,6 @@ public:
         }
     }
 
-    inline __attribute__((always_inline)) void custom_io_uring_cq_advance(struct io_uring *ring, unsigned nr) {
-        // TODO: see if syncing with other threads is needed
-        *ring->cq.khead = *ring->cq.khead + nr;
-    }
-
-    inline __attribute__((always_inline))  void custome_io_uring_buf_ring_advance(struct io_uring_buf_ring *br, int count)
-    {
-        // TODO: ensure this is updated in other threads
-        br->tail+= count;
-    }
-
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
@@ -231,7 +220,7 @@ public:
         } else if (-cqe_ptr->res == ENOBUFS) {
             // Clear this request
             // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-            custom_io_uring_cq_advance(ring, 1);
+            io_uring_cq_advance(ring, 1);
 
             if(!slow_consumer_warning_printed) {
                 UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
@@ -261,17 +250,13 @@ public:
     }
 
     /**
-     * Marks packets as clear
-     * TODO: expand description
-     * @param ch
+     * Lets liburing know that packets have been consumed
+     * @param ch The channel whose packets to mark as clear
      * @param n The number of packets to mark as clear
     */
     inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
-
-        custome_io_uring_buf_ring_advance(*access_io_uring_buf_rings(ch, 0), n);
-        custom_io_uring_cq_advance(access_io_urings(ch), n);
+        io_uring_buf_ring_cq_advance(access_io_urings(ch), *access_io_uring_buf_rings(ch, 0), n);
         _packets_advanced[ch] += n;
-        _mm_sfence();
 
     }
 
