@@ -783,7 +783,7 @@ private:
         uint32_t max_size = get_rx_ring_buffer_max_size(dev);
 
         if(current_size < max_size) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "The RX ring buffer size (" + std::to_string(current_size) + ") is not set to the maximum (" + std::to_string(max_size) + ") for interface " + dev + ". This may impact performance. Run sudo ethtool -G " + dev + " rx " + std::to_string(max_size));
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "The RX ring buffer size (" + std::to_string(current_size) + ") is not set to the maximum (" + std::to_string(max_size) + ") for interface " + dev + ". This may impact performance. Run \"sudo ethtool -G " + dev + " rx " + std::to_string(max_size) + "\" to fix it.");
         }
 
         // TODO add try catch and add warning message about unable to check

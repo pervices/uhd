@@ -93,6 +93,7 @@ static struct ethtool_ringparam get_ethtool_ringparam(std::string interface) {
         // TODO: add error check
         printf("ioctl error\n");
     }
+    // TODO: close ioctl_fd
 
     return ering;
 }
