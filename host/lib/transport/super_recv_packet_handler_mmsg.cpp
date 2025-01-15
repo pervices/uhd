@@ -780,7 +780,13 @@ private:
         std::string dev = get_dev_from_ipv4(ip);
 
         uint32_t current_size = get_rx_ring_buffer_size(dev);
-        // uint32_t max_size = get_rx_ring_buffer_max_size(dev);
+        uint32_t max_size = get_rx_ring_buffer_max_size(dev);
+
+        if(current_size < max_size) {
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "The RX ring buffer is not set to the maximum for interface " + dev + ". Run sudo ethtool -G " + dev + " rx " + std::to_string(max_size));
+        }
+
+        // TODO add try catch and add warning message about unable to check
     }
 
 };

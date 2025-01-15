@@ -72,8 +72,8 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     throw uhd::io_error( not_found_error_message );
 }
 
-uint32_t uhd::get_rx_ring_buffer_size(std::string interface) {
-
+// TODO: comment this function
+static struct ethtool_ringparam get_ethtool_ringparam(std::string interface) {
     // Create a socket for use by ioctl
     int ioctl_fd = socket(AF_INET, SOCK_DGRAM, 0);
     // TODO: add error check for ioctl_fd
@@ -88,17 +88,25 @@ uint32_t uhd::get_rx_ring_buffer_size(std::string interface) {
     ifr.ifr_data = &ering;
     ering.cmd = ETHTOOL_GRINGPARAM;
 
-    printf("T1\n");
     int r = ioctl(ioctl_fd, SIOCETHTOOL, &ifr);
     if(r == -1) {
+        // TODO: add error check
         printf("ioctl error\n");
     }
-    printf("rx_pending: %u\n", ering.rx_pending);
-    printf("rx_max_pending: %u\n", ering.rx_max_pending);
 
-    return 0;
+    return ering;
+}
+
+uint32_t uhd::get_rx_ring_buffer_size(std::string interface) {
+    // Get info about the ethernet interface
+    struct ethtool_ringparam eth_info = get_ethtool_ringparam(interface);
+
+    return eth_info.rx_pending;
 }
 
 uint32_t uhd::get_rx_ring_buffer_max_size(std::string interface) {
-    return 0;
+    // Get info about the ethernet interface
+    struct ethtool_ringparam eth_info = get_ethtool_ringparam(interface);
+
+    return eth_info.rx_max_pending;
 }
