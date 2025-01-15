@@ -216,13 +216,11 @@ public:
         }
 
         if(cqe_ptr->res > 0) [[likely]] {
-            // If IORING_CQE_F_MORE multishot will continue sending messages
-            // TODO: rearm after packet without IORING_CQE_F_MORE or error other than EAGAIN
-            if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) {
-                printf("Multishot stopped\n");
-                printf("cqe_ptr->user_data: %llu\n", cqe_ptr->user_data);
-                printf("cqe_ptr->res: %u\n", cqe_ptr->res);
-                printf("cqe_ptr->flags: %u\n", cqe_ptr->flags);
+            // IORING_CQE_F_MORE indicates multishot will continue sending messages
+            // If IORING_CQE_F_MORE is not present multishot has stopped and must be restarted
+            if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) [[unlikely]] {
+                // Issues new multishot request
+                arm_recv_multishot(ch, _recv_sockets[ch]);
             }
 
             info->length = cqe_ptr->res;
@@ -236,7 +234,6 @@ public:
             custom_io_uring_cq_advance(ring, 1);
 
             if(!slow_consumer_warning_printed) {
-                printf("_num_packets_consumed[ch]: %li\n", _num_packets_consumed[ch]);
                 UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
                 slow_consumer_warning_printed = true;
             }
@@ -244,7 +241,6 @@ public:
             info->vita_header = nullptr;
             info->samples = nullptr;
         } else {
-            printf("E500\n");
             throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
         }
     }
