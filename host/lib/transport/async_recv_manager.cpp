@@ -38,7 +38,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
 // Create buffer for flush complete flag in seperate cache lines
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
-        UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Unsupported number of channels, constants must be updated");
         throw assertion_error("Unsupported number of channels");
     }
 
@@ -49,7 +49,6 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
 
         // Gets a buffer group ID equal to the number of buffer groups IDs already requested
         _bgid_storage[ch] = bgid_counter++;
-        printf("_bgid_storage[ch]: %li\n", _bgid_storage[ch]);
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
@@ -101,7 +100,6 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
 
 async_recv_manager::~async_recv_manager()
 {
-    printf("Starting destructor\n");
     // Stop liburing's other threads
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));
@@ -110,7 +108,6 @@ async_recv_manager::~async_recv_manager()
     // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
     munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
-    printf("Ending destructor\n");
 }
 
 void async_recv_manager::uring_init(size_t ch) {
@@ -157,9 +154,9 @@ void async_recv_manager::uring_init(size_t ch) {
     // NUM_SQ_URING_ENTRIES: number elements in the submission ring (TODO: figure out difference between it and sq_entries)
     // ring: Information used to access the ring
     int error = io_uring_queue_init_params(NUM_SQ_URING_ENTRIES, ring, &uring_params);
-    // TODO: improve error message
+
     if(error) {
-        fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-error));
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Error when initializing io_uring: " + std::string(strerror(-error)));
         throw uhd::system_error("io_uring error");
     }
 
@@ -170,9 +167,8 @@ void async_recv_manager::uring_init(size_t ch) {
     // Create ring buffe to store locations to store packets
     *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, _bgid_storage[ch], 0, &ret);
 
-    // TODO: improve error message
     if(ret) {
-        fprintf(stderr, "Error when creating io_uring: %s\n", strerror(-ret));
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Error when setting up io_uring: " + std::string(strerror(-error)));
         throw uhd::system_error("io_uring_setup_buf_ring");
     }
 
@@ -187,8 +183,6 @@ void async_recv_manager::uring_init(size_t ch) {
     }
     // Commits registration of the ring buffers added by io_uring_buf_ring_add
     io_uring_buf_ring_advance(*buffer_ring, PACKET_BUFFER_SIZE);
-
-    printf("IO_URING init passed\n");
 }
 
 void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
@@ -213,6 +207,7 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     // IOSQE_BUFFER_SELECT: indicates to use a registered buffer from io_uring_buf_ring_add
     io_uring_sqe_set_flags(sqe, IOSQE_BUFFER_SELECT);
 
+    // TODO: cleanup
     int ret = io_uring_submit(ring);
     if(ret > 1) {
         printf("To many submissions: %i\n", ret);
@@ -242,7 +237,6 @@ void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
 
 void* async_recv_manager::allocate_buffer(size_t size) {
     // MMAP is used instead of aligned_alloc since aligned_alloc may have caused inconsistent performance
-    // TODO: verify if mmap is needed or if aligned_alloc can be used instead
     void* buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if(buffer != MAP_FAILED) {
         return buffer;
