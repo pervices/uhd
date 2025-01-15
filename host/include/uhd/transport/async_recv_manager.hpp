@@ -157,17 +157,24 @@ public:
         return _num_packets_consumed[ch] - _packets_advanced[ch];
     }
 
+    /**
+     * A modified version of io_uring_peek_cqe that peeks at a pseudo head instead of the actual head of the queue.
+     * This function exists because we want to minimize updates to variables used by liburing (such the location of the head) and still need to be able to access elements not at the official head.
+     */
     inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
     {
-        unsigned available;
         constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
 
         unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
+        // pseudo_head = real_head + offset
         unsigned head = *ring->cq.khead + get_packets_advancable(ch);
 
-        available = tail - head;
+        unsigned available = tail - head;
+        // There is an event in the completion queue that is ready to be used
         if (available) {
+            // Tell the user the location of the event
             *cqe_ptr = &ring->cq.cqes[head & mask];
+            // Return0 to indicate success
             return 0;
         } else {
             *cqe_ptr = nullptr;
