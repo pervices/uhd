@@ -9,11 +9,9 @@
 #include <uhd/exception.hpp>
 #include <errno.h>
 
-#include <sys/types.h>
+// Network includes
 #include <ifaddrs.h>
 #include <arpa/inet.h>
-
-// TODO: remove whichever of these 5 are not needed
 #include <linux/ethtool.h>
 #include <linux/if.h>
 #include <sys/ioctl.h>
