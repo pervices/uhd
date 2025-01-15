@@ -63,20 +63,24 @@ private:
     // Size of the sample portion of Vita packets
     const uint_fast32_t _packet_data_size;
 
-    // Number of packets to receive before updating counts used by other threads
-    // TODO: implement batching io_uring_buf_ring_cq_advance calls
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 32768/2;
-
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
     // Hard limit: 2 ^ 15
     static constexpr uint32_t NUM_SQ_URING_ENTRIES = 1;
     static constexpr uint32_t NUM_CQ_URING_ENTRIES = 32768;
-    // TODO: add assert is a power of 2
+    // These constants must be a power of 2. Documentation says most kernels will automatically rounds up to the next power of 2, experimentally not having them as a power of 2 causes some liburing functions to fail
+    static_assert((NUM_SQ_URING_ENTRIES>0 && ((NUM_SQ_URING_ENTRIES & (NUM_SQ_URING_ENTRIES-1)) == 0)), "NUM_SQ_URING_ENTRIES must be a power of 2");
+    static_assert((NUM_CQ_URING_ENTRIES>0 && ((NUM_CQ_URING_ENTRIES & (NUM_CQ_URING_ENTRIES-1)) == 0)), "NUM_CQ_URING_ENTRIES must be a power of 2");
+    // Verify these constants do not exceed 2^15 (hard limit from liburing)
+    static_assert(NUM_SQ_URING_ENTRIES <= 32768, "NUM_SQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
+    static_assert(NUM_CQ_URING_ENTRIES <= 32768, "NUM_CQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
+
+    // Number of packets to receive before marking events as completed/marking buffers as clear
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = NUM_CQ_URING_ENTRIES/2;
 
     // Amount of padding before the start of the packet
     // Padding should be such that the data portion starts aligned
-    // TODO: optimize target alignment. Currently it is page aligned, it can probably be adjusted to be
+    // TODO: optimize target alignment. Currently it is page aligned, it can probably be adjusted to be cache line aligned
     const size_t _packet_pre_pad;
 
     // Size of the buffer containing a single packet
