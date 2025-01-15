@@ -17,7 +17,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
-// TODO: find include for this
+// Constant to tell ioctl to use ethtool
 #ifndef SIOCETHTOOL
 #define SIOCETHTOOL     0x8946
 #endif
