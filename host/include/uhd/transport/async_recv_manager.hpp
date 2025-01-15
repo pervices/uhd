@@ -162,8 +162,7 @@ public:
         unsigned available;
         constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
 
-        // TODO: prevent possible race conditions
-        unsigned tail = *ring->cq.ktail;//io_uring_smp_load_acquire(ring->cq.ktail);
+        unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
         unsigned head = *ring->cq.khead + get_packets_advancable(ch);
 
         available = tail - head;
