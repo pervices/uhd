@@ -16,7 +16,6 @@
 // TODO: remove whichever of these 5 are not needed
 #include <linux/ethtool.h>
 #include <linux/if.h>
-#include <linux/netlink.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
