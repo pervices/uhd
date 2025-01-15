@@ -72,30 +72,38 @@ std::string uhd::get_dev_from_ipv4(std::string ipv4) {
     throw uhd::io_error( not_found_error_message );
 }
 
-// TODO: comment this function
+// Helper function to get ethernet params using ioctl
 static struct ethtool_ringparam get_ethtool_ringparam(std::string interface) {
     // Create a socket for use by ioctl
     int ioctl_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    // TODO: add error check for ioctl_fd
 
+    if(ioctl_fd == -1) {
+        throw uhd::runtime_error( "Failed to open socket for ioctl" );
+    }
+
+    // Struct passed to ioctl to tell it the request
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
-    struct ethtool_ringparam ering;
-    memset(&ering, 0, sizeof(ering));
+    // Struct to pass/store the request
+    struct ethtool_ringparam ring_params;
+    memset(&ring_params, 0, sizeof(ring_params));
 
-    strcpy(ifr.ifr_name, interface.c_str());
+    snprintf(ifr.ifr_name, IFNAMSIZ, "%s", interface.c_str());
 
-    ifr.ifr_data = &ering;
-    ering.cmd = ETHTOOL_GRINGPARAM;
+    // Set the command to be used (get ring params)
+    ring_params.cmd = ETHTOOL_GRINGPARAM;
+
+    ifr.ifr_data = &ring_params;
 
     int r = ioctl(ioctl_fd, SIOCETHTOOL, &ifr);
     if(r == -1) {
-        // TODO: add error check
-        printf("ioctl error\n");
+        close(ioctl_fd);
+        throw uhd::runtime_error( "ETHTOOL_GRINGPARAM failed" );
     }
-    // TODO: close ioctl_fd
 
-    return ering;
+    close(ioctl_fd);
+
+    return ring_params;
 }
 
 uint32_t uhd::get_rx_ring_buffer_size(std::string interface) {
