@@ -753,8 +753,12 @@ private:
             if(errno == EACCES) {
                 UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting. Check " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.\nTo allow this check to work successfully either run this program with sudo or give this user read access to " + path);
                 return;
-            } else  {
-                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code:" + std::string(strerror(errno)) + "\nCheck " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.");
+            } else if (errno != ENOENT)(
+                // Do nothing
+                // If the file does not exist assume that the kernel is to old to have this feature and therefore skip the warning message
+                return;
+            } else {
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code: " + std::string(strerror(errno)) + "\nCheck " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.");
                 return;
             }
         }
