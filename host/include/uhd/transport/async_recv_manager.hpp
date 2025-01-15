@@ -70,7 +70,7 @@ private:
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
     // Hard limit: 2 ^ 15
-    static constexpr uint32_t NUM_SQ_URING_ENTRIES = 1;
+    static constexpr uint32_t NUM_SQ_URING_ENTRIES = 64;
     static constexpr uint32_t NUM_CQ_URING_ENTRIES = 32768;
     // TODO: add assert is a power of 2
 
