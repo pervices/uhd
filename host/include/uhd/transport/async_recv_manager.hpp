@@ -41,6 +41,10 @@ private:
     // Mask used to roll over number of packets
     static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
 
+    // Optimal alignment for using SIMD instructions to copy/convert samples
+    // Set for 512 for future AVX512 copying
+    static constexpr size_t SIMD_ALIGNMENT = 512;
+
     static constexpr size_t PAGE_SIZE = 4096;
     static constexpr size_t HUGE_PAGE_SIZE = 2048 * 1024;
 
@@ -78,17 +82,16 @@ private:
     // Number of packets to receive before marking events as completed/marking buffers as clear
     static constexpr uint32_t PACKETS_UPDATE_INCREMENT = NUM_CQ_URING_ENTRIES/2;
 
-    // Amount of padding before the start of the packet
-    // Padding should be such that the data portion starts aligned
-    // TODO: optimize target alignment. Currently it is page aligned, it can probably be adjusted to be cache line aligned
-    const size_t _packet_pre_pad;
+    // The offset between the start of a packet's portion of _all_ch_packet_buffers and where the Vita header starts
+    // It must be set so that the start of samples (which occur immediately after the Vita header) are SIMD_ALIGNMENT aligned
+    const size_t _vita_header_offset;
 
     // Size of the buffer containing a single packet
     const size_t _padded_individual_packet_size;
 
     // Buffer containing packets + packet length
     // TODO: figure out if page alignment is necessary, or only 512 bytes (for potential future AVX512 use)
-    // Format: (length, padding, vita header | page boundary |, samples, padding to next page) * PACKETS_PER_BUFFER * _num_ch
+    // Format: (packet length, padding, vita header | SIMD_ALIGNMENT boundary |, samples, padding to next SIMD_ALIGNMENT) * PACKETS_PER_BUFFER) repeat for PACKET_BUFFER_SIZE, repeat for _num_ch
     uint8_t* const _all_ch_packet_buffers;
 
     // Gets a pointer to the start of the buffer containing info for the packet (not the start of the packet
@@ -98,7 +101,7 @@ private:
 
     // Gets a pointer to the Vita header for a packet (which is also the start of the packet
     inline __attribute__((always_inline)) uint8_t* access_packet_vita_header(size_t ch, size_t ch_offset, size_t p) {
-        return access_packet_buffer(ch, ch_offset, p) + _packet_pre_pad;
+        return access_packet_buffer(ch, ch_offset, p) + _vita_header_offset;
     }
 
     // Gets a pointer to the length of a packet
@@ -108,7 +111,7 @@ private:
 
     // Gets a pointer to the start of a packet's samples
     inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t p) {
-        return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
+        return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 
     static constexpr size_t _padded_io_uring_control_struct_size = CACHE_LINE_SIZE * 4;

@@ -27,10 +27,8 @@ _recv_sockets(recv_sockets),
 _header_size(header_size),
 _packet_data_size(max_sample_bytes_per_packet),
 
-// NOTE: Theoretically padding to the cache line is required to prevent interference between threads, experimentally padding to full pages are required
-
-_packet_pre_pad(PAGE_SIZE - _header_size),
-_padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)PAGE_SIZE) * PAGE_SIZE) + /* Vita header + padding */ _header_size + _packet_pre_pad),
+_vita_header_offset(SIMD_ALIGNMENT - _header_size),
+_padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)SIMD_ALIGNMENT) * SIMD_ALIGNMENT) + /* Vita header + padding */ _header_size + _vita_header_offset),
 
 _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size)),
 _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_control_struct_size))
