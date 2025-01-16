@@ -17,7 +17,7 @@ endif(POLICY CMP0048)
 project(UHD CXX C)
 enable_testing()
 
-if(LINUX_KERNEL_VERSION VERSION_LESS 6.0)
+if(LINUX_KERNEL_VERSION VERSION_GREATER_EQUAL 6.0)
     set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
     set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
     message(WARNING "New kernel")
