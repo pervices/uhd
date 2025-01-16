@@ -132,11 +132,7 @@ if(ENABLE_X300)
     )
 endif(ENABLE_X300)
 
-# TODO: confirm if this is needed or is redundant
-set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/async_recv_manager.cpp
-    PROPERTIES COMPILE_FLAGS "-luring"
-)
+
 
 if(ENABLE_DPDK)
     INCLUDE_SUBDIRECTORY(uhd-dpdk)
