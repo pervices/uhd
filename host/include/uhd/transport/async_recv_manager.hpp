@@ -7,8 +7,18 @@
 #include <thread>
 #include <cmath>
 #include <iostream>
+#include <liburing.h>
+#include <uhd/utils/log.hpp>
+
+#include <immintrin.h>
 
 namespace uhd { namespace transport {
+
+struct async_packet_info {
+    int64_t length;
+    uint8_t* vita_header;
+    uint8_t* samples;
+};
 
 // Creates and manages receive threads
 // Threads continuously receive data and store it in a buffer for latter use
@@ -23,157 +33,112 @@ private:
 
     static constexpr size_t MAX_CHANNELS = 16;
 
-    // Number of buffers per ch
-    // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_BUFFERS = 1024;
+    // Number of packets that can be stored in the buffer
+    // Hard limit: 2^15
+    // Should be a power of 2
+    static constexpr size_t PACKET_BUFFER_SIZE = 32768;
 
-    static constexpr size_t BUFFER_MASK = NUM_BUFFERS - 1;
+    // Mask used to roll over number of packets
+    static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
+
+    // Optimal alignment for using SIMD instructions to copy/convert samples
+    // Set for 512 for future AVX512 copying
+    static constexpr size_t SIMD_ALIGNMENT = 512;
 
     static constexpr size_t PAGE_SIZE = 4096;
+    static constexpr size_t HUGE_PAGE_SIZE = 2048 * 1024;
 
+    // Number of channls managed by this streamer
     const uint_fast32_t _num_ch;
 
     static constexpr size_t CACHE_LINE_SIZE = 64;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    const uint_fast32_t padded_uint_fast8_t_size;
+    static constexpr size_t PADDED_UINT8_T_SIZE = CACHE_LINE_SIZE;
 
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
     static constexpr size_t PADDED_INT64_T_SIZE = CACHE_LINE_SIZE;
 
+    const std::vector<int> _recv_sockets;
+
     // Vita header size
     const uint_fast32_t _header_size;
-
-    // TODO: see if padding the vita header is actually usefull
-    // Size of Vita header + padding to be on it's own cache line
-    const uint_fast32_t _padded_header_size;
 
     // Size of the sample portion of Vita packets
     const uint_fast32_t _packet_data_size;
 
-    // Have 1 page worth of packet mmsghdrs, iovecs, and Vita headers per buffer + the count for the number of packets in the buffer
-    // NOTE: Achieving 1 mmsghdr and 1 iovec per buffer asummes iovec has a 2 elements
-    static constexpr size_t PACKETS_PER_BUFFER = PAGE_SIZE / (sizeof(mmsghdr) + ( 2 * sizeof(iovec) ));
+    // Number of entries in each uring
+    // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
+    // Hard limit: 2 ^ 15
+    static constexpr uint32_t NUM_SQ_URING_ENTRIES = 1;
+    static constexpr uint32_t NUM_CQ_URING_ENTRIES = 32768;
+    // These constants must be a power of 2. Documentation says most kernels will automatically rounds up to the next power of 2, experimentally not having them as a power of 2 causes some liburing functions to fail
+    static_assert((NUM_SQ_URING_ENTRIES>0 && ((NUM_SQ_URING_ENTRIES & (NUM_SQ_URING_ENTRIES-1)) == 0)), "NUM_SQ_URING_ENTRIES must be a power of 2");
+    static_assert((NUM_CQ_URING_ENTRIES>0 && ((NUM_CQ_URING_ENTRIES & (NUM_CQ_URING_ENTRIES-1)) == 0)), "NUM_CQ_URING_ENTRIES must be a power of 2");
+    // Verify these constants do not exceed 2^15 (hard limit from liburing)
+    static_assert(NUM_SQ_URING_ENTRIES <= 32768, "NUM_SQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
+    static_assert(NUM_CQ_URING_ENTRIES <= 32768, "NUM_CQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
 
-    // Size of the buffer to contain: all: mmsghdrs, io_vecs (length 2: header, data), padded to a whole number of pages
-    const uint_fast32_t _mmmsghdr_iovec_subbuffer_size;
+    // Number of packets to receive before marking events as completed/marking buffers as clear
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = NUM_CQ_URING_ENTRIES/2;
 
-    // Size of the buffer to contain: all vita headers padded to a whole number of pages
-    const uint_fast32_t _vitahdr_subbuffer_size;
+    // The offset between the start of a packet's portion of _all_ch_packet_buffers and where the Vita header starts
+    // It must be set so that the start of samples (which occur immediately after the Vita header) are SIMD_ALIGNMENT aligned
+    const size_t _vita_header_offset;
 
-    // Real size of each packet sample buffer (include's some extra padding to contain a while number of pages)
-    const size_t _data_subbuffer_size;
+    // Size of the buffer containing a single packet
+    const size_t _padded_individual_packet_size;
 
-    // Size of a buffer containing all mmsghdrs, iovecs, and location to store packets for a recvmmsg
-    // Order: mmsghdrs, iovecs, Vita headers, padding out to the next memory page, samples
-    const size_t _individual_network_buffer_size;
+    // Buffer containing packet length, Vita header, and samples
+    // Format: (packet length, padding, vita header | SIMD_ALIGNMENT boundary |, samples, padding to next SIMD_ALIGNMENT) * PACKETS_PER_BUFFER) repeat for PACKET_BUFFER_SIZE, repeat for _num_ch
+    uint8_t* const _all_ch_packet_buffers;
 
-    // Contains all network buffers for every channel
-    // Format: (_mmmsghdr_iovec_subbuffer + _vitahdr_subbuffer_size + _data_subbuffer)[channel][buffer]
-    uint8_t* const _network_buffer;
-
-    // Stores a counter used to track the the number of times a buffer has been written to
-    // It is used to detect if the buffer was overwritten while being processed
-    // Each element of the buffer should be on it's own page, it seems to help with
-    const size_t _buffer_write_count_buffer_size;
-    uint8_t* const _buffer_write_count_buffer;
-
-    // Number of packets stored in a buffer
-    const size_t _packets_stored_buffer_size;
-    uint8_t* const _packets_stored_buffer;
-
-    // Get's a specific channel's combined buffers
-    inline __attribute__((always_inline)) uint8_t* access_ch_network_buffers(size_t ch, size_t ch_offset) {
-        return _network_buffer + ((ch + ch_offset) * NUM_BUFFERS * _individual_network_buffer_size);
+    // Gets a pointer to the start of the buffer containing info for the packet (not the start of the packet
+    inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t p) {
+        return _all_ch_packet_buffers + ((((ch + ch_offset) * PACKET_BUFFER_SIZE) + p ) * _padded_individual_packet_size);
     }
 
-    // Get's a specific combined buffer belonging to a specific channel
-    inline __attribute__((always_inline)) uint8_t* access_ch_network_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_network_buffers(ch, ch_offset) + (b * _individual_network_buffer_size);
+    // Gets a pointer to the Vita header for a packet (which is also the start of the packet
+    inline __attribute__((always_inline)) uint8_t* access_packet_vita_header(size_t ch, size_t ch_offset, size_t p) {
+        return access_packet_buffer(ch, ch_offset, p) + _vita_header_offset;
     }
 
-    // Pointer to the start of where packet samples are stored in the buffer
-    // Gets a pointer a packet buffer
-    // ch: channel
-    // ch_offset: channel offset (the first channel of the thread)
-    // b: buffer
-    inline __attribute__((always_inline)) uint8_t* access_packet_data_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_network_buffer(ch, ch_offset, b) + _mmmsghdr_iovec_subbuffer_size + _vitahdr_subbuffer_size;
+    // Gets a pointer to the length of a packet
+    inline __attribute__((always_inline)) int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t p) {
+        return (int64_t*) (access_packet_buffer(ch, ch_offset, p));
     }
 
-    // Pointer to buffers where a specific packet's samples are stored
-    // Gets a pointer a packet buffer
-    // ch: channel
-    // ch_offset: channel offset (the first channel of the thread)
-    // b: buffer
-    inline __attribute__((always_inline)) uint8_t* access_packet_data(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return access_packet_data_buffer(ch, ch_offset, b) + (p * _packet_data_size);
+    // Gets a pointer to the start of a packet's samples
+    inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t p) {
+        return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 
-    // Gets a pointer to specific mmsghdr buffer
-    inline __attribute__((always_inline)) uint8_t* access_mmsghdr_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return access_ch_network_buffer(ch, ch_offset, b);
+    static constexpr size_t _padded_io_uring_control_struct_size = CACHE_LINE_SIZE * 4;
+    static_assert((_padded_io_uring_control_struct_size > (sizeof(struct io_uring) + sizeof(io_uring_buf_ring*))), "Padded io_uring + io_uring_buf_ring* size smaller than their normal size");
+    // Buffer used for control structs used by io_uring
+    // Format: io_uring, io_uring_buf_ring*, padding to next cache line, repeat for each channel
+    uint8_t* const _io_uring_control_structs;
+
+    // Access the uring for a given channel. (The ring buffer containing submission and completion queues)
+    inline __attribute__((always_inline)) io_uring* access_io_urings(size_t ch, size_t ch_offset = 0) {
+        return (io_uring*) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size));
     }
 
-    // Gets a pointer to specific mmsghdr
-    // ch: channel
-    // ch_offset: channel offset (the first channel of the thread)
-    // b: buffer
-    // p: packet number
-    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return (mmsghdr*) (access_mmsghdr_buffer(ch, ch_offset, b) + (p * sizeof(mmsghdr)));
+    // Access buf ring for a given channel. (The ring buffer contain the buffers to store received data in)
+    inline __attribute__((always_inline)) io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
+        return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + sizeof(struct io_uring));
     }
-
-    // Gets a pointer to iovecs for a buffer
-    // ch: channel
-    // ch_offset: channel offset (the first channel of the thread)
-    // b: buffer
-    // p: packet number
-    inline __attribute__((always_inline)) iovec* access_iovec_buffer(size_t ch, size_t ch_offset, size_t b) {
-        return (iovec*) (access_ch_network_buffer(ch, ch_offset, b) + /* Packets in bufffer count */ /*PADDED_INT64_T_SIZE +*/ /*  Number of times the buffer has been written to count*/ /*PADDED_INT64_T_SIZE +*/ (PACKETS_PER_BUFFER * sizeof(mmsghdr)));
-    }
-
-    inline __attribute__((always_inline)) uint8_t* access_vita_hdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
-        return access_ch_network_buffer(ch, ch_offset, b) + _mmmsghdr_iovec_subbuffer_size + (p * _padded_header_size);
-    }
-
-    // Buffer to store flags to indicate sockets have been flushed
-    // Not an array of uint8_t, this is done to make manual memory operations easier
-    uint8_t* const flush_complete;
-
-    // Access flags to indicate that the sockets have been purged of old data
-    // channel
-    inline __attribute__((always_inline)) uint_fast8_t* access_flush_complete(size_t ch, size_t ch_offset) {
-        return (uint_fast8_t*) (flush_complete + ((ch + ch_offset) * padded_uint_fast8_t_size));
-    }
-
-    // Gets a pointer to the part of num_packets_stored corresponding the channel and buffer
-    // Use _mm_sfence after to ensure data written to this is complete
-    // Theoretically the compiler could optimize out writes to this without atomic or valatile
-    // Practically/experimentally it does not optimize the writes out
-    inline __attribute__((always_inline)) int_fast64_t* access_num_packets_stored(size_t ch, size_t ch_offset, size_t b) {
-       return (int_fast64_t*) (_packets_stored_buffer + ((ch + ch_offset) * _packets_stored_buffer_size) + (PAGE_SIZE * b));
-    }
-
-    // Gets a pointer to a int_fast64_t that stores the number of times a channel has had buffers been written to
-    inline __attribute__((always_inline)) int64_t* access_buffer_writes_count(size_t ch, size_t ch_offset, size_t b) {
-        return (int64_t*) (_buffer_write_count_buffer + ((ch + ch_offset) * _buffer_write_count_buffer_size) + (PAGE_SIZE * b));
-    }
-
-    // The buffer currently being used by the consumer thread
-    size_t* active_consumer_buffer;
 
     // Number of packets consumed in the active consumer buffer
     // Accessed only by the consumer thread
-    // channel
-    int_fast64_t* num_packets_consumed;
+    int64_t _num_packets_consumed[MAX_CHANNELS];
 
-    // Buffer containing the threads the receive data
-    size_t num_recv_loops;
-    std::thread* recv_loops;
+    // Number of packets marked as consumed in liburing
+    int64_t _packets_advanced[MAX_CHANNELS];
 
-    // Flag used to tell receive threads when to stop
-    uint_fast8_t stop_flag = false;
+    // Stores the bgid used by io_uring_setup_buf_ring and io_uring_sqe_set_flags(..., IOSQE_BUFFER_SELECT);
+    // Each channel needs a unique bgid
+    int64_t _bgid_storage[MAX_CHANNELS];
 
 public:
 
@@ -184,71 +149,113 @@ public:
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
      */
-    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, const size_t device_total_rx_channels );
+    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
     ~async_recv_manager();
 
     /**
-     * Gets the location of the next packet's vita header
-     * @param ch
-     * @return returns a pointer to the next packet's vita header, returns nullptr if the next packet isn't ready yet
+     * Calls constructor for async_recv_manager and ensure async_recv_manager is properly aligned.
+     * You must call unmake when done
+     * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
+     * @param recv_sockets Vector containing the file descriptor for all sockets
+     * @param header_size Size of the Vita header in bytes
+     * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
      */
-    inline __attribute__((always_inline)) uint8_t* get_next_packet_vita_header(const size_t ch) {
-        size_t b = active_consumer_buffer[ch];
-        return access_vita_hdr(ch, 0, b, num_packets_consumed[ch]);
+    static async_recv_manager* make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
+
+    /**
+     * Destructs and frees an async_recv_manager
+     * @param async_recv_manager* The instance to destruct and free
+     */
+    static void unmake( async_recv_manager* recv_manager );
+
+    bool slow_consumer_warning_printed = false;
+
+    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
+        return _num_packets_consumed[ch] - _packets_advanced[ch];
     }
 
     /**
-     * Gets the location of the next packet's samples
-     * @param ch
-     * @return returns a pointer to the next packet if one is available, make sure it is ready by called get_next_packet_vita_header first
+     * A modified version of io_uring_peek_cqe that peeks at a pseudo head instead of the actual head of the queue.
+     * This function exists because we want to minimize updates to variables used by liburing (such the location of the head) and still need to be able to access elements not at the official head.
      */
-    inline __attribute__((always_inline)) uint8_t* get_next_packet_samples(const size_t ch) {
-        size_t b = active_consumer_buffer[ch];
-        return access_packet_data(ch, 0, b, num_packets_consumed[ch]);
+    inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
+    {
+        constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
+
+        unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
+        // pseudo_head = real_head + offset
+        unsigned head = *ring->cq.khead + get_packets_advancable(ch);
+
+        unsigned available = tail - head;
+        // There is an event in the completion queue that is ready to be used
+        if (available) {
+            // Tell the user the location of the event
+            *cqe_ptr = &ring->cq.cqes[head & mask];
+            // Return0 to indicate success
+            return 0;
+        } else {
+            *cqe_ptr = nullptr;
+            unsigned advancable = get_packets_advancable(ch);
+            // Since we are caught up, take the opportunity to mark packets as clear
+            // Putting it inside if might give better performance what advancing with 0
+            if(advancable) {
+                clear_packets(ch, get_packets_advancable(ch));
+            }
+            return -EAGAIN;
+        }
     }
 
     /**
-     * Gets the msg_len of the mmsghdr for the next packet.
-     * Does not check to make sure the next packet is ready, make sure it is ready by using get_next_packet get_next_packet_vita_header
+     * Gets information needed to process the next packet.
+     * The caller is responsible for ensuring correct fencing
      * @param ch
-     * @return returns msg_len of the mmsghdr corresponding to the next packet
+     * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
-    inline __attribute__((always_inline)) uint_fast32_t get_next_packet_length(const size_t ch) {
-        size_t b = active_consumer_buffer[ch];
-        return access_mmsghdr(ch, 0, b, num_packets_consumed[ch])->msg_len;
-    }
+    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
 
-    /**
-     * Checks if the next packet is the first one of the buffer.
-     * @param ch
-     * @return True when it is the first packet of the buffer, false otherwise. Will return true even if the packet isn't ready ready
-     */
-    inline __attribute__((always_inline)) uint_fast8_t is_first_packet_of_buffer(const size_t ch) {
-        return !num_packets_consumed[ch];
-    }
+        struct io_uring* ring = access_io_urings(ch, 0);
+        struct io_uring_cqe *cqe_ptr;
 
-    /**
-     * Gets a number used to track the number of writes to the buffer and whether a write is currently in progress.
-     * This function is responsible for adding the fences to ensure correct access
-     * @param ch
-     * @return Returns the number of complete times the currently active consumer buffer has been written to times 2. Also adds +1 if a write is currently in progress.
-     */
-    inline __attribute__((always_inline)) int_fast64_t get_buffer_write_count(const size_t ch) {
-        // Fence to ensure that any loads from the provider thread are complete before buffer_write_count is obtained
-        size_t b = active_consumer_buffer[ch];
-        int_fast64_t buffer_write_count = *access_buffer_writes_count(ch, 0, b);
-        // Fence to ensure buffer_write_count is obtained before any future loads from the provider thread occur
-        return buffer_write_count;
-    }
+        // Checks if a packet is ready
+        int r = custom_io_uring_peek_cqe(ch, ring, &cqe_ptr);
 
-    /**
-     * Reset the location of the consume head to the start of the buffer.
-     * It is used to go to the start of a buffer when the buffer gets overwritten mid read
-     * @param ch
-     */
-    inline __attribute__((always_inline)) void reset_buffer_read_head(const size_t ch) {
-        num_packets_consumed[ch] = 0;
+        // The next packet is not ready
+        if(r == -EAGAIN) {
+            info->length = 0;
+            info->vita_header = nullptr;
+            info->samples = nullptr;
+            return;
+        }
+
+        if(cqe_ptr->res > 0) [[likely]] {
+            // IORING_CQE_F_MORE indicates multishot will continue sending messages
+            // If IORING_CQE_F_MORE is not present multishot has stopped and must be restarted
+            if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) [[unlikely]] {
+                // Issues new multishot request
+                arm_recv_multishot(ch, _recv_sockets[ch]);
+            }
+
+            info->length = cqe_ptr->res;
+            info->vita_header = access_packet_vita_header(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+            info->samples = access_packet_samples(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+
+        // All buffers are used (should be unreachable)
+        } else if (-cqe_ptr->res == ENOBUFS) {
+            // Clear this request
+            // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
+            io_uring_cq_advance(ring, 1);
+
+            if(!slow_consumer_warning_printed) {
+                UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+                slow_consumer_warning_printed = true;
+            }
+            info->length = 0;
+            info->vita_header = nullptr;
+            info->samples = nullptr;
+        } else {
+            throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
+        }
     }
 
     /**
@@ -256,23 +263,58 @@ public:
      * @param ch
      */
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
-        size_t b = active_consumer_buffer[ch];
-        num_packets_consumed[ch]++;
-        // Move to the next buffer once all packets in this buffer are consumed
-        int_fast64_t* num_packets_stored_addr = access_num_packets_stored(ch, 0, b);
-        if(num_packets_consumed[ch] >= *num_packets_stored_addr) {
 
-            // Moves to the next buffer
-            // & is to roll over the the first buffer once the limit is reached
-            active_consumer_buffer[ch] = (active_consumer_buffer[ch] + 1) & (NUM_BUFFERS -1);
+        _num_packets_consumed[ch]++;
 
-            // Resets count for number of samples consumed in the active buffer
-            num_packets_consumed[ch] = 0;
+        unsigned packets_advancable = get_packets_advancable(ch);
+        // Mark packets are clear in batches to improve performance
+        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
+            clear_packets(ch, packets_advancable);
         }
+    }
+
+    /**
+     * Lets liburing know that packets have been consumed
+     * @param ch The channel whose packets to mark as clear
+     * @param n The number of packets to mark as clear
+    */
+    inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
+        io_uring_buf_ring_cq_advance(access_io_urings(ch), *access_io_uring_buf_rings(ch, 0), n);
+        _packets_advanced[ch] += n;
+
     }
 
 
 private:
+
+    /**
+     * Helper function to initialize the uring for a channel.
+     * It is called during the constructor to make undertanding liburing initialization easier
+     * @param ch The channel who's uring to initialize
+     */
+    void uring_init(size_t ch);
+
+    /**
+     * Arms recv_multishot
+     * Must be called after flushing the sockets and after any time the completion queue gets full
+     */
+    void arm_recv_multishot(size_t ch, int fd);
+
+    /**
+     * Attempts to allocate a page aligned buffer using mmap and huge pages.
+     * If that fails to allocate using huge pages it will warn the user and fall back to allocating without huge pages.
+     * @param size The size of the buffer to allocate in bytes
+     * @return A pointer to the buffer that was allocated
+     */
+    static void* allocate_hugetlb_buffer_with_fallback(size_t size);
+
+    /**
+     * Attempts to allocate a page aligned buffer using mmap.
+     * This also includes error detection to verify the buffer was allocated.
+     * @param size The size of the buffer to allocate in bytes
+     * @return A pointer to the bffer that was allocated
+     */
+    static void* allocate_buffer(size_t size);
 
     /**
      * Function that continuously receives data and stores it in the buffer
