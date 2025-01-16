@@ -135,7 +135,7 @@ private:
     // Accessed only by the consumer thread
     int64_t _num_packets_consumed[MAX_CHANNELS];
 
-    // TODO: make this channel specific and put it next to _num_packets_consumed
+    // Number of packets marked as consumed in liburing
     int64_t _packets_advanced[MAX_CHANNELS];
 
     // Stores the bgid used by io_uring_setup_buf_ring and io_uring_sqe_set_flags(..., IOSQE_BUFFER_SELECT);
