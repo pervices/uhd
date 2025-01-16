@@ -19,10 +19,12 @@ enable_testing()
 
 # Multishot functions used by our io_uring implementation requires kernel 6.0
 if(LINUX_KERNEL_VERSION VERSION_GREATER_EQUAL 6.0)
+    message(WARNING "New kernel")
     set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
     set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
     set(IO_URING_MULTISHOT_AVAILABLE)
 else()
+    message(WARNING "Old kernel")
     set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra")
     set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra")
     set(IO_URING_UNAVAILABLE)

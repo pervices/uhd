@@ -12,13 +12,13 @@
 
 #include <immintrin.h>
 
-#ifdef IO_URING_MULTISHOT_AVAILABLE
-    #error "Multishot good"
-#endif
-
-#ifdef IO_URING_UNAVAILABLE
-    #error "liburing not ready"
-#endif
+// #ifdef IO_URING_MULTISHOT_AVAILABLE
+//     #error "Multishot good"
+// #endif
+//
+// #ifdef IO_URING_UNAVAILABLE
+//     #error "liburing not ready"
+// #endif
 
 namespace uhd { namespace transport {
 
