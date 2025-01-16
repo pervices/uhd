@@ -111,12 +111,10 @@ private:
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ PAGE_SIZE;
     }
 
-    // TODO: reduce padding
     static constexpr size_t _padded_io_uring_control_struct_size = CACHE_LINE_SIZE * 4;
     static_assert((_padded_io_uring_control_struct_size > (sizeof(struct io_uring) + sizeof(io_uring_buf_ring*))), "Padded io_uring + io_uring_buf_ring* size smaller than their normal size");
     // Buffer used for control structs used by io_uring
-    // Format: io_uring, io_uring_buf_ring, padding to _padded__uring_size, repeat for each channel
-    // TODO: see if adding cache line or page size padding between io_uring and io_uring_buf_ring helps
+    // Format: io_uring, io_uring_buf_ring*, padding to next cache line, repeat for each channel
     uint8_t* const _io_uring_control_structs;
 
     // Access the uring for a given channel. (The ring buffer containing submission and completion queues)
