@@ -21,8 +21,17 @@ UHD_INSTALL(FILES
     usb_control.hpp
     usb_zero_copy.hpp
     usb_device_handle.hpp
+    user_recv_manager.hpp
     vrt_if_packet.hpp
     zero_copy.hpp
     DESTINATION ${INCLUDE_DIR}/uhd/transport
     COMPONENT headers
 )
+
+if(ENABLE_LIBURING)
+    UHD_INSTALL(FILES
+    io_uring_recv_manager.hpp
+    DESTINATION ${INCLUDE_DIR}/uhd/transport
+    COMPONENT headers
+    )
+endif()
