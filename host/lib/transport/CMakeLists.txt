@@ -116,7 +116,6 @@ LIBUHD_PYTHON_GEN_SOURCE(
 
 LIBUHD_APPEND_SOURCES(
 
-    ${CMAKE_CURRENT_SOURCE_DIR}/async_recv_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer_tracker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/buffer_pool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/if_addrs.cpp
@@ -124,6 +123,8 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/inline_io_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/offload_io_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/adapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/async_recv_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/user_recv_manager.cpp
 )
 
 if(ENABLE_X300)
@@ -132,7 +133,11 @@ if(ENABLE_X300)
     )
 endif(ENABLE_X300)
 
-
+if(ENABLE_LIBURING)
+    LIBUHD_APPEND_SOURCES(
+        ${CMAKE_CURRENT_SOURCE_DIR}/io_uring_recv_manager.cpp
+    )
+endif()
 
 if(ENABLE_DPDK)
     INCLUDE_SUBDIRECTORY(uhd-dpdk)
