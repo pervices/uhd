@@ -89,8 +89,7 @@ private:
     // Size of the buffer containing a single packet
     const size_t _padded_individual_packet_size;
 
-    // Buffer containing packets + packet length
-    // TODO: figure out if page alignment is necessary, or only 512 bytes (for potential future AVX512 use)
+    // Buffer containing packet length, Vita header, and samples
     // Format: (packet length, padding, vita header | SIMD_ALIGNMENT boundary |, samples, padding to next SIMD_ALIGNMENT) * PACKETS_PER_BUFFER) repeat for PACKET_BUFFER_SIZE, repeat for _num_ch
     uint8_t* const _all_ch_packet_buffers;
 
