@@ -112,7 +112,6 @@ void async_recv_manager::uring_init(size_t ch) {
 
     // Number of entries that can fit in the submission queue
     // Only 1 submission entry is needed since we are using multishot
-    // TODO: see if submission queue can be set to length 1
     uring_params.sq_entries = NUM_SQ_URING_ENTRIES;
     // Number of entries that can fit in the completion queue
     uring_params.cq_entries = NUM_CQ_URING_ENTRIES;
@@ -121,12 +120,7 @@ void async_recv_manager::uring_init(size_t ch) {
     // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
     // IORING_SETUP_CQSIZE: pay attention to cq_entries
     // IORING_SETUP_NO_SQARRAY: for some reason this fixes dropped packets when streaming multiple channels
-// TODO check if feature is supported
-// Manually define constant if it is not provided by the compiler
-#ifndef IORING_SETUP_NO_SQARRAY
-    #define IORING_SETUP_NO_SQARRAY         (1U << 16)
-#endif
-    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_NO_SQARRAY;
+    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE;
     // Select the core to bind the kernel thread to
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set.
     //uring_params.sq_thread_cpu;
