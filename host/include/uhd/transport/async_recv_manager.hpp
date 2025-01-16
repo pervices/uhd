@@ -112,7 +112,7 @@ private:
     }
 
     // TODO: reduce padding
-    static constexpr size_t _padded_io_uring_control_struct_size = PAGE_SIZE;
+    static constexpr size_t _padded_io_uring_control_struct_size = CACHE_LINE_SIZE * 4;
     static_assert((_padded_io_uring_control_struct_size > (sizeof(struct io_uring) + sizeof(io_uring_buf_ring*))), "Padded io_uring + io_uring_buf_ring* size smaller than their normal size");
     // Buffer used for control structs used by io_uring
     // Format: io_uring, io_uring_buf_ring, padding to _padded__uring_size, repeat for each channel
@@ -125,10 +125,8 @@ private:
     }
 
     // Access buf ring for a given channel. (The ring buffer contain the buffers to store received data in)
-    // Might prevent seg faults
-    static_assert(PAGE_SIZE/2 + sizeof(io_uring_buf_ring**) > sizeof(struct io_uring), "io_uring_buf_ring** starts to early");
     inline __attribute__((always_inline)) io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
-        return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + PAGE_SIZE/2);
+        return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + sizeof(struct io_uring));
     }
 
     // Number of packets consumed in the active consumer buffer
