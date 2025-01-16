@@ -260,10 +260,6 @@ public:
             while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
                 recv_manager->get_next_async_packet_info(ch, &next_packet[ch]);
 
-                // Adding excesive amount of mfences to avoid wierd errors
-                // TODO: optimize fencing
-                // _mm_lfence();
-
                 // Length is 0 if the packet is not ready yet
                 if(next_packet[ch].length != 0) {
                     if(next_packet[ch].vita_header == nullptr || next_packet[ch].samples == nullptr) {
