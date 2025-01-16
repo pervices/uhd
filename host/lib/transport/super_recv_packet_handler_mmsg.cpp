@@ -277,8 +277,6 @@ public:
                     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                 }
             }
-            // This mmfence helped prevent wierd performance drops with the old system
-            // _mm_mfence();
 
             // Check if timeout occured
             if(ch < _NUM_CHANNELS) [[unlikely]] {
