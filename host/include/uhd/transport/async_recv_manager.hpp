@@ -154,13 +154,20 @@ public:
     ~async_recv_manager();
 
     /**
-     * Calls constructor for async_recv_manager and ensure async_recv_manager is properly aligned
+     * Calls constructor for async_recv_manager and ensure async_recv_manager is properly aligned.
+     * You must call unmake when done
      * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
      * @param recv_sockets Vector containing the file descriptor for all sockets
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
      */
     static async_recv_manager* make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
+
+    /**
+     * Destructs and frees an async_recv_manager
+     * @param async_recv_manager* The instance to destruct and free
+     */
+    static void unmake( async_recv_manager* recv_manager );
 
     bool slow_consumer_warning_printed = false;
 

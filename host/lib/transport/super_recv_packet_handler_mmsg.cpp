@@ -175,10 +175,8 @@ public:
 
     ~recv_packet_handler_mmsg(void)
     {
+        async_recv_manager::unmake(recv_manager);
         // recv_manager must be deleted before closing sockets
-        // Destructor must be manually called when using placement new
-        recv_manager->~async_recv_manager();
-        free(recv_manager);
         for(size_t n = 0; n < _recv_sockets.size(); n++) {
             int r = close(_recv_sockets[n]);
             if(r) {
