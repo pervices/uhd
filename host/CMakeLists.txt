@@ -17,12 +17,15 @@ endif(POLICY CMP0048)
 project(UHD CXX C)
 enable_testing()
 
+# Multishot functions used by our io_uring implementation requires kernel 6.0
 if(LINUX_KERNEL_VERSION VERSION_GREATER_EQUAL 6.0)
     set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
     set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
-    message(WARNING "New kernel")
+    set(IO_URING_MULTISHOT_AVAILABLE)
 else()
-    message(WARNING "Old kernel")
+    set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra")
+    set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra")
+    set(IO_URING_UNAVAILABLE)
 endif()
 
 #make sure our local CMake Modules path comes first
