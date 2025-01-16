@@ -113,7 +113,7 @@ private:
 
     // TODO: reduce padding
     static constexpr size_t _padded_io_uring_control_struct_size = PAGE_SIZE;
-    static_assert(_padded_io_uring_control_struct_size > sizeof(struct io_uring), "Padded io_uring size smaller than normal io_uring size");
+    static_assert((_padded_io_uring_control_struct_size > (sizeof(struct io_uring) + sizeof(io_uring_buf_ring*))), "Padded io_uring + io_uring_buf_ring* size smaller than their normal size");
     // Buffer used for control structs used by io_uring
     // Format: io_uring, io_uring_buf_ring, padding to _padded__uring_size, repeat for each channel
     // TODO: see if adding cache line or page size padding between io_uring and io_uring_buf_ring helps
