@@ -285,7 +285,7 @@ private:
     void arm_recv_multishot(size_t ch, int fd);
 
     /**
-     * Attempts to allocate a buffer using mmap and huge pages.
+     * Attempts to allocate a page aligned buffer using mmap and huge pages.
      * If that fails to allocate using huge pages it will warn the user and fall back to allocating without huge pages.
      * @param size The size of the buffer to allocate in bytes
      * @return A pointer to the buffer that was allocated
@@ -293,7 +293,7 @@ private:
     static void* allocate_hugetlb_buffer_with_fallback(size_t size);
 
     /**
-     * Attempts to allocate a buffer aligned to a page using mmap.
+     * Attempts to allocate a page aligned buffer using mmap.
      * This also includes error detection to verify the buffer was allocated.
      * @param size The size of the buffer to allocate in bytes
      * @return A pointer to the bffer that was allocated

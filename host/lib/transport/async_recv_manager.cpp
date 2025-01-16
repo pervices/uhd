@@ -203,17 +203,16 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     // IOSQE_BUFFER_SELECT: indicates to use a registered buffer from io_uring_buf_ring_add
     io_uring_sqe_set_flags(sqe, IOSQE_BUFFER_SELECT);
 
-    // TODO: cleanup
     int ret = io_uring_submit(ring);
+
+    // Error detection for submit
+    // These should all be impossible
     if(ret > 1) {
-        printf("To many submissions: %i\n", ret);
+        throw std::runtime_error("Multiple requests submitted to io_uring even though only 1 was intended. This should be impossible"");
     } else if(ret == 0) {
-        printf("No submissions: %i\n", ret);
+        throw std::runtime_error("0 requests submitted to io_uring but success was reported. This should be impossible");
     } else if (ret < 0) {
-        printf("Submit failed with error code: %i\n", -ret);
-        printf("Submit failed with error code: %s\n", strerror(-ret));
-    } else {
-        // printf("Multishot setup completed\n");
+        throw std::runtime_error("io_uring submit failed with: " + std::string(strerror(-ret)));
     }
 }
 
