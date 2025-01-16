@@ -63,8 +63,6 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
     for(size_t ch = 0; ch < _num_ch; ch++) {
         uring_init(ch);
     }
-    // DEBUG: wait in case this is causing problems
-    sleep(1);
 
     // TODO: handle multiple channels on low core count systems
 
