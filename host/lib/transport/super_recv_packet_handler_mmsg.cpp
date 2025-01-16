@@ -114,7 +114,6 @@ public:
                 throw uhd::runtime_error( "Failed to set socket to non-blocking. Performance may be affected" );
             }
 
-
             // Sets the recv buffer size
             setsockopt(_recv_sockets[n], SOL_SOCKET, SO_RCVBUF, &DEFAULT_RECV_BUFFER_SIZE, sizeof(DEFAULT_RECV_BUFFER_SIZE));
 
@@ -171,14 +170,10 @@ public:
         }
 
         // Create manager for receive threads and access to buffer recv data
-        size_t page_size = getpagesize();
-        // Create manager for threads that receive data to buffers using placement new to avoid false sharing
-        // Put the manager on it's own memory page. Theoretically placing it's own cache line is sufficient, but experimentally padding to full pages is required to avoid interactions with other threads
-        size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)page_size) * page_size;
-        recv_manager = (async_recv_manager*) aligned_alloc(page_size, recv_manager_size);
-
-        // Prevent the class from being moved to a huge page, causes latency spikes
-        madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE);
+        // Give the manager it's own cache line to avoid false sharing
+        size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+        // Use placement new to avoid false sharing
+        recv_manager = (async_recv_manager*) aligned_alloc(CACHE_LINE_SIZE, recv_manager_size);
 
         new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
     }

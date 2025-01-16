@@ -26,6 +26,10 @@ struct async_packet_info {
 // consumer thread refers to the thread calling UHD's recv function
 class async_recv_manager {
 
+public:
+    // Assume 64 bytes cache line size
+    static constexpr size_t CACHE_LINE_SIZE = 64;
+
 private:
 
     // (1 / this) is the maximum portion of CPU cores that can be used by this program
@@ -50,8 +54,6 @@ private:
 
     // Number of channls managed by this streamer
     const uint_fast32_t _num_ch;
-
-    static constexpr size_t CACHE_LINE_SIZE = 64;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
     static constexpr size_t PADDED_UINT8_T_SIZE = CACHE_LINE_SIZE;

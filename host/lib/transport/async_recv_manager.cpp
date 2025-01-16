@@ -208,7 +208,7 @@ void async_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     // Error detection for submit
     // These should all be impossible
     if(ret > 1) {
-        throw std::runtime_error("Multiple requests submitted to io_uring even though only 1 was intended. This should be impossible"");
+        throw std::runtime_error("Multiple requests submitted to io_uring even though only 1 was intended. This should be impossible");
     } else if(ret == 0) {
         throw std::runtime_error("0 requests submitted to io_uring but success was reported. This should be impossible");
     } else if (ret < 0) {
