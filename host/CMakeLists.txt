@@ -20,6 +20,8 @@ enable_testing()
 if(LINUX_KERNEL_VERSION VERSION_LESS 6.0)
     set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
     set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
+else()
+    message(WARNING "Old kernel")
 endif()
 
 #make sure our local CMake Modules path comes first
