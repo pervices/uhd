@@ -17,8 +17,8 @@ endif(POLICY CMP0048)
 project(UHD CXX C)
 enable_testing()
 
-set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
-set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
+set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra")
 
 #make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
@@ -449,6 +449,20 @@ UHD_INSTALL(FILES
 ########################################################################
 LIBUHD_REGISTER_COMPONENT("LibUHD" ENABLE_LIBUHD ON "Boost_FOUND;HAVE_PYTHON_MODULE_MAKO" OFF ON)
 LIBUHD_REGISTER_COMPONENT("LibUHD - C API" ENABLE_C_API ON "ENABLE_LIBUHD" OFF OFF)
+
+#TODO: add PkgConfig to dependency
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(uring QUIET liburing)
+# TODO: add message indicating if this compiled with or without liburing
+if(uring_VERSION VERSION_GREATER_EQUAL 2.6)
+    LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING ON "ENABLE_LIBUHD" OFF ON)
+    add_definitions(-DHAVE_LIBURING)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -luring")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -luring")
+else()
+    LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING OFF "ENABLE_LIBUHD" OFF OFF)
+endif()
+
 if(WIN32)
   LIBUHD_REGISTER_COMPONENT("LibUHD - Python API" ENABLE_PYTHON_API OFF "ENABLE_LIBUHD;HAVE_PYTHON_MODULE_NUMPY;HAVE_PYTHON_LIBS" OFF OFF)
 else()
