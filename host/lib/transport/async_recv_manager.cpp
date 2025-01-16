@@ -241,4 +241,16 @@ void* async_recv_manager::allocate_buffer(size_t size) {
     }
 }
 
+async_recv_manager* async_recv_manager::make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet ) {
+        // Create manager for receive threads and access to buffer recv data
+        // Give the manager it's own cache line to avoid false sharing
+        size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+        // Use placement new to avoid false sharing
+        async_recv_manager* recv_manager = (async_recv_manager*) aligned_alloc(CACHE_LINE_SIZE, recv_manager_size);
+
+        new (recv_manager) async_recv_manager(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+
+        return recv_manager;
+}
+
 }}

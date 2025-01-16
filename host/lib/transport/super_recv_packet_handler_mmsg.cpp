@@ -170,12 +170,7 @@ public:
         }
 
         // Create manager for receive threads and access to buffer recv data
-        // Give the manager it's own cache line to avoid false sharing
-        size_t recv_manager_size = (size_t) ceil(sizeof(async_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-        // Use placement new to avoid false sharing
-        recv_manager = (async_recv_manager*) aligned_alloc(CACHE_LINE_SIZE, recv_manager_size);
-
-        new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+        recv_manager = async_recv_manager::make(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
     }
 
     ~recv_packet_handler_mmsg(void)

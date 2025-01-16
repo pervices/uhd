@@ -26,10 +26,6 @@ struct async_packet_info {
 // consumer thread refers to the thread calling UHD's recv function
 class async_recv_manager {
 
-public:
-    // Assume 64 bytes cache line size
-    static constexpr size_t CACHE_LINE_SIZE = 64;
-
 private:
 
     // (1 / this) is the maximum portion of CPU cores that can be used by this program
@@ -54,6 +50,8 @@ private:
 
     // Number of channls managed by this streamer
     const uint_fast32_t _num_ch;
+
+    static constexpr size_t CACHE_LINE_SIZE = 64;
 
     // Size of uint_fast8_t + padding so it takes a whole number of cache lines
     static constexpr size_t PADDED_UINT8_T_SIZE = CACHE_LINE_SIZE;
@@ -154,6 +152,15 @@ public:
     async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
     ~async_recv_manager();
+
+    /**
+     * Calls constructor for async_recv_manager and ensure async_recv_manager is properly aligned
+     * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
+     * @param recv_sockets Vector containing the file descriptor for all sockets
+     * @param header_size Size of the Vita header in bytes
+     * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
+     */
+    static async_recv_manager* make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
     bool slow_consumer_warning_printed = false;
 
