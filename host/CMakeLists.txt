@@ -34,7 +34,7 @@ endif()
 find_package(PkgConfig REQUIRED)
 # IMPORTED_TARGET can probably be removed
 pkg_check_modules(uring REQUIRED IMPORTED_TARGET liburing)
-if(uring_VERSION >= 2.2)
+if(uring_VERSION VERSION_GREATER_EQUAL 2.2)
     message(WARNING "liburing >= 2.2")
 else()
     message(WARNING "liburing < 2.2")
