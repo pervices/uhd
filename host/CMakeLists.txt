@@ -55,6 +55,10 @@ else()
     message(WARNING "liburing-devel.x86_64 not found")
 endif()
 
+find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(uring REQUIRED IMPORTED_TARGET liburing)
+
 #make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
 
