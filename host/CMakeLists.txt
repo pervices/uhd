@@ -36,8 +36,16 @@ if(liburing_FOUND)
 else()
     message(WARNING "liburing not found")
 endif()
-
-
+if(liburing.x86_64_FOUND)
+    message(WARNING "liburing.x86_64 found")
+else()
+    message(WARNING "liburing.x86_64 not found")
+endif()
+if(liburing-devel.x86_64_FOUND)
+    message(WARNING "liburing-devel.x86_64 found")
+else()
+    message(WARNING "liburing-devel.x86_64 not found")
+endif()
 
 #make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
