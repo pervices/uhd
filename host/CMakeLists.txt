@@ -17,7 +17,6 @@ endif(POLICY CMP0048)
 project(UHD CXX C)
 enable_testing()
 
-message(WARNING CMAKE_SYSTEM_VERSION)
 # Multishot functions used by our io_uring implementation requires kernel 6.0
 if(CMAKE_SYSTEM_VERSION VERSION_GREATER_EQUAL 6.0)
     message(WARNING "New kernel")
@@ -30,6 +29,15 @@ else()
     set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra")
     # set(IO_URING_UNAVAILABLE)
 endif()
+
+find_package(liburing)
+if(liburing_FOUND)
+    message(WARNING "liburing found")
+else()
+    message(WARNING "liburing not found")
+endif()
+
+
 
 #make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
