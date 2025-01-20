@@ -17,7 +17,63 @@
 namespace uhd { namespace transport {
 
 // Manages asynchronous receives using normal network calls such as recvmmsg
+
+// Architecture:
+// For each channel:
+// In one thread that recvmmsg a non blocking recv to fill a call buffer
+// Once the call buffer has any  packets in it mark how many packets are in it and move on to the next call buffer
+
 class user_recv_manager : public async_recv_manager {
+
+private:
+
+    // Number of call buffers per ch
+    // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
+    static constexpr size_t NUM_CALL_BUFFERS = 1024;
+
+    static_assert(PACKET_BUFFER_SIZE % NUM_CALL_BUFFERS == 0, "The packet buffer must be able to contain a whole number of call buffers");
+
+    // Number of packets per call buffer
+    static constexpr size_t CALL_BUFFER_SIZE = PACKET_BUFFER_SIZE / NUM_CALL_BUFFERS;
+
+    // Buffer containing mmsghdrs
+    // Format: (((mmsghdr * CALL_BUFFER_SIZE) + padding to cache line) * NUM_CALL_BUFFERS) * _num_ch
+    // ((mmsghdr * CALL_BUFFER_SIZE) + padding to cache line) == MMGHDR_CALL_BUFFER_SIZE
+    static constexpr size_t MMSGHDR_CALL_BUFFER_SIZE = std::ceil(sizeof(mmsghdr) * CALL_BUFFER_SIZE / (double) CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    static constexpr size_t MMSGHDR_CH_BUFFER_SIZE = MMSGHDR_CALL_BUFFER_SIZE * NUM_CALL_BUFFERS;
+    inline __attribute__((always_inline)) size_t mmghdr_buffer_size() {
+        return MMSGHDR_CH_BUFFER_SIZE * _num_ch;
+    }
+    uint8_t* const _mmsghdr_buffer;
+
+    // Gets a pointer to specific mmsghdr
+    // ch: channel
+    // ch_offset: channel offset (the first channel of the thread)
+    // b: call buffer
+    // p: packet within call buffer
+    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return (mmsghdr*) (_mmsghdr_buffer + ((ch + ch_offset) * MMSGHDR_CH_BUFFER_SIZE) + (b * MMSGHDR_CALL_BUFFER_SIZE) + (p * sizeof(mmsghdr)));
+    }
+
+    // Buffer containing iovecs
+    // Format: (((iovec * CALL_BUFFER_SIZE) + padding to cache line) * NUM_CALL_BUFFERS) * _num_ch
+    // ((IOVEC * CALL_BUFFER_SIZE) + padding to cache line) == IOVEC_CALL_BUFFER_SIZE
+    // TODO: confirm only 1 element in each iovec
+    static constexpr size_t IOVEC_CALL_BUFFER_SIZE = std::ceil(sizeof(mmsghdr) * CALL_BUFFER_SIZE / (double) CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    static constexpr size_t IOVEC_CH_BUFFER_SIZE = IOVEC_CALL_BUFFER_SIZE * NUM_CALL_BUFFERS;
+    inline __attribute__((always_inline)) size_t iovec_buffer_size() {
+        return IOVEC_CH_BUFFER_SIZE * _num_ch;
+    }
+    uint8_t* const _iovec_buffer;
+
+    // Gets a pointer to specific mmsghdr
+    // ch: channel
+    // ch_offset: channel offset (the first channel of the thread)
+    // b: call buffer
+    // p: packet within call buffer
+    inline __attribute__((always_inline)) iovec* access_iovec(size_t ch, size_t ch_offset, size_t b, size_t p) {
+        return (iovec*) (_iovec_buffer + ((ch + ch_offset) * IOVEC_CH_BUFFER_SIZE) + (b * IOVEC_CALL_BUFFER_SIZE) + (p * sizeof(iovec)));
+    }
 
 public:
 

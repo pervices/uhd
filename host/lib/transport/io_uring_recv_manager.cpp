@@ -22,15 +22,10 @@ static std::atomic<int64_t> bgid_counter(0);
 
 io_uring_recv_manager::io_uring_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 : async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet),
-
 _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_control_struct_size))
 
 // Create buffer for flush complete flag in seperate cache lines
 {
-    if(device_total_rx_channels > MAX_CHANNELS) {
-        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Unsupported number of channels, constants must be updated");
-        throw assertion_error("Unsupported number of channels");
-    }
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
         // Gets a buffer group ID equal to the number of buffer groups IDs already requested

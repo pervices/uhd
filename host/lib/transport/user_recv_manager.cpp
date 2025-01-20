@@ -17,13 +17,16 @@
 namespace uhd { namespace transport {
 
 user_recv_manager::user_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
-: async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet)
-
+: async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet),
+// TODO: check if mmsghdr and iovec buffer actually benefit from huge pages
+// TODO: free
+_mmsghdr_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(mmghdr_buffer_size())),
+_iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size()))
 {
-    if(device_total_rx_channels > MAX_CHANNELS) {
-        UHD_LOG_ERROR("USER_RECV_MANAGER", "Unsupported number of channels, constants must be updated");
-        throw assertion_error("Unsupported number of channels");
-    }
+    // Set entire buffer to 0 to avoid issues with lazy allocation
+    memset(_mmsghdr_buffer, 0, mmghdr_buffer_size());
+    memset(_iovec_buffer, 0, iovec_buffer_size());
+
 
     // Initialize the uring for each channel
     for(size_t ch = 0; ch < _num_ch; ch++) {
