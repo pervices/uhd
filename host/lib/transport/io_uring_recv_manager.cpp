@@ -36,7 +36,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
 // Create buffer for flush complete flag in seperate cache lines
 {
     if(device_total_rx_channels > MAX_CHANNELS) {
-        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Unsupported number of channels, constants must be updated");
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Unsupported number of channels, constants must be updated");
         throw assertion_error("Unsupported number of channels");
     }
 
@@ -83,7 +83,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
                 throw std::runtime_error("Error while flusing socket: " + std::string(strerror(errno)));
             }
             if(start + 30.0 < uhd::get_system_time()) {
-                UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
+                UHD_LOGGER_ERROR("IO_URING_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
                 throw std::runtime_error("Timeout while flushing buffers");
             }
         }
@@ -147,7 +147,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     int error = io_uring_queue_init_params(NUM_SQ_URING_ENTRIES, ring, &uring_params);
 
     if(error) {
-        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Error when initializing io_uring: " + std::string(strerror(-error)));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Error when initializing io_uring: " + std::string(strerror(-error)));
         throw uhd::system_error("io_uring error");
     }
 
@@ -159,7 +159,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, _bgid_storage[ch], 0, &ret);
 
     if(ret) {
-        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Error when setting up io_uring: " + std::string(strerror(-error)));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Error when setting up io_uring: " + std::string(strerror(-error)));
         throw uhd::system_error("io_uring_setup_buf_ring");
     }
 
@@ -220,7 +220,7 @@ void* io_uring_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) 
     // Fallback to not using huge pages
     } else {
         // Recomend the user request twice and many huge pages as required in case some are used by other processes
-        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the value of /proc/sys/vm/nr_hugepages, starting with " + std::to_string( 2 * (size_t)std::ceil(size/HUGE_PAGE_SIZE)) + " * number of channels. Reattempting without huge pages, which may harm performance.");
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the value of /proc/sys/vm/nr_hugepages, starting with " + std::to_string( 2 * (size_t)std::ceil(size/HUGE_PAGE_SIZE)) + " * number of channels. Reattempting without huge pages, which may harm performance.");
         return allocate_buffer(size);
     }
 }
@@ -231,7 +231,7 @@ void* io_uring_recv_manager::allocate_buffer(size_t size) {
     if(buffer != MAP_FAILED) {
         return buffer;
     } else {
-        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + "bytes. Error code: " + std::string(strerror(errno)));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + "bytes. Error code: " + std::string(strerror(errno)));
         throw uhd::environment_error(std::string(strerror(errno)));
     }
 }
