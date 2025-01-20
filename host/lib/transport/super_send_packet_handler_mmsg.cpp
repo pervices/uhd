@@ -490,10 +490,10 @@ private:
             } else {
                 if(metadata_.has_time_spec) {
                     // Sets the timestamp based on what's specified by the user
-                    packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE) - 1000;
+                    packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE) - 20;
                 } else {
                     // Sets the timestamp to follow from the previous send
-                    packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE) - 1000;
+                    packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE) - 20;
                 }
             }
             is_first_packet = false;
