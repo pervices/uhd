@@ -20,11 +20,8 @@ struct async_packet_info {
     uint8_t* samples;
 };
 
-// Creates and manages receive threads
-// Threads continuously receive data and store it in a buffer for latter use
-// provider thread(s) refers to the thread(s) receiving data and storing it in the buffer
-// consumer thread refers to the thread calling UHD's recv function
-class async_recv_manager {
+// Manages asynchronous receives using normal network calls such as recvmmsg
+class user_recv_manager {
 
 private:
 

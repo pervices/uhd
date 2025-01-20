@@ -14,6 +14,7 @@ UHD_INSTALL(FILES
     buffer_tracker.hpp
     frame_buff.hpp
     if_addrs.hpp
+    io_uring_recv_manager.hpp
     udp_constants.hpp
     udp_simple.hpp
     udp_stream_zero_copy.hpp
@@ -21,6 +22,7 @@ UHD_INSTALL(FILES
     usb_control.hpp
     usb_zero_copy.hpp
     usb_device_handle.hpp
+    user_recv_manager.hpp
     vrt_if_packet.hpp
     zero_copy.hpp
     DESTINATION ${INCLUDE_DIR}/uhd/transport
