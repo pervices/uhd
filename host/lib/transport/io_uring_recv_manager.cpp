@@ -50,11 +50,9 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
     }
 }
 
-// TODO: figure out how calling parent/child destructors work
 io_uring_recv_manager::~io_uring_recv_manager()
 {
     // Stop liburing's other threads
-    // TODO: move this so it is stopped before parent destructor unmaps buffers
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));
     }

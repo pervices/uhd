@@ -37,7 +37,7 @@ user_recv_manager::user_recv_manager( const size_t device_total_rx_channels, con
 
 user_recv_manager::~user_recv_manager()
 {
-
+    // TODO: stop recv threads
 }
 
 void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {

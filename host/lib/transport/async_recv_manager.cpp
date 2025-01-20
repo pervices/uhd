@@ -16,10 +16,6 @@
 
 namespace uhd { namespace transport {
 
-// A counter for the number of buffer group IDs already obtained across all streamers. Used to get a unique bgid
-// NOTE: This system will need to be updated if/when liburing is implemented for anything else
-static std::atomic<int64_t> bgid_counter(0);
-
 async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 :
 _num_ch(recv_sockets.size()),
@@ -81,10 +77,7 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
 
 async_recv_manager::~async_recv_manager()
 {
-    // Stop liburing's other threads
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        // Stop threads from child's threads
-    }
+    // Make sure all recv threads are stopped during the child's destructor
 
     // Frees buffers, make sure this is after child threads stopped
     munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);

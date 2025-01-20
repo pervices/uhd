@@ -174,9 +174,7 @@ public:
     inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
         io_uring_buf_ring_cq_advance(access_io_urings(ch), *access_io_uring_buf_rings(ch, 0), n);
         _packets_advanced[ch] += n;
-
     }
-
 
 private:
 
