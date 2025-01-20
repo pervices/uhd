@@ -17,27 +17,17 @@ endif(POLICY CMP0048)
 project(UHD CXX C)
 enable_testing()
 
-# Multishot functions used by our io_uring implementation requires kernel 6.0
-if(CMAKE_SYSTEM_VERSION VERSION_GREATER_EQUAL 6.0)
-    message(WARNING "New kernel")
-    set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
-    set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
-    # set(IO_URING_MULTISHOT_AVAILABLE)
-else()
-    message(WARNING "Old kernel")
-    set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra")
-    set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra")
-    # set(IO_URING_UNAVAILABLE)
-endif()
-
+# TODO: add liburing or liburing-devel to dependencies
 # Liburing itself is missing Config.camke file, use PkgConfig to search for it
 find_package(PkgConfig REQUIRED)
 # IMPORTED_TARGET can probably be removed
 pkg_check_modules(uring REQUIRED IMPORTED_TARGET liburing)
-if(uring_VERSION VERSION_GREATER_EQUAL 2.2)
-    message(WARNING "liburing >= 2.2")
+if(uring_VERSION VERSION_GREATER_EQUAL 2.6)
+    set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
+    set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
 else()
-    message(WARNING "liburing < 2.2")
+    set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra")
+    set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra")
 endif()
 
 #make sure our local CMake Modules path comes first
@@ -469,6 +459,13 @@ UHD_INSTALL(FILES
 ########################################################################
 LIBUHD_REGISTER_COMPONENT("LibUHD" ENABLE_LIBUHD ON "Boost_FOUND;HAVE_PYTHON_MODULE_MAKO" OFF ON)
 LIBUHD_REGISTER_COMPONENT("LibUHD - C API" ENABLE_C_API ON "ENABLE_LIBUHD" OFF OFF)
+
+if(uring_VERSION VERSION_GREATER_EQUAL 2.6)
+    LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING ON "ENABLE_LIBUHD" OFF ON)
+else()
+    LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING OFF "ENABLE_LIBUHD" OFF ON)
+endif()
+
 if(WIN32)
   LIBUHD_REGISTER_COMPONENT("LibUHD - Python API" ENABLE_PYTHON_API OFF "ENABLE_LIBUHD;HAVE_PYTHON_MODULE_NUMPY;HAVE_PYTHON_LIBS" OFF OFF)
 else()
