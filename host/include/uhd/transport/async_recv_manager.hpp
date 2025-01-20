@@ -28,14 +28,11 @@ class async_recv_manager {
 
 protected:
 
-    // (1 / this) is the maximum portion of CPU cores that can be used by this program
-    static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
-
     static constexpr size_t MAX_CHANNELS = 16;
 
     // Number of packets that can be stored in the buffer
-    // Hard limit: 2^15
-    // Should be a power of 2
+    // Hard limit: 2^15 from io_uring. Use the same value for user_recv as well to maximize code similarity
+    // Must be a power of 2 so the mask workers correctly
     static constexpr size_t PACKET_BUFFER_SIZE = 32768;
 
     // Mask used to roll over number of packets
@@ -59,6 +56,9 @@ protected:
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
     static constexpr size_t PADDED_INT64_T_SIZE = CACHE_LINE_SIZE;
 
+    // Number of packets to receive before marking events as completed/marking buffers as clear
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = PACKET_BUFFER_SIZE/2;
+
     const std::vector<int> _recv_sockets;
 
     // Vita header size
@@ -66,21 +66,6 @@ protected:
 
     // Size of the sample portion of Vita packets
     const uint_fast32_t _packet_data_size;
-
-    // Number of entries in each uring
-    // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
-    // Hard limit: 2 ^ 15
-    static constexpr uint32_t NUM_SQ_URING_ENTRIES = 1;
-    static constexpr uint32_t NUM_CQ_URING_ENTRIES = 32768;
-    // These constants must be a power of 2. Documentation says most kernels will automatically rounds up to the next power of 2, experimentally not having them as a power of 2 causes some liburing functions to fail
-    static_assert((NUM_SQ_URING_ENTRIES>0 && ((NUM_SQ_URING_ENTRIES & (NUM_SQ_URING_ENTRIES-1)) == 0)), "NUM_SQ_URING_ENTRIES must be a power of 2");
-    static_assert((NUM_CQ_URING_ENTRIES>0 && ((NUM_CQ_URING_ENTRIES & (NUM_CQ_URING_ENTRIES-1)) == 0)), "NUM_CQ_URING_ENTRIES must be a power of 2");
-    // Verify these constants do not exceed 2^15 (hard limit from liburing)
-    static_assert(NUM_SQ_URING_ENTRIES <= 32768, "NUM_SQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
-    static_assert(NUM_CQ_URING_ENTRIES <= 32768, "NUM_CQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
-
-    // Number of packets to receive before marking events as completed/marking buffers as clear
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = NUM_CQ_URING_ENTRIES/2;
 
     // The offset between the start of a packet's portion of _all_ch_packet_buffers and where the Vita header starts
     // It must be set so that the start of samples (which occur immediately after the Vita header) are SIMD_ALIGNMENT aligned
@@ -93,7 +78,7 @@ protected:
     // Format: (packet length, padding, vita header | SIMD_ALIGNMENT boundary |, samples, padding to next SIMD_ALIGNMENT) * PACKETS_PER_BUFFER) repeat for PACKET_BUFFER_SIZE, repeat for _num_ch
     uint8_t* const _all_ch_packet_buffers;
 
-    // Gets a pointer to the start of the buffer containing info for the packet (not the start of the packet
+    // Gets a pointer to the start of the buffer containing info for the packet (not the start of the packet)
     inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t p) {
         return _all_ch_packet_buffers + ((((ch + ch_offset) * PACKET_BUFFER_SIZE) + p ) * _padded_individual_packet_size);
     }
@@ -113,34 +98,15 @@ protected:
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 
-    static constexpr size_t _padded_io_uring_control_struct_size = CACHE_LINE_SIZE * 4;
-    static_assert((_padded_io_uring_control_struct_size > (sizeof(struct io_uring) + sizeof(io_uring_buf_ring*))), "Padded io_uring + io_uring_buf_ring* size smaller than their normal size");
-    // Buffer used for control structs used by io_uring
-    // Format: io_uring, io_uring_buf_ring*, padding to next cache line, repeat for each channel
-    uint8_t* const _io_uring_control_structs;
-
-    // Access the uring for a given channel. (The ring buffer containing submission and completion queues)
-    inline __attribute__((always_inline)) io_uring* access_io_urings(size_t ch, size_t ch_offset = 0) {
-        return (io_uring*) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size));
-    }
-
-    // Access buf ring for a given channel. (The ring buffer contain the buffers to store received data in)
-    inline __attribute__((always_inline)) io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
-        return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + sizeof(struct io_uring));
-    }
-
     // Number of packets consumed in the active consumer buffer
     // Accessed only by the consumer thread
     int64_t _num_packets_consumed[MAX_CHANNELS];
 
-    // Number of packets marked as consumed in liburing
+    // Number of packets the provider threads have been told have been consumed
     int64_t _packets_advanced[MAX_CHANNELS];
 
-    // Stores the bgid used by io_uring_setup_buf_ring and io_uring_sqe_set_flags(..., IOSQE_BUFFER_SELECT);
-    // Each channel needs a unique bgid
-    int64_t _bgid_storage[MAX_CHANNELS];
-
-public:
+// The constructor is protected since this class should never be instantiated on it's own, and should be created through subclasses
+protected:
 
     /**
      * Constructor for async_recv_manager.
@@ -153,57 +119,11 @@ public:
 
     ~async_recv_manager();
 
-    /**
-     * Calls constructor for async_recv_manager and ensure async_recv_manager is properly aligned.
-     * You must call unmake when done
-     * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
-     * @param recv_sockets Vector containing the file descriptor for all sockets
-     * @param header_size Size of the Vita header in bytes
-     * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
-     */
-    static async_recv_manager* make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
-
-    /**
-     * Destructs and frees an async_recv_manager
-     * @param async_recv_manager* The instance to destruct and free
-     */
-    static void unmake( async_recv_manager* recv_manager );
-
+    // TODO: determine whether this should be in this class or children
     bool slow_consumer_warning_printed = false;
 
     inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
         return _num_packets_consumed[ch] - _packets_advanced[ch];
-    }
-
-    /**
-     * A modified version of io_uring_peek_cqe that peeks at a pseudo head instead of the actual head of the queue.
-     * This function exists because we want to minimize updates to variables used by liburing (such the location of the head) and still need to be able to access elements not at the official head.
-     */
-    inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
-    {
-        constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
-
-        unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
-        // pseudo_head = real_head + offset
-        unsigned head = *ring->cq.khead + get_packets_advancable(ch);
-
-        unsigned available = tail - head;
-        // There is an event in the completion queue that is ready to be used
-        if (available) {
-            // Tell the user the location of the event
-            *cqe_ptr = &ring->cq.cqes[head & mask];
-            // Return0 to indicate success
-            return 0;
-        } else {
-            *cqe_ptr = nullptr;
-            unsigned advancable = get_packets_advancable(ch);
-            // Since we are caught up, take the opportunity to mark packets as clear
-            // Putting it inside if might give better performance what advancing with 0
-            if(advancable) {
-                clear_packets(ch, get_packets_advancable(ch));
-            }
-            return -EAGAIN;
-        }
     }
 
     /**
@@ -212,51 +132,8 @@ public:
      * @param ch
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
-    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
-
-        struct io_uring* ring = access_io_urings(ch, 0);
-        struct io_uring_cqe *cqe_ptr;
-
-        // Checks if a packet is ready
-        int r = custom_io_uring_peek_cqe(ch, ring, &cqe_ptr);
-
-        // The next packet is not ready
-        if(r == -EAGAIN) {
-            info->length = 0;
-            info->vita_header = nullptr;
-            info->samples = nullptr;
-            return;
-        }
-
-        if(cqe_ptr->res > 0) [[likely]] {
-            // IORING_CQE_F_MORE indicates multishot will continue sending messages
-            // If IORING_CQE_F_MORE is not present multishot has stopped and must be restarted
-            if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) [[unlikely]] {
-                // Issues new multishot request
-                arm_recv_multishot(ch, _recv_sockets[ch]);
-            }
-
-            info->length = cqe_ptr->res;
-            info->vita_header = access_packet_vita_header(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-            info->samples = access_packet_samples(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-
-        // All buffers are used (should be unreachable)
-        } else if (-cqe_ptr->res == ENOBUFS) {
-            // Clear this request
-            // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-            io_uring_cq_advance(ring, 1);
-
-            if(!slow_consumer_warning_printed) {
-                UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
-                slow_consumer_warning_printed = true;
-            }
-            info->length = 0;
-            info->vita_header = nullptr;
-            info->samples = nullptr;
-        } else {
-            throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
-        }
-    }
+    // TODO: make sure compilcation fails if this is not overwritten
+    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info);
 
     /**
      * Advances the the next packet to be read by the consumer thread
@@ -278,27 +155,10 @@ public:
      * @param ch The channel whose packets to mark as clear
      * @param n The number of packets to mark as clear
     */
-    inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
-        io_uring_buf_ring_cq_advance(access_io_urings(ch), *access_io_uring_buf_rings(ch, 0), n);
-        _packets_advanced[ch] += n;
-
-    }
+    virtual void clear_packets(const size_t ch, const unsigned n) = 0;
 
 
 protected:
-
-    /**
-     * Helper function to initialize the uring for a channel.
-     * It is called during the constructor to make undertanding liburing initialization easier
-     * @param ch The channel who's uring to initialize
-     */
-    void uring_init(size_t ch);
-
-    /**
-     * Arms recv_multishot
-     * Must be called after flushing the sockets and after any time the completion queue gets full
-     */
-    void arm_recv_multishot(size_t ch, int fd);
 
     /**
      * Attempts to allocate a page aligned buffer using mmap and huge pages.
@@ -315,13 +175,6 @@ protected:
      * @return A pointer to the bffer that was allocated
      */
     static void* allocate_buffer(size_t size);
-
-    /**
-     * Function that continuously receives data and stores it in the buffer
-     * @param sockets the sockets that this thread receives on. Must be a continuous subset corresponding to the storage buffers
-     * @param ch_offset offset in the storages buffers that corresponds to the start of the channel
-     */
-    static void recv_loop(async_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset);
 
 };
 }}

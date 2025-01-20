@@ -22,15 +22,7 @@ static std::atomic<int64_t> bgid_counter(0);
 
 io_uring_recv_manager::io_uring_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 : async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet),
-_num_ch(recv_sockets.size()),
-_recv_sockets(recv_sockets),
-_header_size(header_size),
-_packet_data_size(max_sample_bytes_per_packet),
 
-_vita_header_offset(SIMD_ALIGNMENT - _header_size),
-_padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)SIMD_ALIGNMENT) * SIMD_ALIGNMENT) + /* Vita header + padding */ _header_size + _vita_header_offset),
-
-_all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size)),
 _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_control_struct_size))
 
 // Create buffer for flush complete flag in seperate cache lines
@@ -208,31 +200,6 @@ void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
         throw std::runtime_error("0 requests submitted to io_uring but success was reported. This should be impossible");
     } else if (ret < 0) {
         throw std::runtime_error("io_uring submit failed with: " + std::string(strerror(-ret)));
-    }
-}
-
-void* io_uring_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
-    // Allocate buffer using huge pages (MAP_HUGETLB)
-    void* hugeltb_buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
-    // If it worked return buffer
-    if(hugeltb_buffer != MAP_FAILED) {
-        return hugeltb_buffer;
-    // Fallback to not using huge pages
-    } else {
-        // Recomend the user request twice and many huge pages as required in case some are used by other processes
-        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the value of /proc/sys/vm/nr_hugepages, starting with " + std::to_string( 2 * (size_t)std::ceil(size/HUGE_PAGE_SIZE)) + " * number of channels. Reattempting without huge pages, which may harm performance.");
-        return allocate_buffer(size);
-    }
-}
-
-void* io_uring_recv_manager::allocate_buffer(size_t size) {
-    // MMAP is used instead of aligned_alloc since aligned_alloc may have caused inconsistent performance
-    void* buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if(buffer != MAP_FAILED) {
-        return buffer;
-    } else {
-        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + "bytes. Error code: " + std::string(strerror(errno)));
-        throw uhd::environment_error(std::string(strerror(errno)));
     }
 }
 

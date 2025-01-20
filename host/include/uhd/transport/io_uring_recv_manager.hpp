@@ -21,85 +21,17 @@ class io_uring_recv_manager : public async_recv_manager {
 
 private:
 
-    // Number of packets that can be stored in the buffer
-    // Hard limit: 2^15
-    // Should be a power of 2
-    static constexpr size_t PACKET_BUFFER_SIZE = 32768;
-
-    // Mask used to roll over number of packets
-    static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
-
-    // Optimal alignment for using SIMD instructions to copy/convert samples
-    // Set for 512 for future AVX512 copying
-    static constexpr size_t SIMD_ALIGNMENT = 512;
-
-    static constexpr size_t PAGE_SIZE = 4096;
-    static constexpr size_t HUGE_PAGE_SIZE = 2048 * 1024;
-
-    // Number of channls managed by this streamer
-    const uint_fast32_t _num_ch;
-
-    static constexpr size_t CACHE_LINE_SIZE = 64;
-
-    // Size of uint_fast8_t + padding so it takes a whole number of cache lines
-    static constexpr size_t PADDED_UINT8_T_SIZE = CACHE_LINE_SIZE;
-
-    // Size of int_fast64_t + padding so it takes a whole number of cache lines
-    static constexpr size_t PADDED_INT64_T_SIZE = CACHE_LINE_SIZE;
-
-    const std::vector<int> _recv_sockets;
-
-    // Vita header size
-    const uint_fast32_t _header_size;
-
-    // Size of the sample portion of Vita packets
-    const uint_fast32_t _packet_data_size;
-
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
     // Hard limit: 2 ^ 15
     static constexpr uint32_t NUM_SQ_URING_ENTRIES = 1;
-    static constexpr uint32_t NUM_CQ_URING_ENTRIES = 32768;
+    static constexpr uint32_t NUM_CQ_URING_ENTRIES = PACKET_BUFFER_SIZE;
     // These constants must be a power of 2. Documentation says most kernels will automatically rounds up to the next power of 2, experimentally not having them as a power of 2 causes some liburing functions to fail
     static_assert((NUM_SQ_URING_ENTRIES>0 && ((NUM_SQ_URING_ENTRIES & (NUM_SQ_URING_ENTRIES-1)) == 0)), "NUM_SQ_URING_ENTRIES must be a power of 2");
     static_assert((NUM_CQ_URING_ENTRIES>0 && ((NUM_CQ_URING_ENTRIES & (NUM_CQ_URING_ENTRIES-1)) == 0)), "NUM_CQ_URING_ENTRIES must be a power of 2");
     // Verify these constants do not exceed 2^15 (hard limit from liburing)
     static_assert(NUM_SQ_URING_ENTRIES <= 32768, "NUM_SQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
     static_assert(NUM_CQ_URING_ENTRIES <= 32768, "NUM_CQ_URING_ENTRIES has a hard limit of 32768 imposed by liburing");
-
-    // Number of packets to receive before marking events as completed/marking buffers as clear
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = NUM_CQ_URING_ENTRIES/2;
-
-    // The offset between the start of a packet's portion of _all_ch_packet_buffers and where the Vita header starts
-    // It must be set so that the start of samples (which occur immediately after the Vita header) are SIMD_ALIGNMENT aligned
-    const size_t _vita_header_offset;
-
-    // Size of the buffer containing a single packet
-    const size_t _padded_individual_packet_size;
-
-    // Buffer containing packet length, Vita header, and samples
-    // Format: (packet length, padding, vita header | SIMD_ALIGNMENT boundary |, samples, padding to next SIMD_ALIGNMENT) * PACKETS_PER_BUFFER) repeat for PACKET_BUFFER_SIZE, repeat for _num_ch
-    uint8_t* const _all_ch_packet_buffers;
-
-    // Gets a pointer to the start of the buffer containing info for the packet (not the start of the packet
-    inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t p) {
-        return _all_ch_packet_buffers + ((((ch + ch_offset) * PACKET_BUFFER_SIZE) + p ) * _padded_individual_packet_size);
-    }
-
-    // Gets a pointer to the Vita header for a packet (which is also the start of the packet
-    inline __attribute__((always_inline)) uint8_t* access_packet_vita_header(size_t ch, size_t ch_offset, size_t p) {
-        return access_packet_buffer(ch, ch_offset, p) + _vita_header_offset;
-    }
-
-    // Gets a pointer to the length of a packet
-    inline __attribute__((always_inline)) int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t p) {
-        return (int64_t*) (access_packet_buffer(ch, ch_offset, p));
-    }
-
-    // Gets a pointer to the start of a packet's samples
-    inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t p) {
-        return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
-    }
 
     static constexpr size_t _padded_io_uring_control_struct_size = CACHE_LINE_SIZE * 4;
     static_assert((_padded_io_uring_control_struct_size > (sizeof(struct io_uring) + sizeof(io_uring_buf_ring*))), "Padded io_uring + io_uring_buf_ring* size smaller than their normal size");
@@ -116,13 +48,6 @@ private:
     inline __attribute__((always_inline)) io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
         return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + sizeof(struct io_uring));
     }
-
-    // Number of packets consumed in the active consumer buffer
-    // Accessed only by the consumer thread
-    int64_t _num_packets_consumed[MAX_CHANNELS];
-
-    // Number of packets marked as consumed in liburing
-    int64_t _packets_advanced[MAX_CHANNELS];
 
     // Stores the bgid used by io_uring_setup_buf_ring and io_uring_sqe_set_flags(..., IOSQE_BUFFER_SELECT);
     // Each channel needs a unique bgid
@@ -156,12 +81,6 @@ public:
      * @param io_uring_recv_manager* The instance to destruct and free
      */
     static void unmake( io_uring_recv_manager* recv_manager );
-
-    bool slow_consumer_warning_printed = false;
-
-    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
-        return _num_packets_consumed[ch] - _packets_advanced[ch];
-    }
 
     /**
      * A modified version of io_uring_peek_cqe that peeks at a pseudo head instead of the actual head of the queue.
@@ -247,21 +166,6 @@ public:
     }
 
     /**
-     * Advances the the next packet to be read by the consumer thread
-     * @param ch
-     */
-    inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
-
-        _num_packets_consumed[ch]++;
-
-        unsigned packets_advancable = get_packets_advancable(ch);
-        // Mark packets are clear in batches to improve performance
-        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            clear_packets(ch, packets_advancable);
-        }
-    }
-
-    /**
      * Lets liburing know that packets have been consumed
      * @param ch The channel whose packets to mark as clear
      * @param n The number of packets to mark as clear
@@ -287,29 +191,6 @@ private:
      * Must be called after flushing the sockets and after any time the completion queue gets full
      */
     void arm_recv_multishot(size_t ch, int fd);
-
-    /**
-     * Attempts to allocate a page aligned buffer using mmap and huge pages.
-     * If that fails to allocate using huge pages it will warn the user and fall back to allocating without huge pages.
-     * @param size The size of the buffer to allocate in bytes
-     * @return A pointer to the buffer that was allocated
-     */
-    static void* allocate_hugetlb_buffer_with_fallback(size_t size);
-
-    /**
-     * Attempts to allocate a page aligned buffer using mmap.
-     * This also includes error detection to verify the buffer was allocated.
-     * @param size The size of the buffer to allocate in bytes
-     * @return A pointer to the bffer that was allocated
-     */
-    static void* allocate_buffer(size_t size);
-
-    /**
-     * Function that continuously receives data and stores it in the buffer
-     * @param sockets the sockets that this thread receives on. Must be a continuous subset corresponding to the storage buffers
-     * @param ch_offset offset in the storages buffers that corresponds to the start of the channel
-     */
-    static void recv_loop(io_uring_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset);
 
 };
 }}
