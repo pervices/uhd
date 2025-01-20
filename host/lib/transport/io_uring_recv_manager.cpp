@@ -32,53 +32,17 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         throw assertion_error("Unsupported number of channels");
     }
 
-    // Initialize control variables to 0
     for(size_t ch = 0; ch < _num_ch; ch++) {
-        _num_packets_consumed[ch] = 0;
-        _packets_advanced[ch] = 0;
-
         // Gets a buffer group ID equal to the number of buffer groups IDs already requested
         _bgid_storage[ch] = bgid_counter++;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_io_uring_control_structs, 0, _num_ch * _padded_io_uring_control_struct_size);
-    memset(_all_ch_packet_buffers, 0, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
-
-    int64_t num_cores = std::thread::hardware_concurrency();
-    // If unable to get number of cores assume the system is 4 core
-    if(num_cores == 0) {
-        num_cores = 4;
-    }
 
     // Initialize the uring for each channel
     for(size_t ch = 0; ch < _num_ch; ch++) {
         uring_init(ch);
-    }
-
-    // TODO: handle multiple channels on low core count systems
-
-        uhd::time_spec_t start = uhd::get_system_time();
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-
-        int r;
-
-        // Repeatedly receives packets on the socket to flush it
-        while(true) {
-            uint8_t flush_buffer[1];
-            r = recv(_recv_sockets[ch], flush_buffer, 1, MSG_DONTWAIT);
-            // No packets received, flush complete
-            if(r < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                break;
-            // Unexpected errnor occured
-            } else if (r < 0) {
-                throw std::runtime_error("Error while flusing socket: " + std::string(strerror(errno)));
-            }
-            if(start + 30.0 < uhd::get_system_time()) {
-                UHD_LOGGER_ERROR("IO_URING_RECV_MANAGER") << "A timeout occured while flushing sockets. It is likely that the device is already streaming";
-                throw std::runtime_error("Timeout while flushing buffers");
-            }
-        }
     }
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
@@ -86,16 +50,16 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
     }
 }
 
+// TODO: figure out how calling parent/child destructors work
 io_uring_recv_manager::~io_uring_recv_manager()
 {
     // Stop liburing's other threads
+    // TODO: move this so it is stopped before parent destructor unmaps buffers
     for(size_t ch = 0; ch < _num_ch; ch++) {
         io_uring_queue_exit(access_io_urings(ch, 0));
     }
 
-    // Frees packets and mmsghdr buffers
     munmap(_io_uring_control_structs, _num_ch * _padded_io_uring_control_struct_size);
-    munmap(_all_ch_packet_buffers, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
 }
 
 void io_uring_recv_manager::uring_init(size_t ch) {

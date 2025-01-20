@@ -132,8 +132,7 @@ protected:
      * @param ch
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
-    // TODO: make sure compilcation fails if this is not overwritten
-    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info);
+    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) = 0;
 
     /**
      * Advances the the next packet to be read by the consumer thread
