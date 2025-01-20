@@ -44,13 +44,6 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_all_ch_packet_buffers, 0, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
 
-    int64_t num_cores = std::thread::hardware_concurrency();
-    // If unable to get number of cores assume the system is 4 core
-    if(num_cores == 0) {
-        num_cores = 4;
-        // TODO: use this to adjust for low core count systems
-    }
-
     uhd::time_spec_t start = uhd::get_system_time();
     for(size_t ch = 0; ch < _num_ch; ch++) {
 

@@ -75,6 +75,8 @@ private:
         return (iovec*) (_iovec_buffer + ((ch + ch_offset) * IOVEC_CH_BUFFER_SIZE) + (b * IOVEC_CALL_BUFFER_SIZE) + (p * sizeof(iovec)));
     }
 
+    std::vector<std::thread> recv_loops;
+
 public:
 
     /**

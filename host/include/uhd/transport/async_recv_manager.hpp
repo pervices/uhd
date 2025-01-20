@@ -30,6 +30,9 @@ protected:
 
     static constexpr size_t MAX_CHANNELS = 16;
 
+    // 1/this = hint for the maximum portion of the cores to use for recv threads
+    static constexpr size_t MAX_RESOURCE_FRACTION = 3;
+
     // Number of packets that can be stored in the buffer
     // Hard limit: 2^15 from io_uring. Use the same value for user_recv as well to maximize code similarity
     // Must be a power of 2 so the mask workers correctly

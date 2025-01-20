@@ -27,6 +27,25 @@ _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size
     memset(_mmsghdr_buffer, 0, mmghdr_buffer_size());
     memset(_iovec_buffer, 0, iovec_buffer_size());
 
+    size_t num_cores = std::thread::hardware_concurrency();
+    // If unable to get number of cores assume the system is 4 core
+    if(num_cores == 0) {
+        num_cores = 4;
+    }
+
+    // Number of channels per thread
+    // Ideally 1, but may need to be more depending on how many cores the host has
+    size_t ch_per_thread = (size_t) std::ceil( ( MAX_RESOURCE_FRACTION * device_total_rx_channels) / (double)num_cores );
+
+    // Creates thread to receive data
+    for(size_t ch_offset = 0; ch_per_thread < _num_ch; ch_per_thread++) {
+        std::vector<int> thread_sockets(recv_sockets.begin() + ch_offset, recv_sockets.begin() + std::min(ch_offset + ch_per_thread, recv_sockets.size()));
+
+        recv_loops.emplace_back(std::thread(recv_loop, this, thread_sockets, ch_offset));
+
+        ch_offset+=ch_per_thread;
+    }
+
 
     // Initialize the uring for each channel
     for(size_t ch = 0; ch < _num_ch; ch++) {
