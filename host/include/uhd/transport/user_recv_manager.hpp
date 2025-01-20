@@ -12,23 +12,14 @@
 
 #include <immintrin.h>
 
+#include <uhd/transport/async_recv_manager.hpp>
+
 namespace uhd { namespace transport {
 
-struct async_packet_info {
-    int64_t length;
-    uint8_t* vita_header;
-    uint8_t* samples;
-};
-
 // Manages asynchronous receives using normal network calls such as recvmmsg
-class user_recv_manager {
+class user_recv_manager : public async_recv_manager {
 
 private:
-
-    // (1 / this) is the maximum portion of CPU cores that can be used by this program
-    static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
-
-    static constexpr size_t MAX_CHANNELS = 16;
 
     // Number of packets that can be stored in the buffer
     // Hard limit: 2^15
@@ -140,31 +131,31 @@ private:
 public:
 
     /**
-     * Constructor for async_recv_manager.
+     * Constructor for user_recv_manager.
      * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
      * @param recv_sockets Vector containing the file descriptor for all sockets
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
      */
-    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
+    user_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
-    ~async_recv_manager();
+    ~user_recv_manager();
 
     /**
-     * Calls constructor for async_recv_manager and ensure async_recv_manager is properly aligned.
+     * Calls constructor for user_recv_manager and ensure user_recv_manager is properly aligned.
      * You must call unmake when done
      * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
      * @param recv_sockets Vector containing the file descriptor for all sockets
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
      */
-    static async_recv_manager* make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
+    static user_recv_manager* make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
     /**
-     * Destructs and frees an async_recv_manager
-     * @param async_recv_manager* The instance to destruct and free
+     * Destructs and frees an user_recv_manager
+     * @param user_recv_manager* The instance to destruct and free
      */
-    static void unmake( async_recv_manager* recv_manager );
+    static void unmake( user_recv_manager* recv_manager );
 
     bool slow_consumer_warning_printed = false;
 
@@ -318,7 +309,7 @@ private:
      * @param sockets the sockets that this thread receives on. Must be a continuous subset corresponding to the storage buffers
      * @param ch_offset offset in the storages buffers that corresponds to the start of the channel
      */
-    static void recv_loop(async_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset);
+    static void recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset);
 
 };
 }}

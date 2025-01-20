@@ -123,6 +123,8 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/inline_io_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/offload_io_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/adapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/async_recv_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/user_recv_manager.cpp
 )
 
 if(ENABLE_X300)
@@ -133,7 +135,7 @@ endif(ENABLE_X300)
 
 if(ENABLE_LIBURING)
     LIBUHD_APPEND_SOURCES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/async_recv_manager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io_uring_recv_manager.cpp
     )
 endif()
 

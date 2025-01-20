@@ -26,7 +26,7 @@ struct async_packet_info {
 // consumer thread refers to the thread calling UHD's recv function
 class async_recv_manager {
 
-private:
+protected:
 
     // (1 / this) is the maximum portion of CPU cores that can be used by this program
     static constexpr int_fast32_t MAX_RESOURCE_FRACTION = 3;
@@ -285,7 +285,7 @@ public:
     }
 
 
-private:
+protected:
 
     /**
      * Helper function to initialize the uring for a channel.
