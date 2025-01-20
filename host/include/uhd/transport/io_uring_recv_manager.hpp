@@ -119,7 +119,8 @@ public:
      * @param ch
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
-    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) {
+    // TODO: make non inline
+    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) override {
 
         struct io_uring* ring = access_io_urings(ch, 0);
         struct io_uring_cqe *cqe_ptr;

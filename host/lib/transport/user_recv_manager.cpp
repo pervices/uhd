@@ -40,6 +40,14 @@ user_recv_manager::~user_recv_manager()
 
 }
 
+void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
+    // TODO: implement
+}
+
+void user_recv_manager::clear_packets(const size_t ch, const unsigned n) {
+    // TODO: implement (might want to inline)
+}
+
 user_recv_manager* user_recv_manager::make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet ) {
         // Give the manager it's own cache line to avoid false sharing
         size_t recv_manager_size = (size_t) ceil(sizeof(user_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;

@@ -122,17 +122,14 @@ protected:
     // TODO: determine whether this should be in this class or children
     bool slow_consumer_warning_printed = false;
 
-    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
-        return _num_packets_consumed[ch] - _packets_advanced[ch];
-    }
-
+public:
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
      * @param ch
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
-    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) = 0;
+    virtual void get_next_async_packet_info(const size_t ch, async_packet_info* info) = 0;
 
     /**
      * Advances the the next packet to be read by the consumer thread
@@ -149,15 +146,18 @@ protected:
         }
     }
 
+protected:
+
+    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
+        return _num_packets_consumed[ch] - _packets_advanced[ch];
+    }
+
     /**
      * Lets liburing know that packets have been consumed
      * @param ch The channel whose packets to mark as clear
      * @param n The number of packets to mark as clear
     */
     virtual void clear_packets(const size_t ch, const unsigned n) = 0;
-
-
-protected:
 
     /**
      * Attempts to allocate a page aligned buffer using mmap and huge pages.
