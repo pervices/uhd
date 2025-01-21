@@ -70,6 +70,11 @@ void user_recv_manager::clear_packets(const size_t ch, const unsigned n) {
     // TODO: implement (might want to inline)
 }
 
+void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
+
+}
+
+
 user_recv_manager* user_recv_manager::make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet ) {
         // Give the manager it's own cache line to avoid false sharing
         size_t recv_manager_size = (size_t) ceil(sizeof(user_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
