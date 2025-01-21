@@ -41,6 +41,8 @@ _packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_
     // Ideally 1, but may need to be more depending on how many cores the host has
     size_t ch_per_thread = (size_t) std::ceil( ( MAX_RESOURCE_FRACTION * device_total_rx_channels) / (double)num_cores );
 
+    printf("ch_per_thread: %lu\n", ch_per_thread);
+
     init_mmsghdr_iovecs();
 
     // TODO: figure out how to set initial vlaue of atomic elegantly
