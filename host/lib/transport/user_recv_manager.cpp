@@ -21,8 +21,15 @@ user_recv_manager::user_recv_manager( const size_t device_total_rx_channels, con
 // TODO: check if mmsghdr and iovec buffer actually benefit from huge pages
 // TODO: free
 _mmsghdr_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(mmghdr_buffer_size())),
-_iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size()))
+_iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size())),
+_call_buffer_heads((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
+_call_buffer_tails((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
+_packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE))
 {
+    // Clear buffers
+    memset(_call_buffer_heads, 0, _num_ch * CACHE_LINE_SIZE);
+    memset(_call_buffer_tails, 0, _num_ch * CACHE_LINE_SIZE);
+    memset(_packets_in_call_buffer, 0, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE);
 
     size_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -36,6 +43,9 @@ _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size
 
     init_mmsghdr_iovecs();
 
+    // TODO: figure out how to set initial vlaue of atomic elegantly
+    stop_flag = 0;
+
     // Creates thread to receive data
     for(size_t ch_offset = 0; ch_per_thread < _num_ch; ch_per_thread++) {
         std::vector<int> thread_sockets(recv_sockets.begin() + ch_offset, recv_sockets.begin() + std::min(ch_offset + ch_per_thread, recv_sockets.size()));
@@ -48,7 +58,10 @@ _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size
 
 user_recv_manager::~user_recv_manager()
 {
-    // TODO: stop recv threads
+    // Tell recv loop to exit
+    stop_flag = 1;
+    // Fence to make sure the flag is updated in other threads
+    _mm_sfence();
 
     for(size_t n = 0; n < recv_loops.size(); n++) {
         recv_loops[n].join();
@@ -92,8 +105,59 @@ void user_recv_manager::init_mmsghdr_iovecs() {
 }
 
 void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
-    // TODO: implement
-    printf("T1\n");
+    // TODO: set thread affinity and priority
+
+    size_t ch_this_thread = sockets.size();
+
+    size_t debug_num_packets_received = 0;
+
+    while(!self->stop_flag) [[likely]] {
+        for(size_t ch = 0; ch < ch_this_thread; ch++) {
+            uint64_t* call_buffer_head = self->access_call_buffer_head(ch, ch_offset);
+
+            // The call buffer currently in use
+            uint64_t b = *call_buffer_head & (NUM_CALL_BUFFERS - 1);
+
+            // Load fence to make sure getting the call buffer head and stop flags don't get optimized out
+            _mm_lfence();
+
+            // Check if the next call buffer in the ring buffer of call buffers is free
+            if(*call_buffer_head >= *self->access_call_buffer_tail(ch, ch_offset) + NUM_CALL_BUFFERS) {
+                // Skips to the next channel if said buffer is still in use
+                continue;
+            }
+
+            int r = recvmmsg(sockets[ch], self->access_mmsghdr(ch, ch_offset, b, 0), CALL_BUFFER_SIZE, MSG_DONTWAIT, 0);
+
+            // No packets ready, continue to next channel
+            // EAGAIN, EWOULDBLOCK indicate MSG_DONTWAIT was used and no packets were ready and can be ignored
+            // EINTR indicates the program received a signal while the recvmmsg call was in progress and also can be ignored
+            if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) {
+                continue;
+            } else if(r == -1) {
+                UHD_LOG_ERROR("USER_RECV_MANAGER", "Unexpected error during recvmmsg: " + std::string(strerror(errno)));
+            }
+
+            debug_num_packets_received += r;
+
+            // Records how many packets are in the current call buffer
+            *self->access_packets_in_call_buffer(ch, ch_offset, b) = (uint64_t) r;
+
+            // Copy the length of the packet received to where the parent class expects it to be stored
+            // This can probably be optimized. It is being done this way to maximize similarities with io_uring_recv_manager
+            for(size_t p = 0; p < (size_t) r; p++) {
+                *self->access_packet_length(ch, ch_offset, call_to_consolidated(b, p)) = self->access_mmsghdr(ch, ch_offset, b, p)->msg_len;
+            }
+
+            // Store fence to ensure the above writes are completed before the call buffer is marked as ready
+            _mm_sfence();
+
+            // Advance to the next call buffer
+            (*call_buffer_head)++;
+        }
+    }
+
+    printf("debug_num_packets_received: %lu\n", debug_num_packets_received);
 }
 
 

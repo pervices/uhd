@@ -78,11 +78,37 @@ private:
     /**
      * Converts from a location in the call buffer (such as the mmsghdr buffer) into a location in a buffer not splot into call buffers (such as the main data buffer)
      */
-    inline __attribute__((always_inline)) size_t call_to_consolidated(size_t b, size_t p) {
+    static inline __attribute__((always_inline)) size_t call_to_consolidated(size_t b, size_t p) {
         return CALL_BUFFER_SIZE * b + p;
     }
 
+    // Stores have many call buffers have been written to for each channel
+    // Format: count, padding to next cache line, repeat for every channel
+    uint8_t* const _call_buffer_heads;
+    inline __attribute__((always_inline)) uint64_t* access_call_buffer_head(size_t ch, size_t ch_offset = 0) {
+        return (uint64_t*) (_call_buffer_heads + ((ch + ch_offset) * CACHE_LINE_SIZE));
+    }
+
+    // Stores have many call buffers have been marked as clear by the consumer thread
+    // Format: count, padding to next cache line, repeat for every channel
+    uint8_t* const _call_buffer_tails;
+    inline __attribute__((always_inline)) uint64_t* access_call_buffer_tail(size_t ch, size_t ch_offset = 0) {
+        return (uint64_t*) (_call_buffer_tails + ((ch + ch_offset) * CACHE_LINE_SIZE));
+    }
+
+    // Stores the number of packets in a call buffer
+    // Not cleared after number of packets consumed, use the value of access_call_buffer_head to figure out if this is ready
+    // Format: (number of packets in a call buffer, padding to next cache line) repeated for every call buffer, repeat for every channel
+    uint8_t* const _packets_in_call_buffer;
+    inline __attribute__((always_inline)) uint64_t* access_packets_in_call_buffer(size_t ch, size_t ch_offset, size_t b) {
+        return (uint64_t*) (_packets_in_call_buffer + ((((ch + ch_offset) * NUM_CALL_BUFFERS) + b) * CACHE_LINE_SIZE));
+    }
+
     std::vector<std::thread> recv_loops;
+
+    // Flag to to the recv loop when to exit
+    // Use fences when setting this to ensure it is synced across threads
+    uint8_t stop_flag = 0;
 
 public:
 
