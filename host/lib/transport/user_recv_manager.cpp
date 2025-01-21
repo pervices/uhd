@@ -41,20 +41,16 @@ _packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_
     // Ideally 1, but may need to be more depending on how many cores the host has
     size_t ch_per_thread = (size_t) std::ceil( ( MAX_RESOURCE_FRACTION * device_total_rx_channels) / (double)num_cores );
 
-    printf("ch_per_thread: %lu\n", ch_per_thread);
-
     init_mmsghdr_iovecs();
 
     // TODO: figure out how to set initial vlaue of atomic elegantly
     stop_flag = 0;
 
     // Creates thread to receive data
-    for(size_t ch_offset = 0; ch_per_thread < _num_ch; ch_per_thread++) {
+    for(size_t ch_offset = 0; ch_offset < _num_ch; ch_offset += ch_per_thread) {
         std::vector<int> thread_sockets(recv_sockets.begin() + ch_offset, recv_sockets.begin() + std::min(ch_offset + ch_per_thread, recv_sockets.size()));
 
         recv_loops.emplace_back(std::thread(recv_loop, this, thread_sockets, ch_offset));
-
-        ch_offset+=ch_per_thread;
     }
 }
 
