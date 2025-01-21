@@ -23,9 +23,6 @@ user_recv_manager::user_recv_manager( const size_t device_total_rx_channels, con
 _mmsghdr_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(mmghdr_buffer_size())),
 _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size()))
 {
-    // Set entire buffer to 0 to avoid issues with lazy allocation
-    memset(_mmsghdr_buffer, 0, mmghdr_buffer_size());
-    memset(_iovec_buffer, 0, iovec_buffer_size());
 
     size_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -37,6 +34,8 @@ _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size
     // Ideally 1, but may need to be more depending on how many cores the host has
     size_t ch_per_thread = (size_t) std::ceil( ( MAX_RESOURCE_FRACTION * device_total_rx_channels) / (double)num_cores );
 
+    init_mmsghdr_iovecs();
+
     // Creates thread to receive data
     for(size_t ch_offset = 0; ch_per_thread < _num_ch; ch_per_thread++) {
         std::vector<int> thread_sockets(recv_sockets.begin() + ch_offset, recv_sockets.begin() + std::min(ch_offset + ch_per_thread, recv_sockets.size()));
@@ -44,16 +43,6 @@ _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size
         recv_loops.emplace_back(std::thread(recv_loop, this, thread_sockets, ch_offset));
 
         ch_offset+=ch_per_thread;
-    }
-
-
-    // Initialize the uring for each channel
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        // TODO: Initialize recv loop
-    }
-
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        // TODO: start receive thread
     }
 }
 
@@ -70,8 +59,33 @@ void user_recv_manager::clear_packets(const size_t ch, const unsigned n) {
     // TODO: implement (might want to inline)
 }
 
-void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
+void user_recv_manager::init_mmsghdr_iovecs() {
+    // Clear buffers for determinism
+    memset(_mmsghdr_buffer, 0, mmghdr_buffer_size());
+    memset(_iovec_buffer, 0, iovec_buffer_size());
 
+    for(uint_fast32_t ch = 0; ch < _num_ch; ch++) {
+        for(uint_fast32_t b = 0; b < NUM_CALL_BUFFERS; b++) {
+            for(uint_fast32_t p = 0; p < CALL_BUFFER_SIZE; p++) {
+
+                struct mmsghdr* current_mmsghdr = access_mmsghdr(ch, 0, b, p);
+                struct iovec* current_iovec = access_iovec(ch, 0, b, p);
+
+                // Tell the iovec where to store the packet
+                // At present the samples are next to the Vita header, if that changes
+                current_iovec->iov_base = access_packet_vita_header(ch, 0, call_to_consolidated(b, p));
+                current_iovec->iov_len = _header_size + _packet_data_size;
+
+                // Tell the mmsghdr which iovec to use
+                current_mmsghdr->msg_hdr.msg_iov = current_iovec;
+                current_mmsghdr->msg_hdr.msg_iovlen = 1;
+            }
+        }
+    }
+}
+
+void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
+    // TODO: implement
 }
 
 

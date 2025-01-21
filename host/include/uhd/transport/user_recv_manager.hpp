@@ -75,6 +75,13 @@ private:
         return (iovec*) (_iovec_buffer + ((ch + ch_offset) * IOVEC_CH_BUFFER_SIZE) + (b * IOVEC_CALL_BUFFER_SIZE) + (p * sizeof(iovec)));
     }
 
+    /**
+     * Converts from a location in the call buffer (such as the mmsghdr buffer) into a location in a buffer not splot into call buffers (such as the main data buffer)
+     */
+    inline __attribute__((always_inline)) size_t call_to_consolidated(size_t b, size_t p) {
+        return CALL_BUFFER_SIZE * b + p;
+    }
+
     std::vector<std::thread> recv_loops;
 
 public:
@@ -123,6 +130,11 @@ public:
 
 
 private:
+
+    /**
+     * Initializes mmsghdrs and iovecs
+     */
+    void init_mmsghdr_iovecs();
 
     /**
      * Function that continuously receives data and stores it in the buffer
