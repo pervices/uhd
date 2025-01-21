@@ -49,10 +49,17 @@ _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size
 user_recv_manager::~user_recv_manager()
 {
     // TODO: stop recv threads
+
+    for(size_t n = 0; n < recv_loops.size(); n++) {
+        recv_loops[n].join();
+    }
 }
 
 void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
     // TODO: implement
+    info->length = 0;
+    info->vita_header = nullptr;
+    info->samples = nullptr;
 }
 
 void user_recv_manager::clear_packets(const size_t ch, const unsigned n) {
@@ -86,6 +93,7 @@ void user_recv_manager::init_mmsghdr_iovecs() {
 
 void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
     // TODO: implement
+    printf("T1\n");
 }
 
 
