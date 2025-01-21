@@ -43,9 +43,6 @@ _packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_
 
     init_mmsghdr_iovecs();
 
-    // TODO: figure out how to set initial vlaue of atomic elegantly
-    stop_flag = 0;
-
     // Creates thread to receive data
     for(size_t ch_offset = 0; ch_offset < _num_ch; ch_offset += ch_per_thread) {
         std::vector<int> thread_sockets(recv_sockets.begin() + ch_offset, recv_sockets.begin() + std::min(ch_offset + ch_per_thread, recv_sockets.size()));
@@ -67,10 +64,23 @@ user_recv_manager::~user_recv_manager()
 }
 
 void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
-    // TODO: implement
-    info->length = 0;
-    info->vita_header = nullptr;
-    info->samples = nullptr;
+    uint64_t* call_buffer_tail = access_call_buffer_tail(ch);
+
+    if(*call_buffer_tail < *access_call_buffer_head(ch)) {
+        size_t b = *call_buffer_tail & (NUM_CALL_BUFFERS - 1);
+        size_t p = _num_packets_consumed[ch];
+
+        size_t _packets_in_call_buffer = *access_packets_in_call_buffer(ch, 0, b);
+
+        info->length = *access_packet_length(ch, 0, call_to_consolidated(b, p));
+        info->vita_header = access_packet_vita_header(ch, 0, call_to_consolidated(b, p));
+        info->samples = access_packet_samples(ch, 0, call_to_consolidated(b, p));
+    // No packets ready
+    } else {
+        info->length = 0;
+        info->vita_header = nullptr;
+        info->samples = nullptr;
+    }
 }
 
 void user_recv_manager::clear_packets(const size_t ch, const unsigned n) {

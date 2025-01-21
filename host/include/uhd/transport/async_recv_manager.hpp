@@ -101,7 +101,8 @@ protected:
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 
-    // Number of packets consumed in the active consumer buffer
+    // Total number of packets consumed in io_uring, number of packets consumed this call buffer in user recv
+    // TODO: move to child class since it has a slightly different meaning in each
     // Accessed only by the consumer thread
     int64_t _num_packets_consumed[MAX_CHANNELS];
 
