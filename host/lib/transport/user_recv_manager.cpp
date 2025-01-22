@@ -153,6 +153,10 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
 
             // Check if the next call buffer in the ring buffer of call buffers is free
             if(*call_buffer_head >= *self->access_call_buffer_tail(ch, ch_offset) + NUM_CALL_BUFFERS) {
+                if(!self->slow_consumer_warning_printed) [[unlikely]] {
+                    UHD_LOG_WARNING("USER_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+                    self->slow_consumer_warning_printed = true;
+                }
                 // Skips to the next channel if said buffer is still in use
                 continue;
             }

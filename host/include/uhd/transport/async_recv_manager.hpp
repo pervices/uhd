@@ -98,11 +98,6 @@ protected:
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 
-    // Total number of packets consumed in io_uring, number of packets consumed this call buffer in user recv
-    // TODO: move to child class since it has a slightly different meaning in each
-    // Accessed only by the consumer thread
-
-
 // The constructor is protected since this class should never be instantiated on it's own, and should be created through subclasses
 protected:
 
@@ -117,7 +112,7 @@ protected:
 
     ~async_recv_manager();
 
-    // TODO: determine whether this should be in this class or children
+    // Flag to determine if a warning tell the user the gaps between recv calls is to long has been set
     bool slow_consumer_warning_printed = false;
 
 public:
