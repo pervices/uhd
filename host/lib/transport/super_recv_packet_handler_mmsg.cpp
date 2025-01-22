@@ -61,6 +61,11 @@ namespace uhd { namespace transport { namespace sph {
 class recv_packet_handler_mmsg : public recv_packet_handler
 {
 public:
+#if ENABLE_LIBURING
+    #error "Enabled"
+#else
+    #error "Not enabled"
+#endif
 
     /*!
      * Make a new packet handler for receive
