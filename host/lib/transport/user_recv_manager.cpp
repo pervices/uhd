@@ -18,8 +18,6 @@ namespace uhd { namespace transport {
 
 user_recv_manager::user_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 : async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet),
-// TODO: check if mmsghdr and iovec buffer actually benefit from huge pages
-// TODO: free
 _mmsghdr_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(mmghdr_buffer_size())),
 _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size())),
 _call_buffer_heads((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
@@ -61,6 +59,12 @@ user_recv_manager::~user_recv_manager()
     for(size_t n = 0; n < recv_loops.size(); n++) {
         recv_loops[n].join();
     }
+
+    munmap(_mmsghdr_buffer, mmghdr_buffer_size());
+    munmap(_iovec_buffer, iovec_buffer_size());
+    free(_call_buffer_heads);
+    free(_call_buffer_tails);
+    free(_packets_in_call_buffer);
 }
 
 void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
