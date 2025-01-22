@@ -152,7 +152,7 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
             _mm_lfence();
 
             // Check if the next call buffer in the ring buffer of call buffers is free
-            if(*call_buffer_head >= *self->access_call_buffer_tail(ch, ch_offset) + NUM_CALL_BUFFERS) {
+            if(*call_buffer_head >= *self->access_call_buffer_tail(ch, ch_offset) + NUM_CALL_BUFFERS) [[unlikely]] {
                 if(!self->slow_consumer_warning_printed) [[unlikely]] {
                     UHD_LOG_WARNING("USER_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
                     self->slow_consumer_warning_printed = true;
@@ -168,7 +168,7 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
             // EINTR indicates the program received a signal while the recvmmsg call was in progress and also can be ignored
             if(r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) {
                 continue;
-            } else if(r == -1) {
+            } else if(r == -1) [[unlikely]] {
                 UHD_LOG_ERROR("USER_RECV_MANAGER", "Unexpected error during recvmmsg: " + std::string(strerror(errno)));
             }
 
