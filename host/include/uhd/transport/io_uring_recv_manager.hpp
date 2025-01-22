@@ -56,6 +56,9 @@ private:
     // Each channel needs a unique bgid
     int64_t _bgid_storage[MAX_CHANNELS];
 
+    // Number of packets the provider threads have been told have been consumed
+    int64_t _packets_advanced[MAX_CHANNELS];
+
 public:
 
     /**
@@ -116,6 +119,19 @@ public:
         }
     }
 
+    inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
+
+        _num_packets_consumed[ch]++;
+
+        unsigned packets_advancable = get_packets_advancable(ch);
+        // Mark packets are clear in batches to improve performance
+        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
+            clear_packets(ch, packets_advancable);
+        }
+    }
+
+private:
+
     /**
      * Gets information needed to process the next packet.
      * The caller is responsible for ensuring correct fencing
@@ -123,7 +139,6 @@ public:
      * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
      */
     // TODO: make non inline
-    // TODO: make private
     inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) override {
 
         struct io_uring* ring = access_io_urings(ch, 0);
@@ -170,18 +185,9 @@ public:
         }
     }
 
-    inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
-
-        _num_packets_consumed[ch]++;
-
-        unsigned packets_advancable = get_packets_advancable(ch);
-        // Mark packets are clear in batches to improve performance
-        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            clear_packets(ch, packets_advancable);
-        }
+    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
+        return _num_packets_consumed[ch] - _packets_advanced[ch];
     }
-
-private:
 
     /**
      * Lets liburing know that packets have been consumed

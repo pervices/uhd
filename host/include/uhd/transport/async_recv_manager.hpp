@@ -103,9 +103,6 @@ protected:
     // Accessed only by the consumer thread
     int64_t _num_packets_consumed[MAX_CHANNELS];
 
-    // Number of packets the provider threads have been told have been consumed
-    int64_t _packets_advanced[MAX_CHANNELS];
-
 // The constructor is protected since this class should never be instantiated on it's own, and should be created through subclasses
 protected:
 
@@ -132,7 +129,6 @@ public:
      */
     virtual void get_next_async_packet_info(const size_t ch, async_packet_info* info) = 0;
 
-    // TODO: move this to children and implement user recv variant
     /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
@@ -140,10 +136,6 @@ public:
     virtual void advance_packet(const size_t ch) = 0;
 
 protected:
-
-    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
-        return _num_packets_consumed[ch] - _packets_advanced[ch];
-    }
 
     /**
      * Attempts to allocate a page aligned buffer using mmap and huge pages.
