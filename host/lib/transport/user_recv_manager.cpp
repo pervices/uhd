@@ -111,8 +111,6 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
 
     size_t ch_this_thread = sockets.size();
 
-    size_t debug_num_packets_received = 0;
-
     while(!self->stop_flag) [[likely]] {
         for(size_t ch = 0; ch < ch_this_thread; ch++) {
             uint64_t* call_buffer_head = self->access_call_buffer_head(ch, ch_offset);
@@ -140,8 +138,6 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
                 UHD_LOG_ERROR("USER_RECV_MANAGER", "Unexpected error during recvmmsg: " + std::string(strerror(errno)));
             }
 
-            debug_num_packets_received += r;
-
             // Records how many packets are in the current call buffer
             *self->access_packets_in_call_buffer(ch, ch_offset, b) = (uint64_t) r;
 
@@ -158,8 +154,6 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
             (*call_buffer_head)++;
         }
     }
-
-    printf("debug_num_packets_received: %lu\n", debug_num_packets_received);
 }
 
 
