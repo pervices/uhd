@@ -57,10 +57,10 @@ private:
     int64_t _bgid_storage[MAX_CHANNELS];
 
     // Number of packets io_uring has been told have been consumed
-    int64_t _packets_advanced[MAX_CHANNELS];
+    uint64_t _packets_advanced[MAX_CHANNELS];
 
     // Number of packets consumed by the recv_packet_handler
-    int64_t _num_packets_consumed[MAX_CHANNELS];
+    uint64_t _num_packets_consumed[MAX_CHANNELS];
 
 public:
 

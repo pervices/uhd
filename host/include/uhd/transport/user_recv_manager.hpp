@@ -112,7 +112,7 @@ private:
 
     // Number of packets consumed by the recv_packet_handler
     // TODO: move this to runtime allocated buffer to avoid false sharing
-    int64_t _num_packets_consumed[MAX_CHANNELS];
+    uint64_t _num_packets_consumed[MAX_CHANNELS];
 
 public:
 
