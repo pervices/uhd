@@ -110,6 +110,10 @@ private:
     // Use fences when setting this to ensure it is synced across threads
     uint8_t stop_flag = 0;
 
+    // Number of packets consumed by the recv_packet_handler
+    // TODO: move this to runtime allocated buffer to avoid false sharing
+    int64_t _num_packets_consumed[MAX_CHANNELS];
+
 public:
 
     /**

@@ -23,8 +23,6 @@ static std::atomic<int64_t> bgid_counter(0);
 io_uring_recv_manager::io_uring_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
 : async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet),
 _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_control_struct_size))
-
-// Create buffer for flush complete flag in seperate cache lines
 {
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
@@ -33,6 +31,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
 
         // Initialize control variables to 0
         _packets_advanced[ch] = 0;
+        _num_packets_consumed[ch] = 0;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation

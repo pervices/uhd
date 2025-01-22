@@ -29,6 +29,11 @@ _packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_
     memset(_call_buffer_tails, 0, _num_ch * CACHE_LINE_SIZE);
     memset(_packets_in_call_buffer, 0, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE);
 
+    // Initialize control variables to 0
+    for(size_t ch = 0; ch < _num_ch; ch++) {
+        _num_packets_consumed[ch] = 0;
+    }
+
     size_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
     if(num_cores == 0) {

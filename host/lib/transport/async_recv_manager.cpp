@@ -35,11 +35,6 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
         throw assertion_error("Unsupported number of channels");
     }
 
-    // Initialize control variables to 0
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        _num_packets_consumed[ch] = 0;
-    }
-
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_all_ch_packet_buffers, 0, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
 
