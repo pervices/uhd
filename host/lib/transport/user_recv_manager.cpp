@@ -107,9 +107,32 @@ void user_recv_manager::init_mmsghdr_iovecs() {
 }
 
 void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
-    // TODO: set thread affinity and priority
 
+    // Number of channels received by this thread
     size_t ch_this_thread = sockets.size();
+
+    // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
+    uhd::set_thread_priority_safe(1, true);
+    // Sets the affinity to the current core
+    uhd::set_thread_affinity_active_core();
+
+    // Set the thread and socket's affinity to the current core, improves speed and reliability
+    unsigned int cpu;
+    // Syscall used because getcpu is does not exist on Oracle
+    int r = syscall(SYS_getcpu, &cpu, nullptr);
+    if(!r) {
+        for(uint_fast32_t ch = 0; ch < ch_this_thread; ch++) {
+            std::vector<size_t> target_cpu(1, cpu);
+            set_thread_affinity(target_cpu);
+
+            r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+            if(r) {
+                UHD_LOG_WARNING("USER_RECV_MANAGER", "Unable to set socket affinity. Error code: " + std::string(strerror(errno)));
+            }
+        }
+    } else {
+        UHD_LOG_WARNING("USER_RECV_MANAGER", "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno)));
+    }
 
     while(!self->stop_flag) [[likely]] {
         for(size_t ch = 0; ch < ch_this_thread; ch++) {
