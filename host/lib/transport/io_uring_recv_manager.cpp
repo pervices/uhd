@@ -24,6 +24,7 @@ io_uring_recv_manager::io_uring_recv_manager( const size_t device_total_rx_chann
 : async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet),
 _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_control_struct_size))
 {
+    printf("io_uring\n");
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
         // Gets a buffer group ID equal to the number of buffer groups IDs already requested

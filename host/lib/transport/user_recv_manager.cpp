@@ -25,6 +25,8 @@ _call_buffer_tails((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LIN
 _packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE)),
 _num_packets_consumed_current_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE))
 {
+    printf("user\n");
+
     // Clear buffers
     memset(_call_buffer_heads, 0, _num_ch * CACHE_LINE_SIZE);
     memset(_call_buffer_tails, 0, _num_ch * CACHE_LINE_SIZE);
