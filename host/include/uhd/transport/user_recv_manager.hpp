@@ -147,13 +147,24 @@ public:
      */
     void get_next_async_packet_info(const size_t ch, async_packet_info* info) override;
 
-    /**
-     * Lets liburing know that packets have been consumed
-     * @param ch The channel whose packets to mark as clear
-     * @param n The number of packets to mark as clear
-    */
-    void clear_packets(const size_t ch, const unsigned n) override;
+    inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
 
+        // Record that this packet has been consumed
+        _num_packets_consumed[ch]++;
+
+        size_t b = (*access_call_buffer_tail(ch)) & (NUM_CALL_BUFFERS - 1);
+        uint64_t* packet_in_call_buffer_ptr = access_packets_in_call_buffer(ch, 0, b);
+
+        // Move to the next buffer if a packets have been consumed
+        if(_num_packets_consumed[ch] >= *packet_in_call_buffer_ptr) {
+            *packet_in_call_buffer_ptr = 0;
+            (*access_call_buffer_tail(ch))++;
+            _num_packets_consumed[ch] = 0;
+
+            // Fence to ensure the writes to the call buffer tail get passed to other threads
+            _mm_sfence();
+        }
+    }
 
 private:
 

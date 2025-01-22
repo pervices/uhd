@@ -70,8 +70,6 @@ void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet
         size_t b = *call_buffer_tail & (NUM_CALL_BUFFERS - 1);
         size_t p = _num_packets_consumed[ch];
 
-        size_t _packets_in_call_buffer = *access_packets_in_call_buffer(ch, 0, b);
-
         info->length = *access_packet_length(ch, 0, call_to_consolidated(b, p));
         info->vita_header = access_packet_vita_header(ch, 0, call_to_consolidated(b, p));
         info->samples = access_packet_samples(ch, 0, call_to_consolidated(b, p));
@@ -81,10 +79,6 @@ void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet
         info->vita_header = nullptr;
         info->samples = nullptr;
     }
-}
-
-void user_recv_manager::clear_packets(const size_t ch, const unsigned n) {
-    // TODO: implement (might want to inline)
 }
 
 void user_recv_manager::init_mmsghdr_iovecs() {

@@ -59,9 +59,6 @@ protected:
     // Size of int_fast64_t + padding so it takes a whole number of cache lines
     static constexpr size_t PADDED_INT64_T_SIZE = CACHE_LINE_SIZE;
 
-    // Number of packets to receive before marking events as completed/marking buffers as clear
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = PACKET_BUFFER_SIZE/2;
-
     const std::vector<int> _recv_sockets;
 
     // Vita header size
@@ -135,33 +132,18 @@ public:
      */
     virtual void get_next_async_packet_info(const size_t ch, async_packet_info* info) = 0;
 
+    // TODO: move this to children and implement user recv variant
     /**
      * Advances the the next packet to be read by the consumer thread
      * @param ch
      */
-    inline __attribute__((always_inline)) void advance_packet(const size_t ch) {
-
-        _num_packets_consumed[ch]++;
-
-        unsigned packets_advancable = get_packets_advancable(ch);
-        // Mark packets are clear in batches to improve performance
-        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            clear_packets(ch, packets_advancable);
-        }
-    }
+    virtual void advance_packet(const size_t ch) = 0;
 
 protected:
 
     inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
         return _num_packets_consumed[ch] - _packets_advanced[ch];
     }
-
-    /**
-     * Lets liburing know that packets have been consumed
-     * @param ch The channel whose packets to mark as clear
-     * @param n The number of packets to mark as clear
-    */
-    virtual void clear_packets(const size_t ch, const unsigned n) = 0;
 
     /**
      * Attempts to allocate a page aligned buffer using mmap and huge pages.
