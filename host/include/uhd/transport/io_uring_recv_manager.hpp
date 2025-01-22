@@ -91,6 +91,21 @@ public:
      */
     static void unmake( io_uring_recv_manager* recv_manager );
 
+    void get_next_async_packet_info(const size_t ch, async_packet_info* info) override;
+
+    inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
+
+        _num_packets_consumed[ch]++;
+
+        unsigned packets_advancable = get_packets_advancable(ch);
+        // Mark packets are clear in batches to improve performance
+        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
+            clear_packets(ch, packets_advancable);
+        }
+    }
+
+private:
+
     /**
      * A modified version of io_uring_peek_cqe that peeks at a pseudo head instead of the actual head of the queue.
      * This function exists because we want to minimize updates to variables used by liburing (such the location of the head) and still need to be able to access elements not at the official head.
@@ -119,72 +134,6 @@ public:
                 clear_packets(ch, get_packets_advancable(ch));
             }
             return -EAGAIN;
-        }
-    }
-
-    inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
-
-        _num_packets_consumed[ch]++;
-
-        unsigned packets_advancable = get_packets_advancable(ch);
-        // Mark packets are clear in batches to improve performance
-        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            clear_packets(ch, packets_advancable);
-        }
-    }
-
-private:
-
-    /**
-     * Gets information needed to process the next packet.
-     * The caller is responsible for ensuring correct fencing
-     * @param ch
-     * @return If a packet is ready it returns a struct containing the packet length and pointers to the Vita header and samples. If the packet is not ready the struct will contain 0 for the length and nullptr for the Vita header and samples
-     */
-    // TODO: make non inline
-    inline __attribute__((always_inline)) void get_next_async_packet_info(const size_t ch, async_packet_info* info) override {
-
-        struct io_uring* ring = access_io_urings(ch, 0);
-        struct io_uring_cqe *cqe_ptr;
-
-        // Checks if a packet is ready
-        int r = custom_io_uring_peek_cqe(ch, ring, &cqe_ptr);
-
-        // The next packet is not ready
-        if(r == -EAGAIN) {
-            info->length = 0;
-            info->vita_header = nullptr;
-            info->samples = nullptr;
-            return;
-        }
-
-        if(cqe_ptr->res > 0) [[likely]] {
-            // IORING_CQE_F_MORE indicates multishot will continue sending messages
-            // If IORING_CQE_F_MORE is not present multishot has stopped and must be restarted
-            if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) [[unlikely]] {
-                // Issues new multishot request
-                arm_recv_multishot(ch, _recv_sockets[ch]);
-            }
-
-            info->length = cqe_ptr->res;
-            info->vita_header = access_packet_vita_header(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-            info->samples = access_packet_samples(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
-
-        // All buffers are used (should be unreachable)
-        } else if (-cqe_ptr->res == ENOBUFS) {
-            // Clear this request
-            // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-            io_uring_cq_advance(ring, 1);
-
-            if(!slow_consumer_warning_printed) {
-                UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
-                slow_consumer_warning_printed = true;
-            }
-            info->length = 0;
-            info->vita_header = nullptr;
-            info->samples = nullptr;
-        } else {
-            throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
         }
     }
 
