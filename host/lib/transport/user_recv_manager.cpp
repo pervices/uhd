@@ -22,17 +22,14 @@ _mmsghdr_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(mmghdr_buffer_s
 _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size())),
 _call_buffer_heads((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
 _call_buffer_tails((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
-_packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE))
+_packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE)),
+_num_packets_consumed_current_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE))
 {
     // Clear buffers
     memset(_call_buffer_heads, 0, _num_ch * CACHE_LINE_SIZE);
     memset(_call_buffer_tails, 0, _num_ch * CACHE_LINE_SIZE);
     memset(_packets_in_call_buffer, 0, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE);
-
-    // Initialize control variables to 0
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        _num_packets_consumed[ch] = 0;
-    }
+    memset(_num_packets_consumed_current_buffer, 0, _num_ch * CACHE_LINE_SIZE);
 
     size_t num_cores = std::thread::hardware_concurrency();
     // If unable to get number of cores assume the system is 4 core
@@ -70,6 +67,7 @@ user_recv_manager::~user_recv_manager()
     free(_call_buffer_heads);
     free(_call_buffer_tails);
     free(_packets_in_call_buffer);
+    free(_num_packets_consumed_current_buffer);
 }
 
 void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
@@ -77,7 +75,7 @@ void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet
 
     if(*call_buffer_tail < *access_call_buffer_head(ch)) {
         size_t b = *call_buffer_tail & (NUM_CALL_BUFFERS - 1);
-        size_t p = _num_packets_consumed[ch];
+        size_t p = *access_num_packets_consumed_current_buffer(ch);
 
         info->length = *access_packet_length(ch, 0, call_to_consolidated(b, p));
         info->vita_header = access_packet_vita_header(ch, 0, call_to_consolidated(b, p));

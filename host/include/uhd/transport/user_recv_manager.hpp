@@ -58,7 +58,6 @@ private:
     // Buffer containing iovecs
     // Format: (((iovec * CALL_BUFFER_SIZE) + padding to cache line) * NUM_CALL_BUFFERS) * _num_ch
     // ((IOVEC * CALL_BUFFER_SIZE) + padding to cache line) == IOVEC_CALL_BUFFER_SIZE
-    // TODO: confirm only 1 element in each iovec
     static constexpr size_t IOVEC_CALL_BUFFER_SIZE = std::ceil(sizeof(mmsghdr) * CALL_BUFFER_SIZE / (double) CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     static constexpr size_t IOVEC_CH_BUFFER_SIZE = IOVEC_CALL_BUFFER_SIZE * NUM_CALL_BUFFERS;
     inline __attribute__((always_inline)) size_t iovec_buffer_size() {
@@ -110,9 +109,11 @@ private:
     // Use fences when setting this to ensure it is synced across threads
     uint8_t stop_flag = 0;
 
-    // Number of packets consumed by the recv_packet_handler
-    // TODO: move this to runtime allocated buffer to avoid false sharing
-    uint64_t _num_packets_consumed[MAX_CHANNELS];
+    // Number of packets consumed in the current call buffer
+    uint8_t* const _num_packets_consumed_current_buffer;
+    inline __attribute__((always_inline)) uint64_t* access_num_packets_consumed_current_buffer(size_t ch, size_t ch_offset = 0) {
+        return (uint64_t*) (_num_packets_consumed_current_buffer + ((ch + ch_offset) * CACHE_LINE_SIZE));
+    }
 
 public:
 
@@ -154,16 +155,17 @@ public:
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
 
         // Record that this packet has been consumed
-        _num_packets_consumed[ch]++;
+        uint64_t* num_packets_consumed = access_num_packets_consumed_current_buffer(ch);
+        (*num_packets_consumed)++;
 
         size_t b = (*access_call_buffer_tail(ch)) & (NUM_CALL_BUFFERS - 1);
         uint64_t* packet_in_call_buffer_ptr = access_packets_in_call_buffer(ch, 0, b);
 
         // Move to the next buffer if a packets have been consumed
-        if(_num_packets_consumed[ch] >= *packet_in_call_buffer_ptr) {
+        if(*num_packets_consumed >= *packet_in_call_buffer_ptr) {
             *packet_in_call_buffer_ptr = 0;
             (*access_call_buffer_tail(ch))++;
-            _num_packets_consumed[ch] = 0;
+            *num_packets_consumed = 0;
 
             // Fence to ensure the writes to the call buffer tail get passed to other threads
             _mm_sfence();
