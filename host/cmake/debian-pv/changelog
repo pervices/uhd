@@ -1,6 +1,14 @@
+uhdpv (4.4.0.56-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing changelog
+
+ -- Per Vices <packages@pervices.com>  Thu, 23 Jan 2025 13:28:15 -0500
+
 uhdpv (4.4.0.55-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding additional performance related warnings and checks.
+
+ -- Per Vices <packages@pervices.com>  Wed, 22 Jan 2025 16:26:55 -0500
 
 uhdpv (4.4.0.54-0ubuntu1) ubuntu_release; urgency=low
 
