@@ -21,7 +21,7 @@ enable_testing()
 # Liburing itself is missing Config.camke file, use PkgConfig to search for it
 find_package(PkgConfig REQUIRED)
 # IMPORTED_TARGET can probably be removed
-pkg_check_modules(uring REQUIRED IMPORTED_TARGET liburing)
+pkg_check_modules(uring REQUIRED liburing)
 if(uring_VERSION VERSION_GREATER_EQUAL 2.6)
     set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
     set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
