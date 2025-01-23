@@ -10,7 +10,7 @@
 ########################################################################
 # NOTE! If you change the version in the following line, also change
 # CMAKE_MIN_VERSION below. (This won't take a variable).
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.22)
 if(POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW) # Suppress Version warnings
 endif(POLICY CMP0048)
@@ -26,7 +26,7 @@ list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
 ########################################################################
 # UHD Dependency Minimum Versions
 ########################################################################
-set(CMAKE_MIN_VERSION "3.8")
+set(CMAKE_MIN_VERSION "3.22")
 set(GCC_MIN_VERSION "7.3.0")
 set(CLANG_MIN_VERSION "6.0.0")
 set(APPLECLANG_MIN_VERSION "800")
