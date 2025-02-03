@@ -1739,8 +1739,18 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
-
-	int band = select_band( clipped_requested_freq );
+    
+    int band;
+    // Is tx and tx channel is low band only
+    if(TX_SIGN == xx_sign && is_tx_baseband_only[chan]) {
+        band = LOW_BAND;
+    // Is rx and rx channel is low band only
+    } else if(RX_SIGN == xx_sign && is_rx_baseband_only[chan]) {
+        band = LOW_BAND;
+    // Is a normal board, use normal band selection
+    } else {
+        band = select_band( clipped_requested_freq );
+    }
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
