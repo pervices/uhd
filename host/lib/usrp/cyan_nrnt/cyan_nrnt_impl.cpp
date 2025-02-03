@@ -1778,7 +1778,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 		break;
 
 		case tune_request_t::POLICY_MANUAL:
-            // prevent use of mid band when a specific lo is requested
+            // prevent use of low band when a specific lo is requested
             if(band == LOW_BAND && tune_request.lo_freq !=0) band = MID_BAND;
 			target_rf_freq = tune_request.lo_freq;
 			break;
