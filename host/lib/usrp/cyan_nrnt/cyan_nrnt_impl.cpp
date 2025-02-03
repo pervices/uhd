@@ -963,6 +963,30 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     rx_rfe_rate_cache.resize(num_rx_channels, 0);
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
+    
+    // Checks if the rx channel is baseband only
+    is_rx_baseband_only.resize(num_rx_channels, false);
+    for(size_t ch = 0; ch < num_rx_channels; ch++) {
+        TREE_CREATE_RO
+        try {
+            is_rx_baseband_only[ch] =
+        } catch(...) {
+            // If unable to check assume the server from before baseband only was created
+            is_rx_baseband_only[ch] = false;
+        }
+    }
+    
+    // Checks if the tx channel is baseband only
+    is_tx_baseband_only.resize(num_tx_channels, false);
+    for(size_t ch = 0; ch < num_tx_channels; ch++) {
+        TREE_CREATE_RO
+        try {
+            is_tx_baseband_only[ch] =
+        } catch(...) {
+            // If unable to check assume the server from before baseband only was created
+            is_tx_baseband_only[ch] = false;
+        }
+    }
 
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
