@@ -277,6 +277,8 @@ private:
     std::vector<uint16_t> tx_udp_port_cache;
     uint16_t get_tx_udp_port( size_t chan );
     
+    std::vector<bool> is_tx_baseband_only;
+    
     void get_tx_endpoint( const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
     
     int64_t get_tx_buff_scale();

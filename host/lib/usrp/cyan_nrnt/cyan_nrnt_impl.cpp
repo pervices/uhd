@@ -963,6 +963,18 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     rx_rfe_rate_cache.resize(num_rx_channels, 0);
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
+    
+    // Checks if the tx channel is baseband only
+    is_tx_baseband_only.resize(num_tx_channels, false);
+    for(size_t ch = 0; ch < num_tx_channels; ch++) {
+        TREE_CREATE_RO(tx_path / ch / "variant/is_baseband_only", "tx_"+ std::string(1, (char)(ch + 'a')) +"/about/variant/is_baseband_only", int, int);
+        try {
+            is_tx_baseband_only[ch] = _tree->access<int>(tx_path / ch / "variant/is_baseband_only").get();
+        } catch(...) {
+            // If unable to check assume the server from before baseband only was created
+            is_tx_baseband_only[ch] = false;
+        }
+    }
 
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
@@ -1715,8 +1727,15 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
-
-	int band = select_band( clipped_requested_freq );
+    
+    int band;
+    // Is tx and tx channel is low band only
+    if(TX_SIGN == xx_sign && is_tx_baseband_only[chan]) {
+        band = LOW_BAND;
+    // Is a normal board, use normal band selection
+    } else {
+        band = select_band( clipped_requested_freq );
+    }
 
 	//------------------------------------------------------------------
 	//-- set the RF frequency depending upon the policy
@@ -1744,7 +1763,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 		break;
 
 		case tune_request_t::POLICY_MANUAL:
-            // prevent use of mid band when a specific lo is requested
+            // prevent use of low band when a specific lo is requested
             if(band == LOW_BAND && tune_request.lo_freq !=0) band = MID_BAND;
 			target_rf_freq = tune_request.lo_freq;
 			break;
