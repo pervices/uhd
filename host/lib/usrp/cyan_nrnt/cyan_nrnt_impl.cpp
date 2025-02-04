@@ -964,24 +964,12 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
     
-    // Checks if the rx channel is baseband only
-    is_rx_baseband_only.resize(num_rx_channels, false);
-    for(size_t ch = 0; ch < num_rx_channels; ch++) {
-        TREE_CREATE_RO
-        try {
-            is_rx_baseband_only[ch] =
-        } catch(...) {
-            // If unable to check assume the server from before baseband only was created
-            is_rx_baseband_only[ch] = false;
-        }
-    }
-    
     // Checks if the tx channel is baseband only
     is_tx_baseband_only.resize(num_tx_channels, false);
     for(size_t ch = 0; ch < num_tx_channels; ch++) {
-        TREE_CREATE_RO
+        TREE_CREATE_RO(tx_path / ch / "variant/is_baseband_only", "tx_"+ std::string(1, (char)(ch + 'a')) +"/about/variant/is_baseband_only", int, int);
         try {
-            is_tx_baseband_only[ch] =
+            is_tx_baseband_only[ch] = _tree->access<int>(tx_path / ch / "variant/is_baseband_only").get();
         } catch(...) {
             // If unable to check assume the server from before baseband only was created
             is_tx_baseband_only[ch] = false;
@@ -1743,9 +1731,6 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
     int band;
     // Is tx and tx channel is low band only
     if(TX_SIGN == xx_sign && is_tx_baseband_only[chan]) {
-        band = LOW_BAND;
-    // Is rx and rx channel is low band only
-    } else if(RX_SIGN == xx_sign && is_rx_baseband_only[chan]) {
         band = LOW_BAND;
     // Is a normal board, use normal band selection
     } else {
