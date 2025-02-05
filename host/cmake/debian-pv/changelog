@@ -1,3 +1,9 @@
+uhdpv (4.4.0.57-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding support for tx baseband only Cyan variants
+
+ -- Per Vices <packages@pervices.com>  Wed, 5 Feb 2025 14:03:35 -0500
+
 uhdpv (4.4.0.56-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing changelog
