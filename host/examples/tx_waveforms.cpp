@@ -68,9 +68,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
-        ("wave-type", po::value<std::string>(&wave_type)->default_value("SINE"), "waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q)")
+        ("wave-type", po::value<std::string>(&wave_type)->default_value("SINE"), "waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q, COMB)")
         //SIN_NO_Q can also be used to generate a sinwave without the q component, which is useful when debugging the FPGA
-        ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
+        ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "Waveform frequency in Hz for most wave types. Comb spacing for COMB waves, ignored to CONST waves")
         ("ref", po::value<std::string>(&ref), "clock reference (internal, external, mimo, gpsdo)")
         ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo, bypass)")
         ("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
@@ -89,6 +89,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //print the help message
     if (vm.count("help")){
         std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
+        return ~0;
+    }
+
+    //set the center frequency
+    if (not vm.count("freq")){
+        std::cerr << "Please specify the center frequency with --freq" << std::endl;
         return ~0;
     }
 
@@ -130,13 +136,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
     usrp->set_tx_rate(rate);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate()/1e6) << std::endl << std::endl;
-
-    //set the center frequency
-    if (not vm.count("freq")){
-        std::cerr << "Please specify the center frequency with --freq" << std::endl;
-        return ~0;
-    }
+    double actual_rate = usrp->get_tx_rate();
+    std::cout << boost::format("Actual TX Rate: %f Msps...") % (actual_rate/1e6) << std::endl << std::endl;
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
@@ -189,35 +190,35 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps();
     }
 
-    double period;
-    if(wave_freq != 0) {
-        period = rate/wave_freq;
-    } else {
-        period = 0;
-    }
-    double full_period;
-    double frac_period = std::modf(period, &full_period);
-    // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
-    size_t super_period;
+    // Wave generator used to generate samples
+    wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq );
 
-    if(frac_period < 0.00001 || frac_period > 0.99999) {
-        super_period = period;
-    } else {
-        double extra_cycles;
-        if(frac_period < 0.5) {
-            extra_cycles = 1.0/frac_period;
-        } else {
-            extra_cycles = 1.0/(1.0-frac_period);
+    // How many samples are needed to create a lookup table that will perfectly replicate a wave
+    size_t fundamental_period = wave_generator.get_fundamental_period();
+
+    // Limit the size of the sample buffer to avoid excessive resource use
+    // Most waves are limited to 2e9 samples (8Gb of RAM)
+    // Comb waves are limited to 100e3 samples due to how long lookup table generation takes. If/when generation is optimized it can be increased
+    if(wave_type != "COMB") {
+        const size_t MAX_COMMON_LUT_SIZE = 2000000000;
+        if(fundamental_period > MAX_COMMON_LUT_SIZE) {
+            std::cout << "The fundamental period with a wave frequency of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMMON_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMMON_LUT_SIZE / actual_rate << " seconds.\n";
+
+            fundamental_period = MAX_COMMON_LUT_SIZE;
         }
+    } else {
+        const size_t MAX_COMB_LUT_SIZE = 100000;
+        if(fundamental_period > MAX_COMB_LUT_SIZE) {
+            std::cout << "The fundamental period with a comb spacing of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMB_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMB_LUT_SIZE / actual_rate << " seconds.\n";
 
-        super_period = (size_t) ::round(period * extra_cycles);
+            fundamental_period = MAX_COMB_LUT_SIZE;
+        }
     }
 
-    std::vector<std::complex<short> > buff(spb + super_period);
+    std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
-    const wave_generator<short> wave_generator(wave_type, ampl, rate, wave_freq);
     for (size_t n = 0; n < buff.size(); n++){
         buff[n] = wave_generator(n);
     }
@@ -323,8 +324,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                if(super_period != 0) {
-                    buff_ptr = &buff[num_acc_samps % super_period];
+                if(fundamental_period != 0) {
+                    buff_ptr = &buff[num_acc_samps % fundamental_period];
                 } else {
                     buff_ptr = &buff.front();
                 }
