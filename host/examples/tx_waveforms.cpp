@@ -52,7 +52,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double rate, freq, gain, wave_freq, bw;
     float ampl;
 
-    double first, last, increment;
+    double first, last, increment, comb;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -90,6 +90,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("help")){
         std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
         return ~0;
+    }
+
+    if(vm["wave-freq"].defaulted()) {
+        std::cout << "T1\n";
+    } else {
+        std::cout << "T2\n";
     }
 
     bool use_constant_time = vm.count("constant_time");
