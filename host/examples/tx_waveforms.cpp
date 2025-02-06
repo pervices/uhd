@@ -39,8 +39,11 @@ void sig_int_handler(int){
     stop_signal_called = true;
 }
 
-// Calculate the number of samples for a complete cycle of samples to avoid discontinuities from where the lookup table ends
-static size_t calc_fundamental_period(std::string wave_type, double wave_freq, double rate) {
+// NOTE: super period is a term I created, there is probably a proper name for it but I can't find it
+// The super period (A) is whole number of samples such that f(s) = f(s + A)
+// It is different from the period because it must be a whole number
+// This value is used in the lookup table instead of the period to avoid discontinuities caused by having a fractional difference between the last and first sample of the table
+static size_t calc_super_period(std::string wave_type, double wave_freq, double rate) {
     double period;
     if(wave_freq != 0) {
         period = rate/wave_freq;
@@ -50,10 +53,10 @@ static size_t calc_fundamental_period(std::string wave_type, double wave_freq, d
     double full_period;
     double frac_period = std::modf(period, &full_period);
     // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
-    size_t fundamental_period;
+    size_t super_period;
 
     if(frac_period < 0.00001 || frac_period > 0.99999) {
-        fundamental_period = period;
+        super_period = period;
     } else {
         double extra_cycles;
         if(frac_period < 0.5) {
@@ -62,9 +65,9 @@ static size_t calc_fundamental_period(std::string wave_type, double wave_freq, d
             extra_cycles = 1.0/(1.0-frac_period);
         }
 
-        fundamental_period = (size_t) ::round(period * extra_cycles);
+        super_period = (size_t) ::round(period * extra_cycles);
     }
-    return fundamental_period;
+    return super_period;
 }
 
 /***********************************************************************
@@ -227,9 +230,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps();
     }
 
-    size_t fundamental_period = calc_fundamental_period(wave_type, wave_freq, rate);
+    size_t super_period = calc_super_period(wave_type, wave_freq, rate);
 
-    std::vector<std::complex<short> > buff(spb + fundamental_period);
+    std::vector<std::complex<short> > buff(spb + super_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
@@ -339,8 +342,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                if(fundamental_period != 0) {
-                    buff_ptr = &buff[num_acc_samps % fundamental_period];
+                if(super_period != 0) {
+                    buff_ptr = &buff[num_acc_samps % super_period];
                 } else {
                     buff_ptr = &buff.front();
                 }
