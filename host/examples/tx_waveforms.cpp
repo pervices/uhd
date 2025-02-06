@@ -39,6 +39,34 @@ void sig_int_handler(int){
     stop_signal_called = true;
 }
 
+// Calculate the number of samples for a complete cycle of samples to avoid discontinuities from where the lookup table ends
+static size_t calc_fundamental_period(std::string wave_type, double wave_freq, double rate) {
+    double period;
+    if(wave_freq != 0) {
+        period = rate/wave_freq;
+    } else {
+        period = 0;
+    }
+    double full_period;
+    double frac_period = std::modf(period, &full_period);
+    // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
+    size_t fundamental_period;
+
+    if(frac_period < 0.00001 || frac_period > 0.99999) {
+        fundamental_period = period;
+    } else {
+        double extra_cycles;
+        if(frac_period < 0.5) {
+            extra_cycles = 1.0/frac_period;
+        } else {
+            extra_cycles = 1.0/(1.0-frac_period);
+        }
+
+        fundamental_period = (size_t) ::round(period * extra_cycles);
+    }
+    return fundamental_period;
+}
+
 /***********************************************************************
  * Main function
  **********************************************************************/
@@ -97,6 +125,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         UHD_LOGGER_WARNING("TX_WAVEFORMS") << "wave-freq specified in comb mode. It will be ignored";
     }
 
+    //set the center frequency
+    if (not vm.count("freq")){
+        std::cerr << "Please specify the center frequency with --freq" << std::endl;
+        return ~0;
+    }
+
+    if(!vm.count("comb-spacing") && wave_type == "COMB") {
+        UHD_LOGGER_ERROR("TX_WAVEFORMS") << "COMB wave requested but no comb-spacing specified";
+        return ~0;
+    }
+
     bool use_constant_time = vm.count("constant_time");
 
     bool random_spb = vm.count("random-spb");
@@ -136,17 +175,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
     usrp->set_tx_rate(rate);
     std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate()/1e6) << std::endl << std::endl;
-
-    //set the center frequency
-    if (not vm.count("freq")){
-        std::cerr << "Please specify the center frequency with --freq" << std::endl;
-        return ~0;
-    }
-
-    if(!vm.count("comb-spacing") && wave_type == "COMB") {
-        UHD_LOGGER_ERROR("TX_WAVEFORMS") << "COMB wave requested but no comb-spacing specified";
-        return ~0;
-    }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
@@ -199,31 +227,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps();
     }
 
-    double period;
-    if(wave_freq != 0) {
-        period = rate/wave_freq;
-    } else {
-        period = 0;
-    }
-    double full_period;
-    double frac_period = std::modf(period, &full_period);
-    // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
-    size_t super_period;
+    size_t fundamental_period = calc_fundamental_period(wave_type, wave_freq, rate);
 
-    if(frac_period < 0.00001 || frac_period > 0.99999) {
-        super_period = period;
-    } else {
-        double extra_cycles;
-        if(frac_period < 0.5) {
-            extra_cycles = 1.0/frac_period;
-        } else {
-            extra_cycles = 1.0/(1.0-frac_period);
-        }
-
-        super_period = (size_t) ::round(period * extra_cycles);
-    }
-
-    std::vector<std::complex<short> > buff(spb + super_period);
+    std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
@@ -333,8 +339,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                if(super_period != 0) {
-                    buff_ptr = &buff[num_acc_samps % super_period];
+                if(fundamental_period != 0) {
+                    buff_ptr = &buff[num_acc_samps % fundamental_period];
                 } else {
                     buff_ptr = &buff.front();
                 }
