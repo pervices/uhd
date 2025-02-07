@@ -225,7 +225,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
     usrp->set_tx_rate(rate);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate()/1e6) << std::endl << std::endl;
+    double actual_rate = usrp->get_tx_rate();
+    std::cout << boost::format("Actual TX Rate: %f Msps...") % (actual_rate/1e6) << std::endl << std::endl;
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
@@ -280,16 +281,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     size_t fundamental_period;
     if(wave_type != "COMB") {
-        fundamental_period = calc_fundamental_period_common(wave_freq, rate);
+        fundamental_period = calc_fundamental_period_common(wave_freq, actual_rate);
     } else {
-        fundamental_period = calc_fundamental_period_comb(comb_spacing, rate);
+        fundamental_period = calc_fundamental_period_comb(comb_spacing, actual_rate);
     }
 
     std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
-    const wave_generator<short> wave_generator(wave_type, ampl, rate, wave_freq);
+    const wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq);
     for (size_t n = 0; n < buff.size(); n++){
         buff[n] = wave_generator(n);
     }
