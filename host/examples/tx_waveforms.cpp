@@ -113,6 +113,8 @@ static size_t calc_fundamental_period_comb(double comb_spacing, double rate) {
         fundamental_period = 4000000000;
     }
 
+    std::cout << "fundamental_period: " << fundamental_period << std::endl;
+
     return fundamental_period;
 }
 
