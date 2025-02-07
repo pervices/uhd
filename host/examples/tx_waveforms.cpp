@@ -94,7 +94,7 @@ static size_t calc_fundamental_period_comb(double comb_spacing, double rate) {
     for(size_t n = 0; n < num_frequencies; n++) {
         double full_period;
         double frac_period = std::modf(period[n], &full_period);
-        if(frac_period < 0.000000001) {
+        if(frac_period > 0.000000001) {
             num_samples_for_continuous[n] = (size_t) std::round( (1 / frac_period) * period[n] );
         } else {
             num_samples_for_continuous[n] = (size_t) std::round( period[n] );
