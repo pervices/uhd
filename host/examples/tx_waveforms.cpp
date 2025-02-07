@@ -70,10 +70,15 @@ static size_t calc_fundamental_period_common(double wave_freq, double rate) {
     return fundamental_period;
 }
 
+// Calculate the number of frequencies to send for a comb wave
+static size_t calc_num_positive_frequencies_comb(double comb_spacing, double rate) {
+    // TODO: verify this is correct for when rate is not a multiple of comb_spacing
+    return (size_t) std::ceil((0.5 * rate/comb_spacing) - 1);
+}
+
 // Calculate the fundamental period for comb wave type
 static size_t calc_fundamental_period_comb(double comb_spacing, double rate) {
-    // TODO: verify this is correct for when rate is not a multiple of comb_spacing
-    size_t num_frequencies = (size_t) std::ceil((0.5 * rate/comb_spacing) - 1);
+    size_t num_frequencies = calc_num_positive_frequencies_comb(comb_spacing, rate);
 
     // Calculate all the positive frequencies in the output (negatives can be skipped because their periods are the same)
     std::vector<double> frequencies(num_frequencies);
@@ -290,10 +295,34 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
-    const wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq);
-    for (size_t n = 0; n < buff.size(); n++){
-        buff[n] = wave_generator(n);
+    if(wave_type != "COMB") {
+        const wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq);
+        for (size_t n = 0; n < buff.size(); n++){
+            buff[n] = wave_generator(n);
+        }
+    } else {
+        size_t num_positive_frequencies = calc_num_positive_frequencies_comb(comb_spacing, actual_rate);
+        size_t num_frequencies = num_positive_frequencies * 2 + 1;
+
+        // Create a wave_generator for each frequency. Use a double for this step to reduce rounding error
+        std::vector<wave_generator<double>> wave_generators;
+        wave_generators.emplace_back("SINE", ampl, actual_rate, 0);
+        for(size_t n = 0; n < num_positive_frequencies; n++) {
+            wave_generators.emplace_back("SINE", ampl, actual_rate, comb_spacing * n);
+            wave_generators.emplace_back("SINE", ampl, actual_rate, comb_spacing * -n);
+        }
+
+        for(size_t s = 0; s < buff.size(); s++) {
+            // Sum all the waves at the specified sample
+            std::complex<double> sample(0, 0);
+            for(size_t n = 0; n < num_frequencies; n++) {
+                sample+=wave_generators[n](s);
+            }
+
+            buff[s] = sample;
+        }
     }
+
 
     //Check Ref and LO Lock detect
     std::vector<std::string> sensor_names;
