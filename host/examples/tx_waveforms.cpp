@@ -39,11 +39,9 @@ void sig_int_handler(int){
     stop_signal_called = true;
 }
 
-// NOTE: super period is a term I created, there is probably a proper name for it but I can't find it
-// The super period (A) is whole number of samples such that f(s) = f(s + A)
-// It is different from the period because it must be a whole number
-// This value is used in the lookup table instead of the period to avoid discontinuities caused by having a fractional difference between the last and first sample of the table
-static size_t calc_super_period(std::string wave_type, double wave_freq, double rate) {
+// Calculates the fundamental period of most wave types
+// This is the fundamental period of the discrete sampled function, not the pure math function
+static size_t calc_fundamental_period_common(double wave_freq, double rate) {
     double period;
     if(wave_freq != 0) {
         period = rate/wave_freq;
@@ -53,10 +51,12 @@ static size_t calc_super_period(std::string wave_type, double wave_freq, double 
     double full_period;
     double frac_period = std::modf(period, &full_period);
     // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
-    size_t super_period;
+    size_t fundamental_period;
 
-    if(frac_period < 0.00001 || frac_period > 0.99999) {
-        super_period = period;
+    // If there is no fractional part of the period we can use the period as the super period
+    // Also if the fractional part is very close to 0 treat it as close enough
+    if(frac_period < 0.000000001) {
+        fundamental_period = period;
     } else {
         double extra_cycles;
         if(frac_period < 0.5) {
@@ -65,9 +65,55 @@ static size_t calc_super_period(std::string wave_type, double wave_freq, double 
             extra_cycles = 1.0/(1.0-frac_period);
         }
 
-        super_period = (size_t) ::round(period * extra_cycles);
+        fundamental_period = (size_t) ::round(period * extra_cycles);
     }
-    return super_period;
+    return fundamental_period;
+}
+
+// Calculate the fundamental period for comb wave type
+static size_t calc_fundamental_period_comb(double comb_spacing, double rate) {
+    // TODO: verify this is correct for when rate is not a multiple of comb_spacing
+    size_t num_frequencies = (size_t) std::ceil((0.5 * rate/comb_spacing) - 1);
+
+    // Calculate all the positive frequencies in the output (negatives can be skipped because their periods are the same)
+    std::vector<double> frequencies(num_frequencies);
+    for(size_t n = 0; n < num_frequencies; n++) {
+        frequencies[n] = ( n + 1 ) * comb_spacing;
+    }
+    std::cout << "Lowest freq for fundamental: " <<  frequencies.front() << std::endl;
+    std::cout << "Highest freq for fundamental: " <<  frequencies.back() << std::endl;
+
+    // Calculate the period in samples
+    std::vector<double> period(num_frequencies);
+    for(size_t n = 0; n < num_frequencies; n++) {
+        period[n] = rate / frequencies[n];
+    }
+
+    // Calculate how many periods are required of each wave a required for a continuous lookup table
+    std::vector<size_t> num_samples_for_continuous(num_frequencies);
+    for(size_t n = 0; n < num_frequencies; n++) {
+        double full_period;
+        double frac_period = std::modf(period[n], &full_period);
+        if(frac_period < 0.000000001) {
+            num_samples_for_continuous[n] = (size_t) std::round( (1 / frac_period) * period[n] );
+        } else {
+            num_samples_for_continuous[n] = (size_t) std::round( period[n] );
+        }
+    }
+
+    // Find the fundamental which is the lcm of the number of samples for a contiuous signal for each individual wave
+    size_t fundamental_period = 1;
+    for(size_t n = 0; n < num_frequencies; n++) {
+        fundamental_period = std::lcm(fundamental_period, num_samples_for_continuous[n]);
+    }
+
+    // TODO: properly handle long fundamental period waves
+    if(fundamental_period > 4000000000) {
+        std::cout << "fundamental period of comb wave to long. Limiting it to 4e9 samples\n";
+        fundamental_period = 4000000000;
+    }
+
+    return fundamental_period;
 }
 
 /***********************************************************************
@@ -230,9 +276,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps();
     }
 
-    size_t super_period = calc_super_period(wave_type, wave_freq, rate);
+    size_t fundamental_period;
+    if(wave_type != "COMB") {
+        fundamental_period = calc_fundamental_period_common(wave_freq, rate);
+    } else {
+        fundamental_period = calc_fundamental_period_comb(comb_spacing, rate);
+    }
 
-    std::vector<std::complex<short> > buff(spb + super_period);
+    std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
@@ -342,8 +393,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                if(super_period != 0) {
-                    buff_ptr = &buff[num_acc_samps % super_period];
+                if(fundamental_period != 0) {
+                    buff_ptr = &buff[num_acc_samps % fundamental_period];
                 } else {
                     buff_ptr = &buff.front();
                 }
