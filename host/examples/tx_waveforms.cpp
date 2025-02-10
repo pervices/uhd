@@ -307,6 +307,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         size_t num_positive_frequencies = calc_num_positive_frequencies_comb(comb_spacing, actual_rate);
         size_t num_frequencies = num_positive_frequencies * 2 + 1;
 
+        // Factor to adjust the amplitude by when summing such that the sum of the amplitude of each
         double total_ampl = 0;
 
         // Create a wave_generator for each frequency. Use a double for this step to reduce rounding error
