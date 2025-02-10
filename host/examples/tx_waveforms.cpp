@@ -311,7 +311,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::vector<wave_generator<double>> wave_generators;
         wave_generators.emplace_back("SINE", ampl, actual_rate, 0);
         for(size_t n = 1; n <= num_positive_frequencies; n++) {
-            double adjusted_ampl = 1.0 / n;
+            // TODO: explain formula
+            double adjusted_ampl = std::sqrt( std::pow(ampl, 2) * 1 / n);
             wave_generators.emplace_back("SINE", adjusted_ampl, actual_rate, comb_spacing * n);
             wave_generators.emplace_back("SINE", adjusted_ampl, actual_rate, comb_spacing * /*-*/n);
         }
