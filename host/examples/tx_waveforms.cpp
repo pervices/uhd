@@ -318,11 +318,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             for(size_t n = 0; n < num_frequencies; n++) {
                 sample+= wave_generators[n](s) / (double) num_frequencies;
             }
-
+            // Convert std::complex<double> in range -1..1 to std::complex<short> in range -32767 to +32767
             buff[s] = sample * 32767.0;
 
-            std::cout << "sample: " << sample << std::endl;
-            std::cout << "buff[s]: " << buff[s] << std::endl;
         }
     }
 
