@@ -309,14 +309,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         wave_generators.emplace_back("SINE", ampl, actual_rate, 0);
         for(size_t n = 1; n <= num_positive_frequencies; n++) {
             wave_generators.emplace_back("SINE", ampl, actual_rate, comb_spacing * n);
-            wave_generators.emplace_back("SINE", ampl, actual_rate, comb_spacing * -n);
+            wave_generators.emplace_back("SINE", ampl, actual_rate, comb_spacing * /*-*/n);
         }
 
         for(size_t s = 0; s < buff.size(); s++) {
             // Sum all the waves at the specified sample
             std::complex<double> sample(0, 0);
             for(size_t n = 0; n < num_frequencies; n++) {
-                sample+= wave_generators[n](s) / (double) num_frequencies;
+                std::complex<double> a = wave_generators[n](s) / (double) num_frequencies;
+
+                if(n % 2 == 0) {
+                    sample += a;
+                } else {
+                    std::complex<double> b(std::imag(a), std::real(a));
+                    sample += b;
+                }
             }
             // Convert std::complex<double> in range -1..1 to std::complex<short> in range -32767 to +32767
             buff[s] = sample * 32767.0;
