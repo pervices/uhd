@@ -27,8 +27,12 @@ private:
     static constexpr std::complex<double> J = std::complex<double>(0,1);
     const double _sample_rate;
     const double _wave_freq;
+
     T _wave_max;
     std::complex<T> (*get_function)(double, T);
+
+    // Vector to contain the waves that are combined to make more complex waves
+    std::vector<wave_generator<double>> constituent_waves;
 public:
     wave_generator(const std::string& wave_type, const double ampl, double sample_rate, double wave_freq)
     : _sample_rate(sample_rate),
