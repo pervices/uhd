@@ -307,7 +307,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         // Create a wave_generator for each frequency. Use a double for this step to reduce rounding error
         std::vector<wave_generator<double>> wave_generators;
         wave_generators.emplace_back("SINE", ampl, actual_rate, 0);
-        for(size_t n = 0; n < num_positive_frequencies; n++) {
+        for(size_t n = 1; n <= num_positive_frequencies; n++) {
             wave_generators.emplace_back("SINE", ampl, actual_rate, comb_spacing * n);
             wave_generators.emplace_back("SINE", ampl, actual_rate, comb_spacing * -n);
         }
