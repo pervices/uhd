@@ -976,6 +976,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         }
     }
 
+    // Begin FPGA reset at tx chain
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fpga" / "reset" ,  "fpga/reset", int, int);
+    _tree->access<int>(CYAN_NRNT_MB_PATH / "fpga/reset").set(4);
+
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
 
