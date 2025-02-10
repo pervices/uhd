@@ -113,9 +113,9 @@ static size_t calc_fundamental_period_comb(double comb_spacing, double rate) {
     }
 
     // TODO: properly handle long fundamental period waves
-    if(fundamental_period > 4000000000) {
+    if(fundamental_period > 100000000) {
         std::cout << "fundamental period of comb wave to long. Limiting it to 4e9 samples\n";
-        fundamental_period = 4000000000;
+        fundamental_period = 100000000;
     }
 
     std::cout << "fundamental_period: " << fundamental_period << std::endl;
