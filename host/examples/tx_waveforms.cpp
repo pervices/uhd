@@ -316,10 +316,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             // Sum all the waves at the specified sample
             std::complex<double> sample(0, 0);
             for(size_t n = 0; n < num_frequencies; n++) {
-                sample+=wave_generators[n](s);
+                sample+= wave_generators[n](s) / (double) num_frequencies;
             }
 
-            buff[s] = sample;
+            buff[s] = sample * 32767.0;
+
+            std::cout << "sample: " << sample << std::endl;
+            std::cout << "buff[s]: " << buff[s] << std::endl;
         }
     }
 
