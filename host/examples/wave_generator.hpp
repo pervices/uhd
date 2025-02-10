@@ -31,12 +31,16 @@ private:
     T _wave_max;
     std::complex<T> (*get_function)(double, T);
 
+    // TODO: make wave type enum
+    std::string _wave_type;
+
     // Vector to contain the waves that are combined to make more complex waves
     std::vector<wave_generator<double>> constituent_waves;
 public:
     wave_generator(const std::string& wave_type, const double ampl, double sample_rate, double wave_freq)
     : _sample_rate(sample_rate),
-    _wave_freq(wave_freq)
+    _wave_freq(wave_freq),
+    _wave_type(wave_type)
     {
         T type_max;
         if(std::is_floating_point<T>::value) {
@@ -75,6 +79,46 @@ public:
         double whole_revoltuions;
         double angle = 2* M_PI * std::modf(revolutions, &whole_revoltuions);
         return get_function(angle, _wave_max);
+    }
+
+    // Calculates the fundamental period of the sampled wave
+    // Using a lookup table that is as long as the fundamental period prevent discontinuities when it loops around
+    // The fundamental period of the sampled wave is different from the fundamental period of the theoretical continuous wave
+    size_t get_fundamental_period() {
+        if(_wave_type == "COMB") {
+        // TODO implement
+        return 0;
+        } else if (_wave_type == "CONST") {
+            // Const only has 1 value so it's fundamental period is 1
+            return 1;
+        } else {
+            double period;
+            if(_wave_freq != 0) {
+                period = _sample_rate/_wave_freq;
+            } else {
+                period = 0;
+            }
+            double full_period;
+            double frac_period = std::modf(period, &full_period);
+            // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
+            size_t fundamental_period;
+
+            // If there is no fractional part of the period we can use the period as the super period
+            // Also if the fractional part is very close to 0 treat it as close enough
+            if(frac_period < 0.000000001) {
+                fundamental_period = period;
+            } else {
+                double extra_cycles;
+                if(frac_period < 0.5) {
+                    extra_cycles = 1.0/frac_period;
+                } else {
+                    extra_cycles = 1.0/(1.0-frac_period);
+                }
+
+                fundamental_period = (size_t) ::round(period * extra_cycles);
+            }
+            return fundamental_period;
+        }
     }
 
 private:
