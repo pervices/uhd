@@ -206,10 +206,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps();
     }
 
+    std::cout << "T1\n";
     // Wave generator used solely for calculating how big the buffer
     wave_generator<short> wave_generator_for_period_calc(wave_type, ampl, actual_rate, wave_freq);
+    std::cout << "T2\n";
 
     size_t fundamental_period = wave_generator_for_period_calc.get_fundamental_period();
+    std::cout << "fundamental_period: " << fundamental_period << std::endl;
 
     std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
