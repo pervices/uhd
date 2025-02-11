@@ -26,10 +26,14 @@ public:
         UHD_LOG_TRACE("UDP", "Creating udp transport for " << addr << " " << port);
 
         // resolve the address
-        asio::ip::udp::resolver resolver(_io_service);
-        asio::ip::udp::resolver::query query(
-            asio::ip::udp::v4(), addr, port, asio::ip::resolver_query_base::all_matching);
-        _send_endpoint = *resolver.resolve(query);
+        asio::io_context _io_context;
+        asio::ip::udp::resolver resolver(_io_context);
+        _send_endpoint = *resolver
+                              .resolve(asio::ip::udp::v4(),
+                                  addr,
+                                  port,
+                                  asio::ip::resolver_query_base::all_matching)
+                              .begin();
 
         // create and open the socket
 
@@ -156,7 +160,6 @@ public:
 
 private:
     bool _connected;
-    asio::io_service _io_service;
     asio::ip::udp::endpoint _send_endpoint;
     // IP address received packets originated from
     std::string recv_ip = "0.0.0.0";
