@@ -39,91 +39,10 @@ void sig_int_handler(int){
     stop_signal_called = true;
 }
 
-// Calculates the fundamental period of most wave types
-// This is the fundamental period of the discrete sampled function, not the pure math function
-static size_t calc_fundamental_period_common(double wave_freq, double rate) {
-    double period;
-    if(wave_freq != 0) {
-        period = rate/wave_freq;
-    } else {
-        period = 0;
-    }
-    double full_period;
-    double frac_period = std::modf(period, &full_period);
-    // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
-    size_t fundamental_period;
-
-    // If there is no fractional part of the period we can use the period as the super period
-    // Also if the fractional part is very close to 0 treat it as close enough
-    if(frac_period < 0.000000001) {
-        fundamental_period = period;
-    } else {
-        double extra_cycles;
-        if(frac_period < 0.5) {
-            extra_cycles = 1.0/frac_period;
-        } else {
-            extra_cycles = 1.0/(1.0-frac_period);
-        }
-
-        fundamental_period = (size_t) ::round(period * extra_cycles);
-    }
-    return fundamental_period;
-}
-
 // Calculate the number of frequencies to send for a comb wave
 static size_t calc_num_positive_frequencies_comb(double comb_spacing, double rate) {
     // TODO: verify this is correct for when rate is not a multiple of comb_spacing
     return (size_t) std::ceil((0.5 * rate/comb_spacing) - 1);
-}
-
-// Calculate the fundamental period for comb wave type
-static size_t calc_fundamental_period_comb(double comb_spacing, double rate) {
-    size_t num_frequencies = calc_num_positive_frequencies_comb(comb_spacing, rate);
-
-    // Calculate all the positive frequencies in the output (negatives can be skipped because their periods are the same)
-    std::vector<double> frequencies(num_frequencies);
-    for(size_t n = 0; n < num_frequencies; n++) {
-        frequencies[n] = ( n + 1 ) * comb_spacing;
-    }
-    std::cout << "Lowest freq for fundamental: " <<  frequencies.front() << std::endl;
-    std::cout << "Highest freq for fundamental: " <<  frequencies.back() << std::endl;
-
-    // Calculate the period in samples
-    std::vector<double> period(num_frequencies);
-    for(size_t n = 0; n < num_frequencies; n++) {
-        period[n] = rate / frequencies[n];
-    }
-
-    // Calculate how many periods are required of each wave a required for a continuous lookup table
-    std::vector<size_t> num_samples_for_continuous(num_frequencies);
-    for(size_t n = 0; n < num_frequencies; n++) {
-        double full_period;
-        double frac_period = std::modf(period[n], &full_period);
-        if(frac_period > 0.000000001) {
-            num_samples_for_continuous[n] = (size_t) std::round( (1 / frac_period) * period[n] );
-        } else {
-            num_samples_for_continuous[n] = (size_t) std::round( period[n] );
-        }
-    }
-
-    // Find the fundamental which is the lcm of the number of samples for a contiuous signal for each individual wave
-    size_t fundamental_period = 1;
-    for(size_t n = 0; n < num_frequencies; n++) {
-        fundamental_period = std::lcm(fundamental_period, num_samples_for_continuous[n]);
-    }
-
-    // TODO: properly handle long fundamental period waves
-    // Maximum lookup table size
-    // Limited to avoid absurd startup times and RAM requirements
-    const size_t MAX_LUT_SIZE = 100000;
-    if(fundamental_period > MAX_LUT_SIZE) {
-        std::cout << "fundamental period of comb wave to long. Limiting it to " + std::to_string(MAX_LUT_SIZE) + " samples\n";
-        fundamental_period = MAX_LUT_SIZE;
-    }
-
-    std::cout << "fundamental_period: " << fundamental_period << std::endl;
-
-    return fundamental_period;
 }
 
 /***********************************************************************
@@ -287,12 +206,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps();
     }
 
-    size_t fundamental_period;
-    if(wave_type != "COMB") {
-        fundamental_period = calc_fundamental_period_common(wave_freq, actual_rate);
-    } else {
-        fundamental_period = calc_fundamental_period_comb(comb_spacing, actual_rate);
-    }
+    // Wave generator used solely for calculating how big the buffer
+    wave_generator<short> wave_generator_for_period_calc(wave_type, ampl, actual_rate, wave_freq);
+
+    size_t fundamental_period = wave_generator_for_period_calc.get_fundamental_period();
 
     std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
