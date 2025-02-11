@@ -76,7 +76,7 @@ void tx_function(uhd::usrp::multi_usrp::sptr usrp, const std::vector<size_t> cha
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
-    const wave_generator<short> wave_generator(wave_type, ampl, rate, wave_freq);
+    wave_generator<short> wave_generator(wave_type, ampl, rate, wave_freq);
     for (size_t n = 0; n < buff.size(); n++){
         buff[n] = wave_generator(n);
     }

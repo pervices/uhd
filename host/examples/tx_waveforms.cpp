@@ -222,7 +222,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //fill the buffer with the waveform
     if(wave_type != "COMB") {
-        const wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq);
+        wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq);
         for (size_t n = 0; n < buff.size(); n++){
             buff[n] = wave_generator(n);
         }

@@ -34,13 +34,15 @@ private:
     const double _wave_freq;
 
     T _wave_max;
-    std::complex<T> (*get_function)(double, T);
+    std::complex<T> (*get_function)(wave_generator*, double);
 
     // TODO: make wave type enum
     std::string _wave_type;
 
     // Vector to contain the waves that are combined to make more complex waves
-    std::vector<wave_generator<double>> constituent_waves;
+    std::vector<wave_generator<double>> _constituent_waves;
+    // Value used to normal the amplitude of composite wave
+    double _normalization_factor = 0;
 public:
     /**
      * @param wave_type The waveform to generate
@@ -77,8 +79,23 @@ public:
         } else if (wave_type == "SINE_NO_Q") {
             get_function = &get_sine_no_q;
         } else if (wave_type == "COMB") {
+            size_t num_positive_frequencies = calc_num_positive_frequencies();
+
+            _constituent_waves.emplace_back("SINE", ampl, _sample_rate, 0);
+            _normalization_factor += 1;
+
+            for(size_t n = 1; n <= num_positive_frequencies; n++) {
+                // Amplitude adjusted such that every consituent wave has the same energy
+                double adjusted_ampl = std::sqrt( std::pow(ampl, 2) * 1 / n);
+
+                _constituent_waves.emplace_back("SINE", adjusted_ampl, _sample_rate, _wave_freq * n);
+
+                // Normalization factor is counted twice to account for the positive and negative sinewave at the frequency
+                _normalization_factor += 2 * (adjusted_ampl / ampl);
+            }
+
             // TODO: implement get for comb wave
-            get_function = &get_sine;
+            get_function = &get_comb;
         } else {
             throw std::runtime_error("unknown waveform type: " + wave_type);
         }
@@ -87,12 +104,16 @@ public:
     /**
      *\param index Sample number
      */
-    inline std::complex<T> operator()(const size_t index) const
+    inline std::complex<T> operator()(const size_t index)
     {
-        double revolutions = index * _wave_freq / _sample_rate;
-        double whole_revoltuions;
-        double angle = 2* M_PI * std::modf(revolutions, &whole_revoltuions);
-        return get_function(angle, _wave_max);
+        if(_wave_type == "COMB") {
+            return get_function(this, index);
+        } else {
+            double revolutions = index * _wave_freq / _sample_rate;
+            double whole_revoltuions;
+            double angle = 2* M_PI * std::modf(revolutions, &whole_revoltuions);
+            return get_function(this, angle);
+        }
     }
 
     // Calculates the fundamental period of the sampled wave
@@ -100,7 +121,7 @@ public:
     // The fundamental period of the sampled wave is different from the fundamental period of the theoretical continuous wave
     size_t get_fundamental_period() {
         if(_wave_type == "COMB") {
-            size_t num_positive_frequencies = (size_t) std::ceil((0.5 * _sample_rate/_wave_freq) - 1);
+            size_t num_positive_frequencies = calc_num_positive_frequencies();
 
             // TODO: figure out why this seg faults
             if(num_positive_frequencies == 0) {
@@ -185,29 +206,42 @@ public:
     }
 
 private:
-    static std::complex<T>get_const(const double angle, const T max) {
-        (void) angle;
-        return std::complex<T>(max, 0);
+    inline size_t calc_num_positive_frequencies() {
+        return (size_t) std::ceil((0.5 * _sample_rate/_wave_freq) - 1);
     }
 
-    static std::complex<T>get_square(const double angle, const T max) {
+    static std::complex<T>get_const(wave_generator<T> *self, const double angle) {
+        (void) angle;
+        return std::complex<T>(self->_wave_max, 0);
+    }
+
+    static std::complex<T>get_square(wave_generator<T> *self, const double angle) {
         if(angle < M_PI) {
             return std::complex<T>(0, 0);
         } else {
-            return std::complex<T>(max);
+            return std::complex<T>(self->_wave_max);
         }
     }
 
-    static std::complex<T>get_ramp(const double angle, const T max) {
-        return {(T)(((2.0 * angle / (2.0 * M_PI)) - 1.0) * max), 0};
+    static std::complex<T>get_ramp(wave_generator<T> *self, const double angle) {
+        return {(T)(((2.0 * angle / (2.0 * M_PI)) - 1.0) * self->_wave_max), 0};
     }
 
-    static std::complex<T>get_sine(const double angle, const T max) {
-        return std::complex<T>((double)max * std::exp(J * angle));
+    static std::complex<T>get_sine(wave_generator<T> *self, const double angle) {
+        return std::complex<T>((double)self->_wave_max * std::exp(J * angle));
     }
 
-    static std::complex<T>get_sine_no_q(const double angle, const T max) {
-        auto result = std::complex<T>((double)max * std::exp(J * angle));
+    static std::complex<T>get_sine_no_q(wave_generator<T> *self, const double angle) {
+        auto result = std::complex<T>((double)self->_wave_max * std::exp(J * angle));
+        result.imag(0);
+        return result;
+    }
+
+    static std::complex<T>get_comb(wave_generator<T> *self, const double fsample) {
+        // Unlike other get functions comb takes the sample number
+        // It takes a double to allow this function signature to be the same as the otehr functions that take angles
+        size_t sample = (size_t) fsample;
+        auto result = std::complex<T>((double)self->_wave_max * std::exp(J * fsample));
         result.imag(0);
         return result;
     }
