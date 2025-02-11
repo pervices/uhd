@@ -99,12 +99,13 @@ public:
     // Using a lookup table that is as long as the fundamental period prevent discontinuities when it loops around
     // The fundamental period of the sampled wave is different from the fundamental period of the theoretical continuous wave
     size_t get_fundamental_period() {
-        std::cout << "T3\n";
         if(_wave_type == "COMB") {
-            std::cout << "T4\n";
-            // TODO: clean up
             size_t num_positive_frequencies = (size_t) std::ceil((0.5 * _sample_rate/_wave_freq) - 1);
-            std::cout << "num_positive_frequencies: " << num_positive_frequencies << std::endl;
+
+            // TODO: figure out why this seg faults
+            if(num_positive_frequencies == 0) {
+                std::cout << "No frequencies in range\n";
+            }
 
             // Calculate all the positive frequencies in the output (negatives can be skipped because their periods are the same)
             std::vector<double> frequencies(num_positive_frequencies);
