@@ -200,31 +200,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         spb = tx_stream->get_max_num_samps();
     }
 
-    // Wave freq is used in a few places the same way comb spacing would be
-    if(wave_type == "COMB") {
-        wave_freq = comb_spacing;
-    }
-    // Wave generator used solely for calculating how big the buffer
-    wave_generator<short> wave_generator_for_period_calc(wave_type, ampl, actual_rate, wave_freq);
+    // Wave generator used to generate samples
+    wave_generator<short> wave_generator(wave_type, ampl, actual_rate, (wave_type == "COMB") ? comb_spacing : wave_freq );
 
-
-    size_t fundamental_period = wave_generator_for_period_calc.get_fundamental_period();
-    std::cout << "fundamental_period: " << fundamental_period << std::endl;
+    // How many samples are needed to create a lookup table that will perfectly replicate a wave
+    size_t fundamental_period = wave_generator.get_fundamental_period();
 
     std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
-    if(wave_type != "COMB") {
-        wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq);
-        for (size_t n = 0; n < buff.size(); n++){
-            buff[n] = wave_generator(n);
-        }
-    } else {
-        wave_generator<short> wave_generator(wave_type, ampl, actual_rate, comb_spacing);
-        for (size_t n = 0; n < buff.size(); n++){
-            buff[n] = wave_generator(n);
-        }
+    for (size_t n = 0; n < buff.size(); n++){
+        buff[n] = wave_generator(n);
     }
 
 
