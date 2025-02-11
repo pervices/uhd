@@ -19,10 +19,7 @@
 #include <cstdint>
 #include <math.h>
 #include <numeric>
-
-
-// TODO remove this once debugging is done
-#include <iostream>
+#include <uhd/utils/log.hpp>
 
 // Datatype of the samples to be include (float for fc32, short for sc16...)
 template<typename T = float>
@@ -37,7 +34,6 @@ private:
     T _wave_max;
     std::complex<T> (*get_function)(wave_generator*, double);
 
-    // TODO: make wave type enum
     std::string _wave_type;
 
     // Vector to contain the waves that are combined to make more complex waves
@@ -125,9 +121,8 @@ public:
             }
             size_t num_positive_frequencies = calc_num_positive_frequencies();
 
-            // TODO: figure out why this seg faults
             if(num_positive_frequencies == 0) {
-                std::cout << "No frequencies in range\n";
+                UHD_LOG_WARNING("WAVE_GENERATOR", "The requested comb does not contain non 0 frequencies. Are your comb spacing and sample rate correct?")
             }
 
             // Calculate all the positive frequencies in the output (negatives can be skipped because their periods are the same)
@@ -159,17 +154,6 @@ public:
             for(size_t n = 0; n < num_positive_frequencies; n++) {
                 fundamental_period = std::lcm(fundamental_period, num_samples_for_continuous[n]);
             }
-
-            // TODO: properly handle long fundamental period waves
-            // Maximum lookup table size
-            // Limited to avoid absurd startup times and RAM requirements
-            const size_t MAX_LUT_SIZE = 100000;
-            if(fundamental_period > MAX_LUT_SIZE) {
-                std::cout << "fundamental period of comb wave to long. Limiting it to " + std::to_string(MAX_LUT_SIZE) + " samples\n";
-                fundamental_period = MAX_LUT_SIZE;
-            }
-
-            std::cout << "fundamental_period: " << fundamental_period << std::endl;
 
             return fundamental_period;
         } else if (_wave_type == "CONST") {

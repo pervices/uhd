@@ -206,6 +206,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     // How many samples are needed to create a lookup table that will perfectly replicate a wave
     size_t fundamental_period = wave_generator.get_fundamental_period();
 
+    // Limit the size of the sample buffer to avoid excessive resource use
+    // Most waves are limited to 2e9 samples (8Gb of RAM)
+    // Comb waves are limited to 100e3 samples due to how long lookup table generation takes. If/when generation is optimize it can be increased
+    if(wave_type != "COMB") {
+        const size_t MAX_COMMON_LUT_SIZE = 2000000000;
+        if(fundamental_period > MAX_COMMON_LUT_SIZE) {
+        std::cout << "The fundamental period with a wave frequency of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMMON_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMMON_LUT_SIZE / actual_rate << " seconds.\n";
+        }
+    } else {
+        const size_t MAX_COMB_LUT_SIZE = 100000;
+        if(fundamental_period > MAX_COMB_LUT_SIZE) {
+        std::cout << "The fundamental period with a comb spacing of " << comb_spacing / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMB_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMB_LUT_SIZE / actual_rate << " seconds.\n";
+        }
+    }
+
     std::vector<std::complex<short> > buff(spb + fundamental_period);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
