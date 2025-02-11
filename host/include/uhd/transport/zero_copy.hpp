@@ -10,7 +10,7 @@
 #include <uhd/config.hpp>
 #include <uhd/utils/noncopyable.hpp>
 
-#include <boost/detail/atomic_count.hpp>
+#include <boost/smart_ptr/detail/atomic_count.hpp>
 #include <boost/intrusive_ptr.hpp>
 #include <boost/utility.hpp>
 #include <sys/socket.h>
