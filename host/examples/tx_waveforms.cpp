@@ -308,27 +308,27 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         size_t num_frequencies = num_positive_frequencies * 2 + 1;
 
         // Factor to adjust the amplitude by when summing such that the sum of the amplitude of each
-        double total_ampl = 0;
+        double normalization_factor = 0;
 
         // Create a wave_generator for each frequency. Use a double for this step to reduce rounding error
         std::vector<wave_generator<double>> wave_generators;
         wave_generators.emplace_back("SINE", ampl, actual_rate, 0);
-        total_ampl += ampl;
+        normalization_factor += 1;
 
         for(size_t n = 1; n <= num_positive_frequencies; n++) {
             // TODO: explain formula
             double adjusted_ampl = std::sqrt( std::pow(ampl, 2) * 1 / n);
             wave_generators.emplace_back("SINE", adjusted_ampl, actual_rate, comb_spacing * n);
-            total_ampl += adjusted_ampl;
+            normalization_factor += adjusted_ampl / ampl;
             wave_generators.emplace_back("SINE", adjusted_ampl, actual_rate, comb_spacing * /*-*/n);
-            total_ampl += adjusted_ampl;
+            normalization_factor += adjusted_ampl / ampl;
         }
 
         for(size_t s = 0; s < buff.size(); s++) {
             // Sum all the waves at the specified sample
             std::complex<double> sample(0, 0);
             for(size_t n = 0; n < num_frequencies; n++) {
-                std::complex<double> a = wave_generators[n](s) / total_ampl;
+                std::complex<double> a = wave_generators[n](s) / normalization_factor;
 
                 if(n % 2 == 0) {
                     sample += a;
