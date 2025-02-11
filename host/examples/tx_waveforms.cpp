@@ -39,12 +39,6 @@ void sig_int_handler(int){
     stop_signal_called = true;
 }
 
-// Calculate the number of frequencies to send for a comb wave
-static size_t calc_num_positive_frequencies_comb(double comb_spacing, double rate) {
-    // TODO: verify this is correct for when rate is not a multiple of comb_spacing
-    return (size_t) std::ceil((0.5 * rate/comb_spacing) - 1);
-}
-
 /***********************************************************************
  * Main function
  **********************************************************************/
@@ -227,42 +221,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             buff[n] = wave_generator(n);
         }
     } else {
-        size_t num_positive_frequencies = calc_num_positive_frequencies_comb(comb_spacing, actual_rate);
-        size_t num_frequencies = num_positive_frequencies * 2 + 1;
-
-        // Factor to adjust the amplitude by when summing such that the sum of the amplitude of each
-        double normalization_factor = 0;
-
-        // Create a wave_generator for each frequency. Use a double for this step to reduce rounding error
-        std::vector<wave_generator<double>> wave_generators;
-        wave_generators.emplace_back("SINE", ampl, actual_rate, 0);
-        normalization_factor += 1;
-
-        for(size_t n = 1; n <= num_positive_frequencies; n++) {
-            // TODO: explain formula
-            double adjusted_ampl = std::sqrt( std::pow(ampl, 2) * 1 / n);
-            wave_generators.emplace_back("SINE", adjusted_ampl, actual_rate, comb_spacing * n);
-            normalization_factor += adjusted_ampl / ampl;
-            wave_generators.emplace_back("SINE", adjusted_ampl, actual_rate, comb_spacing * /*-*/n);
-            normalization_factor += adjusted_ampl / ampl;
-        }
-
-        for(size_t s = 0; s < buff.size(); s++) {
-            // Sum all the waves at the specified sample
-            std::complex<double> sample(0, 0);
-            for(size_t n = 0; n < num_frequencies; n++) {
-                std::complex<double> a = wave_generators[n](s) / normalization_factor;
-
-                if(n % 2 == 0) {
-                    sample += a;
-                } else {
-                    std::complex<double> b(std::imag(a), std::real(a));
-                    sample += b;
-                }
-            }
-            // Convert std::complex<double> in range -1..1 to std::complex<short> in range -32767 to +32767
-            buff[s] = sample * 32767.0;
-
+        wave_generator<short> wave_generator(wave_type, ampl, actual_rate, comb_spacing);
+        for (size_t n = 0; n < buff.size(); n++){
+            buff[n] = wave_generator(n);
         }
     }
 

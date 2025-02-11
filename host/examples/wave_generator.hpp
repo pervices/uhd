@@ -33,6 +33,7 @@ private:
     const double _sample_rate;
     const double _wave_freq;
 
+    T _type_max;
     T _wave_max;
     std::complex<T> (*get_function)(wave_generator*, double);
 
@@ -55,14 +56,13 @@ public:
     _wave_freq(wave_freq),
     _wave_type(wave_type)
     {
-        T type_max;
         if(std::is_floating_point<T>::value) {
-            type_max = 1;
+            _type_max = 1;
         } else {
-            type_max = std::numeric_limits<T>::max();
+            _type_max = std::numeric_limits<T>::max();
         }
 
-        _wave_max = (T) (ampl * type_max);
+        _wave_max = (T) (ampl * _type_max);
 
         // Note: CONST, SQUARE, and RAMP only fill the I portion, since they are
         // amplitude-modulating signals, not phase-modulating.
@@ -94,7 +94,6 @@ public:
                 _normalization_factor += 2 * (adjusted_ampl / ampl);
             }
 
-            // TODO: implement get for comb wave
             get_function = &get_comb;
         } else {
             throw std::runtime_error("unknown waveform type: " + wave_type);
@@ -237,13 +236,30 @@ private:
         return result;
     }
 
-    static std::complex<T>get_comb(wave_generator<T> *self, const double fsample) {
+    static std::complex<T>get_comb(wave_generator<T> *self, const double findex) {
         // Unlike other get functions comb takes the sample number
         // It takes a double to allow this function signature to be the same as the otehr functions that take angles
-        size_t sample = (size_t) fsample;
-        auto result = std::complex<T>((double)self->_wave_max * std::exp(J * fsample));
-        result.imag(0);
-        return result;
+        size_t index = (size_t) findex;
+
+        // Used to sum all every constituent wave
+        std::complex<double> sum(0, 0);
+
+        // Add the first wave (0Hz
+        sum += self->_constituent_waves[0](index) / self->_normalization_factor;
+
+        // For every non 0 frequency
+        for(size_t i = 0; i < self->_constituent_waves.size(); i++) {
+            // Add the positive frequency
+            std::complex<double> positive_sample = self->_constituent_waves[i](index);
+            sum += positive_sample / self->_normalization_factor;
+
+            // Add the negative frequency (I and Q swapped)
+            std::complex<double> negative_sample(std::imag(positive_sample), std::real(positive_sample));
+            sum += negative_sample / self->_normalization_factor;
+        }
+
+        // Convert from range of std::complex<double> (range -1 to 1) to the disired type
+        return sum * (double) self->_type_max;
     }
 };
 
