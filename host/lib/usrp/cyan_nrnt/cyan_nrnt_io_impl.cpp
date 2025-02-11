@@ -38,7 +38,6 @@
 #include <functional>
 #include <boost/asio.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/make_shared.hpp>
 #include <iostream>
 #include <thread>
 #include <vector>
