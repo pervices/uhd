@@ -123,7 +123,7 @@ public:
             if(_wave_freq == 0) {
                 throw std::invalid_argument("Comb space of 0 requested");
             }
-            ssize_t num_positive_frequencies = calc_num_positive_frequencies();
+            size_t num_positive_frequencies = calc_num_positive_frequencies();
 
             // TODO: figure out why this seg faults
             if(num_positive_frequencies == 0) {
@@ -131,14 +131,10 @@ public:
             }
 
             // Calculate all the positive frequencies in the output (negatives can be skipped because their periods are the same)
-            std::cout << "T1\n";
             std::vector<double> frequencies(num_positive_frequencies);
-            std::cout << "T2\n";
-            for(ssize_t n = 0; n < num_positive_frequencies; n++) {
+            for(size_t n = 0; n < num_positive_frequencies; n++) {
                 frequencies[n] = ( n + 1 ) * _wave_freq;
             }
-            std::cout << "Lowest freq for fundamental: " <<  frequencies.front() << std::endl;
-            std::cout << "Highest freq for fundamental: " <<  frequencies.back() << std::endl;
 
             // Calculate the period in samples
             std::vector<double> period(num_positive_frequencies);
