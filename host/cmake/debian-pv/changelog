@@ -1,3 +1,10 @@
+uhdpv (4.4.0.58-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Adding comb wave to tx_waveforms
+  * Fixing compilation issue when using boost 1.87 and later
+
+ -- Per Vices <packages@pervices.com>  Wed, 12 Feb 2025 12:52:59 -0500
+
 uhdpv (4.4.0.57-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding support for tx baseband only Cyan variants
