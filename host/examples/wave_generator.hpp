@@ -20,6 +20,7 @@
 #include <math.h>
 #include <numeric>
 #include <uhd/utils/log.hpp>
+#include <fstream>
 
 // Datatype of the samples to be include (float for fc32, short for sc16...)
 template<typename T = float>
@@ -40,14 +41,23 @@ private:
     std::vector<wave_generator<double>> _constituent_waves;
     // Value used to normal the amplitude of composite wave
     double _normalization_factor = 0;
+
+    // The frequency to a apply an adjustment to improve output strength consistency
+    // _frequency_brackets contains the frequency in fraction between 0 and + nyquist limit
+    std::vector<double> _frequency_brackets;
+    // _amplitude_multiplier contains the value to multiply the amplitude with linear interpolation used between them
+    std::vector<double> _amplitude_multiplier;
+    // Indicates whether or not a calibration file was provided
+    bool _calibration_enabled;
 public:
     /**
      * @param wave_type The waveform to generate
      * @param ampl The amplitude of the wave
      * @param sample_rate The sample rate
      * @param wave_freq The frequency of the wave for most waves. The comb spacing for COMB waves. Ignored for constant wave
+     * @param ampl_calibration_path Path to a calibration file to improve linearity in comb waves
      */
-    wave_generator(const std::string& wave_type, const double ampl, double sample_rate, double wave_freq)
+    wave_generator(const std::string& wave_type, const double ampl, double sample_rate, double wave_freq, std::string ampl_calibration_path = "")
     : _sample_rate(sample_rate),
     _wave_freq(wave_freq),
     _wave_type(wave_type)
@@ -59,6 +69,8 @@ public:
         }
 
         _wave_max = (T) (ampl * _type_max);
+
+        _calibration_enabled = ampl_calibration_path != "";
 
         // Note: CONST, SQUARE, and RAMP only fill the I portion, since they are
         // amplitude-modulating signals, not phase-modulating.
@@ -76,15 +88,45 @@ public:
             get_function = &get_sine_no_q;
         } else if (wave_type == "COMB") {
             size_t num_positive_frequencies = calc_num_positive_frequencies();
+            if(_calibration_enabled) {
+                parse_config(ampl_calibration_path);
+            }
 
             _constituent_waves.emplace_back("SINE", ampl, _sample_rate, 0);
             _normalization_factor += 1;
 
             for(size_t n = 1; n <= num_positive_frequencies; n++) {
-                // Amplitude adjusted such that every consituent wave has the same energy
+                // Amplitude adjusted such that every consituent wave has the same theoretical energy
                 double adjusted_ampl = std::sqrt( std::pow(ampl, 2) * 1 / n);
 
-                _constituent_waves.emplace_back("SINE", adjusted_ampl, _sample_rate, _wave_freq * n);
+                // The wave frequency of this tooth of the comb
+                double frequency = _wave_freq * n;
+                // Which fraction from the center to the positive nyquist limit the frequency is. Used for adjusting amplitude for linearity
+                double bandwidth_fraction = frequency / (_sample_rate/2);
+
+                size_t num_frequency_brackets = _frequency_brackets.size() - 1;
+
+                if(_calibration_enabled) {
+                    // Find which adjustment bracket this frequency belongs to
+                    size_t bracket;
+                    for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
+                        if(bandwidth_fraction < _frequency_brackets[bracket + 1]) {
+                            break;
+                        }
+                    }
+                    if(bracket >= num_frequency_brackets) {
+                        // Error if the request frequency is not in the table. This should be impossible
+                        throw std::runtime_error("Requested frequency not in adjustment table");
+                    }
+                    // Linearly interpolate how much to adjust the amplitude within the band provided
+                    double x = (bandwidth_fraction - _frequency_brackets[bracket]) / (_frequency_brackets[bracket + 1] - _frequency_brackets[bracket]);
+                    double y = x * (_amplitude_multiplier[bracket + 1] - _amplitude_multiplier[bracket]) + _amplitude_multiplier[bracket];
+
+                    // Adjust the amplitude according to the config file provided to improve linearity across the input
+                    adjusted_ampl *= y;
+                }
+
+                _constituent_waves.emplace_back("SINE", adjusted_ampl, _sample_rate, frequency);
 
                 // Normalization factor is counted twice to account for the positive and negative sinewave at the frequency
                 _normalization_factor += 2 * (adjusted_ampl / ampl);
@@ -192,6 +234,90 @@ public:
 private:
     inline size_t calc_num_positive_frequencies() {
         return (size_t) std::ceil((0.5 * _sample_rate/_wave_freq) - 1);
+    }
+
+    void parse_config(std::string config_path) {
+        // Format:
+        // # At the start of a line indicates a comment
+        // The first non comment line is a list of frequency fractions
+        // The second non comment line is a list of their respective gains
+        std::ifstream file(config_path);
+        if(!file.is_open()) {
+            std::cout << "Error when opening file\n";
+        }
+
+        std::string line;
+        do {
+            if(file.eof()) {
+                throw std::runtime_error("Reached end of file before finding frequency location");
+            }
+            std::getline(file, line);
+
+            // Loop until the first non blank line that doesn't start with #
+        } while(line[0] == '#' || line == "");
+
+        // Replace , with space for easier parsing
+        std::replace( line.begin(), line.end(), ',', ' ');
+        std::string trimmed_line = line;
+
+        while(trimmed_line.size() > 0) {
+            size_t pos = 0;
+            double value;
+            try {
+                value = std::stod(trimmed_line, &pos);
+            } catch (std::invalid_argument &e) {
+                // Provides an error message to the user there is an error while parsing then rethrows the error
+                UHD_LOG_ERROR("WAVE_GENERATOR", "Error parsing double for frequency fraction from line: \"" + trimmed_line + "\"");
+                throw;
+            }
+            // No more parsable characters
+            if(pos == 0) {
+                break;
+            }
+
+            // Add the bracket size to the list
+            _frequency_brackets.emplace_back(value);
+
+            trimmed_line.erase(0, pos);
+        }
+
+        do {
+            if(file.eof()) {
+                throw std::runtime_error("Reached end of file before finding amplitude");
+            }
+            std::getline(file, line);
+
+            // Loop until the first non blank line that doesn't start with #
+        } while(line[0] == '#' || line == "");
+
+        std::replace( line.begin(), line.end(), ',', ' ');
+        trimmed_line = line;
+
+        while(trimmed_line.size() > 0) {
+            size_t pos = 0;
+            double value;
+            try {
+                value = std::stod(trimmed_line, &pos);
+            } catch (std::invalid_argument &e) {
+                // Provides an error message to the user there is an error while parsing then rethrows the error
+                UHD_LOG_ERROR("WAVE_GENERATOR", "Error parsing double for frequency fraction from line: \"" + trimmed_line + "\"");
+                throw;
+            }
+            // No more parsable characters
+            if(pos == 0) {
+                break;
+            }
+
+            // Add the bracket size to the list
+            _amplitude_multiplier.emplace_back(value);
+
+            trimmed_line.erase(0, pos);
+        }
+
+        if(_frequency_brackets.size() != _amplitude_multiplier.size()) {
+            throw std::runtime_error("Mismatch between the size of the calibration frequency and multiplier list");
+        }
+
     }
 
     static std::complex<T>get_const(wave_generator<T> *self, const double angle) {
