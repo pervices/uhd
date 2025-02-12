@@ -87,22 +87,26 @@ public:
                 // The wave frequency of this tooth of the comb
                 double frequency = _wave_freq * n;
                 // Which fraction from the center to the positive nyquist limit the frequency is. Used for adjusting amplitude for linearity
-                double bandwidth_fraction = frequency / (_sample_rate/2)
+                double bandwidth_fraction = frequency / (_sample_rate/2);
 
                 // TODO: replace these with values from user supplied file
                 size_t num_frequency_brackets = 4;
                 double adjust_freq[num_frequency_brackets + 1] = {0, 0.05, 0.1, 0.9, 1};
-                double adjust_factor[num_frequency_brackets] = {1, 2, 3, 4, 5};
+                double adjust_factor[num_frequency_brackets + 1] = {1, 2, 3, 4, 5};
 
                 // Find which adjustment bracket this frequency belongs to
                 size_t bracket;
                 for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
-                    if(bandwidth_fraction < adjust_freq[bracket]) {
+                    if(bandwidth_fraction < adjust_freq[bracket + 1]) {
                         break;
                     }
                 }
-                // TODO: continue
+                // Linearly interpolate how much to adjust the amplitude within the band provided
+                double x = (adjust_freq[bracket + 1] - bandwidth_fraction) / (adjust_freq[bracket + 1] - adjust_freq[bracket - 1]);
+                double y = x * (adjust_factor[bracket + 1] - adjust_factor[bracket]) + adjust_factor[bracket];
 
+                // Adjust the amplitude according to the config file provided to improve linearity across the input
+                adjusted_ampl *= y;
 
                 _constituent_waves.emplace_back("SINE", adjusted_ampl, _sample_rate, frequency);
 
