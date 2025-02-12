@@ -52,7 +52,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double rate, freq, gain, wave_freq, bw;
     float ampl;
 
-    double first, last, increment, comb_spacing;
+    double first, last, increment;
 
     //setup the program options
     po::options_description desc("Allowed options");
@@ -70,8 +70,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
         ("wave-type", po::value<std::string>(&wave_type)->default_value("SINE"), "waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q, COMB)")
         //SIN_NO_Q can also be used to generate a sinwave without the q component, which is useful when debugging the FPGA
-        ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
-        ("comb-spacing", po::value<double>(&comb_spacing), "Comb spacing in Hz. Only used with wave-type=COMB")
+        ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "Waveform frequency in Hz for most wave types. Comb spacing for COMB waves, ignored to CONST waves")
         ("ref", po::value<std::string>(&ref), "clock reference (internal, external, mimo, gpsdo)")
         ("pps", po::value<std::string>(&pps)->default_value("internal"), "PPS source (internal, external, mimo, gpsdo, bypass)")
         ("otw", po::value<std::string>(&otw)->default_value("sc16"), "specify the over-the-wire sample mode")
@@ -93,18 +92,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    if(!vm["wave-freq"].defaulted() && wave_type == "COMB") {
-        UHD_LOGGER_WARNING("TX_WAVEFORMS") << "wave-freq specified in comb mode. It will be ignored";
-    }
-
     //set the center frequency
     if (not vm.count("freq")){
         std::cerr << "Please specify the center frequency with --freq" << std::endl;
-        return ~0;
-    }
-
-    if(!vm.count("comb-spacing") && wave_type == "COMB") {
-        UHD_LOGGER_ERROR("TX_WAVEFORMS") << "COMB wave requested but no comb-spacing specified";
         return ~0;
     }
 
@@ -201,7 +191,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     // Wave generator used to generate samples
-    wave_generator<short> wave_generator(wave_type, ampl, actual_rate, (wave_type == "COMB") ? comb_spacing : wave_freq );
+    wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq );
 
     // How many samples are needed to create a lookup table that will perfectly replicate a wave
     size_t fundamental_period = wave_generator.get_fundamental_period();
@@ -217,7 +207,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     } else {
         const size_t MAX_COMB_LUT_SIZE = 100000;
         if(fundamental_period > MAX_COMB_LUT_SIZE) {
-        std::cout << "The fundamental period with a comb spacing of " << comb_spacing / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMB_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMB_LUT_SIZE / actual_rate << " seconds.\n";
+        std::cout << "The fundamental period with a comb spacing of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMB_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMB_LUT_SIZE / actual_rate << " seconds.\n";
         }
     }
 
