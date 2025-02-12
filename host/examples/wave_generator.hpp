@@ -81,10 +81,30 @@ public:
             _normalization_factor += 1;
 
             for(size_t n = 1; n <= num_positive_frequencies; n++) {
-                // Amplitude adjusted such that every consituent wave has the same energy
+                // Amplitude adjusted such that every consituent wave has the same theoretical energy
                 double adjusted_ampl = std::sqrt( std::pow(ampl, 2) * 1 / n);
 
-                _constituent_waves.emplace_back("SINE", adjusted_ampl, _sample_rate, _wave_freq * n);
+                // The wave frequency of this tooth of the comb
+                double frequency = _wave_freq * n;
+                // Which fraction from the center to the positive nyquist limit the frequency is. Used for adjusting amplitude for linearity
+                double bandwidth_fraction = frequency / (_sample_rate/2)
+
+                // TODO: replace these with values from user supplied file
+                size_t num_frequency_brackets = 4;
+                double adjust_freq[num_frequency_brackets + 1] = {0, 0.05, 0.1, 0.9, 1};
+                double adjust_factor[num_frequency_brackets] = {1, 2, 3, 4, 5};
+
+                // Find which adjustment bracket this frequency belongs to
+                size_t bracket;
+                for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
+                    if(bandwidth_fraction < adjust_freq[bracket]) {
+                        break;
+                    }
+                }
+                // TODO: continue
+
+
+                _constituent_waves.emplace_back("SINE", adjusted_ampl, _sample_rate, frequency);
 
                 // Normalization factor is counted twice to account for the positive and negative sinewave at the frequency
                 _normalization_factor += 2 * (adjusted_ampl / ampl);
