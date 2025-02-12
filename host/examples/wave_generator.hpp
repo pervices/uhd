@@ -97,9 +97,14 @@ public:
                 // Find which adjustment bracket this frequency belongs to
                 size_t bracket;
                 for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
+                    std::cout << "bracket: " << bracket << std::endl;
                     if(bandwidth_fraction < adjust_freq[bracket + 1]) {
                         break;
                     }
+                }
+                if(bracket >= num_frequency_brackets) {
+                    // Error if the request frequency is not in the table. This should be impossible
+                    throw std::runtime_error("Requested frequency not in adjustment table");
                 }
                 // Linearly interpolate how much to adjust the amplitude within the band provided
                 double x = (adjust_freq[bracket + 1] - bandwidth_fraction) / (adjust_freq[bracket + 1] - adjust_freq[bracket - 1]);
