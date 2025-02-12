@@ -233,7 +233,7 @@ private:
         sum += self->_constituent_waves[0](index) / self->_normalization_factor;
 
         // For every non 0 frequency
-        for(size_t i = 0; i < self->_constituent_waves.size(); i++) {
+        for(size_t i = 1; i < self->_constituent_waves.size(); i++) {
             // Add the positive frequency
             std::complex<double> positive_sample = self->_constituent_waves[i](index);
             sum += positive_sample / self->_normalization_factor;
