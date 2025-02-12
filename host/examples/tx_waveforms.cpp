@@ -46,7 +46,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uhd::set_thread_priority_safe();
 
     //variables to be set by po
-    std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
+    std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list, ampl_calibration;
     uint64_t total_num_samps;
     size_t spb;
     double rate, freq, gain, wave_freq, bw;
@@ -64,6 +64,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
+        // TODO: add beter explaination
+        ("ampl-calibration", po::value<std::string>(&ampl_calibration)->default_value(""), "Optional config file to improve linearity with comb waves")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
@@ -191,7 +193,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     // Wave generator used to generate samples
-    wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq );
+    wave_generator<short> wave_generator(wave_type, ampl, actual_rate, wave_freq, ampl_calibration);
 
     // How many samples are needed to create a lookup table that will perfectly replicate a wave
     size_t fundamental_period = wave_generator.get_fundamental_period();

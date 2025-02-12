@@ -46,8 +46,9 @@ public:
      * @param ampl The amplitude of the wave
      * @param sample_rate The sample rate
      * @param wave_freq The frequency of the wave for most waves. The comb spacing for COMB waves. Ignored for constant wave
+     * @param ampl_calibration_path Path to a calibration file to improve linearity in comb waves
      */
-    wave_generator(const std::string& wave_type, const double ampl, double sample_rate, double wave_freq)
+    wave_generator(const std::string& wave_type, const double ampl, double sample_rate, double wave_freq, std::string ampl_calibration_path = "")
     : _sample_rate(sample_rate),
     _wave_freq(wave_freq),
     _wave_type(wave_type)
