@@ -1074,6 +1074,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "serial",     "time/about/serial", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "fw_version", "time/about/fw_ver", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "sw_version", "time/about/sw_ver", std::string, string);
+    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "eeprom", "time/about/eeprom", std::string, string);
 
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
     TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 322MHz BW and DC-6GHz each");
@@ -1188,6 +1189,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
 		TREE_CREATE_RW(rx_path / dspno / "hw_version", "rx_"+lc_num+"/about/hw_ver", std::string, string);
 		TREE_CREATE_RW(rx_path / dspno / "sw_version", "rx_"+lc_num+"/about/sw_ver", std::string, string);
+		TREE_CREATE_RW(rx_path / dspno / "eeprom", "rx_"+lc_num+"/about/eeprom", std::string, string);
 
         TREE_CREATE_RW(rx_path / dspno / "about/rfe_rate", "rx_"+lc_num+"/about/rfe_rate", double, double);
         try {
@@ -1321,6 +1323,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
 		TREE_CREATE_RW(tx_path / dspno / "hw_version", "tx_"+lc_num+"/about/hw_ver", std::string, string);
 		TREE_CREATE_RW(tx_path / dspno / "sw_version", "tx_"+lc_num+"/about/sw_ver", std::string, string);
+		TREE_CREATE_RW(tx_path / dspno / "eeprom", "tx_"+lc_num+"/about/eeprom", std::string, string);
 
 		// Actual frequency values
 		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/lo_freq", double, double);
