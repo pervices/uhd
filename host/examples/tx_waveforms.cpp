@@ -202,12 +202,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(wave_type != "COMB") {
         const size_t MAX_COMMON_LUT_SIZE = 2000000000;
         if(fundamental_period > MAX_COMMON_LUT_SIZE) {
-        std::cout << "The fundamental period with a wave frequency of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMMON_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMMON_LUT_SIZE / actual_rate << " seconds.\n";
+            std::cout << "The fundamental period with a wave frequency of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMMON_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMMON_LUT_SIZE / actual_rate << " seconds.\n";
+
+            fundamental_period = MAX_COMMON_LUT_SIZE;
         }
     } else {
         const size_t MAX_COMB_LUT_SIZE = 100000;
         if(fundamental_period > MAX_COMB_LUT_SIZE) {
-        std::cout << "The fundamental period with a comb spacing of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMB_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMB_LUT_SIZE / actual_rate << " seconds.\n";
+            std::cout << "The fundamental period with a comb spacing of " << wave_freq / 1e6 << "MHz and a sample rate of " << actual_rate / 1e6 << "Msps is very large. The lookup table will be limited to " << MAX_COMB_LUT_SIZE << " samples. This will cause a discontinuity every " << MAX_COMB_LUT_SIZE / actual_rate << " seconds.\n";
+
+            fundamental_period = MAX_COMB_LUT_SIZE;
         }
     }
 
