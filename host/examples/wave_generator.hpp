@@ -119,7 +119,7 @@ public:
                         throw std::runtime_error("Requested frequency not in adjustment table");
                     }
                     // Linearly interpolate how much to adjust the amplitude within the band provided
-                    double x = (_frequency_brackets[bracket + 1] - bandwidth_fraction) / (_frequency_brackets[bracket + 1] - _frequency_brackets[bracket]);
+                    double x = (bandwidth_fraction - _frequency_brackets[bracket]) / (_frequency_brackets[bracket + 1] - _frequency_brackets[bracket]);
                     double y = x * (_amplitude_multiplier[bracket + 1] - _amplitude_multiplier[bracket]) + _amplitude_multiplier[bracket];
 
                     // Adjust the amplitude according to the config file provided to improve linearity across the input
