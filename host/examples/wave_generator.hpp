@@ -106,7 +106,6 @@ public:
                 // Find which adjustment bracket this frequency belongs to
                 size_t bracket;
                 for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
-                    std::cout << "bracket: " << bracket << std::endl;
                     if(bandwidth_fraction < adjust_freq[bracket + 1]) {
                         break;
                     }
@@ -251,6 +250,15 @@ private:
         } while(line[0] == '#' || line == "");
 
         std::cout << "line 2: " << line << std::endl;
+
+        std::size_t pos = 0;
+
+        while(pos < line.size()) {
+            double value = std::stod(line, &pos);
+            std::cout << "value: " << value << std::endl;
+        }
+
+
     }
 
     static std::complex<T>get_const(wave_generator<T> *self, const double angle) {
