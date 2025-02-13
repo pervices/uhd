@@ -20,6 +20,7 @@
 #include <math.h>
 #include <numeric>
 #include <uhd/utils/log.hpp>
+#include <fstream>
 
 // Datatype of the samples to be include (float for fc32, short for sc16...)
 template<typename T = float>
@@ -40,6 +41,12 @@ private:
     std::vector<wave_generator<double>> _constituent_waves;
     // Value used to normal the amplitude of composite wave
     double _normalization_factor = 0;
+
+    // The frequency to a apply an adjustment to improve output strength consistency
+    // _frequency_brackets contains the frequency in fraction between 0 and + nyquist limit
+    std::vector<double> _frequency_brackets;
+    // _amplitude_multiplier contains the value to multiply the amplitude with linear interpolation used between them
+    std::vector<double> _amplitude_multiplier;
 public:
     /**
      * @param wave_type The waveform to generate
@@ -77,6 +84,7 @@ public:
             get_function = &get_sine_no_q;
         } else if (wave_type == "COMB") {
             size_t num_positive_frequencies = calc_num_positive_frequencies();
+            parse_config(ampl_calibration_path);
 
             _constituent_waves.emplace_back("SINE", ampl, _sample_rate, 0);
             _normalization_factor += 1;
@@ -222,6 +230,14 @@ public:
 private:
     inline size_t calc_num_positive_frequencies() {
         return (size_t) std::ceil((0.5 * _sample_rate/_wave_freq) - 1);
+    }
+
+    void parse_config(std::string config_path) {
+        // Format:
+        // # At the start of a line indicates a comment
+        // The first non comment line is a list of frequency fractions
+        // The second non comment line is a list of their respective gains
+        std::ifstream file(config_path);
     }
 
     static std::complex<T>get_const(wave_generator<T> *self, const double angle) {
