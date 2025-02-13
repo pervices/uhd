@@ -250,14 +250,19 @@ private:
         } while(line[0] == '#' || line == "");
 
         std::cout << "line 2: " << line << std::endl;
+        // Replace , with space for easier parsing
+        std::replace( line.begin(), line.end(), ',', ' ');
 
         size_t tmp = 0;
         size_t pos = 0;
 
         while(pos < line.size()) {
+            std::cout << "line 3: " << line << std::endl;
             double value = std::stod(line, &pos);
             std::cout << "pos: " << pos << std::endl;
             std::cout << "value: " << value << std::endl;
+
+            line.erase(0, pos);
             if(pos == tmp) {
                 break;
             }
