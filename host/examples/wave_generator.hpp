@@ -249,25 +249,53 @@ private:
             std::cout << "line 1: " << line << std::endl;
         } while(line[0] == '#' || line == "");
 
-        std::cout << "line 2: " << line << std::endl;
         // Replace , with space for easier parsing
         std::replace( line.begin(), line.end(), ',', ' ');
 
+        // TODO: make this more robust and user friendly
         while(line.size() > 0) {
             size_t pos = 0;
-            std::cout << "line 3: " << line << std::endl;
             double value = std::stod(line, &pos);
-            std::cout << "pos: " << pos << std::endl;
-            std::cout << "value: " << value << std::endl;
-
             // No more parsable characters
             if(pos == 0) {
                 break;
             }
 
+            // Add the bracket size to the list
+            _frequency_brackets.emplace_back(value);
+
             line.erase(0, pos);
         }
 
+        do {
+            std::getline(file, line);
+            // Loop until the first line that doesn't start with #
+            // TODO: verify error handling works
+            std::cout << "line 2: " << line << std::endl;
+        } while(line[0] == '#' || line == "");
+
+        std::replace( line.begin(), line.end(), ',', ' ');
+
+        // TODO: make this more robust and user friendly
+        while(line.size() > 0) {
+            size_t pos = 0;
+            double value = std::stod(line, &pos);
+            // No more parsable characters
+            if(pos == 0) {
+                break;
+            }
+
+            // Add the bracket size to the list
+            _amplitude_multiplier.emplace_back(value);
+
+            line.erase(0, pos);
+        }
+
+        if(_frequency_brackets.size() != _amplitude_multiplier.size()) {
+            std::cout << "Mismatch between freuqnecy and amplitude pairs\n";
+        } else {
+            std::cout << "GOOD: sizes match\n";
+        }
 
     }
 
