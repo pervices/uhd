@@ -238,6 +238,19 @@ private:
         // The first non comment line is a list of frequency fractions
         // The second non comment line is a list of their respective gains
         std::ifstream file(config_path);
+        if(!file.is_open()) {
+            std::cout << "Error when opening file\n";
+        }
+
+        std::string line;
+        do {
+            std::getline(file, line);
+            // Loop until the first line that doesn't start with #
+            // TODO: verify error handling works
+            std::cout << "line 1: " << line << std::endl;
+        } while(line[0] == '#' || line == "");
+
+        std::cout << "line 2: " << line << std::endl;
     }
 
     static std::complex<T>get_const(wave_generator<T> *self, const double angle) {
