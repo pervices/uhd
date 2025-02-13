@@ -253,20 +253,19 @@ private:
         // Replace , with space for easier parsing
         std::replace( line.begin(), line.end(), ',', ' ');
 
-        size_t tmp = 0;
-        size_t pos = 0;
-
         while(line.size() > 0) {
+            size_t pos = 0;
             std::cout << "line 3: " << line << std::endl;
             double value = std::stod(line, &pos);
             std::cout << "pos: " << pos << std::endl;
             std::cout << "value: " << value << std::endl;
 
-            line.erase(0, pos);
-            if(pos == tmp) {
+            // No more parsable characters
+            if(pos == 0) {
                 break;
             }
-            tmp = pos;
+
+            line.erase(0, pos);
         }
 
 
