@@ -251,11 +251,16 @@ private:
 
         std::cout << "line 2: " << line << std::endl;
 
-        std::size_t pos = 0;
+        size_t tmp = 0;
+        size_t pos = 0;
 
         while(pos < line.size()) {
             double value = std::stod(line, &pos);
             std::cout << "value: " << value << std::endl;
+            if(pos == tmp) {
+                break;
+            }
+            tmp = pos;
         }
 
 
