@@ -47,6 +47,8 @@ private:
     std::vector<double> _frequency_brackets;
     // _amplitude_multiplier contains the value to multiply the amplitude with linear interpolation used between them
     std::vector<double> _amplitude_multiplier;
+    // Indicates whether or not a calibration file was provided
+    bool _calibration_enabled;
 public:
     /**
      * @param wave_type The waveform to generate
@@ -68,6 +70,8 @@ public:
 
         _wave_max = (T) (ampl * _type_max);
 
+        _calibration_enabled = ampl_calibration_path != "";
+
         // Note: CONST, SQUARE, and RAMP only fill the I portion, since they are
         // amplitude-modulating signals, not phase-modulating.
 
@@ -84,7 +88,9 @@ public:
             get_function = &get_sine_no_q;
         } else if (wave_type == "COMB") {
             size_t num_positive_frequencies = calc_num_positive_frequencies();
-            parse_config(ampl_calibration_path);
+            if(_calibration_enabled) {
+                parse_config(ampl_calibration_path);
+            }
 
             _constituent_waves.emplace_back("SINE", ampl, _sample_rate, 0);
             _normalization_factor += 1;
@@ -100,23 +106,25 @@ public:
 
                 size_t num_frequency_brackets = _frequency_brackets.size() - 1;
 
-                // Find which adjustment bracket this frequency belongs to
-                size_t bracket;
-                for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
-                    if(bandwidth_fraction < _frequency_brackets[bracket + 1]) {
-                        break;
+                if(_calibration_enabled) {
+                    // Find which adjustment bracket this frequency belongs to
+                    size_t bracket;
+                    for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
+                        if(bandwidth_fraction < _frequency_brackets[bracket + 1]) {
+                            break;
+                        }
                     }
-                }
-                if(bracket >= num_frequency_brackets) {
-                    // Error if the request frequency is not in the table. This should be impossible
-                    throw std::runtime_error("Requested frequency not in adjustment table");
-                }
-                // Linearly interpolate how much to adjust the amplitude within the band provided
-                double x = (_frequency_brackets[bracket + 1] - bandwidth_fraction) / (_frequency_brackets[bracket + 1] - _frequency_brackets[bracket - 1]);
-                double y = x * (_amplitude_multiplier[bracket + 1] - _amplitude_multiplier[bracket]) + _amplitude_multiplier[bracket];
+                    if(bracket >= num_frequency_brackets) {
+                        // Error if the request frequency is not in the table. This should be impossible
+                        throw std::runtime_error("Requested frequency not in adjustment table");
+                    }
+                    // Linearly interpolate how much to adjust the amplitude within the band provided
+                    double x = (_frequency_brackets[bracket + 1] - bandwidth_fraction) / (_frequency_brackets[bracket + 1] - _frequency_brackets[bracket - 1]);
+                    double y = x * (_amplitude_multiplier[bracket + 1] - _amplitude_multiplier[bracket]) + _amplitude_multiplier[bracket];
 
-                // Adjust the amplitude according to the config file provided to improve linearity across the input
-                adjusted_ampl *= y;
+                    // Adjust the amplitude according to the config file provided to improve linearity across the input
+                    adjusted_ampl *= y;
+                }
 
                 _constituent_waves.emplace_back("SINE", adjusted_ampl, _sample_rate, frequency);
 
