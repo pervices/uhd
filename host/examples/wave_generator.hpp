@@ -289,10 +289,7 @@ private:
         }
 
         if(_frequency_brackets.size() != _amplitude_multiplier.size()) {
-            std::cout << "Mismatch between freuqnecy and amplitude pairs\n";
-            // TODO: throw error
-        } else {
-            std::cout << "GOOD: sizes match\n";
+            throw std::runtime_error("Mismatch between the size of the calibration frequency and multiplier list");
         }
 
     }
