@@ -256,7 +256,7 @@ private:
         size_t tmp = 0;
         size_t pos = 0;
 
-        while(pos < line.size()) {
+        while(line.size() > 0) {
             std::cout << "line 3: " << line << std::endl;
             double value = std::stod(line, &pos);
             std::cout << "pos: " << pos << std::endl;
