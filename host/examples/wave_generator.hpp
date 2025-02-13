@@ -256,6 +256,7 @@ private:
 
         while(pos < line.size()) {
             double value = std::stod(line, &pos);
+            std::cout << "pos: " << pos << std::endl;
             std::cout << "value: " << value << std::endl;
             if(pos == tmp) {
                 break;
