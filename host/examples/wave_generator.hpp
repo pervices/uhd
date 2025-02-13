@@ -98,15 +98,12 @@ public:
                 // Which fraction from the center to the positive nyquist limit the frequency is. Used for adjusting amplitude for linearity
                 double bandwidth_fraction = frequency / (_sample_rate/2);
 
-                // TODO: replace these with values from user supplied file
-                size_t num_frequency_brackets = 4;
-                double adjust_freq[num_frequency_brackets + 1] = {0, 0.05, 0.1, 0.9, 1};
-                double adjust_factor[num_frequency_brackets + 1] = {1, 2, 3, 4, 5};
+                size_t num_frequency_brackets = _frequency_brackets.size() - 1;
 
                 // Find which adjustment bracket this frequency belongs to
                 size_t bracket;
                 for(bracket = 0; bracket < num_frequency_brackets; bracket++) {
-                    if(bandwidth_fraction < adjust_freq[bracket + 1]) {
+                    if(bandwidth_fraction < _frequency_brackets[bracket + 1]) {
                         break;
                     }
                 }
@@ -115,8 +112,8 @@ public:
                     throw std::runtime_error("Requested frequency not in adjustment table");
                 }
                 // Linearly interpolate how much to adjust the amplitude within the band provided
-                double x = (adjust_freq[bracket + 1] - bandwidth_fraction) / (adjust_freq[bracket + 1] - adjust_freq[bracket - 1]);
-                double y = x * (adjust_factor[bracket + 1] - adjust_factor[bracket]) + adjust_factor[bracket];
+                double x = (_frequency_brackets[bracket + 1] - bandwidth_fraction) / (_frequency_brackets[bracket + 1] - _frequency_brackets[bracket - 1]);
+                double y = x * (_amplitude_multiplier[bracket + 1] - _amplitude_multiplier[bracket]) + _amplitude_multiplier[bracket];
 
                 // Adjust the amplitude according to the config file provided to improve linearity across the input
                 adjusted_ampl *= y;
@@ -293,6 +290,7 @@ private:
 
         if(_frequency_brackets.size() != _amplitude_multiplier.size()) {
             std::cout << "Mismatch between freuqnecy and amplitude pairs\n";
+            // TODO: throw error
         } else {
             std::cout << "GOOD: sizes match\n";
         }
