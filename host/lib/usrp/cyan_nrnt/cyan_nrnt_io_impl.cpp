@@ -170,23 +170,23 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     }
 
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+        // Get and print the number of underflows and overflows
+        // Must be before setting pwr to 0 since that will reset it
+        _iface->set_double("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/qa/uflow", 1);
+        size_t uflow = (size_t) _iface->get_double("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/qa/uflow");
+        _iface->set_double("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/qa/oflow", 1);
+        size_t oflow = (size_t) _iface->get_double("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/qa/oflow");
+        std::cout << "CH " << _eprops[n].name << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
+
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
         // Does not actually turn off board
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
     }
 
     stop_buffer_monitor_thread();
-    for( auto & ep: _eprops ) {
-
-        // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
-        // TODO: query the uflow/oflow count from the FPGA once it supports that
-        if(ep.oflow != (uint64_t)-1 || ep.uflow != (uint64_t)-1) {
-            std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
-        } else {
-            std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
-        }
-    }
     _eprops.clear();
+
+
 
     for(size_t n = 0; n < _channels.size(); n++) {
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
@@ -222,9 +222,9 @@ size_t cyan_nrnt_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    if( ! _buffer_monitor_running && !use_blocking_fc ) {
-        start_buffer_monitor_thread();
-    }
+    // if( ! _buffer_monitor_running && !use_blocking_fc ) {
+    //     start_buffer_monitor_thread();
+    // }
 
     r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
