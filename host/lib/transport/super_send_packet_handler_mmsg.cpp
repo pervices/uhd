@@ -625,6 +625,8 @@ private:
                 if(num_packets_sent_this_send < 0) {
                     if(errno != EAGAIN && errno != EWOULDBLOCK) {
                         std::cerr << "sendmmsg on ch " << _channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
+                    } else {
+                        std::cerr << "would block\n";
                     }
                 } else {
                     packets_sent_per_ch[ch_i] += num_packets_sent_this_send;

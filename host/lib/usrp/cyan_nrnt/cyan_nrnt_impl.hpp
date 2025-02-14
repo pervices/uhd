@@ -23,6 +23,7 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <immintrin.h>
 
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
@@ -87,6 +88,10 @@ class cyan_nrnt_impl : public uhd::device
 public:
     static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 4;
 
+    // Cache line size
+    // Assume it is 64, which is the case for virtually all AMD64 systems
+    static constexpr uint_fast8_t CACHE_LINE_SIZE = 64;
+
     // This is the core constructor to be called when a cyan_nrnt device is found
     cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk, double freq_range_stop = CYAN_NRNT_FREQ_RANGE_STOP);
     ~cyan_nrnt_impl(void);
@@ -109,13 +114,14 @@ public:
     bool time_diff_converged();
     void wait_for_time_diff_converged();
     // Note: this must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
-    std::atomic<bool> time_resync_requested = false;
+    bool time_resync_requested = false;
 
     inline double time_diff_get() {
-        return _time_diff;
+        return *_time_diff;
     }
     inline void time_diff_set( double time_diff ) {
-        _time_diff = time_diff;
+        *_time_diff = time_diff;
+        _mm_sfence();
     }
 
     void start_bm();
@@ -189,10 +195,6 @@ private:
 	 *     such that the error is forced to zero.
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
-	uhd::pidc _time_diff_pidc;
-    // TODO: make _time_diff and _time_diff_converged false-sharing proof
-    std::atomic<double> _time_diff;
-	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf = 0);
@@ -326,6 +328,11 @@ private:
     std::vector<double> rx_rfe_rate_cache;
 
     const bool _use_dpdk;
+
+    uhd::pidc* _time_diff_pidc;
+    double* const _time_diff;
+    bool* const _time_diff_converged;
+
 };
 
 }
