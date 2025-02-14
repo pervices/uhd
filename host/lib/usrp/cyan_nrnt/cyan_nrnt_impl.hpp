@@ -189,10 +189,6 @@ private:
 	 *     such that the error is forced to zero.
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
-	uhd::pidc _time_diff_pidc;
-    // TODO: make _time_diff and _time_diff_converged false-sharing proof
-    std::atomic<double> _time_diff;
-	std::atomic<bool> _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf = 0);
@@ -326,6 +322,13 @@ private:
     std::vector<double> rx_rfe_rate_cache;
 
     const bool _use_dpdk;
+
+    uhd::pidc alignas(64) _time_diff_pidc;
+    // TODO: make _time_diff and _time_diff_converged false-sharing proof
+    std::atomic<double> alignas(64) _time_diff;
+	std::atomic<bool> alignas(64) _time_diff_converged;
+
+    uint8_t alignas(64) tmp;
 };
 
 }
