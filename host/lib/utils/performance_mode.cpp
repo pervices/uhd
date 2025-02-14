@@ -11,6 +11,7 @@
 #include<fstream>
 #include<sstream>
 #include <uhd/utils/log.hpp>
+#include <atomic>
 
 std::vector<std::string> uhd::get_performance_governors(void)
 {
@@ -54,4 +55,35 @@ std::vector<std::string> uhd::get_performance_governors(void)
     }
 
     return ret;
+}
+
+std::atomic<uint8_t> governor_warning_printed = 0;
+
+bool uhd::check_if_only_using_governor(std::string desired_governor) {
+    // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
+    bool using_desired_governor = true;
+    bool governor_known;
+    std::vector<std::string> governors = uhd::get_performance_governors();
+    if(governors.size() != 0) {
+        governor_known = true;
+        for(auto& g : governors) {
+            if(g.find(desired_governor) == std::string::npos) {
+                using_desired_governor = false;
+                break;
+            }
+        }
+    } else {
+        governor_known = false;
+    }
+
+    // Only print the warning once
+    if(!governor_warning_printed) {
+        if(!governor_known) {
+            UHD_LOG_WARNING("GOVERNOR", "Unable to check CPU governor. Ensure " + desired_governor + " is in use. Performance may be affected");
+        } else if(!using_desired_governor) {
+            UHD_LOG_WARNING("GOVERNOR", "A CPU governor other than " + desired_governor + " is in use. Performance may be affected");
+        }
+    }
+
+    return using_desired_governor && governor_known;
 }

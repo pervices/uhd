@@ -30,7 +30,7 @@
 
 #include <uhd/transport/buffer_tracker.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
-
+#include <uhdlib/utils/performance_mode.hpp>
 #include <uhdlib/utils/system_time.hpp>
 
 #define MIN_MTU 9000
@@ -128,6 +128,9 @@ public:
         }
 
         setup_converter(cpu_format, wire_format, wire_little_endian);
+
+        // Check if the governor is set to performance mode, warns the user if it is not
+        check_if_only_using_governor();
     }
 
     ~send_packet_handler_mmsg(void){
