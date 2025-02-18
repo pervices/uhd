@@ -23,6 +23,7 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <immintrin.h>
 
 #include "uhd/device.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
@@ -116,6 +117,7 @@ public:
     }
     inline void time_diff_set( double time_diff ) {
         _time_diff = time_diff;
+        _mm_sfence();
     }
 
     void start_bm();
@@ -325,8 +327,8 @@ private:
 
     uhd::pidc alignas(64) _time_diff_pidc;
     // TODO: make _time_diff and _time_diff_converged false-sharing proof
-    std::atomic<double> alignas(64) _time_diff;
-	std::atomic<bool> alignas(64) _time_diff_converged;
+    double alignas(64) _time_diff;
+	bool alignas(64) _time_diff_converged;
 
     uint8_t alignas(64) tmp;
 };

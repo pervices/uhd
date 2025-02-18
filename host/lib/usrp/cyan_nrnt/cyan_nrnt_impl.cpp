@@ -651,6 +651,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
     bool reset_advised = false;
 
 	_time_diff_converged = _time_diff_pidc.is_converged( now, &reset_advised );
+    _mm_sfence();
 
     if(reset_advised) {
         reset_time_diff_pid();
@@ -788,6 +789,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             dev->reset_time_diff_pid();
             // Time did is no longer converged after the reset
             dev->_time_diff_converged = false;
+            _mm_sfence();
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
         }
