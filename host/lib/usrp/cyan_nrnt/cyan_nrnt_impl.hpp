@@ -117,10 +117,10 @@ public:
     std::atomic<bool> time_resync_requested = false;
 
     inline double time_diff_get() {
-        return _time_diff;
+        return *_time_diff;
     }
     inline void time_diff_set( double time_diff ) {
-        _time_diff = time_diff;
+        *_time_diff = time_diff;
         _mm_sfence();
     }
 
@@ -330,11 +330,9 @@ private:
     const bool _use_dpdk;
 
     uhd::pidc* _time_diff_pidc;
-    // TODO: make _time_diff and _time_diff_converged false-sharing proof
-    double alignas(64) _time_diff;
-	bool alignas(64) _time_diff_converged;
+    double* const _time_diff;
+    bool* const _time_diff_converged;
 
-    uint8_t alignas(64) tmp;
 };
 
 }

@@ -650,7 +650,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 
     bool reset_advised = false;
 
-	_time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
+	*_time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
     _mm_sfence();
 
     if(reset_advised) {
@@ -658,7 +658,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
     }
 
 	// For SoB, record the instantaneous time difference + compensation
-	if ( _time_diff_converged ) {
+	if ( *_time_diff_converged ) {
 		time_diff_set( cv );
 	}
 }
@@ -721,7 +721,7 @@ void cyan_nrnt_impl::stop_pps_dtc() {
 
 //checks if the clocks are synchronized
 inline bool cyan_nrnt_impl::time_diff_converged() {
-	return _time_diff_converged;
+	return *_time_diff_converged;
 }
 
 // Wait for convergence
@@ -788,7 +788,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             // Reset PID to clear old values
             dev->reset_time_diff_pid();
             // Time did is no longer converged after the reset
-            dev->_time_diff_converged = false;
+            *(dev->_time_diff_converged) = false;
             _mm_sfence();
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
@@ -884,8 +884,6 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk, double freq_range_stop)
 :
 	device_addr( _device_addr ),
-	_time_diff( 0 ),
-	_time_diff_converged( false ),
 	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
@@ -893,11 +891,16 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 	_pps_thread_should_exit( false ),
 	_command_time( 0.0 ),
     _freq_range_stop(freq_range_stop),
-    _use_dpdk(use_dpdk)
+    _use_dpdk(use_dpdk),
+    _time_diff((double*) aligned_alloc(CACHE_LINE_SIZE, CACHE_LINE_SIZE)),
+	_time_diff_converged((bool*) aligned_alloc(CACHE_LINE_SIZE, CACHE_LINE_SIZE) )
 {
     if(_use_dpdk) {
         std::cout << "DPDK implementation in progress" << std::endl;
     }
+    *_time_diff = 0;
+    *_time_diff_converged = false;
+
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
 
@@ -1511,6 +1514,9 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
     // Manually calling destructor when using placement new is required
     _time_diff_pidc->~pidc();
     free(_time_diff_pidc);
+
+    free(_time_diff);
+    free(_time_diff_converged);
 }
 
 //gets the jesd number to be used in creating stream command packets
