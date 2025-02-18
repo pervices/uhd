@@ -65,7 +65,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("ampl-calibration", po::value<std::string>(&ampl_calibration)->default_value(""), "Optional config file to improve linearity with comb waves.\n"
-        "Format: A list of decimal numbers which is a fraction between 0 and the edge of the band, followed by another line with a list of values to multiply the amplitude at the location specified by the list of fractions. The multipliers are applied at + and - the specified locations.\n Example to multiply the amplitude by 1 at the center, 5 at halfway from the center to the edge of the band and 10 at the edge of the band:\n# Example file\n0, 0.5, 1\n1, 5, 10")
+        "Format: A list of decimal numbers which is a fraction between 0 and the edge of the band, followed by another line with a list of values to multiply the amplitude at the location specified by the list of fractions. The multipliers are applied at + and - the specified locations.\n Example to multiply the amplitude by 1 at the center, 5 at halfway from the center to the edge of the band and 10 at the edge of the band:\n# Example file\n0, 0.5, 1\n1, 5, 10\nSee tx_waveforms_example_calibration.txt for an example")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
