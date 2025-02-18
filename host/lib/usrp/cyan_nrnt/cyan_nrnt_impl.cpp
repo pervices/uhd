@@ -298,7 +298,7 @@ uhd::time_spec_t cyan_nrnt_impl::get_time_now() {
     // Will get the time but without taking into account network latency (which would require the clock sync thread)
     } else {
         reset_time_diff_pid();
-        return uhd::get_system_time() - _time_diff_pidc.get_offset();
+        return uhd::get_system_time() - _time_diff_pidc->get_offset();
     }
 }
 
@@ -636,7 +636,7 @@ void cyan_nrnt_impl::reset_time_diff_pid() {
     _sfp_control_mutex[0]->unlock();
 
     double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
-    _time_diff_pidc.reset(reset_now, new_offset);
+    _time_diff_pidc->reset(reset_now, new_offset);
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
@@ -646,11 +646,11 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 
 	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
-	double cv = _time_diff_pidc.update_control_variable( sp, pv, now );
+	double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
-	_time_diff_converged = _time_diff_pidc.is_converged( now, &reset_advised );
+	_time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
     _mm_sfence();
 
     if(reset_advised) {
@@ -771,7 +771,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 	dev->time_diff_send( now, xg_intf );
 	dev->time_diff_recv( tdr, xg_intf );
     dev->_sfp_control_mutex[xg_intf]->unlock();
-    dev->_time_diff_pidc.set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+    dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
 		now = uhd::get_system_time(),
@@ -803,7 +803,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             continue;
         }
 
-        time_diff = dev->_time_diff_pidc.get_control_variable();
+        time_diff = dev->_time_diff_pidc->get_control_variable();
         dev->_sfp_control_mutex[xg_intf]->lock();
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
@@ -1480,21 +1480,25 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
 
 		// Tyreus-Luyben tuned PID controller
-		_time_diff_pidc = uhd::pidc_tl(
+        // Create using placement new to avoid false sharing
+        size_t padded_pidc_tcl_size = (size_t) ceil(sizeof(uhd::pidc_tl) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+        _time_diff_pidc = (uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size);
+
+        new (_time_diff_pidc) uhd::pidc_tl(
 			0.0, // desired set point is 0.0s error
 			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
 			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
 			2.0 / (double)CYAN_NRNT_UPDATE_PER_SEC
 		);
 
-		_time_diff_pidc.set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
+		_time_diff_pidc->set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
 
 		// XXX: @CF: 20170720: coarse to fine for convergence
 		// we coarsely lock on at first, to ensure the class instantiates properly
 		// and then switch to a finer error tolerance
-		_time_diff_pidc.set_max_error_for_convergence( 100e-6 );
+		_time_diff_pidc->set_max_error_for_convergence( 100e-6 );
 		start_bm();
-		_time_diff_pidc.set_max_error_for_convergence( 10e-6 );
+		_time_diff_pidc->set_max_error_for_convergence( 10e-6 );
 	}
 
 }
@@ -1503,6 +1507,10 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
 {
     stop_bm();
     stop_pps_dtc();
+
+    // Manually calling destructor when using placement new is required
+    _time_diff_pidc->~pidc();
+    free(_time_diff_pidc);
 }
 
 //gets the jesd number to be used in creating stream command packets

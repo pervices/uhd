@@ -88,6 +88,10 @@ class cyan_nrnt_impl : public uhd::device
 public:
     static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 4;
 
+    // Cache line size
+    // Assume it is 64, which is the case for virtually all AMD64 systems
+    static constexpr uint_fast8_t CACHE_LINE_SIZE = 64;
+
     // This is the core constructor to be called when a cyan_nrnt device is found
     cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk, double freq_range_stop = CYAN_NRNT_FREQ_RANGE_STOP);
     ~cyan_nrnt_impl(void);
@@ -325,7 +329,7 @@ private:
 
     const bool _use_dpdk;
 
-    uhd::pidc alignas(64) _time_diff_pidc;
+    uhd::pidc* _time_diff_pidc;
     // TODO: make _time_diff and _time_diff_converged false-sharing proof
     double alignas(64) _time_diff;
 	bool alignas(64) _time_diff_converged;
