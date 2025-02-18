@@ -22,6 +22,7 @@
 #include <chrono>
 #include <thread>
 #include <random>
+#include <sys/mman.h>
 
 //wait for user to press cntrl c before closing
 //#define DELAYED_EXIT
@@ -217,11 +218,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    std::vector<std::complex<short> > buff(spb + fundamental_period);
-    std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
+    // TODO: unmap and provide warning if no huge pages ready
+    size_t buff_size_samples = spb + fundamental_period;
+    std::complex<short>* buff = (std::complex<short>*) mmap(nullptr, buff_size_samples * sizeof(std::complex<short>), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+
+    std::vector<std::complex<short> *> buffs(channel_nums.size(), buff);
 
     //fill the buffer with the waveform
-    for (size_t n = 0; n < buff.size(); n++){
+    for (size_t n = 0; n < buff_size_samples; n++){
+        // TODO: verify buff[n] is correct and not buff[n*sizeof(std::complex<short>)]
         buff[n] = wave_generator(n);
     }
 
@@ -329,7 +334,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 if(fundamental_period != 0) {
                     buff_ptr = &buff[num_acc_samps % fundamental_period];
                 } else {
-                    buff_ptr = &buff.front();
+                    buff_ptr = &buff[0];
                 }
             }
 
