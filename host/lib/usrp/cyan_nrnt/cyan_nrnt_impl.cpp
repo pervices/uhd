@@ -1350,6 +1350,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		// Power status
 		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
+        // Property to check underflow and overflow count over the management port
+        TREE_CREATE_RW(tx_path / dspno / "qa/uflow", "tx_"+lc_num+"/qa/uflow", double, double);
+        TREE_CREATE_RW(tx_path / dspno / "qa/oflow", "tx_"+lc_num+"/qa/oflow", double, double);
+
 		// Codecs, phony properties for Crimson
 		TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
 		TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
