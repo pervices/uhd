@@ -187,7 +187,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     // Normally default spb to 10 packets worth
     if (spb == 0 && !random_spb) {
-        spb = tx_stream->get_max_num_samps()*100;
+        spb = tx_stream->get_max_num_samps()*10;
     // If using randomized spb default the spb to be up to 1 packet by default
     } else if(spb == 0) {
         spb = tx_stream->get_max_num_samps();
