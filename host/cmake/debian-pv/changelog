@@ -1,3 +1,11 @@
+uhdpv (4.4.0.59-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Minor fix to tx_waveforms comb wave
+  * Making CPU governor warning more aggressive
+  * Added option to provide an amplitude calibration file to tx_waveforms
+
+ -- Per Vices <packages@pervices.com>  Tue, 18 Feb 2025 17:28:17 -0500
+
 uhdpv (4.4.0.58-0ubuntu1) ubuntu_release; urgency=medium
 
   * Adding comb wave to tx_waveforms
