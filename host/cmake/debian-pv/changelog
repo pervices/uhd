@@ -1,3 +1,9 @@
+uhdpv (4.4.0.60-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding option for multiple sample rates to rxtx_inter_device_stream
+
+ -- Per Vices <packages@pervices.com>  Wed, 19 Feb 2025 15:00:04 -0500
+
 uhdpv (4.4.0.59-0ubuntu1) ubuntu_release; urgency=medium
 
   * Minor fix to tx_waveforms comb wave
