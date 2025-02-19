@@ -59,6 +59,11 @@ std::vector<size_t> parse_channels(size_t device_num_channels, std::string chann
 // rf_arg: String provided by the user containing the list of said rf setting
 // error_msg: Error message to print if this is a mistmatch between the number of channels specified for the rf setting and the length of the list requested by the user
 std::vector<double> parse_rf_settings(size_t num_channels, std::string rf_arg, std::string error_msg) {
+    // Return empty vector if no argument provided
+    if(rf_arg == "") {
+        return std::vector<double>(0);
+    }
+
     std::vector<std::string> rf_strings;
     boost::split(rf_strings, rf_arg, boost::is_any_of("\"',"));
 
@@ -148,8 +153,8 @@ void set_tx_freq(std::vector<double> desired, std::vector<size_t> channel, uhd::
 int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
-    std::string rx_args, tx_args, ref, pps, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg;
-    double rate, duration;
+    std::string rx_args, tx_args, ref, pps, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ab_rate_arg, ba_rate_arg, rate_arg;
+    double duration;
     int ref_clock_freq;
 
     std::string a_args, a_rx_channel_arg, a_tx_channel_arg, a_rx_gain_arg, a_tx_gain_arg, a_tx_freq_arg, a_rx_freq_arg;
@@ -161,10 +166,15 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     desc.add_options()
         // Universal options
         ("help", "help message")
-        ("rate", po::value<double>(&rate)->default_value(40e6), "rate of outgoing samples")
         ("ref_clock_freq", po::value<int>(&ref_clock_freq), "Frequency of external reference clock. Program will use an internal 10MHz clock if not specified")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external)")
         ("duration", po::value<double>(&duration), "How long to stream for, will stream until the program is exited if unspecified")
+
+        ("rate", po::value<std::string>(&rate_arg), "Alias of ab_rate and ba_rate for backwards compatibility. Using this will override both ab_rate and ba_rate with the value provided here")
+
+        ("ab_rate", po::value<std::string>(&ab_rate_arg)->default_value("40e6"), "Rate for each channel going from device A to device B in Hz. Enter one number to set all rx channels on A and all tx channels on B to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+        ("ba_rate", po::value<std::string>(&ba_rate_arg)->default_value("40e6"), "Rate for each channel going from device B to device A in Hz. Enter one number to set all rx channels on B and all tx channels on A to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+
 
         // Paremters for device A
         ("a_args", po::value<std::string>(&a_args), "Identifying info device A. Example: rx_args=\"addr=192.168.10.2\"")
@@ -229,6 +239,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     if(vm.count("tx_channels")) {
         b_tx_channel_arg = tx_channel_arg;
+    }
+    if(vm.count("rate")) {
+        ab_rate_arg = rate_arg;
+        ba_rate_arg = rate_arg;
     }
 
     // Stores whether or not to use rx or tx, useful for debugging
@@ -299,62 +313,57 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(ba_num_channels != b_rx_channel_nums.size()) {
         throw std::runtime_error("Mistmatch between number of rx channels in B and tx channels in A requested");
     }
-    
-    //set the sample rate
-    if (not vm.count("rate")){
-        std::cerr << "Please specify the sample rate with --rate" << std::endl;
-        return ~0;
-    }
-    // Actual rate used, used when verifying if all channels have the same rate
-    double adjusted_rate = 0;
+
+    std::vector<double> ab_rates = parse_rf_settings(ab_num_channels, ab_rate_arg, "Mistmatch between the number of rx channels on A, the number of tx channels on B, and the number of rates specified");
+
+    std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
+
+    std::vector<double> actual_ab_rates(ab_rates.size(), 0);
+    std::vector<double> actual_ba_rates(ba_rates.size(), 0);
 
     if(use_a) {
         if(a_rx_channel_nums.size() != 0) {
-            std::cout << boost::format("Setting A RX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < a_rx_channel_nums.size(); n++) {
-                a_usrp->set_rx_rate(rate, a_rx_channel_nums[n]);
-                double actual_rate = a_usrp->get_rx_rate(a_rx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                // Update adjusted rate so future checks know that the rate actually used has been set
-                adjusted_rate = actual_rate;
-                // Update rate to replect actual rate
-                rate = adjusted_rate;
+                std::cout << boost::format("Setting ch %lu A RX Rate: %f Msps...") % n % (ab_rates[n]/1e6) << std::endl;
+                a_usrp->set_rx_rate(ab_rates[n], a_rx_channel_nums[n]);
+                actual_ab_rates[n] = a_usrp->get_rx_rate(a_rx_channel_nums[n]);
+                // Record actual rate so that the tx side of B is set to match
+                ab_rates[n] = actual_ab_rates[n];
+                std::cout << boost::format("Actual ch %lu A RX Rate: %f Msps...") % n % (actual_ab_rates[n]/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual A RX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
         if(a_tx_channel_nums.size() != 0 && !loopback_mode) {
-            std::cout << boost::format("Setting A TX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < a_tx_channel_nums.size(); n++) {
-                a_usrp->set_tx_rate(rate, a_tx_channel_nums[n]);
-                double actual_rate = a_usrp->get_tx_rate(a_tx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                adjusted_rate = actual_rate;
-                rate = adjusted_rate;
+                std::cout << boost::format("Setting ch %lu A TX Rate: %f Msps...") % n % (ba_rates[n]/1e6) << std::endl;
+                a_usrp->set_tx_rate(ba_rates[n], a_tx_channel_nums[n]);
+                actual_ba_rates[n] = a_usrp->get_tx_rate(a_tx_channel_nums[n]);
+                // Record actual rate so that the tx side of B is set to match
+                ba_rates[n] = actual_ba_rates[n];
+                std::cout << boost::format("Actual ch %lu A TX Rate: %f Msps...") % n % (actual_ba_rates[n]/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual A TX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
     }
 
     if(use_b) {
         if(b_rx_channel_nums.size() != 0 && !loopback_mode) {
-            std::cout << boost::format("Setting B RX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < b_rx_channel_nums.size(); n++) {
-                b_usrp->set_rx_rate(rate, b_rx_channel_nums[n]);
+                std::cout << boost::format("Setting ch %lu B RX Rate: %f Msps...") % n % (ba_rates[n]/1e6) << std::endl;
+                b_usrp->set_rx_rate(ba_rates[n], b_rx_channel_nums[n]);
                 double actual_rate = b_usrp->get_rx_rate(b_rx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                adjusted_rate = actual_rate;
+                // Verify B rx matches A tx
+                validate_rates(actual_ba_rates[n], actual_rate);
+                std::cout << boost::format("Actual ch %lu B RX Rate: %f Msps...") % n % (actual_rate/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual B RX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
         if(b_tx_channel_nums.size() != 0) {
-            std::cout << boost::format("Setting B TX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < b_tx_channel_nums.size(); n++) {
-                b_usrp->set_tx_rate(rate, b_tx_channel_nums[n]);
+                std::cout << boost::format("Setting ch %lu B TX Rate: %f Msps...") % n % (ab_rates[n]/1e6) << std::endl;
+                b_usrp->set_tx_rate(ab_rates[n], b_tx_channel_nums[n]);
                 double actual_rate = b_usrp->get_tx_rate(b_tx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                adjusted_rate = actual_rate;
+                // Verify B rx matches A tx
+                validate_rates(actual_ab_rates[n], actual_rate);
+                std::cout << boost::format("Actual ch %lu B TX Rate: %f Msps...") % n % (actual_rate/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual B TX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
     }
 
@@ -406,7 +415,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << boost::format("Using B Device: %s") % b_usrp->get_pp_string() << std::endl;
     }
 
-    // Sets the destination IP and port in rx_usrp to match tx_usrp for the specifed channels
+    // Sets the destination IP and port in rx_usrp to match tx_usrp for the specified channels
     // TODO verify if the channel combination is not impossible due to sending from 1 SFP port to multiple
     if(ab_num_channels != 0) {
         a_usrp->rx_to_tx(b_usrp, a_rx_channel_nums, b_tx_channel_nums);
