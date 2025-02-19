@@ -59,6 +59,11 @@ std::vector<size_t> parse_channels(size_t device_num_channels, std::string chann
 // rf_arg: String provided by the user containing the list of said rf setting
 // error_msg: Error message to print if this is a mistmatch between the number of channels specified for the rf setting and the length of the list requested by the user
 std::vector<double> parse_rf_settings(size_t num_channels, std::string rf_arg, std::string error_msg) {
+    // Return empty vector if no argument provided
+    if(rf_arg == "") {
+        return std::vector<double>(0);
+    }
+
     std::vector<std::string> rf_strings;
     boost::split(rf_strings, rf_arg, boost::is_any_of("\"',"));
 
@@ -357,12 +362,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
         if(b_tx_channel_nums.size() != 0) {
             for(size_t n = 0; n < b_tx_channel_nums.size(); n++) {
-                std::cout << boost::format("Setting ch %lu B TX Rate: %f Msps...") % (ab_rates[n]/1e6) << std::endl;
+                std::cout << boost::format("Setting ch %lu B TX Rate: %f Msps...") % n % (ab_rates[n]/1e6) << std::endl;
                 b_usrp->set_tx_rate(ab_rates[n], b_tx_channel_nums[n]);
                 double actual_rate = b_usrp->get_tx_rate(b_tx_channel_nums[n]);
                 // Verify B rx matches A tx
                 validate_rates(actual_ab_rates[n], actual_rate);
-                std::cout << boost::format("Actual ch %lu B TX Rate: %f Msps...") % (actual_rate/1e6) << std::endl << std::endl;
+                std::cout << boost::format("Actual ch %lu B TX Rate: %f Msps...") % n % (actual_rate/1e6) << std::endl << std::endl;
             }
         }
     }
