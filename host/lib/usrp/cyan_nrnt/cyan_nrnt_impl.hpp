@@ -328,6 +328,8 @@ private:
     std::vector<double> rx_rfe_rate_cache;
 
     const bool _use_dpdk;
+
+    bool clock_sync_desired = false;
 };
 
 }

@@ -810,7 +810,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
         if ( dev->time_diff_recv( tdr, xg_intf ) ) [[likely]] {
             // Skip updating time diff if time_diff_recv returned nothing
             dev->time_diff_process( tdr, now );
-         } else if (!dropped_recv_message_printed) {
+         } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
              UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
              dropped_recv_message_printed = true;
          }
