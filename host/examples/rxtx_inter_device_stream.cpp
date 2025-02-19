@@ -168,8 +168,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         // TODO: fix backwards compatibility
         //("rate", po::value<std::string>(&rate_arg), "rate of outgoing samples")
 
-        ("ab_rate", po::value<std::string>(&ab_rate_arg), "Rate for each channel going from device A to device B in Hz. Enter one number to set all rx channels on A and all tx channels on B to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
-        ("ba_rate", po::value<std::string>(&ba_rate_arg), "Rate for each channel going from device B to device A in Hz. Enter one number to set all rx channels on B and all tx channels on A to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+        ("ab_rate", po::value<std::string>(&ab_rate_arg)->default_value("40e6"), "Rate for each channel going from device A to device B in Hz. Enter one number to set all rx channels on A and all tx channels on B to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+        ("ba_rate", po::value<std::string>(&ba_rate_arg)->default_value("40e6"), "Rate for each channel going from device B to device A in Hz. Enter one number to set all rx channels on B and all tx channels on A to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
 
 
         // Paremters for device A
@@ -313,6 +313,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
     printf("T20\n");
+
+    std::cout << "ab_rates.size(): " << ab_rates.size() << std::endl;
+    std::cout << "ba_rates.size(): " << ba_rates.size() << std::endl;
 
     std::vector<double> actual_ab_rates(ab_rates.size(), 0);
     std::vector<double> actual_ba_rates(ba_rates.size(), 0);
