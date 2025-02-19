@@ -66,7 +66,7 @@ namespace uhd {
 void uhd::set_thread_priority(float priority, bool realtime)
 {
 
-    if(0/*realtime*/) {
+    if(realtime) {
         // Realtime threading has been disabled
         // SCHED_DEADLINE prevents setting thread affinity, which is more important
         // SCHED_FIFO and SCHED_RR result in worse performance, even after setting /proc/sys/kernel/sched_rt_runtime_us to -1
