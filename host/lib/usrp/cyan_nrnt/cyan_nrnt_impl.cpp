@@ -803,11 +803,6 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             continue;
         }
 
-        // // Skip time diff update
-        // if(*(dev->_time_diff_converged)) {
-        //     continue;
-        // }
-
         time_diff = dev->_time_diff_pidc->get_control_variable();
         dev->_sfp_control_mutex[xg_intf]->lock();
         now = uhd::get_system_time();
