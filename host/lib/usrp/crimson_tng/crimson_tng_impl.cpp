@@ -1014,10 +1014,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
 
     std::string sfpa_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "ip_addr").get();
-    ping_check("sfpa", sfpa_ip);
-
-    std::string sfpb_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr").get();
-    ping_check("sfpb", sfpb_ip);
 
     // it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
 	int sfpa_port = _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfpa_port" ).get();
@@ -1927,12 +1923,21 @@ inline void crimson_tng_impl::request_resync_time_diff() {
 }
 
 void crimson_tng_impl::ping_check(std::string sfp, std::string ip) {
+    size_t sfp_num = sfp.back();
+    // This sfp port has already been pinged, do not check again
+    if(ping_check_completed[sfp_num]) {
+        return;
+    }
+
     char cmd[128];
     snprintf(cmd, 128, "ping -c 1 -W 1 %s  > /dev/null 2>&1", ip.c_str());
     int check = system(cmd);
     if (check!=0){
         UHD_LOG_WARNING("PING", "Failed for " << ip << ", please check " << sfp);
     }
+
+    // Mark this sfp port as having been checked
+    ping_check_completed[sfp_num] = true;
 }
 
 double crimson_tng_impl::get_link_rate() {
