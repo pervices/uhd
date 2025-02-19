@@ -744,7 +744,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         dev->time_diff_send( crimson_now );
         if ( dev->time_diff_recv( tdr ) ) {
             dev->time_diff_process( tdr, now );
-        } else if (!dropped_recv_message_printed) {
+        } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
              UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
              dropped_recv_message_printed = true;
          }

@@ -544,6 +544,9 @@ bool crimson_tng_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args_){
+    // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
+    clock_sync_desired = true;
+
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
@@ -831,6 +834,9 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 }
 
 tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
+    clock_sync_desired = true;
+
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
