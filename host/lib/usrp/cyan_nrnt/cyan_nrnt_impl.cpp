@@ -1102,18 +1102,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
-    std::string sfpa_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "ip_addr").get();
-    ping_check("sfpa", sfpa_ip);
-
-    std::string sfpb_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpb" / "ip_addr").get();
-    ping_check("sfpb", sfpb_ip);
-
-    std::string sfpc_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "ip_addr").get();
-    ping_check("sfpc", sfpc_ip);
-
-    std::string sfpd_ip = _tree->access<std::string>(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr").get();
-    ping_check("sfpd", sfpd_ip);
-
     for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
         int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
@@ -2006,12 +1994,21 @@ inline void cyan_nrnt_impl::request_resync_time_diff() {
 }
 
 void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
+    size_t sfp_num = sfp.back();
+    // This sfp port has already been pinged, do not check again
+    if(ping_check_completed[sfp_num]) {
+        return;
+    }
+
     char cmd[128];
     snprintf(cmd, 128, "ping -c 1 -W 1 %s  > /dev/null 2>&1", ip.c_str());
     int check = system(cmd);
     if (check!=0){
         UHD_LOG_WARNING("PING", "Failed for " << ip << ", please check " << sfp);
     }
+
+    // Mark this sfp port as having been checked
+    ping_check_completed[sfp_num] = true;
 }
 
 double cyan_nrnt_impl::get_link_rate() {

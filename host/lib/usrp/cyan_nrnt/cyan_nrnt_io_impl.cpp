@@ -574,6 +574,10 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         if(data_len + CYAN_NRNT_HEADER_SIZE != payload_len && data_len !=0) {
             throw uhd::value_error("Payload length mismatch between channels");
         }
+
+        // Verify if the source of rx packets can pinged
+        std::string src_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
+        ping_check(sfp, src_ip);
     }
 
     // Fallback to hard coded values if attempt to get payload fails
@@ -867,6 +871,9 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         uint16_t dst_port = 0;
         get_tx_endpoint( args.channels[n], dst_ips[n], dst_port, sfps[n] );
         dst_ports[n] = dst_port;
+
+        // Verify the destination of tx packets can be pinged
+        ping_check(sfps[n], dst_ips[n]);
     }
 
     bool little_endian_supported;

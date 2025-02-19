@@ -300,8 +300,10 @@ private:
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override;
     void request_resync_time_diff();
 
-    // Checks it an ip address can be pinged
+    // Checks if an ip address can be pinged
     void ping_check(std::string sfp, std::string ip);
+    // Records if an sfp port has already had it's ping check performed
+    bool ping_check_completed[NUMBER_OF_XG_CONTROL_INTF]{};
 
     // Samples per second being using per channel
     std::vector<double> tx_sfp_throughput_used;
