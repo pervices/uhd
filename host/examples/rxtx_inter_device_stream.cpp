@@ -280,7 +280,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             UHD_LOGGER_ERROR("RXTX_INTER_DEVICE_STREAM") << "No device adress specified for B. B will not be used.";
         }
     }
-    printf("T1\n");
 
     std::vector<size_t> a_rx_channel_nums;
     std::vector<size_t> a_tx_channel_nums;
@@ -306,7 +305,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(ab_num_channels != b_tx_channel_nums.size()) {
         throw std::runtime_error("Mistmatch between number of rx channels in A and tx channels in B requested");
     }
-    printf("T10\n");
 
     size_t ba_num_channels = a_tx_channel_nums.size();
     if(ba_num_channels != b_rx_channel_nums.size()) {
@@ -314,13 +312,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::vector<double> ab_rates = parse_rf_settings(ab_num_channels, ab_rate_arg, "Mistmatch between the number of rx channels on A, the number of tx channels on B, and the number of rates specified");
-    printf("T15\n");
 
     std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
-    printf("T20\n");
-
-    std::cout << "ab_rates.size(): " << ab_rates.size() << std::endl;
-    std::cout << "ba_rates.size(): " << ba_rates.size() << std::endl;
 
     std::vector<double> actual_ab_rates(ab_rates.size(), 0);
     std::vector<double> actual_ba_rates(ba_rates.size(), 0);
@@ -347,7 +340,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             }
         }
     }
-    printf("T30\n");
 
     if(use_b) {
         if(b_rx_channel_nums.size() != 0 && !loopback_mode) {
