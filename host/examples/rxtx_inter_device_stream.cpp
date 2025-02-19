@@ -153,7 +153,7 @@ void set_tx_freq(std::vector<double> desired, std::vector<size_t> channel, uhd::
 int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
-    std::string rx_args, tx_args, ref, pps, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ab_rate_arg, ba_rate_arg;
+    std::string rx_args, tx_args, ref, pps, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ab_rate_arg, ba_rate_arg, rate_arg;
     double duration;
     int ref_clock_freq;
 
@@ -170,8 +170,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external)")
         ("duration", po::value<double>(&duration), "How long to stream for, will stream until the program is exited if unspecified")
 
-        // TODO: fix backwards compatibility
-        //("rate", po::value<std::string>(&rate_arg), "rate of outgoing samples")
+        ("rate", po::value<std::string>(&rate_arg), "Alias of ab_rate and ba_rate for backwards compatibility. Using this will override both ab_rate and ba_rate with the value provided here")
 
         ("ab_rate", po::value<std::string>(&ab_rate_arg)->default_value("40e6"), "Rate for each channel going from device A to device B in Hz. Enter one number to set all rx channels on A and all tx channels on B to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
         ("ba_rate", po::value<std::string>(&ba_rate_arg)->default_value("40e6"), "Rate for each channel going from device B to device A in Hz. Enter one number to set all rx channels on B and all tx channels on A to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
@@ -240,6 +239,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     if(vm.count("tx_channels")) {
         b_tx_channel_arg = tx_channel_arg;
+    }
+    if(vm.count("rate")) {
+        ab_rate_arg = rate_arg;
+        ba_rate_arg = rate_arg;
     }
 
     // Stores whether or not to use rx or tx, useful for debugging
