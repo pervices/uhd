@@ -310,64 +310,53 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
     
-    //set the sample rate
-    // if (not vm.count("rate")){
-        // std::cerr << "Please specify the sample rate with --rate" << std::endl;
-        // return ~0;
-    // }
-    // TMP to check the parsing compiles
-    double rate = 40e6;
 
-    // Actual rate used, used when verifying if all channels have the same rate
-    double adjusted_rate = 0;
+    std::vector<double> actual_ab_rates(ab_rates.size(), 0);
+    std::vector<double> actual_ba_rates(ba_rates.size(), 0);
 
     if(use_a) {
         if(a_rx_channel_nums.size() != 0) {
-            std::cout << boost::format("Setting A RX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < a_rx_channel_nums.size(); n++) {
-                a_usrp->set_rx_rate(rate, a_rx_channel_nums[n]);
-                double actual_rate = a_usrp->get_rx_rate(a_rx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                // Update adjusted rate so future checks know that the rate actually used has been set
-                adjusted_rate = actual_rate;
-                // Update rate to replect actual rate
-                rate = adjusted_rate;
+                std::cout << boost::format("Setting ch %lu A RX Rate: %f Msps...") % n % (ab_rates[n]/1e6) << std::endl;
+                a_usrp->set_rx_rate(ab_rates[n], a_rx_channel_nums[n]);
+                actual_ab_rates[n] = a_usrp->get_rx_rate(a_rx_channel_nums[n]);
+                // Record actual rate so that the tx side of B is set to match
+                ab_rates[n] = actual_ab_rates[n];
+                std::cout << boost::format("Actual ch %lu A RX Rate: %f Msps...") % n % (actual_ab_rates[n]/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual A RX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
         if(a_tx_channel_nums.size() != 0 && !loopback_mode) {
-            std::cout << boost::format("Setting A TX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < a_tx_channel_nums.size(); n++) {
-                a_usrp->set_tx_rate(rate, a_tx_channel_nums[n]);
-                double actual_rate = a_usrp->get_tx_rate(a_tx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                adjusted_rate = actual_rate;
-                rate = adjusted_rate;
+                std::cout << boost::format("Setting ch %lu A TX Rate: %f Msps...") % n % (ba_rates[n]/1e6) << std::endl;
+                a_usrp->set_tx_rate(ba_rates[n], a_tx_channel_nums[n]);
+                actual_ba_rates[n] = a_usrp->get_tx_rate(a_tx_channel_nums[n]);
+                // Record actual rate so that the tx side of B is set to match
+                ba_rates[n] = actual_ba_rates[n];
+                std::cout << boost::format("Actual ch %lu A TX Rate: %f Msps...") % n % (actual_ba_rates[n]/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual A TX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
     }
 
     if(use_b) {
         if(b_rx_channel_nums.size() != 0 && !loopback_mode) {
-            std::cout << boost::format("Setting B RX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < b_rx_channel_nums.size(); n++) {
-                b_usrp->set_rx_rate(rate, b_rx_channel_nums[n]);
+                std::cout << boost::format("Setting ch %lu B RX Rate: %f Msps...") % n % (ba_rates[n]/1e6) << std::endl;
+                b_usrp->set_rx_rate(ba_rates[n], b_rx_channel_nums[n]);
                 double actual_rate = b_usrp->get_rx_rate(b_rx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                adjusted_rate = actual_rate;
+                // Verify B rx matches A tx
+                validate_rates(actual_ba_rates[n], actual_rate);
+                std::cout << boost::format("Actual ch %lu B RX Rate: %f Msps...") % n % (actual_rate/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual B RX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
         if(b_tx_channel_nums.size() != 0) {
-            std::cout << boost::format("Setting B TX Rate: %f Msps...") % (rate/1e6) << std::endl;
             for(size_t n = 0; n < b_tx_channel_nums.size(); n++) {
-                b_usrp->set_tx_rate(rate, b_tx_channel_nums[n]);
+                std::cout << boost::format("Setting ch %lu B TX Rate: %f Msps...") % (ab_rates[n]/1e6) << std::endl;
+                b_usrp->set_tx_rate(ab_rates[n], b_tx_channel_nums[n]);
                 double actual_rate = b_usrp->get_tx_rate(b_tx_channel_nums[n]);
-                validate_rates(adjusted_rate, actual_rate);
-                adjusted_rate = actual_rate;
+                // Verify B rx matches A tx
+                validate_rates(actual_ab_rates[n], actual_rate);
+                std::cout << boost::format("Actual ch %lu B TX Rate: %f Msps...") % (actual_rate/1e6) << std::endl << std::endl;
             }
-            std::cout << boost::format("Actual B TX Rate: %f Msps...") % (adjusted_rate/1e6) << std::endl << std::endl;
         }
     }
 
