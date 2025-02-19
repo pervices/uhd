@@ -309,6 +309,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::vector<double> ab_rates = parse_rf_settings(ab_num_channels, ab_rate_arg, "Mistmatch between the number of rx channels on A, the number of tx channels on B, and the number of rates specified");
+    printf("T15\n");
 
     std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
     printf("T20\n");
