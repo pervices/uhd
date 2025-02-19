@@ -148,8 +148,8 @@ void set_tx_freq(std::vector<double> desired, std::vector<size_t> channel, uhd::
 int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //variables to be set by po
-    std::string rx_args, tx_args, ref, pps, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg;
-    double rate, duration;
+    std::string rx_args, tx_args, ref, pps, rx_channel_arg, tx_channel_arg, tx_gain_arg, rx_gain_arg, tx_freq_arg, rx_freq_arg, ab_rate_arg, ba_rate_arg;
+    double duration;
     int ref_clock_freq;
 
     std::string a_args, a_rx_channel_arg, a_tx_channel_arg, a_rx_gain_arg, a_tx_gain_arg, a_tx_freq_arg, a_rx_freq_arg;
@@ -161,10 +161,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     desc.add_options()
         // Universal options
         ("help", "help message")
-        ("rate", po::value<double>(&rate)->default_value(40e6), "rate of outgoing samples")
         ("ref_clock_freq", po::value<int>(&ref_clock_freq), "Frequency of external reference clock. Program will use an internal 10MHz clock if not specified")
         ("ref", po::value<std::string>(&ref)->default_value("internal"), "clock reference (internal, external)")
         ("duration", po::value<double>(&duration), "How long to stream for, will stream until the program is exited if unspecified")
+
+        // TODO: fix backwards compatibility
+        //("rate", po::value<std::string>(&rate_arg), "rate of outgoing samples")
+
+        ("ab_rate", po::value<std::string>(&ab_rate_arg), "Rate for each channel going from device A to device B in Hz. Enter one number to set all rx channels on A and all tx channels on B to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+        ("ba_rate", po::value<std::string>(&ba_rate_arg), "Rate for each channel going from device B to device A in Hz. Enter one number to set all rx channels on B and all tx channels on A to said rate i.e. \"0\", enter comma seperated number to set each channel individually i.e. \"0,1\"")
+
 
         // Paremters for device A
         ("a_args", po::value<std::string>(&a_args), "Identifying info device A. Example: rx_args=\"addr=192.168.10.2\"")
@@ -299,12 +305,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(ba_num_channels != b_rx_channel_nums.size()) {
         throw std::runtime_error("Mistmatch between number of rx channels in B and tx channels in A requested");
     }
+
+    std::vector<double> ab_rates = parse_rf_settings(ab_num_channels, ab_rate_arg, "Mistmatch between the number of rx channels on A, the number of tx channels on B, and the number of rates specified");
+
+    std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
     
     //set the sample rate
-    if (not vm.count("rate")){
-        std::cerr << "Please specify the sample rate with --rate" << std::endl;
-        return ~0;
-    }
+    // if (not vm.count("rate")){
+        // std::cerr << "Please specify the sample rate with --rate" << std::endl;
+        // return ~0;
+    // }
+    // TMP to check the parsing compiles
+    double rate = 40e6;
+
     // Actual rate used, used when verifying if all channels have the same rate
     double adjusted_rate = 0;
 
@@ -406,7 +419,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << boost::format("Using B Device: %s") % b_usrp->get_pp_string() << std::endl;
     }
 
-    // Sets the destination IP and port in rx_usrp to match tx_usrp for the specifed channels
+    // Sets the destination IP and port in rx_usrp to match tx_usrp for the specified channels
     // TODO verify if the channel combination is not impossible due to sending from 1 SFP port to multiple
     if(ab_num_channels != 0) {
         a_usrp->rx_to_tx(b_usrp, a_rx_channel_nums, b_tx_channel_nums);
