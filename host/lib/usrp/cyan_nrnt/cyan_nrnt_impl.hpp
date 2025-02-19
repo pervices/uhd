@@ -114,7 +114,7 @@ public:
     bool time_diff_converged();
     void wait_for_time_diff_converged();
     // Note: this must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
-    std::atomic<bool> time_resync_requested = false;
+    bool time_resync_requested = false;
 
     inline double time_diff_get() {
         return *_time_diff;

@@ -789,9 +789,9 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             dev->reset_time_diff_pid();
             // Time did is no longer converged after the reset
             *(dev->_time_diff_converged) = false;
-            _mm_sfence();
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
+            _mm_sfence();
         }
 
 		dt = then - now;
@@ -2028,6 +2028,7 @@ double cyan_nrnt_impl::get_tx_rate(size_t chan) {
 
 inline void cyan_nrnt_impl::request_resync_time_diff() {
     time_resync_requested = true;
+    _mm_sfence();
 }
 
 void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
