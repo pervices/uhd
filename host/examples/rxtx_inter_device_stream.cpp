@@ -215,6 +215,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
+    printf("T0\n");
+
     // Applies overrides for backwards compatibility
     if(vm.count("rx_args")) {
         a_args = rx_args;
