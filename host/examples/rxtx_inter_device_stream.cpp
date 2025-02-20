@@ -319,9 +319,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         throw std::runtime_error("Mistmatch between number of rx channels in B and tx channels in A requested");
     }
 
-    printf("T10\n");
+    std::cout << "ab_num_channels: " << ab_num_channels << std::endl;
+    std::cout << "ab_rate_arg: " << ab_rate_arg << std::endl;
 
     std::vector<double> ab_rates = parse_rf_settings(ab_num_channels, ab_rate_arg, "Mistmatch between the number of rx channels on A, the number of tx channels on B, and the number of rates specified");
+
+    std::cout << "ba_num_channels: " << ba_num_channels << std::endl;
+    std::cout << "ba_rate_arg: " << ba_rate_arg << std::endl;
 
     std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
 
