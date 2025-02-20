@@ -1,3 +1,10 @@
+uhdpv (4.4.0.61-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing irrelevant warnings when using device to device streaming
+  * Fixing crash when using legacy rate option on rxtx_inter_device_stream
+
+ -- Per Vices <packages@pervices.com>  Thu, 20 Feb 2025 16:12:58 -0500
+
 uhdpv (4.4.0.60-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding option for multiple sample rates to rxtx_inter_device_stream
