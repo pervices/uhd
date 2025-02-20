@@ -76,7 +76,8 @@ std::vector<double> parse_rf_settings(size_t num_channels, std::string rf_arg, s
         return std::vector(num_channels, std::stod(rf_strings[0]));
     }
     else if(rf_strings.size() != num_channels) {
-            printf("P4B\n");
+        printf("P4B\n");
+        UHD_LOGGER_ERROR("RXTX_INTER_DEVICE_STREAM") << error_msg;
         throw std::runtime_error(error_msg);
     }
     printf("P5\n");
