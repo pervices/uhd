@@ -256,6 +256,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         std::cout << "Running loopback mode. Device A's rx settings and device B's tx settings will be used" << std::endl;
     }
 
+    printf("T1\n");
+
     //create a usrp device
     std::cout << std::endl;
     uhd::usrp::multi_usrp::sptr a_usrp;
@@ -314,9 +316,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         throw std::runtime_error("Mistmatch between number of rx channels in B and tx channels in A requested");
     }
 
+    printf("T10\n");
+
     std::vector<double> ab_rates = parse_rf_settings(ab_num_channels, ab_rate_arg, "Mistmatch between the number of rx channels on A, the number of tx channels on B, and the number of rates specified");
 
     std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
+
+    printf("T20\n");
 
     std::vector<double> actual_ab_rates(ab_rates.size(), 0);
     std::vector<double> actual_ba_rates(ba_rates.size(), 0);
