@@ -72,6 +72,7 @@ std::vector<double> parse_rf_settings(size_t num_channels, std::string rf_arg, s
         return std::vector(num_channels, std::stod(rf_strings[0]));
     }
     else if(rf_strings.size() != num_channels) {
+        UHD_LOGGER_ERROR("RXTX_INTER_DEVICE_STREAM") << error_msg;
         throw std::runtime_error(error_msg);
     }
 
@@ -240,10 +241,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(vm.count("tx_channels")) {
         b_tx_channel_arg = tx_channel_arg;
     }
-    if(vm.count("rate")) {
-        ab_rate_arg = rate_arg;
-        ba_rate_arg = rate_arg;
-    }
 
     // Stores whether or not to use rx or tx, useful for debugging
     //Must be set before adjusting args to bypass clock sync
@@ -254,6 +251,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     bool loopback_mode = a_args == b_args;
     if(loopback_mode) {
         std::cout << "Running loopback mode. Device A's rx settings and device B's tx settings will be used" << std::endl;
+    }
+
+    if(vm.count("rate")) {
+        ab_rate_arg = rate_arg;
+        if(!loopback_mode) {
+            // Only override ba_rate_arg if not in loopback
+            ba_rate_arg = rate_arg;
+        }
     }
 
     //create a usrp device
