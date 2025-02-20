@@ -163,7 +163,7 @@ public:
         size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
         size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
-        if(actual_nsamps_to_send == 0) {
+        if(actual_nsamps_to_send == 0) [[unlikely]] {
             // If a start of burst command has no packets, cache timestamp and keep until next call
             if(metadata.start_of_burst) {
                 cached_sob = true;
@@ -178,13 +178,13 @@ public:
         }
 
         // Lets the user know if the last burst dropped samples due to packet length multiple requirements
-        if(dropped_nsamps_in_cache) {
+        if(dropped_nsamps_in_cache) [[unlikely]] {
             UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << dropped_nsamps_in_cache << " samples to comply";
             dropped_nsamps_in_cache = 0;
         }
 
         uhd::tx_metadata_t modified_metadata = metadata;
-        if(cached_sob) {
+        if(cached_sob) [[unlikely]] {
             cached_sob = false;
             modified_metadata.start_of_burst = true;
             modified_metadata.has_time_spec = true;
@@ -192,7 +192,7 @@ public:
         }
         // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
         bool eob_requested = false;
-        if(modified_metadata.end_of_burst) {
+        if(modified_metadata.end_of_burst) [[unlikely]] {
             modified_metadata.end_of_burst = false;
             eob_requested = true;
         }
@@ -201,7 +201,7 @@ public:
         size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
 
         // Sends the eob if requested
-        if(eob_requested) {
+        if(eob_requested) [[unlikely]] {
             modified_metadata.end_of_burst = true;
             send_eob_packet(metadata, timeout);
         }
@@ -214,7 +214,7 @@ public:
         size_t cached_samples_to_retain;
 
         // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
-        if(actual_samples_sent == 0) {
+        if(actual_samples_sent == 0) [[unlikely]] {
             // No samples sent, therefore none should be added to the buffer
             actual_nsamples_to_cache = 0;
             // No samples sent, therefore no cached samples were consumed
@@ -249,7 +249,7 @@ public:
                     memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + ((actual_samples_sent - cached_samples_sent) * _bytes_per_sample), actual_nsamples_to_cache * _bytes_per_sample);
                 }
             }
-        } else {
+        } else [[unlikely]] {
             fprintf(stderr, "ERROR, more samples sent than intended. This should be impossible, contact support\n");
             // Reaching here should be impossible, these values don't matter
             actual_nsamples_to_cache = 0;
