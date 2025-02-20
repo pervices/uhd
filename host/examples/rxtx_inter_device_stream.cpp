@@ -216,6 +216,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     printf("T0\n");
+    std::cout << "A0" << std::endl;
 
     // Applies overrides for backwards compatibility
     if(vm.count("rx_args")) {
