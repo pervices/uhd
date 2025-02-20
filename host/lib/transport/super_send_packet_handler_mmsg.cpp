@@ -101,17 +101,17 @@ public:
                 }
             }
 
-            // // Sets the recv buffer size
-            // setsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_DEFAULT_SEND_BUFFER_SIZE, sizeof(_DEFAULT_SEND_BUFFER_SIZE));
-            //
-            // // Checks the recv buffer size
-            // socklen_t opt_len = sizeof(_ACTUAL_SEND_BUFFER_SIZE);
-            // getsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_ACTUAL_SEND_BUFFER_SIZE, &opt_len);
-            //
-            // // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
-            // if(_ACTUAL_SEND_BUFFER_SIZE < 2*_DEFAULT_SEND_BUFFER_SIZE) {
-            //     fprintf(stderr, "Unable to set send buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.wmem_max=%i\"\n", _DEFAULT_SEND_BUFFER_SIZE, _ACTUAL_SEND_BUFFER_SIZE/2, _DEFAULT_SEND_BUFFER_SIZE);
-            // }
+            // Sets the recv buffer size
+            setsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_DEFAULT_SEND_BUFFER_SIZE, sizeof(_DEFAULT_SEND_BUFFER_SIZE));
+
+            // Checks the recv buffer size
+            socklen_t opt_len = sizeof(_ACTUAL_SEND_BUFFER_SIZE);
+            getsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_ACTUAL_SEND_BUFFER_SIZE, &opt_len);
+
+            // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
+            if(_ACTUAL_SEND_BUFFER_SIZE < 2*_DEFAULT_SEND_BUFFER_SIZE) {
+                fprintf(stderr, "Unable to set send buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.wmem_max=%i\"\n", _DEFAULT_SEND_BUFFER_SIZE, _ACTUAL_SEND_BUFFER_SIZE/2, _DEFAULT_SEND_BUFFER_SIZE);
+            }
 
             int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
             if(mtu < MIN_MTU) {
