@@ -59,26 +59,34 @@ std::vector<size_t> parse_channels(size_t device_num_channels, std::string chann
 // rf_arg: String provided by the user containing the list of said rf setting
 // error_msg: Error message to print if this is a mistmatch between the number of channels specified for the rf setting and the length of the list requested by the user
 std::vector<double> parse_rf_settings(size_t num_channels, std::string rf_arg, std::string error_msg) {
+    printf("P1\n");
     // Return empty vector if no argument provided
     if(rf_arg == "") {
         return std::vector<double>(0);
     }
+    printf("P2\n");
 
     std::vector<std::string> rf_strings;
     boost::split(rf_strings, rf_arg, boost::is_any_of("\"',"));
+    printf("P3\n");
 
     // Only 1 value specified, apply it to all
     if(rf_strings.size() == 1) {
+        printf("P4A\n");
         return std::vector(num_channels, std::stod(rf_strings[0]));
     }
     else if(rf_strings.size() != num_channels) {
+            printf("P4B\n");
         throw std::runtime_error(error_msg);
     }
+    printf("P5\n");
 
     std::vector<double> rf_settings(num_channels);
     for(size_t n = 0; n < num_channels; n++){
         rf_settings[n] =  std::stod(rf_strings[n]);
     }
+    printf("P6\n");
+
     return rf_settings;
 }
 
