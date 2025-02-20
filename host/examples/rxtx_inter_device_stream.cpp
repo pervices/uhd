@@ -252,10 +252,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(vm.count("tx_channels")) {
         b_tx_channel_arg = tx_channel_arg;
     }
-    if(vm.count("rate")) {
-        ab_rate_arg = rate_arg;
-        ba_rate_arg = rate_arg;
-    }
 
     // Stores whether or not to use rx or tx, useful for debugging
     //Must be set before adjusting args to bypass clock sync
@@ -266,6 +262,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     bool loopback_mode = a_args == b_args;
     if(loopback_mode) {
         std::cout << "Running loopback mode. Device A's rx settings and device B's tx settings will be used" << std::endl;
+    }
+
+    if(vm.count("rate")) {
+        ab_rate_arg = rate_arg;
+        if(!loopback_mode) {
+            // Only override ba_rate_arg if not in loopback
+            ba_rate_arg = rate_arg;
+        }
     }
 
     printf("T1\n");
@@ -336,11 +340,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << "ba_num_channels: " << ba_num_channels << std::endl;
     std::cout << "ba_rate_arg: " << ba_rate_arg << std::endl;
 
-    std::vector<double> ba_rates;
-    // Skip parsing if in loopback mode since there are no channels going from b to a but the argument will be non blank
-    if(!loopback_mode) {
-        parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
-    }
+    std::vector<double> ba_rates = parse_rf_settings(ba_num_channels, ba_rate_arg, "Mistmatch between the number of rx channels on B, the number of tx channels on A, and the number of rates specified");
 
     printf("T20\n");
 
