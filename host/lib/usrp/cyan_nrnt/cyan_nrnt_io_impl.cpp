@@ -534,6 +534,8 @@ bool cyan_nrnt_impl::recv_async_msg(
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
+    // sfence to ensure the need for clock sync is pushed to other threads
+    _mm_sfence();
 
     stream_args_t args = args_;
 
@@ -847,6 +849,8 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
+    // sfence to ensure the need for clock sync is pushed to other threads
+    _mm_sfence();
 
     stream_args_t args = args_;
 
