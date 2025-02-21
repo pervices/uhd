@@ -22,7 +22,6 @@
 #include <chrono>
 #include <thread>
 #include <random>
-#include <sys/mman.h>
 
 //wait for user to press cntrl c before closing
 //#define DELAYED_EXIT
@@ -44,7 +43,7 @@ void sig_int_handler(int){
  * Main function
  **********************************************************************/
 int UHD_SAFE_MAIN(int argc, char *argv[]){
-    uhd::set_thread_priority_safe(-1, true);
+    uhd::set_thread_priority_safe();
 
     //variables to be set by po
     std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list, ampl_calibration;
@@ -66,7 +65,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("ampl-calibration", po::value<std::string>(&ampl_calibration)->default_value(""), "Optional config file to improve linearity with comb waves.\n"
-        "Format: A list of decimal numbers which is a fraction between 0 and the edge of the band, followed by another line with a list of values to multiply the amplitude at the location specified by the list of fractions. The multipliers are applied at + and - the specified locations.\n Example to multiply the amplitude by 1 at the center, 5 at halfway from the center to the edge of the band and 10 at the edge of the band:\n# Example file\n0, 0.5, 1\n1, 5, 10")
+        "Format: A list of decimal numbers which is a fraction between 0 and the edge of the band, followed by another line with a list of values to multiply the amplitude at the location specified by the list of fractions. The multipliers are applied at + and - the specified locations.\n Example to multiply the amplitude by 1 at the center, 5 at halfway from the center to the edge of the band and 10 at the edge of the band:\n# Example file\n0, 0.5, 1\n1, 5, 10\nSee tx_waveforms_example_calibration.txt for an example")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
@@ -218,15 +217,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
     }
 
-    // TODO: unmap and provide warning if no huge pages ready
-    size_t buff_size_samples = spb + fundamental_period;
-    std::complex<short>* buff = (std::complex<short>*) mmap(nullptr, buff_size_samples * sizeof(std::complex<short>), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
-
-    std::vector<std::complex<short> *> buffs(channel_nums.size(), buff);
+    std::vector<std::complex<short> > buff(spb + fundamental_period);
+    std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
     //fill the buffer with the waveform
-    for (size_t n = 0; n < buff_size_samples; n++){
-        // TODO: verify buff[n] is correct and not buff[n*sizeof(std::complex<short>)]
+    for (size_t n = 0; n < buff.size(); n++){
         buff[n] = wave_generator(n);
     }
 
@@ -334,7 +329,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 if(fundamental_period != 0) {
                     buff_ptr = &buff[num_acc_samps % fundamental_period];
                 } else {
-                    buff_ptr = &buff[0];
+                    buff_ptr = &buff.front();
                 }
             }
 
