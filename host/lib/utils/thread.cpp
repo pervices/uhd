@@ -106,9 +106,9 @@ void uhd::set_thread_priority_realtime(float priority) {
     // Priority is not used in deadline mode
     attr.sched_priority = 0;
     // Runtime, deadline, and priority should be equal so it uses 100% of time
-    attr.sched_runtime = 1000000;
-    attr.sched_deadline = 1000000;
-    attr.sched_period = 1000000;
+    attr.sched_runtime = 1000000000;
+    attr.sched_deadline = 1000000000;
+    attr.sched_period = 1000000000;
 
     int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
 
