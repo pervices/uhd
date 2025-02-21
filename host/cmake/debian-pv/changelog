@@ -1,3 +1,9 @@
+uhdpv (4.4.0.62-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding EPROM to uhd_usrp_info
+
+ -- Per Vices <packages@pervices.com>  Fri, 21 Feb 2025 13:13:55 -0500
+
 uhdpv (4.4.0.61-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing irrelevant warnings when using device to device streaming
