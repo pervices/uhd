@@ -93,9 +93,8 @@ void uhd::set_thread_priority(float priority, bool realtime)
     }
 }
 
+// TODO: update comments for SCHED_FIFO instead of SCHED_DEADLINE
 void uhd::set_thread_priority_fifo(float priority) {
-    // Priority is no used in deadlines, the parameter is a legacy of previous schedueling
-    (void) priority;
 
     struct sched_attr attr;
     attr.size = sizeof(attr);
@@ -110,8 +109,10 @@ void uhd::set_thread_priority_fifo(float priority) {
     if(max_priority == -1 || min_priority == -1) {
         throw uhd::os_error("error in check priority range SCHED_FIFO: " + std::string(strerror(errno)));
     }
-    // TODO: set sched_priority based on range to min to max and priority
-    attr.sched_priority = max_priority;
+    // Shift from range -1..1 to 0..1
+    double positive_priority = (priority + 1) / 2;
+    uint32_t scaled_priority = (uint32_t) std::round((positive_priority * (max_priority - min_priority)) + min_priority);
+    attr.sched_priority = scaled_priority;
     // The following is only used by deadline
     attr.sched_runtime = 0;
     attr.sched_deadline = 0;
