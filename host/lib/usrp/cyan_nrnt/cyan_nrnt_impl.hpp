@@ -88,6 +88,10 @@ class cyan_nrnt_impl : public uhd::device
 public:
     static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 4;
 
+    // Cache line size
+    // Assume it is 64, which is the case for virtually all AMD64 systems
+    static constexpr uint_fast8_t CACHE_LINE_SIZE = 64;
+
     // This is the core constructor to be called when a cyan_nrnt device is found
     cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk, double freq_range_stop = CYAN_NRNT_FREQ_RANGE_STOP);
     ~cyan_nrnt_impl(void);
@@ -114,10 +118,10 @@ public:
     bool time_resync_requested = false;
 
     inline double time_diff_get() {
-        return _time_diff;
+        return *_time_diff;
     }
     inline void time_diff_set( double time_diff ) {
-        _time_diff = time_diff;
+        *_time_diff = time_diff;
     }
 
     void start_bm();
@@ -191,11 +195,11 @@ private:
 	 *     such that the error is forced to zero.
 	 *     => Crimson Time Now := Host Time Now + CV
 	 */
-	uhd::pidc _time_diff_pidc;
-    // TODO: make _time_diff and _time_diff_converged false-sharing proof
-    // NOTE: use _mm_sfence after writing to _time_diff or
+    static constexpr size_t padded_pidc_tcl_size = (size_t) ceil(sizeof(uhd::pidc_tl) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+	uhd::pidc* const _time_diff_pidc;
+    // NOTE: use _mm_sfence after writing to _time_diff or _time_diff_converged
     // The difference in time on the device and host
-    double _time_diff;
+    double* const _time_diff;
 	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
