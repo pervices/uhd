@@ -66,11 +66,11 @@ namespace uhd {
 void uhd::set_thread_priority(float priority, bool realtime)
 {
 
-    if(0/*realtime*/) {
+    if(realtime) {
         // Realtime threading has been disabled
         // SCHED_DEADLINE prevents setting thread affinity, which is more important
         // SCHED_FIFO and SCHED_RR result in worse performance, even after setting /proc/sys/kernel/sched_rt_runtime_us to -1
-        set_thread_priority_realtime(priority);
+        set_thread_priority_fifo(priority);
 
         // To achieve the effect desired by realtime threading without actually using realtime threading:
         //     Adjusting priority range:
@@ -93,9 +93,43 @@ void uhd::set_thread_priority(float priority, bool realtime)
     }
 }
 
-void uhd::set_thread_priority_realtime(float priority) {
-    // Priority is no used in deadlines, the parameter is a legacy of previous schedueling
-    (void) priority;
+// TODO: update comments for SCHED_FIFO instead of SCHED_DEADLINE
+void uhd::set_thread_priority_fifo(float priority) {
+
+    struct sched_attr attr;
+    attr.size = sizeof(attr);
+    attr.sched_policy = SCHED_FIFO;
+    attr.sched_flags = 0x01/*SCHED_FLAG_RESET_ON_FORK*/; // Documentation says to use SCHED_FLAG_RESET_ON_FORK, but it doesn't seem to be declared. Required to allow this thread to create child thread in deadline mode
+    // Nice is not used when using realtime threads
+    attr.sched_nice = 0;
+    // Priority is not used in deadline mode
+    int max_priority = sched_get_priority_max(SCHED_FIFO);
+    int min_priority = sched_get_priority_min(SCHED_FIFO);
+    // TODO: improve error check
+    if(max_priority == -1 || min_priority == -1) {
+        throw uhd::os_error("error in check priority range SCHED_FIFO: " + std::string(strerror(errno)));
+    }
+    // Shift from range -1..1 to 0..1
+    double positive_priority = (priority + 1) / 2;
+    uint32_t scaled_priority = (uint32_t) std::round((positive_priority * (max_priority - min_priority)) + min_priority);
+    attr.sched_priority = scaled_priority;
+    // The following is only used by deadline
+    attr.sched_runtime = 0;
+    attr.sched_deadline = 0;
+    attr.sched_period = 0;
+
+    int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
+
+    if (ret != 0) {
+        if(errno == EPERM) {
+            throw uhd::access_error("error in pthread_setschedparam SCHED_FIFO: " + std::string(strerror(errno)));
+        } else {
+            throw uhd::os_error("error in pthread_setschedparam SCHED_FIFO: " + std::string(strerror(errno)));
+        }
+    }
+}
+
+void uhd::set_thread_priority_deadline(float priority) {
 
     struct sched_attr attr;
     attr.size = sizeof(attr);
@@ -106,9 +140,9 @@ void uhd::set_thread_priority_realtime(float priority) {
     // Priority is not used in deadline mode
     attr.sched_priority = 0;
     // Runtime, deadline, and priority should be equal so it uses 100% of time
-    attr.sched_runtime = 1000000;
-    attr.sched_deadline = 1000000;
-    attr.sched_period = 1000000;
+    attr.sched_runtime = 1000000000;
+    attr.sched_deadline = 1000000000;
+    attr.sched_period = 1000000000;
 
     int ret = syscall(SYS_sched_setattr, getpid(), &attr, 0);
 
