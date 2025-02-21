@@ -36,6 +36,7 @@
 #include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
+#include <immintrin.h>
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 
@@ -108,8 +109,9 @@ public:
     uhd::time_spec_t get_time_now();
     bool time_diff_converged();
     void wait_for_time_diff_converged();
-    // Note: this must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
-    std::atomic<bool> time_resync_requested = false;
+    // This must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
+    // NOTE: use _mm_sfence after writing to this to ensure it is passed to other threads
+    bool time_resync_requested = false;
 
     inline double time_diff_get() {
         return _time_diff;
@@ -191,8 +193,10 @@ private:
 	 */
 	uhd::pidc _time_diff_pidc;
     // TODO: make _time_diff and _time_diff_converged false-sharing proof
-    std::atomic<double> _time_diff;
-	std::atomic<bool> _time_diff_converged;
+    // NOTE: use _mm_sfence after writing to _time_diff or
+    // The difference in time on the device and host
+    double _time_diff;
+	bool _time_diff_converged;
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf = 0);
