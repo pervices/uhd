@@ -660,6 +660,8 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 	if ( _time_diff_converged ) {
 		time_diff_set( cv );
 	}
+    // sfence to ensure _time_diff_converged and time_diff_set are applied to other threads
+    _mm_sfence();
 }
 
 //performs clock synchronization
@@ -790,6 +792,8 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             dev->_time_diff_converged = false;
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
+            // sfence to ensure _time_diff_converged and time_resync_requested and updated to other threads
+            _mm_sfence();
         }
 
 		dt = then - now;
@@ -1994,6 +1998,8 @@ double cyan_nrnt_impl::get_tx_rate(size_t chan) {
 
 inline void cyan_nrnt_impl::request_resync_time_diff() {
     time_resync_requested = true;
+    // sfence to the resync request is shared to other threads
+    _mm_sfence();
 }
 
 void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
