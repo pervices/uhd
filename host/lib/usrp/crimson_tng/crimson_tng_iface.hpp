@@ -29,6 +29,7 @@
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include <uhd/types/sensors.hpp>
 #include <uhd/types/time_spec.hpp>
+#include <uhd/utils/noncopyable.hpp>
 
 namespace uhd {
 
@@ -36,7 +37,7 @@ namespace uhd {
  * The crimson_tng interface class:
  * Provides a set of functions access the state tree
  */
-class crimson_tng_iface
+class crimson_tng_iface : uhd::noncopyable
 {
 public:
     typedef std::shared_ptr<crimson_tng_iface> sptr;
