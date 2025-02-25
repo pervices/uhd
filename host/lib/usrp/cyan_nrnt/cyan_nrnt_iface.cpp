@@ -68,7 +68,7 @@ std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
         if (nbytes == 0) return "TIMEOUT";
 
         // parses it through tokens: seq, status, [data]
-        this -> parse(tokens, _buff, ',');
+        this -> parse(tokens, _buff, CYAN_NRNT_MAX_MTU, ',');
 
         // Malformed packet
         if (tokens.size() < 2) {
@@ -284,17 +284,32 @@ cyan_nrnt_iface::sptr cyan_nrnt_iface::make(udp_simple::sptr ctrl_transport){
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-void cyan_nrnt_iface::parse(std::vector<std::string> &tokens, char* data, const char delim) {
-	int i = 0;
-	while (data[i]) {
-		std::string token = "";
-		while (data[i] && data[i] != delim) {
-			token.push_back(data[i]);
-			if (data[i+1] == 0 || data[i+1] == delim)
-				tokens.push_back(token);
-			i++;
-		}
-		i++;
-	}
-	return;
+void cyan_nrnt_iface::parse(std::vector<std::string> &tokens, char* data, size_t const data_len, const char delim) {
+    size_t i = 0;
+    // Ensure the vector the result is stored in is clean
+    tokens.clear();
+
+    // Perform bounds check for if the buffer to parse is 0 length
+    if(i >= data_len) {
+        return;
+    }
+
+    while (data[i]) {
+        std::string token = "";
+        while (data[i] && data[i] != delim) {
+            token.push_back(data[i]);
+            if (data[i+1] == 0 || data[i+1] == delim || i + 1 >= data_len)
+                tokens.push_back(token);
+            i++;
+            // Perform the bounds checking before the while loop check to avoid attempting to read past the end of the buffer in the rest of the condition
+            if(i >= data_len) {
+                break;
+            }
+        }
+        i++;
+        if(i >= data_len) {
+            break;
+        }
+    }
+    return;
 }

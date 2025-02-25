@@ -103,7 +103,7 @@ private:
     // add another transport for streaming
 
     // internal function for tokenizing the inputs
-    void parse(std::vector<std::string> &tokens, char* data, const char delim);
+    void parse(std::vector<std::string> &tokens, char* data, size_t const data_len, const char delim);
 
     //used in send/recv
     uint32_t _ctrl_seq_num;
