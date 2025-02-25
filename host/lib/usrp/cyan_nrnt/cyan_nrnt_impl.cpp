@@ -789,7 +789,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             // Reset PID to clear old values
             dev->reset_time_diff_pid();
             // Time did is no longer converged after the reset
-            (dev->_time_diff_converged) = false;
+            dev->_time_diff_converged = false;
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
             // sfence to ensure _time_diff_converged and time_resync_requested and updated to other threads
