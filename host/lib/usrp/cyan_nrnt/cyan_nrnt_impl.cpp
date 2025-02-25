@@ -886,7 +886,7 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk, double freq_range_stop)
 :
 	device_addr( _device_addr ),
-	// TODO: add cache line comment
+	// Put _time_diff_pidc and _time_diff on their own cache line to avoid false sharing
 	_time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
 	_time_diff((double*) aligned_alloc(CACHE_LINE_SIZE, CACHE_LINE_SIZE)),
 	_bm_thread_needed( true ),
