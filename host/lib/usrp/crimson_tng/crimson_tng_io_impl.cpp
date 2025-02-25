@@ -231,9 +231,9 @@ size_t crimson_tng_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    if( ! _buffer_monitor_running && !use_blocking_fc ) {
-        start_buffer_monitor_thread();
-    }
+    // if( ! _buffer_monitor_running && !use_blocking_fc ) {
+    //     start_buffer_monitor_thread();
+    // }
 
     r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
