@@ -37,18 +37,18 @@ namespace uhd {
  * The crimson_tng interface class:
  * Provides a set of functions access the state tree
  */
-class crimson_tng_iface : uhd::noncopyable
+class pv_iface : uhd::noncopyable
 {
 public:
-    typedef std::shared_ptr<crimson_tng_iface> sptr;
+    typedef std::shared_ptr<pv_iface> sptr;
     /*!
      * Make a new crimson_tng interface with the control transport.
      * \param ctrl_transport the udp transport object
      * \return a new crimson_tng interface object
      */
-    crimson_tng_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    pv_iface(uhd::transport::udp_simple::sptr ctrl_transport);
 
-    static crimson_tng_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    static pv_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
     // Helper functions to wrap peek_str and poke_str as get and set
     //

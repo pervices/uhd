@@ -1,6 +1,6 @@
 //
 // Copyright 2014-2015 Per Vices Corporation
-// Copyright 2022, 2024 Per Vices Corporation
+// Copyright 2022, 2025 Per Vices Corporation
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,13 +16,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-// TODO: consolidate cyan and crimson versions of this
-
 #include <uhd/exception.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <inttypes.h>
-#include "cyan_nrnt_fw_common.h"
-#include "cyan_nrnt_iface.hpp"
+#include <uhdlib/usrp/common/pv_iface.hpp>
+
+#define PV_IFACE_DEBUG_NAME_C "PV_IFACE"
 
 using namespace uhd;
 using namespace uhd::transport;
@@ -32,7 +31,7 @@ static uint32_t seq = 1;
 /***********************************************************************
  * Structors
  **********************************************************************/
-cyan_nrnt_iface::cyan_nrnt_iface(udp_simple::sptr ctrl_transport):
+pv_iface::pv_iface(udp_simple::sptr ctrl_transport):
     _ctrl_transport(ctrl_transport),
     _ctrl_seq_num(0),
     _protocol_compat(0)
@@ -43,19 +42,19 @@ cyan_nrnt_iface::cyan_nrnt_iface(udp_simple::sptr ctrl_transport):
 /***********************************************************************
  * Peek and Poke
  **********************************************************************/
-// Never call this function by itself, always call through cyan_nrnt_iface::get/set()
+// Never call this function by itself, always call through pv_iface::get/set()
 // else it will mess up the protocol with the sequencing and will contian no error checks.
-void cyan_nrnt_iface::poke_str(std::string data) {
+void pv_iface::poke_str(std::string data) {
     // populate the command string with sequence number
     data = data.insert(0, (boost::lexical_cast<std::string>(seq++) + ","));
     _ctrl_transport->send( data.c_str(), data.length() );
     return;
 }
 
-// Never call this function by itself, always call through cyan_nrnt_iface::get/set(),
+// Never call this function by itself, always call through pv_iface::get/set(),
 // else it will mess up the protocol with the sequencing and will contian no error checks.
 // Format: <sequence number>,<error code>,<data>
-std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
+std::string pv_iface::peek_str( float timeout_s ) {
     uint32_t iseq;
     std::vector<std::string> tokens;
     uint8_t tries = 0;
@@ -64,11 +63,11 @@ std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
     do {
         // clears the buffer and receives the message
         memset( _buff, 0, sizeof( _buff ) );
-        const size_t nbytes = _ctrl_transport -> recv(_buff, CYAN_NRNT_MAX_MTU, timeout_s );
+        const size_t nbytes = _ctrl_transport -> recv(_buff, MAX_MTU_SIZE, timeout_s );
         if (nbytes == 0) return "TIMEOUT";
 
         // parses it through tokens: seq, status, [data]
-        this -> parse(tokens, _buff, CYAN_NRNT_MAX_MTU, ',');
+        this -> parse(tokens, _buff, MAX_MTU_SIZE, ',');
 
         // Malformed packet
         if (tokens.size() < 2) {
@@ -95,12 +94,12 @@ std::string cyan_nrnt_iface::peek_str( float timeout_s ) {
     }
 }
 
-std::string cyan_nrnt_iface::peek_str() {
+std::string pv_iface::peek_str() {
     return peek_str( 8 );
 }
 
 // Gets a property on the device
-std::string cyan_nrnt_iface::get_string(std::string req) {
+std::string pv_iface::get_string(std::string req) {
 
     std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -111,20 +110,20 @@ std::string cyan_nrnt_iface::get_string(std::string req) {
     std::string ret = peek_str();
 
     if(ret == "GET_ERROR") {
-        throw uhd::lookup_error("cyan_nrnt_iface::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
+        throw uhd::lookup_error("pv_iface::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
     }
     else if (ret == "TIMEOUT") {
-        throw uhd::runtime_error("cyan_nrnt_iface::get_string - UDP resp. timed out: get: " + req);
+        throw uhd::runtime_error("pv_iface::get_string - UDP resp. timed out: get: " + req);
     }
     else  if(ret == "ERROR") {
-        throw uhd::runtime_error("cyan_nrnt_iface::get_string - UDP unpecified error: " + req);
+        throw uhd::runtime_error("pv_iface::get_string - UDP unpecified error: " + req);
     }
     else {
         return ret;
     }
 }
 // Sets a property on the device
-void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
+void pv_iface::set_string(const std::string pre, std::string data) {
 
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -135,13 +134,13 @@ void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
 	std::string ret = peek_str();
 
     if(ret == "GET_ERROR") {
-        throw uhd::lookup_error("cyan_nrnt_iface::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
+        throw uhd::lookup_error("pv_iface::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
     }
     else if (ret == "TIMEOUT") {
-        throw uhd::runtime_error("cyan_nrnt_iface::set_string - UDP resp. timed out: set: " + pre + " = " + data);
+        throw uhd::runtime_error("pv_iface::set_string - UDP resp. timed out: set: " + pre + " = " + data);
     }
     else  if(ret == "ERROR") {
-        throw uhd::runtime_error("cyan_nrnt_iface::set_string - UDP unpecified error: " + pre);
+        throw uhd::runtime_error("pv_iface::set_string - UDP unpecified error: " + pre);
     }
     else {
         return;
@@ -149,43 +148,43 @@ void cyan_nrnt_iface::set_string(const std::string pre, std::string data) {
 }
 
 // wrapper for type <double> through the ASCII Crimson interface
-double cyan_nrnt_iface::get_double(std::string req) {
+double pv_iface::get_double(std::string req) {
     try { return boost::lexical_cast<double>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
-        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get double property: " << e.what();
+        UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get double property: " << e.what();
     }
     return 0;
 }
-void cyan_nrnt_iface::set_double(const std::string pre, double data){
+void pv_iface::set_double(const std::string pre, double data){
     set_string(pre, boost::lexical_cast<std::string>(data));
 }
 
 // wrapper for type <bool> through the ASCII Crimson interface
-bool cyan_nrnt_iface::get_bool(std::string req) {
+bool pv_iface::get_bool(std::string req) {
     try { return boost::lexical_cast<bool>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
-        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get bool property: " << e.what();
+        UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get bool property: " << e.what();
     }
     return 0;
 }
-void cyan_nrnt_iface::set_bool(const std::string pre, bool data){
+void pv_iface::set_bool(const std::string pre, bool data){
     set_string(pre, boost::lexical_cast<std::string>(data));
 }
 
 // wrapper for type <int> through the ASCII Crimson interface
-int cyan_nrnt_iface::get_int(std::string req) {
+int pv_iface::get_int(std::string req) {
 	try { return boost::lexical_cast<int>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
-        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Failed to get int property: " << e.what();
+        UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get int property: " << e.what();
     }
     return 0;
 }
-void cyan_nrnt_iface::set_int(const std::string pre, int data){
+void pv_iface::set_int(const std::string pre, int data){
     set_string(pre, boost::lexical_cast<std::string>(data));
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
-uhd::usrp::mboard_eeprom_t cyan_nrnt_iface::get_mboard_eeprom(std::string req) {
+uhd::usrp::mboard_eeprom_t pv_iface::get_mboard_eeprom(std::string req) {
     (void)req;
     uhd::usrp::mboard_eeprom_t temp;
     temp["name"]     = get_string("fpga/about/name");
@@ -193,7 +192,7 @@ uhd::usrp::mboard_eeprom_t cyan_nrnt_iface::get_mboard_eeprom(std::string req) {
     temp["serial"]   = get_string("fpga/about/serial");
     return temp;
 }
-void cyan_nrnt_iface::set_mboard_eeprom(const std::string pre, uhd::usrp::mboard_eeprom_t data) {
+void pv_iface::set_mboard_eeprom(const std::string pre, uhd::usrp::mboard_eeprom_t data) {
     (void)pre;
     (void)data;
     // no eeprom settings on Crimson
@@ -201,7 +200,7 @@ void cyan_nrnt_iface::set_mboard_eeprom(const std::string pre, uhd::usrp::mboard
 }
 
 // wrapper for type <dboard_eeprom_t> through the ASCII Crimson interface
-uhd::usrp::dboard_eeprom_t cyan_nrnt_iface::get_dboard_eeprom(std::string req) {
+uhd::usrp::dboard_eeprom_t pv_iface::get_dboard_eeprom(std::string req) {
     (void)req;
     uhd::usrp::dboard_eeprom_t temp;
     //temp.id       = dboard_id_t( boost::lexical_cast<boost::uint16_t>(get_string("product,get,serial")) );
@@ -209,7 +208,7 @@ uhd::usrp::dboard_eeprom_t cyan_nrnt_iface::get_dboard_eeprom(std::string req) {
     //temp.revision = get_string("product,get,hw_version");
     return temp;
 }
-void cyan_nrnt_iface::set_dboard_eeprom(const std::string pre, uhd::usrp::dboard_eeprom_t data) {
+void pv_iface::set_dboard_eeprom(const std::string pre, uhd::usrp::dboard_eeprom_t data) {
     (void)pre;
     (void)data;
     // no eeprom settings on Crimson
@@ -217,7 +216,7 @@ void cyan_nrnt_iface::set_dboard_eeprom(const std::string pre, uhd::usrp::dboard
 }
 
 // wrapper for type <sensor_value_t> through the ASCII Crimson interface
-sensor_value_t cyan_nrnt_iface::get_sensor_value(std::string req) {
+sensor_value_t pv_iface::get_sensor_value(std::string req) {
     // Property values are only updated when written to
     // Set sensor to it's current value in order to update it
     try {
@@ -249,11 +248,11 @@ sensor_value_t cyan_nrnt_iface::get_sensor_value(std::string req) {
     } else if(req.find("rfpll_lock") != std::string::npos) {
         return sensor_value_t( "rfpll", sensor_good, "locked", "unlocked" );
     } else {
-        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
+        UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
         return sensor_value_t( req, sensor_good, "good", "bad" );
     }
 }
-void cyan_nrnt_iface::set_sensor_value(const std::string pre, sensor_value_t data) {
+void pv_iface::set_sensor_value(const std::string pre, sensor_value_t data) {
     try { set_string(pre, data.to_pp_string());
     } catch (...) { }
 
@@ -261,8 +260,8 @@ void cyan_nrnt_iface::set_sensor_value(const std::string pre, sensor_value_t dat
 }
 
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup or the time set this boot
-// NOTE: use cyan_nrnt_impl::get_time_now for anything that requires precision
-time_spec_t cyan_nrnt_iface::get_time_spec(std::string req) {
+// NOTE: use <device>_impl::get_time_now for anything that requires precision
+time_spec_t pv_iface::get_time_spec(std::string req) {
     // Get time via management port
     double fracpart, intpart;
     fracpart = modf(get_double(req), &intpart);
@@ -270,21 +269,21 @@ time_spec_t cyan_nrnt_iface::get_time_spec(std::string req) {
     return temp;
 }
 
-void cyan_nrnt_iface::set_time_spec( const std::string pre, time_spec_t value ) {
+void pv_iface::set_time_spec( const std::string pre, time_spec_t value ) {
     set_double(pre, value.get_real_secs());
 }
 
 /***********************************************************************
- * Public make function for cyan_nrnt interface
+ * Public make function for pv_iface
  **********************************************************************/
-cyan_nrnt_iface::sptr cyan_nrnt_iface::make(udp_simple::sptr ctrl_transport){
-    return std::make_shared<cyan_nrnt_iface>(ctrl_transport);
+pv_iface::sptr pv_iface::make(udp_simple::sptr ctrl_transport){
+    return std::make_shared<pv_iface>(ctrl_transport);
 }
 
 /***********************************************************************
  * Helper Functions
  **********************************************************************/
-void cyan_nrnt_iface::parse(std::vector<std::string> &tokens, char* data, size_t const data_len, const char delim) {
+void pv_iface::parse(std::vector<std::string> &tokens, char* data, size_t const data_len, const char delim) {
     size_t i = 0;
     // Ensure the vector the result is stored in is clean
     tokens.clear();

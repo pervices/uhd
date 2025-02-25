@@ -21,7 +21,7 @@
 #include "../../transport/super_recv_packet_handler_mmsg.cpp"
 #include "../../transport/super_send_packet_handler_mmsg.cpp"
 
-#include "crimson_tng_iface.hpp"
+#include <uhdlib/usrp/common/pv_iface.hpp>
 
 namespace uhd {
 namespace usrp {
@@ -33,7 +33,7 @@ public:
     /**
      * @param iface The interface to access thes server
      */
-    crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, crimson_tng_iface::sptr iface);
+    crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface);
 
     ~crimson_tng_recv_packet_streamer();
 
@@ -52,9 +52,9 @@ private:
 
     /**
      * A shared pointer to the interface used to access the server.
-     * When using this to access properties use the actual path on the server and use the get function in crimson_tng_iface instead of the mapping and access command from the property tree
+     * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
      */
-    crimson_tng_iface::sptr _iface;
+    pv_iface::sptr _iface;
 };
 
 class crimson_tng_send_packet_streamer : public uhd::transport::sph::send_packet_streamer_mmsg {
@@ -66,7 +66,7 @@ public:
     /**
      * @param iface The interface to access thes server
      */
-    crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, crimson_tng_iface::sptr iface);
+    crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface);
 
     ~crimson_tng_send_packet_streamer();
 
@@ -140,9 +140,9 @@ private:
 
     /**
      * A shared pointer to the interface used to access the server.
-     * When using this to access properties use the actual path on the server and use the get function in crimson_tng_iface instead of the mapping and access command from the property tree
+     * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
      */
-    crimson_tng_iface::sptr _iface;
+    pv_iface::sptr _iface;
 
     /***********************************************************************
      * buffer_monitor_loop

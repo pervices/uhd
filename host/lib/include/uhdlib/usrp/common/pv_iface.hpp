@@ -15,12 +15,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef INCLUDED_CYAN_NRNT_IFACE_HPP
-#define INCLUDED_CYAN_NRNT_IFACE_HPP
+#ifndef INCLUDED_PV_IFACE_HPP
+#define INCLUDED_PV_IFACE_HPP
 
 #include <uhd/transport/udp_simple.hpp>
 #include <string>
-#include "cyan_nrnt_fw_common.h"
 #include <mutex>
 
 // Include types that can be accessed
@@ -30,24 +29,30 @@
 #include <uhd/types/time_spec.hpp>
 #include <uhd/utils/noncopyable.hpp>
 
+// TODO: replace with enums belonging to the class
+#define CMD_SUCCESS 	'0'
+#define CMD_ERROR	'1'
+
 namespace uhd {
 
 /*!
- * The cyan_nrnt interface class:
+ * Interface class: for communicating with the server on Per Vices products
  * Provides a set of functions access the state tree
  */
-class cyan_nrnt_iface : uhd::noncopyable
+class pv_iface : uhd::noncopyable
 {
 public:
-    typedef std::shared_ptr<cyan_nrnt_iface> sptr;
+    static constexpr size_t MAX_MTU_SIZE = 9000;
+
+    typedef std::shared_ptr<pv_iface> sptr;
     /*!
-     * Make a new cyan_nrnt interface with the control transport.
+     * Make a new pv_iface with the control transport.
      * \param ctrl_transport the udp transport object
      * \return a new cyan_nrnt interface object
      */
-    cyan_nrnt_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    pv_iface(uhd::transport::udp_simple::sptr ctrl_transport);
 
-    static cyan_nrnt_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    static pv_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
     // Helper functions to wrap peek_str and poke_str as get and set
     //
@@ -111,9 +116,9 @@ private:
     uint32_t _protocol_compat;
 
     // buffer for in and out
-    char _buff[ CYAN_NRNT_MAX_MTU ];
+    char _buff[ MAX_MTU_SIZE ];
 };
 
 }
 
-#endif /* INCLUDED_CYAN_NRNT_IFACE_HPP */
+#endif /* INCLUDED_PV_IFACE_HPP */
