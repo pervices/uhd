@@ -1034,7 +1034,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
-    _pps_thread_needed = true;
+    _pps_thread_needed = false;
     try {
         // Attempt to read pps_detected
         // If success the the pps monitoring loop should be run
