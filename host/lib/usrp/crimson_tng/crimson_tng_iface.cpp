@@ -137,12 +137,15 @@ void crimson_tng_iface::set_string(const std::string pre, std::string data) {
 	std::string ret = peek_str();
 
     if(ret == "GET_ERROR") {
+        UHD_LOG_ERROR("DEBUG", "E1");
         throw uhd::lookup_error("crimson_tng_iface::set_string - Unable to read property on the server: " + pre + "\nPlease Verify that the server is up to date");
     }
     else if (ret == "TIMEOUT") {
+        UHD_LOG_ERROR("DEBUG", "E2");
         throw uhd::runtime_error("crimson_tng_iface::set_string - UDP resp. timed out: set: " + pre + " = " + data);
     }
     else  if(ret == "ERROR") {
+        UHD_LOG_ERROR("DEBUG", "E3");
         throw uhd::runtime_error("crimson_tng_iface::set_string - UDP unpecified error: " + pre);
     }
     else {
