@@ -175,6 +175,7 @@ public:
 
     ~recv_packet_handler_mmsg(void)
     {
+        UHD_LOG_WARNING("RECV_PACKET_HANDLER_MMSG", "Destructor start");
         // recv_manager must be deleted before closing sockets
         // Destructor must be manually called when using placement new
         recv_manager->~async_recv_manager();
