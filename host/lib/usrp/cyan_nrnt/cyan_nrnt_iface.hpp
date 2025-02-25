@@ -28,6 +28,7 @@
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include <uhd/types/sensors.hpp>
 #include <uhd/types/time_spec.hpp>
+#include <uhd/utils/noncopyable.hpp>
 
 namespace uhd {
 
@@ -35,7 +36,7 @@ namespace uhd {
  * The cyan_nrnt interface class:
  * Provides a set of functions access the state tree
  */
-class cyan_nrnt_iface
+class cyan_nrnt_iface : uhd::noncopyable
 {
 public:
     typedef std::shared_ptr<cyan_nrnt_iface> sptr;
