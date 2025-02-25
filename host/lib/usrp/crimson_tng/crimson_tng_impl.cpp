@@ -1419,7 +1419,7 @@ crimson_tng_impl::~crimson_tng_impl(void)
     _time_diff_pidc->~pidc();
     free(_time_diff_pidc);
 
-    free(_time_diff);
+    // free(_time_diff);
 }
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
