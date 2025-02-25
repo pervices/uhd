@@ -43,7 +43,7 @@ _packets_stored_buffer((uint8_t*) mmap(nullptr, _num_ch * _packets_stored_buffer
 // Create buffer for flush complete flag in seperate cache lines
 flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_fast8_t_size))
 {
-    printf("Async constructor started\n");
+    UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "constructor start");
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOGGER_ERROR("ASYNC_RECV_MANAGER") << "Unsupported number of channels, constants must be updated";
         throw assertion_error("Unsupported number of channels");
@@ -125,7 +125,7 @@ flush_complete((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * padded_uint_f
 
 async_recv_manager::~async_recv_manager()
 {
-    printf("Async destructor started\n");
+    UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Destructor start");
     // Manual destructor calls are required when using placement new
     stop_flag = true;
     for(size_t n = 0; n < num_recv_loops; n++) {
@@ -141,7 +141,7 @@ async_recv_manager::~async_recv_manager()
     free(active_consumer_buffer);
     free(num_packets_consumed);
     free(recv_loops);
-    printf("Async destructor finished\n");
+    UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Destructor end");
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
