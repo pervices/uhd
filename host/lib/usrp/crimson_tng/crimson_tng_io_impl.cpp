@@ -110,6 +110,10 @@ crimson_tng_recv_packet_streamer::~crimson_tng_recv_packet_streamer() {
 
 void crimson_tng_recv_packet_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd)
 {
+    // DEBUG: skip sending end of burst commands
+    if(stream_cmd.stream_mode == uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+        return;
+    }
     return recv_packet_handler::issue_stream_cmd(stream_cmd);
 }
 
@@ -246,7 +250,8 @@ void crimson_tng_send_packet_streamer::set_time_now_function( timenow_type time_
 }
 // Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
 uhd::time_spec_t crimson_tng_send_packet_streamer::get_time_now() {
-    return _time_now ? _time_now() : get_system_time();
+    return uhd::get_system_time() + *tmp_diff;
+    // return _time_now ? _time_now() : get_system_time();
 }
 void crimson_tng_send_packet_streamer::set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
     _eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
@@ -676,6 +681,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     // must be done after setting stream to 0 in the state tree so flush works correctly
     std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface);
 
+    my_streamer->tmp_diff = _time_diff;
+
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
 
@@ -905,6 +912,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
     std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface );
+
+    my_streamer->tmp_diff = _time_diff;
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

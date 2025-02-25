@@ -45,6 +45,8 @@ public:
 
     void teardown();
 
+    double* tmp_diff;
+
 private:
 
     std::vector<size_t> _channels;
@@ -101,6 +103,8 @@ public:
 	}
 
 	void stop_buffer_monitor_thread();
+
+    double* tmp_diff;
 
 protected:
     void if_hdr_pack(uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
