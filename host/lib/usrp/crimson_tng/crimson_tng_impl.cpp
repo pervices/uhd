@@ -1404,6 +1404,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
+    UHD_LOG_ERROR("crimson_tng_impl", "Destructor start");
     stop_bm();
     stop_pps_dtc();
 }
