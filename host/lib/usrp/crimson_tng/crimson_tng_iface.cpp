@@ -113,12 +113,15 @@ std::string crimson_tng_iface::get_string(std::string req) {
     std::string ret = peek_str();
 
     if(ret == "GET_ERROR") {
+        UHD_LOG_ERROR("DEBUG", "E4");
         throw uhd::lookup_error("crimson_tng_iface::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
     }
     else if (ret == "TIMEOUT") {
+        UHD_LOG_ERROR("DEBUG", "E5");
         throw uhd::runtime_error("crimson_tng_iface::get_string - UDP resp. timed out: get: " + req);
     }
     else  if(ret == "ERROR") {
+        UHD_LOG_ERROR("DEBUG", "E6");
         throw uhd::runtime_error("crimson_tng_iface::get_string - UDP unpecified error: " + req);
     }
     else {
