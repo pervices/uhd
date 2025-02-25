@@ -235,10 +235,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
                 try {
                     char path[50];
-                    sprintf(path, "rx/%lu/eeprom", rx_chan);
-                    std::string eeprom = get_from_tree(tree, i, path);
-                    std::cout << std::string("\trx(" + std::to_string(rx_chan) + ") EEPROM: ").c_str() << eeprom << std::endl;
-
                     sprintf(path, "rx/%lu/fw_version", rx_chan);
                     std::string version = get_from_tree(tree, i, path);
                     if(git_hash_only) {
@@ -276,10 +272,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
                 try {
                     char path[50];
-                    sprintf(path, "tx/%lu/eeprom", tx_chan);
-                    std::string eeprom = get_from_tree(tree, i, path);
-                    std::cout << std::string("\ttx(" + std::to_string(tx_chan) + ") EEPROM: ").c_str() << eeprom << std::endl;
-
                     sprintf(path, "tx/%lu/fw_version", tx_chan);
                     std::string version = get_from_tree(tree, i, path);
                     if(git_hash_only) {
@@ -322,9 +314,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         try {
             if (time_info) {
-                std::string eeprom = get_from_tree(tree, i, "time/eeprom");
-                std::cout << "Time EEPROM: " << eeprom << std::endl;
-
                 std::cout << "Board MCU revision: " << std::endl;
                 std::string version = get_from_tree(tree, i, "time/fw_version");
                 if(git_hash_only) {
