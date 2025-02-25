@@ -1,3 +1,9 @@
+uhdpv (4.4.0.63-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Removing EPROM info due to crashes when using Python
+
+ -- Per Vices <packages@pervices.com>  Wed, 25 Feb 2025 18:38:11 -0500
+
 uhdpv (4.4.0.62-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding EPROM to uhd_usrp_info
