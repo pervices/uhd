@@ -31,7 +31,8 @@
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "cyan_nrnt_iface.hpp"
+#include "cyan_nrnt_fw_common.h"
+#include <uhdlib/usrp/common/pv_iface.hpp>
 #include "cyan_nrnt_io_impl.hpp"
 #include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
@@ -225,7 +226,7 @@ private:
 	static void bm_thread_fn( cyan_nrnt_impl *dev );
 
     struct mb_container_type{
-        cyan_nrnt_iface::sptr iface;
+        pv_iface::sptr iface;
         // TODO: see if removing rx_streamers and tx_streamers is viable
         std::vector<std::weak_ptr<uhd::usrp::cyan_nrnt_recv_packet_streamer>> rx_streamers;
         std::vector<std::weak_ptr<uhd::usrp::cyan_nrnt_send_packet_streamer>> tx_streamers;

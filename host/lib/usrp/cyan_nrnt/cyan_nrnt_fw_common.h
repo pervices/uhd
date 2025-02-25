@@ -21,15 +21,6 @@
 
 #include <stdint.h>
 
-/*!
- * Structs and constants for cyan_nrnt communication.
- * This header is shared by the firmware and host code.
- * Therefore, this header may only contain valid C code.
- */
-
-#define CMD_SUCCESS 	'0'
-#define CMD_ERROR	'1'
-
 #define CYAN_NRNT_FW_COMMS_MTU (1 << 13) //8k
 
 #define CYAN_NRNT_FW_COMMS_UDP_PORT	42799

@@ -23,7 +23,6 @@
 IF(ENABLE_CYAN_NRNT)
     LIBUHD_APPEND_SOURCES(
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_nrnt_impl.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cyan_nrnt_iface.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_nrnt_io_impl.cpp
     )
 
