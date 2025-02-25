@@ -30,7 +30,8 @@
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "crimson_tng_iface.hpp"
+#include "crimson_tng_fw_common.h"
+#include <uhdlib/usrp/common/pv_iface.hpp>
 #include "crimson_tng_io_impl.hpp"
 #include "../../transport/flow_control.hpp"
 #include "pidc.hpp"
@@ -213,7 +214,7 @@ private:
 	static void bm_thread_fn( crimson_tng_impl *dev );
 
     struct mb_container_type{
-        crimson_tng_iface::sptr iface;
+        pv_iface::sptr iface;
         // TODO: see if removing rx_streamers and tx_streamers is viable
         std::vector<std::weak_ptr<uhd::usrp::crimson_tng_recv_packet_streamer>> rx_streamers;
         std::vector<std::weak_ptr<uhd::usrp::crimson_tng_send_packet_streamer>> tx_streamers;

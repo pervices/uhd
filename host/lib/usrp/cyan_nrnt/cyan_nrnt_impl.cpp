@@ -860,20 +860,20 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 // Macro to create the tree, all properties created with this are R/W properties
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .add_desired_subscriber(std::bind(&cyan_nrnt_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1))\
-        .set_publisher(std::bind(&cyan_nrnt_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
+        .add_desired_subscriber(std::bind(&pv_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1))\
+        .set_publisher(std::bind(&pv_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .set_publisher(std::bind(&cyan_nrnt_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
+        .set_publisher(std::bind(&pv_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are WO properties
 #define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .add_desired_subscriber(std::bind(&cyan_nrnt_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1));\
+        .add_desired_subscriber(std::bind(&pv_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are static
@@ -916,7 +916,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     }
 
     // Makes the UDP comm connection
-    _mbc.iface = cyan_nrnt_iface::make(
+    _mbc.iface = pv_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
 			BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )

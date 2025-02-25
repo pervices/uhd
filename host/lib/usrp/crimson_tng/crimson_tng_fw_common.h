@@ -26,9 +26,6 @@
  * Therefore, this header may only contain valid C code.
  */
 
-#define CMD_SUCCESS 	'0'
-#define CMD_ERROR	'1'
-
 #define CRIMSON_TNG_FW_COMPAT_MAJOR 1
 #define CRIMSON_TNG_FW_COMPAT_MINOR 0
 #define CRIMSON_TNG_FPGA_COMPAT_MAJOR 1

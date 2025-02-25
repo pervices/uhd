@@ -778,20 +778,20 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 // Macro to create the tree, all properties created with this are R/W properties
 #define TREE_CREATE_RW(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .add_desired_subscriber(std::bind(&crimson_tng_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1))\
-        .set_publisher(std::bind(&crimson_tng_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
+        .add_desired_subscriber(std::bind(&pv_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1))\
+        .set_publisher(std::bind(&pv_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are RO properties
 #define TREE_CREATE_RO(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .set_publisher(std::bind(&crimson_tng_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
+        .set_publisher(std::bind(&pv_iface::get_ ## HANDLER, _mbc.iface, (PROP) ));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are WO properties
 #define TREE_CREATE_WO(PATH, PROP, TYPE, HANDLER)\
     do { _tree->create<TYPE> (PATH)\
-        .add_desired_subscriber(std::bind(&crimson_tng_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1));\
+        .add_desired_subscriber(std::bind(&pv_iface::set_ ## HANDLER, _mbc.iface, (PROP), ph::_1));\
     } while(0)
 
 // Macro to create the tree, all properties created with this are static
@@ -839,7 +839,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // Makes the UDP comm connection
     // TODO: figure out where _mbc is init since it doesn't have an obvious place where it's length ends up non 0
-    _mbc.iface = crimson_tng_iface::make(
+    _mbc.iface = pv_iface::make(
 		udp_simple::make_connected(
 			_device_addr["addr"],
 			BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
