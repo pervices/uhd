@@ -113,7 +113,7 @@ std::string crimson_tng_iface::get_string(std::string req) {
     std::string ret = peek_str();
 
     if(ret == "GET_ERROR") {
-        UHD_LOG_ERROR("DEBUG", "E4");
+        UHD_LOG_ERROR("DEBUG", "E4: " + req);
         throw uhd::lookup_error("crimson_tng_iface::get_string - Unable to read property on the server: " + req + "\nPlease Verify that the server is up to date");
     }
     else if (ret == "TIMEOUT") {
