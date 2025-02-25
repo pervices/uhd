@@ -139,6 +139,7 @@ async_recv_manager::~async_recv_manager()
     free(active_consumer_buffer);
     free(num_packets_consumed);
     free(recv_loops);
+    printf("Async destructor finished\n");
 }
 
 void async_recv_manager::recv_loop(async_recv_manager* const self_, const std::vector<int> sockets_, const size_t ch_offset_) {
