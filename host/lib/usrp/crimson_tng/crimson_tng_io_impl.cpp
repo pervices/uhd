@@ -105,6 +105,7 @@ _iface(iface)
 }
 
 crimson_tng_recv_packet_streamer::~crimson_tng_recv_packet_streamer() {
+    UHD_LOG_WARNING("crimson_tng_recv_packet_streamer", "Destructor start");
     teardown();
 }
 
