@@ -650,17 +650,21 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 
     bool reset_advised = false;
 
-	_time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
+    bool time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
 
     if(reset_advised) {
         reset_time_diff_pid();
     }
 
-	// For SoB, record the instantaneous time difference + compensation
-	if ( _time_diff_converged ) {
-		time_diff_set( cv );
-	}
-    // sfence to ensure _time_diff_converged and time_diff_set are applied to other threads
+    // For SoB, record the instantaneous time difference + compensation
+    if (time_diff_converged ) {
+        time_diff_set( cv );
+    }
+
+    // Ensure the updated time diff is set before updating the flag that indicates if it is converged
+    _mm_sfence();
+    _time_diff_converged = time_diff_converged;
+    // sfence to ensure _time_diff_converged is applied to other threads
     _mm_sfence();
 }
 
@@ -786,14 +790,14 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 			now = uhd::get_system_time()
 	) {
         if(dev->time_resync_requested) {
+            // Time diff is no longer converged after the reset
+            dev->_time_diff_converged = false;
+            // Ensure the converged flag is set to false before clearing the rest
+            _mm_sfence();
             // Reset PID to clear old values
             dev->reset_time_diff_pid();
-            // Time did is no longer converged after the reset
-            dev->_time_diff_converged = false;
             // Acknowledge resync has begun
             dev->time_resync_requested = false;
-            // sfence to ensure _time_diff_converged and time_resync_requested and updated to other threads
-            _mm_sfence();
         }
 
 		dt = then - now;
