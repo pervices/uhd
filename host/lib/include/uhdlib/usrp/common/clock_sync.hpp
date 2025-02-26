@@ -10,19 +10,76 @@
 #pragma once
 
 #include <stdint.h>
+#include <immintrin.h>
 
 namespace uhd { namespace usrp {
 
+static constexpr size_t CACHE_LINE_SIZE = 64;
+
+// Stores data shared between the clock sync thread and any other thread that requires the time
+// Intened use:
+// The consumer has a shared pointer to this class (possibly also a raw pointer if it impacts speed) since we need performance
+// The provider has a weak pointer to this class since we can accept the overhead of getting a lock on it
 class clock_sync_shared_info
 {
 private:
-    static constexpr size_t CACHE_LINE_SIZE = 64;
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
-    alignas(CACHE_LINE_SIZE) bool is_converged;
-    bool resync_requested;
-    // The difference
-    alignas(CACHE_LINE_SIZE) double diff;
+    alignas(CACHE_LINE_SIZE) bool is_converged = false;
+    // Stores if a resync has been requested
+    bool resync_requested = true;
+    // The difference between the device and host time in seconds
+    // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
+    alignas(CACHE_LINE_SIZE) double time_diff = 0;
+
+public:
+    /**
+     * Checks if the clocks are synchronized.
+     * @return True if the host and device clocks are synchronized
+     */
+    inline bool is_synced() {
+        return is_converged && !resync_requested;
+    }
+
+    /**
+     * Gets the current time diff. Ensure is_synced is true before calling this
+     * @return The current time diff
+     */
+    inline double get_time_diff() {
+        return time_diff;
+    }
+
+    /**
+     * Updates time diff. Only call this if the clocks are converged
+     * @param new_time_diff The new time diff
+     */
+    inline void set_time_diff(double new_time_diff) {
+        time_diff = new_time_diff;
+        // Fence to ensure the time diff is set before marking it is converged
+        _mm_sfence();
+        is_converged = false;
+        _mm_sfence();
+    }
+
+    /**
+     * Sets the flag to indicate that a resync has been requested
+     */
+    inline void request_resync() {
+        resync_requested = true;
+        _mm_sfence();
+    }
+
+    /**
+     * Set flags to aknowledge a resync request has been received
+     */
+    inline void resync_started() {
+        // Set convergence flag to false to indicate the process has been restarted
+        is_converged = false;
+        // Fence to ensure the is_converged flag is set before marking that the resync request has been processed
+        _mm_sfence();
+        resync_requested = false;
+        _mm_sfence();
+    }
 };
 
 }} // namespace uhd::usrp
