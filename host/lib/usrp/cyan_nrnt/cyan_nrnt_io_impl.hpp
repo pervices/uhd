@@ -66,7 +66,7 @@ public:
     /**
      * @param iface The interface to access thes server
      */
-    cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface);
+    cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info);
 
     ~cyan_nrnt_send_packet_streamer();
 
@@ -78,9 +78,6 @@ public:
         const uhd::tx_metadata_t &metadata_,
         const double timeout
     );
-
-    // Sets the function from the device to be used to get the expected time on the device
-    void set_time_now_function( timenow_type time_now );
 
     // Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
     uhd::time_spec_t get_time_now();

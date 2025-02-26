@@ -134,9 +134,9 @@ void crimson_tng_recv_packet_streamer::teardown() {
     }
 }
 
-crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface)
+crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info)
 :
-sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian ),
+sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info ),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
 _stop_buffer_monitor( false ),
@@ -217,11 +217,11 @@ size_t crimson_tng_send_packet_streamer::send(
 
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
-            uhd::time_spec_t now = get_time_now();
+            uhd::time_spec_t now = get_device_time();
             metadata.time_spec = now + CRIMSON_TNG_MIN_TX_DELAY;
             metadata.has_time_spec = true;
         } else {
-            double current_time = get_time_now().get_real_secs();
+            double current_time = get_device_time().get_real_secs();
             if (metadata.time_spec.get_real_secs() < current_time + CRIMSON_TNG_MIN_TX_DELAY && _first_call_to_send) {
                 UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CRIMSON_TNG_MIN_TX_DELAY);
                 metadata.time_spec = uhd::time_spec_t(current_time + CRIMSON_TNG_MIN_TX_DELAY);
@@ -240,14 +240,6 @@ size_t crimson_tng_send_packet_streamer::send(
     return r;
 }
 
-// Sets the function from the device to be used to get the expected time on the device
-void crimson_tng_send_packet_streamer::set_time_now_function( timenow_type time_now ) {
-    _time_now = time_now;
-}
-// Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
-uhd::time_spec_t crimson_tng_send_packet_streamer::get_time_now() {
-    return _time_now ? _time_now() : get_system_time();
-}
 void crimson_tng_send_packet_streamer::set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
     _eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
 }
@@ -853,9 +845,6 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 
     const size_t spp = CRIMSON_TNG_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
 
-    // TODO: replace bind to avoid potential issues with the order crimson_tng_impl and the streamer are destructed in
-    crimson_tng_send_packet_streamer::timenow_type timenow_ = std::bind( & crimson_tng_impl::get_time_now, this );
-
     std::vector<std::string> dst_ips(args.channels.size());
     std::vector<int> dst_ports(args.channels.size());
     std::vector<std::string> sfps(args.channels.size());
@@ -904,13 +893,10 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::make_shared<bounded_buffer<async_metadata_t>>(1000/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface );
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::make_shared<crimson_tng_send_packet_streamer>( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info );
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
-
-    // TODO: replace bind to avoid potential issues with the order crimson_tng_impl and the streamer are destructed in
-    my_streamer->set_time_now_function(std::bind(&crimson_tng_impl::get_time_now,this));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -931,8 +917,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // TODO: only update relevant channels
     this->update_rates();
 
-    // Waits for time diff to converge
-    wait_for_time_diff_converged();
+    // Clock sync takes time and some programs assume send will work quickly instead of having to wait for clock sync to finish, to avoid causing issues with those programs wait for lock sync before returning
+    device_clock_sync_info->wait_for_sync();
 
     return my_streamer;
 }
