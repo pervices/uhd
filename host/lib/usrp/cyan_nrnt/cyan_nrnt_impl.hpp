@@ -33,6 +33,7 @@
 
 #include "cyan_nrnt_fw_common.h"
 #include <uhdlib/usrp/common/pv_iface.hpp>
+#include <uhdlib/usrp/common/clock_sync.hpp>
 #include "cyan_nrnt_io_impl.hpp"
 #include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
