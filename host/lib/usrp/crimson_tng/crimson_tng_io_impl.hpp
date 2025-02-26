@@ -22,6 +22,7 @@
 #include "../../transport/super_send_packet_handler_mmsg.cpp"
 
 #include <uhdlib/usrp/common/pv_iface.hpp>
+#include <atomic>
 
 namespace uhd {
 namespace usrp {
@@ -114,7 +115,7 @@ protected:
 private:
 	bool _first_call_to_send;
     bool _buffer_monitor_running;
-    bool _stop_buffer_monitor;
+    std::atomic<bool> _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
     timenow_type _time_now;
 
