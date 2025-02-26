@@ -38,6 +38,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/io_service_args.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pwr_cal_mgr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pv_iface.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/clock_sync.cpp
 )
 
 if(ENABLE_DPDK)
