@@ -253,6 +253,8 @@ void cyan_nrnt_send_packet_streamer::resize(const size_t size){
 void cyan_nrnt_send_packet_streamer::stop_buffer_monitor_thread() {
     if ( _buffer_monitor_running ) {
         _stop_buffer_monitor = true;
+        // Store fence to ensure _stop_buffer_monitor gets propogated to other threads
+        _mm_sfence();
         if ( _buffer_monitor_thread.joinable() ) {
             _buffer_monitor_thread.join();
             _buffer_monitor_running = false;
