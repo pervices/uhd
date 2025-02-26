@@ -26,6 +26,10 @@
 #include <condition_variable>
 #include <sys/socket.h>
 
+#include <uhdlib/usrp/common/clock_sync.hpp>
+// Smart pointers
+#include <memory>
+
 #include <cmath>
 
 #include <uhd/transport/buffer_tracker.hpp>
@@ -63,7 +67,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian)
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info)
         // Ensure max_samples_per_packet is a multiple of the number of samples allowed per packet
         : _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
         _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
@@ -75,7 +79,8 @@ public:
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
         _TICK_RATE(tick_rate),
         _intermediate_send_buffer_pointers(_NUM_CHANNELS),
-        _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS)
+        _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
+        _clock_sync_info(clock_sync_info)
     {
         ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
 
@@ -296,7 +301,12 @@ protected:
     const std::shared_ptr<bounded_buffer<async_metadata_t>> _async_msg_fifo;
 
     // Gets the the time on the unit when a packet sent now would arrive
-    virtual uhd::time_spec_t get_time_now() = 0;
+    uhd::time_spec_t get_device_time() {
+        if(_clock_sync_info->is_synced()) [[unlikely]] {
+            _clock_sync_info->wait_for_sync();
+        }
+        return uhd::get_system_time() + _clock_sync_info->get_time_diff();
+    }
 
     /*******************************************************************
      * converts vrt packet info into header
@@ -427,12 +437,17 @@ private:
         }
     }
 
+    // Smart pointer with ownership to where the info required to calculate the device time is stored
+    // TODO: investigate if there are false sharing issues and if so put the smart pointer on it's own cahce line and keep a copy of the raw pointer within this class
+    // TODO: implement the argument for this on Crimson
+    std::shared_ptr<uhd::usrp::clock_sync_shared_info> _clock_sync_info;
+
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i) {
         if(BOOST_LIKELY(!use_blocking_fc)) {
 
             // Get the buffer level on the unit
-            uhd::time_spec_t device_time = get_time_now();
+            uhd::time_spec_t device_time = get_device_time();
             int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
 
             int num_packets_to_send = (int) std::ceil((_DEVICE_TARGET_NSAMPS - buffer_level) / ((double)_max_samples_per_packet));
@@ -612,7 +627,7 @@ private:
 
                 int num_packets_sent_this_send;
                 // Check if timestamp of next packet to send is in the past
-                if((int64_t)packet_header_infos[num_packets_alread_sent].tsf >= get_time_now().to_ticks(_TICK_RATE) || packet_header_infos[num_packets_alread_sent].sob || packet_header_infos[num_packets_alread_sent].eob || !packet_header_infos[num_packets_alread_sent].has_tsf || use_blocking_fc) {
+                if((int64_t)packet_header_infos[num_packets_alread_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) || packet_header_infos[num_packets_alread_sent].sob || packet_header_infos[num_packets_alread_sent].eob || !packet_header_infos[num_packets_alread_sent].has_tsf || use_blocking_fc) {
                     // If not in the past, send packets
                     // Ignore the check for in the past if using use_blocking_fc since the buffer won't overflow because of latency in get buffer level and trigger streaming which uses it will often have timestamps in the past
                     // TODO: remove !use_blocking_fc workaround once the FPGA can handle packets without timestamps
@@ -889,8 +904,8 @@ private:
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer
 {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian):
-    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian)
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info):
+    sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info)
     {
     }
 

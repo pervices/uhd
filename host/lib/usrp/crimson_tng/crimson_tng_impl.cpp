@@ -249,11 +249,12 @@ void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard)
     request_resync_time_diff();
 }
 
+// TODO: change the rx functions that bind to this to use their own clock_sync_shared_info
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
     // Waits for clock to be stable before getting time
     if(_bm_thread_running) {
-        wait_for_time_diff_converged();
-        double diff = time_diff_get();
+        device_clock_sync_info->wait_for_sync();
+        double diff = device_clock_sync_info->get_time_diff();
         return uhd::get_system_time() + diff;
     // If clock sync thread is not running reset the time diff pid and use the initial offset
     // Will get the time but without taking into account network latency (which would require the clock sync thread)
@@ -599,15 +600,9 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
     }
 
     // For SoB, record the instantaneous time difference + compensation
-    if ( _time_diff_converged ) {
-        time_diff_set( cv );
+    if (time_diff_converged ) {
+        device_clock_sync_info->set_time_diff( cv );
     }
-
-    // Ensure the updated time diff is set before updating the flag that indicates if it is converged
-    _mm_sfence();
-    _time_diff_converged = time_diff_converged;
-    // sfence to ensure _time_diff_converged is applied to other threads
-    _mm_sfence();
 }
 
 void crimson_tng_impl::start_bm() {
@@ -661,29 +656,6 @@ void crimson_tng_impl::stop_pps_dtc() {
     }
 }
 
-inline bool crimson_tng_impl::time_diff_converged() {
-	return _time_diff_converged;
-}
-
-void crimson_tng_impl::wait_for_time_diff_converged() {
-    for(
-        time_spec_t time_then = uhd::get_system_time(),
-            time_now = time_then
-            ;
-        (!time_diff_converged()) || time_resync_requested
-            ;
-        time_now = uhd::get_system_time()
-    ) {
-        if ( (time_now - time_then).get_full_secs() > 20 ) {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL")
-                << "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?"
-                << std::endl;
-            throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling Crimson?" );
-        }
-        usleep( 100000 );
-    }
-}
-
 // Synchronizes clocks between the host and device
 // This function should be run in its own thread
 // When calling it verify that it is not already running (_bm_thread_running)
@@ -724,15 +696,11 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		then += T,
 			now = uhd::get_system_time()
 	) {
-        if(dev->time_resync_requested) {
-            // Time diff is no longer converged after the reset
-            dev->_time_diff_converged = false;
-            // Ensure the converged flag is set to false before clearing the rest
-            _mm_sfence();
+        if(dev->device_clock_sync_info->is_resync_requested()) {
+            // Record that the resync request has been ackcknowledged (also sets it as desynced)
+            dev->device_clock_sync_info->resync_acknowledge();
             // Reset PID to clear old values
             dev->reset_time_diff_pid();
-            // Acknowledge resync has begun
-            dev->time_resync_requested = false;
         }
 
 		dt = then - now;
@@ -808,9 +776,8 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 :
 	device_addr( _device_addr ),
-	// Put _time_diff_pidc and _time_diff on their own cache line to avoid false sharing
+	// Put _time_diff_pidc on their own cache line to avoid false sharing
 	_time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
-	_time_diff((double*) aligned_alloc(CACHE_LINE_SIZE, CACHE_LINE_SIZE)),
 	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
@@ -818,8 +785,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	_pps_thread_should_exit( false ),
 	_command_time( 0.0 )
 {
-    *_time_diff = 0;
-
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
 
@@ -1402,12 +1367,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		_time_diff_pidc->set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
 
-		// XXX: @CF: 20170720: coarse to fine for convergence
-		// we coarsely lock on at first, to ensure the class instantiates properly
-		// and then switch to a finer error tolerance
-		_time_diff_pidc->set_max_error_for_convergence( 100e-6 );
+        _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
+
+        device_clock_sync_info = clock_sync_shared_info::make();
+
 		start_bm();
-		_time_diff_pidc->set_max_error_for_convergence( 10e-6 );
 	}
 }
 
@@ -1419,8 +1383,6 @@ crimson_tng_impl::~crimson_tng_impl(void)
     // Manually calling destructor when using placement new is required
     _time_diff_pidc->~pidc();
     free(_time_diff_pidc);
-
-    free(_time_diff);
 }
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
@@ -1937,9 +1899,7 @@ double crimson_tng_impl::get_tx_rate(size_t chan) {
 }
 
 inline void crimson_tng_impl::request_resync_time_diff() {
-    time_resync_requested = true;
-    // sfence to the resync request is shared to other threads
-    _mm_sfence();
+    device_clock_sync_info->request_resync();
 }
 
 void crimson_tng_impl::ping_check(std::string sfp, std::string ip) {
