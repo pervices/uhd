@@ -9,12 +9,18 @@
 
 #pragma once
 
+// Fixed width numbers
 #include <stdint.h>
+// Smart pointers
+#include <memory>
+// Fences
 #include <immintrin.h>
 
 namespace uhd { namespace usrp {
 
 static constexpr size_t CACHE_LINE_SIZE = 64;
+// TODO: set this dynamically at compile time
+static constexpr size_t padded_clock_sync_shared_info_size = 128;//(size_t) ceil(sizeof(clock_sync_shared_info) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
 // Stores data shared between the clock sync thread and any other thread that requires the time
 // Intened use:
@@ -31,6 +37,28 @@ private:
     // The difference between the device and host time in seconds
     // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
     alignas(CACHE_LINE_SIZE) double time_diff = 0;
+
+    // Declare constructor as private to ensure this is only created through make
+    clock_sync_shared_info() {
+        // Move this to a .cpp file if it becomes complicated
+        /* No-op*/
+    }
+
+    // struct allocator() {
+//
+    // }
+
+    // Deleter to be used by a shared_ptr
+    struct deleter {
+        /**
+         * Destructs and frees self
+         */
+        void operator()(clock_sync_shared_info* self) {
+            // The destructor must be manually called when using placement new
+            self->~clock_sync_shared_info();
+            free(self);
+        }
+    };
 
 public:
     /**
@@ -80,6 +108,26 @@ public:
         resync_requested = false;
         _mm_sfence();
     }
+
+    /**
+     * Create a new clock_sync_shared_info with an associated shared pointer
+     * @return Shared pointer
+     */
+    static std::shared_ptr<clock_sync_shared_info> make();
+
 };
+
+// TODO: move this to cpp file
+std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make() {
+    // Create using placement new
+    clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
+    new (raw_pointer) clock_sync_shared_info();
+
+    // TODO: add destructor
+    std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
+
+    return ptr;
+}
+
 
 }} // namespace uhd::usrp
