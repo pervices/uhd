@@ -26,6 +26,10 @@
 #include <condition_variable>
 #include <sys/socket.h>
 
+#include <uhdlib/usrp/common/clock_sync.hpp>
+// Smart pointers
+#include <memory>
+
 #include <cmath>
 
 #include <uhd/transport/buffer_tracker.hpp>
@@ -75,7 +79,8 @@ public:
         _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
         _TICK_RATE(tick_rate),
         _intermediate_send_buffer_pointers(_NUM_CHANNELS),
-        _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS)
+        _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
+        _clock_sync_info(uhd::usrp::clock_sync_shared_info::make())
     {
         ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
 
@@ -425,6 +430,13 @@ private:
                 ch_send_buffer_info_group[ch_i].resize_and_clear(new_size);
             }
         }
+    }
+
+    // Smart pointer with ownership to where the clock sync thread will store data
+    std::shared_ptr<uhd::usrp::clock_sync_shared_info> _clock_sync_info;
+    // Gets the location where clock sync info is stored so that the clock sync thread can write to it
+    std::weak_ptr<uhd::usrp::clock_sync_shared_info> get_clock_sync_info() {
+        return _clock_sync_info;
     }
 
     // Gets the number of samples that can be sent now (can be less than 0)
