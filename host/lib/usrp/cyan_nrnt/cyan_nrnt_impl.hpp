@@ -113,18 +113,7 @@ public:
     uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now();
-    bool time_diff_converged();
     void wait_for_time_diff_converged();
-    // This must start false since get_time_now gets called when initializing the state tree, before the bm thread even starts
-    // NOTE: use _mm_sfence after writing to this to ensure it is passed to other threads
-    bool time_resync_requested = false;
-
-    inline double time_diff_get() {
-        return *_time_diff;
-    }
-    inline void time_diff_set( double time_diff ) {
-        *_time_diff = time_diff;
-    }
 
     void start_bm();
     void stop_bm();
@@ -199,10 +188,12 @@ private:
 	 */
     static constexpr size_t padded_pidc_tcl_size = (size_t) ceil(sizeof(uhd::pidc_tl) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 	uhd::pidc* const _time_diff_pidc;
-    // NOTE: use _mm_sfence after writing to _time_diff or _time_diff_converged
-    // The difference in time on the device and host
-    double* const _time_diff;
-	bool _time_diff_converged = false;
+
+    // device_clock_sync_info is the main location used to store clock sync info
+    // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
+    std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
+    std::vector<std::weak_ptr<clock_sync_shared_info>> streamer_clock_sync_infos;
+
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
     bool time_diff_recv( time_diff_resp & tdr, int xg_intf = 0);

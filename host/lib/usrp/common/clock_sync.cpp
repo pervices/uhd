@@ -14,7 +14,6 @@ std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make() {
     clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
     new (raw_pointer) clock_sync_shared_info();
 
-    // TODO: add destructor
     std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
 
     return ptr;

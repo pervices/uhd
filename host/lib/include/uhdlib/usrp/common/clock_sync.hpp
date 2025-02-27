@@ -36,6 +36,7 @@ private:
     bool resync_requested = true;
     // The difference between the device and host time in seconds
     // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
+    // TODO: verify alignas is working properly
     alignas(CACHE_LINE_SIZE) double time_diff = 0;
 
     // Declare constructor as private to ensure this is only created through make
@@ -43,10 +44,6 @@ private:
         // Move this to a .cpp file if it becomes complicated
         /* No-op*/
     }
-
-    // struct allocator() {
-//
-    // }
 
     // Deleter to be used by a shared_ptr
     struct deleter {
@@ -85,7 +82,7 @@ public:
         time_diff = new_time_diff;
         // Fence to ensure the time diff is set before marking it is converged
         _mm_sfence();
-        is_converged = false;
+        is_converged = true;
         _mm_sfence();
     }
 
@@ -98,9 +95,16 @@ public:
     }
 
     /**
+     * Sets the flag to indicate that a resync has been requested
+     */
+    inline bool is_resync_requested() {
+        return resync_requested;
+    }
+
+    /**
      * Set flags to aknowledge a resync request has been received
      */
-    inline void resync_started() {
+    inline void resync_acknowledge() {
         // Set convergence flag to false to indicate the process has been restarted
         is_converged = false;
         // Fence to ensure the is_converged flag is set before marking that the resync request has been processed
@@ -110,7 +114,7 @@ public:
     }
 
     /**
-     * Create a new clock_sync_shared_info with an associated shared pointer
+     * Create a new clock_sync_shared_info with an associated shared pointer on it's own cache line
      * @return Shared pointer
      */
     static std::shared_ptr<clock_sync_shared_info> make();
