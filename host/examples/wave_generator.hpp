@@ -22,11 +22,14 @@
 #include <uhd/utils/log.hpp>
 #include <fstream>
 
+#define TMP_NOTCH_MIN (25e6)
+#define TMP_NOTCH_MAX (50e6)
+
 // Datatype of the samples to be include (float for fc32, short for sc16...)
 template<typename T = float>
 class wave_generator
 {
-private:
+public:
     static constexpr std::complex<double> J = std::complex<double>(0,1);
     const double _sample_rate;
     const double _wave_freq;
@@ -362,11 +365,14 @@ private:
         for(size_t i = 1; i < self->_constituent_waves.size(); i++) {
             // Add the positive frequency
             std::complex<double> positive_sample = self->_constituent_waves[i](index);
-            sum += positive_sample / self->_normalization_factor;
-
+            if(self->_constituent_waves[i]._wave_freq < TMP_NOTCH_MIN || self->_constituent_waves[i]._wave_freq > TMP_NOTCH_MAX) {
+                sum += positive_sample / self->_normalization_factor;
+            }
             // Add the negative frequency (I and Q swapped)
             std::complex<double> negative_sample(std::imag(positive_sample), std::real(positive_sample));
-            sum += negative_sample / self->_normalization_factor;
+            if(-self->_constituent_waves[i]._wave_freq < TMP_NOTCH_MIN || -self->_constituent_waves[i]._wave_freq > TMP_NOTCH_MAX) {
+                sum += negative_sample / self->_normalization_factor;
+            }
         }
 
         // Convert from range of std::complex<double> (range -1 to 1) to the disired type
