@@ -113,7 +113,6 @@ public:
     uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now();
-    void wait_for_time_diff_converged();
 
     void start_bm();
     void stop_bm();

@@ -292,7 +292,7 @@ void cyan_nrnt_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
 uhd::time_spec_t cyan_nrnt_impl::get_time_now() {
     // Waits for clock to be stable before getting time
     if(_bm_thread_running) {
-        wait_for_time_diff_converged();
+        device_clock_sync_info->wait_for_sync();
         double diff = device_clock_sync_info->get_time_diff();
         return uhd::get_system_time() + diff;
     // If clock sync thread is not running reset the time diff pid and use the initial offset
@@ -717,26 +717,6 @@ void cyan_nrnt_impl::stop_pps_dtc() {
     if(_pps_thread.joinable()) {
         _pps_thread_should_exit = true;
         _pps_thread.join();
-    }
-}
-
-// Wait for convergence
-void cyan_nrnt_impl::wait_for_time_diff_converged() {
-    for(
-        time_spec_t time_then = uhd::get_system_time(),
-            time_now = time_then
-            ;
-        (!device_clock_sync_info->is_synced())
-            ;
-        time_now = uhd::get_system_time()
-    ) {
-        if ( (time_now - time_then).get_full_secs() > 20 ) {
-            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C "_IMPL")
-                << "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_NRNT_DEBUG_NAME_S "?"
-                << std::endl;
-            throw runtime_error( "Clock domain synchronization taking unusually long. Are there more than 1 applications controlling " CYAN_NRNT_DEBUG_NAME_S"?" );
-        }
-        usleep( 100000 );
     }
 }
 

@@ -970,8 +970,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    // Wait for time diff to converge
-    wait_for_time_diff_converged();
+    // Clock sync takes time and some programs assume send will work quickly instead of having to wait for clock sync to finish, to avoid causing issues with those programs wait for lock sync before returning
+    device_clock_sync_info->wait_for_sync();
 
     return my_streamer;
 }

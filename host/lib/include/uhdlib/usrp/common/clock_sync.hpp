@@ -67,6 +67,12 @@ public:
     }
 
     /**
+     * Waits until the clocks are synced
+     * @throws std::runtime_error Waiting for clock sync has timed out
+     */
+    void wait_for_sync();
+
+    /**
      * Gets the current time diff. Ensure is_synced is true before calling this
      * @return The current time diff
      */
