@@ -590,24 +590,6 @@ void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_
 	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
-void cyan_nrnt_impl::streamer_add_clock_sync_info(std::weak_ptr<clock_sync_shared_info> info) {
-    // Create lock to prevent race condition when editing vector
-    std::lock_guard<std::mutex> lock(clock_sync_vector_mutex);
-
-    for(size_t n = 0; n < streamer_clock_sync_infos.size(); n++) {
-        // Check if this element of the vector is occupied
-        std::shared_ptr<clock_sync_shared_info> shared_info = streamer_clock_sync_infos[n].lock();
-        // If the thing the weak pointer goes to no longer exists, place info at this location
-        if (shared_info.get() == NULL) {
-            streamer_clock_sync_infos[n] = info;
-            return;
-        }
-    }
-    streamer_clock_sync_infos.push_back(info);
-}
-
-
-
 void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
 
 	time_diff_req pkt;

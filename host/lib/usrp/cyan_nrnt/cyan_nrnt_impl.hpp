@@ -192,12 +192,6 @@ private:
     // device_clock_sync_info is the main location used to store clock sync info
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
     std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
-    std::vector<std::weak_ptr<clock_sync_shared_info>> streamer_clock_sync_infos;
-    // Mutex used to be able to safely add and remove elements from streamer_clock_sync_infos
-    std::mutex clock_sync_vector_mutex;
-
-    // Add info to streamer_clock_sync_infos to the first unoccupied spot in the vector, (or the end if no emply spot exists)
-    void streamer_add_clock_sync_info(std::weak_ptr<clock_sync_shared_info> info);
 
 	uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
