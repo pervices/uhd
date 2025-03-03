@@ -536,10 +536,12 @@ bool crimson_tng_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args_){
+    printf("T1\n");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
     _mm_sfence();
+    printf("T2\n");
 
     stream_args_t args = args_;
 
@@ -557,6 +559,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     if (args.otw_format != "sc16"){
         throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
     }
+
+    printf("T20\n");
 
     std::vector<std::string> dst_ip(args.channels.size());
     for(size_t n = 0; n < dst_ip.size(); n++) {
@@ -585,6 +589,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         std::string src_ip = _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
         ping_check(sfp, src_ip);
     }
+
+    printf("T40\n");
 
     // Fallback to hard coded values if attempt to get payload fails
     if(data_len == 0) {
@@ -636,6 +642,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         recv_sockets[n] = recv_socket_fd;
     }
 
+    printf("T80\n");
+
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
 
@@ -664,12 +672,18 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         _tree->access<std::string>(rx_link_path / "vita_en").set("1");
     }
 
+    printf("T120\n");
+
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
     std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface);
 
+    printf("T160\n");
+
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
+
+    printf("T180\n");
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -681,6 +695,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
             &crimson_tng_impl::set_stream_cmd, this, scmd_pre, ph::_1));
         _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
+
+    printf("T200\n");
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
@@ -710,6 +726,8 @@ _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
     //sets all tick and samp rates on this streamer
     // TODO: only update relevant channels
     this->update_rates();
+
+    printf("T500\n");
 
     return my_streamer;
 }
