@@ -290,6 +290,9 @@ private:
     void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts );
 
     bool clock_sync_desired = false;
+
+    // Used to rx start/stop stream commands
+    std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
 };
 
 }

@@ -897,6 +897,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
 
+    // NOTE: otw_rx is ever made changable during runtime ensure rx_stream_cmd_issuer is updated
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_rx", "system/otw_rx", int, int);
     otw_rx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_rx").get());
     otw_rx_s = "sc" + std::to_string(otw_rx);
@@ -1401,6 +1402,16 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		start_bm();
 	}
 
+    for(size_t ch = 0; ch < num_rx_channels; ch++) {
+        //The channel argument in the packet is actually the jesd number relative to the sfp port on Cyan
+        //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
+        size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
+
+        // Gets which sfp port is used by this channel
+        int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
+
+        rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], jesd_num, otw_rx);
+    }
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)

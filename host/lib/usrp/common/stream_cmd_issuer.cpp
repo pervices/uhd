@@ -64,3 +64,19 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
 void stream_cmd_issuer::send_command_packet( const rx_stream_cmd & req, const std::shared_ptr<uhd::transport::udp_simple> command_socket) {
     command_socket->send( &req, sizeof( req ) );
 }
+
+stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits)
+: command_socket(command_socket),
+ch_jesd_number(ch_jesd_number),
+num_rx_bits(num_rx_bits)
+{
+
+}
+
+stream_cmd_issuer::stream_cmd_issuer(stream_cmd_issuer& from)
+: command_socket(from.command_socket),
+ch_jesd_number(from.ch_jesd_number),
+num_rx_bits(from.num_rx_bits)
+{
+
+}

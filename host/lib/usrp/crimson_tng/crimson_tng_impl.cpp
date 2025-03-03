@@ -1326,6 +1326,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		start_bm();
 	}
+
+    for(size_t ch = 0; ch < num_rx_channels; ch++) {
+        rx_stream_cmd_issuer.emplace_back(_time_diff_iface, ch, 16);
+    }
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)

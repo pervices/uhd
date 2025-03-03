@@ -316,6 +316,9 @@ private:
     const bool _use_dpdk;
 
     bool clock_sync_desired = false;
+
+    // Used to rx start/stop stream commands
+    std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
 };
 
 }
