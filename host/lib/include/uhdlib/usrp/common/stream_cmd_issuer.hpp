@@ -13,6 +13,8 @@
 #include <stdint.h>
 // Smart pointers
 #include <memory>
+// UDP socket to send commands to
+#include <uhd/transport/udp_simple.hpp>
 
 // UHD types
 #include <uhd/types/stream_cmd.hpp>
@@ -33,16 +35,25 @@ struct rx_stream_cmd {
 // Purpose of this class:
 // -Consolidate identical code between Cyan and Crimson
 // -Be callable from both the device itself and the streamer
+// -Each issuer is responsible for 1 channel
 class stream_cmd_issuer
 {
 private:
+    const std::shared_ptr<uhd::transport::udp_simple> command_socket;
+
+    // Channel/JESD number this instance corresponds to
+    // Channel on Crimson, JESD on Cyan
+    const size_t ch_jesd_number;
+
+    // Number of bits in half a complex pair
+    const size_t num_rx_bits;
 
 public:
     // TODO: make make_rx_stream_cmd_packet private once the functions that depend on it have been moved to this class
     /**
      * Creates the rx command packet.
      * @param cmd The command to be sent. (Read this)
-     * @param channel The channel to send the command on
+     * @param channel Channel number for Crimson, JESD number for Cyan
      * @param pkt The packet to be send. (Write to this)
      */
     static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
