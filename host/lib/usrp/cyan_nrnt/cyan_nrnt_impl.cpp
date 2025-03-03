@@ -814,7 +814,9 @@ static device::sptr cyan_nrnt_make(const device_addr_t &device_addr)
     } else {
         use_dpdk = false;
     }
-    return device::sptr(new cyan_nrnt_impl(device_addr, use_dpdk));
+    device::sptr tmp(new cyan_nrnt_impl(device_addr, use_dpdk));
+    tmp->debug_prevent_destruction = tmp;
+    return tmp;
 }
 
 // This is the core function that registers itself with uhd::device base class. The base device class
