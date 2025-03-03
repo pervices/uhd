@@ -133,60 +133,9 @@ static size_t pre_to_ch( const std::string & pre ) {
 // TODO: refactor so this function can be called even if this has been destructed
 // NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
 void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
+    const size_t ch = pre_to_ch( pre );
 
-    // The number of samples requested must be a multiple of a certain number, depending on the variant
-    uint64_t original_nsamps_req = stream_cmd.num_samps;
-    stream_cmd.num_samps = (original_nsamps_req / nsamps_multiple_rx) * nsamps_multiple_rx;
-    if(original_nsamps_req != stream_cmd.num_samps) {
-        // Effectively always round up
-        stream_cmd.num_samps+=nsamps_multiple_rx;
-        if(stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
-            UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_S) << "Number of samples requested must be multiple of " << nsamps_multiple_rx << ". The number of samples requested has been modified to " << stream_cmd.num_samps << std::endl;
-        }
-    }
-
-    // The part of the FPGA that tracks how many samples are sent is hard coded to assume sc16
-    // Therefore, we need to actually request a number of samples with the same amount of data if it were sc16 as what we actually want
-    // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
-    stream_cmd.num_samps = stream_cmd.num_samps * otw_rx / 16;
-
-	const size_t ch = pre_to_ch( pre );
-
-    double current_time = get_time_now().get_real_secs();
-
-#ifdef DEBUG_COUT
-    std::cout
-        << std::fixed << std::setprecision(6)
-        << current_time
-        << ": "
-        << stream_cmd.stream_mode
-        << ": "
-        << pre
-        << ": SETTING STREAM COMMAND: "
-        << stream_cmd.num_samps << ": "
-        << stream_cmd.stream_now << ": "
-        << stream_cmd.time_spec.get_real_secs() << std::endl;
-#endif
-
-	uhd::usrp::rx_stream_cmd rx_stream_cmd;
-
-    if (stream_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
-        UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
-        stream_cmd.stream_now = true;
-    }
-
-    //gets the jesd number used. The old implementation used absolute channel numbers in the packets.
-    //Inside the stream packet there is an argument for channel
-    //The channel argument is actually the jesd number relative to the sfp port
-    //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
-    //9r7t only has one channel per port so it
-    size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
-
-	make_rx_stream_cmd_packet( stream_cmd, jesd_num, rx_stream_cmd );
-
-    int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
-
-	send_rx_stream_cmd_req( rx_stream_cmd, xg_intf );
+    rx_stream_cmd_issuer[ch].issue_stream_command(stream_cmd);
 }
 
 // Loop that polls Crimson to verify the PPS is working
@@ -531,63 +480,6 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
-}
-
-void cyan_nrnt_impl::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t jesd_num, uhd::usrp::rx_stream_cmd & pkt ) {
-    typedef boost::tuple<bool, bool, bool, bool> inst_t;
-    static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
-                                                            //reload, chain, samps, stop
-        (stream_cmd_t::STREAM_MODE_START_CONTINUOUS,   inst_t(true,  true,  false, false))
-        (stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS,    inst_t(false, false, false, true))
-        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(false, false, true,  false))
-        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(false, true,  true,  false))
-    ;
-
-    static const uint8_t channel_bits = 16;
-    static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
-
-    // XXX: @CF: 20180404: header should be 0x10001
-	pkt.header = ( 0x1 << channel_bits ) | (jesd_num & channel_mask );
-
-    //setup the instruction flag values
-    bool inst_reload, inst_chain, inst_samps, inst_stop;
-    boost::tie(inst_reload, inst_chain, inst_samps, inst_stop) = mode_to_inst[cmd.stream_mode];
-
-    pkt.header |= inst_reload ? ( 0b1000LL << 36 ) : 0;
-    pkt.header |= inst_chain  ? ( 0b0100LL << 36 ) : 0;
-    pkt.header |= inst_samps  ? ( 0b0010LL << 36 ) : 0;
-    pkt.header |= inst_stop   ? ( 0b0001LL << 36 ) : 0;
-
-	uhd::time_spec_t ts = cmd.stream_now ? 0.0 : cmd.time_spec;
-	pkt.tv_sec = ts.get_full_secs();
-	pkt.tv_psec = ts.get_frac_secs() * 1e12;
-
-	pkt.nsamples = inst_samps ? cmd.num_samps : 0;
-
-//	std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
-//	std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
-//	std::cout << "tv_psec: " << std::dec << pkt.tv_psec << std::endl;
-//	std::cout << "nsampls: " << std::dec << pkt.nsamples << std::endl;
-
-	boost::endian::native_to_big_inplace( pkt.header );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_psec );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
-}
-
-//sends a stream command over sfp port 0
-void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
-}
-
-//sends a stream command over the specified sfp port (xg_intf = 0 means sfpa, =1 means spfb)
-void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_intf) {
-
-    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
-        throw runtime_error( "XG Control interface offset out of bound!" );
-    }
-
-	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
@@ -954,6 +846,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
 
+    // NOTE: otw_rx is ever made changable during runtime ensure rx_stream_cmd_issuer is updated
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_rx", "system/otw_rx", int, int);
     otw_rx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_rx").get());
     otw_rx_s = "sc" + std::to_string(otw_rx);
@@ -1458,6 +1351,16 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		start_bm();
 	}
 
+    for(size_t ch = 0; ch < num_rx_channels; ch++) {
+        //The channel argument in the packet is actually the jesd number relative to the sfp port on Cyan
+        //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
+        size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
+
+        // Gets which sfp port is used by this channel
+        int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
+
+        rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
+    }
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)
