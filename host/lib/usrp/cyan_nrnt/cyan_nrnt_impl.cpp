@@ -186,7 +186,7 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_
 
     int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
 
-	send_rx_stream_cmd_req( rx_stream_cmd, xg_intf );
+    uhd::usrp::stream_cmd_issuer::send_command_packet( rx_stream_cmd, _time_diff_iface[xg_intf] );
 }
 
 // Loop that polls Crimson to verify the PPS is working
@@ -531,21 +531,6 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
-}
-
-//sends a stream command over sfp port 0
-void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface[0]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
-}
-
-//sends a stream command over the specified sfp port (xg_intf = 0 means sfpa, =1 means spfb)
-void cyan_nrnt_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req,  int xg_intf) {
-
-    if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
-        throw runtime_error( "XG Control interface offset out of bound!" );
-    }
-
-	_time_diff_iface[xg_intf]->send( boost::asio::const_buffer( & req, sizeof( req ) ) );
 }
 
 void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {

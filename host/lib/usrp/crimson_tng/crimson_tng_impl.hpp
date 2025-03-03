@@ -113,8 +113,6 @@ public:
     void start_pps_dtc();
     void stop_pps_dtc();
 
-    void send_rx_stream_cmd_req( const rx_stream_cmd & req );
-
 private:
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);

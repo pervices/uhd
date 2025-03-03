@@ -148,7 +148,7 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t strea
     }
 
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, ch, rx_stream_cmd );
-	send_rx_stream_cmd_req( rx_stream_cmd );
+    uhd::usrp::stream_cmd_issuer::send_command_packet( rx_stream_cmd, _time_diff_iface );
 }
 
 // Loop that polls Crimson to verify the PPS is working
@@ -489,10 +489,6 @@ inline void crimson_tng_impl::make_time_diff_packet( time_diff_req & pkt, time_s
 	boost::endian::native_to_big_inplace( pkt.header );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
 	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
-}
-
-void crimson_tng_impl::send_rx_stream_cmd_req( const rx_stream_cmd & req ) {
-	_time_diff_iface->send( &req, sizeof( req ) );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)

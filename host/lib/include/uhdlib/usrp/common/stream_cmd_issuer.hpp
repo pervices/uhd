@@ -39,14 +39,14 @@ struct rx_stream_cmd {
 class stream_cmd_issuer
 {
 private:
-    const std::shared_ptr<uhd::transport::udp_simple> command_socket;
-
-    // Channel/JESD number this instance corresponds to
-    // Channel on Crimson, JESD on Cyan
-    const size_t ch_jesd_number;
-
-    // Number of bits in half a complex pair
-    const size_t num_rx_bits;
+    // const std::shared_ptr<uhd::transport::udp_simple> command_socket;
+    //
+    // // Channel/JESD number this instance corresponds to
+    // // Channel on Crimson, JESD on Cyan
+    // const size_t ch_jesd_number;
+    //
+    // // Number of bits in half a complex pair
+    // const size_t num_rx_bits;
 
 public:
     // TODO: make make_rx_stream_cmd_packet private once the functions that depend on it have been moved to this class
@@ -58,12 +58,14 @@ public:
      */
     static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
+    // Issues the packet
+    // TODO: make this non static and use the class's command socket isntance
+    static void send_command_packet( const rx_stream_cmd & req, const std::shared_ptr<uhd::transport::udp_simple> command_socket);
+
 public:
-    /**
-     * Create a new stream_cmd_issuer with an associated shared pointer
-     * @return Shared pointer to the newly created instance
-     */
-    static std::shared_ptr<stream_cmd_issuer> make();
+    // stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple command_socket, size_t ch_jesd_number, size_t num_rx_bits) {
+    //
+    // }
 
 };
 

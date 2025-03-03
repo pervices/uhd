@@ -60,3 +60,7 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
     boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_psec );
     boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
 }
+
+void stream_cmd_issuer::send_command_packet( const rx_stream_cmd & req, const std::shared_ptr<uhd::transport::udp_simple> command_socket) {
+    command_socket->send( &req, sizeof( req ) );
+}
