@@ -292,8 +292,6 @@ public:
 protected:
     uhd::property_tree::sptr _tree;
     device_filter_t _type;
-public:
-    device::sptr debug_prevent_destruction;
 };
 
 } // namespace uhd
