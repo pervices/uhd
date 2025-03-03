@@ -205,6 +205,9 @@ public:
     //! Overload call to issue stream commands
     void issue_stream_cmd(const stream_cmd_t& stream_cmd)
     {
+        if(stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+            return;
+        }
         if (size() > 1 and stream_cmd.stream_now
             and stream_cmd.stream_mode != stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
             throw uhd::runtime_error(
