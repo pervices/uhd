@@ -33,6 +33,7 @@
 #include "crimson_tng_fw_common.h"
 #include <uhdlib/usrp/common/pv_iface.hpp>
 #include <uhdlib/usrp/common/clock_sync.hpp>
+#include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #include "crimson_tng_io_impl.hpp"
 #include "../../transport/flow_control.hpp"
 #include "pidc.hpp"
@@ -68,15 +69,6 @@ struct time_diff_req {
 struct time_diff_resp {
 	int64_t tv_sec;
 	int64_t tv_tick;
-};
-#pragma pack(pop)
-
-#pragma pack(push,1)
-struct rx_stream_cmd {
-    uint64_t header;   // 0x10000 for RX SoB
-    int64_t tv_sec;    // when the SoB should take place
-    int64_t tv_psec;   // when the SoB should take place (ps)
-    uint64_t nsamples;
 };
 #pragma pack(pop)
 
@@ -122,7 +114,6 @@ public:
     void stop_pps_dtc();
 
     void send_rx_stream_cmd_req( const rx_stream_cmd & req );
-    static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
 
 private:
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
