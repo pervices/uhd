@@ -66,17 +66,16 @@ public:
     stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits);
 
     // Empty constructor
-    stream_cmd_issuer()
-    : command_socket(nullptr),
-    ch_jesd_number(0),
-    num_rx_bits(0)
-    {
-
-    }
+    stream_cmd_issuer();
 
     // Copy constructor
     stream_cmd_issuer(stream_cmd_issuer& from);
 
+    // Move operator
+    stream_cmd_issuer& operator=(stream_cmd_issuer&& other);
+
+    // Copy operator
+    stream_cmd_issuer& operator=(const stream_cmd_issuer& other);
 };
 
 

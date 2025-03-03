@@ -73,10 +73,34 @@ num_rx_bits(num_rx_bits)
 
 }
 
+stream_cmd_issuer::stream_cmd_issuer()
+: command_socket(nullptr),
+ch_jesd_number(0),
+num_rx_bits(0)
+{
+
+}
+
 stream_cmd_issuer::stream_cmd_issuer(stream_cmd_issuer& from)
 : command_socket(from.command_socket),
 ch_jesd_number(from.ch_jesd_number),
 num_rx_bits(from.num_rx_bits)
 {
 
+}
+
+stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
+    command_socket = other.command_socket;
+    ch_jesd_number = other.ch_jesd_number;
+    num_rx_bits = other.num_rx_bits;
+
+    return *this;
+}
+
+stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) {
+    command_socket = other.command_socket;
+    ch_jesd_number = other.ch_jesd_number;
+    num_rx_bits = other.num_rx_bits;
+
+    return *this;
 }
