@@ -659,10 +659,17 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         _tree->access<std::string>(rx_link_path / "vita_en").set("1");
     }
 
+    // Gets the issuers used by the channels used by this server
+    std::vector<uhd::usrp::stream_cmd_issuer> issuers(args.channels.size());
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+
+        issuers[chan_i] = rx_stream_cmd_issuer[chan];
+    }
+
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    // TODO: replace rx_stream_cmd_issuer with the correct subset of the vector
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, rx_stream_cmd_issuer);
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

@@ -505,11 +505,18 @@ public:
         _sample_rate = rate;
     }
 
-    // TODO: figure out why override failed
-    void issue_stream_cmd(const stream_cmd_t &stream_cmd)
+    void issue_stream_cmd(const stream_cmd_t& stream_cmd)
     {
-        // TODO: finish
-        // _stream_cmd_issuers.issue_stream_command(stream_cmd);
+        if (_NUM_CHANNELS > 1 and stream_cmd.stream_now
+            and stream_cmd.stream_mode != stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+            throw uhd::runtime_error(
+                "Invalid recv stream command - stream now on multiple channels in a "
+                "single streamer will fail to time align.");
+        }
+
+        for (size_t chan_i = 0; chan_i < _NUM_CHANNELS; chan_i++) {
+            _stream_cmd_issuers[chan_i].issue_stream_command(stream_cmd);
+        }
     }
 
 protected:
