@@ -81,7 +81,7 @@ num_rx_bits(0)
 
 }
 
-stream_cmd_issuer::stream_cmd_issuer(stream_cmd_issuer& from) noexcept
+stream_cmd_issuer::stream_cmd_issuer(const stream_cmd_issuer& from) noexcept
 : command_socket(from.command_socket),
 ch_jesd_number(from.ch_jesd_number),
 num_rx_bits(from.num_rx_bits)

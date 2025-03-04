@@ -69,7 +69,7 @@ public:
     stream_cmd_issuer() noexcept;
 
     // Copy constructor
-    stream_cmd_issuer(stream_cmd_issuer& from) noexcept;
+    stream_cmd_issuer(const stream_cmd_issuer& from) noexcept;
 
     // Move operator
     stream_cmd_issuer& operator=(stream_cmd_issuer&& other) noexcept;
