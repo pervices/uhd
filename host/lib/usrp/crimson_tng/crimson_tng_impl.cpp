@@ -123,7 +123,7 @@ static size_t pre_to_ch( const std::string & pre ) {
 void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
     const size_t ch = pre_to_ch( pre );
 
-    rx_stream_cmd_issuer[ch].send_stream_command(stream_cmd);
+    rx_stream_cmd_issuer[ch].issue_stream_command(stream_cmd);
 }
 
 // Loop that polls Crimson to verify the PPS is working

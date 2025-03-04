@@ -18,7 +18,7 @@
 using namespace uhd;
 using namespace uhd::usrp;
 
-void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt ) {
+void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, uhd::usrp::rx_stream_cmd & pkt ) {
 
     typedef boost::tuple<bool, bool, bool, bool> inst_t;
     static const uhd::dict<stream_cmd_t::stream_mode_t, inst_t> mode_to_inst = boost::assign::map_list_of
@@ -32,7 +32,7 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
     static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
 
     // XXX: @CF: 20180404: header should be 0x10001
-    pkt.header = ( 0x1 << channel_bits ) | ( channel & channel_mask );
+    pkt.header = ( 0x1 << channel_bits ) | ( ch_jesd_number & channel_mask );
 
     //setup the instruction flag values
     bool inst_reload, inst_chain, inst_samps, inst_stop;
@@ -61,11 +61,7 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
     boost::endian::native_to_big_inplace( (uint64_t &) pkt.nsamples );
 }
 
-void stream_cmd_issuer::send_command_packet( const rx_stream_cmd & req, const std::shared_ptr<uhd::transport::udp_simple> command_socket) {
-    command_socket->send( &req, sizeof( req ) );
-}
-
-void stream_cmd_issuer::send_stream_command( stream_cmd_t stream_cmd ) {
+void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     // The number of samples requested must be a multiple of a certain number, depending on the variant
     uint64_t original_nsamps_req = stream_cmd.num_samps;
     stream_cmd.num_samps = (original_nsamps_req / nsamps_multiple_rx) * nsamps_multiple_rx;
@@ -106,9 +102,9 @@ void stream_cmd_issuer::send_stream_command( stream_cmd_t stream_cmd ) {
     //     stream_cmd.stream_now = true;
     // }
 
-    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, ch_jesd_number, rx_stream_cmd );
+    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
 
-    uhd::usrp::stream_cmd_issuer::send_command_packet( rx_stream_cmd, command_socket );
+    command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
 stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)

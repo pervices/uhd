@@ -51,24 +51,20 @@ private:
     // Depending on the device, the requested number of samples might need to be a multiple of this
     size_t nsamps_multiple_rx;
 
-public:
-    // TODO: make make_rx_stream_cmd_packet private once the functions that depend on it have been moved to this class
     /**
-     * Creates the rx command packet.
+     * Helper function to convert the command struct used by UHD internally the packet format
      * @param cmd The command to be sent. (Read this)
-     * @param channel Channel number for Crimson, JESD number for Cyan
      * @param pkt The packet to be send. (Write to this)
      */
-    static void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, const size_t channel, uhd::usrp::rx_stream_cmd & pkt );
+    void make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd, uhd::usrp::rx_stream_cmd & pkt );
 
-    // Issues the packet
-    // TODO: make this non static and use the class's command socket isntance
-    static void send_command_packet( const rx_stream_cmd & req, const std::shared_ptr<uhd::transport::udp_simple> command_socket);
+public:
 
     /**
+     * Sends the stream command
      * @param stream_cmd The struct containing the command to send
      */
-    void send_stream_command( stream_cmd_t stream_cmd );
+    void issue_stream_command( stream_cmd_t stream_cmd );
 
     // Regular constructor
     stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx);
