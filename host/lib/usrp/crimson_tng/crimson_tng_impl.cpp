@@ -15,6 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <boost/assign.hpp>
 #include <boost/asio.hpp>
 #include <functional>
 #include <boost/foreach.hpp>
