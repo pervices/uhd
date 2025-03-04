@@ -85,8 +85,8 @@ namespace ph = std::placeholders;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface)
-: sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels),
+cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
+: sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
 _channels(channels),
 _iface(iface)
 {
@@ -99,11 +99,6 @@ _iface(iface)
 cyan_nrnt_recv_packet_streamer::~cyan_nrnt_recv_packet_streamer() {
     // TODO: see if having teardown seperate from the destructor is still required
     teardown();
-}
-
-void cyan_nrnt_recv_packet_streamer::issue_stream_cmd(const stream_cmd_t &stream_cmd)
-{
-    return recv_packet_handler_mmsg::issue_stream_cmd(stream_cmd);
 }
 
 void cyan_nrnt_recv_packet_streamer::resize(const size_t size) {
@@ -663,7 +658,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface);
+    // TODO: replace rx_stream_cmd_issuer with the correct subset of the vector
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, rx_stream_cmd_issuer);
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
@@ -672,10 +668,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
 
-        // TODO: replace bind to avoid potential issues with the order cyan_nrnt_impl and the streamer are destructed in
-        std::string scmd_pre( "rx_" + std::string( 1, 'a' + chan ) + "/stream" );
-        my_streamer->set_issue_stream_cmd(chan_i, std::bind(
-            &cyan_nrnt_impl::set_stream_cmd, this, scmd_pre, ph::_1));
         _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
 

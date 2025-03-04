@@ -43,6 +43,9 @@
 
 #include <immintrin.h>
 
+// Manages sending streaming commands
+#include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
+
 #define MIN_MTU 9000
 
 namespace uhd { namespace transport { namespace sph {
@@ -73,12 +76,13 @@ public:
      * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
      * \param device_total_rx_channels Total number of rx channels on the device, used to determine how many threads to use for receiving
      */
-    recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels)
+    recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
     : recv_packet_handler(max_sample_bytes_per_packet + header_size),
     _NUM_CHANNELS(recv_sockets.size()),
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
+    _stream_cmd_issuers(cmd_issuers),
     _recv_sockets(recv_sockets),
     _previous_buffer_writes_count(_NUM_CHANNELS, 0),
     _num_cached_samples(_NUM_CHANNELS, 0),
@@ -501,6 +505,13 @@ public:
         _sample_rate = rate;
     }
 
+    // TODO: figure out why override failed
+    void issue_stream_cmd(const stream_cmd_t &stream_cmd)
+    {
+        // TODO: finish
+        // _stream_cmd_issuers.issue_stream_command(stream_cmd);
+    }
+
 protected:
     size_t _NUM_CHANNELS;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
@@ -516,6 +527,10 @@ private:
     const size_t _HEADER_SIZE;
     // Trailer is not needed for anything so receive will discard it
     const size_t _TRAILER_SIZE;
+
+    // Sends stream commands the device, manages the corresponding sockets
+    std::vector<uhd::usrp::stream_cmd_issuer> _stream_cmd_issuers;
+
     std::vector<int> _recv_sockets;
     // Maximum sequence number
     static constexpr size_t SEQUENCE_NUMBER_MASK = 0xf;
@@ -767,8 +782,8 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels)
-    : recv_packet_handler_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels)
+    recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
+    : recv_packet_handler_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuers)
     {
     }
 
@@ -792,6 +807,11 @@ public:
     // Gets the maximum number of samples per packet
     UHD_INLINE size_t get_max_num_samps(void) const{
         return _MAX_SAMPLE_BYTES_PER_PACKET/_BYTES_PER_SAMPLE;
+    }
+
+    // Issues the stream command
+    UHD_INLINE void issue_stream_cmd(const stream_cmd_t& stream_cmd) {
+        recv_packet_handler_mmsg::issue_stream_cmd(stream_cmd);
     }
 };
 
