@@ -15,6 +15,8 @@
 #include <memory>
 // UDP socket to send commands to
 #include <uhd/transport/udp_simple.hpp>
+// Used to check the time to decide whether or not to display a start time warning
+#include <uhdlib/usrp/common/clock_sync.hpp>
 
 // UHD types
 #include <uhd/types/stream_cmd.hpp>
@@ -39,7 +41,11 @@ struct rx_stream_cmd {
 class stream_cmd_issuer
 {
 private:
+    // UDP socket manager to send commands over
     std::shared_ptr<uhd::transport::udp_simple> command_socket;
+
+    // Clock sync info used to check the time
+    std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info;
 
     // Channel/JESD number this instance corresponds to
     // Channel on Crimson, JESD on Cyan
@@ -67,7 +73,7 @@ public:
     void issue_stream_command( stream_cmd_t stream_cmd );
 
     // Regular constructor
-    stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx);
+    stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx);
 
     // Empty constructor
     stream_cmd_issuer();

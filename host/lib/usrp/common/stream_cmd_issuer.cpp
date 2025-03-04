@@ -8,6 +8,8 @@
 
 // For sending formatted error and warning message
 #include <uhd/utils/log.hpp>
+// uhd::get_system_time()
+#include <uhdlib/utils/system_time.hpp>
 
 // Helper includes used by make_rx_stream_cmd_packet
 #include "boost/tuple/tuple.hpp"
@@ -78,7 +80,11 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
     stream_cmd.num_samps = stream_cmd.num_samps * num_rx_bits / 16;
 
-    // double current_time = get_time_now().get_real_secs();
+    if(!clock_sync_info->is_synced()) [[unlikely]] {
+        // TODO: get time from server instead of waiting for sync if not already synced
+        clock_sync_info->wait_for_sync();
+    }
+    double current_time = (uhd::get_system_time() + clock_sync_info->get_time_diff()).get_real_secs();
 
 #ifdef DEBUG_COUT
     std::cout
@@ -96,19 +102,19 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
-    // TODO: re-enable start time check
-    // if (stream_cmd.time_spec.get_real_secs() < get_time_now().get_real_secs() + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
-    //     UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
-    //     stream_cmd.stream_now = true;
-    // }
+    if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
+        UHD_LOGGER_WARNING("STREAM_CMD_ISSUER") << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
+        stream_cmd.stream_now = true;
+    }
 
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
 
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
-stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
+stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
 : command_socket(command_socket),
+clock_sync_info(clock_sync_info),
 ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits),
 nsamps_multiple_rx(nsamps_multiple_rx)
@@ -118,6 +124,7 @@ nsamps_multiple_rx(nsamps_multiple_rx)
 
 stream_cmd_issuer::stream_cmd_issuer()
 : command_socket(nullptr),
+clock_sync_info(nullptr),
 ch_jesd_number(0),
 num_rx_bits(0),
 nsamps_multiple_rx(0)
@@ -128,6 +135,7 @@ nsamps_multiple_rx(0)
 // TODO: verify the copy, move, and assign constructors don't result in the old shared_pointers not being destructed
 stream_cmd_issuer::stream_cmd_issuer(const stream_cmd_issuer& from)
 : command_socket(from.command_socket),
+clock_sync_info(from.clock_sync_info),
 ch_jesd_number(from.ch_jesd_number),
 num_rx_bits(from.num_rx_bits),
 nsamps_multiple_rx(from.nsamps_multiple_rx)
@@ -137,6 +145,7 @@ nsamps_multiple_rx(from.nsamps_multiple_rx)
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
     command_socket = other.command_socket;
+    clock_sync_info = other.clock_sync_info;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
@@ -146,6 +155,7 @@ stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) {
     command_socket = other.command_socket;
+    clock_sync_info = other.clock_sync_info;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
