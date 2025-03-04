@@ -121,34 +121,9 @@ static size_t pre_to_ch( const std::string & pre ) {
 // TODO: refactor so this function can be called even if this has been destructed
 // NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
 void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
+    const size_t ch = pre_to_ch( pre );
 
-	const size_t ch = pre_to_ch( pre );
-
-	uhd::usrp::rx_stream_cmd rx_stream_cmd;
-
-    double current_time = get_time_now().get_real_secs();
-
-#ifdef DEBUG_COUT
-    std::cout
-        << std::fixed << std::setprecision(6)
-        << current_time
-        << ": "
-        << stream_cmd.stream_mode
-        << ": "
-        << pre
-        << ": SETTING STREAM COMMAND: "
-        << stream_cmd.num_samps << ": "
-        << stream_cmd.stream_now << ": "
-        << stream_cmd.time_spec.get_real_secs() << std::endl;
-#endif
-
-    if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
-        stream_cmd.stream_now = true;
-    }
-
-    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, ch, rx_stream_cmd );
-    uhd::usrp::stream_cmd_issuer::send_command_packet( rx_stream_cmd, _time_diff_iface );
+    rx_stream_cmd_issuer[ch].send_stream_command(stream_cmd);
 }
 
 // Loop that polls Crimson to verify the PPS is working
