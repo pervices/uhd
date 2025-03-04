@@ -45,6 +45,9 @@ public:
     static constexpr size_t MAX_MTU_SIZE = 9000;
 
     typedef std::shared_ptr<pv_iface> sptr;
+
+    pv_iface::sptr self;
+
     /*!
      * Make a new pv_iface with the control transport.
      * \param ctrl_transport the udp transport object
