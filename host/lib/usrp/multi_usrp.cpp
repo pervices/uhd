@@ -2952,7 +2952,8 @@ private:
 
 multi_usrp::~multi_usrp(void)
 {
-    /* NOP */
+    UHD_LOG_INFO("UHD", "M0");
+    // /* NOP */
 }
 
 
