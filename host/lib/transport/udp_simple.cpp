@@ -10,10 +10,6 @@
 #include <uhdlib/transport/udp_common.hpp>
 #include <boost/format.hpp>
 
-#include <atomic>
-
-std::atomic<int64_t> open_sockets = 0;
-
 using namespace uhd::transport;
 namespace asio = boost::asio;
 
@@ -27,8 +23,6 @@ public:
         const std::string& addr, const std::string& port, bool bcast, bool connect)
         : _connected(connect)
     {
-        open_sockets++;
-        printf("Open 1: %li\n", open_sockets.load());
         UHD_LOG_TRACE("UDP", "Creating udp transport for " << addr << " " << port);
 
         // resolve the address
@@ -70,8 +64,6 @@ public:
     }
 
     ~udp_simple_impl(void) {
-        open_sockets--;
-        printf("Open 2: %li\n", open_sockets.load());
         close(socket_fd);
     }
 
