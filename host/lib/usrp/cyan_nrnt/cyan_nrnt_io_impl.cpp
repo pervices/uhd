@@ -97,8 +97,10 @@ _iface(iface)
 }
 
 cyan_nrnt_recv_packet_streamer::~cyan_nrnt_recv_packet_streamer() {
+    UHD_LOG_INFO("UHD", "R1");
     // TODO: see if having teardown seperate from the destructor is still required
     teardown();
+    UHD_LOG_INFO("UHD", "R2");
 }
 
 void cyan_nrnt_recv_packet_streamer::resize(const size_t size) {
@@ -137,8 +139,10 @@ _iface(iface)
 }
 
 cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
+    UHD_LOG_INFO("UHD", "T1");
     // TODO: see if having teardown seperate from the destructor is still required
     teardown();
+    UHD_LOG_INFO("UHD", "T2");
 }
 
 void cyan_nrnt_send_packet_streamer::teardown() {
@@ -217,9 +221,9 @@ size_t cyan_nrnt_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    if( ! _buffer_monitor_running && !use_blocking_fc ) {
-        start_buffer_monitor_thread();
-    }
+    // if( ! _buffer_monitor_running && !use_blocking_fc ) {
+    //     start_buffer_monitor_thread();
+    // }
 
     r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
