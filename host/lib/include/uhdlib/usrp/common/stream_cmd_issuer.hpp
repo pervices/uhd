@@ -48,6 +48,9 @@ private:
     // Number of bits in half a complex pair
     size_t num_rx_bits;
 
+    // Depending on the device, the requested number of samples might need to be a multiple of this
+    size_t nsamps_multiple_rx;
+
 public:
     // TODO: make make_rx_stream_cmd_packet private once the functions that depend on it have been moved to this class
     /**
@@ -62,8 +65,13 @@ public:
     // TODO: make this non static and use the class's command socket isntance
     static void send_command_packet( const rx_stream_cmd & req, const std::shared_ptr<uhd::transport::udp_simple> command_socket);
 
+    /**
+     * @param stream_cmd The struct containing the command to send
+     */
+    void send_stream_command( stream_cmd_t stream_cmd );
+
     // Regular constructor
-    stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits);
+    stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx);
 
     // Empty constructor
     stream_cmd_issuer();
