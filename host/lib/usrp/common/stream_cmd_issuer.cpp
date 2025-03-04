@@ -132,7 +132,6 @@ nsamps_multiple_rx(0)
 
 }
 
-// TODO: verify the copy, move, and assign constructors don't result in the old shared_pointers not being destructed
 stream_cmd_issuer::stream_cmd_issuer(const stream_cmd_issuer& from)
 : command_socket(from.command_socket),
 clock_sync_info(from.clock_sync_info),
