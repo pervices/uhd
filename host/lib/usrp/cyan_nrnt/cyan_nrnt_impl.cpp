@@ -1410,7 +1410,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Gets which sfp port is used by this channel
         int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
 
-        // rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], jesd_num, otw_rx);
+        rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], jesd_num, otw_rx);
     }
 }
 
