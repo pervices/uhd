@@ -63,19 +63,19 @@ public:
     static void send_command_packet( const rx_stream_cmd & req, const std::shared_ptr<uhd::transport::udp_simple> command_socket);
 
     // Regular constructor
-    stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits) noexcept;
+    stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits);
 
     // Empty constructor
-    stream_cmd_issuer() noexcept;
+    stream_cmd_issuer();
 
     // Copy constructor
-    stream_cmd_issuer(const stream_cmd_issuer& from) noexcept;
+    stream_cmd_issuer(const stream_cmd_issuer& from);
 
     // Move operator
-    stream_cmd_issuer& operator=(stream_cmd_issuer&& other) noexcept;
+    stream_cmd_issuer& operator=(stream_cmd_issuer&& other);
 
     // Copy operator
-    stream_cmd_issuer& operator=(const stream_cmd_issuer& other) noexcept;
+    stream_cmd_issuer& operator=(const stream_cmd_issuer& other);
 };
 
 
