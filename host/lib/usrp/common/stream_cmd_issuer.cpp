@@ -65,7 +65,7 @@ void stream_cmd_issuer::send_command_packet( const rx_stream_cmd & req, const st
     command_socket->send( &req, sizeof( req ) );
 }
 
-stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits)
+stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, size_t ch_jesd_number, size_t num_rx_bits) noexcept
 : command_socket(command_socket),
 ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits)
@@ -73,7 +73,7 @@ num_rx_bits(num_rx_bits)
 
 }
 
-stream_cmd_issuer::stream_cmd_issuer()
+stream_cmd_issuer::stream_cmd_issuer() noexcept
 : command_socket(nullptr),
 ch_jesd_number(0),
 num_rx_bits(0)
@@ -81,7 +81,7 @@ num_rx_bits(0)
 
 }
 
-stream_cmd_issuer::stream_cmd_issuer(stream_cmd_issuer& from)
+stream_cmd_issuer::stream_cmd_issuer(stream_cmd_issuer& from) noexcept
 : command_socket(from.command_socket),
 ch_jesd_number(from.ch_jesd_number),
 num_rx_bits(from.num_rx_bits)
@@ -89,7 +89,7 @@ num_rx_bits(from.num_rx_bits)
 
 }
 
-stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
+stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) noexcept {
     command_socket = other.command_socket;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
@@ -97,7 +97,7 @@ stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
     return *this;
 }
 
-stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) {
+stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) noexcept {
     command_socket = other.command_socket;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
