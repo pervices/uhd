@@ -217,9 +217,9 @@ size_t cyan_nrnt_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    // if( ! _buffer_monitor_running && !use_blocking_fc ) {
-    //     start_buffer_monitor_thread();
-    // }
+    if( ! _buffer_monitor_running && !use_blocking_fc ) {
+        start_buffer_monitor_thread();
+    }
 
     r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
@@ -675,7 +675,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
 
-        // _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
+        _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -930,11 +930,11 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
             // Sets the function used to get the buffer level, overflow, and underflow counts
             // NOTE: when passing pointer to this function make sure they are smark pointers
-            // my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                // &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc.fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], ph::_1, ph::_2, ph::_3, ph::_4
-            // ));
+            my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
+                &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc.fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], ph::_1, ph::_2, ph::_3, ph::_4
+            ));
 
-            // _mbc.tx_streamers[chan] = my_streamer; //store weak pointer
+            _mbc.tx_streamers[chan] = my_streamer; //store weak pointer
         }
     }
 
