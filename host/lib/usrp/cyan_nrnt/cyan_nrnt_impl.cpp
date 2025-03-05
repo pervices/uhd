@@ -1351,6 +1351,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		start_bm();
 	}
 
+    UHD_LOG_INFO("UHD", "C1");
+
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
         //The channel argument in the packet is actually the jesd number relative to the sfp port on Cyan
         //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
@@ -1360,7 +1362,9 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
 
         rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
+        UHD_LOG_INFO("UHD", "C50");
     }
+    UHD_LOG_INFO("UHD", "C100");
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)
