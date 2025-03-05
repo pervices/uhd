@@ -88,6 +88,7 @@ public:
     _num_cached_samples(_NUM_CHANNELS, 0),
     _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
     {
+        UHD_LOG_INFO("UHD", "A1");
         if (wire_format=="sc16") {
             _BYTES_PER_SAMPLE = 4;
         } else if (wire_format=="sc12") {
@@ -98,13 +99,16 @@ public:
 
         // Performs a check (and if applicable warning message) for potential source of performance issues
         check_high_order_alloc_disable();
+        UHD_LOG_INFO("UHD", "A10");
 
         // Checks if preemption is disabled/voluntary and warns user if it is not
         check_pre_empt();
+        UHD_LOG_INFO("UHD", "A20");
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             check_rx_ring_buffer_size(dst_ip[n]);
         }
+        UHD_LOG_INFO("UHD", "A30");
 
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
@@ -156,11 +160,14 @@ public:
                 fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
             }
         }
+        UHD_LOG_INFO("UHD", "A100");
 
         setup_converter(cpu_format, wire_format, wire_little_endian);
+        UHD_LOG_INFO("UHD", "A110");
 
         // Check if the governor is set to performance mode, warns the user if it is not
         check_if_only_using_governor();
+        UHD_LOG_INFO("UHD", "A120");
 
         // Create manager for receive threads and access to buffer recv data
         size_t page_size = getpagesize();
@@ -173,8 +180,10 @@ public:
         if( madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE) < 0 ) {
             UHD_LOG_WARNING("RECV_PACKET_HANDLER_MMSG", "Error while calling madvise MADV_NOHUGEPAGE for interal buffer. Error: " + std::string(strerror(errno)));
         }
+        UHD_LOG_INFO("UHD", "A400");
 
         new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
+        UHD_LOG_INFO("UHD", "A500");
     }
 
     ~recv_packet_handler_mmsg(void)
