@@ -123,8 +123,8 @@ nsamps_multiple_rx(nsamps_multiple_rx)
 }
 
 stream_cmd_issuer::stream_cmd_issuer()
-: command_socket(nullptr),
-clock_sync_info(nullptr),
+: command_socket(),
+clock_sync_info(),
 ch_jesd_number(0),
 num_rx_bits(0),
 nsamps_multiple_rx(0)
