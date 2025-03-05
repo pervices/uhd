@@ -108,10 +108,6 @@ crimson_tng_recv_packet_streamer::~crimson_tng_recv_packet_streamer() {
     teardown();
 }
 
-void crimson_tng_recv_packet_streamer::resize(const size_t size) {
-    sph::recv_packet_streamer_mmsg::resize( size );
-}
-
 void crimson_tng_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
     vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
 }
@@ -670,9 +666,6 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
     std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers);
-
-    //init some streamer stuff
-    my_streamer->resize(args.channels.size());
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){

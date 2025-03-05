@@ -37,8 +37,6 @@ public:
 
     ~crimson_tng_recv_packet_streamer();
 
-    void resize(const size_t size);
-
     void if_hdr_unpack(const uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
 
     void teardown();

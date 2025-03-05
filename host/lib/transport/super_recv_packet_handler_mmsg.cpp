@@ -61,7 +61,7 @@ namespace uhd { namespace transport { namespace sph {
  * The channel group shares a common sample rate.
  * All channels are received in unison in recv().
  **********************************************************************/
-class recv_packet_handler_mmsg : public recv_packet_handler
+class recv_packet_handler_mmsg
 {
 public:
 
@@ -77,7 +77,7 @@ public:
      * \param device_total_rx_channels Total number of rx channels on the device, used to determine how many threads to use for receiving
      */
     recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
-    : recv_packet_handler(max_sample_bytes_per_packet + header_size),
+    :
     _NUM_CHANNELS(recv_sockets.size()),
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
