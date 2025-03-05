@@ -666,7 +666,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     }
 
     std::shared_ptr<std::vector<bool>> debug_rx_channel_in_use(new std::vector<bool>(0));
-    pv_iface::sptr debug_iface(_mbc.iface);
     UHD_LOG_INFO("UHD", "G15");
     std::vector<uhd::usrp::stream_cmd_issuer> debug_issuers(0);
     UHD_LOG_INFO("UHD", "G20");
