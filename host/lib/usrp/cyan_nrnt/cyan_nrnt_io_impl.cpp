@@ -664,7 +664,6 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
         issuers[chan_i] = rx_stream_cmd_issuer[chan];
     }
-    std::shared_ptr<std::vector<bool>> debug_rx_channel_in_use(new std::vector<bool>(0));
     pv_iface::sptr debug_iface(_mbc.iface);
     UHD_LOG_INFO("UHD", "G15");
     debug_iface.reset();
@@ -673,7 +672,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    cyan_nrnt_recv_packet_streamer* tmp_streamer = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, debug_rx_channel_in_use, num_rx_channels, debug_iface, debug_issuers);
+    cyan_nrnt_recv_packet_streamer* tmp_streamer = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, debug_iface, debug_issuers);
     UHD_LOG_INFO("UHD", "G30");
     std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_recv_packet_streamer>(tmp_streamer);
 
