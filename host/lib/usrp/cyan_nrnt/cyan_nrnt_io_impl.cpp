@@ -85,7 +85,7 @@ namespace ph = std::placeholders;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
+cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, const bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, const size_t device_total_rx_channels, pv_iface::sptr iface, const std::vector<uhd::usrp::stream_cmd_issuer>& cmd_issuer)
 : sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
 _channels(channels),
 _iface(iface)
@@ -97,8 +97,10 @@ _iface(iface)
 }
 
 cyan_nrnt_recv_packet_streamer::~cyan_nrnt_recv_packet_streamer() {
+    UHD_LOG_INFO("UHD", "R1");
     // TODO: see if having teardown seperate from the destructor is still required
     teardown();
+    UHD_LOG_INFO("UHD", "R2");
 }
 
 void cyan_nrnt_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
@@ -133,8 +135,10 @@ _iface(iface)
 }
 
 cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
+    UHD_LOG_INFO("UHD", "T1");
     // TODO: see if having teardown seperate from the destructor is still required
     teardown();
+    UHD_LOG_INFO("UHD", "T2");
 }
 
 void cyan_nrnt_send_packet_streamer::teardown() {
@@ -213,9 +217,9 @@ size_t cyan_nrnt_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    if( ! _buffer_monitor_running && !use_blocking_fc ) {
-        start_buffer_monitor_thread();
-    }
+    // if( ! _buffer_monitor_running && !use_blocking_fc ) {
+    //     start_buffer_monitor_thread();
+    // }
 
     r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
@@ -405,7 +409,7 @@ void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
 void cyan_nrnt_impl::update_rx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan].lock();
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan];//.lock();
     // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
@@ -438,7 +442,7 @@ void cyan_nrnt_impl::tx_rate_check(size_t ch, double rate_samples) {
 void cyan_nrnt_impl::update_tx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan];//.lock();
     // if shared_ptr.lock() == NULL then no streamer is using this ch
     if (my_streamer.get() == NULL) return;
 
@@ -652,6 +656,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         _tree->access<std::string>(rx_link_path / "vita_en").set("1");
     }
 
+    UHD_LOG_INFO("UHD", "G1");
     // Gets the issuers used by the channels used by this server
     std::vector<uhd::usrp::stream_cmd_issuer> issuers(args.channels.size());
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -660,9 +665,17 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         issuers[chan_i] = rx_stream_cmd_issuer[chan];
     }
 
+    UHD_LOG_INFO("UHD", "G15");
+    UHD_LOG_INFO("UHD", "G20");
+
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers);
+    cyan_nrnt_recv_packet_streamer* tmp_streamer = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers);
+    UHD_LOG_INFO("UHD", "G30");
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_recv_packet_streamer>(tmp_streamer);
+
+    UHD_LOG_INFO("UHD", "G40");
+    UHD_LOG_INFO("UHD", "G60");
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -670,6 +683,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
         _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
+
+    UHD_LOG_INFO("UHD", "G80");
 
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];

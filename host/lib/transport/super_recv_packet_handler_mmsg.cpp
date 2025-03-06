@@ -76,18 +76,21 @@ public:
      * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
      * \param device_total_rx_channels Total number of rx channels on the device, used to determine how many threads to use for receiving
      */
-    recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
+    recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, const bool wire_little_endian, const size_t device_total_rx_channels, const std::vector<uhd::usrp::stream_cmd_issuer>& cmd_issuers)
     :
     _NUM_CHANNELS(recv_sockets.size()),
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
-    _stream_cmd_issuers(cmd_issuers),
     _recv_sockets(recv_sockets),
     _previous_buffer_writes_count(_NUM_CHANNELS, 0),
     _num_cached_samples(_NUM_CHANNELS, 0),
     _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
     {
+        UHD_LOG_INFO("UHD", "A1");
+        _stream_cmd_issuers = cmd_issuers;
+        UHD_LOG_INFO("UHD", "A2");
+
         if (wire_format=="sc16") {
             _BYTES_PER_SAMPLE = 4;
         } else if (wire_format=="sc12") {
@@ -98,13 +101,16 @@ public:
 
         // Performs a check (and if applicable warning message) for potential source of performance issues
         check_high_order_alloc_disable();
+        UHD_LOG_INFO("UHD", "A10");
 
         // Checks if preemption is disabled/voluntary and warns user if it is not
         check_pre_empt();
+        UHD_LOG_INFO("UHD", "A20");
 
         for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             check_rx_ring_buffer_size(dst_ip[n]);
         }
+        UHD_LOG_INFO("UHD", "A30");
 
         // Performs socket setup
         // Sockets passed to this constructor must already be bound
@@ -156,11 +162,14 @@ public:
                 fprintf(stderr, "Attempting to set rx busy read priority failed with error code: %s", strerror(errno));
             }
         }
+        UHD_LOG_INFO("UHD", "A100");
 
         setup_converter(cpu_format, wire_format, wire_little_endian);
+        UHD_LOG_INFO("UHD", "A110");
 
         // Check if the governor is set to performance mode, warns the user if it is not
         check_if_only_using_governor();
+        UHD_LOG_INFO("UHD", "A120");
 
         // Create manager for receive threads and access to buffer recv data
         size_t page_size = getpagesize();
@@ -173,8 +182,10 @@ public:
         if( madvise(recv_manager, recv_manager_size, MADV_NOHUGEPAGE) < 0 ) {
             UHD_LOG_WARNING("RECV_PACKET_HANDLER_MMSG", "Error while calling madvise MADV_NOHUGEPAGE for interal buffer. Error: " + std::string(strerror(errno)));
         }
+        UHD_LOG_INFO("UHD", "A400");
 
         new (recv_manager) async_recv_manager(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, device_total_rx_channels);
+        UHD_LOG_INFO("UHD", "A500");
     }
 
     ~recv_packet_handler_mmsg(void)
@@ -789,7 +800,7 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
+    recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, const bool wire_little_endian, size_t device_total_rx_channels, const std::vector<uhd::usrp::stream_cmd_issuer>& cmd_issuers)
     : recv_packet_handler_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuers)
     {
     }
