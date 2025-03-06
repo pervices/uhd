@@ -87,7 +87,6 @@ public:
     // Copy operator
     stream_cmd_issuer& operator=(const stream_cmd_issuer& other);
 
-    ~stream_cmd_issuer();
 };
 
 
