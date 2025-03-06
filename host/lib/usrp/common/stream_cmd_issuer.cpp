@@ -112,18 +112,18 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
-stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
+stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket_, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
 :
 ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits),
 nsamps_multiple_rx(nsamps_multiple_rx)
 {
     // Set if they exist
-    if(command_socket) {
-        this->command_socket = command_socket;
+    if(command_socket_) {
+        command_socket = command_socket_;
     }
-    if(clock_sync_info) {
-        this->clock_sync_info = clock_sync_info;
+    if(clock_sync_info_) {
+        clock_sync_info = clock_sync_info_;
     }
 }
 
