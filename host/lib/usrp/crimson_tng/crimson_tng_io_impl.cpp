@@ -658,7 +658,8 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     }
 
     // Gets the issuers used by the channels used by this server
-    std::vector<uhd::usrp::stream_cmd_issuer> issuers(args.channels.size());
+    std::vector<uhd::usrp::stream_cmd_issuer> issuers;
+    issuers.reserve(args.channels.size());
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
 

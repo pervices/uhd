@@ -82,13 +82,18 @@ public:
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
-    _stream_cmd_issuers(cmd_issuers),
     _recv_sockets(recv_sockets),
     _previous_buffer_writes_count(_NUM_CHANNELS, 0),
     _num_cached_samples(_NUM_CHANNELS, 0),
     _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
     {
         UHD_LOG_INFO("UHD", "A1");
+        _stream_cmd_issuers.reserve(_NUM_CHANNELS);
+        UHD_LOG_INFO("UHD", "A2")
+        for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+            _stream_cmd_issuers[ch_i] = cmd_issuers[ch_i];
+        }
+        UHD_LOG_INFO("UHD", "A3")
 
         if (wire_format=="sc16") {
             _BYTES_PER_SAMPLE = 4;

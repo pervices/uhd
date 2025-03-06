@@ -1351,6 +1351,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		start_bm();
 	}
 
+    rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
         //The channel argument in the packet is actually the jesd number relative to the sfp port on Cyan
         //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
