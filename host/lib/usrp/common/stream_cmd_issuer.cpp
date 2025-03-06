@@ -118,13 +118,10 @@ ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits),
 nsamps_multiple_rx(nsamps_multiple_rx)
 {
-    // Set if they exist
-    if(command_socket_) {
-        command_socket = command_socket_;
-    }
-    if(clock_sync_info_) {
-        clock_sync_info = clock_sync_info_;
-    }
+    UHD_LOG_INFO("ISSUER", "T1");
+    command_socket = command_socket_;
+    clock_sync_info = clock_sync_info_;
+    UHD_LOG_INFO("ISSUER", "T2");
 }
 
 stream_cmd_issuer::stream_cmd_issuer()
@@ -142,41 +139,32 @@ ch_jesd_number(other.ch_jesd_number),
 num_rx_bits(other.num_rx_bits),
 nsamps_multiple_rx(other.nsamps_multiple_rx)
 {
-    // Set if they exist
-    if(other.command_socket) {
-        command_socket = other.command_socket;
-    }
-    if(other.clock_sync_info) {
-        clock_sync_info = other.clock_sync_info;
-    }
+    UHD_LOG_INFO("ISSUER", "T3");
+    command_socket = other.command_socket;
+    clock_sync_info = other.clock_sync_info;
+    UHD_LOG_INFO("ISSUER", "T4");
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
-    // Set if they exist
-    if(other.command_socket) {
-        command_socket = other.command_socket;
-    }
-    if(other.clock_sync_info) {
-        clock_sync_info = other.clock_sync_info;
-    }
+    UHD_LOG_INFO("ISSUER", "T5");
+    command_socket = other.command_socket;
+    clock_sync_info = other.clock_sync_info;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
+    UHD_LOG_INFO("ISSUER", "T6");
 
     return *this;
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) {
-    // Set if they exist
-    if(other.command_socket) {
-        command_socket = other.command_socket;
-    }
-    if(other.clock_sync_info) {
-        clock_sync_info = other.clock_sync_info;
-    }
+    UHD_LOG_INFO("ISSUER", "T7");
+    command_socket = other.command_socket;
+    clock_sync_info = other.clock_sync_info;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
+    UHD_LOG_INFO("ISSUER", "T8");
 
     return *this;
 }
