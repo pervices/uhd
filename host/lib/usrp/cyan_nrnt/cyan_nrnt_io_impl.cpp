@@ -516,7 +516,7 @@ bool cyan_nrnt_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
-    UHD_LOG_ERROR("RX_STREAMER", "get_rx_stream");
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -715,7 +715,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
             UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "rx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
         }
     }
-    UHD_LOG_ERROR("RX_STREAMER", "get_rx_stream");
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream");
 
     return my_streamer;
 }

@@ -528,7 +528,7 @@ bool crimson_tng_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args_){
-    UHD_LOG_ERROR("RX_STREAMER", "get_rx_stream");
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -704,7 +704,7 @@ _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
     //sets all tick and samp rates on this streamer
     // TODO: only update relevant channels
     this->update_rates();
-    UHD_LOG_ERROR("RX_STREAMER", "get_rx_stream end");
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream end");
 
     return my_streamer;
 }
