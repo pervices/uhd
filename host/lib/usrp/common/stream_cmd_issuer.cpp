@@ -113,18 +113,21 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
 }
 
 stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
-: command_socket(command_socket),
-clock_sync_info(clock_sync_info),
+: /*command_socket(command_socket),
+clock_sync_info(clock_sync_info),*/
 ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits),
 nsamps_multiple_rx(nsamps_multiple_rx)
 {
-
+    UHD_LOG_INFO("ISSUER", "T7");
+    this->command_socket = command_socket;
+    this->clock_sync_info = clock_sync_info;
+    UHD_LOG_INFO("ISSUER", "T8");
 }
 
 stream_cmd_issuer::stream_cmd_issuer()
-: command_socket(),
-clock_sync_info(),
+: /*command_socket(),
+clock_sync_info(),*/
 ch_jesd_number(0),
 num_rx_bits(0),
 nsamps_multiple_rx(0)
