@@ -93,7 +93,7 @@ std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
 	return os;
 }
 
-crimson_tng_recv_packet_streamer::crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dsp_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
+crimson_tng_recv_packet_streamer::crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dsp_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer>* cmd_issuer)
 : sph::recv_packet_streamer_mmsg(recv_sockets, dsp_ip, max_sample_bytes_per_packet, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
 _channels(channels),
 _iface(iface)
@@ -222,9 +222,9 @@ size_t crimson_tng_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    if( ! _buffer_monitor_running && !use_blocking_fc ) {
-        start_buffer_monitor_thread();
-    }
+    // if( ! _buffer_monitor_running && !use_blocking_fc ) {
+    //     start_buffer_monitor_thread();
+    // }
 
     r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
@@ -419,8 +419,8 @@ void crimson_tng_impl::update_rx_samp_rate(const size_t chan, const double rate 
 
     // Get the streamer corresponding to the channel
     std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan].lock();
-    // if shared_ptr.lock() == NULL then no streamer is using this ch
-    if (my_streamer.get() == NULL) return;
+    // if shared_ptr is false then no streamer is using this ch
+    if (!my_streamer) return;
 
     // Inform the streamer of the sample rate change
     my_streamer->set_sample_rate(rate);
@@ -452,8 +452,8 @@ void crimson_tng_impl::update_tx_samp_rate(const size_t chan, const double rate 
 
     // Get the streamer corresponding to the channel
     std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
-    // if shared_ptr.lock() == NULL then no streamer is using this ch
-    if (my_streamer.get() == NULL) return;
+    // if shared_ptr is false then no streamer is using this ch
+    if (!my_streamer) return;
 
     // Inform the streamer of the sample rate change
     my_streamer->set_samp_rate(rate);
@@ -509,24 +509,26 @@ void crimson_tng_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
 bool crimson_tng_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
-    if(!recv_async_msg_deprecated_warning) {
-        std::cout << "device recv_async_msg function is deprecated. Stream to tx_streamer.recv_async_msg\n";
-        recv_async_msg_deprecated_warning = true;
-    }
-    // The fifo is created during get_tx_stream, as part of changes to better handle stream specific get async messages
-    // The means calling the device get async msg (this function) before creating a stream can be done before the fifo is created
-    if(_async_msg_fifo.get() != NULL) {
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
-        return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
-    } else {
-        return false;
-    }
+    // if(!recv_async_msg_deprecated_warning) {
+    //     std::cout << "device recv_async_msg function is deprecated. Stream to tx_streamer.recv_async_msg\n";
+    //     recv_async_msg_deprecated_warning = true;
+    // }
+    // // The fifo is created during get_tx_stream, as part of changes to better handle stream specific get async messages
+    // // The means calling the device get async msg (this function) before creating a stream can be done before the fifo is created
+    // if(_async_msg_fifo) {
+    //     boost::this_thread::disable_interruption di; //disable because the wait can throw
+    //     return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+    // } else {
+    //     return false;
+    // }
+    return false;
 }
 
 /***********************************************************************
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args_){
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream start");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -574,7 +576,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
         // Verify if the source of rx packets can pinged
         std::string src_ip = _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
-        ping_check(sfp, src_ip);
+        // ping_check(sfp, src_ip);
     }
 
     // Fallback to hard coded values if attempt to get payload fails
@@ -656,16 +658,17 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     }
 
     // Gets the issuers used by the channels used by this server
-    std::vector<uhd::usrp::stream_cmd_issuer> issuers(args.channels.size());
+    std::vector<uhd::usrp::stream_cmd_issuer> issuers;
+    issuers.reserve(args.channels.size());
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
 
-        issuers[chan_i] = rx_stream_cmd_issuer[chan];
+        issuers.emplace_back(rx_stream_cmd_issuer[chan]);
     }
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers);
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::make_shared<crimson_tng_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, &issuers);
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -702,6 +705,7 @@ _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
     //sets all tick and samp rates on this streamer
     // TODO: only update relevant channels
     this->update_rates();
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream end");
 
     return my_streamer;
 }
@@ -820,6 +824,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 }
 
 tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    UHD_LOG_INFO("TX_STREAMER", "get_tx_stream start");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -846,7 +851,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         dst_ports[n] = dst_port;
 
         // Verify the destination of tx packets can be pinged
-        ping_check(sfps[n], dst_ips[n]);
+        // ping_check(sfps[n], dst_ips[n]);
     }
 
     bool little_endian_supported = true;
@@ -911,6 +916,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 
     // Clock sync takes time and some programs assume send will work quickly instead of having to wait for clock sync to finish, to avoid causing issues with those programs wait for lock sync before returning
     device_clock_sync_info->wait_for_sync();
+
+    UHD_LOG_INFO("TX_STREAMER", "get_tx_stream end");
 
     return my_streamer;
 }

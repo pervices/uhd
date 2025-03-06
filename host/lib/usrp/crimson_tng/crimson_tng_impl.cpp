@@ -717,8 +717,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     device_addr = _device_addr;
 
     // Initialize the mutexes to control access to the SFP ports
+    _sfp_control_mutex.reserve(NUMBER_OF_XG_CONTROL_INTF);
     for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
-        _sfp_control_mutex[n] = std::make_shared<std::mutex>();
+        _sfp_control_mutex.emplace_back(new std::mutex());
+
     }
 
     //setup the dsp transport hints (default to a large recv buff)
@@ -1302,9 +1304,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		start_bm();
 	}
 
+    rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
         rx_stream_cmd_issuer.emplace_back(_time_diff_iface, device_clock_sync_info, ch, 16, 1);
     }
+
+    UHD_LOG_INFO("crimson_tng_impl", "end of constructor");
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)

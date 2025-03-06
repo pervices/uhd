@@ -138,7 +138,7 @@ private:
     void set_properties_from_addr();
 
     // Mutexes for controlling control (not data) send/receives each SFP port
-    std::shared_ptr<std::mutex> _sfp_control_mutex[NUMBER_OF_XG_CONTROL_INTF];
+    std::vector<std::shared_ptr<std::mutex>> _sfp_control_mutex;
 
 	/**
 	 * Clock Domain Synchronization Objects
@@ -205,8 +205,6 @@ private:
         // TODO: see if removing rx_streamers and tx_streamers is viable
         std::vector<std::weak_ptr<uhd::usrp::crimson_tng_recv_packet_streamer>> rx_streamers;
         std::vector<std::weak_ptr<uhd::usrp::crimson_tng_send_packet_streamer>> tx_streamers;
-        std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
-        std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
     };
     mb_container_type _mbc;

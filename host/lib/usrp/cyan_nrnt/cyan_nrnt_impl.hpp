@@ -157,14 +157,14 @@ private:
     void set_properties_from_addr();
 
     // Mutexes for controlling control (not data) send/receives each SFP port
-    std::shared_ptr<std::mutex> _sfp_control_mutex[NUMBER_OF_XG_CONTROL_INTF];
+    std::vector<std::shared_ptr<std::mutex>> _sfp_control_mutex;
 
 	/**
 	 * Clock Domain Synchronization Objects
 	 */
 
 	/// UDP endpoint that receives our Time Diff packets
-	std::array<uhd::transport::udp_simple::sptr,NUMBER_OF_XG_CONTROL_INTF> _time_diff_iface;
+	std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -215,8 +215,6 @@ private:
         // TODO: see if removing rx_streamers and tx_streamers is viable
         std::vector<std::weak_ptr<uhd::usrp::cyan_nrnt_recv_packet_streamer>> rx_streamers;
         std::vector<std::weak_ptr<uhd::usrp::cyan_nrnt_send_packet_streamer>> tx_streamers;
-        std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
-        std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
     };
     mb_container_type _mbc;
@@ -306,7 +304,7 @@ private:
     // Samples per second being using per channel
     std::vector<double> rx_sfp_throughput_used;
     // Used to check if a rx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> rx_channel_in_use;
+    std::shared_ptr<std::vector<uint8_t>> rx_channel_in_use;
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
 

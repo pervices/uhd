@@ -633,11 +633,15 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 	struct time_diff_resp tdr;
 
 	//Get offset
+    std::cout << "C20\n";
     dev->_sfp_control_mutex[xg_intf]->lock();
+    std::cout << "C40\n";
 	now = uhd::get_system_time();
 	dev->time_diff_send( now, xg_intf );
 	dev->time_diff_recv( tdr, xg_intf );
+    std::cout << "C60\n";
     dev->_sfp_control_mutex[xg_intf]->unlock();
+    std::cout << "C80\n";
     dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -766,10 +770,15 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
 
+    std::cout << "B1\n";
     // Initialize the mutexes to control access to the SFP ports
+    _sfp_control_mutex.reserve(NUMBER_OF_XG_CONTROL_INTF);
     for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
-        _sfp_control_mutex[n] = std::make_shared<std::mutex>();
+        _sfp_control_mutex.emplace_back(new std::mutex());
+        std::cout << "_sfp_control_mutex.use_count(): " << _sfp_control_mutex[n].use_count() << std::endl;
     }
+    std::cout << "B2\n";
+    std::cout << "_sfp_control_mutex: " << _sfp_control_mutex.size() << std::endl;
 
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){
@@ -790,6 +799,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		)
     );
 
+    std::cout << "B10\n";
+
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
 
@@ -797,6 +808,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     // Cyan NrNt only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
+    std::cout << "B20\n";
 
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
@@ -868,12 +880,14 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     is_tx_udp_port_cached.resize(num_tx_channels, false);
     tx_udp_port_cache.resize(num_tx_channels);
     tx_sfp_throughput_used.resize(num_tx_channels, 0);
-    tx_channel_in_use = std::make_shared<std::vector<bool>>(num_tx_channels, false);
+    tx_channel_in_use = std::shared_ptr<std::vector<bool>>(new std::vector<bool>(num_tx_channels, false));
 
     is_rx_sfp_cached.resize(num_rx_channels, false);
     rx_sfp_cache.resize(num_rx_channels);
     rx_sfp_throughput_used.resize(num_rx_channels, 0);
-    rx_channel_in_use = std::make_shared<std::vector<bool>>(num_rx_channels, false);
+    rx_channel_in_use = std::shared_ptr<std::vector<uint8_t>>(new std::vector<uint8_t>(num_rx_channels, false));
+    printf("1 rx_channel_in_use: %p\n", &rx_channel_in_use);
+    printf("1 rx_channel_in_use.get(): %p\n", rx_channel_in_use.get());
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "time_source" / "options").set(time_sources);
@@ -975,7 +989,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
         std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
         std::string time_diff_port = std::to_string( sfp_port );
-        _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
+        _time_diff_iface.push_back(udp_simple::make_connected( time_diff_ip, time_diff_port ));
     }
 
     // This is the master clock rate
@@ -1324,6 +1338,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		start_pps_dtc();
 	}
 
+	std::cout << "B300\n";
+
 	if ( _bm_thread_needed ) {
 
 		//Initialize "Time Diff" mechanism before starting flow control thread
@@ -1345,12 +1361,16 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		_time_diff_pidc->set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
 
         _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
+        std::cout << "B350\n";
 
         device_clock_sync_info = clock_sync_shared_info::make();
 
 		start_bm();
 	}
+	std::cout << "B400\n";
+    UHD_LOG_INFO("cyan_nrnt_impl", "100 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
+    rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
         //The channel argument in the packet is actually the jesd number relative to the sfp port on Cyan
         //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
@@ -1361,6 +1381,9 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
         rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
     }
+    std::cout << "B500\n";
+    UHD_LOG_INFO("cyan_nrnt_impl", "200 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
+    UHD_LOG_INFO("cyan_nrnt_impl", "end of constructor");
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)

@@ -85,15 +85,30 @@ namespace ph = std::placeholders;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
+cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<uint8_t>>* rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr* iface, std::vector<uhd::usrp::stream_cmd_issuer>* cmd_issuer)
 : sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
-_channels(channels),
-_iface(iface)
+_channels(channels)
 {
-    _rx_streamer_channel_in_use = rx_channel_in_use;
+    UHD_LOG_INFO("RX_STREAMER", "I1");
+    UHD_LOG_INFO("ISSUER", "1 iface->use_count(): " + std::to_string(iface->use_count()));
+    _iface = *iface;
+    UHD_LOG_INFO("ISSUER", "2 iface->use_count(): " + std::to_string(iface->use_count()));
+    UHD_LOG_INFO("RX_STREAMER", "I2");
+    printf("3 rx_channel_in_use: %p\n", rx_channel_in_use);
+    printf("3 rx_channel_in_use.get(): %p\n", rx_channel_in_use->get());
+
+
+
+    UHD_LOG_INFO("ISSUER", "1 rx_channel_in_use->use_count(): " + std::to_string(rx_channel_in_use->use_count()));
+
+    _rx_streamer_channel_in_use = *rx_channel_in_use;
+    UHD_LOG_INFO("ISSUER", "2 rx_channel_in_use->use_count(): " + std::to_string(rx_channel_in_use->use_count()));
+    UHD_LOG_INFO("ISSUER", "2 _rx_streamer_channel_in_use.use_count(): " + std::to_string(_rx_streamer_channel_in_use.use_count()));
+    UHD_LOG_INFO("RX_STREAMER", "I3");
     for(size_t n = 0; n < channels.size(); n++) {
         _rx_streamer_channel_in_use->at(channels[n]) = true;
     }
+    UHD_LOG_INFO("RX_STREAMER", "I100");
 }
 
 cyan_nrnt_recv_packet_streamer::~cyan_nrnt_recv_packet_streamer() {
@@ -213,9 +228,9 @@ size_t cyan_nrnt_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    if( ! _buffer_monitor_running && !use_blocking_fc ) {
-        start_buffer_monitor_thread();
-    }
+    // if( ! _buffer_monitor_running && !use_blocking_fc ) {
+    //     start_buffer_monitor_thread();
+    // }
 
     r = send_packet_handler_mmsg::send(buffs, nsamps_per_buff, metadata, timeout);
 
@@ -406,8 +421,8 @@ void cyan_nrnt_impl::update_rx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
     std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan].lock();
-    // if shared_ptr.lock() == NULL then no streamer is using this ch
-    if (my_streamer.get() == NULL) return;
+    // if shared_ptr is false then no streamer is using this ch
+    if (!my_streamer) return;
 
     // Inform the streamer of the sample rate change
     my_streamer->set_sample_rate(rate);
@@ -439,8 +454,8 @@ void cyan_nrnt_impl::update_tx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
     std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
-    // if shared_ptr.lock() == NULL then no streamer is using this ch
-    if (my_streamer.get() == NULL) return;
+    // if shared_ptr is false then no streamer is using this ch
+    if (!my_streamer) return;
 
     // Inform the streamer of the sample rate change
     my_streamer->set_samp_rate(rate);
@@ -497,28 +512,33 @@ void cyan_nrnt_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
 bool cyan_nrnt_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
-    if(!recv_async_msg_deprecated_warning) {
-        std::cout << "device recv_async_msg function is deprecated. Stream to tx_streamer.recv_async_msg\n";
-        recv_async_msg_deprecated_warning = true;
-    }
-    // The fifo is created during get_tx_stream, as part of changes to better handle stream specific get async messages
-    // The means calling the device get async msg (this function) before creating a stream can be done before the fifo is created
-    if(_async_msg_fifo.get() != NULL) {
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
-        return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
-    } else {
-        return false;
-    }
+    // if(!recv_async_msg_deprecated_warning) {
+    //     std::cout << "device recv_async_msg function is deprecated. Stream to tx_streamer.recv_async_msg\n";
+    //     recv_async_msg_deprecated_warning = true;
+    // }
+    // // The fifo is created during get_tx_stream, as part of changes to better handle stream specific get async messages
+    // // The means calling the device get async msg (this function) before creating a stream can be done before the fifo is created
+    // if(_async_msg_fifo) {
+    //     boost::this_thread::disable_interruption di; //disable because the wait can throw
+    //     return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+    // } else {
+    //     return false;
+    // }
+    return false;
 }
 
 /***********************************************************************
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream start");
+    UHD_LOG_INFO("RX_STREAMER", "1 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
     _mm_sfence();
+
+    UHD_LOG_INFO("RX_STREAMER", "2 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     stream_args_t args = args_;
 
@@ -534,44 +554,60 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         }
     }
 
+    UHD_LOG_INFO("RX_STREAMER", "3 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
+
     if (args.otw_format != otw_rx_s){
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
+
+    UHD_LOG_INFO("RX_STREAMER", "4 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
 
     std::vector<std::string> dst_ip(args.channels.size());
     for(size_t n = 0; n < dst_ip.size(); n++) {
         dst_ip[n] = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/ip_dest" ).get();
     }
+    UHD_LOG_INFO("RX_STREAMER", "5 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     std::vector<int> dst_port(args.channels.size());
     for(size_t n = 0; n < dst_port.size(); n++) {
         dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
     }
+    UHD_LOG_INFO("RX_STREAMER", "6 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     int data_len = 0;
     // Get vita payload length length (header + data, not including triler)
     for(size_t n = 0; n < args.channels.size(); n++) {
+        UHD_LOG_INFO("RX_STREAMER", "7 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         std::string sfp = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/iface" ).get();
+        UHD_LOG_INFO("RX_STREAMER", "8 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).set(CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES + CYAN_NRNT_HEADER_SIZE);
+        UHD_LOG_INFO("RX_STREAMER", "9 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         int payload_len = _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).get();
+        UHD_LOG_INFO("RX_STREAMER", "10 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         if(data_len == 0) {
             data_len = payload_len - CYAN_NRNT_HEADER_SIZE;
         }
+        UHD_LOG_INFO("RX_STREAMER", "11 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         // If unable to get length, fallback to hard coded version for variant
         if(data_len + CYAN_NRNT_HEADER_SIZE != payload_len && data_len !=0) {
             throw uhd::value_error("Payload length mismatch between channels");
         }
+        UHD_LOG_INFO("RX_STREAMER", "12 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
         // Verify if the source of rx packets can pinged
         std::string src_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
-        ping_check(sfp, src_ip);
+        // ping_check(sfp, src_ip);
+        UHD_LOG_INFO("RX_STREAMER", "14 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
     }
+
+    UHD_LOG_INFO("RX_STREAMER", "18 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     // Fallback to hard coded values if attempt to get payload fails
     if(data_len == 0) {
         data_len = CYAN_NRNT_FALLBACK_MAX_NBYTES;
     }
+    UHD_LOG_INFO("RX_STREAMER", "19 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     bool little_endian_supported;
     // There is no converter for little endian for sc12, even though Cyan is capable of it
@@ -580,6 +616,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     } else {
         little_endian_supported = true;
     }
+
+    UHD_LOG_INFO("RX_STREAMER", "20 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     // Create and bind sockets
     // Done here instead of the packet handler class due to the need to auto change ports if the default is busy
@@ -651,18 +689,36 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         // vita enable
         _tree->access<std::string>(rx_link_path / "vita_en").set("1");
     }
+    UHD_LOG_INFO("RX_STREAMER", "G1");
 
     // Gets the issuers used by the channels used by this server
-    std::vector<uhd::usrp::stream_cmd_issuer> issuers(args.channels.size());
-    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
-        const size_t chan = args.channels[chan_i];
+    // std::vector<uhd::usrp::stream_cmd_issuer> issuers;
+    // UHD_LOG_INFO("RX_STREAMER", "G2");
+    // issuers.reserve(args.channels.size());
+    // UHD_LOG_INFO("RX_STREAMER", "G10");
+    //
+    // for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+    //     const size_t chan = args.channels[chan_i];
+    //     UHD_LOG_INFO("RX_STREAMER", "G11");
+    //
+    //     issuers.emplace_back(rx_stream_cmd_issuer[chan]);
+    //     UHD_LOG_INFO("RX_STREAMER", "G20");
+    // }
+    UHD_LOG_INFO("RX_STREAMER", "G30");
+    // UHD_LOG_INFO("RX_STREAMER", "G31 issuers.size(): " + std::to_string(issuers.size()));
+    printf("2 rx_channel_in_use: %p\n", &rx_channel_in_use);
+    UHD_LOG_INFO("RX_STREAMER", "40 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
-        issuers[chan_i] = rx_stream_cmd_issuer[chan];
-    }
+    cyan_nrnt_recv_packet_streamer* tmp = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, &rx_channel_in_use, num_rx_channels, &_mbc.iface, &rx_stream_cmd_issuer);
+
+    UHD_LOG_INFO("RX_STREAMER", "G35");
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers);
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_recv_packet_streamer>(tmp);
+    UHD_LOG_INFO("RX_STREAMER", "G40");
+
+    // UHD_LOG_INFO("RX_STREAMER", "G41 issuers.size(): " + std::to_string(issuers.size()));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -713,6 +769,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
             UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "rx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
         }
     }
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream end");
 
     return my_streamer;
 }
@@ -831,6 +888,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 }
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    UHD_LOG_INFO("TX_STREAMER", "get_tx_stream start");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -864,7 +922,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
 
         // Verify the destination of tx packets can be pinged
-        ping_check(sfps[n], dst_ips[n]);
+        // ping_check(sfps[n], dst_ips[n]);
     }
 
     bool little_endian_supported;
@@ -950,6 +1008,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     // Clock sync takes time and some programs assume send will work quickly instead of having to wait for clock sync to finish, to avoid causing issues with those programs wait for lock sync before returning
     device_clock_sync_info->wait_for_sync();
+
+    UHD_LOG_INFO("TX_STREAMER", "get_tx_stream end");
 
     return my_streamer;
 }

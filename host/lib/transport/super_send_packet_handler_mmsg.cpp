@@ -937,8 +937,9 @@ public:
     bool recv_async_msg(
         uhd::async_metadata_t &async_metadata, double timeout = 0.1
     ){
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
-        return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+        // boost::this_thread::disable_interruption di; //disable because the wait can throw
+        // return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+        return false;
     }
 
     // Asynchronously send messages notifying of overflow/underflows
