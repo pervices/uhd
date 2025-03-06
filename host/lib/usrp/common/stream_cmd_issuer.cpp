@@ -113,21 +113,17 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
 }
 
 stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
-: /*command_socket(command_socket),
-clock_sync_info(clock_sync_info),*/
+: command_socket(command_socket),
+clock_sync_info(clock_sync_info),
 ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits),
 nsamps_multiple_rx(nsamps_multiple_rx)
 {
-    UHD_LOG_INFO("ISSUER", "T7");
-    this->command_socket = command_socket;
-    this->clock_sync_info = clock_sync_info;
-    UHD_LOG_INFO("ISSUER", "T8");
+
 }
 
 stream_cmd_issuer::stream_cmd_issuer()
-: /*command_socket(),
-clock_sync_info(),*/
+:
 ch_jesd_number(0),
 num_rx_bits(0),
 nsamps_multiple_rx(0)
@@ -136,39 +132,31 @@ nsamps_multiple_rx(0)
 }
 
 stream_cmd_issuer::stream_cmd_issuer(const stream_cmd_issuer& from)
-// : command_socket(from.command_socket),
-// clock_sync_info(from.clock_sync_info),
-: //TMP
+: command_socket(from.command_socket),
+clock_sync_info(from.clock_sync_info),
 ch_jesd_number(from.ch_jesd_number),
 num_rx_bits(from.num_rx_bits),
 nsamps_multiple_rx(from.nsamps_multiple_rx)
 {
-    UHD_LOG_INFO("ISSUER", "T1");
-    command_socket = from.command_socket;
-    clock_sync_info = from.clock_sync_info;
-    UHD_LOG_INFO("ISSUER", "T2");
+
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
-    UHD_LOG_INFO("ISSUER", "T3");
     command_socket = other.command_socket;
     clock_sync_info = other.clock_sync_info;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
-    UHD_LOG_INFO("ISSUER", "T4");
 
     return *this;
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) {
-    UHD_LOG_INFO("ISSUER", "T5");
     command_socket = other.command_socket;
     clock_sync_info = other.clock_sync_info;
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
-    UHD_LOG_INFO("ISSUER", "T6");
 
     return *this;
 }
