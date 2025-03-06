@@ -1362,6 +1362,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
         rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
     }
+    UHD_LOG_INFO("cyan_nrnt_impl", "end of constructor");
 }
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)

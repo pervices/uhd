@@ -516,7 +516,7 @@ bool cyan_nrnt_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
-    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream");
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream start");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -717,7 +717,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
             UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "rx " << ch << ": unable to establish JESD link. This streamer will not work." << std::endl;
         }
     }
-    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream");
+    UHD_LOG_INFO("RX_STREAMER", "get_rx_stream end");
 
     return my_streamer;
 }
@@ -836,6 +836,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 }
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    UHD_LOG_INFO("TX_STREAMER", "get_tx_stream start");
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -955,6 +956,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
 
     // Clock sync takes time and some programs assume send will work quickly instead of having to wait for clock sync to finish, to avoid causing issues with those programs wait for lock sync before returning
     device_clock_sync_info->wait_for_sync();
+
+    UHD_LOG_INFO("TX_STREAMER", "get_tx_stream end");
 
     return my_streamer;
 }
