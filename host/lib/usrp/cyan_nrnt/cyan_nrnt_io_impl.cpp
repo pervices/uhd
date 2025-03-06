@@ -407,7 +407,7 @@ void cyan_nrnt_impl::update_rx_samp_rate(const size_t chan, const double rate ){
     // Get the streamer corresponding to the channel
     std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan].lock();
     // if shared_ptr is false then no streamer is using this ch
-    if (my_streamer) return;
+    if (!my_streamer) return;
 
     // Inform the streamer of the sample rate change
     my_streamer->set_sample_rate(rate);
@@ -440,7 +440,7 @@ void cyan_nrnt_impl::update_tx_samp_rate(const size_t chan, const double rate ){
     // Get the streamer corresponding to the channel
     std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
     // if shared_ptr is false then no streamer is using this ch
-    if (my_streamer) return;
+    if (!my_streamer) return;
 
     // Inform the streamer of the sample rate change
     my_streamer->set_samp_rate(rate);
