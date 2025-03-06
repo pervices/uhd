@@ -213,8 +213,8 @@ private:
     struct mb_container_type{
         pv_iface::sptr iface;
         // TODO: see if removing rx_streamers and tx_streamers is viable
-        std::vector<std::shared_ptr<uhd::usrp::cyan_nrnt_recv_packet_streamer>> rx_streamers;
-        std::vector<std::shared_ptr<uhd::usrp::cyan_nrnt_send_packet_streamer>> tx_streamers;
+        std::vector<std::weak_ptr<uhd::usrp::cyan_nrnt_recv_packet_streamer>> rx_streamers;
+        std::vector<std::weak_ptr<uhd::usrp::cyan_nrnt_send_packet_streamer>> tx_streamers;
         std::vector<uhd::transport::zero_copy_if::sptr> rx_dsp_xports;
         std::vector<uhd::transport::zero_copy_if::sptr> tx_dsp_xports;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;

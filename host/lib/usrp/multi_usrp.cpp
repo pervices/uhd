@@ -129,12 +129,6 @@ public:
         _tree = _dev->get_tree();
     }
 
-    ~multi_usrp_impl() {
-        UHD_LOG_INFO("UHD", "M1");
-        _dev = nullptr;
-        UHD_LOG_INFO("UHD", "M2");
-    }
-
     device::sptr get_device(void) override
     {
         return _dev;
@@ -2952,8 +2946,7 @@ private:
 
 multi_usrp::~multi_usrp(void)
 {
-    UHD_LOG_INFO("UHD", "M0");
-    // /* NOP */
+    /* NOP */
 }
 
 
