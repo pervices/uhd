@@ -91,7 +91,7 @@ public:
         _stream_cmd_issuers.reserve(_NUM_CHANNELS);
         UHD_LOG_INFO("UHD", "A2")
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-            _stream_cmd_issuers[ch_i] = cmd_issuers[ch_i];
+            _stream_cmd_issuers.emplace_back(cmd_issuers[ch_i]);
         }
         UHD_LOG_INFO("UHD", "A3")
 
