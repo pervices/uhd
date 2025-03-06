@@ -180,3 +180,10 @@ stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) 
 
     return *this;
 }
+
+stream_cmd_issuer::~stream_cmd_issuer() {
+    UHD_LOG_ERROR("ISSUER", "Destructor start");
+    command_socket.reset();
+    clock_sync_info.reset();
+    UHD_LOG_ERROR("ISSUER", "Destructor end");
+}
