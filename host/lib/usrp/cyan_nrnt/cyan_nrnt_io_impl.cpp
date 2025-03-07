@@ -669,11 +669,14 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         UHD_LOG_INFO("RX_STREAMER", "G20");
     }
     UHD_LOG_INFO("RX_STREAMER", "G30");
+     UHD_LOG_INFO("RX_STREAMER", "1 issuers.size(): " + issuers.size());
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
     std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::make_shared<cyan_nrnt_recv_packet_streamer>(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers);
     UHD_LOG_INFO("RX_STREAMER", "G40");
+
+    UHD_LOG_INFO("RX_STREAMER", "2 issuers.size(): " + issuers.size());
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){

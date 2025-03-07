@@ -142,6 +142,8 @@ nsamps_multiple_rx(other.nsamps_multiple_rx)
     UHD_LOG_INFO("ISSUER", "T3");
     command_socket = std::shared_ptr<uhd::transport::udp_simple>(other.command_socket);
     clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(other.clock_sync_info);
+    UHD_LOG_INFO("ISSUER", "command_socket.use_count(): " + std::to_string(command_socket.use_count()));
+    UHD_LOG_INFO("ISSUER", "clock_sync_info.use_count(): " + std::to_string(clock_sync_info.use_count()));
     UHD_LOG_INFO("ISSUER", "T4");
 }
 
