@@ -669,7 +669,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         UHD_LOG_INFO("RX_STREAMER", "G20");
     }
     UHD_LOG_INFO("RX_STREAMER", "G30");
-    UHD_LOG_INFO("RX_STREAMER", "G31 issuers.size(): " + issuers.size());
+    UHD_LOG_INFO("RX_STREAMER", "G31 issuers.size(): " + std::to_string(issuers.size()));
 
     cyan_nrnt_recv_packet_streamer* tmp = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, &issuers);
 
@@ -680,7 +680,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_recv_packet_streamer>(tmp);
     UHD_LOG_INFO("RX_STREAMER", "G40");
 
-    UHD_LOG_INFO("RX_STREAMER", "G41 issuers.size(): " + issuers.size());
+    UHD_LOG_INFO("RX_STREAMER", "G41 issuers.size(): " + std::to_string(issuers.size()));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
