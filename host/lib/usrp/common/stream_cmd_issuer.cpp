@@ -112,7 +112,7 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
-stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket_, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
+stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket_, std::shared_ptr<uhd::usrp::clock_sync_shared_info>& clock_sync_info_, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
 :
 ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits),
@@ -120,7 +120,7 @@ nsamps_multiple_rx(nsamps_multiple_rx)
 {
     UHD_LOG_INFO("ISSUER", "T1");
     command_socket = std::shared_ptr<uhd::transport::udp_simple>(command_socket_);
-    clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(clock_sync_info_);
+    // clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(clock_sync_info_);
     UHD_LOG_INFO("ISSUER", "T2");
 }
 
@@ -141,16 +141,16 @@ nsamps_multiple_rx(other.nsamps_multiple_rx)
 {
     UHD_LOG_INFO("ISSUER", "T3");
     command_socket = std::shared_ptr<uhd::transport::udp_simple>(other.command_socket);
-    clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(other.clock_sync_info);
+    // clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(other.clock_sync_info);
     UHD_LOG_INFO("ISSUER", "command_socket.use_count(): " + std::to_string(command_socket.use_count()));
-    UHD_LOG_INFO("ISSUER", "clock_sync_info.use_count(): " + std::to_string(clock_sync_info.use_count()));
+    // UHD_LOG_INFO("ISSUER", "clock_sync_info.use_count(): " + std::to_string(clock_sync_info.use_count()));
     UHD_LOG_INFO("ISSUER", "T4");
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
     UHD_LOG_INFO("ISSUER", "T5");
     command_socket = std::shared_ptr<uhd::transport::udp_simple>(other.command_socket);
-    clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(other.clock_sync_info);
+    // clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(other.clock_sync_info);
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
@@ -162,7 +162,7 @@ stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
 stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) {
     UHD_LOG_INFO("ISSUER", "T7");
     command_socket = std::shared_ptr<uhd::transport::udp_simple>(other.command_socket);
-    clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(other.clock_sync_info);
+    // clock_sync_info = std::shared_ptr<uhd::usrp::clock_sync_shared_info>(other.clock_sync_info);
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
