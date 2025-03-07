@@ -868,12 +868,12 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     is_tx_udp_port_cached.resize(num_tx_channels, false);
     tx_udp_port_cache.resize(num_tx_channels);
     tx_sfp_throughput_used.resize(num_tx_channels, 0);
-    tx_channel_in_use = std::make_shared<std::vector<bool>>(num_tx_channels, false);
+    tx_channel_in_use = std::shared_ptr<std::vector<bool>>(new std::vector<bool>(num_tx_channels, false));
 
     is_rx_sfp_cached.resize(num_rx_channels, false);
     rx_sfp_cache.resize(num_rx_channels);
     rx_sfp_throughput_used.resize(num_rx_channels, 0);
-    rx_channel_in_use = std::make_shared<std::vector<bool>>(num_rx_channels, false);
+    rx_channel_in_use = std::shared_ptr<std::vector<bool>>(new std::vector<bool>(num_rx_channels, false));
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "time_source" / "options").set(time_sources);
