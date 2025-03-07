@@ -85,12 +85,12 @@ namespace ph = std::placeholders;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer>* cmd_issuer)
+cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>>* rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr* iface, std::vector<uhd::usrp::stream_cmd_issuer>* cmd_issuer)
 : sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
 _channels(channels),
-_iface(iface)
+_iface(*iface)
 {
-    _rx_streamer_channel_in_use = rx_channel_in_use;
+    _rx_streamer_channel_in_use = *rx_channel_in_use;
     for(size_t n = 0; n < channels.size(); n++) {
         _rx_streamer_channel_in_use->at(channels[n]) = true;
     }
@@ -671,7 +671,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     UHD_LOG_INFO("RX_STREAMER", "G30");
     // UHD_LOG_INFO("RX_STREAMER", "G31 issuers.size(): " + std::to_string(issuers.size()));
 
-    cyan_nrnt_recv_packet_streamer* tmp = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, &rx_stream_cmd_issuer);
+    cyan_nrnt_recv_packet_streamer* tmp = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, &rx_channel_in_use, num_rx_channels, &_mbc.iface, &rx_stream_cmd_issuer);
 
     UHD_LOG_INFO("RX_STREAMER", "G35");
 

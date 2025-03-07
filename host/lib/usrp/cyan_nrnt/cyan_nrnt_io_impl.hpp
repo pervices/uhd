@@ -33,7 +33,7 @@ public:
     /**
      * @param iface The interface to access thes server
      */
-    cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer>* cmd_issuer);
+    cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>>* rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr* iface, std::vector<uhd::usrp::stream_cmd_issuer>* cmd_issuer);
 
     ~cyan_nrnt_recv_packet_streamer();
 
