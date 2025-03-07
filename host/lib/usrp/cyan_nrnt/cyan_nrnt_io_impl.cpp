@@ -87,13 +87,18 @@ namespace pt = boost::posix_time;
 
 cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>>* rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr* iface, std::vector<uhd::usrp::stream_cmd_issuer>* cmd_issuer)
 : sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
-_channels(channels),
-_iface(*iface)
+_channels(channels)
 {
+    UHD_LOG_INFO("RX_STREAMER", "I1");
+    _iface = *iface;
+    UHD_LOG_INFO("RX_STREAMER", "I2");
+
     _rx_streamer_channel_in_use = *rx_channel_in_use;
+    UHD_LOG_INFO("RX_STREAMER", "I3");
     for(size_t n = 0; n < channels.size(); n++) {
         _rx_streamer_channel_in_use->at(channels[n]) = true;
     }
+    UHD_LOG_INFO("RX_STREAMER", "I100");
 }
 
 cyan_nrnt_recv_packet_streamer::~cyan_nrnt_recv_packet_streamer() {
