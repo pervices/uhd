@@ -599,6 +599,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         little_endian_supported = true;
     }
 
+    UHD_LOG_INFO("RX_STREAMER", "20 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
+
     // Create and bind sockets
     // Done here instead of the packet handler class due to the need to auto change ports if the default is busy
     std::vector<int> recv_sockets(args.channels.size());
@@ -687,6 +689,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     UHD_LOG_INFO("RX_STREAMER", "G30");
     // UHD_LOG_INFO("RX_STREAMER", "G31 issuers.size(): " + std::to_string(issuers.size()));
     printf("2 rx_channel_in_use: %p\n", &rx_channel_in_use);
+    UHD_LOG_INFO("RX_STREAMER", "40 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     cyan_nrnt_recv_packet_streamer* tmp = new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, &rx_channel_in_use, num_rx_channels, &_mbc.iface, &rx_stream_cmd_issuer);
 
