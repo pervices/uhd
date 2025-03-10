@@ -766,11 +766,13 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
 
+    UHD_LOG_INFO("cyan_nrnt_impl", "Before creating mutex");
     // Initialize the mutexes to control access to the SFP ports
     _sfp_control_mutex.reserve(NUMBER_OF_XG_CONTROL_INTF);
     for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
         _sfp_control_mutex.emplace_back();
     }
+    UHD_LOG_INFO("cyan_nrnt_impl", "After creating mutex");
 
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){
