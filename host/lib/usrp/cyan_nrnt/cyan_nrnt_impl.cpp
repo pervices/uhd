@@ -976,7 +976,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
         std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
         std::string time_diff_port = std::to_string( sfp_port );
-        _time_diff_iface[i] = udp_simple::make_connected( time_diff_ip, time_diff_port );
+        _time_diff_iface.push_back(udp_simple::make_connected( time_diff_ip, time_diff_port ));
     }
 
     // This is the master clock rate
