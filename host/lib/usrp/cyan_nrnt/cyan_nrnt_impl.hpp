@@ -304,7 +304,7 @@ private:
     // Samples per second being using per channel
     std::vector<double> rx_sfp_throughput_used;
     // Used to check if a rx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> rx_channel_in_use;
+    std::shared_ptr<std::vector<uint8_t>> rx_channel_in_use;
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
 
