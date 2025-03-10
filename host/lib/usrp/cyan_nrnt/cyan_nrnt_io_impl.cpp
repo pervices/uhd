@@ -90,7 +90,9 @@ cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector
 _channels(channels)
 {
     UHD_LOG_INFO("RX_STREAMER", "I1");
+    UHD_LOG_INFO("ISSUER", "1 iface->use_count(): " + std::to_string(iface->use_count()));
     _iface = *iface;
+    UHD_LOG_INFO("ISSUER", "2 iface->use_count(): " + std::to_string(iface->use_count()));
     UHD_LOG_INFO("RX_STREAMER", "I2");
     UHD_LOG_INFO("ISSUER", "1 rx_channel_in_use->use_count(): " + std::to_string(rx_channel_in_use->use_count()));
 
