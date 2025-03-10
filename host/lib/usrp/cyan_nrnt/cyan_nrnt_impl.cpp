@@ -772,6 +772,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
         _sfp_control_mutex.emplace_back();
     }
+    std::cout << "_sfp_control_mutex: " << _sfp_control_mutex.size() << std::endl;
     UHD_LOG_INFO("cyan_nrnt_impl", "After creating mutex");
 
     //setup the dsp transport hints (default to a large recv buff)
@@ -792,6 +793,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 			BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
 		)
     );
+
+    std::cout << "B1\n";
 
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
