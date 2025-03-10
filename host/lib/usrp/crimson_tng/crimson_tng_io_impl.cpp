@@ -663,7 +663,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
 
-        issuers[chan_i] = rx_stream_cmd_issuer[chan];
+        issuers.emplace_back(rx_stream_cmd_issuer[chan]);
     }
 
     // Creates streamer
