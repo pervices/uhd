@@ -775,6 +775,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _sfp_control_mutex.reserve(NUMBER_OF_XG_CONTROL_INTF);
     for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
         _sfp_control_mutex.emplace_back();
+        std::cout << "_sfp_control_mutex: " << _sfp_control_mutex[n].use_count() << std::endl;
     }
     std::cout << "B2\n";
     std::cout << "_sfp_control_mutex: " << _sfp_control_mutex.size() << std::endl;
