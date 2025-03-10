@@ -92,9 +92,11 @@ _channels(channels)
     UHD_LOG_INFO("RX_STREAMER", "I1");
     _iface = *iface;
     UHD_LOG_INFO("RX_STREAMER", "I2");
-    UHD_LOG_INFO("ISSUER", "rx_channel_in_use->use_count(): " + std::to_string(rx_channel_in_use->use_count()));
+    UHD_LOG_INFO("ISSUER", "1 rx_channel_in_use->use_count(): " + std::to_string(rx_channel_in_use->use_count()));
 
     _rx_streamer_channel_in_use = *rx_channel_in_use;
+    UHD_LOG_INFO("ISSUER", "2 rx_channel_in_use->use_count(): " + std::to_string(rx_channel_in_use->use_count()));
+    UHD_LOG_INFO("ISSUER", "2 _rx_streamer_channel_in_use.use_count(): " + std::to_string(_rx_streamer_channel_in_use.use_count()));
     UHD_LOG_INFO("RX_STREAMER", "I3");
     for(size_t n = 0; n < channels.size(); n++) {
         _rx_streamer_channel_in_use->at(channels[n]) = true;
