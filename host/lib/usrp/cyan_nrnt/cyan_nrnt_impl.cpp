@@ -766,14 +766,14 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _type = device::CYAN_NRNT;
     device_addr = _device_addr;
 
-    UHD_LOG_INFO("cyan_nrnt_impl", "Before creating mutex");
+    std::cout << "B1\n";
     // Initialize the mutexes to control access to the SFP ports
     _sfp_control_mutex.reserve(NUMBER_OF_XG_CONTROL_INTF);
     for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
         _sfp_control_mutex.emplace_back();
     }
+    std::cout << "B2\n";
     std::cout << "_sfp_control_mutex: " << _sfp_control_mutex.size() << std::endl;
-    UHD_LOG_INFO("cyan_nrnt_impl", "After creating mutex");
 
     //setup the dsp transport hints (default to a large recv buff)
     if (not device_addr.has_key("recv_buff_size")){
@@ -794,7 +794,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		)
     );
 
-    std::cout << "B1\n";
+    std::cout << "B10\n";
 
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
@@ -803,6 +803,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     // Cyan NrNt only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
+    std::cout << "B20\n";
 
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
@@ -1329,6 +1330,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 	if ( _pps_thread_needed ) {
 		start_pps_dtc();
 	}
+
+	std::cout << "B300\n";
 
 	if ( _bm_thread_needed ) {
 
