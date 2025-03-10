@@ -633,11 +633,15 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 	struct time_diff_resp tdr;
 
 	//Get offset
+    std::cout << "C20\n";
     dev->_sfp_control_mutex[xg_intf]->lock();
+    std::cout << "C40\n";
 	now = uhd::get_system_time();
 	dev->time_diff_send( now, xg_intf );
 	dev->time_diff_recv( tdr, xg_intf );
+    std::cout << "C60\n";
     dev->_sfp_control_mutex[xg_intf]->unlock();
+    std::cout << "C80\n";
     dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
 	for(
@@ -1354,11 +1358,13 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		_time_diff_pidc->set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
 
         _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
+        std::cout << "B350\n";
 
         device_clock_sync_info = clock_sync_shared_info::make();
 
 		start_bm();
 	}
+	std::cout << "B400\n";
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
