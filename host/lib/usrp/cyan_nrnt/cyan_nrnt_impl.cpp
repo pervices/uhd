@@ -1368,6 +1368,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		start_bm();
 	}
 	std::cout << "B400\n";
+    UHD_LOG_INFO("cyan_nrnt_impl", "100 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
