@@ -95,6 +95,7 @@ _channels(channels)
     UHD_LOG_INFO("ISSUER", "2 iface->use_count(): " + std::to_string(iface->use_count()));
     UHD_LOG_INFO("RX_STREAMER", "I2");
     printf("3 rx_channel_in_use: %p\n", rx_channel_in_use);
+    printf("3 rx_channel_in_use.get(): %p\n", rx_channel_in_use->get());
     UHD_LOG_INFO("ISSUER", "1 rx_channel_in_use->use_count(): " + std::to_string(rx_channel_in_use->use_count()));
 
     _rx_streamer_channel_in_use = *rx_channel_in_use;

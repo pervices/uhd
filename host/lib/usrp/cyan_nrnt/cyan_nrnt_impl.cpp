@@ -887,6 +887,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     rx_sfp_throughput_used.resize(num_rx_channels, 0);
     rx_channel_in_use = std::shared_ptr<std::vector<uint8_t>>(new std::vector<uint8_t>(num_rx_channels, false));
     printf("1 rx_channel_in_use: %p\n", &rx_channel_in_use);
+    printf("1 rx_channel_in_use.get(): %p\n", rx_channel_in_use.get());
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "time_source" / "options").set(time_sources);
