@@ -277,7 +277,7 @@ void pv_iface::set_time_spec( const std::string pre, time_spec_t value ) {
  * Public make function for pv_iface
  **********************************************************************/
 pv_iface::sptr pv_iface::make(udp_simple::sptr ctrl_transport){
-    return std::make_shared<pv_iface>(ctrl_transport);
+    return std::shared_ptr<pv_iface>(new pv_iface(ctrl_transport));
 }
 
 /***********************************************************************

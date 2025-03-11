@@ -45,12 +45,6 @@ public:
     static constexpr size_t MAX_MTU_SIZE = 9000;
 
     typedef std::shared_ptr<pv_iface> sptr;
-    /*!
-     * Make a new pv_iface with the control transport.
-     * \param ctrl_transport the udp transport object
-     * \return a new cyan_nrnt interface object
-     */
-    pv_iface(uhd::transport::udp_simple::sptr ctrl_transport);
 
     static pv_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
 
@@ -91,6 +85,15 @@ public:
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
 private:
+
+    /*!
+     * Make a new pv_iface with the control transport.
+     * The constructor is private for force the use make
+     * \param ctrl_transport the udp transport object
+     * \return a new cyan_nrnt interface object
+     */
+    pv_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+
     // Mutex for controlling access to the management port
     std::mutex _iface_lock;
 
