@@ -80,11 +80,11 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     // i.e. sc12 contains 3/4 the amount of data as sc16, so multiply by 3/4
     stream_cmd.num_samps = stream_cmd.num_samps * num_rx_bits / 16;
 
-    // if(!clock_sync_info->is_synced()) [[unlikely]] {
-    //     // TODO: get time from server instead of waiting for sync if not already synced
-    //     clock_sync_info->wait_for_sync();
-    // }
-    // double current_time = (uhd::get_system_time() + clock_sync_info->get_time_diff()).get_real_secs();
+    if(!clock_sync_info->is_synced()) [[unlikely]] {
+        // TODO: get time from server instead of waiting for sync if not already synced
+        clock_sync_info->wait_for_sync();
+    }
+    double current_time = (uhd::get_system_time() + clock_sync_info->get_time_diff()).get_real_secs();
 
 #ifdef DEBUG_COUT
     std::cout
@@ -102,10 +102,10 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
-    // if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
-    //     UHD_LOGGER_WARNING("STREAM_CMD_ISSUER") << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
-    //     stream_cmd.stream_now = true;
-    // }
+    if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
+        UHD_LOGGER_WARNING("STREAM_CMD_ISSUER") << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
+        stream_cmd.stream_now = true;
+    }
 
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
 

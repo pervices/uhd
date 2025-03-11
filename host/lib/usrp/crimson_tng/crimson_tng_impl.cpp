@@ -706,7 +706,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 	device_addr( _device_addr ),
 	// Put _time_diff_pidc on their own cache line to avoid false sharing
 	_time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
-	_bm_thread_needed( false ),
+	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_pps_thread_running( false ),
