@@ -287,7 +287,7 @@ private:
     // Checks if an ip address can be pinged
     void ping_check(std::string sfp, std::string ip);
     // Records if an sfp port has already had it's ping check performed
-    bool ping_check_completed[NUMBER_OF_XG_CONTROL_INTF]{};
+    uint8_t ping_check_completed[NUMBER_OF_XG_CONTROL_INTF] ={0};
 
     // Samples per second being using per channel
     std::vector<double> tx_sfp_throughput_used;
