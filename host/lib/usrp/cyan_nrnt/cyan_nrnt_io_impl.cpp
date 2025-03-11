@@ -922,7 +922,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
 
         // Verify the destination of tx packets can be pinged
-        ping_check(sfps[n], dst_ips[n]);
+        // ping_check(sfps[n], dst_ips[n]);
     }
 
     bool little_endian_supported;

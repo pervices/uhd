@@ -576,7 +576,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
         // Verify if the source of rx packets can pinged
         std::string src_ip = _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
-        ping_check(sfp, src_ip);
+        // ping_check(sfp, src_ip);
     }
 
     // Fallback to hard coded values if attempt to get payload fails
@@ -851,7 +851,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         dst_ports[n] = dst_port;
 
         // Verify the destination of tx packets can be pinged
-        ping_check(sfps[n], dst_ips[n]);
+        // ping_check(sfps[n], dst_ips[n]);
     }
 
     bool little_endian_supported = true;
