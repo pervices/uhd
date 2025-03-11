@@ -1381,6 +1381,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
         rx_stream_cmd_issuer.emplace_back(_time_diff_iface[xg_intf], device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
     }
+    std::cout << "B500\n";
+    UHD_LOG_INFO("cyan_nrnt_impl", "200 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
     UHD_LOG_INFO("cyan_nrnt_impl", "end of constructor");
 }
 
