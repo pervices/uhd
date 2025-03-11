@@ -591,7 +591,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
         // Verify if the source of rx packets can pinged
         std::string src_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
-        ping_check(sfp, src_ip);
+        // ping_check(sfp, src_ip);
     }
 
     UHD_LOG_INFO("RX_STREAMER", "18 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
