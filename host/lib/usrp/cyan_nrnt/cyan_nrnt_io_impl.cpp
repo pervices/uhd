@@ -578,20 +578,27 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     int data_len = 0;
     // Get vita payload length length (header + data, not including triler)
     for(size_t n = 0; n < args.channels.size(); n++) {
+        UHD_LOG_INFO("RX_STREAMER", "7 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         std::string sfp = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/iface" ).get();
+        UHD_LOG_INFO("RX_STREAMER", "8 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).set(CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES + CYAN_NRNT_HEADER_SIZE);
+        UHD_LOG_INFO("RX_STREAMER", "9 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         int payload_len = _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).get();
+        UHD_LOG_INFO("RX_STREAMER", "10 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         if(data_len == 0) {
             data_len = payload_len - CYAN_NRNT_HEADER_SIZE;
         }
+        UHD_LOG_INFO("RX_STREAMER", "11 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
         // If unable to get length, fallback to hard coded version for variant
         if(data_len + CYAN_NRNT_HEADER_SIZE != payload_len && data_len !=0) {
             throw uhd::value_error("Payload length mismatch between channels");
         }
+        UHD_LOG_INFO("RX_STREAMER", "12 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
         // Verify if the source of rx packets can pinged
         std::string src_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
         // ping_check(sfp, src_ip);
+        UHD_LOG_INFO("RX_STREAMER", "14 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
     }
 
     UHD_LOG_INFO("RX_STREAMER", "18 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
