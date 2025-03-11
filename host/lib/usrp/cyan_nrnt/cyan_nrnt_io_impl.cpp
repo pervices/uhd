@@ -624,7 +624,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         recv_sockets[n] = recv_socket_fd;
     }
 
-    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+    for (int64_t chan_i = args.channels.size(); chan_i >= 0 ; chan_i--){
         const size_t chan = args.channels[chan_i];
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
@@ -671,7 +671,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         _mbc.rx_streamers[chan] = my_streamer; //store weak pointer
     }
 
-    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+    for (int64_t chan_i = args.channels.size(); chan_i >= 0 ; chan_i--){
         const size_t chan = args.channels[chan_i];
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
