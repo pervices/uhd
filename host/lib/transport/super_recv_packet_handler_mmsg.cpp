@@ -430,7 +430,7 @@ public:
                 samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
                 samples_to_cache[ch] = samples_in_packet - samples_to_consume;
                 // Copies data from provider buffer to the user's buffer,
-                convert_samples(buffs[ch], packet_infos[ch].packet_samples, samples_to_consume);
+                convert_samples((void*) (((uint8_t*)buffs[ch]) + (samples_received * _CPU_BYTES_PER_SAMPLE)), packet_infos[ch].packet_samples, samples_to_consume);
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache[ch]) [[unlikely]] {
@@ -523,6 +523,7 @@ protected:
     size_t _NUM_CHANNELS;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
     size_t _BYTES_PER_SAMPLE;
+    size_t _CPU_BYTES_PER_SAMPLE;
 
     virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
 
@@ -607,8 +608,10 @@ private:
         double cpu_max;
         if ("fc32" == cpu_format) {
             cpu_max = 1;
+            _CPU_BYTES_PER_SAMPLE = 8;
         } else if("sc16" == cpu_format) {
             cpu_max = 0x7fff;
+            _CPU_BYTES_PER_SAMPLE = 4;
         } else {
             throw uhd::runtime_error( "Unsupported CPU format: " + cpu_format);
         }
