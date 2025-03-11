@@ -74,7 +74,7 @@ class property_tree_impl : public uhd::property_tree
 public:
     property_tree_impl(const fs_path& root = fs_path()) : _root(root)
     {
-        _guts = std::shared_ptr<tree_guts_type>(new tree_guts_type());
+        _guts = std::make_shared<tree_guts_type>();
     }
 
     sptr subtree(const fs_path& path_) const override
@@ -235,5 +235,5 @@ property_tree::~property_tree(void)
  **********************************************************************/
 uhd::property_tree::sptr uhd::property_tree::make(void)
 {
-    return std::shared_ptr<property_tree_impl>(new property_tree_impl());
+    return std::make_shared<property_tree_impl>();
 }
