@@ -597,7 +597,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
         // Verify if the source of rx packets can pinged
         std::string src_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
-        // ping_check(sfp, src_ip);
+        ping_check(sfp, src_ip);
         UHD_LOG_INFO("RX_STREAMER", "14 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
     }
 
@@ -922,7 +922,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
 
         // Verify the destination of tx packets can be pinged
-        // ping_check(sfps[n], dst_ips[n]);
+        ping_check(sfps[n], dst_ips[n]);
     }
 
     bool little_endian_supported;
