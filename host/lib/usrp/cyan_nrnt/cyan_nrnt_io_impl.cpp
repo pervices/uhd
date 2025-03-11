@@ -538,6 +538,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     // sfence to ensure the need for clock sync is pushed to other threads
     _mm_sfence();
 
+    UHD_LOG_INFO("RX_STREAMER", "2 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
+
     stream_args_t args = args_;
 
     //setup defaults for unspecified values
@@ -552,20 +554,26 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         }
     }
 
+    UHD_LOG_INFO("RX_STREAMER", "3 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
+
     if (args.otw_format != otw_rx_s){
         throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
     }
+
+    UHD_LOG_INFO("RX_STREAMER", "4 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
 
     std::vector<std::string> dst_ip(args.channels.size());
     for(size_t n = 0; n < dst_ip.size(); n++) {
         dst_ip[n] = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/ip_dest" ).get();
     }
+    UHD_LOG_INFO("RX_STREAMER", "5 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     std::vector<int> dst_port(args.channels.size());
     for(size_t n = 0; n < dst_port.size(); n++) {
         dst_port[n] = std::stoi(_tree->access<std::string>( rx_link_root(args.channels[n]) + "/port" ).get());
     }
+    UHD_LOG_INFO("RX_STREAMER", "6 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     int data_len = 0;
     // Get vita payload length length (header + data, not including triler)
@@ -586,10 +594,13 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         ping_check(sfp, src_ip);
     }
 
+    UHD_LOG_INFO("RX_STREAMER", "18 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
+
     // Fallback to hard coded values if attempt to get payload fails
     if(data_len == 0) {
         data_len = CYAN_NRNT_FALLBACK_MAX_NBYTES;
     }
+    UHD_LOG_INFO("RX_STREAMER", "19 rx_channel_in_use.use_count(): " + std::to_string(rx_channel_in_use.use_count()));
 
     bool little_endian_supported;
     // There is no converter for little endian for sc12, even though Cyan is capable of it
