@@ -703,6 +703,8 @@ _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
     // TODO: only update relevant channels
     this->update_rates();
 
+    ::sleep(1);
+
     return my_streamer;
 }
 
