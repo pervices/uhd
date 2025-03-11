@@ -714,6 +714,8 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         }
     }
 
+    ::sleep(1);
+
     return my_streamer;
 }
 
