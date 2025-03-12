@@ -937,13 +937,15 @@ public:
     bool recv_async_msg(
         uhd::async_metadata_t &async_metadata, double timeout = 0.1
     ){
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
-        return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+        // boost::this_thread::disable_interruption di; //disable because the wait can throw
+        // return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+        return false;
     }
 
     // Asynchronously send messages notifying of overflow/underflows
     bool push_async_msg( uhd::async_metadata_t &async_metadata ){
-		return _async_msg_fifo->push_with_pop_on_full(async_metadata);
+		// return _async_msg_fifo->push_with_pop_on_full(async_metadata);
+        return false;
     }
 
     // Makes sure the correct enable_blocking_fc is used instead of the one from tx_streamer
