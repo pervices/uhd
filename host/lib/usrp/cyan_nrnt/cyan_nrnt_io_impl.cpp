@@ -310,7 +310,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
                 metadata.time_spec = then;
                 metadata.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
                 // assumes that underflow counter is monotonically increasing
-                self->push_async_msg( metadata );
+                // self->push_async_msg( metadata );
 
                 if(!self->_performance_warning_printed) {
                     // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
@@ -339,7 +339,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
                 metadata.time_spec = then;
                 metadata.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
                 // assumes that overflow counter is monotonically increasing
-                self->push_async_msg( metadata );
+                // self->push_async_msg( metadata );
 
                 if(!self->_performance_warning_printed) {
                     // Check if any core is not set to performance mode, used to decide if an info message should be printed if overflows occur
@@ -497,18 +497,19 @@ void cyan_nrnt_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
 bool cyan_nrnt_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
-    if(!recv_async_msg_deprecated_warning) {
-        std::cout << "device recv_async_msg function is deprecated. Stream to tx_streamer.recv_async_msg\n";
-        recv_async_msg_deprecated_warning = true;
-    }
-    // The fifo is created during get_tx_stream, as part of changes to better handle stream specific get async messages
-    // The means calling the device get async msg (this function) before creating a stream can be done before the fifo is created
-    if(_async_msg_fifo.get() != NULL) {
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
-        return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
-    } else {
-        return false;
-    }
+    // if(!recv_async_msg_deprecated_warning) {
+    //     std::cout << "device recv_async_msg function is deprecated. Stream to tx_streamer.recv_async_msg\n";
+    //     recv_async_msg_deprecated_warning = true;
+    // }
+    // // The fifo is created during get_tx_stream, as part of changes to better handle stream specific get async messages
+    // // The means calling the device get async msg (this function) before creating a stream can be done before the fifo is created
+    // if(_async_msg_fifo.get() != NULL) {
+    //     boost::this_thread::disable_interruption di; //disable because the wait can throw
+    //     return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+    // } else {
+    //     return false;
+    // }
+    return false;
 }
 
 /***********************************************************************
