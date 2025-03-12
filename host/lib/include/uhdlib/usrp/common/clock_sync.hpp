@@ -43,6 +43,11 @@ private:
         /* No-op*/
     }
 
+    ~clock_sync_shared_info() {
+        // Move this to a .cpp file if it becomes complicated
+        /* No-op*/
+    }
+
     // Deleter to be used by a shared_ptr
     struct deleter {
         /**
@@ -50,8 +55,8 @@ private:
          */
         void operator()(clock_sync_shared_info* self) {
             // The destructor must be manually called when using placement new
-            self->~clock_sync_shared_info();
-            free(self);
+            // self->~clock_sync_shared_info();
+            // free(self);
         }
     };
 
