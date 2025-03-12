@@ -123,8 +123,7 @@ nsamps_multiple_rx(nsamps_multiple_rx)
 }
 
 stream_cmd_issuer::stream_cmd_issuer()
-: command_socket(nullptr),
-clock_sync_info(nullptr),
+:
 ch_jesd_number(0),
 num_rx_bits(0),
 nsamps_multiple_rx(0)
@@ -132,19 +131,27 @@ nsamps_multiple_rx(0)
 
 }
 
-stream_cmd_issuer::stream_cmd_issuer(const stream_cmd_issuer& from)
-: command_socket(from.command_socket),
-clock_sync_info(from.clock_sync_info),
-ch_jesd_number(from.ch_jesd_number),
-num_rx_bits(from.num_rx_bits),
-nsamps_multiple_rx(from.nsamps_multiple_rx)
+stream_cmd_issuer::stream_cmd_issuer(const stream_cmd_issuer& other)
+:
+ch_jesd_number(other.ch_jesd_number),
+num_rx_bits(other.num_rx_bits),
+nsamps_multiple_rx(other.nsamps_multiple_rx)
 {
-
+    if(other.command_socket) {
+        command_socket = other.command_socket;
+    }
+    if(other.clock_sync_info) {
+        clock_sync_info = other.clock_sync_info;
+    }
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
-    command_socket = other.command_socket;
-    clock_sync_info = other.clock_sync_info;
+    if(other.command_socket) {
+        command_socket = other.command_socket;
+    }
+    if(other.clock_sync_info) {
+        clock_sync_info = other.clock_sync_info;
+    }
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
@@ -153,8 +160,12 @@ stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) {
-    command_socket = other.command_socket;
-    clock_sync_info = other.clock_sync_info;
+    if(other.command_socket) {
+        command_socket = other.command_socket;
+    }
+    if(other.clock_sync_info) {
+        clock_sync_info = other.clock_sync_info;
+    }
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
     nsamps_multiple_rx = other.nsamps_multiple_rx;
