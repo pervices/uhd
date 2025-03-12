@@ -1886,7 +1886,11 @@ void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
         return;
     }
 
-    size_t sfp_num = sfp.back();
+    size_t sfp_num = sfp.back() - 'a';
+    if(sfp_num > NUMBER_OF_XG_CONTROL_INTF) {
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Ping check requested for sfp port that does not exist: " + sfp);
+    }
+
     // This sfp port has already been pinged, do not check again
     if(ping_check_completed[sfp_num]) {
         return;
