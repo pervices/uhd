@@ -18,11 +18,12 @@ using namespace uhd::usrp;
 static constexpr size_t padded_clock_sync_shared_info_size = (size_t) ceil(sizeof(clock_sync_shared_info) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
 std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make() {
-    // Create using placement new
-    clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
-    new (raw_pointer) clock_sync_shared_info();
-
-    std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
+    // // Create using placement new
+    // clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
+    // new (raw_pointer) clock_sync_shared_info();
+    //
+    // std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
+    std::shared_ptr<clock_sync_shared_info> ptr(new clock_sync_shared_info());
 
     return ptr;
 }

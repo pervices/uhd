@@ -26,7 +26,7 @@ static constexpr size_t CACHE_LINE_SIZE = 64;
 // The provider has a weak pointer to this class since we can accept the overhead of getting a lock on it
 class clock_sync_shared_info
 {
-private:
+public:
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
     bool is_converged = false;
@@ -48,17 +48,17 @@ private:
         /* No-op*/
     }
 
-    // Deleter to be used by a shared_ptr
-    struct deleter {
-        /**
-         * Destructs and frees self
-         */
-        void operator()(clock_sync_shared_info* self) {
-            // The destructor must be manually called when using placement new
-            // self->~clock_sync_shared_info();
-            // free(self);
-        }
-    };
+    // // Deleter to be used by a shared_ptr
+    // struct deleter {
+    //     /**
+    //      * Destructs and frees self
+    //      */
+    //     void operator()(clock_sync_shared_info* self) {
+    //         // The destructor must be manually called when using placement new
+    //         // self->~clock_sync_shared_info();
+    //         // free(self);
+    //     }
+    // };
 
 public:
     /**
