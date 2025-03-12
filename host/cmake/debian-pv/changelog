@@ -1,3 +1,9 @@
+uhdpv (4.4.0.65-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Fixing segmentation fault during get_tx_stream and get_rx_stream
+
+ -- Per Vices <packages@pervices.com>  Wed, 12 Mar 2025 18:42:13 -0400
+
 uhdpv (4.4.0.64-0ubuntu1) ubuntu_release; urgency=high
 
   * Fixing issue where data was not being copied to the entire user provided buffer during recv()
