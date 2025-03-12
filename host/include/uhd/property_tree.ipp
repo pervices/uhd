@@ -179,7 +179,7 @@ namespace uhd {
 template <typename T>
 property<T>& property_tree::create(const fs_path& path, coerce_mode_t coerce_mode)
 {
-    this->_create(path, std::make_shared<property_impl<T>>(coerce_mode));
+    this->_create(path, std::shared_ptr<property_impl<T>>(new property_impl<T>(coerce_mode)));
     return this->access<T>(path);
 }
 
