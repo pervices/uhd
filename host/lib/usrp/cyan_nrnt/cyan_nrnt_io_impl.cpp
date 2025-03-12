@@ -516,11 +516,19 @@ bool cyan_nrnt_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
-    std::cout << "G1\n";
+    printf("G1\n");
+    printf("1 rx_channel_in_use.use_count(): %lu\n", rx_channel_in_use.use_count());
+    printf("1 _mbc.iface.use_count(): %lu\n", _mbc.iface.use_count());
+    printf("1 rx_stream_cmd_issuer[0].command_socket.use_count(): %lu\n", rx_stream_cmd_issuer[0].command_socket.use_count());
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
     _mm_sfence();
+
+    printf("G2\n");
+    printf("2 rx_channel_in_use.use_count(): %lu\n", rx_channel_in_use.use_count());
+    printf("2 _mbc.iface.use_count(): %lu\n", _mbc.iface.use_count());
+    printf("2 rx_stream_cmd_issuer[0].command_socket.use_count(): %lu\n", rx_stream_cmd_issuer[0].command_socket.use_count());
 
     stream_args_t args = args_;
 
@@ -664,6 +672,9 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     }
 
     std::cout << "G500\n";
+    printf("500rx_channel_in_use.use_count(): %lu\n", rx_channel_in_use.use_count());
+    printf("500 _mbc.iface.use_count(): %lu\n", _mbc.iface.use_count());
+    printf("500 issuers[0].command_socket.use_count(): %lu\n", issuers[0].command_socket.use_count());
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
