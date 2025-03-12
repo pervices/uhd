@@ -1836,6 +1836,12 @@ inline void crimson_tng_impl::request_resync_time_diff() {
 }
 
 void crimson_tng_impl::ping_check(std::string sfp, std::string ip) {
+    std::unique_lock ping_lock{ping_mutex, std::try_to_lock};
+    // Another thread has already started a ping check, skip checking
+    if(!ping_lock) {
+        return;
+    }
+
     size_t sfp_num = sfp.back();
     // This sfp port has already been pinged, do not check again
     if(ping_check_completed[sfp_num]) {

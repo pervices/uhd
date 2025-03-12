@@ -286,6 +286,8 @@ private:
 
     // Checks if an ip address can be pinged
     void ping_check(std::string sfp, std::string ip);
+    // Prevents multiple threads from attempting the ping check at once
+    std::mutex ping_mutex;
     // Records if an sfp port has already had it's ping check performed
     uint8_t ping_check_completed[NUMBER_OF_XG_CONTROL_INTF] ={0};
 
