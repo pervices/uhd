@@ -29,13 +29,13 @@ class clock_sync_shared_info
 private:
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
-    alignas(CACHE_LINE_SIZE) bool is_converged = false;
+    bool is_converged = false;
     // Stores if a resync has been requested
     bool resync_requested = true;
     // The difference between the device and host time in seconds
     // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
     // TODO: verify alignas is working properly
-    alignas(CACHE_LINE_SIZE) double time_diff = 0;
+    double time_diff = 0;
 
     // Declare constructor as private to ensure this is only created through make
     clock_sync_shared_info() {
