@@ -750,7 +750,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 	device_addr( _device_addr ),
 	// Put _time_diff_pidc on their own cache line to avoid false sharing
 	_time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
-	_bm_thread_needed( false ),
+	_bm_thread_needed( true ),
 	_bm_thread_running( false ),
 	_bm_thread_should_exit( false ),
 	_pps_thread_running( false ),
@@ -990,7 +990,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
-    _pps_thread_needed = false;
+    _pps_thread_needed = true;
     try {
         // Attempt to read pps_detected
         // If success the the pps monitoring loop should be run
@@ -1322,36 +1322,36 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     }
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
-	// if ( _pps_thread_needed ) {
-	// 	start_pps_dtc();
-	// }
+	if ( _pps_thread_needed ) {
+		start_pps_dtc();
+	}
 
-    device_clock_sync_info = clock_sync_shared_info::make();
+	if ( _bm_thread_needed ) {
 
-	// if ( _bm_thread_needed ) {
- //
-	// 	//Initialize "Time Diff" mechanism before starting flow control thread
-	// 	time_spec_t ts = uhd::get_system_time();
-	// 	_streamer_start_time = ts.get_real_secs();
- //
-	// 	// The problem is that this class does not hold a multi_crimson instance
-	// 	//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
- //
-	// 	// Tyreus-Luyben tuned PID controller
- //        // Create using placement new to avoid false sharing
- //        new (_time_diff_pidc) uhd::pidc_tl(
-	// 		0.0, // desired set point is 0.0s error
-	// 		1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-	// 		// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-	// 		2.0 / (double)CYAN_NRNT_UPDATE_PER_SEC
-	// 	);
- //
-	// 	_time_diff_pidc->set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
- //
- //        _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
- //
-	// 	start_bm();
-	// }
+		//Initialize "Time Diff" mechanism before starting flow control thread
+		time_spec_t ts = uhd::get_system_time();
+		_streamer_start_time = ts.get_real_secs();
+
+		// The problem is that this class does not hold a multi_crimson instance
+		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
+
+		// Tyreus-Luyben tuned PID controller
+        // Create using placement new to avoid false sharing
+        new (_time_diff_pidc) uhd::pidc_tl(
+			0.0, // desired set point is 0.0s error
+			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
+			2.0 / (double)CYAN_NRNT_UPDATE_PER_SEC
+		);
+
+		_time_diff_pidc->set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
+
+        _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
+
+        device_clock_sync_info = clock_sync_shared_info::make();
+
+		start_bm();
+	}
 
 	rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
