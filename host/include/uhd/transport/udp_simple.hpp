@@ -21,6 +21,8 @@ class UHD_API udp_simple : uhd::noncopyable
 public:
     typedef std::shared_ptr<udp_simple> sptr;
 
+    static udp_simple* make_impl(const std::string& addr, const std::string& port, bool bcast, bool connect);
+
     virtual ~udp_simple(void) = 0;
 
     //! The maximum number of bytes per udp packet.

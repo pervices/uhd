@@ -174,6 +174,10 @@ udp_simple::~udp_simple(void)
     /* NOP */
 }
 
+udp_simple* udp_simple::make_impl(const std::string& addr, const std::string& port, bool bcast, bool connect) {
+    return new udp_simple_impl(addr, port, false, true /* no bcast, connect */);
+}
+
 /***********************************************************************
  * UDP public make functions
  **********************************************************************/
