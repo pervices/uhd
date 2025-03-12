@@ -40,7 +40,7 @@ struct rx_stream_cmd {
 // -Each issuer is responsible for 1 channel
 class stream_cmd_issuer
 {
-private:
+public:
     // UDP socket manager to send commands over
     std::shared_ptr<uhd::transport::udp_simple> command_socket;
 
