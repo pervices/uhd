@@ -88,6 +88,7 @@ public:
     _num_cached_samples(_NUM_CHANNELS, 0),
     _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
     {
+        std::cout << "R1\n";
         if (wire_format=="sc16") {
             _BYTES_PER_SAMPLE = 4;
         } else if (wire_format=="sc12") {
