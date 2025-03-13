@@ -2946,6 +2946,7 @@ private:
 
 multi_usrp::~multi_usrp(void)
 {
+    UHD_LOG_INFO("multi_usrp", "~multi_usrp");
     /* NOP */
 }
 
