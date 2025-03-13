@@ -767,7 +767,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     device_addr = _device_addr;
 
     // Initialize the mutexes to control access to the SFP ports
-    _sfp_control_mutex.reserve(NUMBER_OF_XG_CONTROL_INTF);
+    // _sfp_control_mutex.reserve(NUMBER_OF_XG_CONTROL_INTF);
+    _sfp_control_mutex.reserve(256);
     for(size_t n = 0; n < NUMBER_OF_XG_CONTROL_INTF; n++) {
         _sfp_control_mutex.emplace_back(new std::mutex());
     }
