@@ -202,6 +202,7 @@ public:
         const double timeout,
         const bool one_packet)
     {
+        printf("recv start\n");
         // A suboptimal number of samples per call is anything that is not a multiple of the packet length
         // Sets a flag to provide advice to the user in the event of an overflow
         _suboptimal_spb |= ((nsamps_per_buff * _BYTES_PER_SAMPLE) % _MAX_SAMPLE_BYTES_PER_PACKET);
@@ -305,12 +306,14 @@ public:
             if(ch < _NUM_CHANNELS) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
+                    printf("1 recv end\n");
                     return samples_received;
                 } else {
                     // Set timeout if no other error occured and no samples received and no other error code present
                     if(metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
                         metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
                     }
+                    printf("2 recv end\n");
                     return 0;
                 }
             }
@@ -497,6 +500,7 @@ public:
 
         }
 
+        printf("3 recv end\n");
         return samples_received;
     }
 
