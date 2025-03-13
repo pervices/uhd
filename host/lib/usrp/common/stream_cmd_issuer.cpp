@@ -64,6 +64,9 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
 }
 
 void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
+    printf("issue_stream_command command_socket: %hhu\n", (bool) command_socket);
+    printf("issue_stream_command clock_sync_info: %hhu\n", (bool) clock_sync_info);
+
     // The number of samples requested must be a multiple of a certain number, depending on the variant
     uint64_t original_nsamps_req = stream_cmd.num_samps;
     stream_cmd.num_samps = (original_nsamps_req / nsamps_multiple_rx) * nsamps_multiple_rx;
