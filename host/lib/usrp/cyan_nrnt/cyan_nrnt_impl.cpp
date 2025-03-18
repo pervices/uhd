@@ -1325,32 +1325,33 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 		start_pps_dtc();
 	}
 
-	if ( _bm_thread_needed ) {
+    //Initialize "Time Diff" mechanism before starting flow control thread
+    time_spec_t ts = uhd::get_system_time();
+    _streamer_start_time = ts.get_real_secs();
 
-		//Initialize "Time Diff" mechanism before starting flow control thread
-		time_spec_t ts = uhd::get_system_time();
-		_streamer_start_time = ts.get_real_secs();
+    // The problem is that this class does not hold a multi_crimson instance
+    //Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
 
-		// The problem is that this class does not hold a multi_crimson instance
-		//Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
+    // Tyreus-Luyben tuned PID controller
+    // Create using placement new to avoid false sharing
+    new (_time_diff_pidc) uhd::pidc_tl(
+        0.0, // desired set point is 0.0s error
+        1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+        // measured P-ultimate is inverse of 1/2 the flow-control sample rate
+        2.0 / (double)CYAN_NRNT_UPDATE_PER_SEC
+    );
 
-		// Tyreus-Luyben tuned PID controller
-        // Create using placement new to avoid false sharing
-        new (_time_diff_pidc) uhd::pidc_tl(
-			0.0, // desired set point is 0.0s error
-			1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-			// measured P-ultimate is inverse of 1/2 the flow-control sample rate
-			2.0 / (double)CYAN_NRNT_UPDATE_PER_SEC
-		);
+    _time_diff_pidc->set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
 
-		_time_diff_pidc->set_error_filter_length( CYAN_NRNT_UPDATE_PER_SEC );
+    _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
 
-        _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
+    device_clock_sync_info = clock_sync_shared_info::make();
 
-        device_clock_sync_info = clock_sync_shared_info::make();
-
-		start_bm();
-	}
+    // Start the clock sync thread
+    // _time_diff_pidc and device_clock_sync_info sync info are created even when the the clock synce thread is not needed to make it easier to enable/disable the thread for debugging purposes
+    if ( _bm_thread_needed ) {
+        start_bm();
+    }
 
 	rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
