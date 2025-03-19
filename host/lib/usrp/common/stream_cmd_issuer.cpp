@@ -109,6 +109,10 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
 
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
 
+    uhd::usrp::rx_stream_cmd blank_stream_cmd;
+    memset(&blank_stream_cmd, 0, sizeof(blank_stream_cmd));
+
+    command_socket->send( &blank_stream_cmd, sizeof( blank_stream_cmd ) );
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
