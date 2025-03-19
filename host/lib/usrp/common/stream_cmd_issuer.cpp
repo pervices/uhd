@@ -110,7 +110,7 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     uhd::stream_cmd_t debug_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     debug_stream_cmd.num_samps  = 0;
     debug_stream_cmd.stream_now = stream_cmd.stream_now;
-    debug_stream_cmd.time_spec  = stream_cmd.time_spec - uhd::time_spec_t(0.05);
+    debug_stream_cmd.time_spec  = stream_cmd.time_spec;
 
     uhd::usrp::rx_stream_cmd debug_rx_stream_cmd_packet;
 
