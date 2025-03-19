@@ -208,6 +208,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 std::cout << "FPGA version lookup not implemented" << std::endl;
             }
 
+            try {
+                std::cout << "System sample rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
+            } catch (const uhd::lookup_error&) {
+                // Should be implemented except on very old servers
+                std::cout << "System sample rate lookup not implemented" << std::endl;
+            }
+
             if(!git_hash_only) {
                 try {
                     std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
@@ -219,8 +226,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
 
                     std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
-
-                    std::cout << "FPGA sample rate: " << get_from_tree_int(tree, i, "imgparam/rate") << std::endl;
 
                     std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
                 } catch (const uhd::lookup_error&) {

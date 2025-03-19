@@ -792,15 +792,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga" / "board" / "reg_rst_req",  "fpga/board/reg_rst_req", int, int);
     _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(17);
 
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/max_rate", "system/max_rate", std::string, string);
-    std::string max_rate_s = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "system/max_rate").get();
-    if(max_rate_s.find("ERROR") != std::string::npos) {
-        throw std::runtime_error(max_rate_s);
-    }
-    _max_rate = std::stod(max_rate_s);
-
-    // Getting a double will return 0 ifthe property doesn't exist yet
-    if(_max_rate == 0) {
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/max_rate", "system/max_rate", double, double);
+    try {
+        _max_rate = _tree->access<double>(CRIMSON_TNG_MB_PATH / "system/max_rate").get();
+    } catch(uhd::lookup_error &e) {
+        // Old rate from before the server provided the rate
         _max_rate = CRIMSON_TNG_FALLBACK_MASTER_CLOCK_RATE;
     }
 
