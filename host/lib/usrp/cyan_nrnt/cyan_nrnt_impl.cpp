@@ -519,14 +519,14 @@ bool cyan_nrnt_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
 
 void cyan_nrnt_impl::reset_time_diff_pid() {
     // Get mutex before getting time incase it needs to wait for the mutex
-    _sfp_control_mutex[0]->lock();
+    _sfp_control_mutex[1]->lock();
 
     auto reset_now = uhd::get_system_time();
     struct time_diff_resp reset_tdr;
 
-    time_diff_send( reset_now );
-    time_diff_recv( reset_tdr );
-    _sfp_control_mutex[0]->unlock();
+    time_diff_send( reset_now, 1 );
+    time_diff_recv( reset_tdr, 1 );
+    _sfp_control_mutex[1]->unlock();
 
     double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
     _time_diff_pidc->reset(reset_now, new_offset);
@@ -617,7 +617,7 @@ void cyan_nrnt_impl::stop_pps_dtc() {
 void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 
     //the sfp port clock synchronization will be conducted on
-    int xg_intf = 0;
+    int xg_intf = 1;
 
     // Flag so that we only print the error message for failed recv once
     bool dropped_recv_message_printed = false;
