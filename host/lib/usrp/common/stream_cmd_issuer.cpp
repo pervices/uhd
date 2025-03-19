@@ -107,8 +107,20 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
         stream_cmd.stream_now = true;
     }
 
+    // Due to FPGA issues send a stop command before the actual command
+    // The issue is most likely to occur with 1Gsps JESD and 100G SFP
+    // See issue 14110 note 27
+    uhd::stream_cmd_t clear_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+    clear_stream_cmd.num_samps  = 0;
+    clear_stream_cmd.stream_now = stream_cmd.stream_now;
+    clear_stream_cmd.time_spec  = stream_cmd.time_spec;
+    uhd::usrp::rx_stream_cmd clear_rx_stream_cmd_packet;
+    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( clear_stream_cmd, clear_rx_stream_cmd_packet );
+
+    // Conver the user provided struct to a packet
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
 
+    command_socket->send( &clear_rx_stream_cmd_packet, sizeof( clear_rx_stream_cmd_packet ) );
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
