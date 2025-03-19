@@ -107,12 +107,19 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
         stream_cmd.stream_now = true;
     }
 
+    uhd::stream_cmd_t debug_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+    debug_stream_cmd.num_samps  = 0;
+    debug_stream_cmd.stream_now = stream_cmd.stream_now;
+    debug_stream_cmd.time_spec  = stream_cmd.time_spec - uhd::time_spec_t(0.05);
+
+    uhd::usrp::rx_stream_cmd debug_rx_stream_cmd_packet;
+
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
 
-    uhd::usrp::rx_stream_cmd blank_stream_cmd;
-    memset(&blank_stream_cmd, 0, sizeof(blank_stream_cmd));
+    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( debug_stream_cmd, debug_rx_stream_cmd_packet );
 
-    command_socket->send( &blank_stream_cmd, sizeof( blank_stream_cmd ) );
+
+    command_socket->send( &debug_rx_stream_cmd_packet, sizeof( debug_rx_stream_cmd_packet ) );
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
