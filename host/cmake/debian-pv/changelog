@@ -1,3 +1,10 @@
+uhdpv (4.4.0.66-0ubuntu1) ubuntu_release; urgency=low
+
+  * Readd eeprom info
+  * Added workaround for an issue that results in rx stream commands being ignored on Cyan
+
+ -- Per Vices <packages@pervices.com>  Wed, 19 Mar 2025 13:53:35 -0400
+
 uhdpv (4.4.0.66-0ubuntu1) ubuntu_release; urgency=high
 
   * Fixing crash when issuing stream command on Cyan
