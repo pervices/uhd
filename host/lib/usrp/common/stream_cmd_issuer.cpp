@@ -112,9 +112,10 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
-stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
+stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::shared_ptr<std::mutex> sfp_control_mutex, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
 : command_socket(command_socket),
 clock_sync_info(clock_sync_info),
+_sfp_control_mutex(sfp_control_mutex),
 ch_jesd_number(ch_jesd_number),
 num_rx_bits(num_rx_bits),
 nsamps_multiple_rx(nsamps_multiple_rx)
@@ -143,6 +144,9 @@ nsamps_multiple_rx(other.nsamps_multiple_rx)
     if(other.clock_sync_info) {
         clock_sync_info = other.clock_sync_info;
     }
+    if(other._sfp_control_mutex) {
+        _sfp_control_mutex = other._sfp_control_mutex;
+    }
 }
 
 stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
@@ -151,6 +155,9 @@ stream_cmd_issuer& stream_cmd_issuer::operator=(stream_cmd_issuer&& other) {
     }
     if(other.clock_sync_info) {
         clock_sync_info = other.clock_sync_info;
+    }
+    if(other._sfp_control_mutex) {
+        _sfp_control_mutex = other._sfp_control_mutex;
     }
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
@@ -165,6 +172,9 @@ stream_cmd_issuer& stream_cmd_issuer::operator=(const stream_cmd_issuer& other) 
     }
     if(other.clock_sync_info) {
         clock_sync_info = other.clock_sync_info;
+    }
+    if(other._sfp_control_mutex) {
+        _sfp_control_mutex = other._sfp_control_mutex;
     }
     ch_jesd_number = other.ch_jesd_number;
     num_rx_bits = other.num_rx_bits;
