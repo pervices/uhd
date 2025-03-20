@@ -1,3 +1,10 @@
+uhdpv (4.4.0.67-0ubuntu1) ubuntu_release; urgency=low
+
+  * Implemented gain ranges on Cyan and Chestnut
+  * Add Crimson sample rate to uhd_usrp_info
+
+ -- Per Vices <packages@pervices.com>  Thu, 20 Mar 2025 18:02:24 -0400
+
 uhdpv (4.4.0.66-0ubuntu1) ubuntu_release; urgency=low
 
   * Readd eeprom info
