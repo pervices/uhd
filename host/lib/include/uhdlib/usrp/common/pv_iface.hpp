@@ -26,6 +26,7 @@
 #include "uhd/usrp/mboard_eeprom.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include <uhd/types/sensors.hpp>
+#include <uhd/types/ranges.hpp>
 #include <uhd/types/time_spec.hpp>
 #include <uhd/utils/noncopyable.hpp>
 
@@ -79,6 +80,10 @@ public:
     // wrapper for type <sensor_value_t> through the ASCII Crimson interface
     uhd::sensor_value_t get_sensor_value(std::string req);
     void set_sensor_value(const std::string pre, uhd::sensor_value_t data);
+
+    // wrapper for type <sensor_value_t> through the ASCII Crimson interface
+    uhd::meta_range_t get_meta_range(std::string req);
+    void set_meta_range(const std::string pre, uhd::meta_range_t data);
 
     // wrapper for type <time_spec_t> through the ASCII Crimson interface
     uhd::time_spec_t get_time_spec(std::string req);

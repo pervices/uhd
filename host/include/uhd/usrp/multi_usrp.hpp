@@ -110,6 +110,8 @@ public:
     //! A wildcard gain element name
     static const std::string ALL_GAINS;
 
+    static constexpr std::string_view CURRENT_BAND_GAINS = "CURRENT_BAND_GAINS";
+
     //! A wildcard LO stage name
     static const std::string ALL_LOS;
 

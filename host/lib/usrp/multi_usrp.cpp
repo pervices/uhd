@@ -1512,16 +1512,19 @@ public:
 
     gain_range_t get_rx_gain_range(const std::string& name, size_t chan) override
     {
-        try {
-            return rx_gain_group(chan)->get_range(name);
-        } catch (uhd::key_error&) {
-            THROW_GAIN_NAME_ERROR(name, chan, rx);
+        if(name != CURRENT_BAND_GAINS && name != ALL_GAINS) {
+            THROW_GAIN_NAME_ERROR(name, chan, tx);
         }
+        // Sets the range to get it to update to the current band
+        _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "gain" / "range").set(meta_range_t(0.0, 0.0, 0.0));
+        // Gets the current range
+        return _tree->access<meta_range_t>(rx_rf_fe_root(chan) / "gain" / "range").get();
     }
 
     std::vector<std::string> get_rx_gain_names(size_t chan) override
     {
-        return rx_gain_group(chan)->get_names();
+        (void) chan;
+        return {std::string(CURRENT_BAND_GAINS)};
     }
 
     /**************************************************************************
@@ -2052,16 +2055,19 @@ public:
 
     gain_range_t get_tx_gain_range(const std::string& name, size_t chan) override
     {
-        try {
-            return tx_gain_group(chan)->get_range(name);
-        } catch (uhd::key_error&) {
+        if(name != CURRENT_BAND_GAINS && name != ALL_GAINS) {
             THROW_GAIN_NAME_ERROR(name, chan, tx);
         }
+        // Sets the range to get it to update to the current band
+        _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "gain" / "range").set(meta_range_t(0.0, 0.0, 0.0));
+        // Gets the current range
+        return _tree->access<meta_range_t>(tx_rf_fe_root(chan) / "gain" / "range").get();
     }
 
     std::vector<std::string> get_tx_gain_names(size_t chan) override
     {
-        return tx_gain_group(chan)->get_names();
+        (void) chan;
+        return {std::string(CURRENT_BAND_GAINS)};
     }
     
     /*!

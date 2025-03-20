@@ -259,6 +259,37 @@ void pv_iface::set_sensor_value(const std::string pre, sensor_value_t data) {
     return;
 }
 
+// wrapper for type <meta_range_t> through the ASCII Crimson interface
+meta_range_t pv_iface::get_meta_range(std::string req) {
+    std::string reply;
+    try {
+        reply = get_string(req);
+    } catch (const uhd::lookup_error &e) {
+        UHD_LOG_ERROR(PV_IFACE_DEBUG_NAME_C, e.what());
+        return meta_range_t(0.0, 0.0, 0.0);
+    }
+
+    double min;
+    double max;
+    double step;
+
+    int num_parsed_args = sscanf(reply.c_str(), "%lf,%lf,%lf", &min, &max, &step);
+
+    if(num_parsed_args !=3) {
+        UHD_LOG_ERROR(PV_IFACE_DEBUG_NAME_C, "Failed to parse range reply \"" + reply + "\" from device for property \"" + req + "\"");
+        return meta_range_t(0.0, 0.0, 0.0);
+    } else {
+        return meta_range_t(min, max, step);
+    }
+}
+
+void pv_iface::set_meta_range(const std::string pre, meta_range_t data) {
+    try { set_string(pre, data.to_pp_string());
+    } catch (...) { }
+
+    return;
+}
+
 // we should get back time in the form "12345.6789" from Crimson, where it is seconds elapsed relative to Crimson bootup or the time set this boot
 // NOTE: use <device>_impl::get_time_now for anything that requires precision
 time_spec_t pv_iface::get_time_spec(std::string req) {
@@ -295,10 +326,22 @@ void pv_iface::parse(std::vector<std::string> &tokens, char* data, size_t const 
 
     while (data[i]) {
         std::string token = "";
-        while (data[i] && data[i] != delim) {
-            token.push_back(data[i]);
-            if (data[i+1] == 0 || data[i+1] == delim || i + 1 >= data_len)
+
+        // While in quotes ignore the comma seperator
+        bool in_quotes = false;
+
+        while (data[i] && (data[i] != delim || in_quotes)) {
+
+            if(data[i] == '"') {
+                // Toggle whether or not we are in quotes (and whether or not delim should be ignored)
+                in_quotes = !in_quotes;
+            } else {
+                // Add non quote characters to the token
+                token.push_back(data[i]);
+            }
+            if (data[i+1] == 0 || (data[i+1] == delim && !in_quotes) || i + 1 >= data_len) {
                 tokens.push_back(token);
+            }
             i++;
             // Perform the bounds checking before the while loop check to avoid attempting to read past the end of the buffer in the rest of the condition
             if(i >= data_len) {

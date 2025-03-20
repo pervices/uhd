@@ -1099,12 +1099,12 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_RF_RX_GAIN_RANGE_START, (double) CYAN_NRNT_RF_RX_GAIN_RANGE_STOP, (double) CYAN_NRNT_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
 		TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
+        // Gain range for all elements in the current band
+        TREE_CREATE_RW(rx_fe_path / "gain" / "range", "rx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
         TREE_CREATE_RW(rx_fe_path / "gain"  / "adc_digital", "rx_"+lc_num+"/rf/gain/adc_digital" , double, double);
 		TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
 
@@ -1223,12 +1223,12 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_RF_TX_GAIN_RANGE_START, (double) CYAN_NRNT_RF_TX_GAIN_RANGE_STOP, (double) CYAN_NRNT_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/lo_freq" , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
 		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
+        // Gain range for all elements in the current band
+        TREE_CREATE_RW(tx_fe_path / "gain" / "range", "tx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
 
 		// RF band
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/band", int, int);
