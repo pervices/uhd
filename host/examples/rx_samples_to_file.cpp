@@ -521,6 +521,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                   << std::endl;
     }
 
+    std::cout << "usrp->get_rx_gain_names(0): " << usrp->get_rx_gain_names(0)[0] << std::endl;
+    std::cout << "usrp->get_rx_gain_range(0): " << usrp->get_rx_gain_range(0).to_pp_string() << std::endl;
+    std::cout << "usrp->get_rx_gain_range(usrp->get_rx_gain_names(0)[0], 0): " << usrp->get_rx_gain_range(usrp->get_rx_gain_names(0)[0], 0).to_pp_string() << std::endl;
+
     // set the IF filter bandwidth
     if (vm.count("bw")) {
         std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw / 1e6)

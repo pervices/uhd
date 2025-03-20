@@ -297,6 +297,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     bool ignore_last = !vm.count("last");
     bool first_loop = true;
 
+    std::cout << "usrp->get_tx_gain_names(0): " << usrp->get_tx_gain_names(0)[0] << std::endl;
+    std::cout << "usrp->get_tx_gain_range(0): " << usrp->get_tx_gain_range(0).to_pp_string() << std::endl;
+    std::cout << "usrp->get_tx_gain_range(usrp->get_tx_gain_names(0)[0], 0): " << usrp->get_tx_gain_range(usrp->get_tx_gain_names(0)[0], 0).to_pp_string() << std::endl;
+
     for(double time = first; ((ignore_last && first_loop ) || time <= last) && !stop_signal_called ; time += increment)
     {
         first_loop = false;
