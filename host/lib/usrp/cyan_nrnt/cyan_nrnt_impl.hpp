@@ -180,8 +180,8 @@ private:
     std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
 
 	uhd::time_spec_t _streamer_start_time;
-    void time_diff_send( const uhd::time_spec_t & crimson_now , int xg_intf = 0);
-    bool time_diff_recv( time_diff_resp & tdr, int xg_intf = 0);
+    void time_diff_send( const uhd::time_spec_t & crimson_now );
+    bool time_diff_recv( time_diff_resp & tdr );
     // Resets the PID controller managing time diffs
     void reset_time_diff_pid();
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
@@ -197,6 +197,15 @@ private:
 	std::atomic<bool> _bm_thread_needed;
 	std::atomic<bool> _bm_thread_running;
 	std::atomic<bool> _bm_thread_should_exit;
+
+    // Which SFP port should be used by clock sync
+    // Must be set before the clock sync loop starts or get_time_now is called
+    int _which_time_diff_iface = -1;
+public:
+    inline int get_which_time_diff_iface() {
+        return _which_time_diff_iface;
+    }
+private:
 
     std::thread _pps_thread;
     std::atomic<bool> _pps_thread_needed;
