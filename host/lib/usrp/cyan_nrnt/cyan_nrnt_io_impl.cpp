@@ -565,7 +565,10 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
         // Verify if the source of rx packets can pinged
         std::string src_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
-        ping_check(sfp, src_ip);
+
+        if(!ping_check(sfp, src_ip)) {
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to ping " + src_ip + " on " + sfp + ". RX channel " + std::to_string(args.channels[n]) + " will not work");
+        }
     }
 
     // Fallback to hard coded values if attempt to get payload fails
@@ -865,7 +868,9 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         dst_ports[n] = dst_port;
 
         // Verify the destination of tx packets can be pinged
-        ping_check(sfps[n], dst_ips[n]);
+        if(!ping_check(sfps[n], dst_ips[n])) {
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to ping " + dst_ips[n] + " on " + sfps[n] + ". TX channel " + std::to_string(args.channels[n]) + " will not work");
+        }
     }
 
     bool little_endian_supported;

@@ -1851,9 +1851,6 @@ bool crimson_tng_impl::ping_check(std::string sfp, std::string ip) {
     char cmd[128];
     snprintf(cmd, 128, "ping -c 1 -W 1 %s  > /dev/null 2>&1", ip.c_str());
     int check = system(cmd);
-    if (check!=0){
-        UHD_LOG_WARNING("PING", "Failed for " << ip << ", please check " << sfp);
-    }
 
     // Mark this sfp port as having been checked
     ping_check_completed[sfp_num] = true;
