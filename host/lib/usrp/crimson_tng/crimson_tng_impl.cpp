@@ -1720,11 +1720,9 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
             // LMH is adjusted from 0dB to 31.5dB
             gain_val = low_band_gain;
 
-        } else {
-
         // High-Band
-        if ( false ) {
-            } else if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
+        } else {
+            if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
                 // PMA is off (+0dB)
                 lna_val = 0;
                 // BFP is on (+20dB)
