@@ -157,7 +157,8 @@ void crimson_tng_impl::set_command_time( const std::string key, time_spec_t valu
 }
 
 void crimson_tng_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-    _time_diff_iface->send(boost::asio::const_buffer(&req, sizeof(req)));
+    // TODO: figure out if this can be sent on any SFP port and if so use _which_time_diff_iface instead of 0
+    _time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
 //TODO: validate if this works
@@ -477,14 +478,14 @@ void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 		crimson_now
 	);
 
-    _time_diff_iface->send( &pkt, sizeof( pkt ) );
+    _time_diff_iface[_which_time_diff_iface]->send( &pkt, sizeof( pkt ) );
 }
 
 bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
 	size_t r;
 
-    r = _time_diff_iface->recv( &tdr, sizeof( tdr ) );
+    r = _time_diff_iface[_which_time_diff_iface]->recv( &tdr, sizeof( tdr ) );
 
 	if ( 0 == r ) {
 		return false;
@@ -917,11 +918,29 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     std::string sfpb_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr").get();
 
-    // it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
-	int sfpb_port = _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfpb_port" ).get();
-	std::string time_diff_ip = sfpb_ip;
-	std::string time_diff_port = std::to_string( sfpb_port );
-	_time_diff_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
+    _which_time_diff_iface = -1;
+    for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
+        std::string xg_intf = std::string(1, char('a' + i));
+        int sfp_port = _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string time_diff_port = std::to_string( sfp_port );
+        _time_diff_iface.push_back(udp_simple::make_connected( time_diff_ip, time_diff_port ));
+
+        // Checks if this iface is working
+        bool iface_good = ping_check("sfp" + xg_intf, time_diff_ip);
+        // Set the iface used by time diffs to the first working one
+        if(iface_good && _which_time_diff_iface < 0) {
+            _which_time_diff_iface = i;
+        }
+    }
+
+    if(_which_time_diff_iface < 0) {
+        // TODO: only print this warning when using regular streaming
+        UHD_LOG_WARNING(CRIMSON_TNG_DEBUG_NAME_C, "Unable to ping any SFP ports. Only force stream will work. Normal streaming will not");
+        // Attempt to use SFPA for time diff if unable to reach any
+        // TODO: Don't run time diffs if unable to ping any SFP ports
+        _which_time_diff_iface = 0;
+    };
 
     // This is the master clock rate
     TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "tick_rate", double, _master_tick_rate);
@@ -1306,7 +1325,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
-        rx_stream_cmd_issuer.emplace_back(_time_diff_iface, device_clock_sync_info, ch, 16, 1);
+        rx_stream_cmd_issuer.emplace_back(_time_diff_iface[_which_time_diff_iface], device_clock_sync_info, ch, 16, 1);
     }
 }
 

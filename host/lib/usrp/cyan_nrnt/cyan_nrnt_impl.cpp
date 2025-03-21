@@ -168,8 +168,8 @@ void cyan_nrnt_impl::set_command_time( const std::string key, time_spec_t value 
     _command_time = value;
 }
 
-// TODO: figure out if it is okay to send all command SFP A
 void cyan_nrnt_impl::send_gpio_burst_req(const gpio_burst_req& req) {
+    // TODO: figure out if this can be sent on any SFP port and if so use _which_time_diff_iface instead of 0
     _time_diff_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
