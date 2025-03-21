@@ -144,8 +144,8 @@ private:
 	 * Clock Domain Synchronization Objects
 	 */
 
-	/// UDP endpoint that receives our Time Diff packets
-	uhd::transport::udp_simple::sptr _time_diff_iface;
+    /// UDP endpoint that receives our Time Diff packets
+    std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
 	/** PID controller that rejects differences between Crimson's clock and the host's clock.
 	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
 	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -178,6 +178,15 @@ private:
 	std::atomic<bool> _bm_thread_needed;
 	std::atomic<bool> _bm_thread_running;
 	std::atomic<bool> _bm_thread_should_exit;
+
+    // Which SFP port should be used by clock sync
+    // Must be set before the clock sync loop starts or get_time_now is called
+    int _which_time_diff_iface;
+public:
+    inline int get_which_time_diff_iface() {
+        return _which_time_diff_iface;
+    }
+private:
 
     std::thread _pps_thread;
     std::atomic<bool> _pps_thread_needed;
