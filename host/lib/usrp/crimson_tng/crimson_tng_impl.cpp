@@ -915,12 +915,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
 
-    std::string sfpa_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "ip_addr").get();
+    std::string sfpb_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr").get();
 
     // it does not currently matter whether we use the sfpa or sfpb port atm, they both access the same fpga hardware block
-	int sfpa_port = _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfpa_port" ).get();
-	std::string time_diff_ip = sfpa_ip;
-	std::string time_diff_port = std::to_string( sfpa_port );
+	int sfpb_port = _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga/board/flow_control/sfpb_port" ).get();
+	std::string time_diff_ip = sfpb_ip;
+	std::string time_diff_port = std::to_string( sfpb_port );
 	_time_diff_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
 
     // This is the master clock rate
