@@ -285,11 +285,14 @@ private:
     void request_resync_time_diff();
 
     // Checks if an ip address can be pinged
-    void ping_check(std::string sfp, std::string ip);
+    // Return true if ping succeeded
+    bool ping_check(std::string sfp, std::string ip);
     // Prevents multiple threads from attempting the ping check at once
     std::mutex ping_mutex;
     // Records if an sfp port has already had it's ping check performed
     uint8_t ping_check_completed[NUMBER_OF_XG_CONTROL_INTF] ={0};
+    // Records if ping succeeded
+    uint8_t sfp_working[NUMBER_OF_XG_CONTROL_INTF] ={0};
 
     // Samples per second being using per channel
     std::vector<double> tx_sfp_throughput_used;

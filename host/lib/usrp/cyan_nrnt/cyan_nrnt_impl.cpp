@@ -1881,22 +1881,17 @@ inline void cyan_nrnt_impl::request_resync_time_diff() {
     device_clock_sync_info->request_resync();
 }
 
-void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
-    std::unique_lock ping_lock{ping_mutex, std::try_to_lock};
-    // Another thread has already started a ping check, skip checking
-    if(!ping_lock) {
-        return;
-    }
+bool cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
+    std::lock_guard<std::mutex> ping_lock(ping_mutex);
 
     size_t sfp_num = sfp.back() - 'a';
     if(sfp_num > NUMBER_OF_XG_CONTROL_INTF) {
         UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Ping check requested for sfp port that does not exist: " + sfp);
-        return;
+        return false;
     }
-
     // This sfp port has already been pinged, do not check again
     if(ping_check_completed[sfp_num]) {
-        return;
+        return sfp_working[sfp_num];
     }
 
     char cmd[128];
@@ -1908,6 +1903,9 @@ void cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
 
     // Mark this sfp port as having been checked
     ping_check_completed[sfp_num] = true;
+    sfp_working[sfp_num] = !check;
+
+    return sfp_working[sfp_num];
 }
 
 double cyan_nrnt_impl::get_link_rate() {
