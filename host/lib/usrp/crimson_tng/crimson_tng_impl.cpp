@@ -1034,12 +1034,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(rx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_RF_RX_GAIN_RANGE_START, (double) CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP, (double) CRIMSON_TNG_RF_RX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
 		TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
+        // Gain range for all elements in the current band
+        TREE_CREATE_RW(rx_fe_path / "gain" / "range", "rx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
 		TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
 
 		// RF band
@@ -1164,12 +1164,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
 			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(tx_fe_path / "gain" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_RF_TX_GAIN_RANGE_START, (double) CRIMSON_TNG_RF_TX_GAIN_RANGE_STOP, (double) CRIMSON_TNG_RF_TX_GAIN_RANGE_STEP));
 
 		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
 		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
 		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
+        // Gain range for all elements in the current band
+        TREE_CREATE_RW(tx_fe_path / "gain" / "range", "tx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
 
 		// RF band
 		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/freq/band", int, int);
