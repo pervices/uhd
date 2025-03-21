@@ -969,12 +969,28 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
+    _which_time_diff_iface = -1;
     for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
         int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
         std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
         std::string time_diff_port = std::to_string( sfp_port );
         _time_diff_iface.push_back(udp_simple::make_connected( time_diff_ip, time_diff_port ));
+
+        // Checks if this iface is working
+        bool iface_good = ping_check("sfp" + xg_intf, time_diff_ip);
+        // Set the iface used by time diffs to the first working one
+        if(iface_good && _which_time_diff_iface < 0) {
+            _which_time_diff_iface = i;
+        }
+    }
+
+    if(_which_time_diff_iface < 0) {
+        // TODO: only print this warning when using regular streaming
+        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "Unable to ping any SFP ports. Only force stream will work. Normal streaming will not");
+        // Attempt to use SFPA for time diff if unable to reach any
+        // TODO: Don't run time diffs if unable to ping any SFP ports
+        _which_time_diff_iface = 0;
     }
 
     // This is the master clock rate
@@ -1346,9 +1362,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
 
     device_clock_sync_info = clock_sync_shared_info::make();
-
-    // TODO: auto select based on which SFP(s) can be pinged
-    _which_time_diff_iface = 0;
 
     // Start the clock sync thread
     // _time_diff_pidc and device_clock_sync_info sync info are created even when the the clock synce thread is not needed to make it easier to enable/disable the thread for debugging purposes

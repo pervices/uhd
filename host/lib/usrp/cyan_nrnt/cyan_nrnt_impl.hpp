@@ -200,7 +200,7 @@ private:
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called
-    int _which_time_diff_iface = -1;
+    int _which_time_diff_iface;
 public:
     inline int get_which_time_diff_iface() {
         return _which_time_diff_iface;
