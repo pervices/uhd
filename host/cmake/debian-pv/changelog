@@ -1,3 +1,10 @@
+uhdpv (4.4.0.68-0ubuntu1) ubuntu_release; urgency=low
+
+  * Implemented gain ranges on Crimson
+  * The device will now use the first working SFP cable for clock sync instead of only SFP A
+
+ -- Per Vices <packages@pervices.com>  Mon, 24 Mar 2025 11:10:44 -0400
+
 uhdpv (4.4.0.67-0ubuntu1) ubuntu_release; urgency=low
 
   * Implemented gain ranges on Cyan and Chestnut
