@@ -60,7 +60,6 @@ endmacro(INCLUDE_SUBDIRECTORY)
 message(STATUS "")
 # Dependencies
 find_package(LIBUSB)
-find_package(DPDK)
 
 LIBUHD_REGISTER_COMPONENT("USB" ENABLE_USB ON "ENABLE_LIBUHD;LIBUSB_FOUND" OFF OFF)
 
