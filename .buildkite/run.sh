@@ -40,6 +40,7 @@ cmake \
         -DENABLE_USB=OFF \
         -DENABLE_OCTOCLOCK=OFF \
         -DENABLE_MPMD=OFF \
+        -DENABLE_DPDK=OFF \
         ..
 
 CMAKE_RET=$?
