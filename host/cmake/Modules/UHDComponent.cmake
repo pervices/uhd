@@ -23,6 +23,9 @@ set(_uhd_disabled_components "" CACHE INTERNAL "" FORCE)
 # ON, unless DEPENDENCY_FOUND is false, in which case it becomes false.
 ########################################################################
 macro(LIBUHD_REGISTER_COMPONENT name var enb deps dis req)
+    message(STATUS "var 1: ${var}")
+    message(STATUS "var 2: ${${var}}")
+
     message(STATUS "")
     message(STATUS "Configuring ${name} support...")
     foreach(dep ${deps})
