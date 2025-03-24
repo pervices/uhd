@@ -450,10 +450,12 @@ UHD_INSTALL(FILES
 LIBUHD_REGISTER_COMPONENT("LibUHD" ENABLE_LIBUHD ON "Boost_FOUND;HAVE_PYTHON_MODULE_MAKO" OFF ON)
 LIBUHD_REGISTER_COMPONENT("LibUHD - C API" ENABLE_C_API ON "ENABLE_LIBUHD" OFF OFF)
 
+# Liburing is off by default since many distros don't support it
+# NOTE: in the future when auto detecting whether or not to enable it include both a runtime check for the kernel a compile time check for a recent enough library
 LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING OFF "ENABLE_LIBUHD" OFF ON)
 
 if(ENABLE_LIBURING)
-    # TODO: add dependency check (liburing  version >= 2.6
+    # TODO: add dependency check (liburing  version >= 2.6)
     # Flag that gets passed to source and header files so they can know if ENABLE_LIBUHD is set
     add_definitions(-DHAVE_LIBURING)
     # Adds linking to liburing
