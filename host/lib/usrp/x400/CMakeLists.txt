@@ -19,8 +19,8 @@ if(ENABLE_X400)
         ${CMAKE_CURRENT_SOURCE_DIR}/x400_rfdc_control.cpp
     )
 
-    if(ENABLE_DPDK)
+    if(ENABLE_DPDK_UHD_UHD)
         include_directories(${DPDK_INCLUDE_DIRS})
         add_definitions(-DHAVE_DPDK)
-    endif(ENABLE_DPDK)
+    endif(ENABLE_DPDK_UHD_UHD)
 endif(ENABLE_X400)

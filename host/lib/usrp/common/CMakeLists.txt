@@ -42,10 +42,10 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/stream_cmd_issuer.cpp
 )
 
-if(ENABLE_DPDK)
+if(ENABLE_DPDK_UHD_UHD)
     set_property(
         SOURCE
         ${CMAKE_CURRENT_SOURCE_DIR}/io_service_mgr.cpp
         PROPERTY COMPILE_DEFINITIONS HAVE_DPDK
     )
-endif(ENABLE_DPDK)
+endif(ENABLE_DPDK_UHD_UHD)

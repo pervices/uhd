@@ -26,8 +26,8 @@ IF(ENABLE_CYAN_NRNT)
         ${CMAKE_CURRENT_SOURCE_DIR}/cyan_nrnt_io_impl.cpp
     )
 
-    if(ENABLE_DPDK)
+    if(ENABLE_DPDK_UHD_UHD)
         include_directories(${DPDK_INCLUDE_DIRS})
         add_definitions(-DHAVE_DPDK)
-    endif(ENABLE_DPDK)
+    endif(ENABLE_DPDK_UHD_UHD)
 ENDIF(ENABLE_CYAN_NRNT)

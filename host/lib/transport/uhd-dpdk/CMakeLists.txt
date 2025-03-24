@@ -7,7 +7,7 @@
 ########################################################################
 # Add the subdirectories
 ########################################################################
-if(ENABLE_DPDK)
+if(ENABLE_DPDK_UHD)
     if(NOT DEFINED UHD_DPDK_CFLAGS)
         message(STATUS "")
         set(UHD_DPDK_CFLAGS "-march=native"
@@ -28,5 +28,5 @@ if(ENABLE_DPDK)
     )
     include_directories(${DPDK_INCLUDE_DIRS})
     LIBUHD_APPEND_LIBS(${DPDK_LIBRARIES})
-endif(ENABLE_DPDK)
+endif(ENABLE_DPDK_UHD)
 

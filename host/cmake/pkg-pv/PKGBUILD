@@ -43,7 +43,7 @@ build() {
        -DENABLE_PYTHON3=ON \
        -DENABLE_EXAMPLES=ON \
        -DENABLE_UTILS=ON \
-       -DENABLE_DPDK=OFF \
+       -DENABLE_DPDK_UHD=OFF \
        -DENABLE_TESTS=OFF \
        -DENABLE_E100=OFF \
        -DENABLE_N230=OFF \

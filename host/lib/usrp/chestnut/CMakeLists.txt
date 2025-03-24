@@ -24,7 +24,7 @@ IF(ENABLE_CHESTNUT)
         ${CMAKE_CURRENT_SOURCE_DIR}/chestnut_impl.cpp
     )
 
-    if(ENABLE_DPDK)
+    if(ENABLE_DPDK_UHD)
         include_directories(${DPDK_INCLUDE_DIRS})
         add_definitions(-DHAVE_DPDK)
     endif(ENABLE_CHESTNUT)

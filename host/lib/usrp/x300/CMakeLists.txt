@@ -36,8 +36,8 @@ if(ENABLE_X300)
         ${CMAKE_CURRENT_SOURCE_DIR}/cdecode.c
     )
 
-    if(ENABLE_DPDK)
+    if(ENABLE_DPDK_UHD_UHD)
         include_directories(${DPDK_INCLUDE_DIRS})
         add_definitions(-DHAVE_DPDK)
-    endif(ENABLE_DPDK)
+    endif(ENABLE_DPDK_UHD_UHD)
 endif(ENABLE_X300)

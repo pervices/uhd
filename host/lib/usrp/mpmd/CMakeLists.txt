@@ -24,7 +24,7 @@ if(ENABLE_MPMD)
         )
     endif(ENABLE_SIM)
 
-    if(ENABLE_DPDK)
+    if(ENABLE_DPDK_UHD_UHD)
         include_directories(${DPDK_INCLUDE_DIRS})
         set_property(
             SOURCE
@@ -32,6 +32,6 @@ if(ENABLE_MPMD)
             ${CMAKE_CURRENT_SOURCE_DIR}/mpmd_find.cpp
             PROPERTY COMPILE_DEFINITIONS HAVE_DPDK
         )
-    endif(ENABLE_DPDK)
+    endif(ENABLE_DPDK_UHD_UHD)
 
 endif(ENABLE_MPMD)

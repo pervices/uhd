@@ -138,7 +138,7 @@ if(ENABLE_LIBURING)
     )
 endif()
 
-if(ENABLE_DPDK)
+if(ENABLE_DPDK_UHD)
     INCLUDE_SUBDIRECTORY(uhd-dpdk)
     include_directories(${DPDK_INCLUDE_DIRS})
 
@@ -150,4 +150,4 @@ if(ENABLE_DPDK)
         ${CMAKE_CURRENT_SOURCE_DIR}/udp_dpdk_link.cpp
         PROPERTIES COMPILE_FLAGS "${UHD_DPDK_CFLAGS} -D_GNU_SOURCE"
     )
-endif(ENABLE_DPDK)
+endif(ENABLE_DPDK_UHD)
