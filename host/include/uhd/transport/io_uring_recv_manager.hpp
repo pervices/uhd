@@ -64,6 +64,7 @@ private:
 
 public:
 
+    // TODO: add runtime check to make sure the kernel supports the required features (6.0 or later)
     /**
      * Constructor for io_uring_recv_manager.
      * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
