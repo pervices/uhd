@@ -360,6 +360,7 @@ public:
             }
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
+            // Number of samples to copy to return to the user in this packet
             size_t samples_to_consume = 0;
             // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
             std::vector<size_t> samples_to_cache(_NUM_CHANNELS, 0);
@@ -388,8 +389,7 @@ public:
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache[ch]) [[unlikely]] {
                     // Copy extra samples from the packet to the cache
-                    // TODO: check if this should be uncommented
-                    // memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
+                    memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
             }
 
