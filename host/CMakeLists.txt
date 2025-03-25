@@ -370,6 +370,17 @@ PYTHON_CHECK_MODULE_VERSION(
 )
 
 ########################################################################
+# Check liburing
+########################################################################
+# PkgConfig is used to find and get version info for liburing
+find_package(PkgConfig)
+if(PkgConfig_FOUND)
+    pkg_check_modules(LIBURING liburing>=2.6)
+else()
+    message(WARNING "Unable to find PkgConfig which is required for detecting liburing configuration. liburing cannot be enabled")
+endif()
+
+########################################################################
 # Option to use QEMU for running unittests
 #
 # This is useful when cross-compiling UHD for other architectures like arm or
@@ -452,7 +463,9 @@ LIBUHD_REGISTER_COMPONENT("LibUHD - C API" ENABLE_C_API ON "ENABLE_LIBUHD" OFF O
 
 # Liburing is off by default since many distros don't support it
 # NOTE: in the future when auto detecting whether or not to enable it include both a runtime check for the kernel a compile time check for a recent enough library
-LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING OFF "ENABLE_LIBUHD" OFF ON)
+# TODO: clear ENABLE_LIBURING between builds. Currently if you run with it enabled then remove the argument it will stay enabled
+# TODO: figure out if req fail is correct
+LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING OFF "ENABLE_LIBUHD;LIBURING_FOUND" OFF OFF)
 
 if(ENABLE_LIBURING)
     # TODO: add dependency check (liburing  version >= 2.6)
