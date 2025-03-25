@@ -40,29 +40,21 @@ build() {
     cmake \
        -DCMAKE_INSTALL_PREFIX=/usr/ \
        -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-       -DENABLE_PYTHON3=ON \
        -DENABLE_EXAMPLES=ON \
        -DENABLE_UTILS=ON \
        -DENABLE_DPDK=OFF \
        -DENABLE_TESTS=OFF \
-       -DENABLE_E100=OFF \
-       -DENABLE_N230=OFF \
        -DENABLE_N300=OFF \
        -DENABLE_E320=OFF \
        -DENABLE_USRP1=OFF \
        -DENABLE_USRP2=ON \
-       -DENABLE_USER2=OFF \
        -DENABLE_B200=OFF \
        -DENABLE_B100=OFF \
        -DENABLE_X300=OFF \
        -DENABLE_CRIMSON_TNG=ON \
-       -DENABLE_CYAN_16T=ON \
-       -DENABLE_CYAN_64T=OFF \
        -DENABLE_OCTOCLOCK=OFF \
        -DENABLE_DOXYGEN=OFF \
        -DENABLE_USB=OFF \
-       -DENABLE_CYAN_8R=ON \
-       -DENABLE_CYAN_4R4T=ON \
        ..
     make -j$(nproc)
 }
