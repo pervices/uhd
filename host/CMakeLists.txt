@@ -116,7 +116,7 @@ option(CI_PV_ENABLE "Build hidden debug messages" OFF)
 if(CI_PV_ENABLE MATCHES ON)
     MESSAGE("CI PV ENABLED")
     ADD_DEFINITIONS(-DBUFFER_LVL_DEBUG)
-endif(CI_PV_ENABLE)
+endif(CI_PV_ENABLE MATCHES ON)
 
 ########################################################################
 # Per Vices CI Build CONFIG
