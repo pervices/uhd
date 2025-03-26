@@ -242,7 +242,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         }
 
         size_t num_rx_samps =
-            rx_stream->recv(buffs, samps_per_buff, md, 3.0, enable_size_map);
+            rx_stream->recv(buffs, samples_to_recv, md, 3.0, enable_size_map);
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << std::endl
