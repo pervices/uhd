@@ -97,7 +97,6 @@ public:
      * \param delay the clock delay in seconds
      */
     virtual void set_mimo_clock_delay(double delay) = 0;
-
 };
 
 #endif /* INCLUDED_CLOCK_CTRL_HPP */

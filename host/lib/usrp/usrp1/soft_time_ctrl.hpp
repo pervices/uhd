@@ -17,7 +17,6 @@
 #include <functional>
 #include <memory>
 
-
 namespace uhd { namespace usrp {
 
 /*!

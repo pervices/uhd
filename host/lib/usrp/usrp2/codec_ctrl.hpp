@@ -63,7 +63,6 @@ public:
      *  modulation.
      */
     virtual size_t get_tx_interpolation() const = 0;
-
 };
 
 #endif /* INCLUDED_CODEC_CTRL_HPP */

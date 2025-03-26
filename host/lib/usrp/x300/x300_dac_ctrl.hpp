@@ -12,7 +12,6 @@
 #include <uhd/utils/noncopyable.hpp>
 #include <memory>
 
-
 class x300_dac_ctrl : uhd::noncopyable
 {
 public:

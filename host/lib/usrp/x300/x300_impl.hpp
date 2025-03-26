@@ -9,10 +9,8 @@
 #ifndef INCLUDED_X300_IMPL_HPP
 #define INCLUDED_X300_IMPL_HPP
 
-
 #include "x300_clock_ctrl.hpp"
 #include "x300_conn_mgr.hpp"
-
 #include "x300_defaults.hpp"
 #include "x300_device_args.hpp"
 #include "x300_fw_common.h"
@@ -42,80 +40,15 @@
 #include <memory>
 #include <mutex>
 
-static const std::string X300_FW_FILE_NAME  = "usrp_x300_fw.bin";
-static const std::string X300_DEFAULT_CLOCK_SOURCE  = "internal";
-
-static const double X300_DEFAULT_TICK_RATE          = 200e6;   //Hz
-static const double X300_BUS_CLOCK_RATE             = 187.5e6; //Hz
-
-static const size_t X300_RX_SW_BUFF_SIZE_ETH        = 0x2000000;//32MiB    For an ~8k frame size any size >32MiB is just wasted buffer space
-static const size_t X300_RX_SW_BUFF_SIZE_ETH_MACOS  = 0x100000; //1Mib
-
-//The FIFO closest to the DMA controller is 1023 elements deep for RX and 1029 elements deep for TX
-//where an element is 8 bytes. The buffers (number of frames * frame size) must be aligned to the
-//memory page size.  For the control, we are getting lucky because 64 frames * 256 bytes each aligns
-//with the typical page size of 4096 bytes.  Since most page sizes are 4096 bytes or some multiple of
-//that, keep the number of frames * frame size aligned to it.
-static const size_t X300_PCIE_RX_DATA_FRAME_SIZE        = 4096;     //bytes
-static const size_t X300_PCIE_RX_DATA_NUM_FRAMES        = 4096;
-static const size_t X300_PCIE_TX_DATA_FRAME_SIZE        = 4096;     //bytes
-static const size_t X300_PCIE_TX_DATA_NUM_FRAMES	    = 4096;
-static const size_t X300_PCIE_MSG_FRAME_SIZE            = 256;      //bytes
-static const size_t X300_PCIE_MSG_NUM_FRAMES            = 64;
-static const size_t X300_PCIE_MAX_CHANNELS              = 6;
-static const size_t X300_PCIE_MAX_MUXED_CTRL_XPORTS     = 32;
-static const size_t X300_PCIE_MAX_MUXED_ASYNC_XPORTS    = 4;
-
-static const size_t X300_10GE_DATA_FRAME_MAX_SIZE   = 8000;     // CHDR packet size in bytes
-static const size_t X300_1GE_DATA_FRAME_MAX_SIZE    = 1472;     // CHDR packet size in bytes
-static const size_t X300_ETH_MSG_FRAME_SIZE         = uhd::transport::udp_simple::mtu;  //bytes
-// MTU throttling for ethernet/TX (see above):
-static const size_t X300_ETH_DATA_FRAME_MAX_TX_SIZE = 8000;
-
-static const double X300_THREAD_BUFFER_TIMEOUT      = 0.1;   // Time in seconds
-
-static const size_t X300_ETH_MSG_NUM_FRAMES         = 64;
-static const size_t X300_ETH_DATA_NUM_FRAMES        = 32;
-static const double X300_DEFAULT_SYSREF_RATE        = 10e6;
-
-// Limit the number of initialization threads
-static const size_t X300_MAX_INIT_THREADS           = 10;
-
-static const size_t X300_MAX_RATE_PCIE              = 800000000; // bytes/s
-static const size_t X300_MAX_RATE_10GIGE            = (size_t)(  // bytes/s
-        10e9 / 8 *                                               // wire speed multiplied by percentage of packets that is sample data
-        ( float(X300_10GE_DATA_FRAME_MAX_SIZE - uhd::usrp::DEVICE3_TX_MAX_HDR_LEN) /
-          float(X300_10GE_DATA_FRAME_MAX_SIZE + 8 /* UDP header */ + 20 /* Ethernet header length */ )));
-static const size_t X300_MAX_RATE_1GIGE            = (size_t)(  // bytes/s
-        1e9 / 8 *                                               // wire speed multiplied by percentage of packets that is sample data
-        ( float(X300_1GE_DATA_FRAME_MAX_SIZE - uhd::usrp::DEVICE3_TX_MAX_HDR_LEN) /
-          float(X300_1GE_DATA_FRAME_MAX_SIZE + 8 /* UDP header */ + 20 /* Ethernet header length */ )));
-
-#define X300_RADIO_DEST_PREFIX_TX 0
-
-#define X300_XB_DST_E0  0
-#define X300_XB_DST_E1  1
-#define X300_XB_DST_PCI 2
-#define X300_XB_DST_R0  3 // Radio 0 -> Slot A
-#define X300_XB_DST_R1  4 // Radio 1 -> Slot B
-#define X300_XB_DST_CE0 5
-
-#define X300_SRC_ADDR0  0
-#define X300_SRC_ADDR1  1
-#define X300_DST_ADDR   2
-
-
 
 uhd::device_addrs_t x300_find(const uhd::device_addr_t& hint_);
 
 class x300_impl : public uhd::rfnoc::detail::rfnoc_device
 {
 public:
-
     x300_impl(const uhd::device_addr_t&);
     void setup_mb(const size_t which, const uhd::device_addr_t&);
     ~x300_impl(void) override;
-
 
     /**************************************************************************
      * rfnoc_device API
@@ -142,13 +75,11 @@ private:
         //! Remote Device ID for this motherboard
         uhd::rfnoc::device_id_t device_id;
 
-
         bool initialization_done = false;
         uhd::task::sptr claimer_task;
         uhd::usrp::x300::xport_path_t xport_path;
         uhd::device_addr_t send_args;
         uhd::device_addr_t recv_args;
-
 
         // perifs in the zpu
         uhd::wb_iface::sptr zpu_ctrl;
@@ -158,17 +89,13 @@ private:
         // other perifs on mboard
         x300_clock_ctrl::sptr clock;
 
-
         // which FPGA image is loaded
         std::string loaded_fpga_image;
 
         size_t hw_rev;
 
-
         uhd::usrp::x300::conn_manager::sptr conn_mgr;
-
     };
-
 
     //! X300-Specific Implementation of rfnoc::mb_iface
     class x300_mb_iface : public uhd::rfnoc::mb_iface
@@ -222,7 +149,6 @@ private:
         // We add this because X300s should be initialized in parallel, so we
         // don't want to add slow, I/O bound functions in the constructor.
         void init();
-
 
     private:
         const uhd::rfnoc::device_id_t _remote_dev_id;

@@ -13,9 +13,7 @@
 #include <memory>
 
 
-
 enum x300_clock_which_t {
-
     X300_CLOCK_WHICH_ADC0,
     X300_CLOCK_WHICH_ADC1,
     X300_CLOCK_WHICH_DAC0,
@@ -31,7 +29,6 @@ class x300_clock_ctrl : uhd::noncopyable
 {
 public:
     typedef std::shared_ptr<x300_clock_ctrl> sptr;
-
 
     virtual ~x300_clock_ctrl(void) = 0;
 

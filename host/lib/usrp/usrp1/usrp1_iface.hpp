@@ -8,7 +8,6 @@
 #ifndef INCLUDED_USRP1_IFACE_HPP
 #define INCLUDED_USRP1_IFACE_HPP
 
-
 #include <uhd/types/serial.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <uhd/utils/noncopyable.hpp>

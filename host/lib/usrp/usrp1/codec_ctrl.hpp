@@ -8,7 +8,6 @@
 #ifndef INCLUDED_USRP1_CODEC_CTRL_HPP
 #define INCLUDED_USRP1_CODEC_CTRL_HPP
 
-
 #include <uhd/types/ranges.hpp>
 #include <uhd/types/serial.hpp>
 #include <uhd/utils/noncopyable.hpp>
