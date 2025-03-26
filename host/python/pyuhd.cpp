@@ -23,6 +23,7 @@ namespace py = pybind11;
 #include "rfnoc/fir_filter_block_control_python.hpp"
 #include "rfnoc/fosphor_block_control_python.hpp"
 #include "rfnoc/keep_one_in_n_block_control_python.hpp"
+#include "rfnoc/lc_block_control_python.hpp"
 #include "rfnoc/moving_average_block_control_python.hpp"
 #include "rfnoc/null_block_control_python.hpp"
 #include "rfnoc/radio_control_python.hpp"
@@ -44,8 +45,10 @@ namespace py = pybind11;
 #include "usrp/fe_connection_python.hpp"
 #include "usrp/multi_usrp_python.hpp"
 #include "usrp/subdev_spec_python.hpp"
+#include "usrp_clock/multi_usrp_clock_python.hpp"
 #include "utils/paths_python.hpp"
 #include "utils/utils_python.hpp"
+#include "version_python.hpp"
 
 // We need this hack because import_array() returns NULL
 // for newer Python versions.
@@ -65,6 +68,9 @@ PYBIND11_MODULE(libpyuhd, m)
 
     // Register uhd::device::find
     export_device(m);
+
+    // Register version API
+    export_version(m);
 
     // Register paths submodule
     auto paths_module = m.def_submodule("paths", "Path Utilities");
@@ -88,6 +94,10 @@ PYBIND11_MODULE(libpyuhd, m)
     export_fe_connection(usrp_module);
     export_stream(usrp_module);
 
+    // Register usrp clock submodule
+    auto usrp_clock_module = m.def_submodule("usrp_clock", "USRP Clock Objects");
+    export_multi_usrp_clock(usrp_clock_module);
+
     // Register filters submodule
     auto filters_module = m.def_submodule("filters", "Filter Submodule");
     export_filters(filters_module);
@@ -101,6 +111,7 @@ PYBIND11_MODULE(libpyuhd, m)
     export_fosphor_block_control(rfnoc_module);
     export_fir_filter_block_control(rfnoc_module);
     export_keep_one_in_n_block_control(rfnoc_module);
+    export_lc_block_control(rfnoc_module);
     export_moving_average_block_control(rfnoc_module);
     export_null_block_control(rfnoc_module);
     export_radio_control(rfnoc_module);

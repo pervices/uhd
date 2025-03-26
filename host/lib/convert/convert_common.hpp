@@ -11,8 +11,8 @@
 #include <uhd/convert.hpp>
 #include <uhd/utils/static.hpp>
 #include <stdint.h>
-#include <limits>
 #include <complex>
+#include <limits>
 
 #define _DECLARE_CONVERTER(name, in_form, num_in, out_form, num_out, prio)    \
     struct name : public uhd::convert::converter                              \
@@ -98,7 +98,7 @@ typedef uint32_t item32_t;
 typedef item32_t (*xtox_t)(item32_t);
 
 template <class T, class U>
-const T clamp(const U v)
+T clamp(const U v)
 {
     constexpr T min_t = std::numeric_limits<T>::min();
     constexpr T max_t = std::numeric_limits<T>::max();

@@ -10,6 +10,7 @@
 #include <uhd/rfnoc/block_id.hpp>
 #include <uhd/rfnoc/graph_edge.hpp>
 #include <uhd/rfnoc/noc_block_base.hpp>
+#include <uhd/rfnoc/rfnoc_types.hpp>
 #include <uhd/stream.hpp>
 #include <uhd/transport/adapter_id.hpp>
 #include <uhd/types/device_addr.hpp>
@@ -29,7 +30,8 @@ class mb_controller;
  * session, but also manages the RFNoC blocks on those devices. Only devices
  * compatible with a modern version of RFNoC can be addressed by this class.
  */
-class UHD_API rfnoc_graph : public uhd::noncopyable, public std::enable_shared_from_this<rfnoc_graph>
+class UHD_API rfnoc_graph : public uhd::noncopyable,
+                            public std::enable_shared_from_this<rfnoc_graph>
 {
 public:
     /*! A shared pointer to allow easy access to this class and for
@@ -326,6 +328,14 @@ public:
      */
     virtual void release() = 0;
 
+    /*! Create a dot representation of the current graph
+     *
+     * The graph is represented in the dot language, which can be visualized
+     * using the Graphviz tools. It contains all blocks and their connections.
+     * The connections are drawn between the ports of the blocks.
+     */
+    virtual std::string to_dot() = 0;
+
     /******************************************
      * Streaming
      ******************************************/
@@ -419,6 +429,9 @@ public:
 
     //! Return a reference to the property tree
     virtual uhd::property_tree::sptr get_tree(void) const = 0;
+
+    //! Return the CHDR width for a given device
+    virtual chdr_w_t get_chdr_width(const size_t mb_index = 0) const = 0;
 }; // class rfnoc_graph
 
 }}; // namespace uhd::rfnoc

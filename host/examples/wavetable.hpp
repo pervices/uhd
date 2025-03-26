@@ -6,14 +6,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-
+#include <algorithm>
 #include <cmath>
 #include <complex>
 
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <algorithm>
 #include <limits>
 #include <cstdint>
 

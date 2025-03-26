@@ -458,6 +458,8 @@ public:
             tx_streamer = std::make_shared<rfnoc_tx_streamer_replay_buffered>(
                 args.channels.size(), args, disconnect, replay_configs);
         } else {
+            args.args["__chdr_width"] =
+                std::to_string(chdr_w_to_bits(_graph->get_chdr_width()));
             tx_streamer = std::make_shared<rfnoc_tx_streamer>(
                 args.channels.size(), args, disconnect);
         }
@@ -528,6 +530,8 @@ public:
         auto mb_eeprom      = mbc->get_eeprom();
 
         dict<std::string, std::string> usrp_info;
+        usrp_info["module_serial"] =
+            mb_eeprom.get("module_serial", mb_eeprom.get("serial", "n/a"));
         usrp_info["mboard_id"]      = mbc->get_mboard_name();
         usrp_info["mboard_name"]    = mb_eeprom.get("name", "n/a");
         usrp_info["mboard_serial"]  = mb_eeprom.get("serial", "n/a");
@@ -541,7 +545,7 @@ public:
             : db_eeprom.count("serial")  ? bytes_to_str(db_eeprom.at("serial"))
                                          : "";
         usrp_info["rx_id"] = db_eeprom.count("rx_id")
-                ? bytes_to_str(db_eeprom.at("rx_id"))
+                                 ? bytes_to_str(db_eeprom.at("rx_id"))
                              : db_eeprom.count("pid") ? bytes_to_str(db_eeprom.at("pid"))
                                                       : "";
 
@@ -568,6 +572,8 @@ public:
         auto mb_eeprom      = mbc->get_eeprom();
 
         dict<std::string, std::string> usrp_info;
+        usrp_info["module_serial"] =
+            mb_eeprom.get("module_serial", mb_eeprom.get("serial", "n/a"));
         usrp_info["mboard_id"]      = mbc->get_mboard_name();
         usrp_info["mboard_name"]    = mb_eeprom.get("name", "n/a");
         usrp_info["mboard_serial"]  = mb_eeprom.get("serial", "n/a");
@@ -581,7 +587,7 @@ public:
             : db_eeprom.count("serial")  ? bytes_to_str(db_eeprom.at("serial"))
                                          : "";
         usrp_info["tx_id"] = db_eeprom.count("tx_id")
-                ? bytes_to_str(db_eeprom.at("tx_id"))
+                                 ? bytes_to_str(db_eeprom.at("tx_id"))
                              : db_eeprom.count("pid") ? bytes_to_str(db_eeprom.at("pid"))
                                                       : "";
 
@@ -634,8 +640,8 @@ public:
             case tune_request_t::POLICY_MANUAL:
                 if ((tune_request.dsp_freq_policy == tune_request_t::POLICY_AUTO)
                     && (dsp_freq_range.size() == 1) && dsp_freq_range.stop() == 0) {
-                    /* Hardware does not incl. DSP chain 
-                     * (dsp_freq_range only has single item, with value 0), 
+                    /* Hardware does not incl. DSP chain
+                     * (dsp_freq_range only has single item, with value 0),
                      * requested dsp frequency will be combined with rf frequency.
                      * The case to handle uses MANUAL rf_freq_policy and
                      * AUTOMATIC dsp_freq_policy */
@@ -745,38 +751,63 @@ public:
 
     double get_master_clock_rate(size_t mboard) override
     {
-        // We pick the first radio we can find on this mboard, and hope that all
-        // radios have the same range.
+        // We pick the first radio we can find on this mboard and get its master clock
+        // rate. A warning is thrown if there are different rates in different radios.
+        std::vector<double> mcrs;
         for (auto& chain : _rx_chans) {
             auto radio = chain.second.radio;
+            radio->get_unique_id();
             if (radio->get_block_id().get_device_no() == mboard) {
-                return radio->get_tick_rate();
+                mcrs.push_back(radio->get_tick_rate());
             }
         }
         for (auto& chain : _tx_chans) {
             auto radio = chain.second.radio;
             if (radio->get_block_id().get_device_no() == mboard) {
-                return radio->get_tick_rate();
+                mcrs.push_back(radio->get_tick_rate());
             }
+        }
+        if (!mcrs.empty()) {
+            if (!std::equal(mcrs.begin() + 1, mcrs.end(), mcrs.begin())) {
+                UHD_LOGGER_WARNING("MULTI_USRP")
+                    << "Different master clock rates on different radio blocks. "
+                       "Returning value for radio block #0 only. Consider using "
+                       "get_tick_rate() on the RFNoC radio block to retrieve the master "
+                       "clock rates per radio block.";
+            }
+            return mcrs[0];
         }
         throw uhd::key_error("Invalid mboard index!");
     }
 
     meta_range_t get_master_clock_rate_range(const size_t mboard) override
     {
-        // We pick the first radio we can find on this mboard, and hope that all
-        // radios have the same range.
+        // We pick the first radio we can find on this mboard, and get its range. Since
+        // most devices don't support changing the MCR at runtime, the range thus consists
+        // of a single value. A warning is thrown if there are different rate ranges in
+        // different radios.
+        std::vector<meta_range_t> ranges;
         for (auto& chain : _rx_chans) {
             auto radio = chain.second.radio;
             if (radio->get_block_id().get_device_no() == mboard) {
-                return radio->get_rate_range();
+                ranges.push_back(radio->get_rate_range());
             }
         }
         for (auto& chain : _tx_chans) {
             auto radio = chain.second.radio;
             if (radio->get_block_id().get_device_no() == mboard) {
-                return radio->get_rate_range();
+                ranges.push_back(radio->get_rate_range());
             }
+        }
+        if (!ranges.empty()) {
+            if (!std::equal(ranges.begin() + 1, ranges.end(), ranges.begin())) {
+                UHD_LOGGER_WARNING("MULTI_USRP")
+                    << "Different master clock rate ranges on different radio blocks. "
+                       "Returning value for radio block #0 only. Consider using "
+                       "get_rate_range() on the RFNoC radio block to retrieve the master "
+                       "clock rate ranges per radio block.";
+            }
+            return ranges[0];
         }
         throw uhd::key_error("Invalid mboard index!");
     }
@@ -2800,7 +2831,7 @@ private:
         typename GetSubdevSpecFn,
         typename GenChansFn,
         typename CheckEdgeForSepFn>
-    void _set_subdev_spec(std::unordered_map<size_t, ChanType>& chans,
+    void _set_subdev_spec(std::map<size_t, ChanType>& chans,
         GetSubdevSpecFn&& get_subdev_spec,
         GenChansFn&& generate_chans,
         CheckEdgeForSepFn&& check_edge_for_sep,
@@ -2868,9 +2899,11 @@ private:
     //! Mapping between device number and the radio blocks
     std::unordered_map<size_t, std::vector<uhd::rfnoc::radio_control::sptr>> _radios;
     //! Mapping between channel number and the RFNoC blocks in that RX chain
-    std::unordered_map<size_t, rx_chan_t> _rx_chans;
+    // Using map instead of unordered map to have a guaranteed order when iterating over
+    // it, e.g. for getting the master clock rate.
+    std::map<size_t, rx_chan_t> _rx_chans;
     //! Mapping between channel number and the RFNoC blocks in that TX chain
-    std::unordered_map<size_t, tx_chan_t> _tx_chans;
+    std::map<size_t, tx_chan_t> _tx_chans;
     //! Cache the requested RX rates
     std::unordered_map<size_t, double> _rx_rates;
     //! Cache the requested TX rates

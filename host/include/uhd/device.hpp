@@ -15,12 +15,12 @@
 #include <uhd/utils/noncopyable.hpp>
 #include <uhd/types/tune_request.hpp>
 #include <uhd/types/tune_result.hpp>
+#include <cstddef>
 #include <functional>
 #include <memory>
 
 namespace uhd {
-
-class property_tree; // forward declaration
+struct async_metadata_t;
 
 /*!
  * The device interface represents the hardware.
@@ -93,8 +93,12 @@ public:
 
     /*! \brief Make a new receive streamer from the streamer arguments
      *
-     * Note: There can always only be one streamer. When calling get_rx_stream()
-     * a second time, the first streamer must be destroyed beforehand.
+     * Note: For RFNoC devices, there can always be only one streamer per channel. When
+     * calling get_rx_stream() a second time, the first streamer connected to this channel
+     * must be destroyed beforehand. Multiple streamers for different channels are
+     * allowed.
+     * For non-RFNoC devices, you can only have one RX streamer at a time. Be careful to
+     * destroy the old one if you want to create a new one.
      */
 
     /*! \brief Utility for determining mboard path
@@ -107,8 +111,12 @@ public:
 
     /*! \brief Make a new transmit streamer from the streamer arguments
      *
-     * Note: There can always only be one streamer. When calling get_tx_stream()
-     * a second time, the first streamer must be destroyed beforehand.
+     * Note: For RFNoC devices, there can always be only one streamer per channel. When
+     * calling get_tx_stream() a second time, the first streamer connected to this channel
+     * must be destroyed beforehand. Multiple streamers for different channels are
+     * allowed.
+     * For non-RFNoC devices, you can only have one TX streamer at a time. Be careful to
+     * destroy the old one if you want to create a new one.
      */
     virtual tx_streamer::sptr get_tx_stream(const stream_args_t& args) = 0;
 

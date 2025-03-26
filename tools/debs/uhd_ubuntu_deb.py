@@ -20,8 +20,8 @@ import subprocess
 import sys
 import tarfile
 
-supported_ubuntu_releases = ["bionic", "focal", "jammy"]
-tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhd_{}.orig.tar.xz ."
+supported_ubuntu_releases = ["bionic", "focal", "jammy", "noble"]
+tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='./fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhd_{}.orig.tar.xz ."
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
 

@@ -10,7 +10,9 @@
 
 #include <uhd/types/device_addr.hpp>
 #include <uhd/types/dict.hpp>
+#include <uhd/types/direction.hpp>
 #include <uhd/types/stream_cmd.hpp>
+#include <uhd/types/wb_iface.hpp>
 #include <pybind11/stl.h>
 #include <map>
 #include <string>
@@ -31,6 +33,7 @@ void export_types(py::module& m)
     py::class_<stream_cmd_t>(m, "stream_cmd")
         .def(py::init<stream_cmd_t::stream_mode_t>())
         // Properties
+        .def_readwrite("stream_mode", &stream_cmd_t::stream_mode)
         .def_readwrite("num_samps", &stream_cmd_t::num_samps)
         .def_readwrite("time_spec", &stream_cmd_t::time_spec)
         .def_readwrite("stream_now", &stream_cmd_t::stream_now);
@@ -127,6 +130,26 @@ void export_types(py::module& m)
 
     m.def("separate_device_addr", &uhd::separate_device_addr);
     m.def("combine_device_addrs", &uhd::combine_device_addrs);
+
+    py::enum_<uhd::direction_t>(m, "direction_t")
+        .value("RX_DIRECTION", uhd::direction_t::RX_DIRECTION)
+        .value("TX_DIRECTION", uhd::direction_t::TX_DIRECTION)
+        .value("DX_DIRECTION", uhd::direction_t::DX_DIRECTION)
+
+
+        ;
+
+    py::class_<uhd::wb_iface>(m, "wb_iface")
+        .def("poke64", &uhd::wb_iface::poke64)
+        .def("peek64", &uhd::wb_iface::peek64)
+        .def("poke32", &uhd::wb_iface::poke32)
+        .def("peek32", &uhd::wb_iface::peek32)
+        .def("poke16", &uhd::wb_iface::poke16)
+        .def("peek16", &uhd::wb_iface::peek16);
+
+    py::class_<uhd::timed_wb_iface, uhd::wb_iface>(m, "timed_wb_iface")
+        .def("get_time", &uhd::timed_wb_iface::get_time)
+        .def("set_time", &uhd::timed_wb_iface::set_time);
 }
 
 #endif /* INCLUDED_UHD_TYPES_PYTHON_HPP */

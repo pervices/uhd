@@ -22,7 +22,7 @@ from usrp_mpm.sys_utils.udev import get_spidev_nodes
 from usrp_mpm.sys_utils import dtoverlay
 from usrp_mpm.sys_utils import net
 from usrp_mpm.xports import XportAdapterMgr
-from usrp_mpm.rpc_server import no_claim, no_rpc
+from usrp_mpm.rpc_utils import no_claim, no_rpc
 from usrp_mpm.mpmutils import get_dboard_class_from_pid
 from usrp_mpm import eeprom
 from usrp_mpm import prefs
@@ -208,6 +208,15 @@ class PeriphManagerBase:
 
         eeprom_md -- Dictionary of info read out from the mboard EEPROM
         device_args -- Arbitrary dictionary of info, typically user-defined
+        """
+        return []
+
+    def pop_host_tasks(self, task):
+        """
+        Queries all known sources of host tasks and returns a list of dicts
+        that can be used for parameterization of the requested task. Depending
+        on the return value of this, the host can trigger tasks. Currently we
+        only have such tasks in the clock manager.
         """
         return []
     # pylint: enable=unused-argument
@@ -736,6 +745,13 @@ class PeriphManagerBase:
                     udp_xport_mgr.iface_config[x['iface']]['label'])
                 for x in chdr_link_options if x['type'] == 'sfp'
             }
+            ta_insts = [mgr.get_xport_adapter_inst() for mgr in self._xport_adapter_mgrs.values()]
+            if len(ta_insts) != len(set(ta_insts)):
+                self.log.error(
+                    "Transport adapters have duplicate instance values: " +
+                    " ".join(f"{k}: {v.get_xport_adapter_inst()}" for k, v in self._xport_adapter_mgrs.items()))
+                raise RuntimeError(
+                    "Invalid FPGA configuration: Transport adapters have duplicate instance values")
             # Remove transport adapters without capabilities
             self._xport_adapter_mgrs = {
                 iface: mgr
@@ -1386,7 +1402,7 @@ class PeriphManagerBase:
         This is the main MPM-based synchronization call. It should be called if
         there are synchronization-related settings that need to be applied to
         devices that can only be set via MPM (exluding setting the time of
-        timekeepers).
+        timekeepers). It is called from mpmd_mb_controller::_pre_timekeeper_synchronize()
 
         For example, on RFSoC-based devices, we need to make sure to set the
         same tile latency on all devices.

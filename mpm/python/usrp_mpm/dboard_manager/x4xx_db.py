@@ -10,7 +10,7 @@ Mixin class for daughterboard classes that live on a X4xx motherboard
 from usrp_mpm.mpmlog import get_logger
 from usrp_mpm import tlv_eeprom
 from usrp_mpm.sys_utils.udev import get_eeprom_paths_by_symbol
-from usrp_mpm.rpc_server import no_rpc
+from usrp_mpm.rpc_utils import no_rpc
 
 # pylint: disable=too-few-public-methods
 class EepromTagMap:
@@ -121,6 +121,21 @@ class X4xxDbMixin:
             if self.db_iface.check_enable_daughterboard():
                 err_msg = f"{self.product_name} {self.slot_idx} power down failed"
                 self.log.error(err_msg)
+
+    ###########################################################################
+    # Clocking and RFDC interface
+    ###########################################################################
+    def get_rfdc_rate_sensor(self, _):
+        """
+        Return the RFDC rate (the ADC/DAC converter rate) of this daughterboard's
+        converters as a sensor value.
+        """
+        return {
+            'name': 'rfdc_rate',
+            'type': 'REALNUM',
+            'unit': 'Hz',
+            'value': str(self.get_dboard_sample_rate()),
+        }
 
     ###########################################################################
     # Clocking and RFDC interface

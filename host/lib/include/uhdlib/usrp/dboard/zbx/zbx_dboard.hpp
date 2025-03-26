@@ -107,6 +107,7 @@ public:
             8192, //  over, Set the threshold to detect half-scale
                   //  setup_threshold call uses 14-bit ADC values
             "calib_mode2", // calibration_mode
+            2000, // 2 seconds were found to be sufficent
         };
     }
 
@@ -211,8 +212,8 @@ public:
         const std::string& src, const std::string& name, const size_t chan) final;
     void set_rx_lo_source(
         const std::string& src, const std::string& name, const size_t chan) final;
-    const std::string get_tx_lo_source(const std::string& name, const size_t chan) final;
-    const std::string get_rx_lo_source(const std::string& name, const size_t chan) final;
+    std::string get_tx_lo_source(const std::string& name, const size_t chan) final;
+    std::string get_rx_lo_source(const std::string& name, const size_t chan) final;
 
     uhd::freq_range_t get_rx_lo_freq_range(
         const std::string& name, const size_t chan) const final

@@ -10,6 +10,17 @@
 #include <uhd/transport/frame_buff.hpp>
 #include <uhd/types/device_addr.hpp>
 #include <uhdlib/transport/adapter_info.hpp>
+
+// DPDK is not fully compliant with more recent compilers and C++20
+#pragma GCC diagnostic push
+#ifdef UHD_HAVE_WDEPRECATED_VOLATILE
+#    pragma GCC diagnostic ignored "-Wdeprecated-volatile"
+#endif
+#ifdef UHD_HAVE_WVOLATILE
+#    pragma GCC diagnostic ignored "-Wvolatile"
+#endif
+
+#include <rte_arp.h>
 #include <rte_ethdev.h>
 #include <rte_ether.h>
 #include <rte_flow.h>
@@ -17,6 +28,9 @@
 #include <rte_mempool.h>
 #include <rte_spinlock.h>
 #include <rte_version.h>
+
+#pragma GCC diagnostic pop
+
 #include <unordered_map>
 #include <array>
 #include <atomic>
@@ -33,30 +47,30 @@
  */
 #if RTE_VER_YEAR < 19 || (RTE_VER_YEAR == 19 && RTE_VER_MONTH < 8)
 // 18.11 data types
-#define rte_ether_addr ether_addr
-#define rte_ether_hdr  ether_hdr
-#define rte_arp_hdr    arp_hdr
-#define arp_hardware   arp_hrd
-#define arp_protocol   arp_pro
-#define arp_hlen       arp_hln
-#define arp_plen       arp_pln
-#define arp_opcode     arp_op
-#define rte_ipv4_hdr   ipv4_hdr
-#define rte_udp_hdr    udp_hdr
+#    define rte_ether_addr ether_addr
+#    define rte_ether_hdr  ether_hdr
+#    define rte_arp_hdr    arp_hdr
+#    define arp_hardware   arp_hrd
+#    define arp_protocol   arp_pro
+#    define arp_hlen       arp_hln
+#    define arp_plen       arp_pln
+#    define arp_opcode     arp_op
+#    define rte_ipv4_hdr   ipv4_hdr
+#    define rte_udp_hdr    udp_hdr
 // 18.11 constants
-#define RTE_ETHER_TYPE_IPV4  ETHER_TYPE_IPv4
-#define RTE_ETHER_TYPE_ARP   ETHER_TYPE_ARP
-#define RTE_ETHER_ADDR_LEN   ETHER_ADDR_LEN
-#define RTE_ETHER_CRC_LEN    ETHER_CRC_LEN
-#define RTE_ETHER_HDR_LEN    ETHER_HDR_LEN
-#define RTE_IPV4_HDR_DF_FLAG IPV4_HDR_DF_FLAG
-#define RTE_ARP_HRD_ETHER    ARP_HRD_ETHER
-#define RTE_ARP_OP_REPLY     ARP_OP_REPLY
-#define RTE_ARP_OP_REQUEST   ARP_OP_REQUEST
+#    define RTE_ETHER_TYPE_IPV4  ETHER_TYPE_IPv4
+#    define RTE_ETHER_TYPE_ARP   ETHER_TYPE_ARP
+#    define RTE_ETHER_ADDR_LEN   ETHER_ADDR_LEN
+#    define RTE_ETHER_CRC_LEN    ETHER_CRC_LEN
+#    define RTE_ETHER_HDR_LEN    ETHER_HDR_LEN
+#    define RTE_IPV4_HDR_DF_FLAG IPV4_HDR_DF_FLAG
+#    define RTE_ARP_HRD_ETHER    ARP_HRD_ETHER
+#    define RTE_ARP_OP_REPLY     ARP_OP_REPLY
+#    define RTE_ARP_OP_REQUEST   ARP_OP_REQUEST
 // 18.11 functions
-#define rte_ether_addr_copy    ether_addr_copy
-#define rte_ether_format_addr  ether_format_addr
-#define rte_is_zero_ether_addr is_zero_ether_addr
+#    define rte_ether_addr_copy    ether_addr_copy
+#    define rte_ether_format_addr  ether_format_addr
+#    define rte_is_zero_ether_addr is_zero_ether_addr
 #endif
 
 namespace uhd { namespace transport {
@@ -67,9 +81,9 @@ namespace dpdk {
 
 struct arp_entry;
 
-using queue_id_t = uint16_t;
-using port_id_t  = uint16_t;
-using rte_ipv4_addr  = uint32_t;
+using queue_id_t    = uint16_t;
+using port_id_t     = uint16_t;
+using rte_ipv4_addr = uint32_t;
 
 class dpdk_adapter_info : public adapter_info
 {
@@ -149,7 +163,7 @@ private:
  * structure.
  */
 constexpr size_t DPDK_MBUF_PRIV_SIZE =
-    RTE_ALIGN(sizeof(struct dpdk_frame_buff), RTE_MBUF_PRIV_ALIGN);
+    RTE_ALIGN(sizeof(class dpdk_frame_buff), RTE_MBUF_PRIV_ALIGN);
 
 /*!
  * Class representing a DPDK NIC port

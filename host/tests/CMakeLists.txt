@@ -93,66 +93,124 @@ include_directories("${UHD_SOURCE_DIR}/lib/include")
 include_directories("${UHD_BINARY_DIR}/lib/include")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/common")
 
-if(ENABLE_CRIMSON_TNG)
-# Cannot call into crimson_tng_impl.o that is in libuhd.so due to default visibility=hidden
-# so it is necessary to link it into the executable before the shared library is linked in
-add_executable(crimson_tng_test
-    crimson_tng_test.cpp
-    ${CMAKE_SOURCE_DIR}/lib/usrp/crimson_tng/crimson_tng_impl.cpp
-    ${CMAKE_SOURCE_DIR}/lib/usrp/crimson_tng/crimson_tng_io_impl.cpp
-    ${CMAKE_SOURCE_DIR}/lib/usrp/crimson_tng/crimson_tng_iface.cpp
-)
-target_link_libraries(crimson_tng_test uhd ${Boost_LIBRARIES})
-UHD_ADD_TEST(crimson_tng_test crimson_tng_test)
-UHD_INSTALL(TARGETS crimson_tng_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
-endif(ENABLE_CRIMSON_TNG)
+#for each source: build an executable, register it as a test
+foreach(test_source ${test_sources})
+    get_filename_component(test_name ${test_source} NAME_WE)
+    add_executable(${test_name} ${test_source})
+    target_link_libraries(${test_name} uhd uhd_test ${Boost_LIBRARIES})
+    UHD_ADD_TEST(${test_name} ${test_name})
+    UHD_INSTALL(TARGETS ${test_name} RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+endforeach(test_source)
 
-# Other tests that don't directly link with libuhd: (TODO find a nicer way to do this)
-include_directories(${CMAKE_BINARY_DIR}/lib/rfnoc/nocscript/)
-include_directories(${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/)
-add_executable(nocscript_expr_test
-    nocscript_expr_test.cpp
-    ${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/expression.cpp
-)
-target_link_libraries(nocscript_expr_test uhd ${Boost_LIBRARIES})
-UHD_ADD_TEST(nocscript_expr_test nocscript_expr_test)
-UHD_INSTALL(TARGETS nocscript_expr_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+#for benchmarks, build executable but do not register
+foreach(benchmark_source ${benchmark_sources})
+    get_filename_component(benchmark_name ${benchmark_source} NAME_WE)
+    add_executable(${benchmark_name} ${benchmark_source})
+    target_link_libraries(${benchmark_name} uhd uhd_test ${Boost_LIBRARIES})
+    UHD_INSTALL(TARGETS ${benchmark_name} RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+endforeach(benchmark_source)
 
-add_executable(nocscript_ftable_test
-    nocscript_ftable_test.cpp
-    ${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/function_table.cpp
-    ${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/expression.cpp
-)
-target_link_libraries(nocscript_ftable_test uhd ${Boost_LIBRARIES})
-UHD_ADD_TEST(nocscript_ftable_test nocscript_ftable_test)
-UHD_INSTALL(TARGETS nocscript_ftable_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+if(ENABLE_PYTHON_API)
+    foreach(test_source ${pytest_sources})
+        get_filename_component(test_name ${test_source} NAME_WE)
+        UHD_ADD_PYTEST(${test_name})
+    endforeach(test_source)
+    UHD_INSTALL(FILES ${pytest_sources}
+        DESTINATION ${PKG_LIB_DIR}/tests
+        COMPONENT tests
+    )
+endif(ENABLE_PYTHON_API)
 
-add_executable(nocscript_parser_test
-    nocscript_parser_test.cpp
-    ${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/parser.cpp
-    ${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/function_table.cpp
-    ${CMAKE_SOURCE_DIR}/lib/rfnoc/nocscript/expression.cpp
-)
-target_link_libraries(nocscript_parser_test uhd ${Boost_LIBRARIES})
-UHD_ADD_TEST(nocscript_parser_test nocscript_parser_test)
-UHD_INSTALL(TARGETS nocscript_parser_test RUNTIME DESTINATION ${PKG_LIB_DIR}/tests COMPONENT tests)
+###############################################################################
+# Add a unit test that requires linkage to internal parts of UHD which are not
+# API
+###############################################################################
+macro(UHD_ADD_NONAPI_TEST)
+    cmake_parse_arguments(test "NOAUTORUN" "TARGET" "INCLUDE_DIRS;EXTRA_SOURCES;EXTRA_LIBS" ${ARGN})
+    get_filename_component(test_name ${test_TARGET} NAME_WE)
+    include_directories(${test_INCLUDE_DIRS})
+    add_executable(${test_name} ${test_TARGET} ${test_EXTRA_SOURCES})
+    target_link_libraries(${test_name} uhd uhd_test ${Boost_LIBRARIES})
+    if(NOT ${test_NOAUTORUN})
+        UHD_ADD_TEST(${test_name} ${test_name})
+    endif(NOT ${test_NOAUTORUN})
+    UHD_INSTALL(TARGETS ${test_name}
+        RUNTIME
+        DESTINATION ${PKG_LIB_DIR}/tests
+        COMPONENT tests)
+endmacro(UHD_ADD_NONAPI_TEST)
 
-add_executable(config_parser_test
-    config_parser_test.cpp
-    ${CMAKE_SOURCE_DIR}/lib/utils/config_parser.cpp
-)
-target_link_libraries(config_parser_test uhd ${Boost_LIBRARIES})
-UHD_ADD_TEST(config_parser_test config_parser_test)
-UHD_INSTALL(TARGETS
-    config_parser_test
-    RUNTIME
-    DESTINATION ${PKG_LIB_DIR}/tests
-    COMPONENT tests
+###############################################################################
+# Add a unit test for an RFNoC block controller
+###############################################################################
+macro(UHD_ADD_RFNOC_BLOCK_TEST)
+    cmake_parse_arguments(test "NOAUTORUN" "TARGET" "INCLUDE_DIRS;EXTRA_SOURCES;EXTRA_LIBS" ${ARGN})
+    UHD_ADD_NONAPI_TEST(
+        TARGET rfnoc_block_tests/${test_TARGET}
+        EXTRA_SOURCES
+        ${test_EXTRA_SOURCES}
+        ${UHD_SOURCE_DIR}/lib/rfnoc/graph.cpp
+        INCLUDE_DIRS
+        ${test_INCLUDE_DIRS}
+    )
+endmacro(UHD_ADD_RFNOC_BLOCK_TEST)
+
+###############################################################################
+# Now add all unit tests that require special linkage
+###############################################################################
+if(ENABLE_DPDK)
+    find_package(DPDK)
+    UHD_ADD_NONAPI_TEST(
+        TARGET "dpdk_test.cpp"
+        EXTRA_SOURCES
+        ${UHD_SOURCE_DIR}/lib/utils/config_parser.cpp
+        ${UHD_SOURCE_DIR}/lib/utils/paths.cpp
+        ${UHD_SOURCE_DIR}/lib/utils/pathslib.cpp
+        ${UHD_SOURCE_DIR}/lib/utils/prefs.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/adapter.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/uhd-dpdk/dpdk_common.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/uhd-dpdk/dpdk_io_service.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/udp_dpdk_link.cpp
+        INCLUDE_DIRS
+        ${DPDK_INCLUDE_DIRS}
+        EXTRA_LIBS ${DPDK_LIBRARIES}
+        NOAUTORUN # Don't register for auto-run, it requires special config
+    )
+    UHD_ADD_NONAPI_TEST(
+        TARGET "dpdk_port_test.cpp"
+        EXTRA_SOURCES
+        ${UHD_SOURCE_DIR}/lib/utils/config_parser.cpp
+        ${UHD_SOURCE_DIR}/lib/utils/paths.cpp
+        ${UHD_SOURCE_DIR}/lib/utils/pathslib.cpp
+        ${UHD_SOURCE_DIR}/lib/utils/prefs.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/adapter.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/uhd-dpdk/dpdk_common.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/uhd-dpdk/dpdk_io_service.cpp
+        ${UHD_SOURCE_DIR}/lib/transport/udp_dpdk_link.cpp
+        INCLUDE_DIRS
+        ${DPDK_INCLUDE_DIRS}
+        EXTRA_LIBS ${DPDK_LIBRARIES}
+        NOAUTORUN # Don't register for auto-run, it requires special config
+    )
+    target_compile_options(dpdk_test PRIVATE ${DPDK_CFLAGS})
+    target_compile_options(dpdk_port_test PRIVATE ${DPDK_CFLAGS})
+ENDIF(ENABLE_DPDK)
+
+UHD_ADD_NONAPI_TEST(
+    TARGET "system_time_test.cpp"
+    EXTRA_SOURCES
+    "${UHD_SOURCE_DIR}/lib/utils/system_time.cpp"
 )
 
-add_executable(paths_test
-    paths_test.cpp
-    ${CMAKE_SOURCE_DIR}/lib/utils/pathslib.cpp
+UHD_ADD_NONAPI_TEST(
+    TARGET "streamer_benchmark.cpp"
+    EXTRA_SOURCES
+    ${UHD_SOURCE_DIR}/lib/rfnoc/chdr_packet_writer.cpp
+    ${UHD_SOURCE_DIR}/lib/rfnoc/chdr_ctrl_xport.cpp
+    ${UHD_SOURCE_DIR}/lib/rfnoc/chdr_rx_data_xport.cpp
+    ${UHD_SOURCE_DIR}/lib/rfnoc/chdr_tx_data_xport.cpp
+    ${UHD_SOURCE_DIR}/lib/transport/inline_io_service.cpp
+    NOAUTORUN # Don't register for auto-run
 )
 
 UHD_ADD_NONAPI_TEST(
@@ -162,15 +220,15 @@ UHD_ADD_NONAPI_TEST(
 
 # Careful: This is to satisfy the out-of-library build of paths.cpp. This is
 # duplicate code from lib/utils/CMakeLists.txt, and it's been simplified.
+# TODO Figure out if this is even needed
 set(UHD_LIB_DIR "lib")
 file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}" UHD_PKG_PATH)
 string(REPLACE "\\" "\\\\" UHD_PKG_PATH "${UHD_PKG_PATH}")
 set_source_files_properties(
-    ${CMAKE_SOURCE_DIR}/lib/utils/paths.cpp
+    ${UHD_SOURCE_DIR}/lib/utils/paths.cpp
     PROPERTIES COMPILE_DEFINITIONS
     "UHD_PKG_PATH=\"${UHD_PKG_PATH}\";UHD_LIB_DIR=\"${UHD_LIB_DIR}\""
 )
-
 UHD_ADD_NONAPI_TEST(
     TARGET "paths_test.cpp"
     EXTRA_SOURCES
@@ -234,6 +292,22 @@ UHD_ADD_NONAPI_TEST(
     ${UHD_BINARY_DIR}/lib/ic_reg_maps
 )
 
+UHD_ADD_NONAPI_TEST(
+    TARGET adf535x_test.cpp
+    EXTRA_SOURCES
+    ${UHD_SOURCE_DIR}/lib/usrp/common/adf535x.cpp
+    INCLUDE_DIRS
+    ${UHD_BINARY_DIR}/lib/ic_reg_maps
+)
+
+UHD_ADD_NONAPI_TEST(
+    TARGET "max287x_test.cpp"
+    EXTRA_SOURCES
+    ${UHD_SOURCE_DIR}/lib/include/uhdlib/usrp/common/max287x.hpp
+    INCLUDE_DIRS
+    ${UHD_BINARY_DIR}/lib/ic_reg_maps
+)
+
 set_source_files_properties(
     ${UHD_SOURCE_DIR}/lib/utils/system_time.cpp
     PROPERTIES COMPILE_DEFINITIONS
@@ -254,6 +328,10 @@ UHD_ADD_RFNOC_BLOCK_TEST(
 
 UHD_ADD_RFNOC_BLOCK_TEST(
     TARGET fft_block_test.cpp
+)
+
+UHD_ADD_RFNOC_BLOCK_TEST(
+    TARGET fft_block_test_v2.cpp
 )
 
 UHD_ADD_RFNOC_BLOCK_TEST(
@@ -304,6 +382,10 @@ UHD_ADD_RFNOC_BLOCK_TEST(
     TARGET window_block_test.cpp
 )
 
+UHD_ADD_RFNOC_BLOCK_TEST(
+    TARGET lc_block_test.cpp
+)
+
 IF(ENABLE_X400)
     if (NOT APPLE)
     # This test isn't supported on macOS because there are
@@ -326,10 +408,54 @@ IF(ENABLE_X400)
             ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_lo_ctrl.cpp
             ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_cpld_ctrl.cpp
             ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_expert.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_dboard.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_dboard_init.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_expert.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_ctrl.cpp
             ${UHD_SOURCE_DIR}/lib/utils/compat_check.cpp
             ${UHD_SOURCE_DIR}/lib/features/discoverable_feature_registry.cpp
             ${UHD_SOURCE_DIR}/lib/usrp/cores/gpio_atr_3000.cpp
-	         ${UHD_SOURCE_DIR}/lib/usrp/cores/spi_core_4000.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/cores/spi_core_4000.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/x400/x400_internal_sync.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/prefs.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/pathslib.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/paths.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/config_parser.cpp
+            $<TARGET_OBJECTS:uhd_rpclib>
+            INCLUDE_DIRS ${UHD_SOURCE_DIR}/lib/deps/rpclib/include
+            INCLUDE_DIRS ${UHD_SOURCE_DIR}/lib/deps/flatbuffers/include
+        )
+    # TODO: Fix dependency list/duplicates
+        UHD_ADD_RFNOC_BLOCK_TEST(
+            TARGET ferrum_radio_block_test.cpp
+            EXTRA_SOURCES
+            ${UHD_SOURCE_DIR}/lib/usrp/common/lmx2572.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/common/pwr_cal_mgr.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/x400/x400_gpio_control.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/x400/x400_radio_control.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/x400/x400_rfdc_control.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/x400/adc_self_calibration.cpp
+            ${UHD_SOURCE_DIR}/lib/rfnoc/radio_control_impl.cpp
+            ${UHD_SOURCE_DIR}/lib/rfnoc/rf_control/gain_profile.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/mpmd/mpmd_mb_controller.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_dboard.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_dboard_init.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_expert.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/fbx/fbx_ctrl.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_dboard.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_dboard_init.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_lo_ctrl.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_cpld_ctrl.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/dboard/zbx/zbx_expert.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/compat_check.cpp
+            ${UHD_SOURCE_DIR}/lib/features/discoverable_feature_registry.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/cores/gpio_atr_3000.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/cores/spi_core_4000.cpp
+            ${UHD_SOURCE_DIR}/lib/usrp/x400/x400_internal_sync.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/prefs.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/pathslib.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/paths.cpp
+            ${UHD_SOURCE_DIR}/lib/utils/config_parser.cpp
             $<TARGET_OBJECTS:uhd_rpclib>
             INCLUDE_DIRS ${UHD_SOURCE_DIR}/lib/deps/rpclib/include
             INCLUDE_DIRS ${UHD_SOURCE_DIR}/lib/deps/flatbuffers/include
@@ -397,6 +523,12 @@ UHD_ADD_NONAPI_TEST(
     ${UHD_SOURCE_DIR}/lib/usrp/cores/xport_adapter_ctrl.cpp
 )
 
+UHD_ADD_NONAPI_TEST(
+    TARGET "custom_reg_test.cpp"
+    EXTRA_SOURCES
+    ${UHD_SOURCE_DIR}/lib/rfnoc/ctrlport_endpoint.cpp
+)
+
 ########################################################################
 # demo of a loadable module
 ########################################################################
@@ -406,3 +538,4 @@ if(MSVC OR APPLE OR LINUX)
 endif()
 
 add_subdirectory(devtest)
+add_subdirectory(streaming_performance)

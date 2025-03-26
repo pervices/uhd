@@ -8,7 +8,6 @@
 #include <uhd/transport/udp_simple.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/transport/udp_common.hpp>
-#include <boost/format.hpp>
 
 using namespace uhd::transport;
 namespace asio = boost::asio;
@@ -26,7 +25,6 @@ public:
         UHD_LOG_TRACE("UDP", "Creating udp transport for " << addr << " " << port);
 
         // resolve the address
-        asio::io_context _io_context;
         asio::ip::udp::resolver resolver(_io_context);
         _send_endpoint = *resolver
                               .resolve(asio::ip::udp::v4(),
@@ -36,7 +34,6 @@ public:
                               .begin();
 
         // create and open the socket
-
         socket_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
 
         // allow broadcasting
@@ -160,6 +157,7 @@ public:
 
 private:
     bool _connected;
+    asio::io_context _io_context;
     asio::ip::udp::endpoint _send_endpoint;
     // IP address received packets originated from
     std::string recv_ip = "0.0.0.0";

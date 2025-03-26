@@ -8,6 +8,7 @@
 #include <uhdlib/rfnoc/node_accessor.hpp>
 #include <uhdlib/rfnoc/rfnoc_tx_streamer.hpp>
 #include <atomic>
+#include <numeric>
 
 using namespace uhd;
 using namespace uhd::rfnoc;
@@ -39,6 +40,17 @@ rfnoc_tx_streamer::rfnoc_tx_streamer(const size_t num_chans,
                 return;
             }
             _handle_tx_event_action(src, tx_event_action);
+        });
+
+    register_action_handler(ACTION_KEY_TUNE_REQUEST,
+        [this](const res_source_info& src, action_info::sptr action) {
+            tune_request_action_info::sptr tune_request_action =
+                std::dynamic_pointer_cast<tune_request_action_info>(action);
+            if (!tune_request_action) {
+                RFNOC_LOG_WARNING("Received invalid tune request action!");
+                return;
+            }
+            RFNOC_LOG_DEBUG("Received tune request on " << src.to_string());
         });
 
     // Initialize properties
@@ -105,6 +117,16 @@ size_t rfnoc_tx_streamer::get_num_output_ports() const
     return get_num_channels();
 }
 
+void rfnoc_tx_streamer::post_output_action(
+    const std::shared_ptr<uhd::rfnoc::action_info>& action, const size_t port)
+{
+    if (port > get_num_channels()) {
+        throw uhd::runtime_error("Invalid channel. Please provide a valid channel");
+    }
+    const uhd::rfnoc::res_source_info info(res_source_info::OUTPUT_EDGE, port);
+    post_action(info, action);
+}
+
 const uhd::stream_args_t& rfnoc_tx_streamer::get_stream_args() const
 {
     return _stream_args;
@@ -147,6 +169,24 @@ void rfnoc_tx_streamer::connect_channel(
 
     tx_streamer_impl<chdr_tx_data_xport>::connect_channel(channel, std::move(xport));
 
+    const size_t bpi          = convert::get_bytes_per_item(_type_out[channel].get());
+    const size_t chdr_w_bytes = _stream_args.args.cast<size_t>("__chdr_width", 64) / 8;
+    const size_t chdr_w_items = chdr_w_bytes / bpi;
+    const size_t spp          = tx_streamer_impl<chdr_tx_data_xport>::get_max_num_samps();
+    const size_t misalignment = spp % chdr_w_items;
+    if (!_stream_args.args.has_key("spp")) {
+        // By default, find an spp value that is an integer multiple of the CHDR
+        // width. This has proven useful under some corner conditions, but still
+        // requires a root-cause analysis.
+        if (misalignment != 0) {
+            RFNOC_LOG_DEBUG("Reducing spp from "
+                            << spp << " to " << spp - misalignment
+                            << " to align with CHDR width of " << chdr_w_bytes
+                            << " bytes (= " << chdr_w_items << " samples).");
+            tx_streamer_impl<chdr_tx_data_xport>::set_max_num_samps(spp - misalignment);
+        }
+    }
+
     // Update MTU property based on xport limits. We need to do this after
     // connect_channel(), because that's where the chdr_tx_data_xport object
     // learns its header size.
@@ -173,8 +213,8 @@ void rfnoc_tx_streamer::_register_props(const size_t chan, const std::string& ot
         PROP_KEY_TYPE, otw_format, {res_source_info::OUTPUT_EDGE, chan}));
     _mtu_out.push_back(property_t<size_t>(
         PROP_KEY_MTU, get_mtu(), {res_source_info::OUTPUT_EDGE, chan}));
-    _atomic_item_size_out.push_back(
-        property_t<size_t>(PROP_KEY_ATOMIC_ITEM_SIZE, 1, {res_source_info::OUTPUT_EDGE, chan}));
+    _atomic_item_size_out.push_back(property_t<size_t>(
+        PROP_KEY_ATOMIC_ITEM_SIZE, 1, {res_source_info::OUTPUT_EDGE, chan}));
 
     // Give us some shorthands for the rest of this function
     property_t<double>* scaling_out          = &_scaling_out.back();
@@ -193,14 +233,13 @@ void rfnoc_tx_streamer::_register_props(const size_t chan, const std::string& ot
     register_property(atomic_item_size_out);
 
     // Add resolvers
-    add_property_resolver(
-        {scaling_out}, {}, [& scaling_out = *scaling_out, chan, this]() {
-            RFNOC_LOG_TRACE("Calling resolver for `scaling_out'@" << chan);
-            // Other data types than sc16 will require other values
-            const double converter_scaling = 32767.0;
-            const double graph_scaling = scaling_out.is_valid() ? scaling_out.get() : 1.0;
-            this->set_scale_factor(chan, converter_scaling * graph_scaling);
-        });
+    add_property_resolver({scaling_out}, {}, [&scaling_out = *scaling_out, chan, this]() {
+        RFNOC_LOG_TRACE("Calling resolver for `scaling_out'@" << chan);
+        // Other data types than sc16 will require other values
+        const double converter_scaling = 32767.0;
+        const double graph_scaling     = scaling_out.is_valid() ? scaling_out.get() : 1.0;
+        this->set_scale_factor(chan, converter_scaling * graph_scaling);
+    });
 
     add_property_resolver(
         {samp_rate_out}, {}, [&samp_rate_out = *samp_rate_out, chan, this]() {
@@ -219,19 +258,27 @@ void rfnoc_tx_streamer::_register_props(const size_t chan, const std::string& ot
                 this->set_tick_rate(tick_rate_out.get());
             }
         });
-    add_property_resolver(
-        {atomic_item_size_out, mtu_out}, {}, [&ais = *atomic_item_size_out, chan, this]() {
+    add_property_resolver({atomic_item_size_out, mtu_out, type_out},
+        {},
+        [&ais = *atomic_item_size_out, &type = *type_out, chan, this]() {
             const auto UHD_UNUSED(log_chan) = chan;
             RFNOC_LOG_TRACE("Calling resolver for `atomic_item_size'@" << chan);
             if (ais.is_valid()) {
-                const auto spp = this->tx_streamer_impl::get_max_num_samps();
-                if (spp < ais.get()) {
-                    throw uhd::value_error("samples per package must not be smaller than atomic item size");
+                const size_t bpi          = convert::get_bytes_per_item(type.get());
+                const size_t spp          = this->tx_streamer_impl::get_max_num_samps();
+                const size_t spp_multiple = std::lcm<size_t>(ais.get(), bpi) / bpi;
+                if (spp < spp_multiple) {
+                    RFNOC_LOG_ERROR("Cannot resolve spp! Must be a multiple of "
+                                    << spp_multiple << " but max value is " << spp);
+                    throw uhd::value_error(
+                        "Samples per packet is incompatible with atomic item size!");
                 }
-                const auto misalignment = spp % ais.get();
-                RFNOC_LOG_TRACE("Check atomic item size " << ais.get() << " divides spp " << spp);
+                const auto misalignment = spp % spp_multiple;
                 if (misalignment > 0) {
-                    RFNOC_LOG_TRACE("Reduce spp by " << misalignment << " to align with atomic item size");
+                    RFNOC_LOG_DEBUG("Reducing spp from " << spp << " to "
+                                                         << spp - misalignment
+                                                         << " to align with atomic "
+                                                            "item size");
                     this->tx_streamer_impl::set_max_num_samps(spp - misalignment);
                 }
             }

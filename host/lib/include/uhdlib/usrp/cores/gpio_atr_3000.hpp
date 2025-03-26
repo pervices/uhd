@@ -7,7 +7,6 @@
 
 #pragma once
 
-
 #include <uhd/config.hpp>
 #include <uhd/types/wb_iface.hpp>
 #include <uhd/usrp/dboard_iface.hpp>
@@ -15,7 +14,6 @@
 #include <uhd/utils/noncopyable.hpp>
 #include <uhdlib/usrp/gpio_defs.hpp>
 #include <memory>
-
 
 namespace uhd { namespace usrp { namespace gpio_atr {
 
@@ -45,8 +43,7 @@ struct gpio_atr_offsets
      * \param rb_addr readback offset for GPIO ATR registers
      * \param stride Delta between the register addresses
      */
-    static gpio_atr_offsets make_default(
-        const uhd::wb_iface::wb_addr_type base,
+    static gpio_atr_offsets make_default(const uhd::wb_iface::wb_addr_type base,
         const uhd::wb_iface::wb_addr_type rb_addr,
         const size_t stride = 4);
 
@@ -54,15 +51,12 @@ struct gpio_atr_offsets
      * Create a GPIO regmap according to the typical "defaults" (see
      * make_default), with the readback register disabled.
      *
-
      * \param base base settings offset for GPIO ATR registers
      * \param rb_addr readback offset for GPIO ATR registers
      * \param stride Delta between the register addresses
      */
     static gpio_atr_offsets make_write_only(
-
-        const uhd::wb_iface::wb_addr_type base,
-        const size_t stride = 4);
+        const uhd::wb_iface::wb_addr_type base, const size_t stride = 4);
 };
 
 class gpio_atr_3000 : uhd::noncopyable
@@ -81,7 +75,6 @@ public:
      * \param registers Register offsets
      */
     static sptr make(uhd::wb_iface::sptr iface, gpio_atr_offsets registers);
-
 
     /*!
      * Select the ATR mode for all bits in the mask
@@ -161,10 +154,8 @@ public:
      *
      * \param iface register iface to GPIO ATR registers
      * \param registers Register offsets
-
      */
     static sptr make(uhd::wb_iface::sptr iface, gpio_atr_offsets registers);
-
 
     /*!
      * Configure the GPIO mode for all pins in the daughterboard connector

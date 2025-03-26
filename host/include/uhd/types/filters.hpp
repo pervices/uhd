@@ -10,11 +10,9 @@
 #include <uhd/config.hpp>
 #include <uhd/utils/log.hpp>
 #include <stdint.h>
-#include <boost/scoped_array.hpp>
+#include <cstddef>
 #include <iostream>
 #include <memory>
-#include <ostream>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -220,14 +218,14 @@ public:
         uint32_t max_num_taps,
         const std::vector<tap_t>& taps)
         : digital_filter_base<tap_t>(type,
-              bypass,
-              position_index,
-              rate,
-              interpolation,
-              decimation,
-              tap_bit_width,
-              max_num_taps,
-              taps)
+            bypass,
+            position_index,
+            rate,
+            interpolation,
+            decimation,
+            tap_bit_width,
+            max_num_taps,
+            taps)
     {
         // NOP
     }

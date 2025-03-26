@@ -10,6 +10,7 @@
 
 #include <uhd/config.hpp>
 #include <uhd/exception.hpp>
+#include <iomanip>
 #include <sstream>
 #include <string>
 
@@ -26,6 +27,22 @@ inline T hexstr_cast(const std::string& in)
     std::stringstream ss;
     ss << std::hex << in;
     ss >> x;
+    return x;
+}
+
+//! Convert hexadecimal, decimal, octal or other strings that support the >>
+//! operator into a value depending on the prefix.
+//
+// Example:
+//     10, 0x10, 010 get parsed to decimal 10, 16, 8.
+//     uint32_t x = fromstr_cast<uint32_t>("0xaffe");
+// Uses istringstream.
+template <typename T>
+inline T fromstr_cast(const std::string& in)
+{
+    T x;
+    std::istringstream is(in);
+    is >> std::setbase(0) >> x;
     return x;
 }
 
@@ -59,5 +76,8 @@ UHD_API int from_str(const std::string& val);
 //   This function simply returns the incoming string
 template <>
 UHD_API std::string from_str(const std::string& val);
+
+//! Create an ordinal string from a number.
+UHD_API std::string to_ordinal_string(int val);
 
 }} // namespace uhd::cast

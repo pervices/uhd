@@ -9,11 +9,9 @@
 
 #include <uhd/config.hpp>
 #include <uhd/utils/noncopyable.hpp>
-
-#include <boost/smart_ptr/detail/atomic_count.hpp>
 #include <boost/intrusive_ptr.hpp>
+#include <boost/smart_ptr/detail/atomic_count.hpp>
 #include <boost/utility.hpp>
-#include <sys/socket.h>
 #include <memory>
 
 namespace uhd { namespace transport {
@@ -41,7 +39,6 @@ public:
     {
         _length = num_bytes;
     }
-
 
     /*!
      * Get a pointer to the underlying buffer.
@@ -117,11 +114,6 @@ class UHD_API managed_send_buffer : public managed_buffer
 {
 public:
     typedef boost::intrusive_ptr<managed_send_buffer> sptr;
-
-    
-    virtual int get_socket(void) = 0;
-
-    virtual void get_iov(iovec &iov) = 0;
 };
 
 /*!
@@ -164,10 +156,9 @@ public:
     /*!
      * Get a new receive buffer from this transport object.
      * \param timeout the timeout to get the buffer in seconds
-     * \param error_code stores errors from the sys calls
      * \return a managed buffer, or null sptr on timeout/error
      */
-    virtual managed_recv_buffer::sptr get_recv_buff(double timeout = 0.1, int *error_code = 0) = 0;
+    virtual managed_recv_buffer::sptr get_recv_buff(double timeout = 0.1) = 0;
 
     /*!
      * Get the number of receive frames:

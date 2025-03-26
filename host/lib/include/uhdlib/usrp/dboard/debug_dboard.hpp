@@ -57,6 +57,7 @@ public:
             0,
             0,
             "calib_mode1",
+            2000,
         };
     }
 
@@ -308,12 +309,10 @@ public:
         return meta_range_t(0.0, 0.0);
     }
 
-    void set_rx_lo_source(const std::string&, const std::string&, const size_t) override
-    {
-        UHD_LOG_SKIP_CFG()
-    }
+    void set_rx_lo_source(const std::string&, const std::string&, const size_t) override{
+        UHD_LOG_SKIP_CFG()}
 
-    const std::string get_rx_lo_source(const std::string&, const size_t) override
+    std::string get_rx_lo_source(const std::string&, const size_t) override
     {
         return "";
     }
@@ -344,7 +343,8 @@ public:
         return {};
     }
 
-    std::vector<std::string> get_tx_lo_sources(const std::string&, const size_t) const override
+    std::vector<std::string> get_tx_lo_sources(
+        const std::string&, const size_t) const override
     {
         return {};
     }
@@ -354,12 +354,10 @@ public:
         return meta_range_t(0.0, 0.0);
     }
 
-    void set_tx_lo_source(const std::string&, const std::string&, const size_t) override
-    {
-        UHD_LOG_SKIP_CFG()
-    }
+    void set_tx_lo_source(const std::string&, const std::string&, const size_t) override{
+        UHD_LOG_SKIP_CFG()}
 
-    const std::string get_tx_lo_source(const std::string&, const size_t) override
+    std::string get_tx_lo_source(const std::string&, const size_t) override
     {
         return "";
     }

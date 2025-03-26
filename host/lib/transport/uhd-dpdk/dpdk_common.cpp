@@ -15,25 +15,14 @@
 #include <rte_arp.h>
 #include <boost/algorithm/string.hpp>
 
-#ifdef RTE_ETH_RX_OFFLOAD_IPV4_CKSUM
-    #define COMMON_RX_OFFLOAD_IPV4_CKSUM RTE_ETH_RX_OFFLOAD_IPV4_CKSUM;
-#else
-    #define COMMON_RX_OFFLOAD_IPV4_CKSUM DEV_RX_OFFLOAD_IPV4_CKSUM;
-#endif
-#ifdef RTE_ETH_TX_OFFLOAD_IPV4_CKSUM
-    #define COMMON_TX_OFFLOAD_IPV4_CKSUM RTE_ETH_TX_OFFLOAD_IPV4_CKSUM;
-#else
-    #define COMMON_TX_OFFLOAD_IPV4_CKSUM DEV_TX_OFFLOAD_IPV4_CKSUM;
-#endif
-
 namespace uhd { namespace transport { namespace dpdk {
 
 namespace {
-constexpr uint64_t USEC                      = 1000000;
-constexpr size_t DEFAULT_FRAME_SIZE          = 8000;
-constexpr int DEFAULT_NUM_MBUFS              = 1024;
-constexpr int DEFAULT_MBUF_CACHE_SIZE        = 315;
-constexpr size_t DPDK_HEADERS_SIZE           = 14 + 20 + 8; // Ethernet + IPv4 + UDP
+
+constexpr size_t DEFAULT_FRAME_SIZE   = 8000;
+constexpr int DEFAULT_NUM_MBUFS       = 1024;
+constexpr int DEFAULT_MBUF_CACHE_SIZE = 315;
+// constexpr size_t DPDK_HEADERS_SIZE           = 14 + 20 + 8; // Ethernet + IPv4 + UDP
 constexpr uint16_t DPDK_DEFAULT_RING_SIZE    = 512;
 constexpr int DEFAULT_DPDK_LINK_INIT_TIMEOUT = 1000;
 constexpr int LINK_STATUS_INTERVAL           = 250;
@@ -104,8 +93,13 @@ dpdk_port::dpdk_port(port_id_t port,
     /* Set hardware offloads */
     struct rte_eth_dev_info dev_info;
     rte_eth_dev_info_get(_port, &dev_info);
-    uint64_t rx_offloads = COMMON_RX_OFFLOAD_IPV4_CKSUM;
-    uint64_t tx_offloads = COMMON_TX_OFFLOAD_IPV4_CKSUM;
+#ifdef RTE_ETH_RX_OFFLOAD_IPV4_CKSUM
+    uint64_t rx_offloads = RTE_ETH_RX_OFFLOAD_IPV4_CKSUM;
+    uint64_t tx_offloads = RTE_ETH_TX_OFFLOAD_IPV4_CKSUM;
+#else
+    uint64_t rx_offloads            = DEV_RX_OFFLOAD_IPV4_CKSUM;
+    uint64_t tx_offloads            = DEV_TX_OFFLOAD_IPV4_CKSUM;
+#endif
     if ((dev_info.rx_offload_capa & rx_offloads) != rx_offloads) {
         UHD_LOGGER_ERROR("DPDK") << boost::format("%d: Only supports RX offloads 0x%0llx")
                                         % _port % dev_info.rx_offload_capa;
@@ -203,7 +197,11 @@ dpdk_port::dpdk_port(port_id_t port,
         }
 
         struct rte_eth_txconf txconf = dev_info.default_txconf;
-        txconf.offloads              = COMMON_TX_OFFLOAD_IPV4_CKSUM;
+#ifdef RTE_ETH_TX_OFFLOAD_IPV4_CKSUM
+        txconf.offloads = RTE_ETH_TX_OFFLOAD_IPV4_CKSUM;
+#else
+        txconf.offloads = DEV_TX_OFFLOAD_IPV4_CKSUM;
+#endif
         retval = rte_eth_tx_queue_setup(_port, i, tx_desc, cpu_socket, &txconf);
         if (retval < 0) {
             UHD_LOGGER_ERROR("DPDK")
@@ -376,12 +374,31 @@ void dpdk_ctx::_eal_init(const device_addr_t& eal_args)
             opt = eal_add_opt(argv, end - opt, opt, "-l", val.c_str());
         } else if (key == "dpdk_coremap") {
             opt = eal_add_opt(argv, end - opt, opt, "--lcores", val.c_str());
-        } else if (key == "dpdk_master_lcore") {
+        } else if (key == "dpdk_master_lcore" || key == "dpdk_main_lcore") {
+#if RTE_VER_YEAR > 21 || (RTE_VER_YEAR == 21 && RTE_VER_MONTH >= 11)
+            opt = eal_add_opt(argv, end - opt, opt, "--main-lcore", val.c_str());
+#else
             opt = eal_add_opt(argv, end - opt, opt, "--master-lcore", val.c_str());
-        } else if (key == "dpdk_pci_blacklist") {
-            opt = eal_add_opt(argv, end - opt, opt, "-b", val.c_str());
-        } else if (key == "dpdk_pci_whitelist") {
+#endif
+        } else if (key == "dpdk_pci_blacklist" || key == "dpdk_pci_blocklist") {
+            std::stringstream ss(val);
+            while (ss.good()) {
+                std::string entry;
+                getline(ss, entry, ',');
+                opt = eal_add_opt(argv, end - opt, opt, "-b", entry.c_str());
+            }
+        } else if (key == "dpdk_pci_whitelist" || key == "dpdk_pci_allowlist") {
             opt = eal_add_opt(argv, end - opt, opt, "-w", val.c_str());
+            std::stringstream ss(val);
+            while (ss.good()) {
+                std::string entry;
+                getline(ss, entry, ',');
+#if RTE_VER_YEAR > 21 || (RTE_VER_YEAR == 21 && RTE_VER_MONTH >= 11)
+                opt = eal_add_opt(argv, end - opt, opt, "-a", entry.c_str());
+#else
+                opt = eal_add_opt(argv, end - opt, opt, "-w", entry.c_str());
+#endif
+            }
         } else if (key == "dpdk_log_level") {
             opt = eal_add_opt(argv, end - opt, opt, "--log-level", val.c_str());
         } else if (key == "dpdk_huge_dir") {
@@ -424,12 +441,11 @@ void dpdk_ctx::init(const device_addr_t& user_args)
     unsigned int i;
     std::lock_guard<std::mutex> lock(_init_mutex);
     if (!_init_done) {
+        UHD_LOG_DEBUG("DPDK", "DPDK version: " << rte_version());
 #if RTE_VER_YEAR < 19 || (RTE_VER_YEAR == 19 && RTE_VER_MONTH < 11)
         UHD_LOG_WARNING("DPDK",
-            "Deprecated DPDK version "
-                << RTE_VER_YEAR << "." << RTE_VER_MONTH
-                << " detected. Consider upgrading DPDK. Recommended versions are 19.11, "
-                   "20.11, and 21.11.");
+            "Deprecated DPDK version " << RTE_VER_YEAR << "." << RTE_VER_MONTH
+                                       << " detected. Please upgrade DPDK.");
 #endif
 
         /* Gather global config, build args for EAL, and init UHD-DPDK */
@@ -505,12 +521,27 @@ void dpdk_ctx::init(const device_addr_t& user_args)
                 }
 
                 // Allocating enough buffers for all DMA queues for each CPU socket
+                // (or alternative for each NIC if there are no restrictions
+                // regarding NUMA node assignment)
                 // - This is a bit inefficient for larger systems, since NICs may not
                 //   all be on one socket
-                auto cpu_socket = rte_eth_dev_socket_id(i);
-                auto rx_pool = _get_rx_pktbuf_pool(cpu_socket, _num_mbufs * queue_count);
-                auto tx_pool = _get_tx_pktbuf_pool(cpu_socket, _num_mbufs * queue_count);
+                int cpu_socket = rte_eth_dev_socket_id(i);
+                unsigned int pool_index;
+                if (cpu_socket == SOCKET_ID_ANY) {
+                    UHD_LOG_TRACE("DPDK",
+                        "NIC(" << i << ") has no restrictions regarding NUMA nodes");
+                    pool_index = 0;
+                } else {
+                    UHD_LOG_TRACE("DPDK",
+                        "NIC(" << i << ") is connected to NUMA node " << cpu_socket);
+                    pool_index = (unsigned int)cpu_socket;
+                }
                 UHD_LOG_TRACE("DPDK",
+                    "Creating packet buffers for NIC("
+                        << i << ") with pool_index=" << pool_index);
+                auto rx_pool = _get_rx_pktbuf_pool(pool_index, _num_mbufs * queue_count);
+                auto tx_pool = _get_tx_pktbuf_pool(pool_index, _num_mbufs * queue_count);
+                UHD_LOG_DEBUG("DPDK",
                     "Initializing NIC(" << i << "):" << std::endl
                                         << conf.to_pp_string());
                 _ports[i] = dpdk_port::make(i,
@@ -657,42 +688,48 @@ uhd::transport::dpdk_io_service::sptr dpdk_ctx::get_io_service(const size_t port
 }
 
 struct rte_mempool* dpdk_ctx::_get_rx_pktbuf_pool(
-    unsigned int cpu_socket, size_t num_bufs)
+    unsigned int pool_index, size_t num_bufs)
 {
-    if (!_rx_pktbuf_pools.at(cpu_socket)) {
+    if (!_rx_pktbuf_pools.at(pool_index)) {
         const int mbuf_size =
             _mtu + RTE_PKTMBUF_HEADROOM + RTE_ETHER_HDR_LEN + RTE_ETHER_CRC_LEN;
         char name[32];
-        snprintf(name, sizeof(name), "rx_mbuf_pool_%u", cpu_socket);
-        _rx_pktbuf_pools[cpu_socket] = rte_pktmbuf_pool_create(name,
+        snprintf(name, sizeof(name), "rx_mbuf_pool_%u", pool_index);
+        UHD_LOG_TRACE("DPDK",
+            str(boost::format("Creating %s with %d x %d bytes") % name % num_bufs
+                % mbuf_size));
+        _rx_pktbuf_pools[pool_index] = rte_pktmbuf_pool_create(name,
             num_bufs,
             _mbuf_cache_size,
             DPDK_MBUF_PRIV_SIZE,
             mbuf_size,
             SOCKET_ID_ANY);
-        if (!_rx_pktbuf_pools.at(cpu_socket)) {
+        if (!_rx_pktbuf_pools.at(pool_index)) {
             UHD_LOG_ERROR("DPDK", "Could not allocate RX pktbuf pool");
             throw uhd::runtime_error("DPDK: Could not allocate RX pktbuf pool");
         }
     }
-    return _rx_pktbuf_pools.at(cpu_socket);
+    return _rx_pktbuf_pools.at(pool_index);
 }
 
 struct rte_mempool* dpdk_ctx::_get_tx_pktbuf_pool(
-    unsigned int cpu_socket, size_t num_bufs)
+    unsigned int pool_index, size_t num_bufs)
 {
-    if (!_tx_pktbuf_pools.at(cpu_socket)) {
+    if (!_tx_pktbuf_pools.at(pool_index)) {
         const int mbuf_size = _mtu + RTE_PKTMBUF_HEADROOM;
         char name[32];
-        snprintf(name, sizeof(name), "tx_mbuf_pool_%u", cpu_socket);
-        _tx_pktbuf_pools[cpu_socket] = rte_pktmbuf_pool_create(
+        snprintf(name, sizeof(name), "tx_mbuf_pool_%u", pool_index);
+        UHD_LOG_TRACE("DPDK",
+            str(boost::format("Creating %s with %d x %d bytes") % name % num_bufs
+                % mbuf_size));
+        _tx_pktbuf_pools[pool_index] = rte_pktmbuf_pool_create(
             name, num_bufs, _mbuf_cache_size, 0, mbuf_size, SOCKET_ID_ANY);
-        if (!_tx_pktbuf_pools.at(cpu_socket)) {
+        if (!_tx_pktbuf_pools.at(pool_index)) {
             UHD_LOG_ERROR("DPDK", "Could not allocate TX pktbuf pool");
             throw uhd::runtime_error("DPDK: Could not allocate TX pktbuf pool");
         }
     }
-    return _tx_pktbuf_pools.at(cpu_socket);
+    return _tx_pktbuf_pools.at(pool_index);
 }
 
 }}} // namespace uhd::transport::dpdk

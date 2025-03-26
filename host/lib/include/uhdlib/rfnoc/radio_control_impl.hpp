@@ -9,10 +9,10 @@
 #include <uhd/rfnoc/defaults.hpp>
 #include <uhd/rfnoc/multichan_register_iface.hpp>
 #include <uhd/rfnoc/radio_control.hpp>
-#include <uhdlib/features/discoverable_feature_registry.hpp>
-#include <uhdlib/usrp/common/pwr_cal_mgr.hpp>
 #include <uhd/rfnoc/rf_control/core_iface.hpp>
+#include <uhdlib/features/discoverable_feature_registry.hpp>
 #include <uhdlib/rfnoc/rf_control/gain_profile_iface.hpp>
+#include <uhdlib/usrp/common/pwr_cal_mgr.hpp>
 #include <unordered_map>
 #include <mutex>
 
@@ -49,6 +49,12 @@ public:
         const uhd::stream_cmd_t& stream_cmd, const size_t port) override;
 
     void enable_rx_timestamps(const bool enable, const size_t chan) override;
+
+    /**************************************************************************
+     * Tune related API calls
+     *************************************************************************/
+    void _tune_request_action_handler(
+        tune_request_action_info::sptr tune_request_action, const res_source_info& src);
 
     /**************************************************************************
      * Rate-Related API Calls
@@ -134,8 +140,7 @@ public:
         const std::string& name, const size_t chan) const override;
     void set_rx_lo_source(
         const std::string& src, const std::string& name, const size_t chan) override;
-    const std::string get_rx_lo_source(
-        const std::string& name, const size_t chan) override;
+    std::string get_rx_lo_source(const std::string& name, const size_t chan) override;
     void set_rx_lo_export_enabled(
         bool enabled, const std::string& name, const size_t chan) override;
     bool get_rx_lo_export_enabled(const std::string& name, const size_t chan) override;
@@ -149,8 +154,7 @@ public:
         const std::string& name, const size_t chan) override;
     void set_tx_lo_source(
         const std::string& src, const std::string& name, const size_t chan) override;
-    const std::string get_tx_lo_source(
-        const std::string& name, const size_t chan) override;
+    std::string get_tx_lo_source(const std::string& name, const size_t chan) override;
     void set_tx_lo_export_enabled(
         const bool enabled, const std::string& name, const size_t chan) override;
     bool get_tx_lo_export_enabled(const std::string& name, const size_t chan) override;
@@ -213,8 +217,7 @@ public:
      */
     struct regmap
     {
-        enum
-        {
+        enum {
             REG_COMPAT_NUM = 0x00, // Compatibility number register offset
             REG_TIME_LO    = 0x04, // Time lower bits
             REG_TIME_HI    = 0x08, // Time upper bits
@@ -240,17 +243,13 @@ public:
                 0x18, // Number of radio words for the next command (low word)
             REG_RX_CMD_NUM_WORDS_HI =
                 0x1C, // Number of radio words for the next command (high word)
-            REG_RX_CMD_TIME_LO =
-                0x20, // Time for the next command (low word)
-            REG_RX_CMD_TIME_HI =
-                0x24, // Time for the next command (high word)
+            REG_RX_CMD_TIME_LO = 0x20, // Time for the next command (low word)
+            REG_RX_CMD_TIME_HI = 0x24, // Time for the next command (high word)
             REG_RX_MAX_WORDS_PER_PKT =
                 0x28, // Maximum packet length to build from Rx data
-            REG_RX_ERR_PORT = 0x2C, // Port ID for error reporting
-            REG_RX_ERR_REM_PORT =
-                0x30, // Remote port ID for error reporting
-            REG_RX_ERR_REM_EPID =
-                0x34, // Remote EPID (endpoint ID) for error reporting
+            REG_RX_ERR_PORT     = 0x2C, // Port ID for error reporting
+            REG_RX_ERR_REM_PORT = 0x30, // Remote port ID for error reporting
+            REG_RX_ERR_REM_EPID = 0x34, // Remote EPID (endpoint ID) for error reporting
             REG_RX_ERR_ADDR =
                 0x38, // Offset to which to write error code (ADDR+0) and time (ADDR+8)
             REG_RX_DATA = 0x3C,
@@ -258,19 +257,16 @@ public:
                 0x70, // Set to one if radio output packets should have timestamps
 
             // TX Control Registers
-            REG_TX_IDLE_VALUE =
-                0x40, // Value to output when transmitter is idle
+            REG_TX_IDLE_VALUE   = 0x40, // Value to output when transmitter is idle
             REG_TX_ERROR_POLICY = 0x44, // Tx error policy
             REG_TX_ERR_PORT     = 0x48, // Port ID for error reporting
-            REG_TX_ERR_REM_PORT =
-                0x4C, // Remote port ID for error reporting
-            REG_TX_ERR_REM_EPID =
-                0x50, // Remote EPID (endpoint ID) for error reporting
+            REG_TX_ERR_REM_PORT = 0x4C, // Remote port ID for error reporting
+            REG_TX_ERR_REM_EPID = 0x50, // Remote EPID (endpoint ID) for error reporting
             REG_TX_ERR_ADDR =
                 0x54, // Offset to which to write error code (ADDR+0) and time (ADDR+8)
 
-            RX_CMD_STOP   = 0, // Stop acquiring at end of next packet
-            RX_CMD_FINITE = 1, // Acquire NUM_SAMPS then stop
+            RX_CMD_STOP       = 0, // Stop acquiring at end of next packet
+            RX_CMD_FINITE     = 1, // Acquire NUM_SAMPS then stop
             RX_CMD_CONTINUOUS = 2, // Acquire until stopped
 
             RX_CMD_TIMED_POS = 31,
@@ -286,8 +282,7 @@ public:
 
     struct err_codes
     {
-        enum
-        {
+        enum {
             //! Late command (stream command arrived after indicated time)
             ERR_RX_LATE_CMD = 1,
             //! FIFO overflow
@@ -373,6 +368,18 @@ private:
     // \param bytes Number of bytes we can fill with samples (excluding bytes
     //              required for CHDR headers!)
     int get_max_spp(const size_t bytes);
+
+    //! Calculates and apply the RF tune frequencies
+    //
+    // Calculates the target frequency based on the incoming tune request.
+    // Sets the RF frequency and updates the tune request action info.
+    //
+    // \param tune_request_action shared pointer to tune_request_action_info
+    // \param set_rf_freq Lambda function to set the frequency
+    // \param get_rf_freq Lambda function to get the current frequency
+    void apply_and_update_tune_request(tune_request_action_info::sptr tune_request_action,
+        std::function<void(double)> set_rf_freq,
+        std::function<double()> get_rf_freq);
 
     //! FPGA compat number
     const uint32_t _fpga_compat;

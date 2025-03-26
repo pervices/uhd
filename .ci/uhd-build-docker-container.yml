@@ -27,57 +27,54 @@ schedules:
     include:
     - master
   always: true
-- cron: "0 22 * * SAT"
-  displayName: Weekly Docker Build UHD-4.1 branch
-  branches:
-    include:
-    - UHD-4.1
-  always: true
-- cron: "0 2 * * SUN"
-  displayName: Weekly Docker Build UHD-4.2 branch
-  branches:
-    include:
-    - UHD-4.2
-  always: true
-- cron: "0 4 * * SUN"
-  displayName: Weekly Docker Build UHD-4.3 branch
-  branches:
-    include:
-    - UHD-4.3
-  always: true
-- cron: "0 6 * * SUN"
-  displayName: Weekly Docker Build UHD-4.4 branch
-  branches:
-    include:
-    - UHD-4.4
-  always: true
+
+parameters:
+- name: build_linux
+  type: boolean
+  displayName: Build Linux images
+  default: true
+- name: build_windows
+  type: boolean
+  displayName: Build Windows images
+  default: true
 
 variables:
 - template: uhd-pipeline-vars.yml
-- name: linuxDockerImages
-  value:
-    "{'Fedora-36-builder':{'buildOSName':'fedora36','dockerImageName':'uhd-builder-fedora36'},
-    'Fedora-37-builder':{'buildOSName':'fedora37','dockerImageName':'uhd-builder-fedora37'},
-    'Ubuntu-1804-builder':{'buildOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804'},
-    'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004'},
-    'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204'}}"
-- name: winDockerImages
-  value:
-    "{'VS2017-x86-builder':{'buildOSName':'win-vs17-v141-x86','dockerImageName':'uhd-builder-vs2017-v141-x86','cmakeCompiler':'Visual Studio 15 2017','cmakeArch':'Win32','vsArch':'x86','vsYear':'2017'},
-    'VS2017-x64-builder':{'buildOSName':'win-vs17-v141-x64','dockerImageName':'uhd-builder-vs2017-v141-x64','cmakeCompiler':'Visual Studio 15 2017','cmakeArch':'x64','vsArch':'x64','vsYear':'2017'},
-    'VS2019-x86-builder':{'buildOSName':'win-vs19-v142-x86','dockerImageName':'uhd-builder-vs2019-v142-x86','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'Win32','vsArch':'x86','vsYear':'2019'},
-    'VS2019-x64-builder':{'buildOSName':'win-vs19-v142-x64','dockerImageName':'uhd-builder-vs2019-v142-x64','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019'}}"
+- ${{ if parameters.build_linux }}:
+  - name: linuxDockerImages
+    value:
+      "{'Fedora-39-builder':{'buildOSName':'fedora39','dockerImageName':'uhd-builder-fedora39'},
+      'Fedora-40-builder':{'buildOSName':'fedora40','dockerImageName':'uhd-builder-fedora40'},
+      'Fedora-41-builder':{'buildOSName':'fedora41','dockerImageName':'uhd-builder-fedora41'},
+      'Ubuntu-1804-builder':{'buildOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804'},
+      'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004'},
+      'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204'},
+      'Ubuntu-2404-builder':{'buildOSName':'ubuntu2404','dockerImageName':'uhd-builder-ubuntu2404'}}"
+- ${{ else }}:
+  - name: linuxDockerImages
+    value:
+- ${{ if parameters.build_windows }}:
+  - name: winDockerImages
+    value:
+      "{'VS2019-x64-py310-builder':{'buildOSName':'win-vs19-v142-x64-py310','dockerImageName':'uhd-builder-vs2019-v142-x64-py310','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019','pythonVersion':'python310'},
+      'VS2019-x64-py312-builder':{'buildOSName':'win-vs19-v142-x64-py312','dockerImageName':'uhd-builder-vs2019-v142-x64-py312','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019','pythonVersion':'python312'},
+      'VS2022-x64-py310-builder':{'buildOSName':'win-vs22-v143-x64-py310','dockerImageName':'uhd-builder-vs2022-v143-x64-py310','cmakeCompiler':'Visual Studio 17 2022','cmakeArch':'x64','vsArch':'x64','vsYear':'2022','pythonVersion':'python310'},
+      'VS2022-x64-py312-builder':{'buildOSName':'win-vs22-v143-x64-py312','dockerImageName':'uhd-builder-vs2022-v143-x64-py312','cmakeCompiler':'Visual Studio 17 2022','cmakeArch':'x64','vsArch':'x64','vsYear':'2022','pythonVersion':'python312'}}"
+- ${{ else }}:
+  - name: winDockerImages
+    value:
 
 - name: ubuntuDebDockerImages
   # Match with Ubuntu images in linuxDockerImages
   value:
     "{'Ubuntu-1804-builder':{'buildOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804','ubuntuReleaseName':'bionic'},
     'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004','ubuntuReleaseName':'focal'},
-    'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204','ubuntuReleaseName':'jammy'}}"
+    'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204','ubuntuReleaseName':'jammy'},
+    'Ubuntu-2404-builder':{'buildOSName':'ubuntu2404','dockerImageName':'uhd-builder-ubuntu2404','ubuntuReleaseName':'noble'}}"
 
 - name: macOSBuilders
   value:
-    "{'macOS-12-x64':{'buildOSName':'macOS-12-x64', 'macOSVersionDemand':'12', 'macOSArchDemand': 'X64'}}"
+    "{'macOS-15-x64':{'buildOSName':'macOS-15-x64', 'macOSVersionDemand':'15', 'macOSArchDemand': 'X64'}}"
 
 - name: sourcePackageBuilders
   # Match with one of the Ubuntu images in linuxDockerImages
@@ -87,25 +84,59 @@ variables:
 - name: fedoraRpmDockerImages
   # Match with Fedora images in linuxDockerImages
   value:
-    "{'Fedora-36-builder':{'buildOSName':'fedora36','dockerImageName':'uhd-builder-fedora36','fedoraReleaseName':'36'},
-    'Fedora-37-builder':{'buildOSName':'fedora37','dockerImageName':'uhd-builder-fedora37','fedoraReleaseName':'37'}}"
+    "{'Fedora-39-builder':{'buildOSName':'fedora39','dockerImageName':'uhd-builder-fedora39','fedoraReleaseName':'39'},
+    'Fedora-40-builder':{'buildOSName':'fedora40','dockerImageName':'uhd-builder-fedora40','fedoraReleaseName':'40'},
+    'Fedora-41-builder':{'buildOSName':'fedora41','dockerImageName':'uhd-builder-fedora41','fedoraReleaseName':'41'}}"
 
 - name: winDockerImagesPythonBuild
   # Match with one of the images in winDockerImages
   value:
-    "{'VS2019-x64-builder':{'buildOSName':'win-vs19-v142-x64','dockerImageName':'uhd-builder-vs2019-v142-x64','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019'}}"
+    "{}"
 
-- name: dockerImagePrefix
-  value: 'rnd-docker-pre/ni/rfsdr/'
+- ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
+  - name: dockerImagePrefix
+    value: 'rnd-docker-ci/ni/rfsdr/'
+- ${{ else }}:
+  - name: dockerImagePrefix
+    value: 'rnd-docker-pre/ni/rfsdr/'
 
 jobs:
+- job: set_uhd_docker_image_version
+  displayName: Set UHD Docker Image Version
+  pool:
+    name: Drivers-NIBuildFarm-RFMIBUILD
+    demands:
+      - agent.os -equals Linux
+  steps:
+  - checkout: self
+    clean: true
+  - script: |
+      cd $(Build.SourcesDirectory)
+      uhd_version_major=$(sed -nE "s/^set\(UHD_VERSION_MAJOR\s+([0-9]+)\)/\1/p" host/cmake/Modules/UHDVersion.cmake)
+      uhd_version_api=$(sed -nE "s/^set\(UHD_VERSION_API\s+([0-9]+)\)/\1/p" host/cmake/Modules/UHDVersion.cmake)
+      uhd_version_abi=$(sed -nE "s/^set\(UHD_VERSION_ABI\s+([0-9]+)\)/\1/p" host/cmake/Modules/UHDVersion.cmake)
+      if [[ -z $uhd_version_major || -z $uhd_version_api || -z $uhd_version_abi ]]
+      then
+        echo "Error parsing UHDVersion.cmake for UHD Version"
+        exit 1
+      fi
+
+      uhd_docker_image_version=${uhd_version_major}.${uhd_version_api}.${uhd_version_abi}_$(Build.BuildNumber)
+      echo "Using UHD version string: $uhd_docker_image_version"
+      echo "##vso[task.setvariable variable=uhdDockerImageVersion;isOutput=true;]$uhd_docker_image_version"
+    name: set_uhd_version
+
 - job: build_image_linux
+  dependsOn: set_uhd_docker_image_version
   displayName: Build Docker Image
+  variables:
+    uhdDockerImageVersion: $[ dependencies.set_uhd_docker_image_version.outputs['set_uhd_version.uhdDockerImageVersion'] ]
   pool:
     name: Drivers-NIBuildFarm-RFMIBUILD
     demands:
       - agent.os -equals Linux
       - docker
+  condition: and(succeeded(), ${{ parameters.build_linux }})
   strategy:
     matrix: $[ variables.linuxDockerImages ]
   steps:
@@ -116,21 +147,31 @@ jobs:
     inputs:
       command: 'build'
       Dockerfile: '$(Build.SourcesDirectory)/.ci/docker/$(dockerImageName).Dockerfile'
-      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
+      ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
+        containerRegistry: rnd-docker-niartifacts-sdr-ci-publish
+      ${{ else }}:
+        containerRegistry: rnd-docker-niartifacts-pre-publish
       repository: '$(dockerImagePrefix)$(dockerImageName)'
-      tags: $(Build.BuildNumber)
+      tags: $(uhdDockerImageVersion)
       arguments: --no-cache --pull
   - task: Docker@2
     displayName: Push Image
     inputs:
       command: 'push'
-      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
+      ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
+        containerRegistry: rnd-docker-niartifacts-sdr-ci-publish
+      ${{ else }}:
+        containerRegistry: rnd-docker-niartifacts-pre-publish
       repository: '$(dockerImagePrefix)$(dockerImageName)'
-      tags: $(Build.BuildNumber)
+      tags: $(uhdDockerImageVersion)
 
 - job: test_image_linux
   displayName: Test Docker Image
-  dependsOn: build_image_linux
+  dependsOn:
+  - build_image_linux
+  - set_uhd_docker_image_version
+  variables:
+    uhdDockerImageVersion: $[ dependencies.set_uhd_docker_image_version.outputs['set_uhd_version.uhdDockerImageVersion'] ]
   pool:
     name: Drivers-NIBuildFarm-RFMIBUILD
     demands:
@@ -139,8 +180,11 @@ jobs:
   strategy:
     matrix: $[ variables.linuxDockerImages ]
   container:
-    image: '$(dockerImagePrefix)$(dockerImageName):$(Build.BuildNumber)'
-    endpoint: 'rnd-docker-niartifacts-pre-readonly'
+    image: "$(dockerImagePrefix)$(dockerImageName):$(uhdDockerImageVersion)"
+    ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
+      endpoint: rnd-docker-niartifacts-ci-readonly
+    ${{ else }}:
+      endpoint: rnd-docker-niartifacts-pre-readonly
   workspace:
     clean: outputs
   steps:
@@ -160,17 +204,19 @@ jobs:
     displayName: Test image with cmake ninja uhd
 
 - job: build_image_win
+  dependsOn: set_uhd_docker_image_version
   displayName: Build Docker Image Windows
-  timeoutInMinutes: 180
+  timeoutInMinutes: 120
+  variables:
+    uhdDockerImageVersion: $[ dependencies.set_uhd_docker_image_version.outputs['set_uhd_version.uhdDockerImageVersion'] ]
   pool:
-    name: de-dre-lab
+    name: Drivers-NIBuildFarm-RFMIBUILD
     demands:
       - agent.os -equals Windows_NT
       - docker
-      - rfsdr-build
+  condition: and(succeeded(), ${{ parameters.build_windows }})
   strategy:
     matrix: $[ variables.winDockerImages ]
-    maxParallel: 2
   steps:
   - checkout: self
     clean: true
@@ -179,55 +225,72 @@ jobs:
     inputs:
       command: 'build'
       Dockerfile: '$(Build.SourcesDirectory)/.ci/docker/$(dockerImageName).Dockerfile'
-      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
+      ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
+        containerRegistry: rnd-docker-niartifacts-sdr-ci-publish
+      ${{ else }}:
+        containerRegistry: rnd-docker-niartifacts-pre-publish
       repository: '$(dockerImagePrefix)$(dockerImageName)'
-      tags: $(Build.BuildNumber)
+      tags: $(uhdDockerImageVersion)
       buildContext: $(Build.SourcesDirectory)
       arguments: --no-cache --pull
   - task: Docker@2
     displayName: Push Image
     inputs:
       command: 'push'
-      containerRegistry: 'rnd-docker-niartifacts-pre-publish'
+      ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
+        containerRegistry: rnd-docker-niartifacts-sdr-ci-publish
+      ${{ else }}:
+        containerRegistry: rnd-docker-niartifacts-pre-publish
       repository: '$(dockerImagePrefix)$(dockerImageName)'
-      tags: $(Build.BuildNumber)
+      tags: $(uhdDockerImageVersion)
 
 - job: test_image_win
   displayName: Test Docker Image Windows
-  dependsOn: build_image_win
+  timeoutInMinutes: 90
+  dependsOn:
+  - build_image_win
+  - set_uhd_docker_image_version
+  variables:
+    uhdDockerImageVersion: $[ dependencies.set_uhd_docker_image_version.outputs['set_uhd_version.uhdDockerImageVersion'] ]
   pool:
-    name: de-dre-lab
+    name: Drivers-NIBuildFarm-RFMIBUILD
     demands:
       - agent.os -equals Windows_NT
       - docker
-      - rfsdr-build
   strategy:
     matrix: $[ variables.winDockerImages ]
   container:
-    image: '$(dockerImagePrefix)$(dockerImageName):$(Build.BuildNumber)'
-    endpoint: 'rnd-docker-niartifacts-pre-readonly'
+    image: "$(dockerImagePrefix)$(dockerImageName):$(uhdDockerImageVersion)"
+    options: --cpu-count 6 --memory 12G
+    ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
+      endpoint: rnd-docker-niartifacts-ci-readonly
+    ${{ else }}:
+      endpoint: rnd-docker-niartifacts-pre-readonly
   workspace:
     clean: outputs
   steps:
   - checkout: self
     clean: true
   - script: |
-        cd $(Build.BinariesDirectory)
-        mkdir uhddev\build
-        cd uhddev\build
+        mkdir c:\uhddev\build
+        cd c:\uhddev\build
         cmake $(Build.SourcesDirectory)/host ^
           -DVCPKG_TARGET_TRIPLET=uhd-$(vsArch)-windows-static-md ^
           -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALL_DIR%\scripts\buildsystems\vcpkg.cmake ^
+          -DVCPKG_INSTALLED_DIR=c:\uhd-vcpkg\vcpkg_installed ^
+          -DVCPKG_MANIFEST_DIR=c:\uhd-vcpkg ^
           -G "$(cmakeCompiler)" -A $(cmakeArch)
     displayName: Test image with cmake uhd
   - script: |
-        cd $(Build.BinariesDirectory)
-        cd uhddev\build
+        cd c:\uhddev\build
         "C:\Program Files (x86)\Microsoft Visual Studio\$(vsYear)\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" $(vsArch)
     displayName: Load Visual C++ Env
 
 - job: export_build_number
+  dependsOn: set_uhd_docker_image_version
   displayName: Export Image List to Artifacts
+  variables:
+    uhdDockerImageVersion: $[ dependencies.set_uhd_docker_image_version.outputs['set_uhd_version.uhdDockerImageVersion'] ]
   pool:
     name: Drivers-NIBuildFarm-RFMIBUILD
     demands: sh
@@ -236,7 +299,7 @@ jobs:
   - script: |
       cd $(Build.ArtifactStagingDirectory)
       touch $(UHDPipelineDockerImageArtifactName)
-      echo "$(Build.BuildNumber)" > $(UHDPipelineDockerImageArtifactName)
+      echo "$(uhdDockerImageVersion)" > $(UHDPipelineDockerImageArtifactName)
       echo "${{ variables.dockerImagePrefix }}" >> $(UHDPipelineDockerImageArtifactName)
       echo "${{ variables.linuxDockerImages }}" >> $(UHDPipelineDockerImageArtifactName)
       echo "${{ variables.winDockerImages }}" >> $(UHDPipelineDockerImageArtifactName)

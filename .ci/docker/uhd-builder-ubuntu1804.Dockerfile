@@ -27,10 +27,8 @@ RUN apt-get update && \
         sudo \
     # Install UHD dependencies
         abi-dumper \
-        cmake \
         doxygen \
         dpdk \
-        libboost-all-dev \
         libdpdk-dev \
         libgps-dev \
         libgps-dev \
@@ -38,22 +36,19 @@ RUN apt-get update && \
         libusb-1.0-0-dev \
         ncompress \
         ninja-build \
-        python3-dev \
-        python3-docutils \
-        python3-mako \
-        python3-numpy \
+        python3.7 \
+        python3.7-dev \
+        python3.7-venv \
         python3-pip \
         python3-requests \
+        pybind11-dev \
     # Install deb dependencies
         debootstrap \
         devscripts \
         pbuilder \
         debhelper \
         libncurses5-dev \
-        python3-ruamel.yaml \
     # Install GNURadio dependencies
-        python3-sphinx \
-        python3-lxml \
         libsdl1.2-dev \
         libgsl-dev \
         libqwt-qt5-dev \
@@ -63,14 +58,44 @@ RUN apt-get update && \
         swig \
         gir1.2-gtk-3.0 \
         libpango1.0-dev \
-        python3-pyqt5 \
         liblog4cpp5-dev \
         libzmq3-dev \
-        python3-ruamel.yaml \
-        python3-click \
-        python3-click-plugins \
-        python3-zmq \
-        python3-scipy \
-        python3-gi-cairo \
         && \
     rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 5 && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 10 && \
+    python3 -m pip install --upgrade pip
+
+RUN python3 -m pip install \
+    # Install UHD python dependencies
+        docutils \
+        mako \
+        numpy \
+        requests \
+    # Install deb python dependencies
+        ruamel.yaml \
+    # Install GNURadio dependencies
+        sphinx \
+        lxml \
+        pyqt5 \
+        click \
+        click-plugins \
+        zmq \
+        scipy
+
+RUN wget https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.tar.gz -O /tmp/cmake.tar.gz && \
+        (echo "486edd6710b5250946b4b199406ccbf8f567ef0e23cfe38f7938b8c78a2ffa5f  /tmp/cmake.tar.gz" | sha256sum --check --status ) && \
+        tar -zxvf /tmp/cmake.tar.gz -C /opt && \
+        cp -r /opt/cmake-3.12.4-Linux-x86_64/bin/* /usr/local/bin/ && \
+        cp -r /opt/cmake-3.12.4-Linux-x86_64/share/* /usr/local/share/ && \
+        rm /tmp/cmake.tar.gz
+
+
+RUN wget https://archives.boost.io/release/1.66.0/source/boost_1_66_0.tar.bz2 -O /tmp/boost.tar.bz2 && \
+        (echo "5721818253e6a0989583192f96782c4a98eb6204965316df9f5ad75819225ca9 /tmp/boost.tar.bz2" | sha256sum --check --status ) && \
+        tar -jxf /tmp/boost.tar.bz2 -C /tmp && \
+        cd /tmp/boost_1_66_0 && \
+        ./bootstrap.sh --prefix=/usr --with-libraries=atomic,date_time,exception,filesystem,graph,math,program_options,regex,serialization,stacktrace,signals,system,test,thread,timer && \
+        ./b2 install && \
+        rm -rf /tmp/boost.tar.bz2 /tmp/boost_1_66_0

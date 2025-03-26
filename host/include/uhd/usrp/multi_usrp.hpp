@@ -260,13 +260,11 @@ public:
      */
     virtual time_spec_t get_time_last_pps(size_t mboard = 0) = 0;
 
-    /*!
-     * Sets the time registers on the usrp immediately.
+    /*! Sets the time registers on the USRP immediately.
      *
-     * If only one MIMO master is present in your configuration, set_time_now is
-     * safe to use because the slave's time automatically follows the master's time.
-     * Otherwise, this call cannot set the time synchronously across multiple devices.
-     * Please use the set_time_next_pps or set_time_unknown_pps calls with a PPS signal.
+     * This will set the tick count on the timekeepers of all devices as soon
+     * as possible.  It is done serially for multiple timekeepers, so times
+     * across multiple timekeepers will not be synchronized.
      *
      * \param time_spec the time to latch into the usrp device
      * \param mboard the motherboard index 0 to M-1
@@ -274,14 +272,30 @@ public:
     virtual void set_time_now(
         const time_spec_t& time_spec, size_t mboard = ALL_MBOARDS) = 0;
 
-    /*!
-     * Set the time registers on the usrp at the next pps tick.
-     * The values will not be latched in until the pulse occurs.
-     * It is recommended that the user sleep(1) after calling to ensure
-     * that the time registers will be in a known state prior to use.
+    /*! Set the time registers on the USRP at the next PPS rising edge.
      *
-     * Note: Because this call sets the time on the "next" pps,
-     * the seconds in the time spec should be current seconds + 1.
+     * This will set the tick count on the timekeepers of all devices on
+     * the next rising edge of the PPS trigger signal.  It is important
+     * to note that this means the time may not be set for up to 1 second
+     * after this call is made, so it is recommended to wait for 1 second
+     * after this call before making any calls that depend on the time to
+     * ensure that the time registers will be in a known state prior to use.
+     *
+     * \b Note: Because this call sets the time on the next PPS edge, the time
+     * spec supplied should correspond to the next pulse (i.e. current
+     * time + 1 second).
+     *
+     * \b Note: Make sure to not call this shortly before the next PPS edge. This
+     * should be called with plenty of time before the next PPS edge to ensure
+     * that all timekeepers on all devices will execute this command on the
+     * same PPS edge. If not, timekeepers could be unsynchronized in time by
+     * exactly one second. If in doubt, use set_time_unknown_pps() which will
+     * take care of this issue (but will also take longer to execute).
+     *
+     * \b Note: When changing clock sources, a previously set time will most
+     * likely be lost. It is recommended to set the time after changing the
+     * clock source. Otherwise, an unexpected time may line up with future PPS
+     * edges.
      *
      * \param time_spec the time to latch into the usrp device
      * \param mboard the motherboard index 0 to M-1
@@ -289,8 +303,8 @@ public:
     virtual void set_time_next_pps(
         const time_spec_t& time_spec, size_t mboard = ALL_MBOARDS) = 0;
 
-    /*!
-     * Synchronize the times across all motherboards in this configuration.
+    /*! Synchronize the times across all motherboards in this configuration.
+     *
      * Use this method to sync the times when the edge of the PPS is unknown.
      *
      * Ex: Host machine is not attached to serial port of GPSDO
@@ -301,6 +315,11 @@ public:
      *
      * - Step1: wait for the last pps time to transition to catch the edge
      * - Step2: set the time at the next pps (synchronous for all boards)
+     *
+     * \b Note: When changing clock sources, a previously set time will most
+     * likely be lost. It is recommended to set the time after changing the
+     * clock source. Otherwise, an unexpected time may line up with future PPS
+     * edges.
      *
      * \param time_spec the time to latch at the next pps after catching the edge
      */
@@ -442,6 +461,14 @@ public:
      * // The clock source is still guaranteed to be "internal" at this point
      * ~~~
      *
+     * \b Note: Reconfiguring the clock source will affect the clocking
+     * within the FPGAs of USRPs, and affect timekeeping as well as proper
+     * functioning of blocks that depend on these clocks. It is therefore
+     * strongly recommended to configure clock and time source before doing
+     * anything else. In particular, setting the device time should be done
+     * after calling this, and there should be no ongoing streaming operation
+     * while reconfiguring the clock/time source.
+     *
      * See also:
      * - set_time_source()
      * - set_sync_source()
@@ -511,6 +538,14 @@ public:
      * This function does not force a re-initialization of the underlying
      * hardware when the value does not change. See also set_time_source() and
      * set_clock_source() for more details.
+     *
+     * \b Note: Reconfiguring the sync source may affect the clocking
+     * within the FPGAs of USRPs, and affect timekeeping as well as proper
+     * functioning of blocks that depend on these clocks. It is therefore
+     * strongly recommended to configure clock and time source before doing
+     * anything else. In particular, setting the device time should be done
+     * after calling this, and there should be no ongoing streaming operation
+     * while reconfiguring the sync source.
      *
      * \param sync_source A dictionary representing the various source settings.
      * \param mboard which motherboard to set the config

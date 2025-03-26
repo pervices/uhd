@@ -6,9 +6,15 @@
 
 #pragma once
 
+#include <uhd/config.hpp>
 #include <uhd/rfnoc/chdr_types.hpp>
+#include <uhd/rfnoc/rfnoc_types.hpp>
+#include <uhd/types/endianness.hpp>
+#include <boost/none.hpp>
 #include <boost/optional.hpp>
-#include <memory>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 #include <vector>
 
 namespace uhd { namespace utils { namespace chdr {
@@ -147,11 +153,11 @@ public:
         payload_t payload, uhd::endianness_t endianness = uhd::ENDIANNESS_LITTLE);
 
     //! Return a string representation of this object
-    const std::string to_string() const;
+    std::string to_string() const;
 
     //! Return a string representation of this object and deserialize its payload
     template <typename payload_t>
-    const std::string to_string_with_payload(
+    std::string to_string_with_payload(
         uhd::endianness_t endianness = uhd::ENDIANNESS_LITTLE) const;
 
 private:

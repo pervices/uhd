@@ -13,6 +13,9 @@ parameters:
 - name: uhdBuildPythonAPI
   type: boolean
   default: false
+- name: uhdImagesDownloaderExtraArgs
+  type: string
+  default: ""
 - name: cmakeCompiler
   type: string
 - name: cmakeArch
@@ -21,16 +24,29 @@ parameters:
   type: string
 - name: vsYear
   type: string
+- name: uhdVcpkgManifestDir
+  type: string
+- name: cleanTargetFolder
+  type: boolean
+  default: true
 
 steps:
+- script: |
+    copy /y ${{ parameters.uhdSrcDir }}\.ci\docker\vcpkg\vcpkg.json vcpkg.json
+    %VCPKG_INSTALL_DIR%\vcpkg.exe install --triplet uhd-x64-windows-static-md --clean-after-build
+  workingDirectory: ${{ parameters.uhdVcpkgManifestDir }}
+  displayName: refresh vcpkg dependencies
+
 - script: |
     mkdir ${{ parameters.uhdBuildDir }}
     cd ${{ parameters.uhdBuildDir }}
     cmake ${{ parameters.uhdSrcDir }}/host ^
       -DVCPKG_TARGET_TRIPLET=uhd-$(vsArch)-windows-static-md ^
-      -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALL_DIR%/scripts/buildsystems/vcpkg.cmake
+      -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALL_DIR%/scripts/buildsystems/vcpkg.cmake ^
+      -DVCPKG_INSTALLED_DIR=${{ parameters.uhdVcpkgManifestDir }}\vcpkg_installed ^
+      -DVCPKG_MANIFEST_DIR=${{ parameters.uhdVcpkgManifestDir }}
     mkdir ${{ parameters.uhdImageDir }}
-    python ${{ parameters.uhdBuildDir }}/utils/uhd_images_downloader.py -i ${{ parameters.uhdImageDir }}
+    python ${{ parameters.uhdBuildDir }}/utils/uhd_images_downloader.py -i ${{ parameters.uhdImageDir }} ${{ parameters.uhdImagesDownloaderExtraArgs }}
   displayName: Download uhd-images
   timeoutInMinutes: 30
 
@@ -54,8 +70,11 @@ steps:
     cmake ${{ parameters.uhdSrcDir }}/host ^
       -DVCPKG_TARGET_TRIPLET=uhd-$(vsArch)-windows-static-md ^
       -DCMAKE_TOOLCHAIN_FILE=%VCPKG_INSTALL_DIR%/scripts/buildsystems/vcpkg.cmake ^
+      -DVCPKG_INSTALLED_DIR=${{ parameters.uhdVcpkgManifestDir }}\vcpkg_installed ^
+      -DVCPKG_MANIFEST_DIR=${{ parameters.uhdVcpkgManifestDir }} ^
       -DUHD_IMAGES_SRC_DIR="${{ parameters.uhdImageDir }}" ^
       -DUHD_IMAGES_DIR="C:\\Program Files (x86)\\UHD\\share\\uhd\\images,C:\\Program Files\\UHD\\share\\uhd\\images" ^
+      -DENABLE_EXTEND_WIN_PACKAGING=ON ^
       -DSPECIFY_MSVC_VERSION=ON ^
       -DENABLE_DOXYGEN_SHORTNAMES=ON ^
       %UHD_CI_CMAKE_OPTIONS% ^
@@ -75,6 +94,23 @@ steps:
   inputs:
     sourceFolder: ${{ parameters.uhdBuildDir }}
     contents: 'uhd_*.exe'
-    targetFolder: ${{ parameters.uhdInstallerDir }}
-    cleanTargetFolder: true
+    targetFolder: '$(Build.BinariesDirectory)/uhddev-installer'
+    cleanTargetFolder: ${{ parameters.cleanTargetFolder }}
   displayName: Copy msbuild installer
+- ${{if parameters.uhdBuildPythonAPI }}:
+  - task: CopyFiles@2
+    inputs:
+      sourceFolder: ${{ parameters.uhdBuildDir }}
+      contents: '**/dist/uhd-*.whl'
+      targetFolder: '$(Build.BinariesDirectory)/uhddev-installer'
+      flattenFolders: True
+      cleanTargetFolder: ${{ parameters.cleanTargetFolder }}
+    displayName: Copy Built Distribution (wheel) from Poetry build
+  - task: CopyFiles@2
+    inputs:
+      sourceFolder: ${{ parameters.uhdBuildDir }}
+      contents: '**/dist/uhd-*.tar.gz'
+      targetFolder: '$(Build.BinariesDirectory)/uhddev-installer'
+      flattenFolders: True
+      cleanTargetFolder: ${{ parameters.cleanTargetFolder }}
+    displayName: Copy Source Distribution (tar.gz) from Poetry build

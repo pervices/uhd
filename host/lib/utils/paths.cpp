@@ -148,15 +148,7 @@ fs::path uhd::get_xdg_data_home()
 #endif
     const std::string home = get_env_var("HOME", "");
     if (home.empty()) {
-#ifdef UHD_PLATFORM_WIN32
-        const std::string err_msg =
-            "get_xdg_data_home(): Unable to find \%HOME\%, \%XDG_DATA_HOME\%, "
-            "\%LOCALAPPDATA\% or \%APPDATA\%.";
-#else
-        const std::string err_msg =
-            "get_xdg_data_home(): Unable to find $HOME or $XDG_DATA_HOME.";
-#endif
-        throw uhd::runtime_error(err_msg);
+        return fs::path("");
     }
     return fs::path(home) / ".local" / "share";
 }
@@ -180,15 +172,7 @@ fs::path uhd::get_xdg_config_home()
 #endif
     const std::string home = get_env_var("HOME", "");
     if (home.empty()) {
-#ifdef UHD_PLATFORM_WIN32
-        const std::string err_msg =
-            "get_xdg_config_home(): Unable to find \%HOME\%, \%XDG_CONFIG_HOME\%, "
-            "\%LOCALAPPDATA\% or \%APPDATA\%.";
-#else
-        const std::string err_msg =
-            "get_xdg_config_home(): Unable to find $HOME or $XDG_CONFIG_HOME.";
-#endif
-        throw uhd::runtime_error(err_msg);
+        return fs::path("");
     }
     return fs::path(home) / ".config";
 }
@@ -207,7 +191,7 @@ fs::path uhd::get_legacy_config_home()
 #endif
     const std::string home = get_env_var("HOME", "");
     if (home.empty()) {
-        throw uhd::runtime_error("Unable to find $HOME.");
+        return fs::path("");
     }
     return fs::path(home) / ".uhd";
 }
@@ -288,6 +272,15 @@ std::string uhd::get_pkg_path(void)
     return get_env_var("UHD_PKG_PATH", pkg_path.string());
 }
 
+
+std::string uhd::get_pkg_data_path()
+{
+    return get_env_var("UHD_PKG_DATA_PATH",
+        (fs::path(uhd::get_pkg_path() / fs::path(uhd::build_info::pkg_data_dir()))
+                .string()));
+}
+
+
 std::string uhd::get_lib_path(void)
 {
     fs::path runtime_libfile_path = boost::dll::this_line_location();
@@ -318,8 +311,25 @@ std::vector<fs::path> uhd::get_module_paths(void)
         paths.push_back(str_path);
     }
 
-    paths.push_back(fs::path(uhd::get_lib_path()) / "uhd" / "modules");
-    paths.push_back(fs::path(uhd::get_pkg_path()) / "share" / "uhd" / "modules");
+    constexpr char module_dir[] = "modules";
+    paths.push_back(fs::path(uhd::get_lib_path()) / "uhd" / module_dir);
+    paths.push_back(fs::path(uhd::get_pkg_data_path()) / module_dir);
+
+    return paths;
+}
+
+std::vector<fs::path> uhd::get_module_d_paths(void)
+{
+    std::vector<fs::path> paths;
+
+    std::vector<std::string> env_paths = get_env_paths("UHD_MODULE_D_PATH");
+    for (std::string& str_path : env_paths) {
+        paths.push_back(str_path);
+    }
+
+    constexpr char module_d_dir[] = "modules.d";
+    paths.push_back(fs::path(uhd::get_lib_path()) / "uhd" / module_d_dir);
+    paths.push_back(fs::path(uhd::get_pkg_data_path()) / module_d_dir);
 
     return paths;
 }
@@ -466,11 +476,14 @@ std::string uhd::get_images_dir(const std::string& search_paths)
     }
 
     /* Finally, check for the default UHD images installation paths */
-    for (auto& prefix : {uhd::get_pkg_path(), uhd::build_info::install_prefix()}) {
-        fs::path default_images_path = fs::path(prefix) / "share" / "uhd" / "images";
-        if (fs::is_directory(default_images_path)) {
-            return default_images_path.string();
-        }
+    const auto pkg_data_imgs_dir = fs::path(uhd::get_pkg_data_path()) / "images";
+    if (fs::is_directory(pkg_data_imgs_dir)) {
+        return pkg_data_imgs_dir.string();
+    }
+    const auto install_prefix_imgs_dir =
+        fs::path(uhd::build_info::install_prefix()) / "share" / "uhd" / "images";
+    if (fs::is_directory(install_prefix_imgs_dir)) {
+        return install_prefix_imgs_dir.string();
     }
 
     /* No luck. Return an empty string. */
@@ -511,7 +524,14 @@ std::string uhd::find_image_path(
 
 std::string uhd::find_utility(const std::string& name)
 {
+#ifdef UHD_PLATFORM_WIN32
+    /* python scripts are present under /lib/uhd/utils but the function
+    get_lib_path() return path including /bin/. This is because dll is located under /bin/
+    Correcting this behavior by using get_pkg_path() and appending /lib/. */
+    return (fs::path(uhd::get_pkg_path()) / "lib" / "uhd" / "utils" / name).string();
+#else
     return fs::path(fs::path(uhd::get_lib_path()) / "uhd" / "utils" / name).string();
+#endif
 }
 
 std::string uhd::print_utility_error(const std::string& name, const std::string& args)
@@ -522,4 +542,9 @@ std::string uhd::print_utility_error(const std::string& name, const std::string&
     return "Please run:\n\n \"" + find_utility(name) + (args.empty() ? "" : (" " + args))
            + "\"";
 #endif
+}
+
+std::string uhd::find_uhd_command(const std::string& command)
+{
+    return (fs::path(uhd::get_pkg_path()) / "bin" / command).string();
 }

@@ -61,7 +61,6 @@ message(STATUS "")
 # Dependencies
 find_package(LIBUSB)
 find_package(DPDK)
-
 LIBUHD_REGISTER_COMPONENT("USB" ENABLE_USB ON "ENABLE_LIBUHD;LIBUSB_FOUND" OFF OFF)
 
 # Devices
@@ -153,7 +152,6 @@ LIBUHD_APPEND_LIBS(uhd_rc)
 # Add DLL resource file to Windows build
 ########################################################################
 if(MSVC)
-    math(EXPR RC_VERSION_MAJOR_API "${UHD_VERSION_MAJOR} * 1000 + ${UHD_VERSION_API}")
     set(RC_VERSION_PATCH ${UHD_VERSION_PATCH})
     if(UHD_VERSION_DEVEL)
         set(RC_VERSION_PATCH "999")
@@ -192,9 +190,17 @@ if(ENABLE_MPMD)
 endif()
 add_library(uhd SHARED ${libuhd_sources})
 target_link_libraries(uhd ${Boost_LIBRARIES} ${libuhd_libs})
-if(DPDK_FOUND)
+if(ENABLE_DPDK)
+    add_definitions(-DHAVE_DPDK)
+    # The compile flags DPDK_CFLAGS add the DPDK_INCLUDE_DIRS include
+    # directories and set the -march=native compiler flag.
     target_compile_options(uhd PRIVATE ${DPDK_CFLAGS})
+    # The linker flags DPDK_LDFLAGS contains the list of DPDK libraries
+    # as well as the path where to find the libraries
     target_link_options(uhd PUBLIC ${DPDK_LDFLAGS})
+    # explicitly link against the DPDK libraries, otherwise there are
+    # undefined references when linking libuhd
+    target_link_libraries(uhd ${DPDK_LIBRARIES})
 endif()
 if(APPLE)
     target_link_options(uhd PRIVATE "LINKER:-undefined,dynamic_lookup")
@@ -211,13 +217,18 @@ endif(DEFINED LIBUHD_OUTPUT_NAME)
 
 if(ENABLE_SIM)
     # Get python include dirs
+    # This contitional code somewhat duplicates logic also found in 
+    # ../python/CMakeLists.txt but omits user messages. This avoid 
+    # duplicate output, since SIM mode requires python support. 
     include_directories(${PYTHON_INCLUDE_DIRS})
-    set(PYBIND11_INCLUDE_DIR
-        "${UHD_SOURCE_DIR}/lib/deps/pybind11/include"
-        CACHE
-        STRING
-        "Location of PyBind11 includes"
-    )
+    if(NOT pybind11_FOUND)
+        set(PYBIND11_INCLUDE_DIR
+            "${UHD_SOURCE_DIR}/lib/deps/pybind11/include"
+            CACHE
+            STRING
+            "Location of PyBind11 includes"
+        )
+    endif()
     include_directories(${PYBIND11_INCLUDE_DIR})
 
     # For PYUHD we don't link against the python libraries, but when calling
@@ -246,3 +257,34 @@ if(ENABLE_STATIC_LIBS)
         ARCHIVE DESTINATION lib${LIB_SUFFIX} # .lib or .a file
     )
 endif(ENABLE_STATIC_LIBS)
+
+if(ENABLE_EXTEND_WIN_PACKAGING)
+    if(ENABLE_USB AND NOT ENABLE_STATIC_LIBS)
+        include(UHDLIBUSB)
+
+        if(DEFINED UHD_LIBUSBDLLPATH)
+            # UHD_INSTALL(FILES 
+            #     ${UHD_LIBUSBDLLPATH} 
+            #     DESTINATION ${RUNTIME_DIR}
+            #     COMPONENT winlibusb)
+        install(FILES 
+                ${UHD_LIBUSBDLLPATH} 
+                DESTINATION ${RUNTIME_DIR}
+                COMPONENT libraries)
+        else()
+            message(WARNING "Unable to locate libusb dynamic link library from LIBUSB_LIBRARIES: ${LIBUSB_LIBRARIES}")
+        endif(DEFINED UHD_LIBUSBDLLPATH)
+
+        # Variable LIBUSB_LICENSE_FILE is defined in top level CMakeLists.txt,
+        # and the files gets generated in the UHDLIBUSB module.
+        if(EXISTS ${UHD_LIBUSB_LICENSEFILE})
+            UHD_INSTALL(FILES 
+                ${UHD_LIBUSB_LICENSEFILE} 
+                DESTINATION ${PKG_DOC_DIR}
+                COMPONENT readme
+            )
+        else()
+            message(WARNING "Did not find generated libusb license files at ${UHD_LIBUSB_LICENSEFILE}")
+        endif(EXISTS ${UHD_LIBUSB_LICENSEFILE})
+    endif(ENABLE_USB AND NOT ENABLE_STATIC_LIBS)
+endif(ENABLE_EXTEND_WIN_PACKAGING)

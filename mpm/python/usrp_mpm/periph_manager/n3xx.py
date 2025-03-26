@@ -18,7 +18,7 @@ from usrp_mpm.components import ZynqComponents
 from usrp_mpm.gpsd_iface import GPSDIfaceExtension
 from usrp_mpm.periph_manager import PeriphManagerBase
 from usrp_mpm.mpmutils import assert_compat_number, str2bool, poll_with_timeout
-from usrp_mpm.rpc_server import no_rpc
+from usrp_mpm.rpc_utils import no_rpc, get_map_for_rpc
 from usrp_mpm.sys_utils import dtoverlay
 from usrp_mpm.sys_utils import i2c_dev
 from usrp_mpm.sys_utils.sysfs_thermal import read_thermal_sensor_value
@@ -132,7 +132,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     mboard_max_rev = 10
     mboard_sensor_callback_map = {
         'ref_locked': 'get_ref_lock_sensor',
-        'gps_locked': 'get_gps_lock_sensor',
+        'gps_locked': 'get_gps_locked_sensor',
         'temp': 'get_temp_sensor',
         'fan': 'get_fan_sensor',
     }
@@ -166,13 +166,20 @@ class n3xx(ZynqComponents, PeriphManagerBase):
     #########################################################################
     # Others properties
     #########################################################################
-     # All valid sync_sources for N3xx in the form of (clock_source, time_source)
+    # All valid sync_sources for N3xx in the form of (clock_source, time_source)
+    # When changing this list, also update usrp_n3xx.dox (Section "Clock/Time
+    # Synchronization").
     valid_sync_sources = {
         ('internal', 'internal'),
         ('internal', 'sfp0'),
         ('external', 'external'),
         ('external', 'internal'),
         ('gpsdo', 'gpsdo'),
+        # To enable the external reference and GPSDO PPS combination, uncomment
+        # the following line. Note that using this combination will cause loss
+        # of phase alignment between devices.  See also comments in
+        # n3xx_clocking.v ("PPS Capture and Generation").
+        # ('external', 'gpsdo'),
     }
     @classmethod
     def generate_device_info(cls, eeprom_md, mboard_info, dboard_infos):
@@ -512,7 +519,15 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         return self._clock_source
 
     def set_clock_source(self, *args):
-        " Sets a new reference clock source "
+        """Set a new reference clock source (e.g., 10 MHz source).
+
+        This will call set_sync_source() with the requested clock source and the
+        current time source. If the combination is invalid, the time source
+        is coerced to a value that works with the requested clock source, and a
+        warning is issued (e.g., if the requested clock source is 'gpsdo' and
+        the current time source is 'external', the time source will be coerced to
+        'gpsdo').
+        """
         clock_source = args[0]
         time_source = self._time_source
         assert clock_source is not None
@@ -524,10 +539,11 @@ class n3xx(ZynqComponents, PeriphManagerBase):
                 time_source = 'external'
             elif clock_source == 'gpsdo':
                 time_source = 'gpsdo'
-        source = {"clock_source": clock_source,
-                  "time_source": time_source
-                 }
-        self.set_sync_source(source)
+            self.log.warning(
+                f"Time source '{self.get_time_source()}' is an invalid selection with "
+                f"clock source '{clock_source}'. "
+                f"Coercing time source to '{time_source}'")
+        self.set_sync_source({"time_source": time_source, "clock_source": clock_source})
 
     def get_time_sources(self):
         " Returns list of valid time sources "
@@ -540,7 +556,15 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         return self._time_source
 
     def set_time_source(self, time_source):
-        " Set a time source "
+        """Set a time source (PPS source).
+
+        This will call set_sync_source() with the given time_source and the
+        current clock source. If the combination is invalid, the clock source
+        is coerced to a value that works with the requested time source, and a
+        warning is issued (e.g., if the requested time source is 'sfp0' and
+        the current clock source is 'external', the time source will be coerced to
+        'internal').
+        """
         clock_source = self._clock_source
         assert clock_source is not None
         assert time_source is not None
@@ -553,10 +577,10 @@ class n3xx(ZynqComponents, PeriphManagerBase):
                 clock_source = 'external'
             elif time_source == 'gpsdo':
                 clock_source = 'gpsdo'
-        source = {"time_source": time_source,
-                  "clock_source": clock_source
-                 }
-        self.set_sync_source(source)
+            self.log.warning(
+                f"Clock source '{self.get_clock_source()}' is an invalid selection with "
+                f"time source '{time_source}'. Coercing clock source to '{clock_source}'")
+        self.set_sync_source({"time_source": time_source, "clock_source": clock_source})
 
     def get_sync_sources(self):
         """
@@ -894,14 +918,14 @@ class n3xx(ZynqComponents, PeriphManagerBase):
             'value': return_val
         }
 
-    def get_gps_lock_sensor(self):
+    def get_gps_locked_sensor(self):
         """
         Get lock status of GPS as a sensor dict
         """
         self.log.trace("Reading status GPS lock pin from port expander")
         gps_locked = bool(self._gpios.get("GPS-LOCKOK"))
         return {
-            'name': 'gps_lock',
+            'name': 'gps_locked',
             'type': 'BOOLEAN',
             'unit': 'locked' if gps_locked else 'unlocked',
             'value': str(gps_locked).lower(),
@@ -920,7 +944,7 @@ class n3xx(ZynqComponents, PeriphManagerBase):
         mboard info again. This filters the EEPROM contents to what we think
         the user wants to know/see.
         """
-        return self.mboard_info
+        return get_map_for_rpc(self.mboard_info, self.log)
 
     def get_db_eeprom(self, dboard_idx):
         """

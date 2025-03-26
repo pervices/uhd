@@ -266,7 +266,7 @@ def get_addr(self, reg_name):
     }[reg_name]
 
 def set_reg(self, addr, reg):
-    % for addr in sorted(set(map(lambda r: r.get_addr(), regs))):
+    % for addr in sorted(set([r.get_addr() for r in regs if not r.is_array])):
     <% if_state = 'if' if loop.index == 0 else 'elif' %>
     ${if_state} addr == ${addr}:
         % for reg in filter(lambda r: r.get_addr() == addr, regs):
@@ -277,12 +277,28 @@ def set_reg(self, addr, reg):
         % endif
         % endfor
     % endfor
+
+    # Now the arrays
+    % for addr in sorted(set([r.get_addr() for r in regs if r.is_array])):
+    <% if_state = 'if' if loop.index == 0 else 'elif' %> \
+    <% reglist = [r for r in regs if r.get_addr() == addr] %> 
+    ${if_state} ${addr} <= addr < ${addr} + ${reglist[0].get_array_len()} * 4:
+        index = (addr - ${addr}) // 4
+        % for reg in reglist:
+        % if reg.get_enums():
+        self.${reg.get_name()}[index] = self.${reg.get_type()}((reg & (${reg.get_mask()} << ${reg.get_shift()})) >> ${reg.get_shift()})
+        % else:
+        self.${reg.get_name()}[index] = (reg & (${reg.get_mask()} << ${reg.get_shift()})) >> ${reg.get_shift()}
+        % endif
+        % endfor
+    % endfor
 """
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import common
+
     common.generate(
-        name='x4xx_rfdc_regmap',
+        name="x4xx_rfdc_regmap",
         regs_tmpl=REGS_TMPL,
         body_tmpl="",
         py_body_tmpl=PY_BODY_TMPL,

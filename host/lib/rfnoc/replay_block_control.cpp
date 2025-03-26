@@ -13,9 +13,9 @@
 #include <uhd/rfnoc/replay_block_control.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <uhd/types/stream_cmd.hpp>
-#include <uhd/utils/math.hpp>
 #include <uhdlib/utils/compat_check.hpp>
 #include <uhdlib/utils/narrow.hpp>
+#include <numeric>
 #include <string>
 
 using namespace uhd::rfnoc;
@@ -160,6 +160,16 @@ public:
                     return;
                 }
                 _handle_tx_event_action(src, tx_event_action);
+            });
+        register_action_handler(ACTION_KEY_TUNE_REQUEST,
+            [this](const res_source_info& src, action_info::sptr action) {
+                tune_request_action_info::sptr tune_request_action =
+                    std::dynamic_pointer_cast<tune_request_action_info>(action);
+                if (!tune_request_action) {
+                    RFNOC_LOG_WARNING("Received invalid tune request action!");
+                    return;
+                }
+                RFNOC_LOG_DEBUG("Received tune request on " << src.to_string());
             });
 
         // Initialize record properties
@@ -381,15 +391,13 @@ public:
     {
         const uint32_t item_size = get_play_item_size(port);
         set_property<uint32_t>(
-            PROP_KEY_PYLD_SIZE, ipp * item_size,
-            {res_source_info::USER, port});
+            PROP_KEY_PYLD_SIZE, ipp * item_size, {res_source_info::USER, port});
     }
 
     void set_max_packet_size(const uint32_t size, const size_t port) override
     {
         set_property<uint32_t>(
-            PROP_KEY_PYLD_SIZE, size - get_chdr_hdr_len(),
-            {res_source_info::USER, port});
+            PROP_KEY_PYLD_SIZE, size - get_chdr_hdr_len(), {res_source_info::USER, port});
     }
 
     void issue_stream_cmd(const uhd::stream_cmd_t& stream_cmd, const size_t port) override
@@ -464,6 +472,26 @@ public:
         }
     }
 
+    void post_input_action(const std::shared_ptr<uhd::rfnoc::action_info>& action,
+        const size_t port) override
+    {
+        if (port > get_num_input_ports()) {
+            throw uhd::runtime_error("Invalid port. Please provide a valid port");
+        }
+        const uhd::rfnoc::res_source_info info(res_source_info::INPUT_EDGE, port);
+        post_action(info, action);
+    }
+
+    void post_output_action(const std::shared_ptr<uhd::rfnoc::action_info>& action,
+        const size_t port) override
+    {
+        if (port > get_num_output_ports()) {
+            throw uhd::runtime_error("Invalid port. Please provide a valid port");
+        }
+        const uhd::rfnoc::res_source_info info(res_source_info::OUTPUT_EDGE, port);
+        post_action(info, action);
+    }
+
 protected:
     // Block-specific register interface
     multichan_register_iface _replay_reg_iface;
@@ -507,7 +535,7 @@ private:
                                   get_mtu_prop_ref({res_source_info::INPUT_EDGE, port})},
             {&_atomic_item_size_in.back()},
             [this, port, &ais_in = _atomic_item_size_in.back()]() {
-                ais_in = uhd::math::lcm<size_t>(ais_in, get_word_size());
+                ais_in = std::lcm<size_t>(ais_in, get_word_size());
                 ais_in = std::min<size_t>(
                     ais_in, get_mtu({res_source_info::INPUT_EDGE, port}));
                 if (ais_in.get() % get_word_size() > 0) {
@@ -523,8 +551,9 @@ private:
         const io_type_t default_type = IO_TYPE_SC16;
         const uint64_t play_offset   = 0;
         const uint64_t play_size     = _mem_size;
-        const uint32_t max_payload   = get_max_payload_size({res_source_info::OUTPUT_EDGE, port});
-        const uint32_t payload_size  = max_payload - (max_payload % DEFAULT_MULT);
+        const uint32_t max_payload =
+            get_max_payload_size({res_source_info::OUTPUT_EDGE, port});
+        const uint32_t payload_size = max_payload - (max_payload % DEFAULT_MULT);
 
         // Initialize properties
         _play_type.emplace_back(property_t<std::string>(
@@ -569,7 +598,7 @@ private:
                                   get_mtu_prop_ref({res_source_info::OUTPUT_EDGE, port})},
             {&_atomic_item_size_out.back()},
             [this, port, &ais_out = _atomic_item_size_out.back()]() {
-                ais_out = uhd::math::lcm<size_t>(ais_out, get_word_size());
+                ais_out = std::lcm<size_t>(ais_out, get_word_size());
                 ais_out = std::min<size_t>(
                     ais_out, get_mtu({res_source_info::OUTPUT_EDGE, port}));
                 if (ais_out.get() % get_word_size() > 0) {
@@ -633,13 +662,14 @@ private:
     // property value to a legal value if necessary.
     void _set_payload_size(const uint32_t payload_size, const size_t port)
     {
-        const size_t max_pyld_size = get_max_payload_size(
-            {res_source_info::OUTPUT_EDGE, port}, true);
+        const size_t max_pyld_size =
+            get_max_payload_size({res_source_info::OUTPUT_EDGE, port}, true);
         uint32_t new_pyld_size = payload_size;
         if (new_pyld_size > max_pyld_size) {
             new_pyld_size = max_pyld_size;
-            RFNOC_LOG_DEBUG("Requested payload size " << payload_size <<
-                            " exceeds maximum! Coercing to " << new_pyld_size);
+            RFNOC_LOG_DEBUG("Requested payload size " << payload_size
+                                                      << " exceeds maximum! Coercing to "
+                                                      << new_pyld_size);
         }
 
         // For correct behavior, we must ensure that the replay payload size is
@@ -647,23 +677,23 @@ private:
         //   - Replay word size (_word_size)
         //   - Atomic item size (e.g., the radio word size)
         //   - Configured item size (e.g., sample size)
-        const uint32_t item_size = get_play_item_size(port);
+        const uint32_t item_size        = get_play_item_size(port);
         const uint32_t atomic_item_size = _atomic_item_size_out.at(port).get();
-        const uint32_t min_chunk = uhd::math::lcm<uint32_t>(
-            uhd::math::lcm<uint32_t>(item_size, atomic_item_size),
-            _word_size);
+        const uint32_t min_chunk        = std::lcm<uint32_t>(
+            std::lcm<uint32_t>(item_size, atomic_item_size), _word_size);
 
         if (new_pyld_size % min_chunk != 0) {
-            const uint32_t coerced_size =
-                new_pyld_size - (new_pyld_size % min_chunk);
-            RFNOC_LOG_WARNING("Payload size " << new_pyld_size <<
-                              " is not compatible! Coercing to " << coerced_size);
+            const uint32_t coerced_size = new_pyld_size - (new_pyld_size % min_chunk);
+            RFNOC_LOG_WARNING("Payload size " << new_pyld_size
+                                              << " is not compatible! Coercing to "
+                                              << coerced_size);
             new_pyld_size = coerced_size;
         }
         if (new_pyld_size < min_chunk) {
             const uint32_t coerced_size = min_chunk;
-            RFNOC_LOG_WARNING("Payload size " << new_pyld_size <<
-                              " is too small! Coercing to " << coerced_size);
+            RFNOC_LOG_WARNING("Payload size " << new_pyld_size
+                                              << " is too small! Coercing to "
+                                              << coerced_size);
             new_pyld_size = coerced_size;
         }
 

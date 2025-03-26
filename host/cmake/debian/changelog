@@ -1,3 +1,633 @@
+uhd (4.8.0.0-0ubuntu1) ubuntu_release; urgency=low
+
+  * Highlights / Main Changes
+    - Addition of rfnoc_modtool and further improvements to RFNoC Image Builder
+      toolsets. This further improves the ability to design RFNoC blocks and
+      create custom FPGA bitfiles.
+    - Replaced RFNoC FFT block with a new version
+    - Improved Windows installation capabilities including distribution
+      of binary Python bindings for Windows though PyPI
+  * New Features
+    - Image Builder
+      - Add GRC support. This allows designing RFNoC bitfiles from GNU Radio
+        Companion (GRC).
+      - Improve clock connection checks and checks for duplicate connections.
+      - Improve IO port compat check (e.g., check if wire widths match).
+      - Allow default clocks in domain checks.
+      - Simplify image core YAMLs by better usage of RADIO_NIPC parameter.
+      - Improve parameter resolution.
+      - Improve error messages for missing YAML files.
+      - Add --SYNTH and --CHECK options.
+      - Add support for building an FPGA image using multiple parallel jobs and
+        unique seeds with repeat_fpga_build.py and the --fpga-jobs option.
+      - Add 'q' (or 'quote') filter to YAML files to allow quoting strings.
+    - rfnoc-gain (OOT RFNoC example)
+      - Overhaul directory structure, and rename to rfnoc-gain from
+        rfnoc-example.
+      - Simplify dynamic loading of OOT DLLs by using the new modules.d feature.
+      - Add CE clock support to gain block. This enables the example on X4x0.
+      - Add a GNU Radio subdirectory with examples of how to run the gain block
+        in GNU Radio.
+    - Add rfnoc_modtool. This is a command line utility to help design OOT RFNoC
+      blocks and replaces the previously available blocktool.
+    - RFNoC
+      - Add tune requests. This allows tuning a complete graph as known from
+        multi_usrp instead of single blocks individually.
+      - Replace FFT block with a new version supporting larger FFT sizes and
+        cyclic prefix insertion and removal.
+    - multi_usrp
+      - Add Python bindings for get_user_settings_iface()
+    - General UHD
+      - Add modules.d support
+      - Add uhd::find_uhd_command() API call
+      - Remove old-style Boost.Asio usage for compatibility with future versions
+        of Boost.
+    - Embedded Filesystem
+      - Support for USB Audio devices on E31X, E320, N3XX and X4XX
+    - Windows binary installer
+      - Simplified the Windows installer experience by reducing the number of
+        individual downloads from 4 (for USB devices) to 2, by including
+        libusb.dll and USB driver installer files into NSIS-built installer
+        binaries.
+      - Add new cmake feature option called ENABLE_EXTEND_WIN_PACKAGING,
+        which defaults to off. Enabling this feature will cause a number
+        of convenience components to be included into the Windows deployment
+        package (aka. installer).
+        Enabling this feature has no effect on other platforms.
+      - Added binary Python bindings for Windows installable through PyPI
+        (pip install uhd)
+    - Documentation
+      - Add documentation about relationship of MTU, samples per packet and
+        atomic item size
+  * Dependencies changes
+    - Increase minimum required versions
+      - CMake to 3.12
+      - Boost to 1.66
+  * Bug Fixes
+    - General UHD
+      - Fix compatibility with DPDK >= 22.11
+      - Fix compiler warnings for better compatibility with C++17 and 20.
+      - Add logic for loading uhd.dll from the correct path for Windows with
+        Python3.8+.
+      - Add logic to warn about potential incompatibilities when importing
+        Python bindings.
+      - Remove duplicate results from find
+      - Release GIL when calling find from Python which improves response time
+        for large setups.
+    - Python support
+      - On Windows now also enable building python support if minimum supported
+        python version is detected.
+      - Changed version number format for build Windows binaries to common
+        major.api.abi.patch format.
+    - MPM
+      - Allow images without RF frontend (will only be initialized if FPGA
+        reports availability)
+      - Fix usrp_update_fs to work for all embedded devices (and not just X4xx)
+    - E320: Ensure consistent sequencing when powering on/off GPSDO
+    - N310/N300: Fix LO query API for lowband LO
+    - RFNoC
+      - RFNoC DDC/DUC block (used in all Gen-3 USRPs and X410): Fix fractional
+        frequency offset.
+      - Fix AIS/spp calculation (e.g., for connecting FFT blocks).
+      - Fix USE_IMPL rendering for the addsub block.
+    - Image Builder
+      - Fix colors
+      - Fix error message for missing control SEP
+      - Improve error reporting for invalid connections
+      - Accept ~ and ~user on command line
+      - Fix deprecated usage of yaml.load()
+      - Ensure correct device tree files generation when choosing a custom build
+        directory
+    - rfnoc_modtool
+      - Fix generation of noc_shells
+  * Validated OS Environments
+    (Versions for build and runtime dependencies can be determined from the
+     docker container definitions in the UHD repository at .ci/docker/...)
+    - Linux:
+      - Ubuntu: bionic (18.04), focal (20.04), jammy (22.04), noble (24.04)
+      - Fedora: 39, 40, 41
+    - Windows: 10 21H2, 11 21H2
+    - MacOS: Monterey (12.6)
+
+ -- Ettus Research <uhd.maintainer@emerson.com>  Thu, 23 Jan 2025 05:54:22 -0800
+
+
+uhd (4.7.0.0-0ubuntu1) ubuntu_release; urgency=low
+
+  * Highlights / Main Changes
+    - Major updates to rfnoc_image_builder (a98ce26). This change adds support for
+      defining transport adapters in the image builder YAML files, adding custom
+      modules, and more.
+    - Updated embedded OS on file system images for E3xx, N3xx, and X4xx devices
+      to Yocto 4.0 (kirkstone).
+  * New Features
+    - General
+      - Allow installing only Python-based utilities (e.g., rfnoc_image_builder)
+        by adding the ENABLE_PYMOD_UTILS option to CMake.
+      - Added ability to query dot representation of RFNoC graph
+    - Python support
+      - Added DRAMReceiver class and amend rx_to_file.py example to use new class.
+        This supplements the DRAMTransmitter class and simplifies using the DRAM-backed
+        RFNoC replay block to when signal bandwidth exceeds available streaming bandwidth.
+    - CMake
+      - We now search for a system version of Pybind11 before falling back to the
+        bundled version. The system version is preferred, and the bundled version
+        may be removed in a future release.
+    - RFNoC
+      - Image builder: Major update, which adds support for defining transport
+        adapters in the image builder YAML files, adding custom modules, choosing
+        custom directories for build, IP, and intermediate files, building IP
+        only, saving Vivado projects, and more. Image core YAML files created with
+        this version are not compatible with previous versions, and vice versa!
+        Also adds many more checks to avoid building bitfiles that are either
+        incomplete, or valid but probably not the desired outcome.
+      - Added support for defining custom register spaces in RFNoC blocks.
+      - Added license checking subsystem. This allows creating RFNoC blocks that
+        require a license key to operate.
+      - Add device DNA feature for X310, X410, X440. This allows reading back the
+        FPGA's DNA, which is a unique identifier.
+    - Embedded OS for E3xx, N3xx, and X4xx devices
+      - With the switch to Yocto 4.0 (kirkstone), the SD card and eMMC images no 
+        longer pre-populate the second system partition. Refer to the device 
+        specific "Updating Filesystems" section in the user manual for how to populate it.
+        This reduces the size of compressed .sdimg filesystem images.
+    - X440
+      - Added new guided log info mode to provide more information about the Nyquist
+        zone in which the chosen frequency is located. These additional info logs
+        are enabled by default. For disabling the guided mode, add the entry
+        `guided_mode=false` to the UHD config file in the "Global" section.
+    - Examples
+      - rfnoc-example now also generates Python bindings for OOT block control functions.
+  * Dependencies changes
+    - Increase minimum required version
+      - Python to 3.7.0
+      - Pybind11 to 2.7.0
+  * Bug Fixes
+    - General UHD
+      - Fix issue with undefined HOME or XDG_CONFIG_HOME
+      - Fix compilation error with boost 1.85.0 (closed issue 740)
+      - Fixed cmake find_library for UHD to fail if the library is not found
+      - Fixed setters for ALL_CHANS in multi_usrp
+      - Demoted safe call logging to warning
+      - Fixed outstanding clang-format issues
+      - Fixed compiling with gcc 13.2
+      - Removed superfluous usage of const in return values
+    - Python support
+      - YAML files are now listed as part of the package
+      - Fix setting start_time having no effect
+    - RFNoC
+      - Add EOB to source port of null_src_sink block
+      - Fix RFNoC graph action queue lockup on action exceptions
+      - FIR filters now uses newer IP revisions
+      - Reverse FIR filter coefficients now get embedded in DSPE48
+    - B2xx
+      - Fixed FRAC2 calculation (closed issue 684).
+      - Fix DC truncation bias by adding rounding to DDC chain
+    - X310
+      - Fix warning about duplicate reg
+      - ubx
+        - update ubx xcvr mode options
+        - write output power to correct LO
+        - Fix width of gain register
+    - MPM
+      - Deactivate explicit DAD (Duplicate Address Detection) on int0 interface
+        since this is the default behavior of systemd v250.5 (Yocto release kirkstone)
+        for static IPv4 addresses if the IP address is a link local address.
+      - Correct outdated mender command in prints of usrp_update_fs utility
+      - No longer import from from rpc_server when already importing usrp_mpm
+      - Demoted log level of ECHO send error
+      - No longer print iptables errors when setting up forwarding
+    - X400 Platform
+      - Add PPS interface to X410/X440 BSP
+      - Add netlist make flow
+      - Update PS DRAM speed bin
+      - Replace Ethernet transport adapter
+    - X410
+      - Set Locale for ZBX Lattice build
+      - Improve Lattice make flow
+    - X440
+      - Fix error in master clock table for 1000MHz mcr.
+      - Place SPI into IOB on X440
+      - mpm
+        - Add error for recurring TA node inst values
+        - Fix warning about different converter rates
+        - Fix MTS skip for dual-rate
+        - Use greatest converter rate for sysref rate
+        - Add warning for bad conv rate order
+        - Enable multiple LMK VCO rates per MCR
+    - Examples
+      - Fix rx_samples_to_file failure for multichannel fullpath.
+      - Fixed bugs observing cmd argument -c in remote_rx.py example.
+      - Updated tx_waveforms examples now also use timed commands during
+        frequency tuning for all devices except for x410.
+        On X440 this allows reproducing specified channel to channel phase alignments.
+      - Consistently comment out sections in rx_samples_to_file.
+  * Validated OS Environments
+    (Versions for build and runtime dependencies can be determined from the
+     docker container definitions in the UHD repository at .ci/docker/...)
+    - Linux:
+      - Ubuntu: bionic (18.04), focal (20.04), jammy (22.04), noble (24.04)
+      - Fedora: 37, 38
+    - Windows: 10 21H2, 11 21H2
+    - MacOS: Monterey (12.6)
+
+ -- Ettus Research <packages@ettus.com>  Mon, 01 Jul 2024 12:10:36 -0800
+
+
+uhd (4.6.0.0-0ubuntu1) ubuntu_release; urgency=low
+
+  * ci
+    - only build docker images once per week
+    - propagate testLength to RF ATS
+    - replace deprecated ruamel.yaml methods
+    - use build farm for windows builds
+  * cmake
+    - Fix make_x410 and make_x440 targets
+  * deb
+    - copyright file update to eliminate errors and warnings
+  * docs
+    - X440: Add FBX to daughterboard list
+    - X440: Corrected web link syntax in FBX doc.
+    - x440: Add X440_X4_200 to image flavors
+    - Add dual-rate documentation
+  * examples
+    - L band capture example using dual rate
+  * fpga
+    - ci: Add X440_X4_200 to pipelines
+    - lib: Allow buffering in eth_ipv4_chdr_adapter
+    - n3xx: Add CE clock
+    - rfnoc: Add clock info to backend ifc
+    - rfnoc: radio: Add clock index parameters
+    - tools: Add X440_X4_200 to X440 package
+    - x400: Add CE clock
+    - x400: Add X440 200 MHz variant with DDC/DUC
+    - x400: Split DRAM interface into two banks
+    - x400: Update PL DRAM speed bin
+    - x400: bump minor revision
+    - x400: pps_sync cleanup
+    - x400: propagate pps_sync changes
+    - x400: update signals to run on two domains
+    - x440: cpld: led control cleanup
+    - x440: remove extra synchronizer
+  * images
+    - bump x4xx fpga images
+    - update non-x4xx images
+  * lib
+    - rfnoc: Add clock info fields to client zero
+    - rfnoc: Add support for auto-clock discovery
+    - x4xx: Use auto clock ID in x400_radio_control
+  * mpm
+    - x440: Add lookup table for default MCR per DSP bandwidth
+    - x440: Multi-Tile Sync disabled when using dual rate
+    - x400: Align FPGA revision
+    - x400: match HDL PPS updates
+    - x400: make PRC a multiple of both rfdc rates
+    - fix timekeeper misalignment
+  * multi_usrp
+    - Added module_serial to info
+  * rfnoc
+    - Enable SEP throttle register
+    - image builder: Add clock index support to image builder
+  * utils
+    - init device with gpsdo sources in query_gpsdo_sensors
+  * x4xx
+    - Add support for auto clock ID
+    - FPGA designs now use a replay block per utilized DRAM bank
+  * x440
+    - Add support for using radio block specific master clock rates
+    - X4_440 and X4_1600 fpga image now contain 2 replay blocks
+      (number of ports per replay block halved compared to previous release)
+
+ -- Ettus Research <packages@ettus.com>  Sun, 12 Nov 2023 02:44:06 -0800
+
+
+uhd (4.5.0.0-0ubuntu1) ubuntu_release; urgency=low
+
+  * b200
+    - Fix invalid RF switch positions
+  * ci
+    - add attempt number to uhd build artifact name on failure
+    - Add conditions for embedded builds, HW tests
+    - add pytest args option to test dev pipeline
+    - add step for x440 embedded runs
+    - Allow internal fileserver usage for MS installer builds
+    - Auto-detect conditionals for pipeline stages
+    - Default to internal fileserver for FPGA images
+    - Disable PR runs for draft PRs
+    - Enable X440
+    - Fix swallowed return codes in CI script steps
+    - Fix the chocolately version to use
+    - fixup typo in x440 sdr-test0 template
+    - increase build timeouts to 90 minutes
+    - increase win docker image build timeout
+    - modify default sfp0 and reboot
+    - Remove Fedora 35 and add Fedora 37
+    - restrict analyze changeset pool
+    - select docker image repo directly at container endpoint definitions
+    - select docker registry based on branch
+    - splitup x410 test stage in hardware test dev pipeline
+    - Update CLA Assistant to v2.3.0
+    - update docker builds to run twice a week
+    - update docker service connection
+    - update to build docker builds for all release branches
+    - updates for new E320 in devtest system
+  * clang
+    - Apply clang-formatting to all C/C++ files
+    - Modify files for treatment with clang-format
+    - Update clang-format for version 14
+  * cmake
+    - Fix auto-detection of Python install directory
+    - Fix linking DPDK when installed at non-standard location
+  * cpld
+    - Adapt CPLD updater for future X4x0 dboards
+  * debian
+    - Fix copyright dates in changelog
+  * devtest
+    - add exemptions for x440 python API test
+    - correct docstrings with example being run
+    - disable rx_samples_to_file_test for x440
+    - fix typo in error message
+    - gpio test updates
+    - remove API calls that now error
+    - remove benchmark_rate test for x440
+  * docs
+    - Add page on timed commands
+    - add python package requirement for usrpctl MPM reset
+    - add updated msgpack rpc package
+    - b200: Improve docs (auto MCR, GPIOs)
+    - Document throttle stream arg
+    - Fix argument for uhd_image_loader in E3xx docs
+    - Fix docstring for get_block_chain()
+    - fix typo and consistency in usrpctl docs
+    - Improve documentation on timekeepers
+    - Make X410 dboard a subpage of the X4xx page
+    - rfnoc: Document RFNoC overrun handling algorithm
+    - Update clocking theory of operations for X4xx
+    - update docs for reset command
+    - update FPGA build docs
+    - update remote streaming supported version
+    - Update X4x0 manual
+    - Update X4xx manual wrt. self-cal
+    - x410: Document UC_200 image flavor
+    - x440: Added FBX to UM daughterboards page
+    - x440: Extend X4x0 Usage Manual for x440
+    - x440: Fixed incorrect use of paragraph elements
+  * examples
+    - Add power controls to rx_ascii_art_dft.cpp
+    - Add throttle to replay_capture.py
+    - Amend tx_waveforms.py to use DramTransmitter
+    - Fix play region in replay_capture.py
+    - Remove default --ref and --pps values
+    - rx_samples_to_file: multi_streamer option
+  * experts
+    - Add force_dirty() call
+  * extension
+    - windows: Fixed linking extension example to uhd.lib
+  * fpga
+    - Add BUILD_BASE_DIR option to makefiles
+    - Add BUILD_SEED variable
+    - Add time changed pulse to timekeeper
+    - Add X440/FBX support
+    - ci: Add MAX_CPU to pool demands
+    - ci: Add X410_UC_200 to default bitfiles
+    - ci: Add X410_UC_200 to release pipeline
+    - ci: Enable publishing to internal server
+    - ci: Fix branches
+    - ci: Include modified manifest in artifacts
+    - ci: Support parallel jobs for IP builds
+    - ci: Use different seed for each job attempt
+    - ci: Use repeat_fpga_build for pipeline builds
+    - Clear clang-format settings for FPGA code
+    - docs: Add system memory recommendations
+    - docs: Clarify design tool requirements
+    - Fix RFNoC OOT Makefile inclusion
+    - lib: Add axis_pkt_throttle.sv
+    - lib: Add clock_div module
+    - lib: Add ctrl_port_to_wb_i2c module
+    - lib: Fix IPv4 CHDR TUSER width
+    - lib: Fix Vivado warnings
+    - lib: rfnoc: Add resize capability to chdr_stream_endpoint
+    - lib: rfnoc: Make RFNoC packet gates removable
+    - lib: rfnoc: Remove redundant packet gate
+    - lib: rfnoc: Support multiple port widths on crossbar
+    - Reformat javascript in doc
+    - rfnoc: Add DEVICE_FAMILY to stream endpoint
+    - rfnoc: Add throttle to stream endpoints
+    - rfnoc: Add ULTRASCALE to chdr_ingress_fifo
+    - Synchronize X300 RX frontends on time change
+    - tools: Add repeat_fpga_build.py
+    - tools: Add X410_UC_200 image to X410 package
+    - Update all RFNoC image core files
+    - Update RFNoC YAML copyright
+    - x400: Add 1x64, 2x64, and 1x128 DRAM interconnect
+    - x400: Add CG_200 RFNoC image cores
+    - x400: Add ifdef to remove QSFP wrappers when unused
+    - x400: Add support for X4C, C1, and UC variants
+    - x400: Add X440 to default make targets
+    - x400: Add X4C_200 RFNoC image cores
+    - x400: Fix DB1 timekeeper strobe
+    - x400: Fix PRC divider register map
+    - x400: Fix SPI trigger clock crossing
+    - x400: Make transport adapter width configurable
+    - x400: Remove CPU_W parameter
+    - x400: Set QSFP LEDs on startup
+    - x400: sim: Add 10 GbE with wide CHDR
+    - x400: Use x410_200 image core for x410_100 images
+    - x440: fbx: clean up I2C triggers
+    - x4xx: Refactor MB CPLD code for future devices
+    - x4xx: Rename x410 -> x4xx for common DTS files
+  * github
+    - Fix URL for mailing list
+  * host
+    - Add cstdint include to fix gcc-13 compile.
+    - Add in OpenBSD support to uhd::path_expandvars
+    - Bump minimum gcc version to 7.3.0
+    - doc: Add documentation for tertiary, quaternary QSFP adapter
+    - fix & improve EAL args for DPDK v21.11
+    - fix build with DPDK v22.11 LTS
+    - improve DPDK frame_size error message
+    - docs: Fix link to MSVC Redistributable Package
+    - python: Update last_gain at end of run_rx_cal loop
+  * images
+    - Add X410_UC_200 to manifest
+    - add X440 dependencies to manifest
+    - bump x4xx fpga images
+    - bump x4xx fpga images
+    - update FPGA images for E3xx, X3xx, N3xx
+    - Update manifest for SEP throttling
+    - Update X410 manifest
+  * lib
+    - Add default virtual dtor to filter_node
+    - Add X440/FBX support
+    - fbx: Remove unused lambda captures
+    - Fix time-cast for dboard_iface::sleep()
+    - Mark select x400_dboard_iface methods as const
+    - Mark selected x400_dboard_iface child methods final
+    - max287x: Remove unused class attributes
+    - mb_controller: Minor fixes to logging, formatting
+    - rfnoc: Fix linter issue regarding virtual dtor
+    - rfnoc: Fix logic in can_connect_device_to_device()
+    - rfnoc: Use device cache for rfnoc_graph::make()
+    - tests: Mark mock pop_host_tasks() as override
+    - mpm: Add MPM synchronization API
+  * mpm
+    - Add ability to query enabled state of ADC/DAC blocks
+    - Add dboard_info to db_iface initialization
+    - Add LogRuntimeError class
+    - Add revE support to zbx_update_cpld
+    - Add support for X440/FBX
+    - allow for mpm device to tell host to reboot mpm
+    - bist: Improve --help message
+    - Bump compat number to 5.0
+    - dboard_iface: Remove {set/get}_if_freq() APIs
+    - dboard_manager: Fix linter issues in dboard_manager/base.py
+    - Demote sync_tiles() error to warning
+    - Disable PRC to DB if not required
+    - e3xx: Fix inheritance order for DB classes
+    - enable Xilinx API for PLL config
+    - fix get_product_id in x4xx BIST
+    - fix GPS lock sensor method name
+    - Fix test utilities
+    - Fix ZBX CPLD updater
+    - lmk04832: Move general APIs to base class
+    - Move get_dboard_class_from_pid()
+    - move pop_host_tasks to PeriphManagerBase
+    - mpmutils: Add parse_multi_device_arg() function
+    - mpmutils: Fix Pylint warning
+    - Normalize name for gps_locked sensor
+    - periph_manager: Remove vestigial Python-six
+    - Refactor LMK04832X4xx and LMK03328X4xx
+    - rfdc_ctrl: Change latency argument to signed
+    - rfdc: Enhance converter checks
+    - rfdc: Remove set_sample_rate() API call
+    - Simplify x4xx_bist nsync_fabric
+    - Update X440 clock policy
+    - Updated default MCR for X440
+    - utils: Add LogWrapper
+    - x440: Move clock info logging out of policy
+    - x4xx: Add additional args parsing in init()
+    - x4xx: Add intermediate clock settings to clock policy
+    - x4xx: add intermediate clocking setting
+    - x4xx: Add logging for metal and rfdc versions
+    - x4xx: Add master_clock_rates argument to _set_ref_clock_freq()
+    - x4xx: add multiple latency detect iterations
+    - x4xx: Add rfdc rate as a sensor to X4xx dboards
+    - x4xx: Add UC FPGA type
+    - X4xx: Change reset strategy to cover all X4xx
+    - x4xx: Check for tear_down()'s existence
+    - x4xx: Conditionally initialize DB flash
+    - x4xx: Enable DBs to have updateable_components
+    - x4xx: Enable MMCM configuration based on policy
+    - x4xx: Enable MPM sync API for X410
+    - x4xx: Explicitly pass MCR values to set_sync_source()
+    - x4xx: Extend x4xx_rfdc_regs
+    - x4xx: Factor clock control out of X4xxClockManager
+    - x4xx: filter MCR list
+    - x4xx: Improve SPLL comments
+    - x4xx: Introduce X4xxClockPolicy
+    - x4xx: Let RFDC control use clock policy
+    - x4xx: Make sysref_delay part of clock policy
+    - x4xx: mb_cpld: Add missing bitfields
+    - x4xx: Minor preparations to x4xx.py for X440 support
+    - x4xx: Move all clock control to single class
+    - x4xx: Move common DB tasks from ZBX class to mixin
+    - x4xx: Move enable_iq_swap to x4xx_rfdc_ctrl.py
+    - x4xx: Move get_master_clock_rate() to DB-RPC
+    - x4xx: Move MB CPLD creation to factory
+    - x4xx: Move SPLL sync before RFDC config
+    - x4xx: Optimize clock configuration at init
+    - x4xx: Prepare clock management for multi-mcr
+    - x4xx: Refactor x4xx_rfdc_ctrl
+    - x4xx: Remove get_cal_eeprom_spi_node()
+    - x4xx: Remove internal_temp_sensor
+    - x4xx: Rename 'both' argument to 'all'
+    - x4xx: rfdc: Add get_converter_rate() API
+    - x4xx: rfdc: Pull fabric words value from registers
+    - x4xx: Separate RFDC and MMCM resets
+    - x4xx: Separate RFDC reset from its configuration
+    - x4xx: Shut down tiles on tear_down()
+    - x4xx: Trust the clock policy's default MCR
+    - fpga: x4xx: Major updates in preparation for future devices
+  * multi_usrp
+    - rfnoc: Added warning when handling tune_request
+  * octoclock
+    - Fix uhd_usrp_probe error
+  * python
+    - Add 'const' to get_continuous_tone(); improve sanity-checks
+    - Add DramTransmitter class
+    - Add X440 to image builder
+    - Fix subdev_spec_t wrapping
+    - multi_usrp: Remove spurious print
+    - rfnoc: Add radio_control.get_{ticks,time}_now
+    - signal: Add more waveforms to get_continuous_tone()
+    - stream: Overload TxStreamer.recv_async_msg()
+    - Wrap direction_t
+    - Wrap stream_cmd_t::stream_mode
+  * Replay buffered TX streamer
+    - Fix gaps in TX
+  * rfnoc
+    - Add options for RFNoC image core headers
+    - Add set_command_time and clear_command_time binding to Python API.
+    - Allow interruption of streaming during overrun handling
+    - Coerce replay packets to atomic item size
+    - Demote some de-init DEBUG messages
+    - Enable SEP throttle register
+    - Fix disconnecting back-edges from graphs
+    - Fix doxygen comments in rfnoc_graph
+    - Fix sync calls for multi-timekeeper operation
+    - Improve Doxygen for sync calls
+    - Make edge comparison more flexible
+    - radio: Always prefer register-based time access
+    - radio: Make default SPP a multiple of max CHDR width
+    - replay: Make default IPP a multiple of max CHDR width
+    - Set DEVICE_FAMILY on stream endpoints
+    - Support multiple CHDR widths in RFNoC image builder
+    - update switchboard forwarding on property set
+  * SelfCal
+    - Add startup_tile() for cal_mode selection
+    - Enable parameters in self-cal executable
+    - Expose config parameters
+    - Remove self-cal from boot and fpga update
+    - Trigger if clocking has changed
+  * tests
+    - add delayed streaming start args
+    - add packet capture raw udp tests
+    - add streaming tests for UC_200 bitfile
+    - benchmark_rate improvements
+    - Fix Python warnings in parse_benchmark_rate.py
+    - fix when the rx cmd's stream_now is set
+  * tools
+    - Add changeset analyzer
+    - Add clang-formatting tools
+    - add devtest rule for changeset_analyzer
+    - Remove fpga directory from Debian build
+    - run all tests for manifest update
+    - Update upload_debs.sh script
+  * UBX
+    - Add VCO band calibration and map access
+    - Initialize UBX set_tx_freq freq_lo variables to 0.0
+    - Shift IF for RX frequencies <100 MHz
+  * uhd
+    - doc: Add documentation for ADC self calibration
+    - multi_usrp: Support multiple timekeepers on rfnoc devices
+    - Update changelog with 4.1.0.x releases
+    - x4xx: Add methods to query number of chans, samp rate
+    - x4xx: Refactor ADC self cal
+  * usrpctl
+    - add reset command
+  * utils
+    - Add X4xx ADC threshold query script
+    - Fix usrp2_recovery.py for Python3
+  * x4xx
+    - get bool for force_reinit arg
+    - pass reboot mpm command to host on new clock config for x440
+    - Update BIST to match clocking refactoring
+  * x4xx_bist
+    - replace set_clock_source for x440
+
+ -- Ettus Research <packages@ettus.com>  Mon, 11 Sep 2023 10:43:15 -0800
+
+
 uhd (4.4.0.0-0ubuntu1) ubuntu_release; urgency=low
 
   * Features

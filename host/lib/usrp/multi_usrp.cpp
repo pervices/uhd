@@ -201,6 +201,8 @@ public:
         dict<std::string, std::string> usrp_info;
         const auto mb_eeprom =
             _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
+        usrp_info["module_serial"] =
+            mb_eeprom.get("module_serial", mb_eeprom.get("serial", "n/a"));
         usrp_info["mboard_id"] =
             _tree->access<std::string>(mb_root(mcp.mboard) / "name").get();
         usrp_info["mboard_name"]   = mb_eeprom.get("name", "n/a");
@@ -240,6 +242,8 @@ public:
         dict<std::string, std::string> usrp_info;
         const auto mb_eeprom =
             _tree->access<mboard_eeprom_t>(mb_root(mcp.mboard) / "eeprom").get();
+        usrp_info["module_serial"] =
+            mb_eeprom.get("module_serial", mb_eeprom.get("serial", "n/a"));
         usrp_info["mboard_id"] =
             _tree->access<std::string>(mb_root(mcp.mboard) / "name").get();
         usrp_info["mboard_name"]   = mb_eeprom.get("name", "n/a");
@@ -1563,7 +1567,7 @@ public:
                 "get_rx_power_range() not available for this device and channel");
         }
         return _tree->access<meta_range_t>(power_ref_path).get();
-        }
+    }
 
     void set_rx_antenna(const std::string& ant, size_t chan) override
     {
@@ -1950,9 +1954,7 @@ public:
 
     void set_tx_gain(double gain, const std::string& name, size_t chan) override
     {
-
         get_device()->set_tx_gain(gain, name, chan);
-
     }
 
 //    void set_tx_gain(double gain, const std::string &name, size_t chan){

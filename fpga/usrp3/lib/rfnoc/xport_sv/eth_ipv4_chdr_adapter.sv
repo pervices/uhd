@@ -319,8 +319,12 @@ module eth_ipv4_chdr_adapter #(
   // Adding so packet will be contiguous going out
   // The MAC needs bandwidth feeding it to be greater than the line rate
   if (ENET_W > CHDR_W || !SYNC) begin : gen_v2e_packet_gate
-    axi4s_packet_gate #(.SIZE(17-$clog2(ENET_W)), .USE_AS_BUFF(0))
-      v2e_gate_i (.clear(1'b0),.error(1'b0),.i(v2e2),.o(v2e3));
+    // Set gate depth to 16 KiB
+    localparam SIZE = 17-$clog2(ENET_W);
+    // Buffer up to 2**N packets, by setting MIN_PKT_SIZE to SIZE-N.
+    localparam MIN_PKT_SIZE = SIZE-5;
+    axi4s_packet_gate #(.SIZE(SIZE), .USE_AS_BUFF(1), .MIN_PKT_SIZE(MIN_PKT_SIZE))
+          v2e_gate_i (.clear(1'b0),.error(1'b0),.i(v2e2),.o(v2e3));
   end else begin : gen_v2e_no_packet_gate
     always_comb begin : v2e1_assign
       `AXI4S_ASSIGN(v2e3,v2e2)
@@ -496,7 +500,7 @@ module eth_ipv4_chdr_adapter #(
     c2e3.tready    = c2e3_tready;
   end
   axi_mux #(
-    .SIZE(2), .PRIO(0), .WIDTH(ENET_W+ENET_USER_W), .PRE_FIFO_SIZE(0), .POST_FIFO_SIZE(1)
+    .SIZE(2), .PRIO(0), .WIDTH(ENET_W+ENET_USER_W), .PRE_FIFO_SIZE(1), .POST_FIFO_SIZE(1)
   ) eth_mux_i (
     .clk(eth_rx.clk), .reset(eth_rx.rst), .clear(1'b0),
     .i_tdata({c2e3.tuser, c2e3.tdata, v2e3.tuser, v2e3.tdata}), .i_tlast({c2e3.tlast, v2e3.tlast}),

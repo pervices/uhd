@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include <uhd/exception.hpp>
 #include <uhd/types/device_addr.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
@@ -44,8 +45,7 @@ device_addr_t::device_addr_t(const std::string& args)
     }
 }
 
-device_addr_t::device_addr_t(const char* args) :
-    device_addr_t(std::string(args))
+device_addr_t::device_addr_t(const char* args) : device_addr_t(std::string(args))
 {
     // No additional construction is necessary
 }

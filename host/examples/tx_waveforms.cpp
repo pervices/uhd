@@ -49,7 +49,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list, ampl_calibration;
     uint64_t total_num_samps;
     size_t spb;
-    double rate, freq, gain, wave_freq, bw;
+    double rate, freq, gain, power, wave_freq, bw, lo_offset;
     float ampl;
 
     double first, last, increment;
@@ -63,10 +63,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("nsamps", po::value<uint64_t>(&total_num_samps)->default_value(0), "total number of samples to transmit")
         ("rate", po::value<double>(&rate), "rate of outgoing samples")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
+        ("lo-offset", po::value<double>(&lo_offset),
+            "Offset for frontend LO in Hz (optional)")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("ampl-calibration", po::value<std::string>(&ampl_calibration)->default_value(""), "Optional config file to improve linearity with comb waves.\n"
         "Format: A list of decimal numbers which is a fraction between 0 and the edge of the band, followed by another line with a list of values to multiply the amplitude at the location specified by the list of fractions. The multipliers are applied at + and - the specified locations.\n Example to multiply the amplitude by 1 at the center, 5 at halfway from the center to the edge of the band and 10 at the edge of the band:\n# Example file\n0, 0.5, 1\n1, 5, 10\nSee tx_waveforms_example_calibration.txt for an example")
         ("gain", po::value<double>(&gain), "gain for the RF chain")
+        ("power", po::value<double>(&power), "Transmit power (if USRP supports it)")
         ("ant", po::value<std::string>(&ant), "antenna selection")
         ("subdev", po::value<std::string>(&subdev), "subdevice specification")
         ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
@@ -143,27 +146,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        uhd::tune_request_t tune_request(freq);
+        uhd::tune_request_t tune_request;
+        if(vm.count("lo-offset")) {
+            std::cout << boost::format("Setting TX LO Offset: %f MHz...") % (lo_offset / 1e6) << std::endl;
+            tune_request = uhd::tune_request_t(freq, lo_offset);
+        } else {
+            // Automatically select lo offset
+            tune_request = uhd::tune_request_t(freq);
+        }
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
         std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
-
-        //set the rf gain
-        if (vm.count("gain")){
-            std::cout << boost::format("Setting TX Gain: %f dB...") % gain << std::endl;
-            usrp->set_tx_gain(gain, channel_nums[ch]);
-            std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
-        }
-
-        //set the analog frontend filter bandwidth
-        if (vm.count("bw")){
-            std::cout << boost::format("Setting TX Bandwidth: %f MHz...") % bw << std::endl;
-            usrp->set_tx_bandwidth(bw, channel_nums[ch]);
-            std::cout << boost::format("Actual TX Bandwidth: %f MHz...") % usrp->get_tx_bandwidth(channel_nums[ch]) << std::endl << std::endl;
-        }
-
-        //set the antenna
-        if (vm.count("ant")) usrp->set_tx_antenna(ant, channel_nums[ch]);
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for some setup time
@@ -223,6 +216,51 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //fill the buffer with the waveform
     for (size_t n = 0; n < buff.size(); n++){
         buff[n] = wave_generator(n);
+    }
+
+    // Defer setting the frequency and LO offset until synchronization setup is complete,
+    // configuring here only gains, bandwidth, and antenna
+    for (std::size_t channel : channel_nums) {
+        // set the rf gain
+        if (vm.count("power")) {
+            if (!usrp->has_tx_power_reference(channel)) {
+                std::cout << "ERROR: USRP does not have a reference power API on channel "
+                          << channel << "!" << std::endl;
+                return EXIT_FAILURE;
+            }
+            std::cout << "Setting TX output power: " << power << " dBm..." << std::endl;
+            usrp->set_tx_power_reference(power - wave_table.get_power(), channel);
+            std::cout << "Actual TX output power: "
+                      << usrp->get_tx_power_reference(channel) + wave_table.get_power()
+                      << " dBm..." << std::endl;
+            if (vm.count("gain")) {
+                std::cout << "WARNING: If you specify both --power and --gain, "
+                             " the latter will be ignored."
+                          << std::endl;
+            }
+        } else if (vm.count("gain")) {
+            std::cout << boost::format("Setting TX Gain: %f dB...") % gain << std::endl;
+            usrp->set_tx_gain(gain, channel);
+            std::cout << boost::format("Actual TX Gain: %f dB...")
+                             % usrp->get_tx_gain(channel)
+                      << std::endl
+                      << std::endl;
+        }
+
+        // set the analog frontend filter bandwidth
+        if (vm.count("bw")) {
+            std::cout << boost::format("Setting TX Bandwidth: %f MHz...") % bw
+                      << std::endl;
+            usrp->set_tx_bandwidth(bw, channel);
+            std::cout << boost::format("Actual TX Bandwidth: %f MHz...")
+                             % usrp->get_tx_bandwidth(channel)
+                      << std::endl
+                      << std::endl;
+        }
+
+        // set the antenna
+        if (vm.count("ant"))
+            usrp->set_tx_antenna(ant, channel);
     }
 
     //Check Ref and LO Lock detect

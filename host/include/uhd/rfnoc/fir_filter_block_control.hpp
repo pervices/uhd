@@ -27,11 +27,15 @@ class UHD_API fir_filter_block_control : public noc_block_base
 public:
     RFNOC_DECLARE_BLOCK(fir_filter_block_control)
 
+    static const uint16_t MINOR_COMPAT;
+    static const uint16_t MAJOR_COMPAT;
+
     // Block registers
     static const uint32_t REG_FIR_BLOCK_SIZE;
     static const uint32_t REG_FIR_MAX_NUM_COEFFS_ADDR;
     static const uint32_t REG_FIR_LOAD_COEFF_ADDR;
     static const uint32_t REG_FIR_LOAD_COEFF_LAST_ADDR;
+    static const uint32_t REG_COMPAT_NUM_ADDR;
 
     /*! Get the maximum number of filter coefficients supported by this block
      *
@@ -56,7 +60,8 @@ public:
      * \param coeffs A vector of integer coefficients for the FIR filter
      * \param chan Channel index
      */
-    virtual void set_coefficients(const std::vector<int16_t>& coeffs, const size_t chan = 0) = 0;
+    virtual void set_coefficients(
+        const std::vector<int16_t>& coeffs, const size_t chan = 0) = 0;
 
     /*! Get the filter coefficients
      *

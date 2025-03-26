@@ -8,19 +8,21 @@
 #pragma once
 
 #include <uhd/config.hpp>
-
+#include <uhd/rfnoc/actions.hpp>
 #include <uhd/types/device_addr.hpp>
-#include <uhd/types/metadata.hpp>
 #include <uhd/types/ref_vector.hpp>
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/utils/noncopyable.hpp>
-#include <boost/utility.hpp>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
 #include <iostream>
 
 namespace uhd {
+struct async_metadata_t;
+struct rx_metadata_t;
+struct tx_metadata_t;
 
 /*!
  * A struct of parameters to construct a streamer.
@@ -256,6 +258,14 @@ public:
      * \param stream_cmd the stream command to issue
      */
     virtual void issue_stream_cmd(const stream_cmd_t& stream_cmd) = 0;
+
+    /*!
+     * Post an action to the input edge of the Streamer.
+     * \param action shared pointer to the corresponding action_info request
+     * \param port the port to which to post the action
+     */
+    virtual void post_input_action(
+        const std::shared_ptr<uhd::rfnoc::action_info>& action, const size_t port) = 0;
 };
 
 /*!
@@ -337,6 +347,13 @@ public:
     virtual void disable_blocking_fc() {
         throw std::runtime_error("Concrete classes are expected to override this method\n Function may not be implemented for this device");
     }
+    /*!
+     * Post an action to the output edge of the Streamer.
+     * \param action shared pointer to the corresponding action_info request
+     * \param port the port to which to post the action
+     */
+    virtual void post_output_action(
+        const std::shared_ptr<uhd::rfnoc::action_info>& action, const size_t port) = 0;
 };
 
 } // namespace uhd

@@ -18,7 +18,7 @@ from usrp_mpm.dboard_manager import Neon
 from usrp_mpm.gpsd_iface import GPSDIfaceExtension
 from usrp_mpm.mpmutils import assert_compat_number, str2bool
 from usrp_mpm.periph_manager import PeriphManagerBase
-from usrp_mpm.rpc_server import no_rpc
+from usrp_mpm.rpc_utils import no_rpc, get_map_for_rpc
 from usrp_mpm.sys_utils import dtoverlay
 from usrp_mpm.sys_utils.sysfs_thermal import read_thermal_sensor_value, read_thermal_sensors_value
 from usrp_mpm.sys_utils.udev import get_spidev_nodes
@@ -95,7 +95,7 @@ class e320(ZynqComponents, PeriphManagerBase):
     mboard_max_rev = 4  # rev E
     mboard_sensor_callback_map = {
         'ref_locked': 'get_ref_lock_sensor',
-        'gps_locked': 'get_gps_lock_sensor',
+        'gps_locked': 'get_gps_locked_sensor',
         'fan': 'get_fan_sensor',
         'temp_fpga' : 'get_fpga_temp_sensor',
         'temp_internal' : 'get_internal_temp_sensor',
@@ -602,13 +602,13 @@ class e320(ZynqComponents, PeriphManagerBase):
             'value': return_val
         }
 
-    def get_gps_lock_sensor(self):
+    def get_gps_locked_sensor(self):
         """
         Get lock status of GPS as a sensor dict
         """
         gps_locked = bool(self.mboard_regs_control.get_gps_locked_val())
         return {
-            'name': 'gps_lock',
+            'name': 'gps_locked',
             'type': 'BOOLEAN',
             'unit': 'locked' if gps_locked else 'unlocked',
             'value': str(gps_locked).lower(),
@@ -647,7 +647,7 @@ class e320(ZynqComponents, PeriphManagerBase):
         mboard info again. This filters the EEPROM contents to what we think
         the user wants to know/see.
         """
-        return self.mboard_info
+        return get_map_for_rpc(self.mboard_info, self.log)
 
     def set_mb_eeprom(self, eeprom_vals):
         """

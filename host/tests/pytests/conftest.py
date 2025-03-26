@@ -7,7 +7,8 @@ dut_type_list = [
    "E320",
    "X310",
    "X310_TwinRx",
-   "x4xx"
+   "X410",
+   "X440"
 ]
 
 
@@ -43,7 +44,7 @@ def pytest_addoption(parser):
         "--dut_type",
         type=str,
         required=True,
-        choices=dut_type_list,
+        choices=dut_type_list + [x.lower() for x in dut_type_list],
         help="")
     parser.addoption(
         "--dut_fpga",
@@ -71,6 +72,16 @@ def pytest_addoption(parser):
         type=str,
         nargs='?',
         help="configures num_send_frames parameter")
+    parser.addoption(
+        "--sfp_int0",
+        type=str,
+        required=False,
+        help="configures name of sfp0 interface")
+    parser.addoption(
+        "--sfp_int1",
+        type=str,
+        required=False,
+        help="configures name of sfp1 interface")
 
 def pytest_configure(config):
     # register additional markers

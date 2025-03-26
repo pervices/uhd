@@ -11,11 +11,12 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/process.hpp>
 #include <boost/program_options.hpp>
+#ifdef __linux__
+#    include <boost/filesystem.hpp>
+#    include <boost/process.hpp>
+#endif
 #include <chrono>
 #include <complex>
 #include <csignal>
@@ -40,7 +41,7 @@ void sig_int_handler(int)
     stop_signal_called = true;
 }
 
-
+#ifdef __linux__
 /*
  * Very simple disk write test using dd for at most 1 second.
  * Measures an upper bound of the maximum
@@ -57,8 +58,6 @@ double disk_rate_check(const size_t sample_type_size,
     size_t samps_per_buff,
     const std::string& file)
 {
-#ifdef __linux__
-
     std::string err_msg =
         "Disk benchmark tool 'dd' did not run or returned an unexpected output format";
     boost::process::ipstream pipe_stream;
@@ -78,15 +77,9 @@ double disk_rate_check(const size_t sample_type_size,
         boost::process::child c(
             disk_check_proc_str, boost::process::std_err > pipe_stream);
 
-        // Wait for dd to finish with a timeout
-        // NOTE: joinable and running are affected by race conditions when called to soon after starting the child process
-        // wait_for calls join so it doesn't need to be called sperately
-        dd_timeout = !c.wait_for(5s);
-
-        // If dd timed out, kill it and wait for it to finish via join
-        if(dd_timeout) {
-            kill(c.id(), SIGINT);
-            c.join();
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        if (c.running()) {
+            c.terminate();
         }
     } catch (std::system_error& err) {
         std::cerr << err_msg << std::endl;
@@ -127,7 +120,7 @@ double disk_rate_check(const size_t sample_type_size,
     );
     std::regex_match(dd_output, dd_matchs, dd_regex);
 
-    if (dd_matchs[0].str() != dd_output) {
+    if ((dd_output.length() == 0) || (dd_matchs[0].str() != dd_output)) {
         std::cerr << err_msg << std::endl;
     } else {
         double disk_rate_sigfigs = std::stod(dd_matchs[1]);
@@ -149,9 +142,9 @@ double disk_rate_check(const size_t sample_type_size,
                 std::cerr << err_msg << std::endl;
         }
     }
-#endif
     return 0;
 }
+#endif
 
 
 template <typename samp_type>
@@ -195,12 +188,23 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     }
 
     std::vector<std::ofstream> outfiles(rx_stream->get_num_channels());
+    std::string filename;
     for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++) {
         if (not null) {
-            std::string filename =
-                rx_stream->get_num_channels() == 1
-                    ? file
-                    : "ch" + std::to_string(channel_nums[ch]) + "_" + file;
+            if (rx_stream->get_num_channels() == 1) { // single channel
+                filename = file;
+            } else { // multiple channels
+                // check if file extension exists
+                if (file.find('.') != std::string::npos) {
+                    const std::string base_name = file.substr(0, file.find_last_of('.'));
+                    const std::string extension = file.substr(file.find_last_of('.'));
+                    filename = base_name + "_" + "ch" + std::to_string(channel_nums[ch])
+                               + extension;
+                } else {
+                    // file extension does not exist
+                    filename = file + "_" + "ch" + std::to_string(channel_nums[ch]);
+                }
+            }
             outfiles[ch].open(filename.c_str(), std::ofstream::binary);
         }
     }
@@ -238,7 +242,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         }
 
         size_t num_rx_samps =
-                rx_stream->recv(buffs, samples_to_recv, md, 3.0, enable_size_map);
+            rx_stream->recv(buffs, samps_per_buff, md, 3.0, enable_size_map);
 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::cout << std::endl
@@ -283,7 +287,8 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
 
         for (size_t ch = 0; ch < rx_stream->get_num_channels(); ch++) {
             if (outfiles[ch].is_open()) {
-                outfiles[ch].write((const char *) buffs[ch], num_rx_samps * sizeof(samp_type));
+                outfiles[ch].write(
+                    (const char*)buffs[ch], num_rx_samps * sizeof(samp_type));
             }
         }
 
@@ -303,13 +308,13 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
     stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
     rx_stream->issue_stream_cmd(stream_cmd);
 
-    for (size_t i = 0 ; i < outfiles.size(); i++) {
+    for (size_t i = 0; i < outfiles.size(); i++) {
         if (outfiles[i].is_open()) {
             outfiles[i].close();
         }
     }
 
-    for (size_t i = 0 ; i < rx_stream->get_num_channels(); i++) {
+    for (size_t i = 0; i < rx_stream->get_num_channels(); i++) {
         delete[] buffs[i];
     }
 
@@ -319,8 +324,8 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         std::cout << std::endl;
         const double actual_duration_seconds =
             std::chrono::duration<float>(actual_stop_time - start_time).count();
-        std::cout << boost::format("%sReceived %d samples in %f seconds")
-                         % thread_prefix % num_total_samps % actual_duration_seconds
+        std::cout << boost::format("%sReceived %d samples in %f seconds") % thread_prefix
+                         % num_total_samps % actual_duration_seconds
                   << std::endl;
 
         if (enable_size_map) {
@@ -344,7 +349,7 @@ bool check_locked_sensor(std::vector<std::string> sensor_names,
         return false;
 
     const auto setup_timeout = std::chrono::steady_clock::now() + (setup_time * 1s);
-    bool lock_detected = false;
+    bool lock_detected       = false;
 
     std::cout << "Waiting for \"" << sensor_name << "\": ";
     std::cout.flush();
@@ -544,7 +549,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     if (not vm.count("skip-lo")) {
         for (size_t channel : channel_list) {
             std::cout << "Locking LO on channel " << channel << std::endl;
-            check_locked_sensor(usrp->get_rx_sensor_names(channel),
+            check_locked_sensor(
+                usrp->get_rx_sensor_names(channel),
                 "lo_locked",
                 [usrp, channel](const std::string& sensor_name) {
                     return usrp->get_rx_sensor(sensor_name, channel);
@@ -552,7 +558,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 setup_time);
         }
         if (ref == "mimo") {
-            check_locked_sensor(usrp->get_mboard_sensor_names(0),
+            check_locked_sensor(
+                usrp->get_mboard_sensor_names(0),
                 "mimo_locked",
                 [usrp](const std::string& sensor_name) {
                     return usrp->get_mboard_sensor(sensor_name);
@@ -560,7 +567,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 setup_time);
         }
         if (ref == "external") {
-            check_locked_sensor(usrp->get_mboard_sensor_names(0),
+            check_locked_sensor(
+                usrp->get_mboard_sensor_names(0),
                 "ref_locked",
                 [usrp](const std::string& sensor_name) {
                     return usrp->get_mboard_sensor(sensor_name);
@@ -569,6 +577,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
+#ifdef __linux__
     const double req_disk_rate = usrp->get_rx_rate(channel_list[0]) * channel_list.size()
                                  * uhd::convert::get_bytes_per_item(wirefmt);
     const double disk_rate_meas = disk_rate_check(
@@ -583,13 +592,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                    "  and OS/disk caching capacity.\n")
                    % (req_disk_rate / 1e6) % (disk_rate_meas / 1e6);
     }
+#endif
 
-    std::signal(SIGINT, &sig_int_handler);
     if (total_num_samps == 0) {
+        std::signal(SIGINT, &sig_int_handler);
         std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
     } else {
         std::cout << "Starting stream" << std::endl;
     }
+
+    std::signal(SIGINT, &sig_int_handler);
 
     std::vector<size_t> chans_in_thread;
     std::vector<double> rates(channel_list.size());

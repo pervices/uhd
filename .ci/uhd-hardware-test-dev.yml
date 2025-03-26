@@ -3,13 +3,21 @@ trigger: none
 pr: none
 
 parameters:
-- name: run_embedded_tests
+- name: run_x410_embedded_tests
   type: boolean
   displayName: Run X410 Embedded Tests
+  default: false
+- name: run_x440_embedded_tests
+  type: boolean
+  displayName: Run X440 Embedded Tests
   default: false
 - name: run_streaming_tests
   type: boolean
   displayName: Run Streaming Tests
+  default: false
+- name: run_x440_streaming_tests
+  type: boolean
+  displayName: Run X440 Streaming Tests
   default: false
 - name: run_devtests
   type: boolean
@@ -23,9 +31,25 @@ parameters:
   type: boolean
   displayName: Run X410 RF tests
   default: false
+- name: run_x440_rf_tests
+  type: boolean
+  displayName: Run X440 RF tests
+  default: false
+- name: run_x440_phase_tests
+  type: boolean
+  displayName: Run X440 Phase tests
+  default: false
+- name: fpga_imgs_source
+  type: string
+  values:
+  - 'Filesytem/Images Downloader'
+  - 'FPGA Pipeline'
+  - 'FPGA Pipeline PR'
+  displayName: FPGA Images Source
+  default: 'Filesytem/Images Downloader'
 - name: extra_rf_test_args
   type: string
-  displayName: Extra UHD RF ATS Arguments (for N310 and X410 runs)
+  displayName: Extra UHD RF ATS Arguments (for N310 and X4x0 runs)
   default: ' '
 - name: testLength
   type: string
@@ -33,6 +57,11 @@ parameters:
   - 'smoke'
   - 'full'
   - 'stress'
+- name: dpdkDirs
+  type: object
+  default:
+  - '/opt/dpdk-19.11'
+  - '/opt/dpdk-23.11'
 
 resources:
   pipelines:
@@ -41,13 +70,19 @@ resources:
     branch: master
   - pipeline: usrp-kas-pipeline
     source: 'usrp-kas'
-    branch: zeus-ci
+    branch: kirkstone
+  - pipeline: uhd_fpga_pipeline
+    source: 'uhddev fpga pipeline'
+    branch: master
+  - pipeline: uhd_fpga_pr_pipeline
+    source: 'uhddev fpga pipeline PR'
+    branch: master
   repositories:
   - repository: meta-ettus
     type: github
     name: EttusResearch/meta-ettus-dev
     endpoint: EttusResearch
-    ref: zeus-ci
+    ref: kirkstone
   - repository: gr-ettus
     type: github
     name: EttusResearch/gr-ettusdev
@@ -60,16 +95,35 @@ resources:
     ref: master
 
 stages:
-- stage: test_uhd_embedded_stage
-  displayName: Test Embedded UHD
+- stage: test_uhd_x410_embedded_stage
+  displayName: Test X410 Embedded UHD
   dependsOn: []
-  condition: ${{ parameters.run_embedded_tests }}
+  condition: ${{ parameters.run_x410_embedded_tests }}
   jobs:
-  - template: templates/tests/job-uhd-x4xx-hardware-tests-sdr-test0.yml
+  - template: templates/tests/job-uhd-x410-hardware-tests-sdr-test0.yml
     parameters:
       testOS: ubuntu1804
       uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
 
+- stage: test_uhd_x440_embedded_stage
+  displayName: Test X440 Embedded UHD
+  dependsOn: []
+  condition: ${{ parameters.run_x440_embedded_tests }}
+  jobs:
+  - template: templates/tests/job-uhd-x440-hardware-tests-sdr-test0.yml
+    parameters:
+      testOS: ubuntu1804
+      uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
 
 - stage: test_streaming_stage
   displayName: Test UHD Streaming
@@ -81,7 +135,31 @@ stages:
       testOS: ubuntu2004
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
       testLength: ${{ parameters.testLength }}
+      dpdkDirs: '${{ parameters.dpdkDirs }}'
+
+- stage: test_x440_streaming_stage
+  displayName: Test X440 Streaming
+  dependsOn: []
+  condition: ${{ parameters.run_x440_streaming_tests }}
+  jobs:
+  - template: templates/job-uhd-streaming-tests-x440.yml
+    parameters:
+      testOS: ubuntu2204
+      uhdSrcDir: $(Build.SourcesDirectory)/uhddev
+      uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      testLength: ${{ parameters.testLength }}
+      dpdkDirs: '${{ parameters.dpdkDirs }}'
 
 - stage: test_uhd_devtest
   displayName: Test UHD Devtest
@@ -93,6 +171,11 @@ stages:
       testOS: ubuntu2004
       uhdSrcDir: $(Build.SourcesDirectory)
       uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
 
 - stage: test_n310_rf_tests
   displayName: Run N310 RF tests
@@ -104,6 +187,11 @@ stages:
       testOS: ubuntu1804
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
       extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
 
 - stage: test_x410_rf_tests
@@ -111,8 +199,52 @@ stages:
   dependsOn: []
   condition: ${{ parameters.run_x410_rf_tests }}
   jobs:
-  - template: templates/tests/job-uhd-x4xx-hardware-tests-pebbles.yml
+  - template: templates/tests/job-uhd-x410-hardware-tests-pebbles.yml
     parameters:
       testOS: ubuntu1804
       uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
       extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+      testLength: ${{ parameters.testLength }}
+
+
+- stage: test_x440_rf_tests
+  displayName: Run X440 RF tests
+  dependsOn: []
+  condition: ${{ parameters.run_x440_rf_tests }}
+  jobs:
+  - template: templates/tests/job-uhd-x440-hardware-tests-pebbles.yml
+    parameters:
+      testOS: ubuntu1804
+      uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+      testLength: ${{ parameters.testLength }}
+
+- stage: test_x440_phase_tests
+  displayName: Run X440 Phase tests
+  dependsOn: []
+  condition: ${{ parameters.run_x440_phase_tests }}
+  jobs:
+  - template: templates/tests/job-uhd-x440-hardware-tests-saison.yml
+    parameters:
+      testOS: ubuntu2204
+      uhdArtifactSource: uhd_mono_pipeline
+      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
+        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
+      ${{ else }}:
+        uhdFpgaArtifactSource: uhd_fpga_pipeline
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      ${{ if contains(parameters['extra_rf_test_args'],  'test_selector') }}:
+        extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+      ${{ else }}:
+        extra_rf_test_args: ${{ parameters.extra_rf_test_args }} --test_selector test_rx_phase_coherence.py test_tx_phase_coherence.py
+      testLength: ${{ parameters.testLength }}

@@ -14,6 +14,7 @@
 namespace uhd { namespace rfnoc {
 
 static const std::string CLOCK_KEY_GRAPH("__graph__");
+static const std::string CLOCK_KEY_AUTO("__auto__");
 
 static const std::string PROP_KEY_DECIM("decim");
 static const std::string PROP_KEY_INTERP("interp");
@@ -37,6 +38,7 @@ static const std::string ACTION_KEY_STREAM_CMD("stream_cmd");
 static const std::string ACTION_KEY_RX_EVENT("rx_event");
 static const std::string ACTION_KEY_RX_RESTART_REQ("restart_request");
 static const std::string ACTION_KEY_TX_EVENT("tx_event");
+static const std::string ACTION_KEY_TUNE_REQUEST("tune_request");
 
 //! If the block name can't be automatically detected, this name is used
 static const std::string DEFAULT_BLOCK_NAME = "Block";
@@ -75,9 +77,12 @@ static const device_type_t X400 = 0xA400;
 static const noc_id_t ADDSUB_BLOCK         = 0xADD00000;
 static const noc_id_t DUC_BLOCK            = 0xD0C00000;
 static const noc_id_t DDC_BLOCK            = 0xDDC00000;
-static const noc_id_t FFT_BLOCK            = 0xFF700000;
+static const noc_id_t FFT_BLOCK_V1         = 0xFF700000;
+static const noc_id_t FFT_BLOCK_V2         = 0xFF700002;
 static const noc_id_t FIR_FILTER_BLOCK     = 0xF1120000;
+static const noc_id_t FIR_FILTER_BLOCK_V2  = 0xF1120002;
 static const noc_id_t FOSPHOR_BLOCK        = 0x666F0000;
+static const noc_id_t LICCHECK_BLOCK       = 0x11C0CECC;
 static const noc_id_t LOGPWR_BLOCK         = 0x4C500000;
 static const noc_id_t KEEP_ONE_IN_N_BLOCK  = 0x02460000;
 static const noc_id_t MOVING_AVERAGE_BLOCK = 0xAAD20000;

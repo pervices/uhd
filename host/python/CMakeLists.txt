@@ -8,22 +8,102 @@
 # This file included, use CMake directory variables
 ########################################################################
 
-PYTHON_CHECK_MODULE(
-    "virtual environment"
-    "sys"
-    "sys.prefix != sys.base_prefix"
-    HAVE_PYTHON_VIRTUALENV
-)
+# Global Python API constants
+set(SETUP_PY_IN       "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
+set(SETUP_PY          "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
+set(PYPROJECT_TOML_IN "${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml.in")
+set(PYPROJECT_TOML    "${CMAKE_CURRENT_BINARY_DIR}/pyproject.toml")
+set(TIMESTAMP_FILE    "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
+# By default we assume Pre-Alpha status (development)
+set(UHD_DEV_STATUS    "Development Status :: 2 - Pre-Alpha")
+# Only in release mode we set the status to Beta or Release
+if (UHD_RELEASE_MODE)
+    if (UHD_GIT_TAG MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$")
+        message(STATUS "Set development status to release")
+        set(UHD_DEV_STATUS "Development Status :: 5 - Production/Stable")
+    else()
+        if (UHD_GIT_TAG MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+-rc[0-9]+$")
+            message(STATUS "Set development status to release candidate")
+            set(UHD_DEV_STATUS "Development Status :: 4 - Beta")
+        else()
+            message(WARNING "Configured to build in release mode, but branch name does not match release (candidate) pattern.")
+        endif()
+    endif()
+endif()
+# convert binary directory to native format to use in SETUP_PY file.
+file(TO_NATIVE_PATH ${CMAKE_CURRENT_BINARY_DIR} NATIVE_CURRENT_BINARY_DIR)
+configure_file(${SETUP_PY_IN} ${SETUP_PY})
+if(WIN32)
+    configure_file(${PYPROJECT_TOML_IN} ${PYPROJECT_TOML})
+endif(WIN32)
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/uhd_build.py" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+file(COPY "${CMAKE_SOURCE_DIR}/README.md" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+file(COPY "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+
+# If we're not in a virtual environment, then we need to figure out where to
+# install the Python module. Do this here so we can use the value for UHD_PYTHON_DIR
+# in the simulator.
+if(NOT DEFINED UHD_PYTHON_DIR)
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
+        # Avoid the posix_local install scheme
+        "import os,sysconfig;\
+        install_scheme = 'posix_prefix';\
+        platlib = sysconfig.get_path('platlib', scheme=install_scheme);\
+        prefix = sysconfig.get_config_var('prefix');\
+        print(os.path.relpath(platlib, prefix));"
+        OUTPUT_VARIABLE UHD_PYTHON_DIR OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif(NOT DEFINED UHD_PYTHON_DIR)
+
+# If ENABLE_PYTHON_API is OFF, then we can skip most of the work and will just
+# install a bunch of Python files.
+if(NOT ENABLE_PYTHON_API AND ENABLE_PYMOD_UTILS)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/uhd/__init__.py.in-pymod
+        ${CMAKE_CURRENT_BINARY_DIR}/uhd/__init__.py
+        @ONLY)
+    # List of Python files that are part of the module but don't get
+    # generated during build time and don't require libpyuhd.
+    # Note: When adding Python files into uhd/, they don't get added to the
+    # dependency list until CMake is re-run.
+    file(GLOB_RECURSE PYUHD_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/uhd/dsp/*.py
+        ${CMAKE_CURRENT_SOURCE_DIR}/uhd/rfnoc_utils/*.py
+        ${CMAKE_CURRENT_SOURCE_DIR}/uhd/rfnoc_utils/*.mako
+        ${CMAKE_CURRENT_SOURCE_DIR}/uhd/rfnoc_utils/*.yml
+        ${CMAKE_CURRENT_BINARY_DIR}/uhd/__init__.py
+    )
+
+    # This copies the contents of host/python/uhd into the build directory. We will
+    # use that as a staging ground for installing the final module to the system.
+    # We make sure that we always have an up-to-date copy in here.
+    add_custom_command(OUTPUT ${TIMESTAMP_FILE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/uhd/
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/uhd/rfnoc_utils ${CMAKE_CURRENT_BINARY_DIR}/uhd/rfnoc_utils
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/uhd/dsp ${CMAKE_CURRENT_BINARY_DIR}/uhd/dsp
+        COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} -q build
+        COMMAND ${CMAKE_COMMAND} -E touch ${TIMESTAMP_FILE}
+        DEPENDS ${PYUHD_FILES})
+    add_custom_target(pyuhd_library ALL DEPENDS ${TIMESTAMP_FILE})
+    UHD_PYTHON_INSTALL_MODULE(
+        MODULE "uhd"
+    )
+    return()
+endif()
+
+
+if(pybind11_FOUND)
+  message(STATUS "Using Pybind11 from: ${pybind11_INCLUDE_DIR}")
+else()
+  set(pybind11_INCLUDE_DIR
+      "${UHD_SOURCE_DIR}/lib/deps/pybind11/include"
+      CACHE STRING
+      "Location of PyBind11 includes"
+  )
+  message(STATUS "Using in-tree Pybind11.")
+endif()
 
 # Get include dirs
-include_directories(${PYTHON_INCLUDE_DIRS})
-set(PYBIND11_INCLUDE_DIR
-    "${UHD_SOURCE_DIR}/lib/deps/pybind11/include"
-    CACHE
-    STRING
-    "Location of PyBind11 includes"
-)
-include_directories(${PYBIND11_INCLUDE_DIR})
 execute_process(
     COMMAND "${PYTHON_EXECUTABLE}" -c
     "try:\n import numpy\n import os\n inc_path = numpy.get_include()\n if os.path.exists(os.path.join(inc_path, 'numpy', 'arrayobject.h')):\n  print(inc_path, end='')\nexcept:\n pass"
@@ -35,7 +115,9 @@ add_library(pyuhd SHARED
     ${UHD_SOURCE_DIR}/lib/property_tree_python.cpp
     ${UHD_SOURCE_DIR}/lib/device_python.cpp
     ${UHD_SOURCE_DIR}/lib/usrp/multi_usrp_python.cpp
+    ${UHD_SOURCE_DIR}/lib/usrp_clock/multi_usrp_clock_python.cpp
 )
+
 # python expects extension modules with a particular suffix
 if(WIN32)
     set_target_properties(pyuhd PROPERTIES PREFIX "lib" SUFFIX ".pyd")
@@ -56,11 +138,11 @@ else()
     )
 endif(WIN32)
 target_include_directories(pyuhd PUBLIC
+    ${PYTHON_INCLUDE_DIRS}
     ${PYTHON_NUMPY_INCLUDE_DIR}
     ${UHD_SOURCE_DIR}/lib
-    ${PYBIND11_INCLUDE_DIR}
+    ${pybind11_INCLUDE_DIR}
 )
-
 
 if(WIN32)
     target_link_libraries(pyuhd ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} uhd)
@@ -82,30 +164,9 @@ add_custom_command(TARGET pyuhd
 # dependency list until CMake is re-run.
 file(GLOB_RECURSE PYUHD_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/uhd/*.py
+    ${CMAKE_CURRENT_SOURCE_DIR}/uhd/*.mako
+    ${CMAKE_CURRENT_SOURCE_DIR}/uhd/*.yml
 )
-
-set(SETUP_PY_IN    "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
-set(SETUP_PY       "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
-set(TIMESTAMP_FILE "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
-# convert binary directory to native format to use in SETUP_PY file.
-file(TO_NATIVE_PATH ${CMAKE_CURRENT_BINARY_DIR} NATIVE_CURRENT_BINARY_DIR)
-configure_file(${SETUP_PY_IN} ${SETUP_PY})
-
-
-# If we're not in a virtual environment, then we need to figure out where to
-# install the Python module. Do this here so we can use the value for UHD_PYTHON_DIR
-# in the simulator.
-if(NOT DEFINED UHD_PYTHON_DIR)
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
-        # Avoid the posix_local install scheme
-        "import os,sysconfig;\
-        install_scheme = 'posix_prefix';\
-        platlib = sysconfig.get_path('platlib', scheme=install_scheme);\
-        prefix = sysconfig.get_config_var('prefix');\
-        print(os.path.relpath(platlib, prefix));"
-        OUTPUT_VARIABLE UHD_PYTHON_DIR OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-endif(NOT DEFINED UHD_PYTHON_DIR)
 
 if(ENABLE_SIM)
     set(MPM_DEVICE "sim")
@@ -168,50 +229,35 @@ if(ENABLE_SIM)
     set(PYUHD_FILES ${PYUHD_FILES} copy_mpm_packages)
 endif(ENABLE_SIM)
 
+# This sets the UHD_INSTALL_PATH variable in the __init__.py file so that the UHD python module can find the UHD library.
+set(UHD_INSTALL_PATH ${CMAKE_INSTALL_PREFIX})
+set(UHD_INIT_IN "${CMAKE_CURRENT_SOURCE_DIR}/uhd/__init__.py.in")
+set(UHD_INIT "${CMAKE_CURRENT_BINARY_DIR}/uhd/__init__.py")
+configure_file(${UHD_INIT_IN} ${UHD_INIT} @ONLY)
+
+# This copies the *.py and *.mako files of host/python/uhd into the build directory. 
+# We will use that as a staging ground for installing the final module to the system.
+# We make sure that we always have an up-to-date copy in here.
 add_custom_command(OUTPUT ${TIMESTAMP_FILE}
-  COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/uhd ${CMAKE_CURRENT_BINARY_DIR}/uhd
+  COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}" -DBINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}" -P ${CMAKE_CURRENT_SOURCE_DIR}/copy_python_module.cmake
   COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} -q build
   COMMAND ${CMAKE_COMMAND} -E touch ${TIMESTAMP_FILE}
   DEPENDS ${PYUHD_FILES})
 
-add_custom_target(pyuhd_library ALL DEPENDS ${TIMESTAMP_FILE} pyuhd)
-if(HAVE_PYTHON_VIRTUALENV)
-  message(STATUS "Python virtual environment detected -- Ignoring UHD_PYTHON_DIR.")
-    # In virtualenvs, let setuptools do its thing
-    install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} -q install --force)")
-else()
-    # Otherwise, use sysconfig to determine the correct relative path for Python
-    # packages, and install to our prefix
-    if(NOT DEFINED UHD_PYTHON_DIR)
-        execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
-            # Avoid the posix_local install scheme
-            "import os,sysconfig;\
-            install_scheme = 'posix_user';\
-            platlib = sysconfig.get_path('platlib', scheme=install_scheme);\
-            prefix = sysconfig.get_config_var('prefix');\
-            print(os.path.relpath(platlib, prefix));"
-            OUTPUT_VARIABLE UHD_PYTHON_DIR OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    endif(NOT DEFINED UHD_PYTHON_DIR)
-    file(TO_CMAKE_PATH ${UHD_PYTHON_DIR} UHD_PYTHON_DIR)
+if (WIN32)
+	add_custom_target(pyuhd_wheel ALL
+		DEPENDS ${PYUHD_FILES} pyuhd_library)
+	add_custom_command(
+		TARGET pyuhd_wheel
+		COMMAND ${PYTHON_EXECUTABLE} -m pip install poetry
+		COMMAND ${PYTHON_EXECUTABLE} -m poetry build
+	)
+endif(WIN32)
 
-    message(STATUS "Utilizing the python install directory: ${CMAKE_INSTALL_PREFIX}/${UHD_PYTHON_DIR}")
-    # CMake will create an up-to-date copy of the entire Python module within
-    # the build directory. Use sysconfig (above) to figure out the destination
-    # path, and then we simply copy this module recursively into its final
-    # destination.
-    install(DIRECTORY
-        ${CMAKE_CURRENT_BINARY_DIR}/uhd
-        DESTINATION ${UHD_PYTHON_DIR}
-        COMPONENT pythonapi
-    )
-    # On Linux/Unix systems, we must properly install the library file, though.
-    # install(DIRECTORY) will treat the .so file like any other file, which
-    # means it won't update its RPATH, and thus the RPATH would be stuck to the
-    # build directory.
-    if(UNIX)
-        install(TARGETS pyuhd
-            DESTINATION ${UHD_PYTHON_DIR}/uhd
-        )
-    endif(UNIX)
-endif(HAVE_PYTHON_VIRTUALENV)
+add_custom_target(pyuhd_library ALL DEPENDS ${TIMESTAMP_FILE} pyuhd)
+
+# Now install the Python module from the build directory to the final destination.
+UHD_PYTHON_INSTALL_MODULE(
+    MODULE "uhd"
+    LIBTARGET pyuhd
+)

@@ -144,7 +144,7 @@ static const std::vector<std::string> ubx_plls{"TXLO", "RXLO"};
 static const std::vector<std::string> ubx_tx_antennas{"TX/RX", "CAL"};
 static const std::vector<std::string> ubx_rx_antennas{"TX/RX", "RX2", "CAL"};
 static const std::vector<std::string> ubx_power_modes{"performance", "powersave"};
-static const std::vector<std::string> ubx_xcvr_modes{"FDX", "TX", "TX/RX", "RX"};
+static const std::vector<std::string> ubx_xcvr_modes{"FDX", "TDD", "TX", "RX"};
 static const std::vector<std::string> ubx_temp_comp_modes{"enabled", "disabled"};
 
 // clang-format off
@@ -157,8 +157,8 @@ static const ubx_gpio_field_info_t ubx_proto_gpio_info[] = {
     {TX_LO_LOCKED,  dboard_iface::UNIT_TX,  6,  0x1<<6,     1,  ubx_gpio_field_info_t::OUTPUT, false,  0,  0,  0,  0},
     {RX_LO_LOCKED,  dboard_iface::UNIT_TX,  7,  0x1<<7,     1,  ubx_gpio_field_info_t::OUTPUT, false,  0,  0,  0,  0},
     {CPLD_RST_N,    dboard_iface::UNIT_TX,  9,  0x1<<9,     1,  ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0},
-    {TX_GAIN,       dboard_iface::UNIT_TX,  10, 0x3F<<10,   10, ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0},
-    {RX_GAIN,       dboard_iface::UNIT_RX,  10, 0x3F<<10,   10, ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0}
+    {TX_GAIN,       dboard_iface::UNIT_TX,  10, 0x3F<<10,   6,  ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0},
+    {RX_GAIN,       dboard_iface::UNIT_RX,  10, 0x3F<<10,   6,  ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0}
 };
 
 static const ubx_gpio_field_info_t ubx_v1_gpio_info[] = {
@@ -170,12 +170,12 @@ static const ubx_gpio_field_info_t ubx_v1_gpio_info[] = {
     {RX_EN_N,       dboard_iface::UNIT_TX,   6,  0x1<<6,     1,  ubx_gpio_field_info_t::INPUT,  true,   1,  1,  0,  0},
     {TXLO1_SYNC,    dboard_iface::UNIT_TX,   7,  0x1<<7,     1,  ubx_gpio_field_info_t::INPUT,  true,   0,  0,  0,  0},
     {TXLO2_SYNC,    dboard_iface::UNIT_TX,   9,  0x1<<9,     1,  ubx_gpio_field_info_t::INPUT,  true,   0,  0,  0,  0},
-    {TX_GAIN,       dboard_iface::UNIT_TX,   10, 0x3F<<10,   10, ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0},
+    {TX_GAIN,       dboard_iface::UNIT_TX,   10, 0x3F<<10,   6,  ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0},
     {RX_LO_LOCKED,  dboard_iface::UNIT_RX,   0,  0x1,        1,  ubx_gpio_field_info_t::OUTPUT, false,  0,  0,  0,  0},
     {TX_LO_LOCKED,  dboard_iface::UNIT_RX,   1,  0x1<<1,     1,  ubx_gpio_field_info_t::OUTPUT, false,  0,  0,  0,  0},
     {RXLO1_SYNC,    dboard_iface::UNIT_RX,   5,  0x1<<5,     1,  ubx_gpio_field_info_t::INPUT,  true,   0,  0,  0,  0},
     {RXLO2_SYNC,    dboard_iface::UNIT_RX,   7,  0x1<<7,     1,  ubx_gpio_field_info_t::INPUT,  true,   0,  0,  0,  0},
-    {RX_GAIN,       dboard_iface::UNIT_RX,   10, 0x3F<<10,   10, ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0}
+    {RX_GAIN,       dboard_iface::UNIT_RX,   10, 0x3F<<10,   6,  ubx_gpio_field_info_t::INPUT,  false,  0,  0,  0,  0}
 };
 // clang-format on
 
@@ -511,10 +511,18 @@ public:
         get_tx_subtree()->create<std::string>("connection").set("QI");
         get_tx_subtree()->create<bool>("enabled").set(true); // always enabled
         get_tx_subtree()->create<bool>("use_lo_offset").set(false);
-        get_tx_subtree()->create<double>("bandwidth/value").set(bw);
         get_tx_subtree()
             ->create<meta_range_t>("bandwidth/range")
             .set(freq_range_t(bw, bw));
+        get_tx_subtree()
+            ->create<double>("bandwidth/value")
+            .set_coercer([this](const double bandwidth) {
+                return get_tx_subtree()
+                    ->access<meta_range_t>("bandwidth/range")
+                    .get()
+                    .clip(bandwidth);
+            })
+            .set(bw);
         get_tx_subtree()
             ->create<int64_t>("sync_delay")
             .add_coerced_subscriber(
@@ -563,10 +571,18 @@ public:
         get_rx_subtree()->create<std::string>("connection").set("IQ");
         get_rx_subtree()->create<bool>("enabled").set(true); // always enabled
         get_rx_subtree()->create<bool>("use_lo_offset").set(false);
-        get_rx_subtree()->create<double>("bandwidth/value").set(bw);
         get_rx_subtree()
             ->create<meta_range_t>("bandwidth/range")
             .set(freq_range_t(bw, bw));
+        get_rx_subtree()
+            ->create<double>("bandwidth/value")
+            .set_coercer([this](const double bandwidth) {
+                return get_rx_subtree()
+                    ->access<meta_range_t>("bandwidth/range")
+                    .get()
+                    .clip(bandwidth);
+            })
+            .set(bw);
         get_rx_subtree()
             ->create<int64_t>("sync_delay")
             .add_coerced_subscriber(
@@ -652,10 +668,10 @@ private:
     void set_gpio_field(ubx_gpio_field_id_t id, uint32_t value)
     {
         // Look up field info
-        std::map<ubx_gpio_field_id_t, ubx_gpio_field_info_t>::iterator entry =
-            _gpio_map.find(id);
-        if (entry == _gpio_map.end())
+        auto entry = _gpio_map.find(id);
+        if (entry == _gpio_map.end()) {
             return;
+        }
         ubx_gpio_field_info_t field_info = entry->second;
         if (field_info.direction == ubx_gpio_field_info_t::OUTPUT)
             return;
@@ -680,10 +696,10 @@ private:
     uint32_t get_gpio_field(ubx_gpio_field_id_t id)
     {
         // Look up field info
-        std::map<ubx_gpio_field_id_t, ubx_gpio_field_info_t>::iterator entry =
-            _gpio_map.find(id);
-        if (entry == _gpio_map.end())
+        auto entry = _gpio_map.find(id);
+        if (entry == _gpio_map.end()) {
             return 0;
+        }
         ubx_gpio_field_info_t field_info = entry->second;
         if (field_info.direction == ubx_gpio_field_info_t::INPUT) {
             ubx_gpio_reg_t* reg = (field_info.unit == dboard_iface::UNIT_TX
@@ -828,9 +844,9 @@ private:
             // Force on TX PA for boards with high isolation or if the user sets the TDD
             // mode
             set_cpld_field(TXDRV_FORCEON,
-                (_power_mode == POWERSAVE
-                        ? 0
-                        : _high_isolation or _xcvr_mode == TDD ? 1 : 0));
+                (_power_mode == POWERSAVE                  ? 0
+                    : _high_isolation or _xcvr_mode == TDD ? 1
+                                                           : 0));
         } else {
             set_gpio_field(RX_ANT, 1);
             set_cpld_field(
@@ -848,14 +864,13 @@ private:
     double set_tx_gain(double gain)
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        gain              = ubx_tx_gain_range.clip(gain);
-        int attn_code     = int(std::floor(gain * 2));
-        _ubx_tx_atten_val = ((attn_code & 0x3F) << 10);
+        gain                = ubx_tx_gain_range.clip(gain);
+        const int attn_code = int(std::floor(gain * 2));
         set_gpio_field(TX_GAIN, attn_code);
         write_gpio();
-        UHD_LOGGER_TRACE("UBX")
-            << boost::format("UBX TX Gain: %f dB, Code: %d, IO Bits 0x%04x") % gain
-                   % attn_code % _ubx_tx_atten_val;
+        UHD_LOG_TRACE("UBX",
+            boost::format("UBX TX Gain: %f dB, Code: %d, IO Bits 0x%04x") % gain
+                % attn_code % (attn_code << 10));
         _tx_gain = gain;
         return gain;
     }
@@ -863,14 +878,13 @@ private:
     double set_rx_gain(double gain)
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        gain              = ubx_rx_gain_range.clip(gain);
-        int attn_code     = int(std::floor(gain * 2));
-        _ubx_rx_atten_val = ((attn_code & 0x3F) << 10);
+        gain                = ubx_rx_gain_range.clip(gain);
+        const int attn_code = int(std::floor(gain * 2));
         set_gpio_field(RX_GAIN, attn_code);
         write_gpio();
-        UHD_LOGGER_TRACE("UBX")
-            << boost::format("UBX RX Gain: %f dB, Code: %d, IO Bits 0x%04x") % gain
-                   % attn_code % _ubx_rx_atten_val;
+        UHD_LOG_TRACE("UBX",
+            boost::format("UBX RX Gain: %f dB, Code: %d, IO Bits 0x%04x") % gain
+                % attn_code % (attn_code << 10));
         _rx_gain = gain;
         return gain;
     }
@@ -881,8 +895,8 @@ private:
     double set_tx_freq(double freq)
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        double freq_lo1 = _txlo1_freq;
-        double freq_lo2 = _txlo2_freq;
+        double freq_lo1 = 0.0;
+        double freq_lo2 = 0.0;
         double ref_freq = _iface->get_clock_rate(dboard_iface::UNIT_TX);
         bool is_int_n   = false;
 
@@ -1112,7 +1126,7 @@ private:
             // Set LO2 to IF minus desired frequency
             freq_lo2 = _rxlo2->set_frequency(
                 freq_lo1 - freq, ref_freq, target_pfd_freq, is_int_n);
-            _rxlo1->set_output_power(max287x_iface::OUTPUT_POWER_2DBM);
+            _rxlo2->set_output_power(max287x_iface::OUTPUT_POWER_2DBM);
         } else if ((freq >= 500 * fMHz) && (freq < 800 * fMHz)) {
             set_cpld_field(SEL_LNA1, 0);
             set_cpld_field(SEL_LNA2, 1);
@@ -1446,8 +1460,6 @@ private:
     bool _rxlo_locked;
     bool _txlo_locked;
     std::string _rx_ant;
-    int _ubx_tx_atten_val;
-    int _ubx_rx_atten_val;
     power_mode_t _power_mode;
     xcvr_mode_t _xcvr_mode;
     size_t _rev;

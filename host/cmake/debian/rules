@@ -18,7 +18,7 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DCMAKE_BUILD_TYPE=RelWithDebInfo -D
 					$(DEB_NEON_SIMD_OPTION) $(DEB_MIPSEL_PYTHON_API_OPTION)")
 
 %:
-	dh $@ --parallel --sourcedirectory=host --builddirectory=build
+	dh $@ --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
 	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
@@ -53,7 +53,7 @@ override_dh_acc:
 	- cat logs/libuhd-dev/*/log.txt
 
 override_dh_shlibdeps:
-	dh_shlibdeps --package=uhd-host --libpackage=libuhd4.4.0
-	dh_shlibdeps --package=libuhd4.4.0 --libpackage=libuhd4.4.0
-	dh_shlibdeps --package=libuhd-dev --libpackage=libuhd4.4.0
-	dh_shlibdeps --package=python3-uhd --libpackage=libuhd4.4.0
+	dh_shlibdeps --package=uhd-host --libpackage=libuhd4.8.0
+	dh_shlibdeps --package=libuhd4.8.0 --libpackage=libuhd4.8.0
+	dh_shlibdeps --package=libuhd-dev --libpackage=libuhd4.8.0
+	dh_shlibdeps --package=python3-uhd --libpackage=libuhd4.8.0

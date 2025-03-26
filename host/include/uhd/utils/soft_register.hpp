@@ -193,7 +193,7 @@ public:
     {
         _soft_copy = (_soft_copy & ~soft_reg_field::mask<reg_data_t>(field))
                      | ((value << soft_reg_field::shift(field))
-                           & soft_reg_field::mask<reg_data_t>(field));
+                         & soft_reg_field::mask<reg_data_t>(field));
     }
 
     /*!

@@ -19,13 +19,6 @@
 //   NUM_CHANNELS    : Total number of channels
 //   NUM_CH_PER_DB   : Number of channels per daughterboard and radio core
 //   CHDR_W          : CHDR width used by RFNoC
-//   DMA_W           : Width of the DMA port interface
-//   NET_CHDR_W      : CHDR width used by the network interface ports
-//   ENET_W          : Width of the Ethernet buses (each port may have a unique
-//                     width, but all signals have equal width for simplicity).
-//   ENET_WIDTHS     : Actual width of each Ethernet port's interface. This is
-//                     a packed array of 32-bit integers with port 0 in the
-//                     right-most position.
 //   MTU             : Log2 of maximum transmission unit in CHDR_W sized words
 //   RFNOC_PROTOVER  : RFNoC protocol version (major[7:0], minor[7:0])
 //   RADIO_SPC       : Number of samples per radio clock cycle
@@ -35,24 +28,21 @@
 
 
 module x4xx_core #(
-  parameter            NUM_DBOARDS     = 2,
-  parameter            REG_DWIDTH      = 32,
-  parameter            REG_AWIDTH      = 32,
-  parameter            CHDR_CLK_RATE   = 200000000,
-  parameter            NUM_CH_PER_DB   = 2,
-  parameter            NUM_CHANNELS    = NUM_CH_PER_DB*NUM_DBOARDS,
-  parameter            CHDR_W          = 64,
-  parameter            DMA_W           = 64,
-  parameter            NET_CHDR_W      = 64,
-  parameter [    31:0] ENET_W          = 64,
-  parameter [32*8-1:0] ENET_WIDTHS     = {8{ENET_W}},
-  parameter            MTU             = $clog2(8192 / (CHDR_W/8)),
-  parameter            RFNOC_PROTOVER  = {8'd1, 8'd0},
-  parameter            RADIO_SPC       = 1,
-  parameter            NUM_TIMEKEEPERS = NUM_DBOARDS,
-  parameter            RF_BANDWIDTH    = 200
+  parameter NUM_DBOARDS     = 2,
+  parameter REG_DWIDTH      = 32,
+  parameter REG_AWIDTH      = 32,
+  parameter CHDR_CLK_RATE   = 200000000,
+  parameter NUM_CH_PER_DB   = 2,
+  parameter NUM_CHANNELS    = NUM_CH_PER_DB*NUM_DBOARDS,
+  parameter CHDR_W          = 64,
+  parameter MTU             = $clog2(8192 / (CHDR_W/8)),
+  parameter RFNOC_PROTOVER  = {8'd1, 8'd0},
+  parameter RADIO_SPC       = 1,
+  parameter NUM_TIMEKEEPERS = NUM_DBOARDS,
+  parameter RF_BANDWIDTH    = 200
 ) (
   // Clocks and resets
+  input wire                   areset,
   input wire [NUM_DBOARDS-1:0] radio_clk,
   input wire [NUM_DBOARDS-1:0] radio_rst,
   input wire [NUM_DBOARDS-1:0] radio_clk_2x,
@@ -61,6 +51,8 @@ module x4xx_core #(
   input wire rfnoc_chdr_rst,
   input wire rfnoc_ctrl_clk,
   input wire rfnoc_ctrl_rst,
+
+  input wire ce_clk,
 
   // DRAM Bank 0
   input wire          dram0_sys_clk_p,
@@ -98,6 +90,146 @@ module x4xx_core #(
   inout  wire [  7:0] dram1_dqs_t,
   inout  wire [  7:0] dram1_dqs_c,
 
+  // QSFP Port 0
+  input  wire          qsfp0_refclk_p,
+  input  wire          qsfp0_refclk_n,
+  input  wire          qsfp0_dclk,
+  output wire [   3:0] qsfp0_tx_p,
+  output wire [   3:0] qsfp0_tx_n,
+  input  wire [   3:0] qsfp0_rx_p,
+  input  wire [   3:0] qsfp0_rx_n,
+  output wire          qsfp0_recovered_clk,
+  input  wire [  15:0] qsfp0_device_id,
+  output wire [   3:0] qsfp0_rx_irq,
+  output wire [   3:0] qsfp0_tx_irq,
+  output wire [ 127:0] qsfp0_port_info,
+  output wire [   3:0] qsfp0_link_up,
+  output wire [   3:0] qsfp0_activity,
+  input  wire          qsfp0_axil_rst,
+  input  wire          qsfp0_axil_clk,
+  input  wire [  39:0] qsfp0_axil_awaddr,
+  input  wire          qsfp0_axil_awvalid,
+  output wire          qsfp0_axil_awready,
+  input  wire [  31:0] qsfp0_axil_wdata,
+  input  wire [   3:0] qsfp0_axil_wstrb,
+  input  wire          qsfp0_axil_wvalid,
+  output wire          qsfp0_axil_wready,
+  output wire [   1:0] qsfp0_axil_bresp,
+  output wire          qsfp0_axil_bvalid,
+  input  wire          qsfp0_axil_bready,
+  input  wire [  39:0] qsfp0_axil_araddr,
+  input  wire          qsfp0_axil_arvalid,
+  output wire          qsfp0_axil_arready,
+  output wire [  31:0] qsfp0_axil_rdata,
+  output wire [   1:0] qsfp0_axil_rresp,
+  output wire          qsfp0_axil_rvalid,
+  input  wire          qsfp0_axil_rready,
+  input  wire          qsfp0_axi_rst,
+  input  wire          qsfp0_axi_clk,
+  output wire [  48:0] qsfp0_axi_araddr,
+  output wire [   1:0] qsfp0_axi_arburst,
+  output wire [   3:0] qsfp0_axi_arcache,
+  output wire [   7:0] qsfp0_axi_arlen,
+  output wire [   0:0] qsfp0_axi_arlock,
+  output wire [   2:0] qsfp0_axi_arprot,
+  output wire [   3:0] qsfp0_axi_arqos,
+  input  wire          qsfp0_axi_arready,
+  output wire [   2:0] qsfp0_axi_arsize,
+  output wire          qsfp0_axi_arvalid,
+  output wire [  48:0] qsfp0_axi_awaddr,
+  output wire [   1:0] qsfp0_axi_awburst,
+  output wire [   3:0] qsfp0_axi_awcache,
+  output wire [   7:0] qsfp0_axi_awlen,
+  output wire [   0:0] qsfp0_axi_awlock,
+  output wire [   2:0] qsfp0_axi_awprot,
+  output wire [   3:0] qsfp0_axi_awqos,
+  input  wire          qsfp0_axi_awready,
+  output wire [   2:0] qsfp0_axi_awsize,
+  output wire          qsfp0_axi_awvalid,
+  output wire          qsfp0_axi_bready,
+  input  wire [   1:0] qsfp0_axi_bresp,
+  input  wire          qsfp0_axi_bvalid,
+  input  wire [ 127:0] qsfp0_axi_rdata,
+  input  wire          qsfp0_axi_rlast,
+  output wire          qsfp0_axi_rready,
+  input  wire [   1:0] qsfp0_axi_rresp,
+  input  wire          qsfp0_axi_rvalid,
+  output wire [ 127:0] qsfp0_axi_wdata,
+  output wire          qsfp0_axi_wlast,
+  input  wire          qsfp0_axi_wready,
+  output wire [  15:0] qsfp0_axi_wstrb,
+  output wire          qsfp0_axi_wvalid,
+
+  // QSFP Port 1
+  input  wire          qsfp1_refclk_p,
+  input  wire          qsfp1_refclk_n,
+  input  wire          qsfp1_dclk,
+  output wire [   3:0] qsfp1_tx_p,
+  output wire [   3:0] qsfp1_tx_n,
+  input  wire [   3:0] qsfp1_rx_p,
+  input  wire [   3:0] qsfp1_rx_n,
+  output wire          qsfp1_recovered_clk,
+  input  wire [  15:0] qsfp1_device_id,
+  output wire [   3:0] qsfp1_rx_irq,
+  output wire [   3:0] qsfp1_tx_irq,
+  output wire [ 127:0] qsfp1_port_info,
+  output wire [   3:0] qsfp1_link_up,
+  output wire [   3:0] qsfp1_activity,
+  input  wire          qsfp1_axil_rst,
+  input  wire          qsfp1_axil_clk,
+  input  wire [  39:0] qsfp1_axil_awaddr,
+  input  wire          qsfp1_axil_awvalid,
+  output wire          qsfp1_axil_awready,
+  input  wire [  31:0] qsfp1_axil_wdata,
+  input  wire [   3:0] qsfp1_axil_wstrb,
+  input  wire          qsfp1_axil_wvalid,
+  output wire          qsfp1_axil_wready,
+  output wire [   1:0] qsfp1_axil_bresp,
+  output wire          qsfp1_axil_bvalid,
+  input  wire          qsfp1_axil_bready,
+  input  wire [  39:0] qsfp1_axil_araddr,
+  input  wire          qsfp1_axil_arvalid,
+  output wire          qsfp1_axil_arready,
+  output wire [  31:0] qsfp1_axil_rdata,
+  output wire [   1:0] qsfp1_axil_rresp,
+  output wire          qsfp1_axil_rvalid,
+  input  wire          qsfp1_axil_rready,
+  input  wire          qsfp1_axi_rst,
+  input  wire          qsfp1_axi_clk,
+  output wire [  48:0] qsfp1_axi_araddr,
+  output wire [   1:0] qsfp1_axi_arburst,
+  output wire [   3:0] qsfp1_axi_arcache,
+  output wire [   7:0] qsfp1_axi_arlen,
+  output wire [   0:0] qsfp1_axi_arlock,
+  output wire [   2:0] qsfp1_axi_arprot,
+  output wire [   3:0] qsfp1_axi_arqos,
+  input  wire          qsfp1_axi_arready,
+  output wire [   2:0] qsfp1_axi_arsize,
+  output wire          qsfp1_axi_arvalid,
+  output wire [  48:0] qsfp1_axi_awaddr,
+  output wire [   1:0] qsfp1_axi_awburst,
+  output wire [   3:0] qsfp1_axi_awcache,
+  output wire [   7:0] qsfp1_axi_awlen,
+  output wire [   0:0] qsfp1_axi_awlock,
+  output wire [   2:0] qsfp1_axi_awprot,
+  output wire [   3:0] qsfp1_axi_awqos,
+  input  wire          qsfp1_axi_awready,
+  output wire [   2:0] qsfp1_axi_awsize,
+  output wire          qsfp1_axi_awvalid,
+  output wire          qsfp1_axi_bready,
+  input  wire [   1:0] qsfp1_axi_bresp,
+  input  wire          qsfp1_axi_bvalid,
+  input  wire [ 127:0] qsfp1_axi_rdata,
+  input  wire          qsfp1_axi_rlast,
+  output wire          qsfp1_axi_rready,
+  input  wire [   1:0] qsfp1_axi_rresp,
+  input  wire          qsfp1_axi_rvalid,
+  output wire [ 127:0] qsfp1_axi_wdata,
+  output wire          qsfp1_axi_wlast,
+  input  wire          qsfp1_axi_wready,
+  output wire [  15:0] qsfp1_axi_wstrb,
+  output wire          qsfp1_axi_wvalid,
+
   // AXI-Lite interface (for motherboard registers)
   input                     s_axi_aclk,
   input                     s_axi_aresetn,
@@ -128,8 +260,8 @@ module x4xx_core #(
   input         pll_sync_done,
   output [ 7:0] pps_brc_delay,
   output [25:0] pps_prc_delay,
-  output [ 1:0] prc_rc0_divider,
-  output [ 1:0] prc_rc1_divider,
+  output [ 4:0] prc_rc0_divider,
+  output [ 4:0] prc_rc1_divider,
   output        pps_rc_enabled,
 
   // Radio Data
@@ -142,26 +274,15 @@ module x4xx_core #(
   output [             NUM_CHANNELS-1:0] tx_running,
 
   // DMA
-  output [DMA_W-1:0] dmao_tdata,
-  output             dmao_tlast,
-  output             dmao_tvalid,
-  input              dmao_tready,
+  output [CHDR_W-1:0] m_dma_tdata,
+  output              m_dma_tlast,
+  output              m_dma_tvalid,
+  input               m_dma_tready,
 
-  input  [DMA_W-1:0] dmai_tdata,
-  input              dmai_tlast,
-  input              dmai_tvalid,
-  output             dmai_tready,
-
-  // e2v (Ethernet to CHDR)
-  output [ENET_W*8-1:0] v2e_tdata,
-  output [       8-1:0] v2e_tvalid,
-  output [       8-1:0] v2e_tlast,
-  input  [       8-1:0] v2e_tready,
-  // v2e (CHDR to Ethernet)
-  input  [ENET_W*8-1:0] e2v_tdata,
-  input  [       8-1:0] e2v_tlast,
-  input  [       8-1:0] e2v_tvalid,
-  output [       8-1:0] e2v_tready,
+  input  [CHDR_W-1:0] s_dma_tdata,
+  input               s_dma_tlast,
+  input               s_dma_tvalid,
+  output              s_dma_tready,
 
   // GPIO to DIO board (Domain: rfnoc_ctrl_clk)
   output wire [11:0] gpio_en_a,
@@ -205,11 +326,19 @@ module x4xx_core #(
   input  wire [  2*NUM_DBOARDS-1:0] m_ctrlport_radio_resp_status,
   input  wire [ 32*NUM_DBOARDS-1:0] m_ctrlport_radio_resp_data,
 
+  output wire [  1*NUM_DBOARDS-1:0] m_ctrlport_rf_core_req_wr,
+  output wire [  1*NUM_DBOARDS-1:0] m_ctrlport_rf_core_req_rd,
+  output wire [ 20*NUM_DBOARDS-1:0] m_ctrlport_rf_core_req_addr,
+  output wire [ 32*NUM_DBOARDS-1:0] m_ctrlport_rf_core_req_data,
+  input  wire [  1*NUM_DBOARDS-1:0] m_ctrlport_rf_core_resp_ack,
+  input  wire [  2*NUM_DBOARDS-1:0] m_ctrlport_rf_core_resp_status,
+  input  wire [ 32*NUM_DBOARDS-1:0] m_ctrlport_rf_core_resp_data,
+
   // RF Reset Control
-  output wire start_nco_reset,
-  input  wire nco_reset_done,
-  output wire adc_reset_pulse,
-  output wire dac_reset_pulse,
+  output wire                       start_nco_reset,
+  input  wire                       nco_reset_done,
+  output wire [NUM_TIMEKEEPERS-1:0] adc_reset_pulse,
+  output wire [NUM_TIMEKEEPERS-1:0] dac_reset_pulse,
 
   // Version (Constant)
   // Each component consists of a 96-bit vector (refer to versioning_utils.vh)
@@ -299,9 +428,11 @@ module x4xx_core #(
   wire [  2*NUM_DBOARDS-1:0] ctrlport_radio_resp_status;
   wire [ 32*NUM_DBOARDS-1:0] ctrlport_radio_resp_data;
 
+  wire [95:0] device_dna;
+
   x4xx_core_common #(
     .CHDR_CLK_RATE   (CHDR_CLK_RATE),
-    .CHDR_W          (NET_CHDR_W),
+    .CHDR_W          (CHDR_W),
     .RFNOC_PROTOVER  (RFNOC_PROTOVER),
     .NUM_DBOARDS     (NUM_DBOARDS),
     .NUM_CH_PER_DB   (NUM_CH_PER_DB),
@@ -378,6 +509,13 @@ module x4xx_core #(
     .m_radio_ctrlport_resp_ack        (m_ctrlport_radio_resp_ack),
     .m_radio_ctrlport_resp_status     (m_ctrlport_radio_resp_status),
     .m_radio_ctrlport_resp_data       (m_ctrlport_radio_resp_data),
+    .m_rf_core_ctrlport_req_wr        (m_ctrlport_rf_core_req_wr),
+    .m_rf_core_ctrlport_req_rd        (m_ctrlport_rf_core_req_rd),
+    .m_rf_core_ctrlport_req_addr      (m_ctrlport_rf_core_req_addr),
+    .m_rf_core_ctrlport_req_data      (m_ctrlport_rf_core_req_data),
+    .m_rf_core_ctrlport_resp_ack      (m_ctrlport_rf_core_resp_ack),
+    .m_rf_core_ctrlport_resp_status   (m_ctrlport_rf_core_resp_status),
+    .m_rf_core_ctrlport_resp_data     (m_ctrlport_rf_core_resp_data),
     .start_nco_reset                  (start_nco_reset),
     .nco_reset_done                   (nco_reset_done),
     .adc_reset_pulse                  (adc_reset_pulse),
@@ -396,11 +534,17 @@ module x4xx_core #(
     .mfg_test_en_fabric_clk           (mfg_test_en_fabric_clk),
     .mfg_test_en_gty_rcv_clk          (mfg_test_en_gty_rcv_clk),
     .fpga_aux_ref                     (fpga_aux_ref),
-    .version_info                     (version_info)
+    .version_info                     (version_info),
+    .device_dna                       (device_dna)
   );
 
   // Provide information for ctrlport timed commands
-  assign radio_time_stb = rx_stb[0];
+  genvar tk_i;
+  generate
+    for (tk_i = 0; tk_i < NUM_TIMEKEEPERS; tk_i = tk_i + 1) begin : gen_time_stb
+      assign radio_time_stb[tk_i] = rx_stb[tk_i*NUM_CH_PER_DB];
+    end
+  endgenerate
 
 
   //---------------------------------------------------------------------------
@@ -410,13 +554,17 @@ module x4xx_core #(
   `ifndef DRAM_CH
     `define DRAM_CH 0
   `endif
+  `ifndef DRAM_BANKS
+    `define DRAM_BANKS 0
+  `endif
   `ifndef DRAM_W
     `define DRAM_W 64
   `endif
 
-  localparam DRAM_AXI_DWIDTH = `DRAM_W;
-  localparam ENABLE_DRAM     = (`DRAM_CH > 0);
-  localparam DRAM_NUM_PORTS  = `DRAM_CH;
+  localparam ENABLE_DRAM         = (`DRAM_CH > 0 && `DRAM_BANKS > 0);
+  localparam DRAM_AXI_DWIDTH     = `DRAM_W;
+  localparam DRAM_NUM_BANKS      = ENABLE_DRAM ? `DRAM_BANKS               : 1;
+  localparam DRAM_PORTS_PER_BANK = ENABLE_DRAM ? `DRAM_CH / DRAM_NUM_BANKS : 1;
 
   wire dram0_ui_clk;
   wire dram0_ui_clk_sync_rst;
@@ -425,50 +573,91 @@ module x4xx_core #(
   wire dram_rst = dram0_ui_clk_sync_rst;
   wire sys_rst  = rfnoc_chdr_rst;
 
-  wire [               32*DRAM_NUM_PORTS-1:0] dram_axi_araddr;
-  wire [                2*DRAM_NUM_PORTS-1:0] dram_axi_arburst;
-  wire [                4*DRAM_NUM_PORTS-1:0] dram_axi_arcache;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_arid;
-  wire [                8*DRAM_NUM_PORTS-1:0] dram_axi_arlen;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_arlock;
-  wire [                3*DRAM_NUM_PORTS-1:0] dram_axi_arprot;
-  wire [                4*DRAM_NUM_PORTS-1:0] dram_axi_arqos;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_arready;
-  wire [                4*DRAM_NUM_PORTS-1:0] dram_axi_arregion;
-  wire [                3*DRAM_NUM_PORTS-1:0] dram_axi_arsize;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_arvalid;
-  wire [               32*DRAM_NUM_PORTS-1:0] dram_axi_awaddr;
-  wire [                2*DRAM_NUM_PORTS-1:0] dram_axi_awburst;
-  wire [                4*DRAM_NUM_PORTS-1:0] dram_axi_awcache;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_awid;
-  wire [                8*DRAM_NUM_PORTS-1:0] dram_axi_awlen;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_awlock;
-  wire [                3*DRAM_NUM_PORTS-1:0] dram_axi_awprot;
-  wire [                4*DRAM_NUM_PORTS-1:0] dram_axi_awqos;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_awready;
-  wire [                4*DRAM_NUM_PORTS-1:0] dram_axi_awregion;
-  wire [                3*DRAM_NUM_PORTS-1:0] dram_axi_awsize;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_awvalid;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_bid;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_bready;
-  wire [                2*DRAM_NUM_PORTS-1:0] dram_axi_bresp;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_bvalid;
-  wire [  DRAM_AXI_DWIDTH*DRAM_NUM_PORTS-1:0] dram_axi_rdata;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_rid;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_rlast;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_rready;
-  wire [                2*DRAM_NUM_PORTS-1:0] dram_axi_rresp;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_rvalid;
-  wire [  DRAM_AXI_DWIDTH*DRAM_NUM_PORTS-1:0] dram_axi_wdata;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_wlast;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_wready;
-  wire [DRAM_AXI_DWIDTH/8*DRAM_NUM_PORTS-1:0] dram_axi_wstrb;
-  wire [                1*DRAM_NUM_PORTS-1:0] dram_axi_wvalid;
+  wire [               32*DRAM_PORTS_PER_BANK-1:0] dram0_axi_araddr;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arburst;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arcache;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arid;
+  wire [                8*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arlen;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arlock;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arprot;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arqos;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arready;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arregion;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arsize;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_arvalid;
+  wire [               32*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awaddr;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awburst;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awcache;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awid;
+  wire [                8*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awlen;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awlock;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awprot;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awqos;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awready;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awregion;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awsize;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_awvalid;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_bid;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_bready;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram0_axi_bresp;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_bvalid;
+  wire [  DRAM_AXI_DWIDTH*DRAM_PORTS_PER_BANK-1:0] dram0_axi_rdata;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_rid;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_rlast;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_rready;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram0_axi_rresp;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_rvalid;
+  wire [  DRAM_AXI_DWIDTH*DRAM_PORTS_PER_BANK-1:0] dram0_axi_wdata;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_wlast;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_wready;
+  wire [DRAM_AXI_DWIDTH/8*DRAM_PORTS_PER_BANK-1:0] dram0_axi_wstrb;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram0_axi_wvalid;
+
+  wire [               32*DRAM_PORTS_PER_BANK-1:0] dram1_axi_araddr;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arburst;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arcache;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arid;
+  wire [                8*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arlen;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arlock;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arprot;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arqos;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arready;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arregion;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arsize;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_arvalid;
+  wire [               32*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awaddr;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awburst;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awcache;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awid;
+  wire [                8*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awlen;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awlock;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awprot;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awqos;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awready;
+  wire [                4*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awregion;
+  wire [                3*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awsize;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_awvalid;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_bid;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_bready;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram1_axi_bresp;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_bvalid;
+  wire [  DRAM_AXI_DWIDTH*DRAM_PORTS_PER_BANK-1:0] dram1_axi_rdata;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_rid;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_rlast;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_rready;
+  wire [                2*DRAM_PORTS_PER_BANK-1:0] dram1_axi_rresp;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_rvalid;
+  wire [  DRAM_AXI_DWIDTH*DRAM_PORTS_PER_BANK-1:0] dram1_axi_wdata;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_wlast;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_wready;
+  wire [DRAM_AXI_DWIDTH/8*DRAM_PORTS_PER_BANK-1:0] dram1_axi_wstrb;
+  wire [                1*DRAM_PORTS_PER_BANK-1:0] dram1_axi_wvalid;
 
   x4xx_dram #(
-    .ENABLE_DRAM (ENABLE_DRAM),
-    .AXI_DWIDTH  (DRAM_AXI_DWIDTH),
-    .NUM_PORTS   (DRAM_NUM_PORTS)
+    .ENABLE_DRAM    (ENABLE_DRAM),
+    .AXI_DWIDTH     (DRAM_AXI_DWIDTH),
+    .NUM_BANKS      (DRAM_NUM_BANKS),
+    .PORTS_PER_BANK (DRAM_PORTS_PER_BANK)
   ) x4xx_dram_i (
     .sys_rst                  (sys_rst),
     .dram0_sys_clk_p          (dram0_sys_clk_p),
@@ -510,45 +699,84 @@ module x4xx_core #(
     .dram_clk                 (dram_clk),
     .dram_rst                 (dram_rst),
     .dram_init_calib_complete (),
-    .dram_axi_araddr          (dram_axi_araddr),
-    .dram_axi_arburst         (dram_axi_arburst),
-    .dram_axi_arcache         (dram_axi_arcache),
-    .dram_axi_arid            (dram_axi_arid),
-    .dram_axi_arlen           (dram_axi_arlen),
-    .dram_axi_arlock          (dram_axi_arlock),
-    .dram_axi_arprot          (dram_axi_arprot),
-    .dram_axi_arqos           (dram_axi_arqos),
-    .dram_axi_arready         (dram_axi_arready),
-    .dram_axi_arregion        (dram_axi_arregion),
-    .dram_axi_arsize          (dram_axi_arsize),
-    .dram_axi_arvalid         (dram_axi_arvalid),
-    .dram_axi_awaddr          (dram_axi_awaddr),
-    .dram_axi_awburst         (dram_axi_awburst),
-    .dram_axi_awcache         (dram_axi_awcache),
-    .dram_axi_awid            (dram_axi_awid),
-    .dram_axi_awlen           (dram_axi_awlen),
-    .dram_axi_awlock          (dram_axi_awlock),
-    .dram_axi_awprot          (dram_axi_awprot),
-    .dram_axi_awqos           (dram_axi_awqos),
-    .dram_axi_awready         (dram_axi_awready),
-    .dram_axi_awregion        (dram_axi_awregion),
-    .dram_axi_awsize          (dram_axi_awsize),
-    .dram_axi_awvalid         (dram_axi_awvalid),
-    .dram_axi_bid             (dram_axi_bid),
-    .dram_axi_bready          (dram_axi_bready),
-    .dram_axi_bresp           (dram_axi_bresp),
-    .dram_axi_bvalid          (dram_axi_bvalid),
-    .dram_axi_rdata           (dram_axi_rdata),
-    .dram_axi_rid             (dram_axi_rid),
-    .dram_axi_rlast           (dram_axi_rlast),
-    .dram_axi_rready          (dram_axi_rready),
-    .dram_axi_rresp           (dram_axi_rresp),
-    .dram_axi_rvalid          (dram_axi_rvalid),
-    .dram_axi_wdata           (dram_axi_wdata),
-    .dram_axi_wlast           (dram_axi_wlast),
-    .dram_axi_wready          (dram_axi_wready),
-    .dram_axi_wstrb           (dram_axi_wstrb),
-    .dram_axi_wvalid          (dram_axi_wvalid)
+    .dram0_axi_araddr         (dram0_axi_araddr),
+    .dram0_axi_arburst        (dram0_axi_arburst),
+    .dram0_axi_arcache        (dram0_axi_arcache),
+    .dram0_axi_arid           (dram0_axi_arid),
+    .dram0_axi_arlen          (dram0_axi_arlen),
+    .dram0_axi_arlock         (dram0_axi_arlock),
+    .dram0_axi_arprot         (dram0_axi_arprot),
+    .dram0_axi_arqos          (dram0_axi_arqos),
+    .dram0_axi_arready        (dram0_axi_arready),
+    .dram0_axi_arregion       (dram0_axi_arregion),
+    .dram0_axi_arsize         (dram0_axi_arsize),
+    .dram0_axi_arvalid        (dram0_axi_arvalid),
+    .dram0_axi_awaddr         (dram0_axi_awaddr),
+    .dram0_axi_awburst        (dram0_axi_awburst),
+    .dram0_axi_awcache        (dram0_axi_awcache),
+    .dram0_axi_awid           (dram0_axi_awid),
+    .dram0_axi_awlen          (dram0_axi_awlen),
+    .dram0_axi_awlock         (dram0_axi_awlock),
+    .dram0_axi_awprot         (dram0_axi_awprot),
+    .dram0_axi_awqos          (dram0_axi_awqos),
+    .dram0_axi_awready        (dram0_axi_awready),
+    .dram0_axi_awregion       (dram0_axi_awregion),
+    .dram0_axi_awsize         (dram0_axi_awsize),
+    .dram0_axi_awvalid        (dram0_axi_awvalid),
+    .dram0_axi_bid            (dram0_axi_bid),
+    .dram0_axi_bready         (dram0_axi_bready),
+    .dram0_axi_bresp          (dram0_axi_bresp),
+    .dram0_axi_bvalid         (dram0_axi_bvalid),
+    .dram0_axi_rdata          (dram0_axi_rdata),
+    .dram0_axi_rid            (dram0_axi_rid),
+    .dram0_axi_rlast          (dram0_axi_rlast),
+    .dram0_axi_rready         (dram0_axi_rready),
+    .dram0_axi_rresp          (dram0_axi_rresp),
+    .dram0_axi_rvalid         (dram0_axi_rvalid),
+    .dram0_axi_wdata          (dram0_axi_wdata),
+    .dram0_axi_wlast          (dram0_axi_wlast),
+    .dram0_axi_wready         (dram0_axi_wready),
+    .dram0_axi_wstrb          (dram0_axi_wstrb),
+    .dram0_axi_wvalid         (dram0_axi_wvalid),
+    .dram1_axi_araddr         (dram1_axi_araddr),
+    .dram1_axi_arburst        (dram1_axi_arburst),
+    .dram1_axi_arcache        (dram1_axi_arcache),
+    .dram1_axi_arid           (dram1_axi_arid),
+    .dram1_axi_arlen          (dram1_axi_arlen),
+    .dram1_axi_arlock         (dram1_axi_arlock),
+    .dram1_axi_arprot         (dram1_axi_arprot),
+    .dram1_axi_arqos          (dram1_axi_arqos),
+    .dram1_axi_arready        (dram1_axi_arready),
+    .dram1_axi_arregion       (dram1_axi_arregion),
+    .dram1_axi_arsize         (dram1_axi_arsize),
+    .dram1_axi_arvalid        (dram1_axi_arvalid),
+    .dram1_axi_awaddr         (dram1_axi_awaddr),
+    .dram1_axi_awburst        (dram1_axi_awburst),
+    .dram1_axi_awcache        (dram1_axi_awcache),
+    .dram1_axi_awid           (dram1_axi_awid),
+    .dram1_axi_awlen          (dram1_axi_awlen),
+    .dram1_axi_awlock         (dram1_axi_awlock),
+    .dram1_axi_awprot         (dram1_axi_awprot),
+    .dram1_axi_awqos          (dram1_axi_awqos),
+    .dram1_axi_awready        (dram1_axi_awready),
+    .dram1_axi_awregion       (dram1_axi_awregion),
+    .dram1_axi_awsize         (dram1_axi_awsize),
+    .dram1_axi_awvalid        (dram1_axi_awvalid),
+    .dram1_axi_bid            (dram1_axi_bid),
+    .dram1_axi_bready         (dram1_axi_bready),
+    .dram1_axi_bresp          (dram1_axi_bresp),
+    .dram1_axi_bvalid         (dram1_axi_bvalid),
+    .dram1_axi_rdata          (dram1_axi_rdata),
+    .dram1_axi_rid            (dram1_axi_rid),
+    .dram1_axi_rlast          (dram1_axi_rlast),
+    .dram1_axi_rready         (dram1_axi_rready),
+    .dram1_axi_rresp          (dram1_axi_rresp),
+    .dram1_axi_rvalid         (dram1_axi_rvalid),
+    .dram1_axi_wdata          (dram1_axi_wdata),
+    .dram1_axi_wlast          (dram1_axi_wlast),
+    .dram1_axi_wready         (dram1_axi_wready),
+    .dram1_axi_wstrb          (dram1_axi_wstrb),
+    .dram1_axi_wvalid         (dram1_axi_wvalid)
   );
 
 
@@ -582,33 +810,28 @@ module x4xx_core #(
   assign tx_running = { tx_running1, tx_running0};
   assign tx_data    = { tx_data1, tx_data0};
 
-  localparam PORT_W  = 512;  // Set to max value; unused bits will be ignored.
-  localparam ENET0_W = ENET_WIDTHS[32*0 +: 32];
-  localparam ENET1_W = ENET_WIDTHS[32*1 +: 32];
-  localparam ENET2_W = ENET_WIDTHS[32*2 +: 32];
-  localparam ENET3_W = ENET_WIDTHS[32*3 +: 32];
-  localparam ENET4_W = ENET_WIDTHS[32*4 +: 32];
-
   rfnoc_image_core #(
     .CHDR_W     (CHDR_W),
-    .PORT_W     (PORT_W),
-    .ETH0_W     (ENET0_W),
-    .ETH1_W     (ENET1_W),
-    .ETH2_W     (ENET2_W),
-    .ETH3_W     (ENET3_W),
-    .ETH4_W     (ENET4_W),
-    .DMA_W      (DMA_W),
     .MTU        (MTU),
     .PROTOVER   (RFNOC_PROTOVER),
     .RADIO_NIPC (RADIO_SPC)
   ) rfnoc_image_core_i (
     .chdr_aclk                      (rfnoc_chdr_clk),
     .ctrl_aclk                      (rfnoc_ctrl_clk),
-    .core_arst                      (rfnoc_ctrl_rst),
+    .core_arst                      (areset),
+  `ifdef X440
+    .radio0_clk                     (radio_clk[0]),
+    .radio0_2x_clk                  (radio_clk_2x[0]),
+    .radio1_clk                     (radio_clk[1]),
+    .radio1_2x_clk                  (radio_clk_2x[1]),
+  `else
     .radio_clk                      (radio_clk[0]),
     .radio_2x_clk                   (radio_clk_2x[0]),
+  `endif
     .dram_clk                       (dram_clk),
+    .ce_clk                         (ce_clk),
     .device_id                      (device_id),
+    .dna                            (device_dna),
     .m_ctrlport_radio0_req_wr       (ctrlport_radio_req_wr      [0* 1+: 1]),
     .m_ctrlport_radio0_req_rd       (ctrlport_radio_req_rd      [0* 1+: 1]),
     .m_ctrlport_radio0_req_addr     (ctrlport_radio_req_addr    [0*20+:20]),
@@ -641,100 +864,249 @@ module x4xx_core #(
     .radio_tx_stb_radio0            ({       tx_stb0}),
     .radio_tx_data_radio0           ({      tx_data0}),
     .radio_tx_running_radio0        ({   tx_running0}),
+  `ifdef X440
+    .radio_time0                    (radio_time[0*64+:64]),
+    .radio_time1                    (radio_time[1*64+:64]),
+    .pps0                           (pps_radioclk[0]     ),
+    .pps1                           (pps_radioclk[1]     ),
+  `else
     .radio_time                     (radio_time[0*64+:64]),
-    .axi_rst                        (dram_rst),
-    .m_axi_awid                     (dram_axi_awid),
-    .m_axi_awaddr                   (dram_axi_awaddr),
-    .m_axi_awlen                    (dram_axi_awlen),
-    .m_axi_awsize                   (dram_axi_awsize),
-    .m_axi_awburst                  (dram_axi_awburst),
-    .m_axi_awlock                   (dram_axi_awlock),
-    .m_axi_awcache                  (dram_axi_awcache),
-    .m_axi_awprot                   (dram_axi_awprot),
-    .m_axi_awqos                    (dram_axi_awqos),
-    .m_axi_awregion                 (dram_axi_awregion),
-    .m_axi_awuser                   (),
-    .m_axi_awvalid                  (dram_axi_awvalid),
-    .m_axi_awready                  (dram_axi_awready),
-    .m_axi_wdata                    (dram_axi_wdata),
-    .m_axi_wstrb                    (dram_axi_wstrb),
-    .m_axi_wlast                    (dram_axi_wlast),
-    .m_axi_wuser                    (),
-    .m_axi_wvalid                   (dram_axi_wvalid),
-    .m_axi_wready                   (dram_axi_wready),
-    .m_axi_bid                      (dram_axi_bid),
-    .m_axi_bresp                    (dram_axi_bresp),
-    .m_axi_buser                    (0),
-    .m_axi_bvalid                   (dram_axi_bvalid),
-    .m_axi_bready                   (dram_axi_bready),
-    .m_axi_arid                     (dram_axi_arid),
-    .m_axi_araddr                   (dram_axi_araddr),
-    .m_axi_arlen                    (dram_axi_arlen),
-    .m_axi_arsize                   (dram_axi_arsize),
-    .m_axi_arburst                  (dram_axi_arburst),
-    .m_axi_arlock                   (dram_axi_arlock),
-    .m_axi_arcache                  (dram_axi_arcache),
-    .m_axi_arprot                   (dram_axi_arprot),
-    .m_axi_arqos                    (dram_axi_arqos),
-    .m_axi_arregion                 (dram_axi_arregion),
-    .m_axi_aruser                   (),
-    .m_axi_arvalid                  (dram_axi_arvalid),
-    .m_axi_arready                  (dram_axi_arready),
-    .m_axi_rid                      (dram_axi_rid),
-    .m_axi_rdata                    (dram_axi_rdata),
-    .m_axi_rresp                    (dram_axi_rresp),
-    .m_axi_rlast                    (dram_axi_rlast),
-    .m_axi_ruser                    (0),
-    .m_axi_rvalid                   (dram_axi_rvalid),
-    .m_axi_rready                   (dram_axi_rready),
-    .s_eth0_tdata                   (e2v_tdata  [0*ENET_W +: ENET0_W]),
-    .s_eth0_tlast                   (e2v_tlast  [0*     1 +:       1]),
-    .s_eth0_tvalid                  (e2v_tvalid [0*     1 +:       1]),
-    .s_eth0_tready                  (e2v_tready [0*     1 +:       1]),
-    .m_eth0_tdata                   (v2e_tdata  [0*ENET_W +: ENET0_W]),
-    .m_eth0_tlast                   (v2e_tlast  [0*     1 +:       1]),
-    .m_eth0_tvalid                  (v2e_tvalid [0*     1 +:       1]),
-    .m_eth0_tready                  (v2e_tready [0*     1 +:       1]),
-    .s_eth1_tdata                   (e2v_tdata  [1*ENET_W +: ENET1_W]),
-    .s_eth1_tlast                   (e2v_tlast  [1*     1 +:       1]),
-    .s_eth1_tvalid                  (e2v_tvalid [1*     1 +:       1]),
-    .s_eth1_tready                  (e2v_tready [1*     1 +:       1]),
-    .m_eth1_tdata                   (v2e_tdata  [1*ENET_W +: ENET1_W]),
-    .m_eth1_tlast                   (v2e_tlast  [1*     1 +:       1]),
-    .m_eth1_tvalid                  (v2e_tvalid [1*     1 +:       1]),
-    .m_eth1_tready                  (v2e_tready [1*     1 +:       1]),
-    .s_eth2_tdata                   (e2v_tdata  [2*ENET_W +: ENET2_W]),
-    .s_eth2_tlast                   (e2v_tlast  [2*     1 +:       1]),
-    .s_eth2_tvalid                  (e2v_tvalid [2*     1 +:       1]),
-    .s_eth2_tready                  (e2v_tready [2*     1 +:       1]),
-    .m_eth2_tdata                   (v2e_tdata  [2*ENET_W +: ENET2_W]),
-    .m_eth2_tlast                   (v2e_tlast  [2*     1 +:       1]),
-    .m_eth2_tvalid                  (v2e_tvalid [2*     1 +:       1]),
-    .m_eth2_tready                  (v2e_tready [2*     1 +:       1]),
-    .s_eth3_tdata                   (e2v_tdata  [3*ENET_W +: ENET3_W]),
-    .s_eth3_tlast                   (e2v_tlast  [3*     1 +:       1]),
-    .s_eth3_tvalid                  (e2v_tvalid [3*     1 +:       1]),
-    .s_eth3_tready                  (e2v_tready [3*     1 +:       1]),
-    .m_eth3_tdata                   (v2e_tdata  [3*ENET_W +: ENET3_W]),
-    .m_eth3_tlast                   (v2e_tlast  [3*     1 +:       1]),
-    .m_eth3_tvalid                  (v2e_tvalid [3*     1 +:       1]),
-    .m_eth3_tready                  (v2e_tready [3*     1 +:       1]),
-    .s_eth4_tdata                   (e2v_tdata  [4*ENET_W +: ENET4_W]),
-    .s_eth4_tlast                   (e2v_tlast  [4*     1 +:       1]),
-    .s_eth4_tvalid                  (e2v_tvalid [4*     1 +:       1]),
-    .s_eth4_tready                  (e2v_tready [4*     1 +:       1]),
-    .m_eth4_tdata                   (v2e_tdata  [4*ENET_W +: ENET4_W]),
-    .m_eth4_tlast                   (v2e_tlast  [4*     1 +:       1]),
-    .m_eth4_tvalid                  (v2e_tvalid [4*     1 +:       1]),
-    .m_eth4_tready                  (v2e_tready [4*     1 +:       1]),
-    .s_dma_tdata                    (dmai_tdata),
-    .s_dma_tlast                    (dmai_tlast),
-    .s_dma_tvalid                   (dmai_tvalid),
-    .s_dma_tready                   (dmai_tready),
-    .m_dma_tdata                    (dmao_tdata),
-    .m_dma_tlast                    (dmao_tlast),
-    .m_dma_tvalid                   (dmao_tvalid),
-    .m_dma_tready                   (dmao_tready)
+    .pps                            (pps_radioclk[0]     ),
+  `endif
+    .dram0_axi_rst                  (dram_rst),
+    .dram0_m_axi_awid               (dram0_axi_awid),
+    .dram0_m_axi_awaddr             (dram0_axi_awaddr),
+    .dram0_m_axi_awlen              (dram0_axi_awlen),
+    .dram0_m_axi_awsize             (dram0_axi_awsize),
+    .dram0_m_axi_awburst            (dram0_axi_awburst),
+    .dram0_m_axi_awlock             (dram0_axi_awlock),
+    .dram0_m_axi_awcache            (dram0_axi_awcache),
+    .dram0_m_axi_awprot             (dram0_axi_awprot),
+    .dram0_m_axi_awqos              (dram0_axi_awqos),
+    .dram0_m_axi_awregion           (dram0_axi_awregion),
+    .dram0_m_axi_awuser             (),
+    .dram0_m_axi_awvalid            (dram0_axi_awvalid),
+    .dram0_m_axi_awready            (dram0_axi_awready),
+    .dram0_m_axi_wdata              (dram0_axi_wdata),
+    .dram0_m_axi_wstrb              (dram0_axi_wstrb),
+    .dram0_m_axi_wlast              (dram0_axi_wlast),
+    .dram0_m_axi_wuser              (),
+    .dram0_m_axi_wvalid             (dram0_axi_wvalid),
+    .dram0_m_axi_wready             (dram0_axi_wready),
+    .dram0_m_axi_bid                (dram0_axi_bid),
+    .dram0_m_axi_bresp              (dram0_axi_bresp),
+    .dram0_m_axi_buser              (0),
+    .dram0_m_axi_bvalid             (dram0_axi_bvalid),
+    .dram0_m_axi_bready             (dram0_axi_bready),
+    .dram0_m_axi_arid               (dram0_axi_arid),
+    .dram0_m_axi_araddr             (dram0_axi_araddr),
+    .dram0_m_axi_arlen              (dram0_axi_arlen),
+    .dram0_m_axi_arsize             (dram0_axi_arsize),
+    .dram0_m_axi_arburst            (dram0_axi_arburst),
+    .dram0_m_axi_arlock             (dram0_axi_arlock),
+    .dram0_m_axi_arcache            (dram0_axi_arcache),
+    .dram0_m_axi_arprot             (dram0_axi_arprot),
+    .dram0_m_axi_arqos              (dram0_axi_arqos),
+    .dram0_m_axi_arregion           (dram0_axi_arregion),
+    .dram0_m_axi_aruser             (),
+    .dram0_m_axi_arvalid            (dram0_axi_arvalid),
+    .dram0_m_axi_arready            (dram0_axi_arready),
+    .dram0_m_axi_rid                (dram0_axi_rid),
+    .dram0_m_axi_rdata              (dram0_axi_rdata),
+    .dram0_m_axi_rresp              (dram0_axi_rresp),
+    .dram0_m_axi_rlast              (dram0_axi_rlast),
+    .dram0_m_axi_ruser              (0),
+    .dram0_m_axi_rvalid             (dram0_axi_rvalid),
+    .dram0_m_axi_rready             (dram0_axi_rready),
+    .dram1_axi_rst                  (dram_rst),
+    .dram1_m_axi_awid               (dram1_axi_awid),
+    .dram1_m_axi_awaddr             (dram1_axi_awaddr),
+    .dram1_m_axi_awlen              (dram1_axi_awlen),
+    .dram1_m_axi_awsize             (dram1_axi_awsize),
+    .dram1_m_axi_awburst            (dram1_axi_awburst),
+    .dram1_m_axi_awlock             (dram1_axi_awlock),
+    .dram1_m_axi_awcache            (dram1_axi_awcache),
+    .dram1_m_axi_awprot             (dram1_axi_awprot),
+    .dram1_m_axi_awqos              (dram1_axi_awqos),
+    .dram1_m_axi_awregion           (dram1_axi_awregion),
+    .dram1_m_axi_awuser             (),
+    .dram1_m_axi_awvalid            (dram1_axi_awvalid),
+    .dram1_m_axi_awready            (dram1_axi_awready),
+    .dram1_m_axi_wdata              (dram1_axi_wdata),
+    .dram1_m_axi_wstrb              (dram1_axi_wstrb),
+    .dram1_m_axi_wlast              (dram1_axi_wlast),
+    .dram1_m_axi_wuser              (),
+    .dram1_m_axi_wvalid             (dram1_axi_wvalid),
+    .dram1_m_axi_wready             (dram1_axi_wready),
+    .dram1_m_axi_bid                (dram1_axi_bid),
+    .dram1_m_axi_bresp              (dram1_axi_bresp),
+    .dram1_m_axi_buser              (0),
+    .dram1_m_axi_bvalid             (dram1_axi_bvalid),
+    .dram1_m_axi_bready             (dram1_axi_bready),
+    .dram1_m_axi_arid               (dram1_axi_arid),
+    .dram1_m_axi_araddr             (dram1_axi_araddr),
+    .dram1_m_axi_arlen              (dram1_axi_arlen),
+    .dram1_m_axi_arsize             (dram1_axi_arsize),
+    .dram1_m_axi_arburst            (dram1_axi_arburst),
+    .dram1_m_axi_arlock             (dram1_axi_arlock),
+    .dram1_m_axi_arcache            (dram1_axi_arcache),
+    .dram1_m_axi_arprot             (dram1_axi_arprot),
+    .dram1_m_axi_arqos              (dram1_axi_arqos),
+    .dram1_m_axi_arregion           (dram1_axi_arregion),
+    .dram1_m_axi_aruser             (),
+    .dram1_m_axi_arvalid            (dram1_axi_arvalid),
+    .dram1_m_axi_arready            (dram1_axi_arready),
+    .dram1_m_axi_rid                (dram1_axi_rid),
+    .dram1_m_axi_rdata              (dram1_axi_rdata),
+    .dram1_m_axi_rresp              (dram1_axi_rresp),
+    .dram1_m_axi_rlast              (dram1_axi_rlast),
+    .dram1_m_axi_ruser              (0),
+    .dram1_m_axi_rvalid             (dram1_axi_rvalid),
+    .dram1_m_axi_rready             (dram1_axi_rready),
+    .qsfp0_refclk_p                 (qsfp0_refclk_p),
+    .qsfp0_refclk_n                 (qsfp0_refclk_n),
+    .qsfp0_dclk                     (qsfp0_dclk),
+    .qsfp0_tx_p                     (qsfp0_tx_p),
+    .qsfp0_tx_n                     (qsfp0_tx_n),
+    .qsfp0_rx_p                     (qsfp0_rx_p),
+    .qsfp0_rx_n                     (qsfp0_rx_n),
+    .qsfp0_recovered_clk            (qsfp0_recovered_clk),
+    .qsfp0_device_id                (qsfp0_device_id),
+    .qsfp0_rx_irq                   (qsfp0_rx_irq),
+    .qsfp0_tx_irq                   (qsfp0_tx_irq),
+    .qsfp0_port_info                (qsfp0_port_info),
+    .qsfp0_link_up                  (qsfp0_link_up),
+    .qsfp0_activity                 (qsfp0_activity),
+    .qsfp0_axil_rst                 (qsfp0_axil_rst),
+    .qsfp0_axil_clk                 (qsfp0_axil_clk),
+    .qsfp0_axil_awaddr              (qsfp0_axil_awaddr),
+    .qsfp0_axil_awvalid             (qsfp0_axil_awvalid),
+    .qsfp0_axil_awready             (qsfp0_axil_awready),
+    .qsfp0_axil_wdata               (qsfp0_axil_wdata),
+    .qsfp0_axil_wstrb               (qsfp0_axil_wstrb),
+    .qsfp0_axil_wvalid              (qsfp0_axil_wvalid),
+    .qsfp0_axil_wready              (qsfp0_axil_wready),
+    .qsfp0_axil_bresp               (qsfp0_axil_bresp),
+    .qsfp0_axil_bvalid              (qsfp0_axil_bvalid),
+    .qsfp0_axil_bready              (qsfp0_axil_bready),
+    .qsfp0_axil_araddr              (qsfp0_axil_araddr),
+    .qsfp0_axil_arvalid             (qsfp0_axil_arvalid),
+    .qsfp0_axil_arready             (qsfp0_axil_arready),
+    .qsfp0_axil_rdata               (qsfp0_axil_rdata),
+    .qsfp0_axil_rresp               (qsfp0_axil_rresp),
+    .qsfp0_axil_rvalid              (qsfp0_axil_rvalid),
+    .qsfp0_axil_rready              (qsfp0_axil_rready),
+    .qsfp0_axi_rst                  (qsfp0_axi_rst),
+    .qsfp0_axi_clk                  (qsfp0_axi_clk),
+    .qsfp0_axi_araddr               (qsfp0_axi_araddr),
+    .qsfp0_axi_arburst              (qsfp0_axi_arburst),
+    .qsfp0_axi_arcache              (qsfp0_axi_arcache),
+    .qsfp0_axi_arlen                (qsfp0_axi_arlen),
+    .qsfp0_axi_arlock               (qsfp0_axi_arlock),
+    .qsfp0_axi_arprot               (qsfp0_axi_arprot),
+    .qsfp0_axi_arqos                (qsfp0_axi_arqos),
+    .qsfp0_axi_arready              (qsfp0_axi_arready),
+    .qsfp0_axi_arsize               (qsfp0_axi_arsize),
+    .qsfp0_axi_arvalid              (qsfp0_axi_arvalid),
+    .qsfp0_axi_awaddr               (qsfp0_axi_awaddr),
+    .qsfp0_axi_awburst              (qsfp0_axi_awburst),
+    .qsfp0_axi_awcache              (qsfp0_axi_awcache),
+    .qsfp0_axi_awlen                (qsfp0_axi_awlen),
+    .qsfp0_axi_awlock               (qsfp0_axi_awlock),
+    .qsfp0_axi_awprot               (qsfp0_axi_awprot),
+    .qsfp0_axi_awqos                (qsfp0_axi_awqos),
+    .qsfp0_axi_awready              (qsfp0_axi_awready),
+    .qsfp0_axi_awsize               (qsfp0_axi_awsize),
+    .qsfp0_axi_awvalid              (qsfp0_axi_awvalid),
+    .qsfp0_axi_bready               (qsfp0_axi_bready),
+    .qsfp0_axi_bresp                (qsfp0_axi_bresp),
+    .qsfp0_axi_bvalid               (qsfp0_axi_bvalid),
+    .qsfp0_axi_rdata                (qsfp0_axi_rdata),
+    .qsfp0_axi_rlast                (qsfp0_axi_rlast),
+    .qsfp0_axi_rready               (qsfp0_axi_rready),
+    .qsfp0_axi_rresp                (qsfp0_axi_rresp),
+    .qsfp0_axi_rvalid               (qsfp0_axi_rvalid),
+    .qsfp0_axi_wdata                (qsfp0_axi_wdata),
+    .qsfp0_axi_wlast                (qsfp0_axi_wlast),
+    .qsfp0_axi_wready               (qsfp0_axi_wready),
+    .qsfp0_axi_wstrb                (qsfp0_axi_wstrb),
+    .qsfp0_axi_wvalid               (qsfp0_axi_wvalid),
+    .qsfp1_refclk_p                 (qsfp1_refclk_p),
+    .qsfp1_refclk_n                 (qsfp1_refclk_n),
+    .qsfp1_dclk                     (qsfp1_dclk),
+    .qsfp1_tx_p                     (qsfp1_tx_p),
+    .qsfp1_tx_n                     (qsfp1_tx_n),
+    .qsfp1_rx_p                     (qsfp1_rx_p),
+    .qsfp1_rx_n                     (qsfp1_rx_n),
+    .qsfp1_recovered_clk            (qsfp1_recovered_clk),
+    .qsfp1_device_id                (qsfp1_device_id),
+    .qsfp1_rx_irq                   (qsfp1_rx_irq),
+    .qsfp1_tx_irq                   (qsfp1_tx_irq),
+    .qsfp1_port_info                (qsfp1_port_info),
+    .qsfp1_link_up                  (qsfp1_link_up),
+    .qsfp1_activity                 (qsfp1_activity),
+    .qsfp1_axil_rst                 (qsfp1_axil_rst),
+    .qsfp1_axil_clk                 (qsfp1_axil_clk),
+    .qsfp1_axil_awaddr              (qsfp1_axil_awaddr),
+    .qsfp1_axil_awvalid             (qsfp1_axil_awvalid),
+    .qsfp1_axil_awready             (qsfp1_axil_awready),
+    .qsfp1_axil_wdata               (qsfp1_axil_wdata),
+    .qsfp1_axil_wstrb               (qsfp1_axil_wstrb),
+    .qsfp1_axil_wvalid              (qsfp1_axil_wvalid),
+    .qsfp1_axil_wready              (qsfp1_axil_wready),
+    .qsfp1_axil_bresp               (qsfp1_axil_bresp),
+    .qsfp1_axil_bvalid              (qsfp1_axil_bvalid),
+    .qsfp1_axil_bready              (qsfp1_axil_bready),
+    .qsfp1_axil_araddr              (qsfp1_axil_araddr),
+    .qsfp1_axil_arvalid             (qsfp1_axil_arvalid),
+    .qsfp1_axil_arready             (qsfp1_axil_arready),
+    .qsfp1_axil_rdata               (qsfp1_axil_rdata),
+    .qsfp1_axil_rresp               (qsfp1_axil_rresp),
+    .qsfp1_axil_rvalid              (qsfp1_axil_rvalid),
+    .qsfp1_axil_rready              (qsfp1_axil_rready),
+    .qsfp1_axi_rst                  (qsfp1_axi_rst),
+    .qsfp1_axi_clk                  (qsfp1_axi_clk),
+    .qsfp1_axi_araddr               (qsfp1_axi_araddr),
+    .qsfp1_axi_arburst              (qsfp1_axi_arburst),
+    .qsfp1_axi_arcache              (qsfp1_axi_arcache),
+    .qsfp1_axi_arlen                (qsfp1_axi_arlen),
+    .qsfp1_axi_arlock               (qsfp1_axi_arlock),
+    .qsfp1_axi_arprot               (qsfp1_axi_arprot),
+    .qsfp1_axi_arqos                (qsfp1_axi_arqos),
+    .qsfp1_axi_arready              (qsfp1_axi_arready),
+    .qsfp1_axi_arsize               (qsfp1_axi_arsize),
+    .qsfp1_axi_arvalid              (qsfp1_axi_arvalid),
+    .qsfp1_axi_awaddr               (qsfp1_axi_awaddr),
+    .qsfp1_axi_awburst              (qsfp1_axi_awburst),
+    .qsfp1_axi_awcache              (qsfp1_axi_awcache),
+    .qsfp1_axi_awlen                (qsfp1_axi_awlen),
+    .qsfp1_axi_awlock               (qsfp1_axi_awlock),
+    .qsfp1_axi_awprot               (qsfp1_axi_awprot),
+    .qsfp1_axi_awqos                (qsfp1_axi_awqos),
+    .qsfp1_axi_awready              (qsfp1_axi_awready),
+    .qsfp1_axi_awsize               (qsfp1_axi_awsize),
+    .qsfp1_axi_awvalid              (qsfp1_axi_awvalid),
+    .qsfp1_axi_bready               (qsfp1_axi_bready),
+    .qsfp1_axi_bresp                (qsfp1_axi_bresp),
+    .qsfp1_axi_bvalid               (qsfp1_axi_bvalid),
+    .qsfp1_axi_rdata                (qsfp1_axi_rdata),
+    .qsfp1_axi_rlast                (qsfp1_axi_rlast),
+    .qsfp1_axi_rready               (qsfp1_axi_rready),
+    .qsfp1_axi_rresp                (qsfp1_axi_rresp),
+    .qsfp1_axi_rvalid               (qsfp1_axi_rvalid),
+    .qsfp1_axi_wdata                (qsfp1_axi_wdata),
+    .qsfp1_axi_wlast                (qsfp1_axi_wlast),
+    .qsfp1_axi_wready               (qsfp1_axi_wready),
+    .qsfp1_axi_wstrb                (qsfp1_axi_wstrb),
+    .qsfp1_axi_wvalid               (qsfp1_axi_wvalid),
+    .s_dma_tdata                    (s_dma_tdata),
+    .s_dma_tlast                    (s_dma_tlast),
+    .s_dma_tvalid                   (s_dma_tvalid),
+    .s_dma_tready                   (s_dma_tready),
+    .m_dma_tdata                    (m_dma_tdata),
+    .m_dma_tlast                    (m_dma_tlast),
+    .m_dma_tvalid                   (m_dma_tvalid),
+    .m_dma_tready                   (m_dma_tready)
   );
 
 endmodule
