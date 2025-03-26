@@ -137,7 +137,7 @@ UHD_INLINE socket_sptr open_udp_socket(
 }
 
 UHD_INLINE size_t recv_udp_packet(
-    int sock_fd, void* mem, size_t frame_size, int32_t timeout_ms, int *error_code)
+    int sock_fd, void* mem, size_t frame_size, int32_t timeout_ms)
 {
     ssize_t len;
 
@@ -154,7 +154,6 @@ UHD_INLINE size_t recv_udp_packet(
             throw uhd::io_error("socket closed");
         }
         if (len < 0) {
-            *error_code = errno;
             throw uhd::io_error(
                 str(boost::format("recv error on socket: %s") % strerror(errno)));
         }

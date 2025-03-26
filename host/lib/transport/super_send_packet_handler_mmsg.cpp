@@ -956,6 +956,11 @@ public:
     void disable_blocking_fc() {
         send_packet_handler_mmsg::disable_blocking_fc();
     }
+
+    void post_output_action(const std::shared_ptr<uhd::rfnoc::action_info>&, const size_t) override
+    {
+        throw uhd::not_implemented_error("post_output_action is not implemented for this device");
+    }
 };
 
 } // namespace sph

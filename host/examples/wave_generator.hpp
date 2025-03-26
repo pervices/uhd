@@ -20,6 +20,7 @@
 #include <math.h>
 #include <numeric>
 #include <uhd/utils/log.hpp>
+#include <uhd/exception.hpp>
 #include <fstream>
 
 // Datatype of the samples to be include (float for fc32, short for sc16...)
@@ -49,6 +50,8 @@ private:
     std::vector<double> _amplitude_multiplier;
     // Indicates whether or not a calibration file was provided
     bool _calibration_enabled;
+
+    double _power_dbfs = 0;
 public:
     /**
      * @param wave_type The waveform to generate
@@ -229,6 +232,14 @@ public:
             }
             return fundamental_period;
         }
+    }
+
+    //! Return the signal power in dBFS
+    inline double get_power() const
+    {
+        // TODO: implement
+        throw uhd::not_implemented_error("Getting wave power not implemented yet");
+        return _power_dbfs;
     }
 
 private:

@@ -11,7 +11,6 @@
 #include <uhdlib/transport/udp_common.hpp>
 #include <uhdlib/utils/atomic.hpp>
 #include <boost/format.hpp>
-
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -71,13 +70,13 @@ public:
         _claimer.release();
     }
 
-    UHD_INLINE sptr get_new(const double timeout, size_t& index, int *error_code)
+    UHD_INLINE sptr get_new(const double timeout, size_t& index)
     {
         if (not _claimer.claim_with_wait(timeout))
             return sptr();
 
         const int32_t timeout_ms = static_cast<int32_t>(timeout * 1000);
-        _len = recv_udp_packet(_sock_fd, _mem, _frame_size, timeout_ms, error_code);
+        _len = recv_udp_packet(_sock_fd, _mem, _frame_size, timeout_ms);
 
         if (_len > 0) {
             index++;
@@ -101,7 +100,6 @@ private:
  *  - commit performs the send operation
  **********************************************************************/
 class udp_zero_copy_asio_msb : public managed_send_buffer
-
 {
 public:
     udp_zero_copy_asio_msb(void* mem, int sock_fd, const size_t frame_size)
@@ -109,26 +107,16 @@ public:
     { /*NOP*/
     }
 
-
-    void release(void){
+    void release(void) override
+    {
+        send_udp_packet(_sock_fd, _mem, size());
         _claimer.release();
-    }
-
-    // Override base class get_socket function
-    UHD_INLINE int get_socket(void) {
-        return _sock_fd;
-    }
-
-    UHD_INLINE void get_iov(iovec &iov) {
-        iov.iov_base = _mem;
-        iov.iov_len = _frame_size;
     }
 
     UHD_INLINE sptr get_new(const double timeout, size_t& index)
     {
         if (not _claimer.claim_with_wait(timeout))
             return sptr();
-
         index++; // advances the caller's buffer
         return make(this, _mem, _frame_size);
     }
@@ -208,11 +196,11 @@ public:
      * Receive implementation:
      * Block on the managed buffer's get call and advance the index.
      ******************************************************************/
-    managed_recv_buffer::sptr get_recv_buff(double timeout, int *error_code) override
+    managed_recv_buffer::sptr get_recv_buff(double timeout) override
     {
         if (_next_recv_buff_index == _num_recv_frames)
             _next_recv_buff_index = 0;
-        return _mrb_pool[_next_recv_buff_index]->get_new(timeout, _next_recv_buff_index, error_code);
+        return _mrb_pool[_next_recv_buff_index]->get_new(timeout, _next_recv_buff_index);
     }
 
     size_t get_num_recv_frames(void) const override
@@ -280,7 +268,7 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
 {
     // Initialize xport_params
     zero_copy_xport_params xport_params = default_buff_args;
-    
+
     xport_params.recv_frame_size =
         size_t(hints.cast<double>("recv_frame_size", default_buff_args.recv_frame_size));
     xport_params.num_recv_frames =
@@ -293,7 +281,7 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
         size_t(hints.cast<double>("recv_buff_size", default_buff_args.recv_buff_size));
     xport_params.send_buff_size =
         size_t(hints.cast<double>("send_buff_size", default_buff_args.send_buff_size));
-        
+
     if (xport_params.num_recv_frames == 0) {
         UHD_LOG_TRACE(
             "UDP", "Default value for num_recv_frames: " << UDP_DEFAULT_NUM_FRAMES);
@@ -330,7 +318,7 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
         xport_params.send_buff_size = std::max(
             UDP_DEFAULT_BUFF_SIZE, xport_params.num_send_frames * MAX_ETHERNET_MTU);
     }
-    
+
 #if defined(UHD_PLATFORM_MACOS) || defined(UHD_PLATFORM_BSD)
     // limit default buffer size on macos to avoid the warning issued by
     // resize_buff_helper
@@ -352,7 +340,6 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
         [udp_trans](size_t size) { return udp_trans->resize_recv_socket_buffer(size); },
         xport_params.recv_buff_size,
         "recv");
-
     buff_params_out.send_buff_size = resize_udp_socket_buffer_with_warning(
         [udp_trans](size_t size) { return udp_trans->resize_send_socket_buffer(size); },
         xport_params.send_buff_size,

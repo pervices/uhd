@@ -9,6 +9,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -249,7 +250,7 @@ void send_from_file(
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // variables to be set by po
-    std::string args, file, type, ant, subdev, ref, wirefmt, channel;
+    std::string args, file, type, ant, subdev, ref, wirefmt, channels;
     size_t spb, max_buffer, single_channel = 0;
     double rate, freq, gain, power, bw, delay, lo_offset = 0;
 

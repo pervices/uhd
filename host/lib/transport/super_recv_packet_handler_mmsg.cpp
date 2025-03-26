@@ -755,6 +755,11 @@ public:
     UHD_INLINE void issue_stream_cmd(const stream_cmd_t& stream_cmd) {
         recv_packet_handler_mmsg::issue_stream_cmd(stream_cmd);
     }
+
+    void post_input_action(const std::shared_ptr<uhd::rfnoc::action_info>&, const size_t) override
+    {
+        throw uhd::not_implemented_error("post_output_action is not implemented for this device");
+    }
 };
 
 }}} // namespace uhd::transport::sph

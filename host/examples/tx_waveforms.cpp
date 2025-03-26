@@ -229,9 +229,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 return EXIT_FAILURE;
             }
             std::cout << "Setting TX output power: " << power << " dBm..." << std::endl;
-            usrp->set_tx_power_reference(power - wave_table.get_power(), channel);
+            usrp->set_tx_power_reference(power - wave_generator.get_power(), channel);
             std::cout << "Actual TX output power: "
-                      << usrp->get_tx_power_reference(channel) + wave_table.get_power()
+                      << usrp->get_tx_power_reference(channel) + wave_generator.get_power()
                       << " dBm..." << std::endl;
             if (vm.count("gain")) {
                 std::cout << "WARNING: If you specify both --power and --gain, "
