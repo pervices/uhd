@@ -100,16 +100,32 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
         << stream_cmd.time_spec.get_real_secs() << std::endl;
 #endif
 
-	uhd::usrp::rx_stream_cmd rx_stream_cmd;
+    uint8_t packet_buffer2[512];
+    memset(packet_buffer2, 0, 512);
+	uhd::usrp::rx_stream_cmd* rx_stream_cmd = (uhd::usrp::rx_stream_cmd*) packet_buffer2;
 
     if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
         UHD_LOGGER_WARNING("STREAM_CMD_ISSUER") << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
         stream_cmd.stream_now = true;
     }
 
-    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
+    // Due to FPGA issues send a stop command before the actual command
+    // The issue is most likely to occur with 1Gsps JESD and 100G SFP
+    // See issue 14110 note 27
+    uhd::stream_cmd_t clear_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+    clear_stream_cmd.num_samps  = 0;
+    clear_stream_cmd.stream_now = stream_cmd.stream_now;
+    clear_stream_cmd.time_spec  = stream_cmd.time_spec;
+    uint8_t packet_buffer1[512];
+    memset(packet_buffer1, 0, 512);
+    uhd::usrp::rx_stream_cmd* clear_rx_stream_cmd_packet = (uhd::usrp::rx_stream_cmd*) packet_buffer1;
+    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( clear_stream_cmd, *clear_rx_stream_cmd_packet );
 
-    command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
+    // Conver the user provided struct to a packet
+    uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, *rx_stream_cmd );
+
+    // command_socket->send( packet_buffer1, 512 );
+    command_socket->send( packet_buffer2, 512 );
 }
 
 stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
