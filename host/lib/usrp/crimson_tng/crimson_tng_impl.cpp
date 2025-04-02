@@ -469,17 +469,15 @@ inline void crimson_tng_impl::make_time_diff_packet( time_diff_req & pkt, time_s
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
 void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 
-    uint8_t packet_buffer[512];
-    memset(packet_buffer, 0, 512);
-	time_diff_req* pkt = (time_diff_req*) packet_buffer;
+	time_diff_req pkt;
 
 	// Input to Process (includes feedback from PID Controller)
 	make_time_diff_packet(
-		*pkt,
+		pkt,
 		crimson_now
 	);
 
-    _time_diff_iface[_which_time_diff_iface]->send( packet_buffer, 512 );
+    _time_diff_iface->send( &pkt, sizeof( pkt ) );
 }
 
 bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
