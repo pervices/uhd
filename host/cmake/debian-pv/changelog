@@ -1,3 +1,9 @@
+uhdpv (4.4.0.69-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fix compliation with CMake 4
+
+ -- Per Vices <packages@pervices.com>  Wed, 02 Apr 2025 11:31:45 -0400
+
 uhdpv (4.4.0.68-0ubuntu1) ubuntu_release; urgency=low
 
   * Implemented gain ranges on Crimson
