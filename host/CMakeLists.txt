@@ -7,7 +7,7 @@
 
 # NOTE! If you change the version in the following line, also change
 # UHD_CMAKE_MIN_VERSION in UHDMinDepVersions. (This won't take a variable).
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.16)
 if(POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW) # Suppress Version warnings
 endif(POLICY CMP0048)

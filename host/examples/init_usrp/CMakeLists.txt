@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.16)
 project(INIT_USRP CXX)
 
 ### Configure Compiler ########################################################
