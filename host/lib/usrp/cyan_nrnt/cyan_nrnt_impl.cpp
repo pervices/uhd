@@ -484,8 +484,8 @@ static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = 
 
 void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int xg_intf) {
 
-    uint8_t packet_buffer[512];
-    memset(packet_buffer, 0, 512);
+    uint8_t packet_buffer[256];
+    memset(packet_buffer, 0, 256);
 	time_diff_req* pkt = (time_diff_req*) packet_buffer;
 
 	// Input to Process (includes feedback from PID Controller)
@@ -497,7 +497,7 @@ void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now, int x
     if (xg_intf >= NUMBER_OF_XG_CONTROL_INTF) {
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
-	_time_diff_iface[xg_intf]->send( packet_buffer, 512 );
+	_time_diff_iface[xg_intf]->send( packet_buffer, 256 );
 }
 
 bool cyan_nrnt_impl::time_diff_recv( time_diff_resp & tdr, int xg_intf ) {
