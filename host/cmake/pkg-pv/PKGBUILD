@@ -57,7 +57,6 @@ build() {
        -DENABLE_USB=OFF \
        -DENABLE_LIBURING=OFF \
        -DENABLE_RFNOC=OFF \
-       -DENABLE_PYMOD_UTILS=OFF \
        ..
     make -j$(nproc)
 }
