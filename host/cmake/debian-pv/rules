@@ -11,10 +11,14 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
                                         -DENABLE_N300="OFF" \
                                         -DENABLE_E320="OFF" \
                                         -DENABLE_USRP1="OFF" \
-                                        -DENABLE_USRP2="ON" \
+                                        -DENABLE_USRP2="OFF" \
                                         -DENABLE_B200="OFF" \
                                         -DENABLE_B100="OFF" \
                                         -DENABLE_X300="OFF" \
+                                        -DENABLE_MPMD="OFF" \
+                                        -DENABLE_SIM="OFF" \
+                                        -DENABLE_E300="OFF" \
+                                        -DENABLE_X400="OFF" \
                                         -DENABLE_OCTOCLOCK="OFF" \
                                         -DENABLE_DOXYGEN="OFF" \
                                         -DENABLE_USB="OFF" \
