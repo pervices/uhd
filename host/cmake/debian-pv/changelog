@@ -1,3 +1,10 @@
+uhdpv (4.8.0.1-0ubuntu1) ubuntu_release; urgency=low
+
+  * Merge with upstream liburing 4.8
+  * Added an (optional) feature to use liburing for improved rx performance. To enable compile with the cmake flag "-DENABLE_LIBURING"
+
+ -- Per Vices <packages@pervices.com>  Thu, 03 Apr 2025 15:50:43 -0400
+
 uhdpv (4.4.0.69-0ubuntu1) ubuntu_release; urgency=low
 
   * Fix compliation with CMake 4
