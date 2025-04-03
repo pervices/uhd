@@ -100,8 +100,8 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
         << stream_cmd.time_spec.get_real_secs() << std::endl;
 #endif
 
-    uint8_t packet_buffer2[64];
-    memset(packet_buffer2, 0, 64);
+    uint8_t packet_buffer2[128];
+    memset(packet_buffer2, 0, 128);
 	uhd::usrp::rx_stream_cmd* rx_stream_cmd = (uhd::usrp::rx_stream_cmd*) packet_buffer2;
 
     if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
@@ -116,8 +116,8 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     clear_stream_cmd.num_samps  = 0;
     clear_stream_cmd.stream_now = stream_cmd.stream_now;
     clear_stream_cmd.time_spec  = stream_cmd.time_spec;
-    uint8_t packet_buffer1[64];
-    memset(packet_buffer1, 0, 64);
+    uint8_t packet_buffer1[128];
+    memset(packet_buffer1, 0, 128);
     uhd::usrp::rx_stream_cmd* clear_rx_stream_cmd_packet = (uhd::usrp::rx_stream_cmd*) packet_buffer1;
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( clear_stream_cmd, *clear_rx_stream_cmd_packet );
 
@@ -125,7 +125,7 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, *rx_stream_cmd );
 
     // command_socket->send( packet_buffer1, 512 );
-    command_socket->send( packet_buffer2, 64 );
+    command_socket->send( packet_buffer2, 128 );
 }
 
 stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
