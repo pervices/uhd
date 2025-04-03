@@ -239,12 +239,13 @@ sensor_value_t pv_iface::get_sensor_value(std::string req) {
         }
     }
 
-    // Result good if reply does not contain unlocked or bad
-    bool sensor_good = (reply.find("unlocked") == std::string::npos) && (reply.find("bad") == std::string::npos);
+    bool sensor_good = (reply.find(/* lmk_lockdetect */"unlocked") == std::string::npos) && (reply.find(/* lmk_lossoflock */"Interrupted") == std::string::npos)&& (reply.find(/* rfpll_lock */"bad") == std::string::npos);
 
     // Determines the sensor name based on the path
     if(req.find("lmk_lockdetect") != std::string::npos) {
         return sensor_value_t( "Reference", sensor_good, "locked", "unlocked" );
+    } else if(req.find("lmk_lossoflock") != std::string::npos) {
+        return sensor_value_t( "Ref_loss_off_lock", sensor_good, "continuous", "interrupted" );
     } else if(req.find("rfpll_lock") != std::string::npos) {
         return sensor_value_t( "rfpll", sensor_good, "locked", "unlocked" );
     } else {
