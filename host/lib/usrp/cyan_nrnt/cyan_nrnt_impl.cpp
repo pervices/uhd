@@ -1033,7 +1033,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "clock_source" / "output", bool, true);
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "time_source"  / "output", bool, true);
 
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
+    // Checks if the device is locked to the reference
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value);
+    // Checks if the device was ever not locked to the reference
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sensors" / "lmk_lossoflock", "time/status/lmk_lossoflock", sensor_value_t, sensor_value);
 
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
