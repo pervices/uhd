@@ -21,6 +21,8 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
                                         -DENABLE_X400="OFF" \
                                         -DENABLE_OCTOCLOCK="OFF" \
                                         -DENABLE_DOXYGEN="OFF" \
+                                        -DENABLE_MAN_PAGES="OFF" \
+                                        -DENABLE_MANUAL="OFF"\
                                         -DENABLE_USB="OFF" \
                                         -DENABLE_TESTS="OFF" \
                                         -DPKG_LIB_DIR="/usr/lib/uhd" \
