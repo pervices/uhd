@@ -721,7 +721,8 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 	#pragma pack(push,1)
 	struct fifo_lvl_req {
 		uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
-		//uint64_t cookie;
+		// Padding to keep this packet consistent with Cyan
+		uint8_t padding[16];
 	};
 	#pragma pack(pop)
 
@@ -738,6 +739,8 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
 	fifo_lvl_req req;
 	fifo_lvl_rsp rsp;
+
+    memset(&req, 0, sizeof(fifo_lvl_req));
 
 	req.header = (uint64_t)0x10001 << 16;
 	req.header |= (channel & 0xffff);
