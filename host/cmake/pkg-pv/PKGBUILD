@@ -56,7 +56,7 @@ build() {
        -DENABLE_DOXYGEN=OFF \
        -DENABLE_USB=OFF \
        -DENABLE_LIBURING=OFF \
-       -DENABLE_RFNOC=OFF \
+       -DENABLE_RFNOC=ON \
        -DENABLE_PYMOD_UTILS=OFF \
        ..
     make -j$(nproc)
