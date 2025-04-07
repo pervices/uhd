@@ -993,6 +993,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         _which_time_diff_iface = 0;
     }
 
+    _which_time_diff_iface = 1;
+
     // This is the master clock rate
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
 
