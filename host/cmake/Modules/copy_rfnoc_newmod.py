@@ -24,6 +24,7 @@ def parse_args():
 
 
 def main():
+    PRINT("A1")
     """Do the copying."""
     args = parse_args()
     # Load the step configuratio as a Python object
@@ -43,6 +44,7 @@ def main():
         executor_vars, args, cmd
     )
     executor.run(cmd["steps"])
+    PRINT("A500")
     return 0
 
 
