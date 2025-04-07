@@ -32,19 +32,19 @@ if(ENABLE_PYMOD_UTILS)
         COMPONENT utilities
     )
 
-    file(GLOB_RECURSE RFNOC_GAIN_OOT_FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/apps/CMakeLists.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/cmake/*
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/CMakeLists.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/examples/CMakeLists.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/fpga/gain/CMakeLists.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/include/rfnoc/gain/CMakeLists.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/lib/CMakeLists.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/python/*
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/README.md
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/rfnoc/CMakeLists.txt
-        ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/rfnoc/blocks/CMakeLists.txt
-        )
+    # file(GLOB_RECURSE RFNOC_GAIN_OOT_FILES
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/apps/CMakeLists.txt
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/cmake/*
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/CMakeLists.txt
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/examples/CMakeLists.txt
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/fpga/gain/CMakeLists.txt
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/include/rfnoc/gain/CMakeLists.txt
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/lib/CMakeLists.txt
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/python/*
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/README.md
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/rfnoc/CMakeLists.txt
+    #     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/rfnoc/blocks/CMakeLists.txt
+    #     )
 
     # add_custom_target(
     #     rfnoc_newmod ALL
@@ -56,10 +56,10 @@ if(ENABLE_PYMOD_UTILS)
     #     "--module-dir" "${CMAKE_CURRENT_SOURCE_DIR}/../python/uhd"
     #     COMMENT "Generating rfnoc-newmod"
     # )
-    install(DIRECTORY
-        ${CMAKE_CURRENT_BINARY_DIR}/rfnoc-newmod
-        DESTINATION ${PKG_DATA_DIR}
-        COMPONENT utilities)
+    # install(DIRECTORY
+    #     ${CMAKE_CURRENT_BINARY_DIR}/rfnoc-newmod
+    #     DESTINATION ${PKG_DATA_DIR}
+    #     COMPONENT utilities)
 endif(ENABLE_PYMOD_UTILS)
 
 ########################################################################
