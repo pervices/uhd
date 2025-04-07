@@ -46,16 +46,16 @@ if(ENABLE_PYMOD_UTILS)
         ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/rfnoc/blocks/CMakeLists.txt
         )
 
-    add_custom_target(
-        rfnoc_newmod ALL
-        DEPENDS ${RFNOC_GAIN_OOT_FILES}
-        COMMAND
-        "${PYTHON_EXECUTABLE}" "${UHD_SOURCE_DIR}/cmake/Modules/copy_rfnoc_newmod.py"
-        "--source" "${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain"
-        "--dest" "${CMAKE_CURRENT_BINARY_DIR}/rfnoc-newmod"
-        "--module-dir" "${CMAKE_CURRENT_SOURCE_DIR}/../python/uhd"
-        COMMENT "Generating rfnoc-newmod"
-    )
+    # add_custom_target(
+    #     rfnoc_newmod ALL
+    #     DEPENDS ${RFNOC_GAIN_OOT_FILES}
+    #     COMMAND
+    #     "${PYTHON_EXECUTABLE}" "${UHD_SOURCE_DIR}/cmake/Modules/copy_rfnoc_newmod.py"
+    #     "--source" "${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain"
+    #     "--dest" "${CMAKE_CURRENT_BINARY_DIR}/rfnoc-newmod"
+    #     "--module-dir" "${CMAKE_CURRENT_SOURCE_DIR}/../python/uhd"
+    #     COMMENT "Generating rfnoc-newmod"
+    # )
     install(DIRECTORY
         ${CMAKE_CURRENT_BINARY_DIR}/rfnoc-newmod
         DESTINATION ${PKG_DATA_DIR}
