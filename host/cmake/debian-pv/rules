@@ -24,6 +24,7 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
                                         -DENABLE_UTILS="ON" \
                                         -DENABLE_DPDK="OFF" \
                                         -DENABLE_LIBURING="OFF" \
+                                        -DENABLE_PYMOD_UTILS="OFF" \
                                         -DPYTHON_EXECUTABLE=/usr/bin/python3 \
                                         -DUHD_PYTHON_DIR="lib/python3/dist-packages"")
 
