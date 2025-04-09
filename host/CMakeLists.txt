@@ -379,9 +379,6 @@ UHD_PYTHON_CHECK_MODULE_VERSION(
     HAVE_PYTHON_MODULE_YAML
 )
 
-# DEBUG: always pretend yaml is not found
-set(HAVE_PYTHON_MODULE_YAML FALSE)
-
 ########################################################################
 # Check liburing
 ########################################################################
