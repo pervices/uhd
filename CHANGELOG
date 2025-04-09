@@ -2863,6 +2863,14 @@ tests: Fix mock_ctrl_iface for 32-bit MSVC
 * Debian: Update control files
 * Images: Add N3xx CPLD file to manifest
 
+## 003.013.000.002
+* N3xx: Fix issue where changing the clock/time source could result in
+        clocks becoming unlocked
+* N3xx: Improve error messages for invalid clock/time settings
+* N3xx: Add support for Rev G mboard
+* MPM: Add function parameter to support holding AD9371 in reset
+* Docs: Add section on building fs/SD images for N3xx
+* Docs: Fix Doxygen warnings
 
 ## 003.013.000.001
 * N3xx: Fix UIO usage in Aurora BIST
@@ -2890,7 +2898,6 @@ tests: Fix mock_ctrl_iface for 32-bit MSVC
        Ethernet devices
 * CMake: Allow to override UHD_GIT_BRANCH, fix Python-finding logic, add
          ENABLE_N300 target
-
 
 ## 003.012.000.000
 * N3x0: Add White Rabbit support, add N300 support, standard BIST
