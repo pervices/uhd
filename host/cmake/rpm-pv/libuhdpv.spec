@@ -63,7 +63,7 @@ source /opt/rh/gcc-toolset-13/enable
 find . -type f -name "*.py" -exec sed -i '/^#!/ s|.*|#!%{__python3}|' {} \;
 mkdir -p host/build
 pushd host/build
-%cmake %{?have_neon} -DPKG_LIB_DIR="/usr/lib/uhd" -DCMAKE_INSTALL_PREFIX="/usr" -DENABLE_CRIMSON_TNG="ON" -DENABLE_EXAMPLES="ON" -DENABLE_TESTS="OFF"  -DENABLE_N300="OFF"  -DENABLE_E320="OFF" -DENABLE_USRP1="OFF" -DENABLE_B200="OFF" -DENABLE_X300="OFF" -DENABLE_OCTOCLOCK="OFF" -DENABLE_DOXYGEN="OFF" -DENABLE_LIBURING="OFF" \
+%cmake %{?have_neon} -DPKG_LIB_DIR="/usr/lib/uhd" -DCMAKE_INSTALL_PREFIX="/usr" -DENABLE_CRIMSON_TNG="ON" -DENABLE_EXAMPLES="ON" -DENABLE_TESTS="OFF"  -DENABLE_N300="OFF"  -DENABLE_E320="OFF" -DENABLE_USRP1="OFF" -DENABLE_B200="OFF" -DENABLE_X300="OFF" -DENABLE_OCTOCLOCK="OFF" -DENABLE_DOXYGEN="OFF" -DENABLE_LIBURING="OFF" -DENABLE_PYTHON_API="ON" \
  ../
 make %{?_smp_mflags}
 #make -j1 
