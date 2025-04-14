@@ -33,7 +33,7 @@
 
 // Target number of sample bytes per packets for recv
 // WIP: must follow certain constraints, likely to be either a multiple of page size of multiple of 512
-#define CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES 8192
+#define CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES 4096
 
 // Maximum number of bytes used to store sample data when receiving when unable to get it from the server
 #define CYAN_NRNT_FALLBACK_MAX_NBYTES 8880
