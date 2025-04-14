@@ -67,7 +67,7 @@ check() {
 }
 
 package() {
-    depends=('python3' 'boost-libs' 'glibc' 'gcc-libs' 'libusb')
+    depends=('python' 'python-numpy' 'boost-libs' 'glibc' 'gcc-libs' 'libusb')
     cd "$srcdir/$_gitname/host/build"
     make DESTDIR="$pkgdir" install
     install -Dm644 "../utils/uhd-usrp.rules" "$pkgdir/usr/lib/udev/rules.d/10-uhd-usrp.rules"

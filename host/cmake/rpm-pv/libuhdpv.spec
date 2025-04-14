@@ -43,6 +43,7 @@ BuildRequires:  python%{python3_pkgversion}-mako, python%{python3_pkgversion}-re
 BuildRequires: sed
 %endif
 Requires(pre):  shadow-utils, glibc-common
+Requires:  python%{python3_pkgversion}-numpy
 Summary:        Universal Hardware Driver for Ettus Research products
 #Source0:       %%{url}/archive/v%%{version}/uhd-%%{version}.tar.gz
 Source0:        uhdpv.tar.gz
