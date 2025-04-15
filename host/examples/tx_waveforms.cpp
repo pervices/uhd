@@ -364,11 +364,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
             // Locates where in the buffer to use samples from
             for(auto& buff_ptr : buffs) {
-                if(fundamental_period != 0) {
-                    buff_ptr = &buff[num_acc_samps % fundamental_period];
-                } else {
+                // if(fundamental_period != 0) {
+                    // buff_ptr = &buff[num_acc_samps % fundamental_period];
+                // } else {
                     buff_ptr = &buff.front();
-                }
+                // }
             }
 
             size_t max_samples_to_send;
