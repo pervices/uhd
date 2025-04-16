@@ -476,6 +476,8 @@ private:
         }
     }
 
+    bool first_send = true;
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -511,7 +513,7 @@ private:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
-            if(metadata_.has_time_spec) {
+            if(metadata_.has_time_spec && first_send) {
                 // Sets the timestamp based on what's specified by the user
                 packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
             } else {
@@ -719,6 +721,10 @@ private:
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
             }
+        }
+
+        if(samples_sent > 0) {
+            first_send = false;
         }
 
         if(is_eob_send) {
