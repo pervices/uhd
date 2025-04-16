@@ -478,6 +478,7 @@ private:
 
     bool first_send = true;
     bool msg1_printed = false;
+    bool msg2_printed = false;
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -738,6 +739,10 @@ private:
             // The samples in an eob are unused, they only exist because the FPGA can't handle 0 samples per packet
             return 0;
         } else {
+            if(!msg2_printed && samples_sent != nsamps_to_send) {
+                msg2_printed = true;
+                printf("samples_sent: %lu, nsamps_to_send: %lu\n", samples_sent, nsamps_to_send);
+            }
             return samples_sent;
         }
     }
