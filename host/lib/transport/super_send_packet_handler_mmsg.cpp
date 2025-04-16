@@ -477,6 +477,7 @@ private:
     }
 
     bool first_send = true;
+    bool second_send = false;
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -723,7 +724,8 @@ private:
             }
         }
 
-        if(samples_sent > 0) {
+        if(samples_sent > 0 && first_send) {
+            printf("samples_sent: %lu\n", samples_sent);
             first_send = false;
         }
 
