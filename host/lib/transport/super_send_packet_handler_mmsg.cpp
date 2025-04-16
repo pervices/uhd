@@ -477,7 +477,7 @@ private:
     }
 
     bool first_send = true;
-    bool second_send = false;
+    bool msg1_printed = false;
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -722,6 +722,11 @@ private:
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
             }
+        }
+
+        if(!msg1_printed&& ! first_send) {
+            printf("metadata_.has_time_spec: %hhu\n", metadata_.has_time_spec);
+            msg1_printed = true;
         }
 
         if(samples_sent > 0 && first_send) {
