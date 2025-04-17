@@ -727,11 +727,13 @@ private:
 
         if(!msg1_printed&& ! first_send) {
             printf("metadata_.has_time_spec: %hhu\n", metadata_.has_time_spec);
+            printf("send 2 metadata_.time_spec.get_frac_secs(): %lf\n", metadata_.time_spec.get_frac_secs());
             msg1_printed = true;
         }
 
         if(samples_sent > 0 && first_send) {
             printf("samples_sent: %lu\n", samples_sent);
+            printf("send 1 metadata_.time_spec.get_frac_secs(): %lf\n", metadata_.time_spec.get_frac_secs());
             first_send = false;
         }
 
