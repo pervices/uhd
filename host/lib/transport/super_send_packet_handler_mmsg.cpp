@@ -489,6 +489,9 @@ private:
         // Call this function for sending eob packet (which only contains dummy samples)
         const bool is_eob_send = false
     ) {
+        if(first_send) {
+            printf("first nsamps_to_send: %lu\n", nsamps_to_send);
+        }
 
         // Number of packets to send
         int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
