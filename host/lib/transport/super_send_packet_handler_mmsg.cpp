@@ -652,7 +652,7 @@ private:
 
                 int num_packets_sent_this_send;
                 // Check if timestamp of next packet to send is in the past
-                if((int64_t)packet_header_infos[num_packets_alread_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) || packet_header_infos[num_packets_alread_sent].sob || packet_header_infos[num_packets_alread_sent].eob || !packet_header_infos[num_packets_alread_sent].has_tsf || use_blocking_fc) {
+                if(packet_header_infos[num_packets_alread_sent].sob || packet_header_infos[num_packets_alread_sent].eob || !packet_header_infos[num_packets_alread_sent].has_tsf || use_blocking_fc) {
                     // If not in the past, send packets
                     // Ignore the check for in the past if using use_blocking_fc since the buffer won't overflow because of latency in get buffer level and trigger streaming which uses it will often have timestamps in the past
                     // TODO: remove !use_blocking_fc workaround once the FPGA can handle packets without timestamps
